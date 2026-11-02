@@ -2,6 +2,8 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import fastify, { FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
+import { authPlugin } from './plugins/auth';
+import { authRoutes } from './routes/auth';
 
 export function buildServer(): FastifyInstance {
   const server = fastify({
@@ -20,6 +22,12 @@ export function buildServer(): FastifyInstance {
     origin: process.env.WEB_ORIGIN || 'http://localhost:5173',
     credentials: true,
   });
+
+  // Authentication & Session Plugin
+  server.register(authPlugin);
+
+  // Authentication routes
+  server.register(authRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

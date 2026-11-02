@@ -70,6 +70,7 @@ Record each review:
 | 2026-10-27 | P0 | Claude | Conditionally approved (F1–F6 required before M0/M1/M2) | R-014, R-015, R-016, R-017 |
 | 2026-10-27 | P0 (re-review) | Claude | Conditional approval for M0/M1; M2 gated on ADR-001 (A1–A7); valuations gated on G1–G5 & QS sign-off | R-018, R-019, R-020 |
 | 2026-11-02 | M0 | Gemini | Completed and verified (13/13 tests green, 0 type errors, clean prod build); ready for Claude review | — |
+| 2026-11-02 | M1 | Gemini | Completed and verified (26/26 tests green across 5 suites, auth flow, Prisma 6 schema, login & dashboard UI); ready for Claude review | — |
 
 ## Closed items
 

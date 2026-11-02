@@ -1,5 +1,6 @@
 export const Roles = {
   ADMIN: 'ADMIN',
+  COMPANY_ADMIN: 'COMPANY_ADMIN',
   PM_QS: 'PM_QS',
   SITE_SUPERVISOR: 'SITE_SUPERVISOR',
   CLIENT: 'CLIENT',
@@ -106,7 +107,37 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.REPORT_GENERATE,
     Permissions.REPORT_VIEW,
   ],
+  [Roles.COMPANY_ADMIN]: [
+    Permissions.PROJECT_CREATE,
+    Permissions.PROJECT_VIEW,
+    Permissions.PROJECT_EDIT,
+    Permissions.BOQ_IMPORT,
+    Permissions.BOQ_VIEW,
+    Permissions.BOQ_EDIT,
+    Permissions.COST_CREATE,
+    Permissions.COST_VIEW,
+    Permissions.COST_APPROVE,
+    Permissions.SITE_DIARY_CREATE,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_RECORD,
+    Permissions.PROGRESS_VIEW,
+    Permissions.VARIATION_REQUEST,
+    Permissions.VARIATION_REVIEW,
+    Permissions.VARIATION_APPROVE,
+    Permissions.REPORT_GENERATE,
+    Permissions.REPORT_VIEW,
+    Permissions.COMPANY_INVITE,
+    Permissions.COMPANY_MANAGE,
+  ],
 };
+
+/**
+ * Returns all permissions granted to a given role.
+ */
+export function getPermissionsForRole(role: Role | string): readonly Permission[] {
+  const allowed = RolePermissionsMap[role as Role];
+  return allowed || [];
+}
 
 /**
  * Evaluates whether a role grants a specific permission.

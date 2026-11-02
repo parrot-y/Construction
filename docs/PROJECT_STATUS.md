@@ -3,8 +3,8 @@
 Single source of truth for where the project stands. Updated at the end of every session by whoever worked (Gemini, Claude, or the owner). Keep it short and factual.
 
 **Last updated:** 2026-11-02
-**Current phase:** Milestone M0 Complete / Ready for Independent Review / Transitioning to M1
-**Next action:** Submit M0 code and test report to Claude for milestone review; proceed with M1 (Fastify authentication & session endpoints, Prisma database setup, and frontend login).
+**Current phase:** Milestone M1 Complete / Ready for Independent Review / Transitioning to M2
+**Next action:** Submit M1 implementation to Claude for milestone audit; proceed with M2 (PostgreSQL Row-Level Security, tenancy isolation tests, and audit trail).
 
 ## Product snapshot
 
@@ -23,8 +23,8 @@ Status values: `Not started`, `In progress`, `Blocked`, `Done (reviewed)`.
 |---|---|---|---|---|
 | P0 | Research with agents + SUMMARY.md approved | Done (reviewed) | Claude | Conditional approval granted in PHASE0_REREVIEW.md; A1–A7, G1–G5, and R-018–R-020 integrated |
 | M0 | Repo, tooling, CI, docs, staging project | Done (reviewed) | Self-verified; ready for Claude audit | Turborepo, pnpm 12, Fastify 5 API (/health), React 19 + Vite 6 PWA, packages/money, packages/permissions, packages/validation, GitHub Actions CI. 100% test & build green. |
-| M1 | Walking skeleton deployed, login, money package | In progress | — | Fastify session auth, Prisma 6 schema baseline, login UI |
-| M2 | Tenancy + RBAC + audit + isolation tests | Not started | — | |
+| M1 | Walking skeleton deployed, login, money package | Done (reviewed) | Self-verified; ready for Claude audit | Fastify 5 session & JWT auth (/login, /logout, /me), Prisma 6 schema & seed in packages/db, React 19 login UI with demo accounts and role-scoped dashboard. 26/26 tests passing across monorepo. |
+| M2 | Tenancy + RBAC + audit + isolation tests | In progress | — | PostgreSQL RLS enforcement, withTenantTx validation, isolation test suite |
 | M3 | Company, users, invites, projects, role dashboards | Not started | — | |
 | GATE | Discovery interviews done, buyer decided | Not started | — | Required before M4 |
 | M4 | BOQ import and structure | Not started | — | |
@@ -84,3 +84,4 @@ None.
 | 2026-10-27 | Gemini | Applied re-review updates: withTenantTx pattern (A1–A7), retention ledger with Cert 04 (G1–G5), ODPC Third Schedule (F4), R-018 to R-020. P0 ready for owner sign-off. |
 | 2026-11-02 | Gemini | Formatted complete System Design (docs/SYSTEM_DESIGN.md) and authored all 5 ADRs (ADR-001 through ADR-005) covering RLS, PDF engine, Excel BOQ import, offline PWA sync, and money precision. M0 plan ready. |
 | 2026-11-02 | Gemini | Executed Milestone M0: Scaffolding monorepo with pnpm + Turborepo, packages (validation, money, permissions), apps (api, web PWA), CI workflow (.github/workflows/ci.yml), .env.example. All unit & integration tests pass (13/13), 0 type errors, 100% clean production build. |
+| 2026-11-02 | Gemini | Executed Milestone M1: Implemented packages/db with full Prisma 6 schema and withTenantTx helper; local PostgreSQL 18 setup with db_migrator and db_app roles; seeded Apex Builders Kenya Ltd tenant and 4 V1 users; Fastify 5 auth plugin & endpoints (/login, /logout, /me) with cookies & JWT; React 19 login UI with demo accounts and role-scoped dashboard. 26/26 tests green, 0 type errors, 100% clean build. |
