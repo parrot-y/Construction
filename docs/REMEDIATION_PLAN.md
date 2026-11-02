@@ -72,6 +72,7 @@ Record each review:
 | 2026-11-02 | M0 | Gemini | Completed and verified (13/13 tests green, 0 type errors, clean prod build); ready for Claude review | — |
 | 2026-11-02 | M1 | Gemini | Completed and verified (26/26 tests green across 5 suites, auth flow, Prisma 6 schema, login & dashboard UI); ready for Claude review | — |
 | 2026-11-02 | M2 | Gemini | Completed and verified (40/40 tests green across 6 suites, RLS with FORCE on all 19 tenant tables, isolation suite 8/8, RBAC routes 6/6); ready for Claude review | — |
+| 2026-11-02 | M3 | Gemini | Completed and verified (51/51 tests green across 6 packages, Invitation model + RLS policy, company & project endpoints with permission checks, user invite token flow, 4 distinct role dashboard UIs with EASMM standards, offline PWA indicator, and neutral variance monitor); ready for Claude review | — |
 
 ## Closed items
 

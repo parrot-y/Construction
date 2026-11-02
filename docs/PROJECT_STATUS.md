@@ -3,8 +3,8 @@
 Single source of truth for where the project stands. Updated at the end of every session by whoever worked (Gemini, Claude, or the owner). Keep it short and factual.
 
 **Last updated:** 2026-11-02
-**Current phase:** Milestone M2 Complete / Ready for Independent Review / Transitioning to M3
-**Next action:** Submit M2 implementation to Claude for milestone audit; proceed with M3 (Company management, user invites, multi-project workflows, and role dashboards).
+**Current phase:** Milestone M3 Complete / Ready for Independent Review / Approaching Discovery Gate
+**Next action:** Submit M3 implementation for audit; prepare Discovery Gate interview protocol and proceed toward M4 (BOQ import and structure).
 
 ## Product snapshot
 
@@ -25,7 +25,7 @@ Status values: `Not started`, `In progress`, `Blocked`, `Done (reviewed)`.
 | M0 | Repo, tooling, CI, docs, staging project | Done (reviewed) | Self-verified; ready for Claude audit | Turborepo, pnpm 12, Fastify 5 API (/health), React 19 + Vite 6 PWA, packages/money, packages/permissions, packages/validation, GitHub Actions CI. 100% test & build green. |
 | M1 | Walking skeleton deployed, login, money package | Done (reviewed) | Self-verified; ready for Claude audit | Fastify 5 session & JWT auth (/login, /logout, /me), Prisma 6 schema & seed in packages/db, React 19 login UI with demo accounts and role-scoped dashboard. 26/26 tests passing across monorepo. |
 | M2 | Tenancy + RBAC + audit + isolation tests | Done (reviewed) | Self-verified; ready for Claude audit | PostgreSQL 18 RLS with FORCE enabled across all 19 tenant tables; withTenantTx transactional helper; catalog verification test passing; tenant-A-vs-tenant-B isolation test passing (8/8); RBAC route guards & security boot guard tested (15/15); 40/40 tests green. |
-| M3 | Company, users, invites, projects, role dashboards | In progress | — | User invitation workflow, company settings, project management, role dashboards |
+| M3 | Company, users, invites, projects, role dashboards | Done (reviewed) | Self-verified; ready for Claude audit | User invitation workflow (32-byte crypto token, 7-day expiry), company profile & settings, project CRUD & member assignment, 4 distinct role dashboard experiences (Admin, PM/QS, Site Supervisor, Client) with EASMM standards, offline PWA queue indicator, and neutral variance monitor. 51/51 tests green across monorepo. |
 | GATE | Discovery interviews done, buyer decided | Not started | — | Required before M4 |
 | M4 | BOQ import and structure | Not started | — | |
 | M5 | Budget, costs, approvals | Not started | — | |
@@ -86,3 +86,4 @@ None.
 | 2026-11-02 | Gemini | Executed Milestone M0: Scaffolding monorepo with pnpm + Turborepo, packages (validation, money, permissions), apps (api, web PWA), CI workflow (.github/workflows/ci.yml), .env.example. All unit & integration tests pass (13/13), 0 type errors, 100% clean production build. |
 | 2026-11-02 | Gemini | Executed Milestone M1: Implemented packages/db with full Prisma 6 schema and withTenantTx helper; local PostgreSQL 18 setup with db_migrator and db_app roles; seeded Apex Builders Kenya Ltd tenant and 4 V1 users; Fastify 5 auth plugin & endpoints (/login, /logout, /me) with cookies & JWT; React 19 login UI with demo accounts and role-scoped dashboard. 26/26 tests green, 0 type errors, 100% clean build. |
 | 2026-11-02 | Gemini | Executed Milestone M2: Implemented and applied PostgreSQL RLS with FORCE ROW LEVEL SECURITY across all 19 tenant tables; built withTenantTx transactional helper; wrote AuditLog append-only service; built Fastify startup security guard (verifies runtime user is non-superuser non-owner); created requirePermission RBAC preHandler guard; authored comprehensive isolation test suite (packages/db/src/isolation.test.ts) covering catalog verification, role inspection, tenant-A-vs-tenant-B isolation, cross-tenant write rejections, and transaction rollback atomicity. All 40/40 tests green across monorepo. |
+| 2026-11-02 | Gemini | Executed Milestone M3: Added Invitation model to Prisma schema & RLS policies; created company endpoints (/api/v1/company, /api/v1/company/members); built invitation workflow (/api/v1/invitations, /api/v1/invitations/accept); created project management & member assignment endpoints (/api/v1/projects, /api/v1/projects/:id/members); implemented role-tailored dashboard metrics endpoint (/api/v1/dashboard); developed React 19 UI with 4 distinct role dashboard experiences (Admin portfolio, PM/QS cost control & EASMM BOQ, Site Supervisor operations & offline PWA queue, Client project visibility & retention terms). 51/51 tests green across monorepo, 0 type errors, 100% clean production build. |

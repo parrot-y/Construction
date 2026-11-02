@@ -31,6 +31,12 @@ BEGIN
                     'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid ' ||
                     '       OR current_setting(''app.auth_context'', true) = ''login'') ' ||
                     'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)';
+        ELSIF tbl.table_name = 'invitations' THEN
+            -- Invitations allows reading under auth_context = 'invite' during token redemption
+            EXECUTE 'CREATE POLICY tenant_isolation_policy ON invitations FOR ALL ' ||
+                    'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid ' ||
+                    '       OR current_setting(''app.auth_context'', true) = ''invite'') ' ||
+                    'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)';
         ELSE
             EXECUTE format(
                 'CREATE POLICY tenant_isolation_policy ON %I FOR ALL ' ||

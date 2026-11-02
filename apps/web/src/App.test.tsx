@@ -5,7 +5,7 @@ import Dashboard from './components/Dashboard';
 import LoginForm from './components/LoginForm';
 import { AuthSession } from './types/auth';
 
-describe('Web App walking skeleton & login suite (Milestone M1)', () => {
+describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
   it('renders the login screen by default with demo accounts and title', () => {
     const html = renderToString(<LoginForm onLoginSuccess={() => {}} />);
     expect(html).toContain('Apex Builders Kenya');
@@ -23,10 +23,45 @@ describe('Web App walking skeleton & login suite (Milestone M1)', () => {
     expect(html).toContain('Sign in to access your project workspace');
   });
 
-  it('renders the role-scoped dashboard when session is active', () => {
-    const mockSession: AuthSession = {
+  it('renders COMPANY_ADMIN dashboard with portfolio stats, projects, members, and audit trail', () => {
+    const adminSession: AuthSession = {
       user: {
-        id: '9deec00e-ff90-4c1b-a5c2-dadc10991932',
+        id: '11111111-1111-1111-1111-111111111111',
+        email: 'admin@apexbuilders.co.ke',
+        fullName: 'David Kimani',
+        role: 'COMPANY_ADMIN',
+        tenant: {
+          id: 'tenant-123',
+          name: 'Apex Builders Kenya Ltd',
+          slug: 'apex-builders',
+          currency: 'KES',
+        },
+      },
+      permissions: ['company.manage', 'user.invite', 'project.create', 'audit.view'],
+      token: 'mock-jwt-token-admin',
+    };
+
+    const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />);
+    expect(html).toContain('Apex Builders Kenya Ltd');
+    expect(html).toContain('David Kimani');
+    expect(html).toContain('COMPANY_ADMIN');
+    expect(html).toContain('Executive Company Dashboard');
+    expect(html).toContain('Active Projects');
+    expect(html).toContain('Total Contract Value');
+    expect(html).toContain('Approved Budget');
+    expect(html).toContain('Registered Projects');
+    expect(html).toContain('Riverside Commercial Plaza');
+    expect(html).toContain('Team Management');
+    expect(html).toContain('Faith Achieng');
+    expect(html).toContain('Audit Log Activity Trail');
+    expect(html).toContain('+ Create Project');
+    expect(html).toContain('+ Invite Member');
+  });
+
+  it('renders PM_QS dashboard with budget baseline, BOQ structure, core loop, and variance guard', () => {
+    const qsSession: AuthSession = {
+      user: {
+        id: '22222222-2222-2222-2222-222222222222',
         email: 'qs@apexbuilders.co.ke',
         fullName: 'Faith Achieng',
         role: 'PM_QS',
@@ -37,17 +72,85 @@ describe('Web App walking skeleton & login suite (Milestone M1)', () => {
           currency: 'KES',
         },
       },
-      permissions: ['boq.import', 'cost.approve', 'project.view'],
-      token: 'mock-jwt-token',
+      permissions: ['boq.import', 'cost.approve', 'project.view', 'variation.create'],
+      token: 'mock-jwt-token-qs',
     };
 
-    const html = renderToString(<Dashboard session={mockSession} onLogout={() => {}} />);
+    const html = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
     expect(html).toContain('Faith Achieng');
     expect(html).toContain('PM_QS');
+    expect(html).toContain('Cost Control &amp; BOQ Management');
+    expect(html).toContain('BORAQS / EASMM Compliant');
+    expect(html).toContain('Approved Budget Baseline');
+    expect(html).toContain('Core Loop Workflow Status');
+    expect(html).toContain('Variance Monitor');
     expect(html).toContain('Riverside Commercial Plaza');
+    expect(html).toContain('Section 1: Preliminaries &amp; General');
     expect(html).toContain('45000000.00');
-    expect(html).toContain('boq.import');
-    expect(html).toContain('cost.approve');
+  });
+
+  it('renders SITE_SUPERVISOR dashboard with daily diary, headcount, and offline PWA indicator', () => {
+    const supervisorSession: AuthSession = {
+      user: {
+        id: '33333333-3333-3333-3333-333333333333',
+        email: 'supervisor@apexbuilders.co.ke',
+        fullName: 'John Mwangi',
+        role: 'SITE_SUPERVISOR',
+        tenant: {
+          id: 'tenant-123',
+          name: 'Apex Builders Kenya Ltd',
+          slug: 'apex-builders',
+          currency: 'KES',
+        },
+      },
+      permissions: ['site.diary.create', 'evidence.upload', 'progress.update', 'project.view'],
+      token: 'mock-jwt-token-supervisor',
+    };
+
+    const html = renderToString(<Dashboard session={supervisorSession} onLogout={() => {}} />);
+    expect(html).toContain('Apex Builders Kenya Ltd');
+    expect(html).toContain('John Mwangi');
+    expect(html).toContain('SITE_SUPERVISOR');
+    expect(html).toContain('Site Operations &amp; Daily Diary');
+    expect(html).toContain('+ Record Daily Site Diary');
+    expect(html).toContain('IndexedDB Offline Queue Active');
+    expect(html).toContain('Assigned Sites');
+    expect(html).toContain('Today&#x27;s Diary Status');
+    expect(html).toContain('Today&#x27;s Headcount');
+    expect(html).toContain('Photo Evidence Feed');
+  });
+
+  it('renders CLIENT dashboard with physical progress, certified costs, and retention ledger terms', () => {
+    const clientSession: AuthSession = {
+      user: {
+        id: '44444444-4444-4444-4444-444444444444',
+        email: 'client@apexbuilders.co.ke',
+        fullName: 'Sarah Wambui',
+        role: 'CLIENT',
+        tenant: {
+          id: 'tenant-123',
+          name: 'Apex Builders Kenya Ltd',
+          slug: 'apex-builders',
+          currency: 'KES',
+        },
+      },
+      permissions: ['project.view', 'client.portal.access', 'report.view'],
+      token: 'mock-jwt-token-client',
+    };
+
+    const html = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
+    expect(html).toContain('Apex Builders Kenya Ltd');
+    expect(html).toContain('Sarah Wambui');
+    expect(html).toContain('CLIENT');
+    expect(html).toContain('Project Visibility &amp; Progress Verification');
+    expect(html).toContain('Physical Progress');
+    expect(html).toContain('12.0%');
+    expect(html).toContain('Approved Contract Sum');
+    expect(html).toContain('Total Certified Cost');
+    expect(html).toContain('Contract Retention Terms (Kenyan Standard)');
+    expect(html).toContain('10% of Gross Certified Work');
+    expect(html).toContain('2250000.00');
+    expect(html).toContain('Verified Photo Evidence');
   });
 });

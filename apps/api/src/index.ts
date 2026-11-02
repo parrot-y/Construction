@@ -5,6 +5,9 @@ import { HealthCheckResponse } from '@construction/validation';
 import { authPlugin } from './plugins/auth';
 import { securityGuardPlugin } from './plugins/security-guard';
 import { authRoutes } from './routes/auth';
+import { companyRoutes } from './routes/company';
+import { dashboardRoutes } from './routes/dashboard';
+import { invitationRoutes } from './routes/invitations';
 import { projectRoutes } from './routes/projects';
 
 export function buildServer(): FastifyInstance {
@@ -33,6 +36,9 @@ export function buildServer(): FastifyInstance {
 
   // Application Routes
   server.register(authRoutes);
+  server.register(companyRoutes);
+  server.register(dashboardRoutes);
+  server.register(invitationRoutes);
   server.register(projectRoutes);
 
   // Root unauthenticated health check route
