@@ -3,7 +3,9 @@ import helmet from '@fastify/helmet';
 import fastify, { FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
 import { authPlugin } from './plugins/auth';
+import { securityGuardPlugin } from './plugins/security-guard';
 import { authRoutes } from './routes/auth';
+import { projectRoutes } from './routes/projects';
 
 export function buildServer(): FastifyInstance {
   const server = fastify({
@@ -23,11 +25,15 @@ export function buildServer(): FastifyInstance {
     credentials: true,
   });
 
+  // Database security guard (asserts db_app non-superuser RLS connection)
+  server.register(securityGuardPlugin);
+
   // Authentication & Session Plugin
   server.register(authPlugin);
 
-  // Authentication routes
+  // Application Routes
   server.register(authRoutes);
+  server.register(projectRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

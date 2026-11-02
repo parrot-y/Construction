@@ -1,4 +1,4 @@
-import { prisma, verifyPassword } from '@construction/db';
+import { prisma, verifyPassword, withTenantTx } from '@construction/db';
 import { getPermissionsForRole, Role } from '@construction/permissions';
 import { AuthUserResponse, LoginRequestSchema } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
@@ -17,16 +17,19 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     const { email, password, tenantId } = parseResult.data;
 
-    // Retrieve user and their tenant memberships
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-      include: {
-        memberships: {
-          include: {
-            tenant: true,
+    // Retrieve user and their tenant memberships inside scoped auth transaction
+    const user = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.auth_context', 'login', TRUE)`;
+      return tx.user.findUnique({
+        where: { email: email.toLowerCase() },
+        include: {
+          memberships: {
+            include: {
+              tenant: true,
+            },
           },
         },
-      },
+      });
     });
 
     if (!user || !user.is_active) {
@@ -121,16 +124,18 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     async (request, reply) => {
       const userPayload = request.user;
 
-      const user = await prisma.user.findUnique({
-        where: { id: userPayload.sub },
-        include: {
-          memberships: {
-            where: { tenant_id: userPayload.tenantId },
-            include: {
-              tenant: true,
+      const user = await withTenantTx(prisma, userPayload.tenantId, async (tx) => {
+        return tx.user.findUnique({
+          where: { id: userPayload.sub },
+          include: {
+            memberships: {
+              where: { tenant_id: userPayload.tenantId },
+              include: {
+                tenant: true,
+              },
             },
           },
-        },
+        });
       });
 
       const activeMembership = user?.memberships[0];

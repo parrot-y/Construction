@@ -71,4 +71,5 @@ export async function verifyPassword(password: string, combinedHash: string): Pr
   return timingSafeEqual(keyBuffer, derivedKey);
 }
 
+export * from './audit';
 export * from '@prisma/client';
