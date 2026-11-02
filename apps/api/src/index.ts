@@ -1,10 +1,12 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import fastify, { FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
 import { authPlugin } from './plugins/auth';
 import { securityGuardPlugin } from './plugins/security-guard';
 import { authRoutes } from './routes/auth';
+import { boqRoutes } from './routes/boq';
 import { companyRoutes } from './routes/company';
 import { dashboardRoutes } from './routes/dashboard';
 import { invitationRoutes } from './routes/invitations';
@@ -28,6 +30,13 @@ export function buildServer(): FastifyInstance {
     credentials: true,
   });
 
+  // Multipart file upload (capped at 15MB per ADR-003)
+  server.register(multipart, {
+    limits: {
+      fileSize: 15 * 1024 * 1024,
+    },
+  });
+
   // Database security guard (asserts db_app non-superuser RLS connection)
   server.register(securityGuardPlugin);
 
@@ -36,6 +45,7 @@ export function buildServer(): FastifyInstance {
 
   // Application Routes
   server.register(authRoutes);
+  server.register(boqRoutes);
   server.register(companyRoutes);
   server.register(dashboardRoutes);
   server.register(invitationRoutes);

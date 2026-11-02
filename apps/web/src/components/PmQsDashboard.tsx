@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
+import BoqImportModal from './BoqImportModal';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -9,6 +10,12 @@ interface PmQsDashboardProps {
 export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JSX.Element {
   const { user } = session;
   const sampleBudget = toCurrencyString('45000000.00');
+  const [showBoqModal, setShowBoqModal] = useState(false);
+  const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
+
+  const handleImportSuccess = (boq: any) => {
+    setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
+  };
 
   return (
     <div className="space-y-6">
@@ -23,12 +30,25 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
             Quantity surveyor controls, BOQ baseline, interim valuations, and variance tracking for {user.tenant.name}
           </p>
         </div>
-        <div className="flex gap-2">
-          <span className="px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg">
-            BORAQS / EASMM Compliant
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowBoqModal(true)}
+            className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+          >
+            📊 Import Excel BOQ
+          </button>
+          <span className="hidden sm:inline-block px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg">
+            BORAQS / EASMM
           </span>
         </div>
       </div>
+
+      {boqSuccess && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
+          <span>✓ {boqSuccess}</span>
+          <button onClick={() => setBoqSuccess(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -175,6 +195,15 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
           </table>
         </div>
       </div>
+
+      {/* BOQ Import Modal */}
+      <BoqImportModal
+        isOpen={showBoqModal}
+        onClose={() => setShowBoqModal(false)}
+        onImportSuccess={handleImportSuccess}
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+      />
     </div>
   );
 }

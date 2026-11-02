@@ -3,6 +3,7 @@ import { renderToString } from 'react-dom/server';
 import App from './App';
 import Dashboard from './components/Dashboard';
 import LoginForm from './components/LoginForm';
+import BoqImportModal from './components/BoqImportModal';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -81,7 +82,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('Faith Achieng');
     expect(html).toContain('PM_QS');
     expect(html).toContain('Cost Control &amp; BOQ Management');
-    expect(html).toContain('BORAQS / EASMM Compliant');
+    expect(html).toContain('Import Excel BOQ');
+    expect(html).toContain('BORAQS / EASMM');
     expect(html).toContain('Approved Budget Baseline');
     expect(html).toContain('Core Loop Workflow Status');
     expect(html).toContain('Variance Monitor');
@@ -152,5 +154,22 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('10% of Gross Certified Work');
     expect(html).toContain('2250000.00');
     expect(html).toContain('Verified Photo Evidence');
+  });
+
+  it('renders BoqImportModal with EASMM sections, arithmetic status badges, and 6-stage lifecycle', () => {
+    const html = renderToString(
+      <BoqImportModal
+        isOpen={true}
+        onClose={() => {}}
+        onImportSuccess={() => {}}
+        projectId="test-proj-id"
+        projectName="Riverside Commercial Plaza"
+      />,
+    );
+    expect(html).toContain('Import Bill of Quantities (BOQ)');
+    expect(html).toContain('EASMM 2008 Standard Pipeline');
+    expect(html).toContain('Riverside Commercial Plaza');
+    expect(html).toContain('Click to select Excel spreadsheet');
+    expect(html).toContain('Supports Microsoft Excel (.xlsx) files up to 15MB');
   });
 });

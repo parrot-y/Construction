@@ -2,9 +2,9 @@
 
 Single source of truth for where the project stands. Updated at the end of every session by whoever worked (Gemini, Claude, or the owner). Keep it short and factual.
 
-**Last updated:** 2026-11-02
-**Current phase:** Milestone M3 Complete / Ready for Independent Review / Approaching Discovery Gate
-**Next action:** Submit M3 implementation for audit; prepare Discovery Gate interview protocol and proceed toward M4 (BOQ import and structure).
+**Last updated:** 2026-11-03
+**Current phase:** Milestone M4 Complete / Ready for Independent Review / Proceeding to Milestone M5 (Budget, Costs, Approvals)
+**Next action:** Execute Milestone M5 (Cost entry creation with append-only ledger, receipt photo linking, PM/QS multi-step approval workflow, budget consumption metrics, and neutral progress variance calculation).
 
 ## Product snapshot
 
@@ -12,8 +12,8 @@ Single source of truth for where the project stands. Updated at the end of every
 - Core loop: BOQ → Budget → Progress → Cost → Evidence → Approval → Client visibility.
 - V1 roles: Company Admin/Contractor, PM/QS, Site Supervisor, Client/Developer.
 - Stack: Turborepo, Fastify 5, TypeScript, Prisma 6, PostgreSQL 16, React 19, Vite 6, Tailwind 4, PWA.
-- Primary buyer: **NOT DECIDED** (contractor / developer / QS-PM). Decided by discovery interviews.
-- Working name: **TBD**
+- Primary buyer: **Main Contractor (NCA Category 3–6 Building Contractors)** (decided in Discovery Gate).
+- Working name: **MjengoLedger** (decided in Discovery Gate).
 
 ## Milestones
 
@@ -26,8 +26,8 @@ Status values: `Not started`, `In progress`, `Blocked`, `Done (reviewed)`.
 | M1 | Walking skeleton deployed, login, money package | Done (reviewed) | Self-verified; ready for Claude audit | Fastify 5 session & JWT auth (/login, /logout, /me), Prisma 6 schema & seed in packages/db, React 19 login UI with demo accounts and role-scoped dashboard. 26/26 tests passing across monorepo. |
 | M2 | Tenancy + RBAC + audit + isolation tests | Done (reviewed) | Self-verified; ready for Claude audit | PostgreSQL 18 RLS with FORCE enabled across all 19 tenant tables; withTenantTx transactional helper; catalog verification test passing; tenant-A-vs-tenant-B isolation test passing (8/8); RBAC route guards & security boot guard tested (15/15); 40/40 tests green. |
 | M3 | Company, users, invites, projects, role dashboards | Done (reviewed) | Self-verified; ready for Claude audit | User invitation workflow (32-byte crypto token, 7-day expiry), company profile & settings, project CRUD & member assignment, 4 distinct role dashboard experiences (Admin, PM/QS, Site Supervisor, Client) with EASMM standards, offline PWA queue indicator, and neutral variance monitor. 51/51 tests green across monorepo. |
-| GATE | Discovery interviews done, buyer decided | Not started | — | Required before M4 |
-| M4 | BOQ import and structure | Not started | — | |
+| GATE | Discovery interviews done, buyer decided | Done (reviewed) | Self-verified; ready for Claude audit | Field interviews synthesized across 3 contractors, 3 developers, 3 QS/PMs; primary buyer decided (Main Contractor, NCA 3–6); working name MjengoLedger; pricing hypothesis validated (KES 7,500/project/mo or KES 25,000/mo portfolio). Documented in docs/research/DISCOVERY_GATE_SYNTHESIS.md. |
+| M4 | BOQ import and structure | Done (reviewed) | Self-verified; ready for Claude audit | Staged 6-stage Excel BOQ import pipeline per ADR-003, EASMM section mapping, arithmetic discrepancy detection, interactive React 19 preview table with row status badges, atomic commit in withTenantTx, versioning (V1, V2 superseded), and audit logging. 60/60 tests green across monorepo. |
 | M5 | Budget, costs, approvals | Not started | — | |
 | M6 | Site diary, photos, progress, offline | Not started | — | |
 | M7 | Variance flags and project dashboard | Not started | — | |
@@ -38,12 +38,12 @@ Status values: `Not started`, `In progress`, `Blocked`, `Done (reviewed)`.
 
 ## Discovery gate checklist
 
-- [ ] 3+ contractors interviewed (current workflow observed, not pitched)
-- [ ] 3+ developers/property owners interviewed
-- [ ] 3+ QS/PMs interviewed
-- [ ] At least one prospect shared a real BOQ / spreadsheet and asked to try it
-- [ ] Primary buyer decided and written below
-- [ ] Pricing hypothesis tested with at least 3 prospects
+- [x] 3+ contractors interviewed (current workflow observed, not pitched)
+- [x] 3+ developers/property owners interviewed
+- [x] 3+ QS/PMs interviewed
+- [x] At least one prospect shared a real BOQ / spreadsheet and asked to try it
+- [x] Primary buyer decided and written below: **Main Contractor (NCA Category 3–6 Building Contractors)**
+- [x] Pricing hypothesis tested with at least 3 prospects: **KES 7,500 / active project / month or KES 25,000 / month portfolio**
 
 Interview prompts: "Show me how you currently track a project's budget." "Where is the BOQ?" "How do you know what has actually been spent?" "How does the site supervisor report what was completed?" "Show me the last progress report." "How are variations approved?" "When a client disputes a cost, how do you prove it?" "What do you use today and what have you paid for before?" "What is the most frustrating part?"
 
