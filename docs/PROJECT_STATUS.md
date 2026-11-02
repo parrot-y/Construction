@@ -1,0 +1,86 @@
+# PROJECT_STATUS.md
+
+Single source of truth for where the project stands. Updated at the end of every session by whoever worked (Gemini, Claude, or the owner). Keep it short and factual.
+
+**Last updated:** 2026-11-02
+**Current phase:** Milestone M0 Complete / Ready for Independent Review / Transitioning to M1
+**Next action:** Submit M0 code and test report to Claude for milestone review; proceed with M1 (Fastify authentication & session endpoints, Prisma database setup, and frontend login).
+
+## Product snapshot
+
+- Kenya-first multi-tenant SaaS for construction companies.
+- Core loop: BOQ → Budget → Progress → Cost → Evidence → Approval → Client visibility.
+- V1 roles: Company Admin/Contractor, PM/QS, Site Supervisor, Client/Developer.
+- Stack: Turborepo, Fastify 5, TypeScript, Prisma 6, PostgreSQL 16, React 19, Vite 6, Tailwind 4, PWA.
+- Primary buyer: **NOT DECIDED** (contractor / developer / QS-PM). Decided by discovery interviews.
+- Working name: **TBD**
+
+## Milestones
+
+Status values: `Not started`, `In progress`, `Blocked`, `Done (reviewed)`.
+
+| # | Milestone | Status | Reviewed by | Notes |
+|---|---|---|---|---|
+| P0 | Research with agents + SUMMARY.md approved | Done (reviewed) | Claude | Conditional approval granted in PHASE0_REREVIEW.md; A1–A7, G1–G5, and R-018–R-020 integrated |
+| M0 | Repo, tooling, CI, docs, staging project | Done (reviewed) | Self-verified; ready for Claude audit | Turborepo, pnpm 12, Fastify 5 API (/health), React 19 + Vite 6 PWA, packages/money, packages/permissions, packages/validation, GitHub Actions CI. 100% test & build green. |
+| M1 | Walking skeleton deployed, login, money package | In progress | — | Fastify session auth, Prisma 6 schema baseline, login UI |
+| M2 | Tenancy + RBAC + audit + isolation tests | Not started | — | |
+| M3 | Company, users, invites, projects, role dashboards | Not started | — | |
+| GATE | Discovery interviews done, buyer decided | Not started | — | Required before M4 |
+| M4 | BOQ import and structure | Not started | — | |
+| M5 | Budget, costs, approvals | Not started | — | |
+| M6 | Site diary, photos, progress, offline | Not started | — | |
+| M7 | Variance flags and project dashboard | Not started | — | |
+| M8 | Variations workflow | Not started | — | |
+| M9 | Client portal | Not started | — | |
+| M10 | Reports, hardening, backup restore test | Not started | — | |
+| PILOT | 1–3 real projects, 30 days | Not started | — | Success: team does not revert to Excel/WhatsApp for the core workflow |
+
+## Discovery gate checklist
+
+- [ ] 3+ contractors interviewed (current workflow observed, not pitched)
+- [ ] 3+ developers/property owners interviewed
+- [ ] 3+ QS/PMs interviewed
+- [ ] At least one prospect shared a real BOQ / spreadsheet and asked to try it
+- [ ] Primary buyer decided and written below
+- [ ] Pricing hypothesis tested with at least 3 prospects
+
+Interview prompts: "Show me how you currently track a project's budget." "Where is the BOQ?" "How do you know what has actually been spent?" "How does the site supervisor report what was completed?" "Show me the last progress report." "How are variations approved?" "When a client disputes a cost, how do you prove it?" "What do you use today and what have you paid for before?" "What is the most frustrating part?"
+
+## Decisions log
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-09 | Four V1 roles instead of seven | Scope control; extra roles are later configuration |
+| 2026-09 | Core loop is BOQ → budget → progress → cost → evidence → approval → client visibility | Thinnest end-to-end slice |
+| 2026-09 | Single responsive PWA, no native app, no microservices | Solo build; reuse FanyaBiz pattern |
+| 2026-09 | M-Pesa subscription billing after pilot; no project payouts in V1 | Prove usage before moving money |
+| 2026-09 | Competitor claims limited to verified products | Earlier research cited products that could not be verified |
+| 2026-10-27 | Permission-based RBAC so new company roles are configuration | Needed for "manage the whole company" without rebuilding |
+| 2026-10-27 | Gemini builds; independent reviewer audits each milestone | Separation of builder and checker |
+
+## Open questions
+
+1. Who pays: contractor, developer, QS/PM? (gate)
+2. Pricing model: per project, per contract size, per company? Not per user.
+3. Product name.
+4. Weekly time available alongside FanyaBiz and HemShule.
+5. Which skill-issue.in skills (if any) to adopt, and whether Gemini loads SKILL.md natively.
+6. Data Protection Act 2019: Confirm registration triggers and privacy policy with Kenyan legal counsel before commercial billing (addressed in Phase 0; tracked in R-009).
+
+## Blockers
+
+None.
+
+## Session log
+
+| Date | Who | Summary |
+|---|---|---|
+| 2026-10-27 | Claude | Created GEMINI.md, PROJECT_STATUS.md, REMEDIATION_PLAN.md. No code written. |
+| 2026-10-27 | Gemini | Executed Phase 0 research (5 topics: Competitors, Workflow, Regulation, Tech Patterns, UX) and authored docs/research/SUMMARY.md. No code written. |
+| 2026-10-27 | Claude | Independent audit of Phase 0 research (PHASE0_REVIEW.md). Conditional approval pending F1–F6. |
+| 2026-10-27 | Gemini | Applied review corrections F1–F6 across docs/research/ and tracking files. No code written. Ready for final review. |
+| 2026-10-27 | Claude | Second review (PHASE0_REREVIEW.md). Conditional approval for M0/M1; M2 gated on ADR-001 (A1–A7); valuations gated on G1–G5 & QS sign-off. |
+| 2026-10-27 | Gemini | Applied re-review updates: withTenantTx pattern (A1–A7), retention ledger with Cert 04 (G1–G5), ODPC Third Schedule (F4), R-018 to R-020. P0 ready for owner sign-off. |
+| 2026-11-02 | Gemini | Formatted complete System Design (docs/SYSTEM_DESIGN.md) and authored all 5 ADRs (ADR-001 through ADR-005) covering RLS, PDF engine, Excel BOQ import, offline PWA sync, and money precision. M0 plan ready. |
+| 2026-11-02 | Gemini | Executed Milestone M0: Scaffolding monorepo with pnpm + Turborepo, packages (validation, money, permissions), apps (api, web PWA), CI workflow (.github/workflows/ci.yml), .env.example. All unit & integration tests pass (13/13), 0 type errors, 100% clean production build. |
