@@ -8,6 +8,7 @@ import { securityGuardPlugin } from './plugins/security-guard';
 import { authRoutes } from './routes/auth';
 import { boqRoutes } from './routes/boq';
 import { companyRoutes } from './routes/company';
+import { costRoutes } from './routes/costs';
 import { dashboardRoutes } from './routes/dashboard';
 import { invitationRoutes } from './routes/invitations';
 import { projectRoutes } from './routes/projects';
@@ -47,6 +48,7 @@ export function buildServer(): FastifyInstance {
   server.register(authRoutes);
   server.register(boqRoutes);
   server.register(companyRoutes);
+  server.register(costRoutes);
   server.register(dashboardRoutes);
   server.register(invitationRoutes);
   server.register(projectRoutes);

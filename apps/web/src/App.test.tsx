@@ -4,6 +4,9 @@ import App from './App';
 import Dashboard from './components/Dashboard';
 import LoginForm from './components/LoginForm';
 import BoqImportModal from './components/BoqImportModal';
+import CostCaptureModal from './components/CostCaptureModal';
+import BudgetSummaryCard from './components/BudgetSummaryCard';
+import CostManagementView from './components/CostManagementView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -171,5 +174,55 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('Riverside Commercial Plaza');
     expect(html).toContain('Click to select Excel spreadsheet');
     expect(html).toContain('Supports Microsoft Excel (.xlsx) files up to 15MB');
+  });
+
+  it('renders CostCaptureModal with KES currency, category dropdown, vendor, and receipt upload', () => {
+    const html = renderToString(
+      <CostCaptureModal
+        isOpen={true}
+        onClose={() => {}}
+        projectId="test-proj-id"
+      />,
+    );
+    expect(html).toContain('Log Site Cost Entry');
+    expect(html).toContain('Amount (KES)');
+    expect(html).toContain('Cost Category');
+    expect(html).toContain('Vendor / Payee Name');
+    expect(html).toContain('Invoice / Voucher Ref #');
+    expect(html).toContain('Attach Receipt / Delivery Note');
+    expect(html).toContain('Submit Cost for Approval');
+  });
+
+  it('renders BudgetSummaryCard with approved budget, actual spent, pending approvals, and category breakdown', () => {
+    const html = renderToString(
+      <BudgetSummaryCard projectName="Riverside Commercial Plaza" />,
+    );
+    expect(html).toContain('Budget vs Actual Expenditure');
+    expect(html).toContain('Approved Budget');
+    expect(html).toContain('Actual Spent (Approved)');
+    expect(html).toContain('Pending Approval');
+    expect(html).toContain('Remaining Budget');
+    expect(html).toContain('Category Cost Distribution');
+    expect(html).toContain('Materials');
+    expect(html).toContain('Labor');
+    expect(html).toContain('Plant / Hire');
+  });
+
+  it('renders CostManagementView with append-only ledger, status filters, and action buttons', () => {
+    const html = renderToString(
+      <CostManagementView
+        projectId="test-proj-id"
+        canApprove={true}
+        canCreate={true}
+      />,
+    );
+    expect(html).toContain('Append-Only Financial Ledger');
+    expect(html).toContain('Project Cost Entries &amp; Approvals');
+    expect(html).toContain('Log Cost Entry');
+    expect(html).toContain('ALL');
+    expect(html).toContain('PENDING');
+    expect(html).toContain('APPROVED');
+    expect(html).toContain('Bamburi Cement Ltd');
+    expect(html).toContain('Fundi Kazi Casuals');
   });
 });

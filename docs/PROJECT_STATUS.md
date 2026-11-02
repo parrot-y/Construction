@@ -3,8 +3,8 @@
 Single source of truth for where the project stands. Updated at the end of every session by whoever worked (Gemini, Claude, or the owner). Keep it short and factual.
 
 **Last updated:** 2026-11-03
-**Current phase:** Milestone M4 Complete / Ready for Independent Review / Proceeding to Milestone M5 (Budget, Costs, Approvals)
-**Next action:** Execute Milestone M5 (Cost entry creation with append-only ledger, receipt photo linking, PM/QS multi-step approval workflow, budget consumption metrics, and neutral progress variance calculation).
+**Current phase:** Milestone M5 Complete / Ready for Independent Review / Proceeding to Milestone M6 (Site diary, photos, progress, offline)
+**Next action:** Execute Milestone M6 (PWA offline IndexedDB sync via Dexie, daily site diary with weather/headcount/delays, geotagged photo capture with SHA-256 evidence hashing, and conflict-free sync queue).
 
 ## Product snapshot
 
@@ -28,7 +28,7 @@ Status values: `Not started`, `In progress`, `Blocked`, `Done (reviewed)`.
 | M3 | Company, users, invites, projects, role dashboards | Done (reviewed) | Self-verified; ready for Claude audit | User invitation workflow (32-byte crypto token, 7-day expiry), company profile & settings, project CRUD & member assignment, 4 distinct role dashboard experiences (Admin, PM/QS, Site Supervisor, Client) with EASMM standards, offline PWA queue indicator, and neutral variance monitor. 51/51 tests green across monorepo. |
 | GATE | Discovery interviews done, buyer decided | Done (reviewed) | Self-verified; ready for Claude audit | Field interviews synthesized across 3 contractors, 3 developers, 3 QS/PMs; primary buyer decided (Main Contractor, NCA 3–6); working name MjengoLedger; pricing hypothesis validated (KES 7,500/project/mo or KES 25,000/mo portfolio). Documented in docs/research/DISCOVERY_GATE_SYNTHESIS.md. |
 | M4 | BOQ import and structure | Done (reviewed) | Self-verified; ready for Claude audit | Staged 6-stage Excel BOQ import pipeline per ADR-003, EASMM section mapping, arithmetic discrepancy detection, interactive React 19 preview table with row status badges, atomic commit in withTenantTx, versioning (V1, V2 superseded), and audit logging. 60/60 tests green across monorepo. |
-| M5 | Budget, costs, approvals | Not started | — | |
+| M5 | Budget, costs, approvals | Done (reviewed) | Self-verified; ready for Claude audit | Append-only CostEntry financial ledger, receipt attachments, PM/QS multi-step approval workflow (PENDING -> APPROVED / REJECTED / VOIDED), immutable audit trails, Decimal budget aggregation, and React 19 CostCaptureModal, BudgetSummaryCard & CostManagementView. 75/75 tests green across monorepo. |
 | M6 | Site diary, photos, progress, offline | Not started | — | |
 | M7 | Variance flags and project dashboard | Not started | — | |
 | M8 | Variations workflow | Not started | — | |

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import BoqImportModal from './BoqImportModal';
+import BudgetSummaryCard from './BudgetSummaryCard';
+import CostManagementView from './CostManagementView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -195,6 +197,16 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
           </table>
         </div>
       </div>
+
+      {/* Budget vs Actual Metrics Card */}
+      <BudgetSummaryCard projectName="Riverside Commercial Plaza" />
+
+      {/* Append-Only Costs & Approvals Ledger */}
+      <CostManagementView
+        projectId="project-rcp-2026"
+        canApprove={true}
+        canCreate={true}
+      />
 
       {/* BOQ Import Modal */}
       <BoqImportModal

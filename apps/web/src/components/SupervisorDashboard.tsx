@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthSession } from '../types/auth';
+import CostCaptureModal from './CostCaptureModal';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -9,6 +10,8 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
   const { user } = session;
   const [showDiaryModal, setShowDiaryModal] = useState(false);
   const [diarySuccess, setDiarySuccess] = useState<string | null>(null);
+  const [showCostModal, setShowCostModal] = useState(false);
+  const [costSuccess, setCostSuccess] = useState<string | null>(null);
 
   // Diary Form State
   const [weather, setWeather] = useState('SUNNY_CLEAR');
@@ -41,13 +44,28 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
             Daily labor headcount, site diary logging, material deliveries, and photo evidence for {user.tenant.name}
           </p>
         </div>
-        <button
-          onClick={() => setShowDiaryModal(true)}
-          className="px-4 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition"
-        >
-          + Record Daily Site Diary
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCostModal(true)}
+            className="px-3.5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+          >
+            💰 Log Site Expense
+          </button>
+          <button
+            onClick={() => setShowDiaryModal(true)}
+            className="px-3.5 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition"
+          >
+            + Record Daily Site Diary
+          </button>
+        </div>
       </div>
+
+      {costSuccess && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
+          <span>✓ {costSuccess}</span>
+          <button onClick={() => setCostSuccess(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+        </div>
+      )}
 
       {diarySuccess && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
@@ -266,6 +284,15 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
           </div>
         </div>
       )}
+      {/* Cost Capture Modal for Site Expenses */}
+      <CostCaptureModal
+        isOpen={showCostModal}
+        onClose={() => setShowCostModal(false)}
+        projectId="project-rcp-2026"
+        onCostCreated={(cost) => {
+          setCostSuccess(`Site expense logged: KES ${cost.amount} (${cost.cost_category}) in PENDING status`);
+        }}
+      />
     </div>
   );
 }

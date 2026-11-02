@@ -51,6 +51,55 @@ export const AuthUserResponseSchema = z.object({
   token: z.string(),
 });
 
+export const CostCategoryEnum = z.enum([
+  'MATERIAL',
+  'LABOR',
+  'PLANT',
+  'SUBCONTRACT',
+  'PRELIMINARY',
+]);
+export type CostCategory = z.infer<typeof CostCategoryEnum>;
+
+export const CostStatusEnum = z.enum([
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'VOIDED',
+]);
+export type CostStatus = z.infer<typeof CostStatusEnum>;
+
+export const CreateCostEntrySchema = z.object({
+  projectId: z.string().uuid(),
+  boqItemId: z.string().uuid().optional().nullable(),
+  costCategory: CostCategoryEnum,
+  amount: CurrencyAmountSchema,
+  vendorName: z.string().max(255).optional().nullable(),
+  invoiceRef: z.string().max(100).optional().nullable(),
+  description: z.string().min(3).max(2000),
+  receipts: z
+    .array(
+      z.object({
+        filename: z.string().max(255),
+        fileSize: z.number().int().positive().max(10 * 1024 * 1024),
+        mimeType: z.string().max(100),
+        storageKey: z.string().max(500),
+      }),
+    )
+    .optional(),
+});
+export type CreateCostEntry = z.infer<typeof CreateCostEntrySchema>;
+
+export const ApproveCostEntrySchema = z.object({
+  action: z.enum(['APPROVED', 'REJECTED']),
+  comments: z.string().max(1000).optional().nullable(),
+});
+export type ApproveCostEntry = z.infer<typeof ApproveCostEntrySchema>;
+
+export const VoidCostEntrySchema = z.object({
+  reason: z.string().min(5).max(1000),
+});
+export type VoidCostEntry = z.infer<typeof VoidCostEntrySchema>;
+
 export type AuthUserResponse = z.infer<typeof AuthUserResponseSchema>;
 
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;
