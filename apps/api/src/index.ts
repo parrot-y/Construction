@@ -13,6 +13,7 @@ import { dashboardRoutes } from './routes/dashboard';
 import { invitationRoutes } from './routes/invitations';
 import { projectRoutes } from './routes/projects';
 import { siteRoutes } from './routes/site';
+import { variationsRoutes } from './routes/variations';
 
 export function buildServer(): FastifyInstance {
   const server = fastify({
@@ -54,6 +55,7 @@ export function buildServer(): FastifyInstance {
   server.register(invitationRoutes);
   server.register(projectRoutes);
   server.register(siteRoutes);
+  server.register(variationsRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

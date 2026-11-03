@@ -2,6 +2,7 @@ import React from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import VarianceMonitorCard from './VarianceMonitorCard';
+import VariationManagementView from './VariationManagementView';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -144,6 +145,15 @@ export default function ClientDashboard({ session }: ClientDashboardProps): Reac
           </div>
         </div>
       </div>
+
+      {/* Variation Orders & Client Approvals Ledger (Milestone M8) */}
+      <VariationManagementView
+        projectId="project-rcp-2026"
+        userRole="CLIENT"
+        canRequest={false}
+        canReview={false}
+        canApprove={true}
+      />
 
       {/* Verified Photo Evidence Section */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-3">

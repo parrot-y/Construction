@@ -6,6 +6,7 @@ import PhysicalProgressModal from './PhysicalProgressModal';
 import BudgetSummaryCard from './BudgetSummaryCard';
 import CostManagementView from './CostManagementView';
 import VarianceMonitorCard from './VarianceMonitorCard';
+import VariationManagementView from './VariationManagementView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -213,6 +214,15 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
         projectId="project-rcp-2026"
         canApprove={true}
         canCreate={true}
+      />
+
+      {/* Variations & Scope Adjustments Workflow (Milestone M8) */}
+      <VariationManagementView
+        projectId="project-rcp-2026"
+        userRole="PM_QS"
+        canRequest={true}
+        canReview={true}
+        canApprove={false}
       />
 
       {/* BOQ Import Modal */}

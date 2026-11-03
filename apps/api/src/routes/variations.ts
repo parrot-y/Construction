@@ -1,0 +1,528 @@
+import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
+import { Permissions, hasPermission, Role } from '@construction/permissions';
+import { calculateLineTotal, toDecimal, toCurrencyString, Decimal } from '@construction/money';
+import {
+  CreateVariationOrderSchema,
+  ReviewVariationOrderSchema,
+} from '@construction/validation';
+import { requirePermission } from '../plugins/rbac';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function formatVariation(v: any) {
+  if (!v) return null;
+  return {
+    ...v,
+    net_amount: toCurrencyString(v.net_amount ? v.net_amount.toString() : '0'),
+    items: v.items
+      ? v.items.map((i: any) => ({
+          ...i,
+          quantity: i.quantity ? i.quantity.toString() : '0',
+          unit_rate: i.unit_rate ? i.unit_rate.toString() : '0',
+          total_amount: toCurrencyString(i.total_amount ? i.total_amount.toString() : '0'),
+        }))
+      : [],
+  };
+}
+
+export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // ---------------------------------------------------------------------------
+  // 1. GET /api/v1/projects/:projectId/variations - List Project Variations
+  // ---------------------------------------------------------------------------
+  server.get(
+    '/api/v1/projects/:projectId/variations',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.PROJECT_VIEW),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      try {
+        const variations = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({
+            where: { id: projectId },
+          });
+
+          if (!project) {
+            throw { status: 404, message: 'Project not found' };
+          }
+
+          const records = await tx.variationOrder.findMany({
+            where: { project_id: projectId },
+            include: {
+              items: {
+                include: {
+                  boq_item: {
+                    select: { id: true, item_code: true, description: true },
+                  },
+                },
+                orderBy: { id: 'asc' },
+              },
+            },
+            orderBy: { variation_no: 'asc' },
+          });
+
+          return records.map(formatVariation);
+        });
+
+        return reply.status(200).send({
+          data: variations,
+          count: variations.length,
+        });
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            message: err.message,
+          });
+        }
+        server.log.error(err, 'Failed to fetch variations');
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to fetch variation orders',
+        });
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 2. GET /api/v1/projects/:projectId/variations/:variationId - Variation Detail
+  // ---------------------------------------------------------------------------
+  server.get(
+    '/api/v1/projects/:projectId/variations/:variationId',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.PROJECT_VIEW),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, variationId } = request.params as { projectId: string; variationId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(variationId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Variation order not found',
+        });
+      }
+
+      try {
+        const variation = await withTenantTx(prisma, tenantId, async (tx) => {
+          const record = await tx.variationOrder.findFirst({
+            where: {
+              id: variationId,
+              project_id: projectId,
+            },
+            include: {
+              items: {
+                include: {
+                  boq_item: {
+                    select: { id: true, item_code: true, description: true },
+                  },
+                },
+                orderBy: { id: 'asc' },
+              },
+            },
+          });
+
+          return formatVariation(record);
+        });
+
+        if (!variation) {
+          return reply.status(404).send({
+            statusCode: 404,
+            error: 'Not Found',
+            message: 'Variation order not found',
+          });
+        }
+
+        return reply.status(200).send({
+          data: variation,
+        });
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            message: err.message,
+          });
+        }
+        server.log.error(err, 'Failed to fetch variation order');
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to fetch variation order',
+        });
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 3. POST /api/v1/projects/:projectId/variations - Submit Variation Order
+  // ---------------------------------------------------------------------------
+  server.post(
+    '/api/v1/projects/:projectId/variations',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.VARIATION_REQUEST),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project not found',
+        });
+      }
+
+      const bodyParse = CreateVariationOrderSchema.safeParse(request.body);
+      if (!bodyParse.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid variation order data',
+          details: bodyParse.error.errors,
+        });
+      }
+
+      const data = bodyParse.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          // Verify project exists
+          const project = await tx.project.findFirst({
+            where: { id: projectId },
+          });
+
+          if (!project) {
+            throw { status: 404, message: 'Project not found' };
+          }
+
+          // If any item links to a BOQ item, verify it belongs to this project
+          for (const item of data.items) {
+            if (item.boqItemId) {
+              const boqItem = await tx.bOQItem.findFirst({
+                where: {
+                  id: item.boqItemId,
+                  section: {
+                    boq: {
+                      project_id: projectId,
+                    },
+                  },
+                },
+              });
+
+              if (!boqItem) {
+                throw {
+                  status: 400,
+                  message: `Linked BOQ item does not exist or does not belong to this project: ${item.boqItemId}`,
+                };
+              }
+            }
+          }
+
+          // Query latest variation_no for project and auto-increment (starts at 1)
+          const latest = await tx.variationOrder.findFirst({
+            where: { project_id: projectId },
+            orderBy: { variation_no: 'desc' },
+            select: { variation_no: true },
+          });
+          const nextVariationNo = latest ? latest.variation_no + 1 : 1;
+
+          // For each item, calculate line total using calculateLineTotal(item.quantity, item.unitRate)
+          // Sum all line totals into net_amount (supports negative for omissions)
+          let netAmount = new Decimal(0);
+          const itemRows = data.items.map((item) => {
+            const lineTotal = calculateLineTotal(item.quantity, item.unitRate);
+            netAmount = netAmount.plus(lineTotal);
+            return {
+              tenant_id: tenantId,
+              boq_item_id: item.boqItemId || null,
+              description: item.description,
+              unit: item.unit,
+              quantity: toDecimal(item.quantity).toFixed(4),
+              unit_rate: toDecimal(item.unitRate).toFixed(4),
+              total_amount: lineTotal.toFixed(2),
+            };
+          });
+
+          // Create VariationOrder with status 'SUBMITTED'
+          const variation = await tx.variationOrder.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              variation_no: nextVariationNo,
+              title: data.title,
+              reason: data.reason,
+              status: 'SUBMITTED',
+              net_amount: netAmount.toFixed(2),
+              time_extension_days: data.timeExtensionDays ?? 0,
+              items: {
+                create: itemRows,
+              },
+            },
+            include: {
+              items: {
+                include: {
+                  boq_item: {
+                    select: { id: true, item_code: true, description: true },
+                  },
+                },
+                orderBy: { id: 'asc' },
+              },
+            },
+          });
+
+          // Record immutable audit log
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'VARIATION_SUBMITTED',
+            entityType: 'VariationOrder',
+            entityId: variation.id,
+            changes: {
+              variationNo: nextVariationNo,
+              title: data.title,
+              reason: data.reason,
+              netAmount: netAmount.toFixed(2),
+              timeExtensionDays: data.timeExtensionDays ?? 0,
+              itemCount: itemRows.length,
+            },
+            ipAddress: request.ip,
+            userAgent: (request.headers['user-agent'] as string) || null,
+          });
+
+          return formatVariation(variation);
+        });
+
+        return reply.status(201).send({
+          message: 'Variation order submitted successfully',
+          data: result,
+        });
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            message: err.message,
+          });
+        }
+        server.log.error(err, 'Failed to submit variation order');
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to submit variation order',
+        });
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 4. POST /api/v1/projects/:projectId/variations/:variationId/review - Review Workflow
+  // ---------------------------------------------------------------------------
+  server.post(
+    '/api/v1/projects/:projectId/variations/:variationId/review',
+    {
+      preHandler: [
+        server.authenticate,
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      const { projectId, variationId } = request.params as { projectId: string; variationId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(variationId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Variation order not found',
+        });
+      }
+
+      const bodyParse = ReviewVariationOrderSchema.safeParse(request.body);
+      if (!bodyParse.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid variation review payload',
+          details: bodyParse.error.errors,
+        });
+      }
+
+      const { action, comments } = bodyParse.data;
+
+      // Role permission check based on action:
+      // EVALUATE requires VARIATION_REVIEW
+      // APPROVE requires VARIATION_APPROVE
+      // REJECT requires VARIATION_APPROVE or VARIATION_REVIEW
+      if (action === 'EVALUATE') {
+        if (!hasPermission(role as Role, Permissions.VARIATION_REVIEW)) {
+          return reply.status(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: `Access denied. Role "${role}" does not have required permission "${Permissions.VARIATION_REVIEW}"`,
+          });
+        }
+      } else if (action === 'APPROVE') {
+        if (!hasPermission(role as Role, Permissions.VARIATION_APPROVE)) {
+          return reply.status(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: `Access denied. Role "${role}" does not have required permission "${Permissions.VARIATION_APPROVE}"`,
+          });
+        }
+      } else if (action === 'REJECT') {
+        const canReject =
+          hasPermission(role as Role, Permissions.VARIATION_APPROVE) ||
+          hasPermission(role as Role, Permissions.VARIATION_REVIEW);
+        if (!canReject) {
+          return reply.status(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: `Access denied. Role "${role}" does not have permission to reject variations`,
+          });
+        }
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({
+            where: { id: projectId },
+          });
+
+          if (!project) {
+            throw { status: 404, message: 'Project not found' };
+          }
+
+          const variation = await tx.variationOrder.findFirst({
+            where: { id: variationId, project_id: projectId },
+            include: { items: true },
+          });
+
+          if (!variation) {
+            throw { status: 404, message: 'Variation order not found' };
+          }
+
+          // Check if variation has already reached terminal status
+          if (variation.status === 'APPROVED' || variation.status === 'REJECTED') {
+            throw {
+              status: 400,
+              message: `Variation order is already ${variation.status.toLowerCase()} and cannot be reviewed again`,
+            };
+          }
+
+          let newStatus: string;
+          let approvedAt: Date | null = null;
+          let newApprovedBudget = project.current_approved_budget.toString();
+
+          if (action === 'EVALUATE') {
+            newStatus = 'QS_EVALUATED';
+          } else if (action === 'APPROVE') {
+            newStatus = 'APPROVED';
+            approvedAt = new Date();
+
+            // CRITICAL INVARIANT: Project budget update:
+            // current_approved_budget = project.current_approved_budget + variation.net_amount
+            const currentBudgetDec = toDecimal(project.current_approved_budget.toString());
+            const netAmountDec = toDecimal(variation.net_amount.toString());
+            const updatedBudgetDec = currentBudgetDec.plus(netAmountDec);
+            newApprovedBudget = updatedBudgetDec.toFixed(2);
+
+            await tx.project.update({
+              where: { id: projectId },
+              data: {
+                current_approved_budget: newApprovedBudget,
+              },
+            });
+          } else {
+            // REJECT: budget remains unchanged
+            newStatus = 'REJECTED';
+          }
+
+          const updatedVariation = await tx.variationOrder.update({
+            where: { id: variationId },
+            data: {
+              status: newStatus,
+              approved_at: approvedAt,
+            },
+            include: {
+              items: {
+                include: {
+                  boq_item: {
+                    select: { id: true, item_code: true, description: true },
+                  },
+                },
+                orderBy: { id: 'asc' },
+              },
+            },
+          });
+
+          // Record immutable audit log
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: `VARIATION_${action}`,
+            entityType: 'VariationOrder',
+            entityId: variation.id,
+            changes: {
+              previousStatus: variation.status,
+              newStatus,
+              action,
+              comments: comments || null,
+              netAmount: variation.net_amount.toString(),
+              previousBudget: project.current_approved_budget.toString(),
+              newBudget: newApprovedBudget,
+            },
+            ipAddress: request.ip,
+            userAgent: (request.headers['user-agent'] as string) || null,
+          });
+
+          return formatVariation(updatedVariation);
+        });
+
+        return reply.status(200).send({
+          message: `Variation order ${action.toLowerCase()}d successfully`,
+          data: result,
+        });
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            message: err.message,
+          });
+        }
+        server.log.error(err, 'Failed to review variation order');
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to review variation order',
+        });
+      }
+    },
+  );
+};

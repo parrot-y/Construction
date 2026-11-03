@@ -11,6 +11,8 @@ import OfflineSyncBanner from './components/OfflineSyncBanner';
 import SiteDiaryModal from './components/SiteDiaryModal';
 import PhysicalProgressModal from './components/PhysicalProgressModal';
 import VarianceMonitorCard from './components/VarianceMonitorCard';
+import CreateVariationModal from './components/CreateVariationModal';
+import VariationManagementView from './components/VariationManagementView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -402,6 +404,121 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const clientHtml = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
       expect(clientHtml).toContain('Variance Monitor &amp; Health Guard');
       expect(clientHtml).toContain('BOQ Section-by-Section Spend Breakdown');
+    });
+  });
+
+  describe('Milestone M8: Variations Workflow UI Suite', () => {
+    it('renders CreateVariationModal with addition/omission toggle, quantity, rate, calculated line total, and live net amount', () => {
+      const html = renderToString(
+        <CreateVariationModal
+          isOpen={true}
+          onClose={() => {}}
+          projectId="test-proj-id"
+          projectName="Riverside Commercial Plaza"
+        />,
+      );
+
+      // Header
+      expect(html).toContain('Request Variation Order (VO)');
+      expect(html).toContain('Milestone M8 • Variations Workflow');
+      expect(html).toContain('Riverside Commercial Plaza');
+
+      // Form inputs
+      expect(html).toContain('Variation Title *');
+      expect(html).toContain('Time Extension (Days)');
+      expect(html).toContain('Reason / Technical Justification *');
+
+      // Line items & toggle
+      expect(html).toContain('Scope Items (Additions &amp; Omissions)');
+      expect(html).toContain('+ Addition');
+      expect(html).toContain('- Omission');
+      expect(html).toContain('Quantity');
+      expect(html).toContain('Unit Rate (KES)');
+      expect(html).toContain('Line Total:');
+
+      // Live net amount summary & submission
+      expect(html).toContain('Calculated Net Amount');
+      expect(html).toContain('Sum of all additions and omissions');
+      expect(html).toContain('Submit Variation Order');
+    });
+
+    it('renders VariationManagementView with status badges, formatted KES net amount, time extension days, and action buttons', () => {
+      const html = renderToString(
+        <VariationManagementView
+          projectId="test-proj-id"
+          userRole="PM_QS"
+          canRequest={true}
+          canReview={true}
+          canApprove={true}
+        />,
+      );
+
+      // Header & Request button
+      expect(html).toContain('Variation Orders &amp; Scope Adjustments');
+      expect(html).toContain('Milestone M8');
+      expect(html).toContain('+ Request Variation');
+
+      // Status badges
+      expect(html).toContain('SUBMITTED');
+      expect(html).toContain('QS_EVALUATED');
+      expect(html).toContain('APPROVED');
+
+      // Formatted KES amounts and time extensions
+      expect(html).toContain('900000.00');
+      expect(html).toContain('450000.00');
+      expect(html).toContain('+14 Days Extension');
+      expect(html).toContain('+5 Days Extension');
+
+      // Action buttons
+      expect(html).toContain('Evaluate');
+      expect(html).toContain('Approve');
+      expect(html).toContain('Reject');
+    });
+
+    it('renders VariationManagementView embedded inside PM_QS and CLIENT dashboards', () => {
+      const qsSession: AuthSession = {
+        user: {
+          id: '22222222-2222-2222-2222-222222222222',
+          email: 'qs@apexbuilders.co.ke',
+          fullName: 'Faith Achieng',
+          role: 'PM_QS',
+          tenant: {
+            id: 'tenant-123',
+            name: 'Apex Builders Kenya Ltd',
+            slug: 'apex-builders',
+            currency: 'KES',
+          },
+        },
+        permissions: ['boq.import', 'cost.approve', 'project.view', 'variation.create', 'variation.review'],
+        token: 'mock-jwt-token-qs',
+      };
+
+      const clientSession: AuthSession = {
+        user: {
+          id: '44444444-4444-4444-4444-444444444444',
+          email: 'client@apexbuilders.co.ke',
+          fullName: 'Sarah Wambui',
+          role: 'CLIENT',
+          tenant: {
+            id: 'tenant-123',
+            name: 'Apex Builders Kenya Ltd',
+            slug: 'apex-builders',
+            currency: 'KES',
+          },
+        },
+        permissions: ['project.view', 'client.portal.access', 'report.view', 'variation.approve'],
+        token: 'mock-jwt-token-client',
+      };
+
+      const qsHtml = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
+      expect(qsHtml).toContain('Variation Orders &amp; Scope Adjustments');
+      expect(qsHtml).toContain('+ Request Variation');
+      expect(qsHtml).toContain('Evaluate');
+
+      const clientHtml = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
+      expect(clientHtml).toContain('Variation Orders &amp; Scope Adjustments');
+      expect(clientHtml).toContain('Approve');
+      expect(clientHtml).not.toContain('+ Request Variation');
     });
   });
 });

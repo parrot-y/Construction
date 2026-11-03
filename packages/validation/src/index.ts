@@ -177,6 +177,39 @@ export const CreateProgressRecordSchema = z.object({
 });
 export type CreateProgressRecord = z.infer<typeof CreateProgressRecordSchema>;
 
+// -------------------------------------------------------------
+// VARIATION ORDERS WORKFLOW SCHEMAS (MILESTONE M8)
+// -------------------------------------------------------------
+
+export const VariationQuantitySchema = z
+  .string()
+  .regex(/^-?\d+(\.\d{1,4})?$/, {
+    message: 'Variation quantity must be a decimal with up to 4 decimal places (positive for additions, negative for omissions)',
+  });
+
+export const VariationItemInputSchema = z.object({
+  boqItemId: z.string().uuid().optional().nullable(),
+  description: z.string().min(2).max(1000),
+  unit: z.string().min(1).max(20),
+  quantity: VariationQuantitySchema,
+  unitRate: UnitRateSchema,
+});
+export type VariationItemInput = z.infer<typeof VariationItemInputSchema>;
+
+export const CreateVariationOrderSchema = z.object({
+  title: z.string().min(3).max(255),
+  reason: z.string().min(5).max(4000),
+  timeExtensionDays: z.number().int().min(0).max(3650).default(0),
+  items: z.array(VariationItemInputSchema).min(1, { message: 'At least one variation item is required' }),
+});
+export type CreateVariationOrder = z.infer<typeof CreateVariationOrderSchema>;
+
+export const ReviewVariationOrderSchema = z.object({
+  action: z.enum(['EVALUATE', 'APPROVE', 'REJECT']),
+  comments: z.string().max(2000).optional(),
+});
+export type ReviewVariationOrder = z.infer<typeof ReviewVariationOrderSchema>;
+
 export type AuthUserResponse = z.infer<typeof AuthUserResponseSchema>;
 
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;
