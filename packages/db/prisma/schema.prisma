@@ -122,6 +122,10 @@ model Project {
   subcontractor_packages SubcontractorPackage[]
   delay_events         ProjectDelayEvent[]
   tax_certificates     StatutoryTaxCertificate[]
+  material_requisitions MaterialRequisition[]
+  wastage_reconciliations MaterialWastageReconciliation[]
+  cash_flow_forecasts  ProjectCashFlowForecast[]
+  subcontractor_valuations SubcontractorValuation[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -823,6 +827,8 @@ model SiteInventoryItem {
 
   project              Project             @relation(fields: [project_id], references: [id], onDelete: Cascade)
   movements            InventoryMovement[]
+  requisitions         MaterialRequisition[]
+  wastage_reconciliations MaterialWastageReconciliation[]
 
   @@unique([project_id, material_name])
   @@index([tenant_id, project_id])
@@ -921,6 +927,7 @@ model SubcontractorPackage {
   updated_at           DateTime  @updatedAt @db.Timestamptz
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  valuations           SubcontractorValuation[]
 
   @@index([tenant_id, project_id, trade_category])
   @@map("subcontractor_packages")
@@ -986,5 +993,133 @@ model StatutoryTaxCertificate {
   @@index([tenant_id, project_id, payee_kra_pin])
   @@map("statutory_tax_certificates")
 }
+
+// =============================================================
+// MATERIAL PURCHASE REQUISITIONS (BUILD-SASA BENCHMARK)
+// =============================================================
+
+model MaterialRequisition {
+  id                       String             @id @default(uuid()) @db.Uuid
+  tenant_id                String             @db.Uuid
+  project_id               String             @db.Uuid
+  requisition_no           String             @db.VarChar(100) // e.g. "REQ-2026-001"
+  inventory_item_id        String?            @db.Uuid
+  item_description         String             @db.VarChar(255)
+  unit_of_measure          String             @db.VarChar(50)
+  requested_quantity       Decimal            @db.Decimal(12, 2)
+  estimated_unit_cost_kes  Decimal            @db.Decimal(15, 2)
+  estimated_total_cost_kes Decimal            @db.Decimal(15, 2)
+  urgency                  String             @default("NORMAL") @db.VarChar(50) // "LOW", "NORMAL", "HIGH", "EMERGENCY"
+  required_by_date         DateTime?          @db.Date
+  supplier_name            String?            @db.VarChar(255)
+  status                   String             @default("PENDING_APPROVAL") @db.VarChar(50) // "DRAFT", "PENDING_APPROVAL", "APPROVED", "PO_ISSUED", "FULFILLED", "REJECTED"
+  rejection_reason         String?            @db.Text
+  requested_by             String             @db.VarChar(255)
+  approved_by              String?            @db.VarChar(255)
+  approved_at              DateTime?          @db.Timestamptz
+  created_at               DateTime           @default(now()) @db.Timestamptz
+  updated_at               DateTime           @updatedAt @db.Timestamptz
+
+  project                  Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  inventory_item           SiteInventoryItem? @relation(fields: [inventory_item_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, project_id, status])
+  @@map("material_requisitions")
+}
+
+// =============================================================
+// MATERIAL WASTAGE & THEORETICAL CONSUMPTION VARIANCE ENGINE
+// =============================================================
+
+model MaterialWastageReconciliation {
+  id                       String             @id @default(uuid()) @db.Uuid
+  tenant_id                String             @db.Uuid
+  project_id               String             @db.Uuid
+  period_name              String             @db.VarChar(100) // e.g. "Week 42 Structural Pour Reconciliation"
+  inventory_item_id        String?            @db.Uuid
+  material_name            String             @db.VarChar(255)
+  unit_of_measure          String             @db.VarChar(50)
+  theoretical_quantity     Decimal            @db.Decimal(12, 2)
+  actual_consumed_quantity Decimal            @db.Decimal(12, 2)
+  allowable_wastage_pct    Decimal            @default(5.00) @db.Decimal(5, 2)
+  actual_wastage_pct       Decimal            @db.Decimal(5, 2)
+  variance_quantity        Decimal            @db.Decimal(12, 2)
+  unit_cost_kes            Decimal            @db.Decimal(15, 2)
+  financial_loss_kes       Decimal            @db.Decimal(15, 2)
+  status                   String             @default("WITHIN_TOLERANCE") @db.VarChar(50) // "WITHIN_TOLERANCE", "ELEVATED_LOSS", "CRITICAL_UNEXPLAINED_LOSS"
+  investigation_notes      String?            @db.Text
+  created_by               String             @db.VarChar(255)
+  created_at               DateTime           @default(now()) @db.Timestamptz
+  updated_at               DateTime           @updatedAt @db.Timestamptz
+
+  project                  Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  inventory_item           SiteInventoryItem? @relation(fields: [inventory_item_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, project_id, status])
+  @@map("material_wastage_reconciliations")
+}
+
+// =============================================================
+// CONTRACTOR CASH FLOW FORECASTING & VALUATION S-CURVE
+// =============================================================
+
+model ProjectCashFlowForecast {
+  id                       String    @id @default(uuid()) @db.Uuid
+  tenant_id                String    @db.Uuid
+  project_id               String    @db.Uuid
+  period_month             String    @db.VarChar(20) // e.g. "2026-10"
+  planned_value_kes        Decimal   @db.Decimal(15, 2) // PV
+  actual_cost_kes          Decimal   @db.Decimal(15, 2) // AC
+  earned_value_kes         Decimal   @db.Decimal(15, 2) // EV
+  cpi                      Decimal   @default(1.0000) @db.Decimal(6, 4) // EV / AC
+  spi                      Decimal   @default(1.0000) @db.Decimal(6, 4) // EV / PV
+  forecasted_final_cost_kes Decimal  @db.Decimal(15, 2) // Estimate At Completion
+  client_billed_kes        Decimal   @default(0.00) @db.Decimal(15, 2)
+  net_cash_flow_kes        Decimal   @default(0.00) @db.Decimal(15, 2)
+  status                   String    @default("ON_TRACK") @db.VarChar(50) // "AHEAD_UNDER_BUDGET", "ON_TRACK", "COST_OVERRUN", "SCHEDULE_DELAY", "CRITICAL_DIVERGENCE"
+  notes                    String?   @db.Text
+  created_at               DateTime  @default(now()) @db.Timestamptz
+  updated_at               DateTime  @updatedAt @db.Timestamptz
+
+  project                  Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, project_id, period_month])
+  @@index([tenant_id, project_id])
+  @@map("project_cash_flow_forecasts")
+}
+
+// =============================================================
+// SUBCONTRACTOR VALUATION & BACK-TO-BACK RETENTION LEDGER (JBC 1999)
+// =============================================================
+
+model SubcontractorValuation {
+  id                             String               @id @default(uuid()) @db.Uuid
+  tenant_id                      String               @db.Uuid
+  project_id                     String               @db.Uuid
+  subcontractor_package_id       String               @db.Uuid
+  certificate_no                 String               @db.VarChar(100) // e.g. "SC-VAL-001"
+  valuation_date                 DateTime             @db.Date
+  gross_work_certified_kes       Decimal              @db.Decimal(15, 2)
+  retention_rate_pct             Decimal              @default(10.00) @db.Decimal(5, 2)
+  retention_deducted_kes         Decimal              @db.Decimal(15, 2)
+  previous_payments_deducted_kes Decimal              @default(0.00) @db.Decimal(15, 2)
+  withholding_tax_pct            Decimal              @default(3.00) @db.Decimal(5, 2)
+  withholding_tax_deducted_kes   Decimal              @db.Decimal(15, 2)
+  net_payable_kes                Decimal              @db.Decimal(15, 2)
+  payment_status                 String               @default("SUBMITTED") @db.VarChar(50) // "SUBMITTED", "QS_VERIFIED", "APPROVED_FOR_PAYMENT", "PAID", "REJECTED"
+  payment_reference              String?              @db.VarChar(100) // e.g. "KCB-RTGS-98124"
+  paid_at                        DateTime?            @db.Timestamptz
+  approved_by                    String?              @db.VarChar(255)
+  notes                          String?              @db.Text
+  created_at                     DateTime             @default(now()) @db.Timestamptz
+  updated_at                     DateTime             @updatedAt @db.Timestamptz
+
+  project                        Project              @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  subcontractor_package          SubcontractorPackage @relation(fields: [subcontractor_package_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, subcontractor_package_id])
+  @@map("subcontractor_valuations")
+}
+
 
 

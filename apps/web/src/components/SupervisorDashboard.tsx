@@ -10,6 +10,8 @@ import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import SiteInventoryManagementView from './SiteInventoryManagementView';
 import SafetyIncidentLogView from './SafetyIncidentLogView';
 import ProjectDocumentVaultView from './ProjectDocumentVaultView';
+import { MaterialRequisitionView } from './MaterialRequisitionView';
+import { MaterialWastageVarianceCard } from './MaterialWastageVarianceCard';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -216,6 +218,19 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       <ProjectDocumentVaultView
         projectId="project-rcp-2026"
         canUpload={true}
+      />
+
+      {/* Site Store Material Purchase Requisitions */}
+      <MaterialRequisitionView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="SITE_SUPERVISOR"
+      />
+
+      {/* Material Wastage & Theoretical Loss Engine */}
+      <MaterialWastageVarianceCard
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
       />
 
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}

@@ -36,6 +36,10 @@ import ProjectDocumentVaultView from './components/ProjectDocumentVaultView';
 import SubcontractorManagementView from './components/SubcontractorManagementView';
 import WeatherDelayClaimsView from './components/WeatherDelayClaimsView';
 import StatutoryTaxManagementView from './components/StatutoryTaxManagementView';
+import { MaterialRequisitionView } from './components/MaterialRequisitionView';
+import { MaterialWastageVarianceCard } from './components/MaterialWastageVarianceCard';
+import { ProjectSCurveCashFlowCard } from './components/ProjectSCurveCashFlowCard';
+import { SubcontractorValuationView } from './components/SubcontractorValuationView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1355,6 +1359,128 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Statutory Tax &amp; Withholding Certificates');
       expect(html).toContain('KRA CAP 470 (WHT &amp; WHVAT)');
+    });
+  });
+
+  describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations', () => {
+    it('renders MaterialRequisitionView with item descriptions, calculated commitment, and urgency badges', () => {
+      const html = renderToString(
+        <MaterialRequisitionView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Site Material Requisitions &amp; Orders');
+      expect(html).toContain('REQ-2026-001');
+      expect(html).toContain('Simba Portland Cement 42.5N');
+      expect(html).toContain('234,000.00');
+      expect(html).toContain('HIGH');
+      expect(html).toContain('New Material Request');
+    });
+
+    it('renders MaterialWastageVarianceCard with theoretical vs actual consumption, allowable tolerance, and financial loss', () => {
+      const html = renderToString(
+        <MaterialWastageVarianceCard projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Material Wastage &amp; Shrinkage Engine');
+      expect(html).toContain('BS 8110 / Eurocode 2');
+      expect(html).toContain('Simba Portland Cement 42.5N');
+      expect(html).toContain('Standard Tolerance');
+      expect(html).toContain('D16 High-Yield Rebar (Y16)');
+      expect(html).toContain('Critical Unexplained Loss');
+      expect(html).toContain('238,000.00');
+      expect(html).toContain('Log Wastage Takeoff');
+    });
+
+    it('renders ProjectSCurveCashFlowCard with EVM metrics (CPI, SPI, EAC) and SVG S-Curve visualization', () => {
+      const html = renderToString(
+        <ProjectSCurveCashFlowCard projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Project Cash Flow &amp; S-Curve Forecasting');
+      expect(html).toContain('Cost Performance (CPI)');
+      expect(html).toContain('Schedule Index (SPI)');
+      expect(html).toContain('Planned Value (PV)');
+      expect(html).toContain('Earned Value (EV)');
+      expect(html).toContain('Actual Cost (AC)');
+      expect(html).toContain('Net Cash Flow (Liquidity)');
+      expect(html).toContain('Record Monthly Valuation');
+    });
+
+    it('renders SubcontractorValuationView with JBC 1999 10% retention, 3% KRA WHT, and net payable calculations', () => {
+      const html = renderToString(
+        <SubcontractorValuationView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Subcontractor Valuations &amp; Retention Ledger');
+      expect(html).toContain('JBC 1999 Agreement and Conditions of Sub-Contract');
+      expect(html).toContain('SC-VAL-001');
+      expect(html).toContain('Amani Mechanical &amp; Plumbing Ltd');
+      expect(html).toContain('1,500,000.00');
+      expect(html).toContain('150,000.00');
+      expect(html).toContain('45,000.00');
+      expect(html).toContain('1,305,000.00');
+      expect(html).toContain('KCB-RTGS-20261102-88192');
+      expect(html).toContain('New Subcontractor Claim');
+    });
+
+    it('embeds all 4 commercial modules into PmQsDashboard with navigation tabs', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'qs@apexbuilders.co.ke',
+          fullName: 'David Kiprono',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['project.view', 'boq.manage', 'cost.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('📦 Material Requisitions');
+      expect(html).toContain('⚖️ Wastage Variance');
+      expect(html).toContain('📈 Cash Flow &amp; S-Curve');
+      expect(html).toContain('📑 Subcontractor Valuations');
+      expect(html).toContain('Site Material Requisitions &amp; Orders');
+      expect(html).toContain('Material Wastage &amp; Shrinkage Engine');
+      expect(html).toContain('Project Cash Flow &amp; S-Curve Forecasting');
+      expect(html).toContain('Subcontractor Valuations &amp; Retention Ledger');
+    });
+
+    it('embeds Cash Flow S-Curve and Subcontractor Valuations into CompanyAdminDashboard', () => {
+      const adminSession: AuthSession = {
+        user: {
+          id: 'user-admin',
+          email: 'admin@apexbuilders.co.ke',
+          fullName: 'Admin User',
+          role: 'COMPANY_ADMIN',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['company.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Project Cash Flow &amp; S-Curve Forecasting');
+      expect(html).toContain('Subcontractor Valuations &amp; Retention Ledger');
+    });
+
+    it('embeds Material Requisitions and Wastage Variance into SupervisorDashboard', () => {
+      const superSession: AuthSession = {
+        user: {
+          id: 'user-super',
+          email: 'supervisor@apexbuilders.co.ke',
+          fullName: 'Site Supervisor',
+          role: 'SITE_SUPERVISOR',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['site.diary', 'cost.create'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Site Material Requisitions &amp; Orders');
+      expect(html).toContain('Material Wastage &amp; Shrinkage Engine');
     });
   });
 });

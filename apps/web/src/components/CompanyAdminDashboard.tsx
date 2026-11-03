@@ -5,6 +5,8 @@ import PortalAccessLinkManager from './PortalAccessLinkManager';
 import SubcontractorManagementView from './SubcontractorManagementView';
 import ProjectDocumentVaultView from './ProjectDocumentVaultView';
 import StatutoryTaxManagementView from './StatutoryTaxManagementView';
+import { ProjectSCurveCashFlowCard } from './ProjectSCurveCashFlowCard';
+import { SubcontractorValuationView } from './SubcontractorValuationView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -299,6 +301,19 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
       <StatutoryTaxManagementView
         projectId="project-rcp-2026"
         canIssue={true}
+      />
+
+      {/* Portfolio Cash Flow Forecasting & S-Curve */}
+      <ProjectSCurveCashFlowCard
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+      />
+
+      {/* Subcontractor Valuations & Back-to-Back Retention Ledger */}
+      <SubcontractorValuationView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="ADMIN"
       />
 
       {/* Invite Member Modal */}

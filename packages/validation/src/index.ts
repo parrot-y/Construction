@@ -669,4 +669,121 @@ export const RemitTaxCertificateSchema = z.object({
 });
 export type RemitTaxCertificate = z.infer<typeof RemitTaxCertificateSchema>;
 
+// -------------------------------------------------------------
+// MATERIAL REQUISITIONS & REORDER PURCHASE ORDERS
+// -------------------------------------------------------------
+export const RequisitionUrgencyEnum = z.enum(['LOW', 'NORMAL', 'HIGH', 'EMERGENCY']);
+export type RequisitionUrgency = z.infer<typeof RequisitionUrgencyEnum>;
+
+export const RequisitionStatusEnum = z.enum([
+  'DRAFT',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'PO_ISSUED',
+  'FULFILLED',
+  'REJECTED',
+]);
+export type RequisitionStatus = z.infer<typeof RequisitionStatusEnum>;
+
+export const CreateMaterialRequisitionSchema = z.object({
+  requisitionNo: z.string().min(2).max(100),
+  inventoryItemId: z.string().uuid().optional().nullable(),
+  itemDescription: z.string().min(2).max(255),
+  unitOfMeasure: z.string().min(1).max(50),
+  requestedQuantity: QuantitySchema,
+  estimatedUnitCostKes: CurrencyAmountSchema,
+  urgency: RequisitionUrgencyEnum.default('NORMAL'),
+  requiredByDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  supplierName: z.string().max(255).optional().nullable(),
+  requestedBy: z.string().min(2).max(255),
+});
+export type CreateMaterialRequisition = z.infer<typeof CreateMaterialRequisitionSchema>;
+
+export const ReviewMaterialRequisitionSchema = z.object({
+  status: RequisitionStatusEnum,
+  approvedBy: z.string().min(2).max(255).optional().nullable(),
+  rejectionReason: z.string().max(1000).optional().nullable(),
+});
+export type ReviewMaterialRequisition = z.infer<typeof ReviewMaterialRequisitionSchema>;
+
+// -------------------------------------------------------------
+// MATERIAL WASTAGE & THEORETICAL CONSUMPTION VARIANCE ENGINE
+// -------------------------------------------------------------
+export const WastageStatusEnum = z.enum([
+  'WITHIN_TOLERANCE',
+  'ELEVATED_LOSS',
+  'CRITICAL_UNEXPLAINED_LOSS',
+]);
+export type WastageStatus = z.infer<typeof WastageStatusEnum>;
+
+export const CreateMaterialWastageReconciliationSchema = z.object({
+  periodName: z.string().min(2).max(100),
+  inventoryItemId: z.string().uuid().optional().nullable(),
+  materialName: z.string().min(2).max(255),
+  unitOfMeasure: z.string().min(1).max(50),
+  theoreticalQuantity: QuantitySchema,
+  actualConsumedQuantity: QuantitySchema,
+  allowableWastagePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid percentage' }).default('5.00'),
+  unitCostKes: CurrencyAmountSchema,
+  investigationNotes: z.string().max(2000).optional().nullable(),
+  createdBy: z.string().min(2).max(255),
+});
+export type CreateMaterialWastageReconciliation = z.infer<typeof CreateMaterialWastageReconciliationSchema>;
+
+// -------------------------------------------------------------
+// CONTRACTOR CASH FLOW FORECASTING & VALUATION S-CURVE
+// -------------------------------------------------------------
+export const CashFlowStatusEnum = z.enum([
+  'AHEAD_UNDER_BUDGET',
+  'ON_TRACK',
+  'COST_OVERRUN',
+  'SCHEDULE_DELAY',
+  'CRITICAL_DIVERGENCE',
+]);
+export type CashFlowStatus = z.infer<typeof CashFlowStatusEnum>;
+
+export const CreateCashFlowForecastSchema = z.object({
+  periodMonth: z.string().regex(/^\d{4}-\d{2}$/, { message: 'Must be in YYYY-MM format' }),
+  plannedValueKes: CurrencyAmountSchema,
+  actualCostKes: CurrencyAmountSchema,
+  earnedValueKes: CurrencyAmountSchema,
+  clientBilledKes: CurrencyAmountSchema.default('0.00'),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateCashFlowForecast = z.infer<typeof CreateCashFlowForecastSchema>;
+
+// -------------------------------------------------------------
+// SUBCONTRACTOR VALUATIONS & BACK-TO-BACK RETENTION (JBC 1999)
+// -------------------------------------------------------------
+export const SubcontractorValuationStatusEnum = z.enum([
+  'SUBMITTED',
+  'QS_VERIFIED',
+  'APPROVED_FOR_PAYMENT',
+  'PAID',
+  'REJECTED',
+]);
+export type SubcontractorValuationStatus = z.infer<typeof SubcontractorValuationStatusEnum>;
+
+export const CreateSubcontractorValuationSchema = z.object({
+  subcontractorPackageId: z.string().uuid(),
+  certificateNo: z.string().min(2).max(100),
+  valuationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  grossWorkCertifiedKes: CurrencyAmountSchema,
+  retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid retention percentage' }).default('10.00'),
+  previousPaymentsDeductedKes: CurrencyAmountSchema.default('0.00'),
+  withholdingTaxPct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid WHT percentage' }).default('3.00'),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateSubcontractorValuation = z.infer<typeof CreateSubcontractorValuationSchema>;
+
+export const ReviewSubcontractorValuationSchema = z.object({
+  paymentStatus: SubcontractorValuationStatusEnum,
+  approvedBy: z.string().min(2).max(255).optional().nullable(),
+  paymentReference: z.string().max(100).optional().nullable(),
+  paidAt: z.string().optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type ReviewSubcontractorValuation = z.infer<typeof ReviewSubcontractorValuationSchema>;
+
+
 

@@ -18,6 +18,10 @@ import ProjectDocumentVaultView from './ProjectDocumentVaultView';
 import SubcontractorManagementView from './SubcontractorManagementView';
 import WeatherDelayClaimsView from './WeatherDelayClaimsView';
 import StatutoryTaxManagementView from './StatutoryTaxManagementView';
+import { MaterialRequisitionView } from './MaterialRequisitionView';
+import { MaterialWastageVarianceCard } from './MaterialWastageVarianceCard';
+import { ProjectSCurveCashFlowCard } from './ProjectSCurveCashFlowCard';
+import { SubcontractorValuationView } from './SubcontractorValuationView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -31,7 +35,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -122,6 +126,10 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'quality', label: '🧪 Quality & Cubes' },
           { id: 'delays', label: '🌧️ Weather & EOT' },
           { id: 'taxes', label: '🏛️ KRA WHT / WHVAT' },
+          { id: 'requisitions', label: '📦 Material Requisitions' },
+          { id: 'wastage', label: '⚖️ Wastage Variance' },
+          { id: 'cashflow', label: '📈 Cash Flow & S-Curve' },
+          { id: 'subvaluations', label: '📑 Subcontractor Valuations' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -385,6 +393,40 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
         <StatutoryTaxManagementView
           projectId="project-rcp-2026"
           canIssue={true}
+        />
+      )}
+
+      {/* Material Purchase Requisitions & Orders (Buildsasa Benchmark) */}
+      {(activeTab === 'all' || activeTab === 'requisitions') && (
+        <MaterialRequisitionView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      )}
+
+      {/* Material Wastage & Theoretical Loss Engine */}
+      {(activeTab === 'all' || activeTab === 'wastage') && (
+        <MaterialWastageVarianceCard
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Cash Flow Forecasting & S-Curve */}
+      {(activeTab === 'all' || activeTab === 'cashflow') && (
+        <ProjectSCurveCashFlowCard
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Subcontractor Valuations & Back-to-Back Retention Ledger */}
+      {(activeTab === 'all' || activeTab === 'subvaluations') && (
+        <SubcontractorValuationView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
         />
       )}
 
