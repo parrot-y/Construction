@@ -4,6 +4,7 @@ import { AuthSession } from '../types/auth';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
 import SubcontractorManagementView from './SubcontractorManagementView';
 import ProjectDocumentVaultView from './ProjectDocumentVaultView';
+import StatutoryTaxManagementView from './StatutoryTaxManagementView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -292,6 +293,12 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
       <ProjectDocumentVaultView
         projectId="project-rcp-2026"
         canUpload={true}
+      />
+
+      {/* KRA Statutory Withholding Tax (Cap 470) & WHVAT Certificates */}
+      <StatutoryTaxManagementView
+        projectId="project-rcp-2026"
+        canIssue={true}
       />
 
       {/* Invite Member Modal */}

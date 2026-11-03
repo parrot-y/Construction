@@ -16,6 +16,8 @@ import SiteInventoryManagementView from './SiteInventoryManagementView';
 import SafetyIncidentLogView from './SafetyIncidentLogView';
 import ProjectDocumentVaultView from './ProjectDocumentVaultView';
 import SubcontractorManagementView from './SubcontractorManagementView';
+import WeatherDelayClaimsView from './WeatherDelayClaimsView';
+import StatutoryTaxManagementView from './StatutoryTaxManagementView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -29,7 +31,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -118,6 +120,8 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'variations', label: '📑 Variations' },
           { id: 'rfis', label: '📋 RFI Register' },
           { id: 'quality', label: '🧪 Quality & Cubes' },
+          { id: 'delays', label: '🌧️ Weather & EOT' },
+          { id: 'taxes', label: '🏛️ KRA WHT / WHVAT' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -364,6 +368,23 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           projectId="project-rcp-2026"
           canLog={true}
           canInvestigate={true}
+        />
+      )}
+
+      {/* Weather Delays & Extension of Time (JBC Clause 25/32) */}
+      {(activeTab === 'all' || activeTab === 'delays') && (
+        <WeatherDelayClaimsView
+          projectId="project-rcp-2026"
+          canClaim={true}
+          canReview={true}
+        />
+      )}
+
+      {/* KRA Statutory Withholding Tax (Cap 470) & WHVAT Certificates */}
+      {(activeTab === 'all' || activeTab === 'taxes') && (
+        <StatutoryTaxManagementView
+          projectId="project-rcp-2026"
+          canIssue={true}
         />
       )}
 

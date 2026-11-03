@@ -592,3 +592,81 @@ export const CreateSubcontractorPackageSchema = z.object({
 });
 export type CreateSubcontractorPackage = z.infer<typeof CreateSubcontractorPackageSchema>;
 
+// -------------------------------------------------------------
+// PROJECT DELAY & EXTENSION OF TIME CLAIMS (JBC 1999 CLAUSE 25/32)
+// -------------------------------------------------------------
+export const DelayTypeEnum = z.enum([
+  'WEATHER_INCLEMENT',
+  'ARCHITECT_INSTRUCTION',
+  'FORCE_MAJEURE',
+  'CLIENT_DELAY',
+  'LABOR_DISPUTE',
+  'STATUTORY_INSPECTION',
+]);
+export type DelayType = z.infer<typeof DelayTypeEnum>;
+
+export const DelayStatusEnum = z.enum([
+  'PENDING_REVIEW',
+  'RECOMMENDED_BY_QS',
+  'APPROVED_BY_ARCHITECT',
+  'REJECTED',
+]);
+export type DelayStatus = z.infer<typeof DelayStatusEnum>;
+
+export const CreateDelayEventSchema = z.object({
+  delayType: DelayTypeEnum,
+  title: z.string().min(3).max(255),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  daysClaimed: z.number().int().positive(),
+  criticalPathImpact: z.enum(['CRITICAL', 'NON_CRITICAL']).default('CRITICAL'),
+  dailyLadRateKes: CurrencyAmountSchema.default('50000.00'),
+  siteDiaryReference: z.string().max(100).optional().nullable(),
+  meteorologicalProof: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+export type CreateDelayEvent = z.infer<typeof CreateDelayEventSchema>;
+
+export const ReviewDelayEventSchema = z.object({
+  status: DelayStatusEnum,
+  approvedDays: z.number().int().min(0).optional().nullable(),
+  certifyingAuthority: z.string().min(2).max(255),
+  notes: z.string().optional().nullable(),
+});
+export type ReviewDelayEvent = z.infer<typeof ReviewDelayEventSchema>;
+
+// -------------------------------------------------------------
+// KRA STATUTORY WITHHOLDING TAX (CAP 470) & WHVAT CERTIFICATES
+// -------------------------------------------------------------
+export const PayeeTypeEnum = z.enum([
+  'MAIN_CONTRACTOR',
+  'TRADE_SUBCONTRACTOR',
+  'CONSULTANT',
+]);
+export type PayeeType = z.infer<typeof PayeeTypeEnum>;
+
+export const TaxCertStatusEnum = z.enum([
+  'GENERATED',
+  'REMITTED_TO_KRA',
+  'ACKNOWLEDGED',
+]);
+export type TaxCertStatus = z.infer<typeof TaxCertStatusEnum>;
+
+export const CreateTaxCertificateSchema = z.object({
+  payeeType: PayeeTypeEnum,
+  payeeName: z.string().min(2).max(255),
+  payeeKraPin: z.string().regex(/^[A-Z]\d{9}[A-Z]$/, { message: 'Must be a valid Kenyan KRA PIN (e.g. P051234567Z)' }),
+  invoiceOrIpcRef: z.string().min(2).max(100),
+  grossAmount: CurrencyAmountSchema,
+  whtRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).default('3.00'),
+  whvatRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).default('2.00'),
+});
+export type CreateTaxCertificate = z.infer<typeof CreateTaxCertificateSchema>;
+
+export const RemitTaxCertificateSchema = z.object({
+  status: TaxCertStatusEnum,
+  itaxAcknowledgementReceipt: z.string().min(3).max(100),
+});
+export type RemitTaxCertificate = z.infer<typeof RemitTaxCertificateSchema>;
+
+

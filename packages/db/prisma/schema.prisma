@@ -120,6 +120,8 @@ model Project {
   safety_incidents     SafetyIncident[]
   documents            ProjectDocument[]
   subcontractor_packages SubcontractorPackage[]
+  delay_events         ProjectDelayEvent[]
+  tax_certificates     StatutoryTaxCertificate[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -923,4 +925,66 @@ model SubcontractorPackage {
   @@index([tenant_id, project_id, trade_category])
   @@map("subcontractor_packages")
 }
+
+// =============================================================
+// WEATHER DELAY & EXTENSION OF TIME (JBC 1999 CLAUSE 25/32)
+// =============================================================
+
+model ProjectDelayEvent {
+  id                      String    @id @default(uuid()) @db.Uuid
+  tenant_id               String    @db.Uuid
+  project_id              String    @db.Uuid
+  delay_type              String    @db.VarChar(100) // "WEATHER_INCLEMENT", "ARCHITECT_INSTRUCTION", "FORCE_MAJEURE", "CLIENT_DELAY", "LABOR_DISPUTE", "STATUTORY_INSPECTION"
+  title                   String    @db.VarChar(255)
+  start_date              DateTime  @db.Date
+  end_date                DateTime  @db.Date
+  days_claimed            Int
+  critical_path_impact    String    @default("CRITICAL") @db.VarChar(50) // "CRITICAL", "NON_CRITICAL"
+  daily_lad_rate_kes      Decimal   @default(0.00) @db.Decimal(15, 2) // Liquidated & Ascertained Damages daily rate
+  site_diary_reference    String?   @db.VarChar(100)
+  meteorological_proof    String?   @db.Text // Kenya Meteorological Department station record or rainfall log
+  status                  String    @default("PENDING_REVIEW") @db.VarChar(50) // "PENDING_REVIEW", "RECOMMENDED_BY_QS", "APPROVED_BY_ARCHITECT", "REJECTED"
+  approved_days           Int?
+  lad_financial_relief_kes Decimal? @db.Decimal(15, 2)
+  certifying_authority    String?   @db.VarChar(255) // Lead Architect / Project Manager
+  notes                   String?   @db.Text
+  created_at              DateTime  @default(now()) @db.Timestamptz
+  updated_at              DateTime  @updatedAt @db.Timestamptz
+
+  project                 Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, status])
+  @@map("project_delay_events")
+}
+
+// =============================================================
+// KRA STATUTORY WITHHOLDING TAX & WHVAT CERTIFICATES (CAP 470)
+// =============================================================
+
+model StatutoryTaxCertificate {
+  id                          String    @id @default(uuid()) @db.Uuid
+  tenant_id                   String    @db.Uuid
+  project_id                  String    @db.Uuid
+  certificate_no              String    @unique @db.VarChar(100) // e.g. "KRA-WHT-2026-001"
+  payee_type                  String    @db.VarChar(50) // "MAIN_CONTRACTOR", "TRADE_SUBCONTRACTOR", "CONSULTANT"
+  payee_name                  String    @db.VarChar(255)
+  payee_kra_pin               String    @db.VarChar(20)
+  invoice_or_ipc_ref          String    @db.VarChar(100)
+  gross_amount                Decimal   @db.Decimal(15, 2)
+  wht_rate_pct                Decimal   @default(3.00) @db.Decimal(5, 2) // 3% for contractual building works in Kenya
+  wht_deducted                Decimal   @db.Decimal(15, 2)
+  whvat_rate_pct              Decimal   @default(2.00) @db.Decimal(5, 2) // 2% Withholding VAT
+  whvat_deducted              Decimal   @db.Decimal(15, 2)
+  net_payable                 Decimal   @db.Decimal(15, 2)
+  status                      String    @default("GENERATED") @db.VarChar(50) // "GENERATED", "REMITTED_TO_KRA", "ACKNOWLEDGED"
+  itax_acknowledgement_receipt String?  @db.VarChar(100)
+  created_at                  DateTime  @default(now()) @db.Timestamptz
+  updated_at                  DateTime  @updatedAt @db.Timestamptz
+
+  project                     Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, payee_kra_pin])
+  @@map("statutory_tax_certificates")
+}
+
 

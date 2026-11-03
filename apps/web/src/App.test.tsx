@@ -34,6 +34,8 @@ import SiteInventoryManagementView from './components/SiteInventoryManagementVie
 import SafetyIncidentLogView from './components/SafetyIncidentLogView';
 import ProjectDocumentVaultView from './components/ProjectDocumentVaultView';
 import SubcontractorManagementView from './components/SubcontractorManagementView';
+import WeatherDelayClaimsView from './components/WeatherDelayClaimsView';
+import StatutoryTaxManagementView from './components/StatutoryTaxManagementView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1303,6 +1305,56 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Safety, Health &amp; Environment (HSE) Register');
       expect(html).toContain('Project Drawing &amp; Document Vault');
       expect(html).toContain('Subcontractor Work Packages &amp; Directory');
+      expect(html).toContain('🌧️ Weather &amp; EOT');
+      expect(html).toContain('🏛️ KRA WHT / WHVAT');
+    });
+
+    it('renders WeatherDelayClaimsView with meteorological station proofs, claimed days, and LAD financial relief', () => {
+      const html = renderToString(
+        <WeatherDelayClaimsView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Weather Delays &amp; Extension of Time (EOT) Register');
+      expect(html).toContain('JBC 1999 CLAUSE 25 &amp; 32');
+      expect(html).toContain('El Niño Flash Flooding &amp; Foundation Trench Inundation');
+      expect(html).toContain('Dagoretti Corner Meteorological Station');
+      expect(html).toContain('Certified 10 days extension under JBC 1999 Clause 25.1(b)');
+      expect(html).toContain('LAD Financial Relief');
+      expect(html).toContain('Submit EOT Delay Claim');
+    });
+
+    it('renders StatutoryTaxManagementView with KRA Cap 470 3% WHT, 2% WHVAT, and iTax status', () => {
+      const html = renderToString(
+        <StatutoryTaxManagementView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Statutory Tax &amp; Withholding Certificates');
+      expect(html).toContain('KRA CAP 470 (WHT &amp; WHVAT)');
+      expect(html).toContain('Apex Builders Kenya Ltd');
+      expect(html).toContain('P051234567Z');
+      expect(html).toContain('3% WHT Withheld');
+      expect(html).toContain('2% WHVAT Withheld');
+      expect(html).toContain('Net Disbursed');
+      expect(html).toContain('Generate Tax Withholding Slip');
+      expect(html).toContain('iTax Acknowledged');
+    });
+
+    it('embeds StatutoryTaxManagementView into CompanyAdminDashboard for executive compliance review', () => {
+      const adminSession: AuthSession = {
+        user: {
+          id: 'user-admin',
+          email: 'admin@apexbuilders.co.ke',
+          fullName: 'Admin User',
+          role: 'COMPANY_ADMIN',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['company.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Statutory Tax &amp; Withholding Certificates');
+      expect(html).toContain('KRA CAP 470 (WHT &amp; WHVAT)');
     });
   });
 });
