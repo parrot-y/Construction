@@ -15,6 +15,7 @@ import { projectRoutes } from './routes/projects';
 import { siteRoutes } from './routes/site';
 import { variationsRoutes } from './routes/variations';
 import { clientPortalRoutes } from './routes/clientPortal';
+import { reportsRoutes } from './routes/reports';
 
 export function buildServer(): FastifyInstance {
   const server = fastify({
@@ -58,6 +59,7 @@ export function buildServer(): FastifyInstance {
   server.register(siteRoutes);
   server.register(variationsRoutes);
   server.register(clientPortalRoutes);
+  server.register(reportsRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

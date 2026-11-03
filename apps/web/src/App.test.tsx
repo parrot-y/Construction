@@ -690,4 +690,53 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('50% released at end of Defects Liability Period (DLP)');
     });
   });
+
+  describe('Milestone M10: Reports & PDF Export Integration', () => {
+    const mockSession = (role: string): AuthSession => ({
+      user: {
+        id: 'user-m10',
+        email: 'test@apexbuilders.co.ke',
+        fullName: 'Test User',
+        role,
+        tenant: {
+          id: 'tenant-123',
+          name: 'Apex Builders Kenya Ltd',
+          slug: 'apex-builders',
+          currency: 'KES',
+        },
+      },
+      permissions: ['project.view', 'report.generate', 'report.view'],
+      token: 'mock-token',
+    });
+
+    it('renders PDF report download buttons in ClientDashboard', () => {
+      const html = renderToString(<ClientDashboard session={mockSession('CLIENT')} />);
+      expect(html).toContain('Download IPC (PDF)');
+      expect(html).toContain('Project Summary (PDF)');
+      expect(html).toContain('data-testid="download-ipc-btn"');
+      expect(html).toContain('data-testid="download-summary-btn"');
+      expect(html).toContain('/reports/ipc');
+      expect(html).toContain('/reports/summary');
+    });
+
+    it('renders PDF report download buttons in PmQsDashboard', () => {
+      const html = renderToString(<Dashboard session={mockSession('PM_QS')} onLogout={() => {}} />);
+      expect(html).toContain('Download IPC (PDF)');
+      expect(html).toContain('Project Summary (PDF)');
+      expect(html).toContain('data-testid="download-ipc-btn"');
+      expect(html).toContain('data-testid="download-summary-btn"');
+      expect(html).toContain('/reports/ipc');
+      expect(html).toContain('/reports/summary');
+    });
+
+    it('renders PDF report download buttons in SupervisorDashboard', () => {
+      const html = renderToString(<Dashboard session={mockSession('SITE_SUPERVISOR')} onLogout={() => {}} />);
+      expect(html).toContain('Daily Diary (PDF)');
+      expect(html).toContain('Site Summary (PDF)');
+      expect(html).toContain('data-testid="download-site-diary-btn"');
+      expect(html).toContain('data-testid="download-summary-btn"');
+      expect(html).toContain('/reports/site-diary/latest');
+      expect(html).toContain('/reports/summary');
+    });
+  });
 });

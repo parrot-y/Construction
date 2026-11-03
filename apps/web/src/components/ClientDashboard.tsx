@@ -125,9 +125,35 @@ export default function ClientDashboard({
             <span className="font-mono text-slate-500">NCA: {projectData.ncaRegistration}</span>
           </div>
         </div>
-        <span className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg shrink-0">
-          Client Read-Only + Approvals
-        </span>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <a
+            href={`/api/v1/projects/${projectData.id}/reports/ipc`}
+            download
+            data-testid="download-ipc-btn"
+            className="px-3.5 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            title="Download Interim Payment Certificate (IPC PDF)"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Download IPC (PDF)</span>
+          </a>
+          <a
+            href={`/api/v1/projects/${projectData.id}/reports/summary`}
+            download
+            data-testid="download-summary-btn"
+            className="px-3.5 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            title="Download Executive Project Summary (PDF)"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Project Summary (PDF)</span>
+          </a>
+          <span className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
+            Client Read-Only + Approvals
+          </span>
+        </div>
       </div>
 
       {/* 5 Plain-Language Financial Cards (Milestone M9) */}
