@@ -1,0 +1,27 @@
+section_code,item_code,description,unit,quantity,unit_rate,total_amount
+SECTION_01,01.01,"Site clearance: Clearing bushes, shrubs and small trees including grubbing up roots and carting away",SM,1500,120.00,180000.00
+SECTION_01,01.02,"Excavation: Topsoil excavation average 200mm deep and preserving for landscaping",SM,1200,85.00,102000.00
+SECTION_01,01.03,"Bulk excavation: Excavate in normal soil to reduce levels not exceeding 1.50m deep",CM,850,450.00,382500.00
+SECTION_01,01.04,"Foundation trenches: Excavate for strip foundations not exceeding 1.50m deep",CM,320,600.00,192000.00
+SECTION_01,01.05,"Plunking and strutting to sides of all excavations",SM,450,250.00,112500.00
+SECTION_01,01.06,"Hardcore bed: 300mm thick compacted approved quarry hardcore bed in layers",SM,950,550.00,522500.00
+SECTION_01,01.07,"Murram blinding: 50mm thick approved murram blinding rolled smooth to receive polythene",SM,950,180.00,171000.00
+SECTION_01,01.08,"Damp-proof membrane: 1000 gauge polythene damp-proof membrane with 200mm laps",SM,1050,120.00,126000.00
+SECTION_01,01.09,"Anti-termite treatment: Approved chemical insecticide applied to blinded hardcore",SM,950,150.00,142500.00
+SECTION_01,01.10,"Mass concrete: Plain concrete Class 1:4:8 (15/20) in 50mm blinding under foundations",CM,45,9500.00,427500.00
+SECTION_01,01.11,"Vibrated reinforced concrete: Class 1:2:4 (20/20) in strip foundation footings",CM,160,14500.00,2320000.00
+SECTION_01,01.12,"Reinforcement: High yield deformed rebar bars (Y10 and Y12) to BS 4449 in foundations",KG,9500,165.00,1567500.00
+SECTION_01,01.13,"BRC Mesh: Fabric reinforcement ref A142 weighing 2.22 kg/m2 in 150mm ground slab",SM,950,420.00,399000.00
+SECTION_01,01.14,"Natural stone walling: 200mm thick approved medium quarry stone walling in foundation",SM,650,1850.00,1202500.00
+SECTION_02,02.01,"Reinforced concrete Class 25/20: In ground floor columns, ring beams and suspended slab",CM,280,16500.00,4620000.00
+SECTION_02,02.02,"High tensile rebar: Y16 and Y20 bars to BS 4449 in columns and transfer beams",KG,18500,170.00,3145000.00
+SECTION_02,02.03,"Sawn formwork: Formwork to soffits of suspended slabs, sides of beams and columns",SM,1850,850.00,1572500.00
+SECTION_02,02.04,"Machine-cut stone walling: 200mm thick chisel-dressed stone walling bedded in cement mortar 1:3",SM,1450,2100.00,3045000.00
+SECTION_03,03.01,"Structural steel roof trusses: Fabricated structural steel roof trusses primed with red oxide",KG,12500,240.00,3000000.00
+SECTION_03,03.02,"Roof covering: 28 gauge prepainted box profile roofing sheets fixed with self-tapping screws",SM,1200,1450.00,1740000.00
+SECTION_04,04.01,"Internal plaster: 15mm thick cement and sand (1:4) plaster with steel trowelled finish",SM,3200,420.00,1344000.00
+SECTION_04,04.02,"Floor tiling: 600x600mm porcelain floor tiles bedded in cementitious tile adhesive with grey grout",SM,1100,2850.00,3135000.00
+SECTION_04,04.03,"External wall finishes: Acrylic textured wall coating (Roughcast / Wallmaster finish)",SM,1800,850.00,1530000.00
+SECTION_05,05.01,"Provisional Sum: Contingency sum for unforeseen site conditions to be expended at Architect instruction",ITEM,1,1000000.00,1000000.00
+SECTION_05,05.02,"Provisional Sum: Electrical installation by licensed EPRA contractor",ITEM,1,4500000.00,4500000.00
+SECTION_05,05.03,"Provisional Sum: Plumbing, drainage and sanitation installations",ITEM,1,3800000.00,3800000.00

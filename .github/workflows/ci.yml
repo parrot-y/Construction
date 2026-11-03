@@ -14,6 +14,22 @@ jobs:
   validate-and-test:
     name: Lint, Typecheck & Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: construction_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,6 +45,9 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
+      - name: Install PostgreSQL client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -39,6 +58,39 @@ jobs:
             exit 1
           fi
 
+      - name: Setup Database Roles & Schema
+        env:
+          PGPASSWORD: postgrespassword
+        run: |
+          # 1. Create db_migrator and db_app roles
+          psql -h localhost -U postgres -d construction_test -c "
+            DO \$\$ BEGIN
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'db_migrator') THEN
+                CREATE ROLE db_migrator WITH LOGIN PASSWORD 'migrator_secret' CREATEDB;
+              END IF;
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'db_app') THEN
+                CREATE ROLE db_app WITH LOGIN PASSWORD 'app_secret';
+              END IF;
+            END \$\$;
+            GRANT ALL PRIVILEGES ON DATABASE construction_test TO db_migrator;
+            GRANT ALL PRIVILEGES ON SCHEMA public TO db_migrator;
+            GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO db_app;
+            GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO db_app;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO db_app;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO db_app;
+          "
+
+          # 2. Deploy Prisma Schema
+          DATABASE_URL="postgresql://db_migrator:migrator_secret@localhost:5432/construction_test?schema=public" \
+          pnpm --filter @construction/db prisma db push --skip-generate
+
+          # 3. Apply Row-Level Security
+          psql -h localhost -U postgres -d construction_test -f packages/db/prisma/rls.sql
+
+          # 4. Seed Database
+          DATABASE_URL="postgresql://db_migrator:migrator_secret@localhost:5432/construction_test?schema=public" \
+          pnpm --filter @construction/db run prisma:seed
+
       - name: Run Linter
         run: pnpm run lint
 
@@ -46,4 +98,6 @@ jobs:
         run: pnpm run typecheck
 
       - name: Run Unit & Integration Tests
-        run: pnpm run test
+        env:
+          DATABASE_URL: postgresql://db_app:app_secret@localhost:5432/construction_test?schema=public
+        run: pnpm run test --force
