@@ -15,6 +15,7 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
   let tenantBId: string;
   let projectAId: string;
   let sampleBoqItemId: string;
+  let supervisorAId: string;
 
   beforeAll(async () => {
     await server.ready();
@@ -44,6 +45,8 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
       payload: { email: 'supervisor@apexbuilders.co.ke', password: 'Password123!' },
     });
     supervisorCookie = supRes.headers['set-cookie'] as string;
+    const supBody = JSON.parse(supRes.body);
+    supervisorAId = supBody.user.id;
 
     // 4. Login as Client
     const clientRes = await server.inject({

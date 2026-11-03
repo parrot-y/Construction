@@ -102,3 +102,129 @@ export function evaluateProgressVariance(
     message: null,
   };
 }
+
+export type VarianceSeverity = 'info' | 'warning' | 'critical';
+export type VarianceStatus = 'ON_TRACK' | 'ATTENTION' | 'ACTION_REQUIRED';
+
+export interface DetailedVarianceResult {
+  costConsumptionRatio: Decimal;
+  physicalProgressRatio: Decimal;
+  costConsumptionPercentage: string;
+  physicalProgressPercentage: string;
+  differenceRatio: Decimal;
+  differencePercentage: string;
+  hasWarning: boolean;
+  status: VarianceStatus;
+  statusLabel: string;
+  severity: VarianceSeverity;
+  message: string;
+}
+
+export interface SectionVarianceResult {
+  allocatedBudget: string;
+  actualSpent: string;
+  pendingSpent: string;
+  remainingBudget: string;
+  consumptionPercentage: string;
+  isOverBudget: boolean;
+  status: 'NORMAL' | 'WATCH' | 'OVERRUN';
+}
+
+/**
+ * Computes high-fidelity project variance analytics comparing cost consumption against physical progress.
+ * Enforces strict neutral language (ADR-001, ADR-005, System Design 6.3) with zero inflammatory words.
+ */
+export function calculateDetailedVariance(
+  costConsumptionRatio: DecimalValue,
+  physicalProgressRatio: DecimalValue,
+): DetailedVarianceResult {
+  const costRatio = toDecimal(costConsumptionRatio);
+  const progressRatio = toDecimal(physicalProgressRatio);
+  const diff = costRatio.minus(progressRatio);
+
+  const costPct = costRatio.times(100).toFixed(2);
+  const progPct = progressRatio.times(100).toFixed(2);
+  const diffPctNum = diff.times(100);
+  const diffPct = `${diffPctNum.greaterThanOrEqualTo(0) ? '+' : ''}${diffPctNum.toFixed(2)}%`;
+
+  if (diff.greaterThanOrEqualTo(0.15)) {
+    return {
+      costConsumptionRatio: costRatio,
+      physicalProgressRatio: progressRatio,
+      costConsumptionPercentage: costPct,
+      physicalProgressPercentage: progPct,
+      differenceRatio: diff,
+      differencePercentage: diffPct,
+      hasWarning: true,
+      status: 'ACTION_REQUIRED',
+      statusLabel: 'Significant Disparity',
+      severity: 'critical',
+      message: 'Cost consumption is significantly ahead of recorded physical progress. Review project costs and progress records.',
+    };
+  }
+
+  if (diff.greaterThan(0)) {
+    return {
+      costConsumptionRatio: costRatio,
+      physicalProgressRatio: progressRatio,
+      costConsumptionPercentage: costPct,
+      physicalProgressPercentage: progPct,
+      differenceRatio: diff,
+      differencePercentage: diffPct,
+      hasWarning: false,
+      status: 'ATTENTION',
+      statusLabel: 'Moderate Disparity',
+      severity: 'warning',
+      message: 'Cost consumption is moderately ahead of recorded physical progress. Monitor upcoming milestone valuations.',
+    };
+  }
+
+  return {
+    costConsumptionRatio: costRatio,
+    physicalProgressRatio: progressRatio,
+    costConsumptionPercentage: costPct,
+    physicalProgressPercentage: progPct,
+    differenceRatio: diff,
+    differencePercentage: diffPct,
+    hasWarning: false,
+    status: 'ON_TRACK',
+    statusLabel: 'Normal Alignment',
+    severity: 'info',
+    message: 'Expenditure is aligned with recorded physical progress.',
+  };
+}
+
+/**
+ * Evaluates budget variance for an individual BOQ section.
+ */
+export function calculateSectionVariance(
+  allocatedBudget: DecimalValue,
+  actualSpent: DecimalValue,
+  pendingSpent: DecimalValue = 0,
+): SectionVarianceResult {
+  const budget = toDecimal(allocatedBudget);
+  const spent = toDecimal(actualSpent);
+  const pending = toDecimal(pendingSpent);
+
+  const remaining = budget.minus(spent);
+  const consumptionRatio = budget.isZero() ? new Decimal(0) : spent.dividedBy(budget);
+  const consumptionPercentage = consumptionRatio.times(100).toFixed(2);
+  const isOverBudget = spent.greaterThan(budget);
+
+  let status: 'NORMAL' | 'WATCH' | 'OVERRUN' = 'NORMAL';
+  if (isOverBudget) {
+    status = 'OVERRUN';
+  } else if (consumptionRatio.greaterThanOrEqualTo(0.85)) {
+    status = 'WATCH';
+  }
+
+  return {
+    allocatedBudget: toCurrencyString(budget),
+    actualSpent: toCurrencyString(spent),
+    pendingSpent: toCurrencyString(pending),
+    remainingBudget: toCurrencyString(remaining),
+    consumptionPercentage,
+    isOverBudget,
+    status,
+  };
+}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
+import VarianceMonitorCard from './VarianceMonitorCard';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -70,6 +71,9 @@ export default function ClientDashboard({ session }: ClientDashboardProps): Reac
           <span className="text-[11px] text-slate-400 mt-0.5 block">Awaiting client signature</span>
         </div>
       </div>
+
+      {/* Variance Monitor & Neutral Health Guard (Milestone M7) */}
+      <VarianceMonitorCard projectName="Riverside Commercial Plaza" />
 
       {/* Project Status & Retention Ledger Terms */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

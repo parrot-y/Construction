@@ -10,6 +10,7 @@ import CostManagementView from './components/CostManagementView';
 import OfflineSyncBanner from './components/OfflineSyncBanner';
 import SiteDiaryModal from './components/SiteDiaryModal';
 import PhysicalProgressModal from './components/PhysicalProgressModal';
+import VarianceMonitorCard from './components/VarianceMonitorCard';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -270,5 +271,137 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('Observation Date');
     expect(html).toContain('Overall Project Progress (%)');
     expect(html).toContain('Progress &amp; Milestone Notes');
+  });
+
+  describe('Milestone M7: Variance Monitor & Health Visualization', () => {
+    it('renders VarianceMonitorCard with default ON_TRACK status, comparison bars, and section breakdown', () => {
+      const html = renderToString(
+        <VarianceMonitorCard projectName="Riverside Commercial Plaza" />,
+      );
+
+      // Header & Status
+      expect(html).toContain('Variance Monitor &amp; Health Guard');
+      expect(html).toContain('Cost Consumption vs Physical Progress');
+      expect(html).toContain('Normal Alignment (ON_TRACK)');
+      expect(html).toContain('Expenditure is aligned with recorded physical progress.');
+
+      // Comparison bars
+      expect(html).toContain('Cost Consumption (Approved)');
+      expect(html).toContain('Physical Milestone Progress');
+      expect(html).toContain('27.67%');
+      expect(html).toContain('30.00%');
+
+      // Category breakdown
+      expect(html).toContain('Category Cost Distribution');
+      expect(html).toContain('Materials');
+      expect(html).toContain('Labor');
+      expect(html).toContain('Plant / Hire');
+      expect(html).toContain('Subcontracts');
+      expect(html).toContain('Preliminaries');
+
+      // BOQ section table
+      expect(html).toContain('BOQ Section-by-Section Spend Breakdown');
+      expect(html).toContain('Section 1: Preliminaries &amp; General');
+      expect(html).toContain('Section 2: Substructure &amp; Earthworks');
+      expect(html).toContain('NORMAL');
+
+      // Strict neutrality check
+      expect(html).not.toMatch(/fraud|theft|stolen|loss|bleeding|overbilled|overcharge/i);
+    });
+
+    it('renders VarianceMonitorCard with ACTION_REQUIRED status and neutral non-accusatory alert', () => {
+      const html = renderToString(
+        <VarianceMonitorCard
+          projectName="Riverside Commercial Plaza"
+          detailedVariance={{
+            costConsumptionPercentage: '68.50',
+            physicalProgressPercentage: '35.00',
+            differencePercentage: '+33.50%',
+            status: 'ACTION_REQUIRED',
+            statusLabel: 'Significant Disparity',
+            severity: 'critical',
+            message:
+              'Cost consumption is significantly ahead of recorded physical progress. Review project costs and progress records.',
+          }}
+          sectionBreakdown={[
+            {
+              sectionId: 'sec-overrun',
+              title: 'Section 2: Substructure',
+              allocatedBudget: '10,000,000.00',
+              actualSpent: '12,500,000.00',
+              pendingSpent: '500,000.00',
+              remainingBudget: '-2,500,000.00',
+              consumptionPercentage: '125.00',
+              isOverBudget: true,
+              status: 'OVERRUN',
+            },
+            {
+              sectionId: 'sec-watch',
+              title: 'Section 3: Concrete Frame',
+              allocatedBudget: '15,000,000.00',
+              actualSpent: '13,500,000.00',
+              pendingSpent: '300,000.00',
+              remainingBudget: '1,500,000.00',
+              consumptionPercentage: '90.00',
+              isOverBudget: false,
+              status: 'WATCH',
+            },
+          ]}
+        />,
+      );
+
+      expect(html).toContain('Significant Disparity (ACTION_REQUIRED)');
+      expect(html).toContain('+33.50%');
+      expect(html).toContain(
+        'Cost consumption is significantly ahead of recorded physical progress. Review project costs and progress records.',
+      );
+      expect(html).toContain('OVERRUN');
+      expect(html).toContain('WATCH');
+      expect(html).not.toMatch(/fraud|theft|stolen|loss|bleeding|overcharge/i);
+    });
+
+    it('renders VarianceMonitorCard inside PM_QS and CLIENT dashboards', () => {
+      const qsSession: AuthSession = {
+        user: {
+          id: '22222222-2222-2222-2222-222222222222',
+          email: 'qs@apexbuilders.co.ke',
+          fullName: 'Faith Achieng',
+          role: 'PM_QS',
+          tenant: {
+            id: 'tenant-123',
+            name: 'Apex Builders Kenya Ltd',
+            slug: 'apex-builders',
+            currency: 'KES',
+          },
+        },
+        permissions: ['boq.import', 'cost.approve', 'project.view', 'variation.create'],
+        token: 'mock-jwt-token-qs',
+      };
+
+      const clientSession: AuthSession = {
+        user: {
+          id: '44444444-4444-4444-4444-444444444444',
+          email: 'client@apexbuilders.co.ke',
+          fullName: 'Sarah Wambui',
+          role: 'CLIENT',
+          tenant: {
+            id: 'tenant-123',
+            name: 'Apex Builders Kenya Ltd',
+            slug: 'apex-builders',
+            currency: 'KES',
+          },
+        },
+        permissions: ['project.view', 'client.portal.access', 'report.view'],
+        token: 'mock-jwt-token-client',
+      };
+
+      const qsHtml = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
+      expect(qsHtml).toContain('Variance Monitor &amp; Health Guard');
+      expect(qsHtml).toContain('BOQ Section-by-Section Spend Breakdown');
+
+      const clientHtml = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
+      expect(clientHtml).toContain('Variance Monitor &amp; Health Guard');
+      expect(clientHtml).toContain('BOQ Section-by-Section Spend Breakdown');
+    });
   });
 });

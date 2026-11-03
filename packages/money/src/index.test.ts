@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateBudgetConsumptionRatio,
+  calculateDetailedVariance,
   calculateLineTotal,
+  calculateSectionVariance,
   evaluateProgressVariance,
   multiplyQuantityByRate,
   toCurrencyString,
@@ -66,5 +68,70 @@ describe('packages/money financial precision suite', () => {
     const result = evaluateProgressVariance('0.50', '0.45');
     expect(result.hasWarning).toBe(false);
     expect(result.message).toBeNull();
+  });
+
+  describe('calculateDetailedVariance (Milestone M7)', () => {
+    it('returns ACTION_REQUIRED when disparity >= 15%', () => {
+      const res = calculateDetailedVariance('0.72', '0.40');
+      expect(res.status).toBe('ACTION_REQUIRED');
+      expect(res.severity).toBe('critical');
+      expect(res.hasWarning).toBe(true);
+      expect(res.statusLabel).toBe('Significant Disparity');
+      expect(res.costConsumptionPercentage).toBe('72.00');
+      expect(res.physicalProgressPercentage).toBe('40.00');
+      expect(res.differencePercentage).toBe('+32.00%');
+      expect(res.message).toBe(
+        'Cost consumption is significantly ahead of recorded physical progress. Review project costs and progress records.',
+      );
+      expect(res.message).not.toMatch(/fraud|theft|stolen|loss|bleeding|overcharge/i);
+    });
+
+    it('returns ATTENTION when disparity is between 0% and 15%', () => {
+      const res = calculateDetailedVariance('0.48', '0.40');
+      expect(res.status).toBe('ATTENTION');
+      expect(res.severity).toBe('warning');
+      expect(res.hasWarning).toBe(false);
+      expect(res.statusLabel).toBe('Moderate Disparity');
+      expect(res.differencePercentage).toBe('+8.00%');
+      expect(res.message).toContain('moderately ahead');
+    });
+
+    it('returns ON_TRACK when physical progress meets or exceeds cost consumption', () => {
+      const res = calculateDetailedVariance('0.35', '0.40');
+      expect(res.status).toBe('ON_TRACK');
+      expect(res.severity).toBe('info');
+      expect(res.hasWarning).toBe(false);
+      expect(res.statusLabel).toBe('Normal Alignment');
+      expect(res.differencePercentage).toBe('-5.00%');
+      expect(res.message).toBe('Expenditure is aligned with recorded physical progress.');
+    });
+  });
+
+  describe('calculateSectionVariance (Milestone M7)', () => {
+    it('computes NORMAL status when consumption is under 85%', () => {
+      const res = calculateSectionVariance('1000000', '650000', '50000');
+      expect(res.allocatedBudget).toBe('1000000.00');
+      expect(res.actualSpent).toBe('650000.00');
+      expect(res.pendingSpent).toBe('50000.00');
+      expect(res.remainingBudget).toBe('350000.00');
+      expect(res.consumptionPercentage).toBe('65.00');
+      expect(res.isOverBudget).toBe(false);
+      expect(res.status).toBe('NORMAL');
+    });
+
+    it('computes WATCH status when consumption is between 85% and 100%', () => {
+      const res = calculateSectionVariance('1000000', '900000');
+      expect(res.consumptionPercentage).toBe('90.00');
+      expect(res.isOverBudget).toBe(false);
+      expect(res.status).toBe('WATCH');
+    });
+
+    it('computes OVERRUN status when consumption exceeds 100%', () => {
+      const res = calculateSectionVariance('1000000', '1150000');
+      expect(res.consumptionPercentage).toBe('115.00');
+      expect(res.isOverBudget).toBe(true);
+      expect(res.status).toBe('OVERRUN');
+      expect(res.remainingBudget).toBe('-150000.00');
+    });
   });
 });

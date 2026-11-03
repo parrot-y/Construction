@@ -5,6 +5,7 @@ import BoqImportModal from './BoqImportModal';
 import PhysicalProgressModal from './PhysicalProgressModal';
 import BudgetSummaryCard from './BudgetSummaryCard';
 import CostManagementView from './CostManagementView';
+import VarianceMonitorCard from './VarianceMonitorCard';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -143,18 +144,8 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
         </div>
       </div>
 
-      {/* Variance Monitor & Neutral Alert Guard */}
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-            Variance Monitor (Strict GEMINI.md Neutral Language Guard)
-          </h4>
-        </div>
-        <p className="text-xs text-slate-600 leading-relaxed">
-          Cost consumption is aligned with recorded physical progress. No variance alerts. If cost consumption ever materially exceeds recorded physical progress, a neutral non-accusatory flag will be triggered automatically.
-        </p>
-      </div>
+      {/* Variance Monitor & Neutral Alert Guard (Milestone M7) */}
+      <VarianceMonitorCard projectName="Riverside Commercial Plaza" />
 
       {/* Active Project & Bill of Quantities Structure */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">

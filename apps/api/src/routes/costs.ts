@@ -3,6 +3,8 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import {
   calculateBudgetConsumptionRatio,
+  calculateDetailedVariance,
+  calculateSectionVariance,
   evaluateProgressVariance,
   toCurrencyString,
   toDecimal,
@@ -608,14 +610,30 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       const { projectId } = request.params as { projectId: string };
       const { progressRatio } = request.query as { progressRatio?: string };
 
-      const summary = await withTenantTx(prisma, tenantId, async (tx) => {
+      try {
+        const summary = await withTenantTx(prisma, tenantId, async (tx) => {
         const project = await tx.project.findFirst({
           where: { id: projectId },
           include: {
             boqs: {
-              where: { status: 'APPROVED' },
+              where: { status: { in: ['ACTIVE', 'APPROVED'] } },
               orderBy: { version: 'desc' },
               take: 1,
+              include: {
+                sections: {
+                  orderBy: { order_idx: 'asc' },
+                  include: {
+                    items: {
+                      select: {
+                        id: true,
+                        item_code: true,
+                        description: true,
+                        total_amount: true,
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         });
@@ -626,11 +644,13 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
         // Determine approved budget from project or active BOQ
         const activeBoq = project.boqs[0];
-        const approvedBudgetDec = project.current_approved_budget
+        let approvedBudgetDec = project.current_approved_budget
           ? toDecimal(project.current_approved_budget.toString())
-          : activeBoq
-            ? toDecimal(activeBoq.total_amount.toString())
-            : new Decimal(0);
+          : new Decimal(0);
+
+        if (approvedBudgetDec.isZero() && activeBoq) {
+          approvedBudgetDec = toDecimal(activeBoq.total_amount ? activeBoq.total_amount.toString() : '0');
+        }
 
         // Fetch all non-voided cost entries
         const costEntries = await tx.costEntry.findMany({
@@ -675,9 +695,66 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         const remainingBudgetDec = approvedBudgetDec.minus(approvedCostDec);
         const consumptionRatio = calculateBudgetConsumptionRatio(approvedCostDec, approvedBudgetDec);
 
-        // Physical progress evaluation
-        const physicalProgress = progressRatio ? toDecimal(progressRatio) : new Decimal(0);
+        // Physical progress evaluation:
+        // If progressRatio query param is omitted, automatically query the latest progressRecord for the project:
+        const latestProgress = await tx.progressRecord.findFirst({
+          where: { project_id: projectId },
+          orderBy: [{ record_date: 'desc' }, { created_at: 'desc' }],
+        });
+
+        const physicalProgress = progressRatio
+          ? toDecimal(progressRatio)
+          : latestProgress
+            ? toDecimal(latestProgress.overall_progress.toString())
+            : new Decimal(0);
+
         const varianceAlert = evaluateProgressVariance(consumptionRatio, physicalProgress);
+        const detailedVariance = calculateDetailedVariance(consumptionRatio, physicalProgress);
+
+        // Calculate section-by-section breakdown using active BOQ sections and items:
+        // For each section: calculate total allocated budget from items, sum of approved cost entries mapped to items in that section, sum of pending cost entries. Call calculateSectionVariance(allocated, approved, pending). Include in response as sectionBreakdown.
+        const sectionBreakdown = (activeBoq?.sections || []).map((sec) => {
+          let allocatedDec = new Decimal(0);
+          const itemIds = new Set<string>();
+          for (const item of sec.items) {
+            allocatedDec = allocatedDec.plus(toDecimal(item.total_amount ? item.total_amount.toString() : '0'));
+            itemIds.add(item.id);
+          }
+          if (sec.items.length === 0 && sec.total_amount) {
+            allocatedDec = toDecimal(sec.total_amount.toString());
+          }
+
+          let sectionApproved = new Decimal(0);
+          let sectionPending = new Decimal(0);
+
+          for (const entry of costEntries) {
+            if (entry.boq_item_id && itemIds.has(entry.boq_item_id)) {
+              const amt = toDecimal(entry.amount.toString());
+              if (entry.status === 'APPROVED') {
+                sectionApproved = sectionApproved.plus(amt);
+              } else if (entry.status === 'PENDING') {
+                sectionPending = sectionPending.plus(amt);
+              }
+            }
+          }
+
+          const secVariance = calculateSectionVariance(allocatedDec, sectionApproved, sectionPending);
+
+          return {
+            sectionId: sec.id,
+            sectionTitle: sec.title,
+            title: sec.title,
+            orderIdx: sec.order_idx,
+            allocatedBudget: secVariance.allocatedBudget,
+            actualSpent: secVariance.actualSpent,
+            pendingSpent: secVariance.pendingSpent,
+            remainingBudget: secVariance.remainingBudget,
+            consumptionPercentage: secVariance.consumptionPercentage,
+            isOverBudget: secVariance.isOverBudget,
+            status: secVariance.status,
+            itemCount: sec.items.length,
+          };
+        });
 
         return {
           projectId,
@@ -691,7 +768,23 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
           consumptionRatio: consumptionRatio.toFixed(4),
           consumptionPercentage: consumptionRatio.times(100).toFixed(2),
           physicalProgressRatio: physicalProgress.toFixed(4),
+          physicalProgressPercentage: physicalProgress.times(100).toFixed(2),
+          latestProgressRecordDate: latestProgress ? latestProgress.record_date.toISOString().split('T')[0] : null,
           varianceAlert,
+          detailedVariance: {
+            costConsumptionRatio: detailedVariance.costConsumptionRatio.toString(),
+            physicalProgressRatio: detailedVariance.physicalProgressRatio.toString(),
+            costConsumptionPercentage: detailedVariance.costConsumptionPercentage,
+            physicalProgressPercentage: detailedVariance.physicalProgressPercentage,
+            differenceRatio: detailedVariance.differenceRatio.toString(),
+            differencePercentage: detailedVariance.differencePercentage,
+            hasWarning: detailedVariance.hasWarning,
+            status: detailedVariance.status,
+            statusLabel: detailedVariance.statusLabel,
+            severity: detailedVariance.severity,
+            message: detailedVariance.message,
+          },
+          sectionBreakdown,
           categoryBreakdown: {
             MATERIAL: {
               approved: toCurrencyString(categories.MATERIAL.approved),
@@ -719,6 +812,21 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       });
 
       return reply.status(200).send({ data: summary });
-    },
-  );
+    } catch (err: any) {
+      if (err.status) {
+        return reply.status(err.status).send({
+          statusCode: err.status,
+          error: err.status === 404 ? 'Not Found' : 'Bad Request',
+          message: err.message,
+        });
+      }
+      server.log.error(err, 'Failed to fetch budget summary');
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to fetch budget summary',
+      });
+    }
+  },
+);
 };

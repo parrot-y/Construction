@@ -1,4 +1,10 @@
 import { prisma, withTenantTx } from '@construction/db';
+import {
+  calculateBudgetConsumptionRatio,
+  calculateDetailedVariance,
+  toDecimal,
+  Decimal,
+} from '@construction/money';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
 export const dashboardRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
@@ -17,6 +23,71 @@ export const dashboardRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             members: { include: { user: { select: { id: true, full_name: true } } } },
           },
         });
+
+        // Compute variance status for active projects per Milestone M7
+        const projectsWithVariance = await Promise.all(
+          projects.map(async (p) => {
+            if (p.status !== 'ACTIVE') {
+              return {
+                ...p,
+                varianceStatus: 'ON_TRACK' as const,
+                varianceSeverity: 'info' as const,
+                varianceMessage: 'Expenditure is aligned with recorded physical progress.',
+              };
+            }
+
+            // Current approved budget
+            let approvedBudgetDec = toDecimal(p.current_approved_budget.toString());
+            if (approvedBudgetDec.isZero()) {
+              const activeBoq = await tx.bOQ.findFirst({
+                where: { project_id: p.id, status: { in: ['ACTIVE', 'APPROVED'] } },
+                orderBy: { version: 'desc' },
+              });
+              if (activeBoq) {
+                approvedBudgetDec = toDecimal(activeBoq.total_amount ? activeBoq.total_amount.toString() : '0');
+              }
+            }
+
+            // Approved costs
+            const approvedCosts = await tx.costEntry.findMany({
+              where: { project_id: p.id, status: 'APPROVED' },
+              select: { amount: true },
+            });
+            const approvedCostDec = approvedCosts.reduce(
+              (acc, c) => acc.plus(toDecimal(c.amount.toString())),
+              new Decimal(0),
+            );
+
+            // Latest physical progress record
+            const latestProgress = await tx.progressRecord.findFirst({
+              where: { project_id: p.id },
+              orderBy: [{ record_date: 'desc' }, { created_at: 'desc' }],
+            });
+
+            const consumptionRatio = calculateBudgetConsumptionRatio(approvedCostDec, approvedBudgetDec);
+            const physicalProgress = latestProgress
+              ? toDecimal(latestProgress.overall_progress.toString())
+              : new Decimal(0);
+
+            const detailed = calculateDetailedVariance(consumptionRatio, physicalProgress);
+
+            return {
+              ...p,
+              varianceStatus: detailed.status,
+              varianceSeverity: detailed.severity,
+              varianceMessage: detailed.message,
+              varianceDetail: {
+                status: detailed.status,
+                statusLabel: detailed.statusLabel,
+                severity: detailed.severity,
+                message: detailed.message,
+                costConsumptionPercentage: detailed.costConsumptionPercentage,
+                physicalProgressPercentage: detailed.physicalProgressPercentage,
+                differencePercentage: detailed.differencePercentage,
+              },
+            };
+          }),
+        );
 
         const activeProjectsCount = projects.filter((p) => p.status === 'ACTIVE').length;
         const totalContractSum = projects.reduce(
@@ -52,7 +123,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               pendingApprovalsCount,
               pendingInvitesCount,
             },
-            projects,
+            projects: projectsWithVariance,
             recentAudits,
           };
         }
@@ -73,7 +144,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               variationsCount,
               activeBOQCount: boqCount,
             },
-            projects,
+            projects: projectsWithVariance,
           };
         }
 
@@ -104,7 +175,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               totalHeadcountToday,
               totalPhotosToday: todayDiaries.reduce((acc, d) => acc + d.photos.length, 0),
             },
-            projects,
+            projects: projectsWithVariance,
           };
         }
 
@@ -131,7 +202,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             pendingClientApprovalsCount: pendingVariations,
             overallPhysicalProgressPct: 0.12, // Baseline progress indicator
           },
-          projects,
+          projects: projectsWithVariance,
         };
       });
 
