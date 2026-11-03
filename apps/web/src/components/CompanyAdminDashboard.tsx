@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
+import PortalAccessLinkManager from './PortalAccessLinkManager';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
+  onPreviewPortal?: (portalType: string, token: string, name: string, role?: string) => void;
 }
 
-export default function CompanyAdminDashboard({ session }: CompanyAdminDashboardProps): React.JSX.Element {
+export default function CompanyAdminDashboard({ session, onPreviewPortal }: CompanyAdminDashboardProps): React.JSX.Element {
   const { user } = session;
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -271,6 +273,12 @@ export default function CompanyAdminDashboard({ session }: CompanyAdminDashboard
           </div>
         </div>
       </div>
+
+      {/* External Stakeholder Portals Manager (Zero Seat Tax) */}
+      <PortalAccessLinkManager
+        projectId="project-rcp-2026"
+        onPreviewPortal={onPreviewPortal}
+      />
 
       {/* Invite Member Modal */}
       {showInviteModal && (

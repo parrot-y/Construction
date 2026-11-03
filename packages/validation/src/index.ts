@@ -422,3 +422,24 @@ export const CreateDefectsCertificateSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 export type CreateDefectsCertificate = z.infer<typeof CreateDefectsCertificateSchema>;
+
+// -------------------------------------------------------------
+// STAKEHOLDER PORTAL LINKS (ZERO SEAT TAX)
+// -------------------------------------------------------------
+export const PortalTypeEnum = z.enum([
+  'CLIENT',
+  'CONSULTANT',
+  'SUBCONTRACTOR',
+  'SUPPLIER',
+  'COMPLIANCE',
+]);
+export type PortalType = z.infer<typeof PortalTypeEnum>;
+
+export const CreatePortalLinkSchema = z.object({
+  portalType: PortalTypeEnum,
+  stakeholderName: z.string().min(2).max(255),
+  stakeholderRole: z.string().max(100).optional().nullable(),
+  expiresInDays: z.number().int().min(1).max(365).default(30),
+});
+export type CreatePortalLink = z.infer<typeof CreatePortalLinkSchema>;
+

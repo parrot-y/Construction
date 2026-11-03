@@ -113,6 +113,7 @@ model Project {
   concrete_cube_tests  ConcreteCubeTest[]
   snag_items           SnagItem[]
   defects_liability_certificates DefectsLiabilityCertificate[]
+  portal_access_links  PortalAccessLink[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -742,3 +743,26 @@ model DefectsLiabilityCertificate {
   @@index([tenant_id, project_id, certificate_type])
   @@map("defects_liability_certificates")
 }
+
+// =============================================================
+// STAKEHOLDER PORTAL ACCESS LINKS (ZERO SEAT TAX)
+// =============================================================
+
+model PortalAccessLink {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenant_id        String    @db.Uuid
+  project_id       String    @db.Uuid
+  portal_type      String    @db.VarChar(50) // "CLIENT", "CONSULTANT", "SUBCONTRACTOR", "SUPPLIER", "COMPLIANCE"
+  stakeholder_name String    @db.VarChar(255)
+  stakeholder_role String?   @db.VarChar(100) // e.g. "Architect", "Structural Engineer", "Electrical Subcontractor", "Ready-Mix Supplier", "NCA Compliance Officer"
+  token            String    @unique @db.VarChar(255)
+  is_active        Boolean   @default(true)
+  expires_at       DateTime  @db.Timestamptz
+  created_at       DateTime  @default(now()) @db.Timestamptz
+
+  project          Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, portal_type])
+  @@map("portal_access_links")
+}
+

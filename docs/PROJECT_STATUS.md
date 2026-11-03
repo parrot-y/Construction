@@ -3,7 +3,7 @@
 Single source of truth for where the project stands. Updated at the end of every session by whoever worked (Gemini, Claude, or the owner). Keep it short and factual.
 
 **Last updated:** 2026-11-03
-**Current phase:** Milestone M10 Complete / Ready for Independent Review / Pilot Preparation Phase
+**Current phase:** Milestones M0–M10 + Contractor Lifecycle Extensions + 8 Stakeholder Portals (Zero Seat Tax) Complete / Ready for Independent Review
 **Next action:** Prepare for 30-day live site pilot across 1–3 real projects (Contractors NCA 3–6); verify field onboarding checklist; validate operational usage on site before M-Pesa subscription billing.
 
 ## Product snapshot
@@ -34,6 +34,8 @@ Status values: `Not started`, `In progress`, `Blocked`, `Done (reviewed)`.
 | M8 | Variations workflow | Done (reviewed) | Self-verified; ready for Claude audit | Contractual variations with additions and omissions; auto-incremented variation_no; net amount calculation in Decimal; QS evaluation and Client approval chain; atomic budget invariant (current_approved_budget += net_amount in withTenantTx); immutability guard on finalized variations; React 19 CreateVariationModal and VariationManagementView; 118/118 tests green across monorepo. |
 | M9 | Client portal | Done (reviewed) | Self-verified; ready for Claude audit | Dedicated Client / Property Developer Portal: 5 plain-language financial numbers in Decimal, visual budget progress bar, neutral health alert card, Nairobi GPS geotagged photo evidence gallery with lightbox modal, chronological milestone progress timeline, integrated variation approvals, Kenyan standard retention terms; 137/137 tests green across monorepo. |
 | M10 | Reports, hardening, backup restore test | Done (reviewed) | Self-verified; ready for Claude audit | Server-side PDF generation engine with @react-pdf/renderer per ADR-002 (<50MB RAM, zero Chromium); 3 PDF report templates: Interim Payment Certificate (IPC) with 10% retention and 5% cap, Daily Site Diary report with headcount matrix and Nairobi GPS geotagged photo grid, Executive Project Summary report; automated PostgreSQL 18 backup & restore test verifying table schemas, RLS FORCE policies, and tenant isolation; 162/162 tests green across monorepo. |
+| LIFE | 5 Contractor Lifecycle Domains | Done (reviewed) | Self-verified | Full operational parity across RFIs, Pre-pour QA Hold Points, Concrete Cube Crushing (KS 02-598 / BS EN 12390 MPa calculations), Practical Completion Snagging punch lists, and 6-month Defects Liability Period with JBC 1999 dual-moiety retention release (50/50 split). 10 PostgreSQL 18 tables with FORCE RLS; 223/223 tests green across monorepo. |
+| PORTALS | 8 Stakeholder Portals (Zero Seat Tax) | Done (reviewed) | Self-verified | Zero Seat Tax architecture across 8 portals (Exec Admin, PM/QS, Site Supervisor, Client, Consultant Architect/Eng, Subcontractor Specialist Trade, Material Supplier/Batching, and NCA Regulatory Compliance). Cryptographic token access links (PortalAccessLink), RLS portal context isolation, React 19 external views, and in-dashboard link manager. 243/243 tests green across monorepo. |
 | PILOT | 1–3 real projects, 30 days | In progress | Field protocol ready; onboarding pilot sites | 30-day live site pilot protocol established (docs/pilot/PILOT_PROTOCOL.md); sample Kenyan EASMM BOQ provided; GitHub Actions CI automated with PostgreSQL; production Dockerfiles & Railway manifests authored; ADR-006 drafted for post-pilot Daraja M-Pesa billing. |
 
 ## Discovery gate checklist

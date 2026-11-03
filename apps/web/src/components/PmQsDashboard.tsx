@@ -10,19 +10,21 @@ import VariationManagementView from './VariationManagementView';
 import RfiManagementView from './RfiManagementView';
 import QualityControlView from './QualityControlView';
 import PracticalCompletionCard from './PracticalCompletionCard';
+import PortalAccessLinkManager from './PortalAccessLinkManager';
 
 interface PmQsDashboardProps {
   session: AuthSession;
+  onPreviewPortal?: (portalType: string, token: string, name: string, role?: string) => void;
 }
 
-export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JSX.Element {
+export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboardProps): React.JSX.Element {
   const { user } = session;
   const sampleBudget = toCurrencyString('45000000.00');
   const [showBoqModal, setShowBoqModal] = useState(false);
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -107,6 +109,7 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
           { id: 'rfis', label: '📋 RFI Register' },
           { id: 'quality', label: '🧪 Quality & Cubes' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
+          { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -302,6 +305,14 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
         <PracticalCompletionCard
           projectName="Riverside Commercial Plaza"
           projectCode="RCP-2026"
+        />
+      )}
+
+      {/* External Stakeholder Portals Manager (Zero Seat Tax) */}
+      {(activeTab === 'all' || activeTab === 'portals') && (
+        <PortalAccessLinkManager
+          projectId="project-rcp-2026"
+          onPreviewPortal={onPreviewPortal}
         />
       )}
 

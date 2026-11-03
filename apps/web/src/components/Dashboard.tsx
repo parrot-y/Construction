@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AuthSession } from '../types/auth';
 import CompanyAdminDashboard from './CompanyAdminDashboard';
 import PmQsDashboard from './PmQsDashboard';
 import SupervisorDashboard from './SupervisorDashboard';
 import ClientDashboard from './ClientDashboard';
+import ConsultantPortalView from './portals/ConsultantPortalView';
+import SubcontractorPortalView from './portals/SubcontractorPortalView';
+import SupplierPortalView from './portals/SupplierPortalView';
+import CompliancePortalView from './portals/CompliancePortalView';
 
 interface DashboardProps {
   session: AuthSession;
@@ -12,6 +16,12 @@ interface DashboardProps {
 
 export default function Dashboard({ session, onLogout }: DashboardProps): React.JSX.Element {
   const { user, permissions } = session;
+  const [previewPortal, setPreviewPortal] = useState<{
+    type: string;
+    token: string;
+    name: string;
+    role?: string;
+  } | null>(null);
 
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {
@@ -29,13 +39,69 @@ export default function Dashboard({ session, onLogout }: DashboardProps): React.
     }
   };
 
+  const handlePreview = (type: string, token: string, name: string, role?: string) => {
+    setPreviewPortal({ type, token, name, role });
+  };
+
   const renderRoleDashboard = () => {
+    if (previewPortal) {
+      switch (previewPortal.type.toUpperCase()) {
+        case 'CONSULTANT':
+          return (
+            <ConsultantPortalView
+              token={previewPortal.token}
+              stakeholderName={previewPortal.name}
+              stakeholderRole={previewPortal.role}
+              onBackToDashboard={() => setPreviewPortal(null)}
+            />
+          );
+        case 'SUBCONTRACTOR':
+          return (
+            <SubcontractorPortalView
+              token={previewPortal.token}
+              subcontractorName={previewPortal.name}
+              subcontractorTrade={previewPortal.role}
+              onBackToDashboard={() => setPreviewPortal(null)}
+            />
+          );
+        case 'SUPPLIER':
+          return (
+            <SupplierPortalView
+              token={previewPortal.token}
+              supplierName={previewPortal.name}
+              supplierCategory={previewPortal.role}
+              onBackToDashboard={() => setPreviewPortal(null)}
+            />
+          );
+        case 'COMPLIANCE':
+          return (
+            <CompliancePortalView
+              token={previewPortal.token}
+              auditorName={previewPortal.name}
+              auditorAgency={previewPortal.role}
+              onBackToDashboard={() => setPreviewPortal(null)}
+            />
+          );
+        case 'CLIENT':
+          return <ClientDashboard session={session} />;
+        default:
+          return (
+            <div className="bg-white p-6 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
+              Portal type {previewPortal.type} preview not found.
+              <button onClick={() => setPreviewPortal(null)} className="ml-2 font-bold text-blue-600">
+                Back to Workspace
+              </button>
+            </div>
+          );
+      }
+    }
+
     switch (user.role) {
       case 'COMPANY_ADMIN':
       case 'ADMIN':
-        return <CompanyAdminDashboard session={session} />;
+        return <CompanyAdminDashboard session={session} onPreviewPortal={handlePreview} />;
       case 'PM_QS':
-        return <PmQsDashboard session={session} />;
+        return <PmQsDashboard session={session} onPreviewPortal={handlePreview} />;
       case 'SITE_SUPERVISOR':
         return <SupervisorDashboard session={session} />;
       case 'CLIENT':

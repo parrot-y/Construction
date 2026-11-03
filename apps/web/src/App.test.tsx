@@ -24,6 +24,11 @@ import ConcreteCubeTestModal from './components/ConcreteCubeTestModal';
 import SnaggingListView from './components/SnaggingListView';
 import CreateSnagModal from './components/CreateSnagModal';
 import PracticalCompletionCard from './components/PracticalCompletionCard';
+import ConsultantPortalView from './components/portals/ConsultantPortalView';
+import SubcontractorPortalView from './components/portals/SubcontractorPortalView';
+import SupplierPortalView from './components/portals/SupplierPortalView';
+import CompliancePortalView from './components/portals/CompliancePortalView';
+import PortalAccessLinkManager from './components/PortalAccessLinkManager';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1027,6 +1032,157 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Defects Snagging Punch List Register');
       expect(html).toContain('Verify &amp; Close');
       expect(html).not.toContain('+ Add Snag Item');
+    });
+  });
+
+  describe('External Stakeholder Portals (Zero Seat Tax Architecture)', () => {
+    it('renders ConsultantPortalView with token access, pending RFIs, cube strength tests, and pre-pour QA', () => {
+      const rawHtml = renderToString(
+        <ConsultantPortalView
+          token="test-consultant-token"
+          stakeholderName="Arch. Peter Mwangi"
+          stakeholderRole="Lead Project Architect (BORAQS Reg: A-742)"
+          projectName="Riverside Commercial Plaza"
+          projectCode="RCP-2026"
+        />
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Zero Seat Tax • Consultant Portal');
+      expect(html).toContain('Arch. Peter Mwangi');
+      expect(html).toContain('BORAQS Reg: A-742');
+      expect(html).toContain('Riverside Commercial Plaza (RCP-2026)');
+      expect(html).toContain('Architectural &amp; Structural RFIs');
+      expect(html).toContain('RFI-001');
+      expect(html).toContain('Clarification on Column C3 rebar cover');
+      expect(html).toContain('Concrete Cube Strength Tests');
+      expect(html).toContain('Pre-Pour QA Checklists');
+    });
+
+    it('renders SubcontractorPortalView with trade-filtered snags and defect rectification form', () => {
+      const rawHtml = renderToString(
+        <SubcontractorPortalView
+          token="test-sub-token"
+          subcontractorName="Simba Plumbing Works Ltd"
+          subcontractorTrade="Specialist Sanitary &amp; Drainage Subcontractor"
+          projectName="Riverside Commercial Plaza"
+          projectCode="RCP-2026"
+        />
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Subcontractor Portal • Zero Seat Tax');
+      expect(html).toContain('Simba Plumbing Works Ltd');
+      expect(html).toContain('SNG-001');
+      expect(html).toContain('Floor 2, Washroom 2B');
+      expect(html).toContain('Open Defects');
+      expect(html).toContain('Rectified (Pending Sign-off)');
+      expect(html).toContain('Submit Defect Rectification Proof');
+    });
+
+    it('renders SupplierPortalView with batch delivery schedule, docket numbers, and receiving logs', () => {
+      const rawHtml = renderToString(
+        <SupplierPortalView
+          token="test-supplier-token"
+          supplierName="Bamburi Ready-Mix Nairobi Plant"
+          supplierCategory="Ready-Mix Concrete &amp; Aggregates Supplier"
+          projectName="Riverside Commercial Plaza"
+          projectCode="RCP-2026"
+        />
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Material Supplier &amp; Batching Portal • Zero Seat Tax');
+      expect(html).toContain('Bamburi Ready-Mix Nairobi Plant');
+      expect(html).toContain('DN-BAM-90812');
+      expect(html).toContain('Ready-Mix Concrete Class 25/20');
+      expect(html).toContain('Site Acknowledged &amp; Cast');
+    });
+
+    it('renders CompliancePortalView with NCA registration, statutory levy, supervisor accreditation, and cube pass rate', () => {
+      const rawHtml = renderToString(
+        <CompliancePortalView
+          token="test-compliance-token"
+          auditorName="Eng. Faith Mutua"
+          auditorAgency="National Construction Authority (NCA) / Nairobi County Planning"
+          projectName="Riverside Commercial Plaza"
+          projectCode="RCP-2026"
+        />
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('NCA &amp; Regulatory Compliance Portal • Zero Seat Tax');
+      expect(html).toContain('Eng. Faith Mutua');
+      expect(html).toContain('NCA Cap 499A Verified');
+      expect(html).toContain('NCA/PRJ/RCP-2026/REG-0891');
+      expect(html).toContain('0.5% Statutory Levy');
+      expect(html).toContain('Paid &amp; Reconciled');
+      expect(html).toContain('Accredited Supervisor');
+      expect(html).toContain('100.0%');
+      expect(html).toContain('Structural Concrete Quality Register');
+    });
+
+    it('renders PortalAccessLinkManager with zero-seat-tax links for all external stakeholders', () => {
+      const rawHtml = renderToString(
+        <PortalAccessLinkManager projectId="project-rcp-2026" />
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('External Stakeholder Portals (Zero Seat Tax)');
+      expect(html).toContain('Unlimited External Users');
+      expect(html).toContain('+ Generate Stakeholder Link');
+      expect(html).toContain('CONSULTANT PORTAL');
+      expect(html).toContain('Arch. Peter Mwangi');
+      expect(html).toContain('SUBCONTRACTOR PORTAL');
+      expect(html).toContain('Simba Plumbing Works Ltd');
+      expect(html).toContain('SUPPLIER PORTAL');
+      expect(html).toContain('Bamburi Ready-Mix Nairobi');
+      expect(html).toContain('COMPLIANCE PORTAL');
+      expect(html).toContain('Eng. Faith Mutua');
+    });
+
+    it('allows unauthenticated stakeholder entry into Consultant portal via App component with initialPortal', () => {
+      const rawHtml = renderToString(
+        <App initialPortal={{ type: 'consultant', token: 'ext-token-123' }} />
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Zero Seat Tax • Consultant Portal');
+      expect(html).toContain('Architectural &amp; Structural RFIs');
+      expect(html).not.toContain('Sign in to access your project workspace');
+    });
+
+    it('embeds PortalAccessLinkManager into PmQsDashboard and CompanyAdminDashboard', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'PM User',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['project.view'],
+        token: 'token',
+      };
+
+      const adminSession: AuthSession = {
+        user: {
+          id: 'user-admin',
+          email: 'admin@apexbuilders.co.ke',
+          fullName: 'Admin User',
+          role: 'COMPANY_ADMIN',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['company.manage'],
+        token: 'token',
+      };
+
+      const pmHtml = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(pmHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
+      expect(pmHtml).toContain('🌐 Stakeholder Portals');
+
+      const adminHtml = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(adminHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
     });
   });
 });
