@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import MilestoneTimeline, { TimelineItem } from './MilestoneTimeline';
@@ -67,6 +67,28 @@ export default function ClientDashboard({
   timeline,
 }: ClientDashboardProps): React.JSX.Element {
   const { user } = session;
+
+  type CurrencyCode = 'KES' | 'USD' | 'GBP' | 'EUR' | 'AED';
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('KES');
+
+  const exchangeRates: Record<CurrencyCode, { rate: number; symbol: string; label: string }> = {
+    KES: { rate: 1.0, symbol: 'KES', label: 'Kenyan Shilling' },
+    USD: { rate: 129.50, symbol: '$', label: 'US Dollar' },
+    GBP: { rate: 166.80, symbol: '£', label: 'British Pound' },
+    EUR: { rate: 140.20, symbol: '€', label: 'Euro' },
+    AED: { rate: 35.25, symbol: 'AED', label: 'UAE Dirham' },
+  };
+
+  const formatWithCurrency = (kesStr: string, isAddition = false): string => {
+    if (selectedCurrency === 'KES') {
+      return `${isAddition ? '+ ' : ''}KES ${toCurrencyString(kesStr)}`;
+    }
+    const num = parseFloat(kesStr);
+    if (isNaN(num)) return `${exchangeRates[selectedCurrency].symbol} 0.00`;
+    const converted = num / exchangeRates[selectedCurrency].rate;
+    const formatted = converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${isAddition ? '+ ' : ''}${exchangeRates[selectedCurrency].symbol} ${formatted}`;
+  };
 
   const originalBudgetFormatted = toCurrencyString(financials.originalAgreedBudget);
   const variationsTotalFormatted = toCurrencyString(financials.approvedVariationsTotal);
@@ -158,11 +180,35 @@ export default function ClientDashboard({
         </div>
       </div>
 
-      {/* 5 Plain-Language Financial Cards (Milestone M9) */}
+      {/* 5 Plain-Language Financial Cards with Diaspora Multi-Currency Toggle */}
       <div className="space-y-3">
-        <div className="flex justify-between items-center px-1">
-          <h3 className="text-sm font-bold text-slate-900">Financial Summary & Budget Control</h3>
-          <span className="text-xs text-slate-400 font-mono">Currency: KES (Kenyan Shilling)</span>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-1 gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Financial Summary & Budget Control</h3>
+            <p className="text-[11px] text-slate-500">
+              {selectedCurrency === 'KES'
+                ? 'Base contract currency: Kenyan Shilling (KES)'
+                : `Diaspora converted estimate: 1 ${selectedCurrency} ≈ ${exchangeRates[selectedCurrency].rate.toFixed(2)} KES • Official valuation in KES`}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
+            <span className="text-[10px] font-semibold text-slate-500 uppercase px-1">Diaspora View:</span>
+            {(['KES', 'USD', 'GBP', 'EUR', 'AED'] as CurrencyCode[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setSelectedCurrency(c)}
+                data-testid={`currency-toggle-${c.toLowerCase()}`}
+                className={`px-2 py-0.5 text-xs font-bold rounded transition ${
+                  selectedCurrency === c
+                    ? 'bg-emerald-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -172,9 +218,15 @@ export default function ClientDashboard({
               Original Agreed Budget
             </span>
             <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
-              KES {originalBudgetFormatted}
+              {formatWithCurrency(financials.originalAgreedBudget)}
             </span>
-            <span className="text-[11px] text-slate-400 mt-0.5 block">Approved Contract Sum</span>
+            {selectedCurrency !== 'KES' ? (
+              <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                Base: KES {originalBudgetFormatted}
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-400 mt-0.5 block">Approved Contract Sum</span>
+            )}
           </div>
 
           {/* Card 2: Approved Variations Total */}
@@ -183,9 +235,15 @@ export default function ClientDashboard({
               Approved Variations Total
             </span>
             <span className="text-base sm:text-lg font-bold font-mono text-blue-700 mt-1 block">
-              + KES {variationsTotalFormatted}
+              {formatWithCurrency(financials.approvedVariationsTotal, true)}
             </span>
-            <span className="text-[11px] text-slate-400 mt-0.5 block">Net approved scope changes</span>
+            {selectedCurrency !== 'KES' ? (
+              <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                Base: KES {variationsTotalFormatted}
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-400 mt-0.5 block">Net approved scope changes</span>
+            )}
           </div>
 
           {/* Card 3: Current Approved Budget */}
@@ -194,9 +252,15 @@ export default function ClientDashboard({
               Current Approved Budget
             </span>
             <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
-              KES {currentBudgetFormatted}
+              {formatWithCurrency(financials.currentApprovedBudget)}
             </span>
-            <span className="text-[11px] text-slate-400 mt-0.5 block">Baseline + Variations</span>
+            {selectedCurrency !== 'KES' ? (
+              <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                Base: KES {currentBudgetFormatted}
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-400 mt-0.5 block">Baseline + Variations</span>
+            )}
           </div>
 
           {/* Card 4: Total Spent to Date */}
@@ -205,9 +269,15 @@ export default function ClientDashboard({
               Total Spent to Date
             </span>
             <span className="text-base sm:text-lg font-bold font-mono text-emerald-700 mt-1 block">
-              KES {totalSpentFormatted}
+              {formatWithCurrency(financials.totalSpentToDate)}
             </span>
-            <span className="text-[11px] text-slate-400 mt-0.5 block">Total Certified Cost</span>
+            {selectedCurrency !== 'KES' ? (
+              <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                Base: KES {totalSpentFormatted}
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-400 mt-0.5 block">Total Certified Cost</span>
+            )}
           </div>
 
           {/* Card 5: Remaining Balance */}
@@ -216,9 +286,15 @@ export default function ClientDashboard({
               Remaining Balance
             </span>
             <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
-              KES {remainingBalanceFormatted}
+              {formatWithCurrency(financials.remainingBalance)}
             </span>
-            <span className="text-[11px] text-slate-400 mt-0.5 block">Available project funds</span>
+            {selectedCurrency !== 'KES' ? (
+              <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                Base: KES {remainingBalanceFormatted}
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-400 mt-0.5 block">Available project funds</span>
+            )}
           </div>
         </div>
 

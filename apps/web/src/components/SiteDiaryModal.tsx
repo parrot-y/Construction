@@ -34,6 +34,11 @@ export default function SiteDiaryModal({
   const [supplierName, setSupplierName] = useState('Bamburi Cement Ltd');
   const [deliveryNote, setDeliveryNote] = useState('DN-90124');
 
+  // Plant & Machinery Equipment State (Buildsasa / ConTech Parity)
+  const [equipmentName, setEquipmentName] = useState('Concrete Mixer 350L (Diesel)');
+  const [equipmentHours, setEquipmentHours] = useState('6.0');
+  const [fuelLitres, setFuelLitres] = useState('15');
+
   // Photo State
   const [photoCaption, setPhotoCaption] = useState('Foundation concrete pouring progress');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -70,11 +75,16 @@ export default function SiteDiaryModal({
     setError(null);
     setIsSubmitting(true);
 
+    const equipmentLog = equipmentName.trim()
+      ? `[PLANT LOG] ${equipmentName.trim()}: ${equipmentHours} hrs operated, ${fuelLitres}L fuel issued`
+      : '';
+    const combinedNotes = [generalNotes.trim(), equipmentLog].filter(Boolean).join('\n');
+
     const payload = {
       entryDate,
       weather,
       siteStatus,
-      generalNotes: generalNotes.trim() || undefined,
+      generalNotes: combinedNotes || undefined,
       laborHeadcounts: [
         { tradeType: 'Mason', headcount: parseInt(masons, 10) || 0 },
         { tradeType: 'Carpenter', headcount: parseInt(carpenters, 10) || 0 },
@@ -328,6 +338,46 @@ export default function SiteDiaryModal({
                 onChange={(e) => setDeliveryNote(e.target.value)}
                 className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white"
               />
+            </div>
+          </div>
+
+          {/* Plant, Machinery & Equipment Tracking (Buildsasa / ConTech Parity) */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-slate-800">🚜 Plant & Equipment Log</span>
+              <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded font-mono font-semibold">
+                Machinery Hours & Fuel
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input
+                type="text"
+                placeholder="Equipment (e.g. Concrete Mixer 350L)"
+                value={equipmentName}
+                onChange={(e) => setEquipmentName(e.target.value)}
+                className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white sm:col-span-1"
+              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  step="0.5"
+                  placeholder="Hours"
+                  value={equipmentHours}
+                  onChange={(e) => setEquipmentHours(e.target.value)}
+                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
+                />
+                <span className="text-[11px] text-slate-500 font-mono">hrs</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  placeholder="Fuel"
+                  value={fuelLitres}
+                  onChange={(e) => setFuelLitres(e.target.value)}
+                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
+                />
+                <span className="text-[11px] text-slate-500 font-mono">L</span>
+              </div>
             </div>
           </div>
 

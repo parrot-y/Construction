@@ -271,6 +271,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('Carpenters');
     expect(html).toContain('Steel Fixers');
     expect(html).toContain('Material Delivery Received');
+    expect(html).toContain('Plant &amp; Equipment Log');
+    expect(html).toContain('Machinery Hours &amp; Fuel');
     expect(html).toContain('Geotagged Photo Evidence');
     expect(html).toContain('Site Work Diary Notes');
   });
@@ -578,6 +580,18 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       // Visual budget utilization bar
       expect(html).toContain('Project Budget Utilization');
       expect(html).toContain('9.8% Consumed');
+    });
+
+    it('renders the Diaspora Multi-Currency converter controls for overseas property owners', () => {
+      const html = renderToString(<ClientDashboard session={clientSession} />);
+
+      expect(html).toContain('Diaspora View:');
+      expect(html).toContain('currency-toggle-kes');
+      expect(html).toContain('currency-toggle-usd');
+      expect(html).toContain('currency-toggle-gbp');
+      expect(html).toContain('currency-toggle-eur');
+      expect(html).toContain('currency-toggle-aed');
+      expect(html).toContain('Base contract currency: Kenyan Shilling (KES)');
     });
 
     it('renders interactive photo evidence gallery with Nairobi GPS tags and lightbox modal opens', () => {
