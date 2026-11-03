@@ -114,6 +114,12 @@ model Project {
   snag_items           SnagItem[]
   defects_liability_certificates DefectsLiabilityCertificate[]
   portal_access_links  PortalAccessLink[]
+  schedule_tasks       ProjectScheduleTask[]
+  inventory_items      SiteInventoryItem[]
+  inventory_movements  InventoryMovement[]
+  safety_incidents     SafetyIncident[]
+  documents            ProjectDocument[]
+  subcontractor_packages SubcontractorPackage[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -764,5 +770,157 @@ model PortalAccessLink {
 
   @@index([tenant_id, project_id, portal_type])
   @@map("portal_access_links")
+}
+
+// =============================================================
+// PROJECT SCHEDULE & GANTT TASKS (BUILD-SASA BENCHMARK)
+// =============================================================
+
+model ProjectScheduleTask {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenant_id            String    @db.Uuid
+  project_id           String    @db.Uuid
+  wbs_phase            String    @db.VarChar(100) // "SUBSTRUCTURE", "SUPERSTRUCTURE", "ROOFING", "FINISHES", "SERVICES", "EXTERNAL_WORKS"
+  task_name            String    @db.VarChar(255)
+  description          String?   @db.Text
+  planned_start_date   DateTime  @db.Date
+  planned_end_date     DateTime  @db.Date
+  actual_start_date    DateTime? @db.Date
+  actual_end_date      DateTime? @db.Date
+  duration_days        Int       @default(1)
+  progress_percentage  Decimal   @default(0.00) @db.Decimal(5, 2)
+  assigned_trade       String?   @db.VarChar(100) // "Masons", "Carpenters", "Steel Fixers", "Plumbers", "Electricians"
+  status               String    @default("PLANNED") @db.VarChar(50) // "PLANNED", "IN_PROGRESS", "COMPLETED", "DELAYED"
+  order_index          Int       @default(0)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+
+  project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, wbs_phase])
+  @@map("project_schedule_tasks")
+}
+
+// =============================================================
+// SITE STORE INVENTORY & STOCK BALANCES (BUILD-SASA BENCHMARK)
+// =============================================================
+
+model SiteInventoryItem {
+  id                   String              @id @default(uuid()) @db.Uuid
+  tenant_id            String              @db.Uuid
+  project_id           String              @db.Uuid
+  material_name        String              @db.VarChar(255) // e.g. "Simba Portland Cement 32.5N", "River Sand", "D12 High-Yield Rebar"
+  category             String              @db.VarChar(100) // "CEMENT", "AGGREGATES", "STEEL", "MASONRY", "TIMBER", "PLUMBING", "ELECTRICAL"
+  unit                 String              @db.VarChar(50) // "BAGS", "TONNES", "PIECES", "METRES", "LITRES"
+  opening_balance      Decimal             @default(0.00) @db.Decimal(12, 4)
+  current_stock        Decimal             @default(0.00) @db.Decimal(12, 4)
+  minimum_reorder_level Decimal            @default(0.00) @db.Decimal(12, 4)
+  unit_cost_estimate   Decimal?            @db.Decimal(15, 2)
+  created_at           DateTime            @default(now()) @db.Timestamptz
+  updated_at           DateTime            @updatedAt @db.Timestamptz
+
+  project              Project             @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  movements            InventoryMovement[]
+
+  @@unique([project_id, material_name])
+  @@index([tenant_id, project_id])
+  @@map("site_inventory_items")
+}
+
+model InventoryMovement {
+  id                   String            @id @default(uuid()) @db.Uuid
+  tenant_id            String            @db.Uuid
+  project_id           String            @db.Uuid
+  inventory_item_id    String            @db.Uuid
+  movement_type        String            @db.VarChar(50) // "DELIVERY_IN", "USAGE_OUT", "TRANSFER", "WASTAGE_DAMAGE"
+  quantity             Decimal           @db.Decimal(12, 4)
+  movement_date        DateTime          @db.Date
+  reference_no         String?           @db.VarChar(100) // e.g. "DN-90124", "REQUISITION-014"
+  notes                String?           @db.Text
+  recorded_by_name     String            @db.VarChar(255)
+  created_at           DateTime          @default(now()) @db.Timestamptz
+
+  project              Project           @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  item                 SiteInventoryItem @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, inventory_item_id])
+  @@map("inventory_movements")
+}
+
+// =============================================================
+// SAFETY, HEALTH & ENVIRONMENTAL (HSE) INCIDENTS (OSHA 2007)
+// =============================================================
+
+model SafetyIncident {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenant_id            String    @db.Uuid
+  project_id           String    @db.Uuid
+  incident_date        DateTime  @db.Date
+  incident_time        String?   @db.VarChar(20) // e.g. "14:30"
+  incident_type        String    @db.VarChar(50) // "NEAR_MISS", "FIRST_AID", "MEDICAL_TREATMENT", "LOST_TIME_INJURY", "PROPERTY_DAMAGE", "PPE_VIOLATION"
+  severity             String    @db.VarChar(50) // "MINOR", "MODERATE", "SERIOUS", "CRITICAL"
+  exact_location       String    @db.VarChar(255) // e.g. "Ground floor scaffold tower Grid B-3"
+  affected_person_name String?   @db.VarChar(255)
+  affected_trade       String?   @db.VarChar(100)
+  description          String    @db.Text
+  immediate_action     String?   @db.Text
+  preventative_action  String?   @db.Text
+  is_osha_reportable   Boolean   @default(false)
+  investigated_by      String    @db.VarChar(255)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+
+  project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, incident_type])
+  @@map("safety_incidents")
+}
+
+// =============================================================
+// PROJECT DOCUMENTS & DRAWINGS REPOSITORY (BUILD-SASA BENCHMARK)
+// =============================================================
+
+model ProjectDocument {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenant_id            String    @db.Uuid
+  project_id           String    @db.Uuid
+  title                String    @db.VarChar(255)
+  category             String    @db.VarChar(100) // "ARCHITECTURAL_DRAWING", "STRUCTURAL_DRAWING", "MEP_DRAWING", "COUNTY_APPROVAL_STAMP", "NEMA_LICENSE", "CONTRACT_AGREEMENT", "SPECIFICATION_SHEET"
+  drawing_reference    String?   @db.VarChar(100) // e.g. "A-102", "S-201"
+  revision_code        String    @default("Rev 0") @db.VarChar(50) // "Rev 0", "Rev A", "Rev B"
+  storage_key          String    @db.VarChar(500)
+  status               String    @default("APPROVED_FOR_CONSTRUCTION") @db.VarChar(50) // "APPROVED_FOR_CONSTRUCTION", "FOR_REVIEW", "SUPERSEDED", "INFORMATION_ONLY"
+  uploaded_by_name     String    @db.VarChar(255)
+  notes                String?   @db.Text
+  created_at           DateTime  @default(now()) @db.Timestamptz
+
+  project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, category])
+  @@map("project_documents")
+}
+
+// =============================================================
+// SUBCONTRACTOR WORK PACKAGES & DIRECTORY (BUILD-SASA BENCHMARK)
+// =============================================================
+
+model SubcontractorPackage {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenant_id            String    @db.Uuid
+  project_id           String    @db.Uuid
+  trade_category       String    @db.VarChar(100) // "PLUMBING", "ELECTRICAL", "ROOFING", "TILING", "PAINTING", "GLAZING", "HVAC"
+  firm_name            String    @db.VarChar(255)
+  contact_person       String?   @db.VarChar(255)
+  phone_number         String?   @db.VarChar(50)
+  subcontract_sum      Decimal   @db.Decimal(15, 2)
+  retention_rate_pct   Decimal   @default(5.00) @db.Decimal(5, 2) // Typically 5% or 10% under Kenyan subcontracts
+  status               String    @default("ACTIVE") @db.VarChar(50) // "AWARDED", "ACTIVE", "COMPLETED", "TERMINATED"
+  scope_description    String?   @db.Text
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+
+  project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, trade_category])
+  @@map("subcontractor_packages")
 }
 

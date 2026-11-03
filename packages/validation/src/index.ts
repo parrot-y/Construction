@@ -443,3 +443,152 @@ export const CreatePortalLinkSchema = z.object({
 });
 export type CreatePortalLink = z.infer<typeof CreatePortalLinkSchema>;
 
+// -------------------------------------------------------------
+// PROJECT SCHEDULE & GANTT TASKS (BUILD-SASA BENCHMARK)
+// -------------------------------------------------------------
+export const TaskStatusEnum = z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'DELAYED']);
+export type TaskStatus = z.infer<typeof TaskStatusEnum>;
+
+export const CreateScheduleTaskSchema = z.object({
+  wbsPhase: z.string().min(2).max(100),
+  taskName: z.string().min(2).max(255),
+  description: z.string().optional().nullable(),
+  plannedStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  plannedEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  durationDays: z.number().int().min(1).default(1),
+  assignedTrade: z.string().max(100).optional().nullable(),
+  orderIndex: z.number().int().min(0).default(0),
+});
+export type CreateScheduleTask = z.infer<typeof CreateScheduleTaskSchema>;
+
+export const UpdateScheduleTaskSchema = z.object({
+  taskName: z.string().min(2).max(255).optional(),
+  description: z.string().optional().nullable(),
+  plannedStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional(),
+  plannedEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional(),
+  actualStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  actualEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  durationDays: z.number().int().min(1).optional(),
+  progressPercentage: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Must be a valid decimal percentage' }).optional(),
+  assignedTrade: z.string().max(100).optional().nullable(),
+  status: TaskStatusEnum.optional(),
+  orderIndex: z.number().int().min(0).optional(),
+});
+export type UpdateScheduleTask = z.infer<typeof UpdateScheduleTaskSchema>;
+
+// -------------------------------------------------------------
+// SITE STORE INVENTORY (BUILD-SASA BENCHMARK)
+// -------------------------------------------------------------
+export const CreateInventoryItemSchema = z.object({
+  materialName: z.string().min(2).max(255),
+  category: z.string().min(2).max(100),
+  unit: z.string().min(1).max(50),
+  openingBalance: QuantitySchema.default('0.00'),
+  minimumReorderLevel: QuantitySchema.default('0.00'),
+  unitCostEstimate: CurrencyAmountSchema.optional().nullable(),
+});
+export type CreateInventoryItem = z.infer<typeof CreateInventoryItemSchema>;
+
+export const InventoryMovementTypeEnum = z.enum([
+  'DELIVERY_IN',
+  'USAGE_OUT',
+  'TRANSFER',
+  'WASTAGE_DAMAGE',
+]);
+export type InventoryMovementType = z.infer<typeof InventoryMovementTypeEnum>;
+
+export const RecordInventoryMovementSchema = z.object({
+  inventoryItemId: z.string().uuid(),
+  movementType: InventoryMovementTypeEnum,
+  quantity: QuantitySchema,
+  movementDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  referenceNo: z.string().max(100).optional().nullable(),
+  notes: z.string().optional().nullable(),
+  recordedByName: z.string().min(2).max(255),
+});
+export type RecordInventoryMovement = z.infer<typeof RecordInventoryMovementSchema>;
+
+// -------------------------------------------------------------
+// SAFETY & HSE INCIDENTS (OSHA 2007)
+// -------------------------------------------------------------
+export const IncidentTypeEnum = z.enum([
+  'NEAR_MISS',
+  'FIRST_AID',
+  'MEDICAL_TREATMENT',
+  'LOST_TIME_INJURY',
+  'PROPERTY_DAMAGE',
+  'PPE_VIOLATION',
+]);
+export type IncidentType = z.infer<typeof IncidentTypeEnum>;
+
+export const SeverityLevelEnum = z.enum(['MINOR', 'MODERATE', 'SERIOUS', 'CRITICAL']);
+export type SeverityLevel = z.infer<typeof SeverityLevelEnum>;
+
+export const CreateSafetyIncidentSchema = z.object({
+  incidentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  incidentTime: z.string().max(20).optional().nullable(),
+  incidentType: IncidentTypeEnum,
+  severity: SeverityLevelEnum,
+  exactLocation: z.string().min(2).max(255),
+  affectedPersonName: z.string().max(255).optional().nullable(),
+  affectedTrade: z.string().max(100).optional().nullable(),
+  description: z.string().min(3),
+  immediateAction: z.string().optional().nullable(),
+  preventativeAction: z.string().optional().nullable(),
+  isOshaReportable: z.boolean().default(false),
+  investigatedBy: z.string().min(2).max(255),
+});
+export type CreateSafetyIncident = z.infer<typeof CreateSafetyIncidentSchema>;
+
+// -------------------------------------------------------------
+// PROJECT DOCUMENTS & DRAWINGS (BUILD-SASA BENCHMARK)
+// -------------------------------------------------------------
+export const DocumentCategoryEnum = z.enum([
+  'ARCHITECTURAL_DRAWING',
+  'STRUCTURAL_DRAWING',
+  'MEP_DRAWING',
+  'COUNTY_APPROVAL_STAMP',
+  'NEMA_LICENSE',
+  'CONTRACT_AGREEMENT',
+  'SPECIFICATION_SHEET',
+]);
+export type DocumentCategory = z.infer<typeof DocumentCategoryEnum>;
+
+export const DocumentStatusEnum = z.enum([
+  'APPROVED_FOR_CONSTRUCTION',
+  'FOR_REVIEW',
+  'SUPERSEDED',
+  'INFORMATION_ONLY',
+]);
+export type DocumentStatus = z.infer<typeof DocumentStatusEnum>;
+
+export const CreateProjectDocumentSchema = z.object({
+  title: z.string().min(2).max(255),
+  category: DocumentCategoryEnum,
+  drawingReference: z.string().max(100).optional().nullable(),
+  revisionCode: z.string().max(50).default('Rev 0'),
+  storageKey: z.string().min(3).max(500),
+  status: DocumentStatusEnum.default('APPROVED_FOR_CONSTRUCTION'),
+  uploadedByName: z.string().min(2).max(255),
+  notes: z.string().optional().nullable(),
+});
+export type CreateProjectDocument = z.infer<typeof CreateProjectDocumentSchema>;
+
+// -------------------------------------------------------------
+// SUBCONTRACTOR WORK PACKAGES (BUILD-SASA BENCHMARK)
+// -------------------------------------------------------------
+export const SubcontractorStatusEnum = z.enum(['AWARDED', 'ACTIVE', 'COMPLETED', 'TERMINATED']);
+export type SubcontractorStatus = z.infer<typeof SubcontractorStatusEnum>;
+
+export const CreateSubcontractorPackageSchema = z.object({
+  tradeCategory: z.string().min(2).max(100),
+  firmName: z.string().min(2).max(255),
+  contactPerson: z.string().max(255).optional().nullable(),
+  phoneNumber: z.string().max(50).optional().nullable(),
+  subcontractSum: CurrencyAmountSchema,
+  retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Must be a valid percentage' }).default('5.00'),
+  status: SubcontractorStatusEnum.default('ACTIVE'),
+  scopeDescription: z.string().optional().nullable(),
+});
+export type CreateSubcontractorPackage = z.infer<typeof CreateSubcontractorPackageSchema>;
+

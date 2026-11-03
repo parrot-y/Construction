@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
+import SubcontractorManagementView from './SubcontractorManagementView';
+import ProjectDocumentVaultView from './ProjectDocumentVaultView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -278,6 +280,18 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
       <PortalAccessLinkManager
         projectId="project-rcp-2026"
         onPreviewPortal={onPreviewPortal}
+      />
+
+      {/* Subcontractor Work Packages & Directory */}
+      <SubcontractorManagementView
+        projectId="project-rcp-2026"
+        canAward={true}
+      />
+
+      {/* Project Drawing & Regulatory Document Vault */}
+      <ProjectDocumentVaultView
+        projectId="project-rcp-2026"
+        canUpload={true}
       />
 
       {/* Invite Member Modal */}

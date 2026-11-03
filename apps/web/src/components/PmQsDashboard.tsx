@@ -11,6 +11,11 @@ import RfiManagementView from './RfiManagementView';
 import QualityControlView from './QualityControlView';
 import PracticalCompletionCard from './PracticalCompletionCard';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
+import ProjectScheduleGanttView from './ProjectScheduleGanttView';
+import SiteInventoryManagementView from './SiteInventoryManagementView';
+import SafetyIncidentLogView from './SafetyIncidentLogView';
+import ProjectDocumentVaultView from './ProjectDocumentVaultView';
+import SubcontractorManagementView from './SubcontractorManagementView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -24,7 +29,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -104,6 +109,11 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
         {[
           { id: 'all', label: 'All Modules' },
+          { id: 'schedule', label: '📅 Schedule & Gantt' },
+          { id: 'store', label: '📦 Site Inventory' },
+          { id: 'subcontractors', label: '🤝 Subcontractors' },
+          { id: 'drawings', label: '📐 Drawings Vault' },
+          { id: 'safety', label: '🦺 HSE & Safety' },
           { id: 'cost', label: '💰 Costs & BOQ' },
           { id: 'variations', label: '📑 Variations' },
           { id: 'rfis', label: '📋 RFI Register' },
@@ -313,6 +323,47 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
         <PortalAccessLinkManager
           projectId="project-rcp-2026"
           onPreviewPortal={onPreviewPortal}
+        />
+      )}
+
+      {/* Interactive Project Schedule & Gantt View */}
+      {(activeTab === 'all' || activeTab === 'schedule') && (
+        <ProjectScheduleGanttView
+          projectId="project-rcp-2026"
+          canEdit={true}
+        />
+      )}
+
+      {/* Site Store Materials & Inventory View */}
+      {(activeTab === 'all' || activeTab === 'store') && (
+        <SiteInventoryManagementView
+          projectId="project-rcp-2026"
+          canManage={true}
+        />
+      )}
+
+      {/* Subcontractor Work Packages & Directory */}
+      {(activeTab === 'all' || activeTab === 'subcontractors') && (
+        <SubcontractorManagementView
+          projectId="project-rcp-2026"
+          canAward={true}
+        />
+      )}
+
+      {/* Project Drawing & Regulatory Document Vault */}
+      {(activeTab === 'all' || activeTab === 'drawings') && (
+        <ProjectDocumentVaultView
+          projectId="project-rcp-2026"
+          canUpload={true}
+        />
+      )}
+
+      {/* Safety & HSE Incident Register (OSHA 2007) */}
+      {(activeTab === 'all' || activeTab === 'safety') && (
+        <SafetyIncidentLogView
+          projectId="project-rcp-2026"
+          canLog={true}
+          canInvestigate={true}
         />
       )}
 

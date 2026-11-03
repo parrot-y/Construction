@@ -6,6 +6,10 @@ import PhysicalProgressModal from './PhysicalProgressModal';
 import OfflineSyncBanner from './OfflineSyncBanner';
 import QualityControlView from './QualityControlView';
 import SnaggingListView from './SnaggingListView';
+import ProjectScheduleGanttView from './ProjectScheduleGanttView';
+import SiteInventoryManagementView from './SiteInventoryManagementView';
+import SafetyIncidentLogView from './SafetyIncidentLogView';
+import ProjectDocumentVaultView from './ProjectDocumentVaultView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -188,6 +192,31 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
           </div>
         </div>
       </div>
+
+      {/* Interactive Project Schedule & Gantt View */}
+      <ProjectScheduleGanttView
+        projectId="project-rcp-2026"
+        canEdit={true}
+      />
+
+      {/* Site Store Materials & Inventory View */}
+      <SiteInventoryManagementView
+        projectId="project-rcp-2026"
+        canManage={true}
+      />
+
+      {/* Safety & HSE Incident Register (OSHA 2007) */}
+      <SafetyIncidentLogView
+        projectId="project-rcp-2026"
+        canLog={true}
+        canInvestigate={true}
+      />
+
+      {/* Project Drawing & Regulatory Document Vault */}
+      <ProjectDocumentVaultView
+        projectId="project-rcp-2026"
+        canUpload={true}
+      />
 
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}
       <QualityControlView

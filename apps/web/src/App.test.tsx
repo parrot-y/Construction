@@ -29,6 +29,11 @@ import SubcontractorPortalView from './components/portals/SubcontractorPortalVie
 import SupplierPortalView from './components/portals/SupplierPortalView';
 import CompliancePortalView from './components/portals/CompliancePortalView';
 import PortalAccessLinkManager from './components/PortalAccessLinkManager';
+import ProjectScheduleGanttView from './components/ProjectScheduleGanttView';
+import SiteInventoryManagementView from './components/SiteInventoryManagementView';
+import SafetyIncidentLogView from './components/SafetyIncidentLogView';
+import ProjectDocumentVaultView from './components/ProjectDocumentVaultView';
+import SubcontractorManagementView from './components/SubcontractorManagementView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1197,6 +1202,107 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       const adminHtml = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
       expect(adminHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // MILESTONE M11: OPERATIONS SUITE FRONTEND COMPONENTS (BUILDSASA PARITY)
+  // ---------------------------------------------------------------------------
+  describe('Milestone M11: Operations Suite Frontend Components (Buildsasa Parity)', () => {
+    it('renders ProjectScheduleGanttView with WBS phases, tasks, and progress indicators', () => {
+      const html = renderToString(
+        <ProjectScheduleGanttView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Project Master Schedule');
+      expect(html).toContain('WBS &amp; GANTT');
+      expect(html).toContain('Overall Progress');
+      expect(html).toContain('Site Clearance &amp; Bulk Excavation');
+      expect(html).toContain('Reinforced Concrete Foundation Footings');
+      expect(html).toContain('Steel Fixers &amp; Masons');
+      expect(html).toContain('+ Add Schedule Task');
+    });
+
+    it('renders SiteInventoryManagementView with store stock cards, low-stock warnings, and valuation', () => {
+      const html = renderToString(
+        <SiteInventoryManagementView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Site Materials &amp; Store Inventory');
+      expect(html).toContain('Simba Portland Cement 32.5N');
+      expect(html).toContain('Reorder Alerts');
+      expect(html).toContain('Store Valuation (KES)');
+      expect(html).toContain('Record Inward Delivery');
+      expect(html).toContain('Record Usage Out');
+      expect(html).toContain('Recent Material Inward / Outward Movement Audit Log');
+    });
+
+    it('renders SafetyIncidentLogView with OSHA 2007 classification, severity, and CAPA actions', () => {
+      const html = renderToString(
+        <SafetyIncidentLogView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Safety, Health &amp; Environment (HSE) Register');
+      expect(html).toContain('OSHA 2007 &amp; NCA');
+      expect(html).toContain('Log Safety Incident');
+      expect(html).toContain('Lost Time Injuries (LTI)');
+      expect(html).toContain('Grid B-4 Second Floor Deck Shuttering');
+      expect(html).toContain('Immediate Action Taken:');
+      expect(html).toContain('Corrective &amp; Preventive Action (CAPA):');
+    });
+
+    it('renders ProjectDocumentVaultView with architectural/structural registers and revision codes', () => {
+      const html = renderToString(
+        <ProjectDocumentVaultView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Project Drawing &amp; Document Vault');
+      expect(html).toContain('Detailed Ground &amp; Typical Floor Layouts');
+      expect(html).toContain('Rev C');
+      expect(html).toContain('Foundation Strip Footings &amp; Column Schedule');
+      expect(html).toContain('Rev B');
+      expect(html).toContain('Nairobi City County Development Permit');
+      expect(html).toContain('Upload Drawing / Document');
+    });
+
+    it('renders SubcontractorManagementView with trade contracts, KES commitments, and Kenyan retention rates', () => {
+      const html = renderToString(
+        <SubcontractorManagementView projectId="test-proj-1" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Subcontractor Work Packages &amp; Directory');
+      expect(html).toContain('Simba Plumbing &amp; Sanitary Works Ltd');
+      expect(html).toContain('Kilimani Electrical Engineering Ltd');
+      expect(html).toContain('Total Subcontract Commitments');
+      expect(html).toContain('Retention Rate: 5.00%');
+      expect(html).toContain('Retention Rate: 10.00%');
+      expect(html).toContain('Award Subcontract Package');
+    });
+
+    it('verifies that PmQsDashboard includes all 5 new operations modules in navigation tabs and views', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'PM User',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['project.view'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('📅 Schedule &amp; Gantt');
+      expect(html).toContain('📦 Site Inventory');
+      expect(html).toContain('🤝 Subcontractors');
+      expect(html).toContain('📐 Drawings Vault');
+      expect(html).toContain('🦺 HSE &amp; Safety');
+      expect(html).toContain('Project Master Schedule');
+      expect(html).toContain('Site Materials &amp; Store Inventory');
+      expect(html).toContain('Safety, Health &amp; Environment (HSE) Register');
+      expect(html).toContain('Project Drawing &amp; Document Vault');
+      expect(html).toContain('Subcontractor Work Packages &amp; Directory');
     });
   });
 });
