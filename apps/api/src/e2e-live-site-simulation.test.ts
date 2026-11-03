@@ -23,6 +23,13 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   let costEntryId: string;
   let variationOrderId: string;
 
+  let cubeTestId: string;
+  let rfiId: string;
+  let consultantToken: string;
+  let snagId: string;
+  let subToken: string;
+  let complianceToken: string;
+
   const projectCode = 'RCP-SIM-2026';
   const sampleBoqCsvPath = path.resolve(__dirname, '../../../docs/pilot/sample_boq_riverside_plaza.csv');
 
@@ -635,9 +642,386 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   });
 
   // ---------------------------------------------------------------------------
-  // STEP 9: Verify complete audit trail exists in audit_logs for all actions
+  // STEP 9: Pre-Pour QA Inspection & Concrete Cube Casting (KS 02-598 Standard)
   // ---------------------------------------------------------------------------
-  it('Step 9: Verify complete audit trail exists in audit_logs for all actions', async () => {
+  it('Step 9: Site Supervisor logs Pre-Pour QA Inspection and casts 6 concrete test cubes for Substructure footings (Batch BT-E2E-001, Class 25/20)', async () => {
+    // 1. Submit Pre-Pour Checklist
+    const inspRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/inspections`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        checklistType: 'PRE_POUR_CONCRETE',
+        title: 'Substructure Strip Footing Pre-Pour QA',
+        location: 'Grid 1-4 Foundation Trenches',
+        scheduledDate: '2026-02-01',
+        items: [
+          { orderIdx: 0, checkPoint: 'T16 high-yield rebar spacing at 200mm centres per S-01', isMandatory: true },
+          { orderIdx: 1, checkPoint: '40mm concrete cover blocks placed and tied', isMandatory: true },
+          { orderIdx: 2, checkPoint: 'Trench excavation bottom dry and cleaned of loose soil', isMandatory: true },
+        ],
+      },
+    });
+
+    expect(inspRes.statusCode).toBe(201);
+    const inspBody = JSON.parse(inspRes.body);
+    expect(inspBody.title).toBe('Substructure Strip Footing Pre-Pour QA');
+    expect(inspBody.items.length).toBe(3);
+
+    // Pass all 3 inspection items
+    for (const item of inspBody.items) {
+      const itemRes = await server.inject({
+        method: 'PUT',
+        url: `/api/v1/projects/${projectId}/inspections/${inspBody.id}/items/${item.id}`,
+        headers: { cookie: supervisorCookie },
+        payload: {
+          result: 'PASS',
+        },
+      });
+      expect(itemRes.statusCode).toBe(200);
+    }
+
+    // 2. Cast 6 Concrete Test Cubes
+    const cubeRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/cube-tests`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        batchReference: 'BT-E2E-001',
+        pourLocation: 'Substructure Strip Footings & Column Starters',
+        pourDate: '2026-02-01',
+        concreteClass: 'CLASS_25_20',
+        targetStrengthMpa: '25.00',
+        slumpTestedMm: 100,
+        supplierName: 'Bamburi Ready-Mix Nairobi',
+        deliveryDocketNo: 'DN-BAM-90812',
+      },
+    });
+
+    expect(cubeRes.statusCode).toBe(201);
+    const cubeBody = JSON.parse(cubeRes.body);
+    expect(cubeBody.batch_reference).toBe('BT-E2E-001');
+    cubeTestId = cubeBody.id;
+    expect(cubeTestId).toBeDefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 10: Technical Query (RFI) & Architect Token Response via Consultant Portal
+  // ---------------------------------------------------------------------------
+  it('Step 10: Site raises technical RFI to Architect on column cover details; Admin generates Consultant token access link; Architect answers RFI via token without credentials', async () => {
+    // 1. Raise RFI
+    const rfiRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/rfis`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        title: 'Column C3 starter bar cover clarification',
+        question: 'Architectural drawing indicates 30mm cover while structural drawing S-204 specifies 40mm. Please confirm authorized cover for ground floor perimeter columns.',
+        assignedToRole: 'Architect',
+        priority: 'HIGH',
+      },
+    });
+
+    expect(rfiRes.statusCode).toBe(201);
+    const rfiBody = JSON.parse(rfiRes.body);
+    rfiId = rfiBody.id;
+    expect(rfiId).toBeDefined();
+    expect(rfiBody.status).toBe('SUBMITTED');
+
+    // 2. PM/QS generates zero-seat-tax portal access link for Lead Architect
+    const linkRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/portals/links`,
+      headers: { cookie: qsCookie },
+      payload: {
+        portalType: 'CONSULTANT',
+        stakeholderName: 'Arch. Peter Mwangi',
+        stakeholderRole: 'Lead Architect (BORAQS A-742)',
+        expiresInDays: 30,
+      },
+    });
+
+    expect(linkRes.statusCode).toBe(201);
+    consultantToken = JSON.parse(linkRes.body).data.token;
+    expect(consultantToken).toBeDefined();
+
+    // 3. Architect validates token publicly without authentication
+    const valRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/portals/validate/${consultantToken}`,
+    });
+    expect(valRes.statusCode).toBe(200);
+    const valBody = JSON.parse(valRes.body).data;
+    expect(valBody.isValid).toBe(true);
+    expect(valBody.portalType).toBe('CONSULTANT');
+    expect(valBody.stakeholderName).toBe('Arch. Peter Mwangi');
+
+    // 4. Architect inspects Consultant Portal
+    const portalRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/portals/consultant/${consultantToken}`,
+    });
+    expect(portalRes.statusCode).toBe(200);
+    const portalData = JSON.parse(portalRes.body).data;
+    expect(portalData.rfis.length).toBeGreaterThan(0);
+    expect(portalData.cubeTests.length).toBeGreaterThan(0);
+
+    // 5. Architect answers RFI directly via portal link
+    const replyRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/portals/consultant/${consultantToken}/rfis/${rfiId}/reply`,
+      payload: {
+        officialAnswer: 'Provide 40mm minimum cover to all external columns as per structural specification S-204.',
+        consultantName: 'Arch. Peter Mwangi',
+        consultantBoraqsNo: 'BORAQS A-742',
+      },
+    });
+
+    expect(replyRes.statusCode).toBe(200);
+    const replyBody = JSON.parse(replyRes.body).data;
+    expect(replyBody.is_accepted).toBe(true);
+    expect(replyBody.official_answer).toContain('Provide 40mm minimum cover');
+
+    // 6. Verify RFI status is updated to ANSWERED
+    const verifyRfi = await server.inject({
+      method: 'GET',
+      url: `/api/v1/portals/consultant/${consultantToken}`,
+    });
+    const answeredRfi = JSON.parse(verifyRfi.body).data.rfis.find((r: any) => r.id === rfiId);
+    expect(answeredRfi.status).toBe('ANSWERED');
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 11: Concrete Cube Crushing Protocol (BS EN 12390 / KS 02-598)
+  // ---------------------------------------------------------------------------
+  it('Step 11: Laboratory records 7-day break (19.80 MPa >= 16.25 MPa) and 28-day break (27.50 MPa >= 25.00 MPa), verifying KS 02-598 structural compliance', async () => {
+    // 1. Day 7 break: 445.5 kN / 22.5 = 19.80 MPa
+    const break7Res = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/cube-tests/${cubeTestId}/breaks`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        cubeNumber: 1,
+        breakAgeDays: 7,
+        scheduledBreakDate: '2026-02-08',
+        actualBreakDate: '2026-02-08',
+        crushingLoadKn: '445.50',
+        testedBy: 'Bamburi Materials Lab Nairobi',
+      },
+    });
+
+    expect(break7Res.statusCode).toBe(201);
+    const break7 = JSON.parse(break7Res.body);
+    expect(break7.compressive_mpa).toBe('19.80');
+    expect(break7.is_pass).toBe(true);
+
+    // 2. Day 28 break: 618.75 kN / 22.5 = 27.50 MPa
+    const break28Res = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/cube-tests/${cubeTestId}/breaks`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        cubeNumber: 2,
+        breakAgeDays: 28,
+        scheduledBreakDate: '2026-03-01',
+        actualBreakDate: '2026-03-01',
+        crushingLoadKn: '618.75',
+        testedBy: 'Bamburi Materials Lab Nairobi',
+      },
+    });
+
+    expect(break28Res.statusCode).toBe(201);
+    const break28 = JSON.parse(break28Res.body);
+    expect(break28.compressive_mpa).toBe('27.50');
+    expect(break28.is_pass).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 12: Certificate of Practical Completion (1st Moiety 50% Retention Release)
+  // ---------------------------------------------------------------------------
+  it('Step 12: Joint site inspection reaches Practical Completion: Architect & QS issue Certificate of Practical Completion, triggering 1st Moiety (50%) retention fund release', async () => {
+    const cpcRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/certificates`,
+      headers: { cookie: qsCookie },
+      payload: {
+        certificateType: 'PRACTICAL_COMPLETION',
+        certificateReference: 'CPC-RCP-2026-001',
+        issueDate: '2026-04-10',
+        effectiveDate: '2026-04-10',
+        dlpDurationMonths: 6,
+        architectName: 'Arch. Peter Mwangi',
+        architectBoraqsNo: 'BORAQS A-742',
+        qsName: 'Faith Achieng',
+        qsBoraqsNo: 'BORAQS Q-891',
+        notes: 'Works practically completed. First moiety (50% of retention fund) released.',
+      },
+    });
+
+    expect(cpcRes.statusCode).toBe(201);
+    const cpc = JSON.parse(cpcRes.body);
+    expect(cpc.certificate_type).toBe('PRACTICAL_COMPLETION');
+    expect(cpc.certificate_reference).toBe('CPC-RCP-2026-001');
+    expect(cpc.dlp_duration_months).toBe(6);
+    expect(cpc.dlp_expiry_date).toContain('2026-10-10');
+    expect(Number(cpc.retention_amount_released)).toBe(1006975);
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 13: Subcontractor Snagging Punch List & Rectification via Subcontractor Portal
+  // ---------------------------------------------------------------------------
+  it('Step 13: Site identifies snag item, Subcontractor accesses portal via token, uploads rectified photo proof with GPS coordinates, and Site Supervisor verifies & closes defect', async () => {
+    // 1. Create Snag Item
+    const snagRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/snags`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        locationFloor: 'Ground Floor',
+        locationRoom: 'Washroom 1B',
+        description: 'Basin hot water compression coupling dripping under mains pressure.',
+        severity: 'FUNCTIONAL',
+        tradeCategory: 'Plumbing',
+        assignedTradeFirm: 'Simba Plumbing Works Ltd',
+        identifiedByName: 'John Kiprono',
+      },
+    });
+
+    expect(snagRes.statusCode).toBe(201);
+    const snagBody = JSON.parse(snagRes.body);
+    snagId = snagBody.id;
+    expect(snagId).toBeDefined();
+    expect(snagBody.status).toBe('OPEN');
+
+    // 2. Generate Subcontractor Token Link
+    const linkRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/portals/links`,
+      headers: { cookie: adminCookie },
+      payload: {
+        portalType: 'SUBCONTRACTOR',
+        stakeholderName: 'Simba Plumbing Works Ltd',
+        stakeholderRole: 'Plumbing',
+        expiresInDays: 14,
+      },
+    });
+
+    expect(linkRes.statusCode).toBe(201);
+    subToken = JSON.parse(linkRes.body).data.token;
+    expect(subToken).toBeDefined();
+
+    // 3. Subcontractor views assigned snags
+    const subPortalRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/portals/subcontractor/${subToken}`,
+    });
+    expect(subPortalRes.statusCode).toBe(200);
+    const subPortal = JSON.parse(subPortalRes.body).data;
+    expect(subPortal.snags.length).toBeGreaterThan(0);
+
+    // 4. Subcontractor submits rectification proof
+    const rectifyRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/portals/subcontractor/${subToken}/snags/${snagId}/rectify`,
+      payload: {
+        photoStorageKey: 'uploads/snags/rectified_basin_coupling.jpg',
+        notes: 'Tightened compression coupling and tested under 6-bar mains pressure with zero leakage.',
+        gpsLat: -1.286389,
+        gpsLng: 36.817223,
+      },
+    });
+
+    expect(rectifyRes.statusCode).toBe(200);
+    const rectifiedSnag = JSON.parse(rectifyRes.body).data;
+    expect(rectifiedSnag.status).toBe('RECTIFIED_BY_CONTRACTOR');
+    expect(rectifiedSnag.photos.length).toBeGreaterThan(0);
+
+    // 5. Site Supervisor inspects and verifies closed
+    const verifyRes = await server.inject({
+      method: 'PUT',
+      url: `/api/v1/projects/${projectId}/snags/${snagId}/status`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        status: 'VERIFIED_CLOSED',
+        verifiedByName: 'John Kiprono',
+      },
+    });
+
+    expect(verifyRes.statusCode).toBe(200);
+    expect(JSON.parse(verifyRes.body).status).toBe('VERIFIED_CLOSED');
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 14: Defects Liability Expiry & Certificate of Making Good Defects (2nd Moiety)
+  // ---------------------------------------------------------------------------
+  it('Step 14: 6-month Defects Liability Period expires: Architect & QS conduct final inspection, issue Certificate of Making Good Defects, and release 2nd Moiety (final 50%) retention fund', async () => {
+    const cmgdRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/certificates`,
+      headers: { cookie: qsCookie },
+      payload: {
+        certificateType: 'MAKING_GOOD_DEFECTS',
+        certificateReference: 'CMGD-RCP-2026-001',
+        issueDate: '2026-10-10',
+        effectiveDate: '2026-10-10',
+        dlpDurationMonths: 6,
+        architectName: 'Arch. Peter Mwangi',
+        architectBoraqsNo: 'BORAQS A-742',
+        qsName: 'Faith Achieng',
+        qsBoraqsNo: 'BORAQS Q-891',
+        notes: 'Defects liability period completed. All snagging items verified and closed. Final second moiety retention fund released from escrow.',
+      },
+    });
+
+    expect(cmgdRes.statusCode).toBe(201);
+    const cmgd = JSON.parse(cmgdRes.body);
+    expect(cmgd.certificate_type).toBe('MAKING_GOOD_DEFECTS');
+    expect(cmgd.certificate_reference).toBe('CMGD-RCP-2026-001');
+    expect(Number(cmgd.retention_amount_released)).toBe(1006975);
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 15: NCA Regulatory Compliance Portal Audit
+  // ---------------------------------------------------------------------------
+  it('Step 15: NCA Regulatory Auditor accesses Compliance Portal link, verifies 100% concrete cube pass rate, statutory levy clearance, and accredited supervisor presence', async () => {
+    // 1. Generate Compliance Portal Link
+    const linkRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/portals/links`,
+      headers: { cookie: adminCookie },
+      payload: {
+        portalType: 'COMPLIANCE',
+        stakeholderName: 'Eng. Faith Mutua',
+        stakeholderRole: 'NCA Regional Auditor',
+        expiresInDays: 30,
+      },
+    });
+
+    expect(linkRes.statusCode).toBe(201);
+    complianceToken = JSON.parse(linkRes.body).data.token;
+    expect(complianceToken).toBeDefined();
+
+    // 2. NCA Auditor accesses Compliance Portal
+    const compRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/portals/compliance/${complianceToken}`,
+    });
+
+    expect(compRes.statusCode).toBe(200);
+    const compData = JSON.parse(compRes.body).data;
+    expect(compData.regulatoryAuditor.name).toBe('Eng. Faith Mutua');
+    expect(compData.complianceSummary.statutoryLevyPaid).toBe(true);
+    expect(compData.complianceSummary.certifiedSiteSupervisorPresent).toBe(true);
+    expect(compData.complianceSummary.concreteCubePassRate).toBe('100.0%');
+    expect(compData.cubeTests.length).toBeGreaterThan(0);
+    expect(compData.inspections.length).toBeGreaterThan(0);
+    expect(compData.certificates.length).toBe(2);
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 16: Verify complete audit trail exists in audit_logs for all actions
+  // ---------------------------------------------------------------------------
+  it('Step 16: Verify complete, immutable audit trail exists in audit_logs for all 16 lifecycle operations', async () => {
     const auditLogs = await withTenantTx(prisma, tenantId, async (tx) => {
       return tx.auditLog.findMany({
         where: { project_id: projectId },
@@ -645,7 +1029,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       });
     });
 
-    expect(auditLogs.length).toBeGreaterThanOrEqual(8);
+    expect(auditLogs.length).toBeGreaterThanOrEqual(14);
 
     const actions = auditLogs.map((l) => l.action);
 
@@ -660,6 +1044,15 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(actions).toContain('VARIATION_EVALUATE');
     expect(actions).toContain('VARIATION_APPROVE');
     expect(actions).toContain('REPORT_GENERATED');
+    expect(actions).toContain('INSPECTION_CHECKLIST_CREATED');
+    expect(actions).toContain('CONCRETE_CUBE_TEST_CREATED');
+    expect(actions).toContain('CUBE_BREAK_RECORDED');
+    expect(actions).toContain('RFI_CREATED');
+    expect(actions).toContain('RFI_ANSWERED_VIA_PORTAL');
+    expect(actions).toContain('SNAG_ITEM_CREATED');
+    expect(actions).toContain('SNAG_RECTIFIED_VIA_PORTAL');
+    expect(actions).toContain('SNAG_STATUS_UPDATED');
+    expect(actions).toContain('CERTIFICATE_ISSUED');
 
     // Verify project creation was audited with admin user
     const projectCreateAudit = auditLogs.find((l) => l.action === 'PROJECT_CREATED');
