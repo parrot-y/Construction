@@ -210,6 +210,13 @@ export const ReviewVariationOrderSchema = z.object({
 });
 export type ReviewVariationOrder = z.infer<typeof ReviewVariationOrderSchema>;
 
+export const AcceptInvitationSchema = z.object({
+  token: z.string().min(16, { message: 'Invalid invitation token' }).max(128),
+  fullName: z.string().min(2, { message: 'Full name must be at least 2 characters long' }).max(255),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128).optional(),
+});
+export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
+
 export type AuthUserResponse = z.infer<typeof AuthUserResponseSchema>;
 
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;

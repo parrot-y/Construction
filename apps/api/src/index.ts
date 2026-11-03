@@ -1,7 +1,7 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
-import fastify, { FastifyInstance } from 'fastify';
+import fastify, { FastifyError, FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
 import { authPlugin } from './plugins/auth';
 import { securityGuardPlugin } from './plugins/security-guard';
@@ -24,9 +24,25 @@ export function buildServer(): FastifyInstance {
     },
   });
 
-  // Secure HTTP Headers
+  // Secure HTTP Headers (OWASP A05 Security Misconfiguration defense)
   server.register(helmet, {
-    contentSecurityPolicy: process.env.NODE_ENV === 'production',
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        upgradeInsecureRequests: [],
+      },
+    } : false,
+    frameguard: { action: 'deny' },
+    noSniff: true,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   });
 
   // Strict CORS
@@ -40,6 +56,32 @@ export function buildServer(): FastifyInstance {
     limits: {
       fileSize: 15 * 1024 * 1024,
     },
+  });
+
+  // Global defensive error handler (OWASP A05 - Prevent sensitive information leakage)
+  server.setErrorHandler((error: FastifyError, request, reply) => {
+    request.log.error({ err: error, reqId: request.id }, 'Unhandled request error');
+
+    const statusCode = error.statusCode || 500;
+
+    // For client errors (4xx), return sanitized error payload
+    if (statusCode >= 400 && statusCode < 500) {
+      return reply.status(statusCode).send({
+        statusCode,
+        error: error.name || 'Bad Request',
+        message: error.message,
+        details: (error as any).details || (error as any).validation || undefined,
+      });
+    }
+
+    // For server errors (500), strictly sanitize in production to avoid leaking database schemas, queries, or paths
+    return reply.status(500).send({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: process.env.NODE_ENV === 'production'
+        ? 'An unexpected internal server error occurred'
+        : error.message,
+    });
   });
 
   // Database security guard (asserts db_app non-superuser RLS connection)

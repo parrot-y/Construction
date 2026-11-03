@@ -3,9 +3,56 @@ import { getPermissionsForRole, Role } from '@construction/permissions';
 import { AuthUserResponse, LoginRequestSchema } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
+interface LoginAttempt {
+  count: number;
+  resetAt: number;
+}
+
+// In-memory sliding window rate limiter for login protection (OWASP A07)
+const MAX_FAILED_ATTEMPTS = 20;
+const LOCKOUT_WINDOW_MS = 5 * 60 * 1000; // 5-minute lockout window
+const failedLoginsMap = new Map<string, LoginAttempt>();
+
+// Clean up stale attempt records
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, attempt] of failedLoginsMap.entries()) {
+    if (now > attempt.resetAt) {
+      failedLoginsMap.delete(ip);
+    }
+  }
+}, 60 * 1000).unref();
+
 export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/auth/login
   server.post('/api/v1/auth/login', async (request, reply) => {
+    const clientIp = request.ip || '127.0.0.1';
+    const now = Date.now();
+    const attempt = failedLoginsMap.get(clientIp);
+
+    // Rate limiting guard
+    if (attempt && now < attempt.resetAt && attempt.count >= MAX_FAILED_ATTEMPTS) {
+      const retryAfterSeconds = Math.ceil((attempt.resetAt - now) / 1000);
+      reply.header('Retry-After', retryAfterSeconds);
+      server.log.warn(
+        { ip: clientIp, attempts: attempt.count },
+        'Security Audit: Login rate limit exceeded; request throttled',
+      );
+      return reply.status(429).send({
+        error: 'Too Many Requests',
+        message: 'Too many failed login attempts. Please try again later.',
+      });
+    }
+
+    const recordFailedAttempt = () => {
+      const cur = failedLoginsMap.get(clientIp);
+      if (!cur || now > cur.resetAt) {
+        failedLoginsMap.set(clientIp, { count: 1, resetAt: now + LOCKOUT_WINDOW_MS });
+      } else {
+        cur.count += 1;
+      }
+    };
+
     const parseResult = LoginRequestSchema.safeParse(request.body);
     if (!parseResult.success) {
       return reply.status(400).send({
@@ -33,6 +80,11 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     });
 
     if (!user || !user.is_active) {
+      recordFailedAttempt();
+      server.log.warn(
+        { ip: clientIp, email: email.toLowerCase(), reason: 'USER_NOT_FOUND_OR_INACTIVE' },
+        'Security Audit: Failed authentication attempt',
+      );
       return reply.status(401).send({
         error: 'Unauthorized',
         message: 'Invalid email or password',
@@ -41,11 +93,19 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     const isPasswordValid = await verifyPassword(password, user.password_hash);
     if (!isPasswordValid) {
+      recordFailedAttempt();
+      server.log.warn(
+        { ip: clientIp, email: email.toLowerCase(), reason: 'INVALID_PASSWORD' },
+        'Security Audit: Failed authentication attempt',
+      );
       return reply.status(401).send({
         error: 'Unauthorized',
         message: 'Invalid email or password',
       });
     }
+
+    // Reset failed login counter on successful authentication
+    failedLoginsMap.delete(clientIp);
 
     if (user.memberships.length === 0) {
       return reply.status(403).send({

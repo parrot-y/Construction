@@ -5,6 +5,16 @@ import fp from 'fastify-plugin';
 import '../types/auth';
 
 const authPluginAsync: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // Fail-closed startup guard: Prevent weak or default secrets in production
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || process.env.JWT_SECRET.includes('dev-super-secure')) {
+      throw new Error('CRITICAL SECURITY VIOLATION: Production requires a cryptographically strong JWT_SECRET with at least 32 characters');
+    }
+    if (!process.env.COOKIE_SECRET || process.env.COOKIE_SECRET.length < 32 || process.env.COOKIE_SECRET.includes('dev-super-secure')) {
+      throw new Error('CRITICAL SECURITY VIOLATION: Production requires a cryptographically strong COOKIE_SECRET with at least 32 characters');
+    }
+  }
+
   const jwtSecret = process.env.JWT_SECRET || 'dev-super-secure-jwt-signing-secret-key-32-chars-minimum!';
   const cookieSecret = process.env.COOKIE_SECRET || 'dev-super-secure-cookie-secret-key-32-chars!';
 

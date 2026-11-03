@@ -1,3 +1,4 @@
+import stream from 'stream';
 import ExcelJS from 'exceljs';
 import { calculateLineTotal, toCurrencyString, toDecimal, Decimal } from '@construction/money';
 
@@ -33,6 +34,7 @@ export interface BOQPreviewResult {
 }
 
 interface ColumnIndexMap {
+  sectionIdx?: number;
   codeIdx: number;
   descIdx: number;
   unitIdx: number;
@@ -119,9 +121,27 @@ function isSubtotalOrCollection(text: string): boolean {
 }
 
 /**
+ * Standard EASMM section mappings for common Kenyan BOQ section codes
+ */
+const EASMM_SECTION_MAP: Record<string, string> = {
+  SECTION_01: 'Section 1: Substructure & Groundworks',
+  SECTION_02: 'Section 2: Superstructure Concrete & Walling',
+  SECTION_03: 'Section 3: Roofing & Structural Steel',
+  SECTION_04: 'Section 4: Finishes & Surface Treatments',
+  SECTION_05: 'Section 5: Provisional Sums & MEP Services',
+  BILL_01: 'Bill No. 1: Preliminaries & General Conditions',
+  BILL_02: 'Bill No. 2: Substructure & Earthworks',
+  BILL_03: 'Bill No. 3: Reinforced Concrete Superstructure',
+  BILL_04: 'Bill No. 4: Walling & Partitions',
+  BILL_05: 'Bill No. 5: Roofing & Rainwater Goods',
+  BILL_06: 'Bill No. 6: Finishes',
+};
+
+/**
  * Detects column mapping from header row candidates
  */
 function detectColumnMapping(rowValues: string[]): ColumnIndexMap | null {
+  let sectionIdx = -1;
   let codeIdx = -1;
   let descIdx = -1;
   let unitIdx = -1;
@@ -131,7 +151,9 @@ function detectColumnMapping(rowValues: string[]): ColumnIndexMap | null {
 
   for (let i = 0; i < rowValues.length; i++) {
     const header = (rowValues[i] || '').toLowerCase();
-    if (header.includes('item') && (header.includes('no') || header.includes('code') || header.includes('ref')) && codeIdx === -1) {
+    if ((header.includes('section') || header.includes('bill_no') || header.includes('bill no')) && sectionIdx === -1) {
+      sectionIdx = i;
+    } else if (header.includes('item') && (header.includes('no') || header.includes('code') || header.includes('ref')) && codeIdx === -1) {
       codeIdx = i;
     } else if ((header.includes('desc') || header.includes('particular') || header.includes('specification')) && descIdx === -1) {
       descIdx = i;
@@ -151,7 +173,7 @@ function detectColumnMapping(rowValues: string[]): ColumnIndexMap | null {
     // If code index not found, default to column 0 if desc is column 1
     if (codeIdx === -1 && descIdx > 0) codeIdx = 0;
     // If unit index not found, look for reasonable default
-    return { codeIdx, descIdx, unitIdx, qtyIdx, rateIdx, amountIdx };
+    return { sectionIdx, codeIdx, descIdx, unitIdx, qtyIdx, rateIdx, amountIdx };
   }
 
   return null;
@@ -165,7 +187,14 @@ export async function parseBOQWorkbook(
   filename: string,
 ): Promise<BOQPreviewResult> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer as any);
+  const isCsv = filename.toLowerCase().endsWith('.csv') ||
+    (buffer.length >= 4 && !buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])));
+
+  if (isCsv) {
+    await workbook.csv.read(stream.Readable.from(buffer));
+  } else {
+    await workbook.xlsx.load(buffer as any);
+  }
 
   const worksheet = workbook.worksheets[0];
   if (!worksheet) {
@@ -194,6 +223,7 @@ export async function parseBOQWorkbook(
   // Fallback default column mapping if no standard header row was discovered
   if (!columnMap) {
     columnMap = {
+      sectionIdx: -1,
       codeIdx: 0,
       descIdx: 1,
       unitIdx: 2,
@@ -216,6 +246,7 @@ export async function parseBOQWorkbook(
   let warningItemsCount = 0;
   let rejectedItemsCount = 0;
   let grandTotalDecimal = new Decimal(0);
+  let lastSectionCode = '';
 
   // Iterate over data rows starting after the header
   for (let r = headerRowIndex + 1; r <= worksheet.rowCount; r++) {
@@ -235,14 +266,35 @@ export async function parseBOQWorkbook(
     const qtyStr = columnMap.qtyIdx !== -1 ? cleanNumericString(rawValues[columnMap.qtyIdx] || '') : '';
     const rateStr = columnMap.rateIdx !== -1 ? cleanNumericString(rawValues[columnMap.rateIdx] || '') : '';
     const amountStr = columnMap.amountIdx !== -1 ? cleanNumericString(rawValues[columnMap.amountIdx] || '') : '';
+    const sectionRaw = (columnMap.sectionIdx !== undefined && columnMap.sectionIdx !== -1)
+      ? (rawValues[columnMap.sectionIdx] || '').trim()
+      : '';
 
     // Check if this row is a collection / subtotal row
     if (isSubtotalOrCollection(descRaw)) {
       continue;
     }
 
+    // Check if section_code column indicated a section transition
+    if (sectionRaw && sectionRaw !== lastSectionCode) {
+      lastSectionCode = sectionRaw;
+      const sectionTitle = EASMM_SECTION_MAP[sectionRaw.toUpperCase()] || sectionRaw;
+      if (currentSection.items.length > 0) {
+        sections.push(currentSection);
+        currentSection = {
+          title: sectionTitle,
+          orderIdx: sections.length + 1,
+          subtotal: '0.00',
+          items: [],
+        };
+      } else {
+        currentSection.title = sectionTitle;
+      }
+    }
+
     // Check if this row is a new section header
-    if (isSectionHeader(descRaw) || (descRaw && !qtyStr && !rateStr && !amountStr && descRaw.length < 100)) {
+    const hasNoQtyOrRate = (!qtyStr || qtyStr === '0') && (!rateStr || rateStr === '0');
+    if (hasNoQtyOrRate && (isSectionHeader(descRaw) || (descRaw && !amountStr && descRaw.length < 100))) {
       if (currentSection.items.length > 0) {
         sections.push(currentSection);
         currentSection = {

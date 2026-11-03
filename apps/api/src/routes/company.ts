@@ -122,50 +122,63 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       const { tenantId, sub } = request.user;
       const { membershipId } = request.params as { membershipId: string };
 
-      const result = await withTenantTx(prisma, tenantId, async (tx) => {
-        const target = await tx.membership.findUnique({
-          where: { id: membershipId },
-          include: { user: true },
-        });
-
-        if (!target || target.tenant_id !== tenantId) {
-          return reply.status(404).send({ error: 'Not Found', message: 'Membership not found' });
-        }
-
-        // Prevent removing the last admin in the company
-        if (target.role === 'ADMIN' || target.role === 'COMPANY_ADMIN') {
-          const adminCount = await tx.membership.count({
-            where: {
-              tenant_id: tenantId,
-              role: { in: ['ADMIN', 'COMPANY_ADMIN'] },
-            },
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const target = await tx.membership.findUnique({
+            where: { id: membershipId },
+            include: { user: true },
           });
 
-          if (adminCount <= 1) {
-            return reply.status(400).send({
-              error: 'Bad Request',
-              message: 'Cannot revoke membership of the only company admin',
-            });
+          if (!target || target.tenant_id !== tenantId) {
+            throw { status: 404, message: 'Membership not found' };
           }
+
+          // Prevent removing the last admin in the company
+          if (target.role === 'ADMIN' || target.role === 'COMPANY_ADMIN') {
+            const adminCount = await tx.membership.count({
+              where: {
+                tenant_id: tenantId,
+                role: { in: ['ADMIN', 'COMPANY_ADMIN'] },
+              },
+            });
+
+            if (adminCount <= 1) {
+              throw { status: 400, message: 'Cannot revoke membership of the only company admin' };
+            }
+          }
+
+          await tx.membership.delete({
+            where: { id: membershipId },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            actorId: sub,
+            action: 'MEMBER_REVOKED',
+            entityType: 'Membership',
+            entityId: membershipId,
+            changes: { userEmail: target.user.email, role: target.role },
+          });
+
+          return { success: true, message: `Access revoked for ${target.user.email}` };
+        });
+
+        return reply.status(200).send({ data: result });
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            message: err.message,
+          });
         }
-
-        await tx.membership.delete({
-          where: { id: membershipId },
+        server.log.error(err, 'Failed to revoke membership');
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to revoke membership',
         });
-
-        await recordAuditLog(tx, {
-          tenantId,
-          actorId: sub,
-          action: 'MEMBER_REVOKED',
-          entityType: 'Membership',
-          entityId: membershipId,
-          changes: { userEmail: target.user.email, role: target.role },
-        });
-
-        return { success: true, message: `Access revoked for ${target.user.email}` };
-      });
-
-      return reply.status(200).send({ data: result });
+      }
     },
   );
 };

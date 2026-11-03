@@ -1,5 +1,6 @@
 import { hashPassword, prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions, Roles } from '@construction/permissions';
+import { AcceptInvitationSchema } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { randomBytes } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
@@ -110,19 +111,21 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
   // POST /api/v1/invitations/accept - Accept invite and register / link user
   server.post('/api/v1/invitations/accept', async (request, reply) => {
-    const body = request.body as { token: string; fullName: string; password?: string };
-
-    if (!body.token || !body.fullName) {
+    const parseResult = AcceptInvitationSchema.safeParse(request.body);
+    if (!parseResult.success) {
       return reply.status(400).send({
         error: 'Bad Request',
-        message: 'Token and full name are required to accept an invitation',
+        message: 'Invalid invitation acceptance payload',
+        details: parseResult.error.flatten(),
       });
     }
+
+    const { token, fullName, password } = parseResult.data;
 
     const invitation = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.auth_context', 'invite', TRUE)`;
       return tx.invitation.findUnique({
-        where: { token: body.token },
+        where: { token },
       });
     });
 
@@ -134,9 +137,11 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
     }
 
     if (new Date() > invitation.expires_at) {
-      await prisma.invitation.update({
-        where: { id: invitation.id },
-        data: { status: 'EXPIRED' },
+      await withTenantTx(prisma, invitation.tenant_id, async (tx) => {
+        await tx.invitation.update({
+          where: { id: invitation.id },
+          data: { status: 'EXPIRED' },
+        });
       });
       return reply.status(400).send({
         error: 'Bad Request',
@@ -144,7 +149,8 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
       });
     }
 
-    const passwordHash = body.password ? await hashPassword(body.password) : await hashPassword('TemporaryPassword123!');
+    const passwordToHash = password || randomBytes(24).toString('base64');
+    const passwordHash = await hashPassword(passwordToHash);
 
     // Complete acceptance transaction inside the target tenant's RLS lease
     await withTenantTx(prisma, invitation.tenant_id, async (tx) => {
@@ -157,7 +163,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         user = await tx.user.create({
           data: {
             email: invitation.email,
-            full_name: body.fullName,
+            full_name: fullName,
             password_hash: passwordHash,
             phone_number: invitation.phone,
             is_active: true,
