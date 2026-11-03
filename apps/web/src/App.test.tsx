@@ -7,6 +7,9 @@ import BoqImportModal from './components/BoqImportModal';
 import CostCaptureModal from './components/CostCaptureModal';
 import BudgetSummaryCard from './components/BudgetSummaryCard';
 import CostManagementView from './components/CostManagementView';
+import OfflineSyncBanner from './components/OfflineSyncBanner';
+import SiteDiaryModal from './components/SiteDiaryModal';
+import PhysicalProgressModal from './components/PhysicalProgressModal';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -224,5 +227,48 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('APPROVED');
     expect(html).toContain('Bamburi Cement Ltd');
     expect(html).toContain('Fundi Kazi Casuals');
+  });
+
+  it('renders OfflineSyncBanner with connection status and IndexedDB queue count', () => {
+    const html = renderToString(<OfflineSyncBanner />);
+    expect(html).toContain('IndexedDB Offline Queue Active');
+    expect(html).toContain('Online &amp; Synchronized');
+  });
+
+  it('renders SiteDiaryModal with weather, headcount matrix, material deliveries, and photo compression preview', () => {
+    const html = renderToString(
+      <SiteDiaryModal
+        isOpen={true}
+        onClose={() => {}}
+        projectId="test-proj-id"
+        projectName="Riverside Commercial Plaza"
+      />,
+    );
+    expect(html).toContain('Record Daily Site Diary');
+    expect(html).toContain('Riverside Commercial Plaza');
+    expect(html).toContain('Weather Condition');
+    expect(html).toContain('On-Site Trade Headcount');
+    expect(html).toContain('Masons');
+    expect(html).toContain('Carpenters');
+    expect(html).toContain('Steel Fixers');
+    expect(html).toContain('Material Delivery Received');
+    expect(html).toContain('Geotagged Photo Evidence');
+    expect(html).toContain('Site Work Diary Notes');
+  });
+
+  it('renders PhysicalProgressModal with cumulative progress, BOQ milestone items, and offline fallback', () => {
+    const html = renderToString(
+      <PhysicalProgressModal
+        isOpen={true}
+        onClose={() => {}}
+        projectId="test-proj-id"
+        projectName="Riverside Commercial Plaza"
+      />,
+    );
+    expect(html).toContain('Record Physical Site Progress');
+    expect(html).toContain('Cumulative physical milestone measurement');
+    expect(html).toContain('Observation Date');
+    expect(html).toContain('Overall Project Progress (%)');
+    expect(html).toContain('Progress &amp; Milestone Notes');
   });
 });

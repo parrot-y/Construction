@@ -100,6 +100,83 @@ export const VoidCostEntrySchema = z.object({
 });
 export type VoidCostEntry = z.infer<typeof VoidCostEntrySchema>;
 
+// -------------------------------------------------------------
+// SITE DIARY, PROGRESS & OFFLINE QUEUE SCHEMAS (MILESTONE M6)
+// -------------------------------------------------------------
+
+export const WeatherConditionEnum = z.enum([
+  'SUNNY_CLEAR',
+  'CLOUDY',
+  'LIGHT_RAIN',
+  'HEAVY_RAIN',
+  'RAIN_DELAY',
+  'DUST_STORM',
+]);
+export type WeatherCondition = z.infer<typeof WeatherConditionEnum>;
+
+export const SiteStatusEnum = z.enum([
+  'OPERATIONAL',
+  'PARTIAL',
+  'STOPPED',
+]);
+export type SiteStatus = z.infer<typeof SiteStatusEnum>;
+
+export const TradeHeadcountSchema = z.object({
+  tradeType: z.string().min(2).max(100),
+  headcount: z.number().int().min(1).max(500),
+});
+export type TradeHeadcount = z.infer<typeof TradeHeadcountSchema>;
+
+export const MaterialDeliverySchema = z.object({
+  materialName: z.string().min(2).max(255),
+  quantity: QuantitySchema,
+  unit: z.string().min(1).max(20),
+  supplierName: z.string().max(255).optional().nullable(),
+  deliveryNote: z.string().max(100).optional().nullable(),
+});
+export type MaterialDelivery = z.infer<typeof MaterialDeliverySchema>;
+
+export const SitePhotoInputSchema = z.object({
+  storageKey: z.string().max(500),
+  caption: z.string().max(255).optional().nullable(),
+  takenAt: z.string().datetime().optional(),
+  gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
+  gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+});
+export type SitePhotoInput = z.infer<typeof SitePhotoInputSchema>;
+
+export const CreateSiteDiarySchema = z.object({
+  projectId: z.string().uuid(),
+  entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  weather: WeatherConditionEnum,
+  siteStatus: SiteStatusEnum,
+  generalNotes: z.string().max(4000).optional().nullable(),
+  laborHeadcounts: z.array(TradeHeadcountSchema).optional(),
+  deliveries: z.array(MaterialDeliverySchema).optional(),
+  photos: z.array(SitePhotoInputSchema).optional(),
+});
+export type CreateSiteDiary = z.infer<typeof CreateSiteDiarySchema>;
+
+export const ProgressItemRecordSchema = z.object({
+  boqItemId: z.string().uuid(),
+  completedQuantity: QuantitySchema,
+  completionPct: z
+    .string()
+    .regex(/^(0(\.\d{1,4})?|1(\.0{1,4})?)$/, { message: 'Completion percentage must be a decimal between 0 and 1 (up to 4 decimals)' }),
+});
+export type ProgressItemRecord = z.infer<typeof ProgressItemRecordSchema>;
+
+export const CreateProgressRecordSchema = z.object({
+  projectId: z.string().uuid(),
+  recordDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  overallProgress: z
+    .string()
+    .regex(/^(0(\.\d{1,4})?|1(\.0{1,4})?)$/, { message: 'Overall progress must be a decimal between 0 and 1' }),
+  notes: z.string().max(2000).optional().nullable(),
+  items: z.array(ProgressItemRecordSchema).optional(),
+});
+export type CreateProgressRecord = z.infer<typeof CreateProgressRecordSchema>;
+
 export type AuthUserResponse = z.infer<typeof AuthUserResponseSchema>;
 
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;

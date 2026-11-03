@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../src/index';
+import { hashPassword, withTenantTx } from '../src/index';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -27,7 +27,7 @@ export async function seed() {
 
   const defaultPasswordHash = await hashPassword('Password123!');
 
-  // 2. Create V1 Users
+  // 2. Create V1 Users and Memberships within tenant context
   const usersData = [
     {
       email: 'admin@apexbuilders.co.ke',
@@ -55,63 +55,65 @@ export async function seed() {
     },
   ];
 
-  for (const u of usersData) {
-    const user = await prisma.user.upsert({
-      where: { email: u.email },
-      update: {
-        password_hash: defaultPasswordHash,
-      },
-      create: {
-        email: u.email,
-        password_hash: defaultPasswordHash,
-        full_name: u.full_name,
-        phone_number: u.phone_number,
-        is_active: true,
-      },
-    });
+  await withTenantTx(prisma, tenant.id, async (tx) => {
+    for (const u of usersData) {
+      const user = await tx.user.upsert({
+        where: { email: u.email },
+        update: {
+          password_hash: defaultPasswordHash,
+        },
+        create: {
+          email: u.email,
+          password_hash: defaultPasswordHash,
+          full_name: u.full_name,
+          phone_number: u.phone_number,
+          is_active: true,
+        },
+      });
 
-    // Create Tenant Membership
-    await prisma.membership.upsert({
-      where: {
-        tenant_id_user_id: {
+      // Create Tenant Membership
+      await tx.membership.upsert({
+        where: {
+          tenant_id_user_id: {
+            tenant_id: tenant.id,
+            user_id: user.id,
+          },
+        },
+        update: {
+          role: u.role,
+        },
+        create: {
           tenant_id: tenant.id,
           user_id: user.id,
+          role: u.role,
+        },
+      });
+    }
+
+    // 3. Create active demo Project
+    const project = await tx.project.upsert({
+      where: {
+        tenant_id_code: {
+          tenant_id: tenant.id,
+          code: 'RCP-2026',
         },
       },
-      update: {
-        role: u.role,
-      },
+      update: {},
       create: {
         tenant_id: tenant.id,
-        user_id: user.id,
-        role: u.role,
+        name: 'Riverside Commercial Plaza',
+        code: 'RCP-2026',
+        description: 'Ground + 4 Storey Commercial Office Block',
+        location: 'Riverside Drive, Nairobi',
+        nca_project_no: 'NCA-PRJ-2026-0891',
+        status: 'ACTIVE',
+        original_contract_sum: 45000000.0,
+        current_approved_budget: 45000000.0,
       },
     });
-  }
 
-  // 3. Create active demo Project
-  const project = await prisma.project.upsert({
-    where: {
-      tenant_id_code: {
-        tenant_id: tenant.id,
-        code: 'RCP-2026',
-      },
-    },
-    update: {},
-    create: {
-      tenant_id: tenant.id,
-      name: 'Riverside Commercial Plaza',
-      code: 'RCP-2026',
-      description: 'Ground + 4 Storey Commercial Office Block',
-      location: 'Riverside Drive, Nairobi',
-      nca_project_no: 'NCA-PRJ-2026-0891',
-      status: 'ACTIVE',
-      original_contract_sum: 45000000.0,
-      current_approved_budget: 45000000.0,
-    },
+    console.log(`Database seeded successfully! Tenant: ${tenant.name} (${tenant.id}), Project: ${project.name}`);
   });
-
-  console.log(`Database seeded successfully! Tenant: ${tenant.name} (${tenant.id}), Project: ${project.name}`);
 }
 
 seed()

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import BoqImportModal from './BoqImportModal';
+import PhysicalProgressModal from './PhysicalProgressModal';
 import BudgetSummaryCard from './BudgetSummaryCard';
 import CostManagementView from './CostManagementView';
 
@@ -14,6 +15,8 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
   const sampleBudget = toCurrencyString('45000000.00');
   const [showBoqModal, setShowBoqModal] = useState(false);
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -34,6 +37,12 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowProgressModal(true)}
+            className="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+          >
+            📈 Record Progress
+          </button>
+          <button
             onClick={() => setShowBoqModal(true)}
             className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
@@ -44,6 +53,13 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
           </span>
         </div>
       </div>
+
+      {progressSuccess && (
+        <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium rounded-lg flex justify-between items-center">
+          <span>✓ {progressSuccess}</span>
+          <button onClick={() => setProgressSuccess(null)} className="text-blue-600 hover:text-blue-900 font-bold ml-2">×</button>
+        </div>
+      )}
 
       {boqSuccess && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
@@ -215,6 +231,18 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
         onImportSuccess={handleImportSuccess}
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
+      />
+
+      {/* Physical Progress Inspection Modal */}
+      <PhysicalProgressModal
+        isOpen={showProgressModal}
+        onClose={() => setShowProgressModal(false)}
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        onProgressRecorded={(prog) => {
+          const pct = prog.overallProgress ? (parseFloat(prog.overallProgress) * 100).toFixed(1) : '15.0';
+          setProgressSuccess(`QS site progress inspection verified and recorded (${pct}% cumulative completion)`);
+        }}
       />
     </div>
   );
