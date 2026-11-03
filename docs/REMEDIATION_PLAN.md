@@ -76,6 +76,7 @@ Record each review:
 | 2026-11-02 | M4 | Gemini | Completed and verified (60/60 tests green across 6 suites, staged 6-stage Excel BOQ import pipeline per ADR-003, EASMM section mapping, arithmetic discrepancy validation, interactive React 19 preview modal with row status badges, atomic commit in withTenantTx, versioning & audit logging); ready for Claude review | — |
 | 2026-11-02 | M5 | Gemini | Completed and verified (75/75 tests green across 6 suites, append-only CostEntry financial ledger, receipt attachments, PM/QS multi-step approval workflow, Decimal budget aggregation, and React 19 CostCaptureModal, BudgetSummaryCard & CostManagementView); ready for Claude review | — |
 | 2026-11-03 | M6 | Gemini | Completed and verified (88/88 tests green across 6 suites, daily site diary logging with weather, trade headcount matrix, material deliveries, geotagged photos with GPS, physical progress % against BOQ line items, IndexedDB offline mutation queue with auto-sync and Canvas client-side photo compression, Idempotency-Key cache lookup, and SupervisorDashboard & PmQsDashboard integration); ready for Claude review | — |
+| 2026-11-03 | M7 | Gemini + Subagents | Completed and verified (110/110 tests green across 13 suites, real-time project variance analytics, automatic latest physical progress retrieval, BOQ section breakdown, neutral health alert cards, PM/QS & Client dashboard integration, and RLS multi-tenant isolation); ready for Claude review | — |
 
 ## Closed items
 
