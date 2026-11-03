@@ -4,6 +4,8 @@ import CostCaptureModal from './CostCaptureModal';
 import SiteDiaryModal from './SiteDiaryModal';
 import PhysicalProgressModal from './PhysicalProgressModal';
 import OfflineSyncBanner from './OfflineSyncBanner';
+import QualityControlView from './QualityControlView';
+import SnaggingListView from './SnaggingListView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -186,6 +188,23 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
           </div>
         </div>
       </div>
+
+      {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}
+      <QualityControlView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        canApprove={true}
+        defaultTab="checklists"
+      />
+
+      {/* Practical Completion Snagging & Punch List Register */}
+      <SnaggingListView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        canAdd={true}
+        canRectify={true}
+        canVerify={false}
+      />
 
       {/* Site Diary Modal */}
       <SiteDiaryModal

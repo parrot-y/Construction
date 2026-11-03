@@ -220,3 +220,205 @@ export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
 export type AuthUserResponse = z.infer<typeof AuthUserResponseSchema>;
 
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;
+
+
+// -------------------------------------------------------------
+// LIFECYCLE EXTENSIONS SCHEMAS
+// -------------------------------------------------------------
+
+// Domain 1: RFI
+export const RfiPriorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+export type RfiPriority = z.infer<typeof RfiPriorityEnum>;
+
+export const RfiStatusEnum = z.enum([
+  'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'ANSWERED',
+  'REJECTED',
+  'CLOSED',
+]);
+export type RfiStatus = z.infer<typeof RfiStatusEnum>;
+
+export const RFIAttachmentInputSchema = z.object({
+  storageKey: z.string().max(500),
+  filename: z.string().max(255),
+  fileSize: z.number().int().positive(),
+  mimeType: z.string().max(100),
+});
+export type RFIAttachmentInput = z.infer<typeof RFIAttachmentInputSchema>;
+
+export const CreateRfiSchema = z.object({
+  title: z.string().min(3).max(255),
+  question: z.string().min(5),
+  suggestedSolution: z.string().optional().nullable(),
+  drawingReference: z.string().max(100).optional().nullable(),
+  specificationClause: z.string().max(100).optional().nullable(),
+  priority: RfiPriorityEnum.default('MEDIUM'),
+  costImpact: z.boolean().default(false),
+  scheduleImpactDays: z.number().int().min(0).default(0),
+  assignedToRole: z.string().min(2).max(50),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  attachments: z.array(RFIAttachmentInputSchema).optional(),
+});
+export type CreateRfi = z.infer<typeof CreateRfiSchema>;
+
+export const RespondRfiSchema = z.object({
+  officialAnswer: z.string().min(3),
+  isAccepted: z.boolean().default(true),
+});
+export type RespondRfi = z.infer<typeof RespondRfiSchema>;
+
+// Domain 2: Quality Assurance & Inspections
+export const ChecklistTypeEnum = z.enum([
+  'PRE_POUR_CONCRETE',
+  'SUBSTRUCTURE_EXCAVATION',
+  'REBAR_VERIFICATION',
+  'SCAFFOLDING_SAFETY',
+  'WATERPROOFING_FLOOD_TEST',
+  'MEP_PRESSURE_TEST',
+  'PRE_PLASTER_WALLING',
+  'PRE_HANDOVER_INSPECTION',
+]);
+export type ChecklistType = z.infer<typeof ChecklistTypeEnum>;
+
+export const InspectionStatusEnum = z.enum([
+  'PENDING',
+  'IN_PROGRESS',
+  'APPROVED_WITHOUT_COMMENTS',
+  'APPROVED_WITH_CONDITIONS',
+  'REJECTED',
+]);
+export type InspectionStatus = z.infer<typeof InspectionStatusEnum>;
+
+export const InspectionItemInputSchema = z.object({
+  orderIdx: z.number().int().min(0),
+  checkPoint: z.string().min(2).max(255),
+  isMandatory: z.boolean().default(true),
+});
+export type InspectionItemInput = z.infer<typeof InspectionItemInputSchema>;
+
+export const CreateInspectionChecklistSchema = z.object({
+  checklistType: ChecklistTypeEnum,
+  title: z.string().min(3).max(255),
+  location: z.string().min(2).max(255),
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  inspectorName: z.string().max(255).optional().nullable(),
+  inspectorRole: z.string().max(100).optional().nullable(),
+  summaryNotes: z.string().optional().nullable(),
+  items: z.array(InspectionItemInputSchema).optional(),
+});
+export type CreateInspectionChecklist = z.infer<typeof CreateInspectionChecklistSchema>;
+
+export const UpdateInspectionItemSchema = z.object({
+  result: z.enum(['PASS', 'FAIL', 'N/A', 'PENDING']),
+  deficiencyNotes: z.string().optional().nullable(),
+  photoStorageKey: z.string().max(500).optional().nullable(),
+});
+export type UpdateInspectionItem = z.infer<typeof UpdateInspectionItemSchema>;
+
+// Domain 3: Concrete Cube Tests
+export const ConcreteClassEnum = z.enum([
+  'CLASS_15_20',
+  'CLASS_20_20',
+  'CLASS_25_20',
+  'CLASS_30_20',
+  'CLASS_35_20',
+]);
+export type ConcreteClass = z.infer<typeof ConcreteClassEnum>;
+
+export const CreateConcreteCubeTestSchema = z.object({
+  batchReference: z.string().min(2).max(100),
+  pourLocation: z.string().min(2).max(255),
+  pourDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  concreteClass: ConcreteClassEnum.default('CLASS_25_20'),
+  targetStrengthMpa: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Must be a valid decimal MPa value' }),
+  slumpTestedMm: z.number().int().min(0).max(300).optional().nullable(),
+  supplierName: z.string().max(255).optional().nullable(),
+  deliveryDocketNo: z.string().max(100).optional().nullable(),
+  curingTankId: z.string().max(50).optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+export type CreateConcreteCubeTest = z.infer<typeof CreateConcreteCubeTestSchema>;
+
+export const RecordCubeBreakSchema = z.object({
+  cubeNumber: z.number().int().min(1).max(12),
+  breakAgeDays: z.number().int().min(1).max(90),
+  scheduledBreakDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  actualBreakDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  crushingLoadKn: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Must be a valid decimal kN load' }).optional().nullable(),
+  compressiveMpa: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Must be a valid decimal MPa strength' }).optional().nullable(),
+  isPass: z.boolean().optional().nullable(),
+  labName: z.string().max(255).optional().nullable(),
+  certificateKey: z.string().max(500).optional().nullable(),
+  testedBy: z.string().max(255).optional().nullable(),
+});
+export type RecordCubeBreak = z.infer<typeof RecordCubeBreakSchema>;
+
+// Domain 4: Snag Items (Punch List)
+export const SnagSeverityEnum = z.enum(['COSMETIC', 'FUNCTIONAL', 'CRITICAL_SAFETY']);
+export type SnagSeverity = z.infer<typeof SnagSeverityEnum>;
+
+export const SnagStatusEnum = z.enum([
+  'OPEN',
+  'IN_PROGRESS',
+  'RECTIFIED_BY_CONTRACTOR',
+  'VERIFIED_CLOSED',
+  'CONTESTED',
+]);
+export type SnagStatus = z.infer<typeof SnagStatusEnum>;
+
+export const SnagPhotoInputSchema = z.object({
+  photoType: z.enum(['DEFECT', 'RECTIFIED']).default('DEFECT'),
+  storageKey: z.string().max(500),
+  caption: z.string().max(255).optional().nullable(),
+  gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
+  gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+});
+export type SnagPhotoInput = z.infer<typeof SnagPhotoInputSchema>;
+
+export const CreateSnagItemSchema = z.object({
+  locationBlock: z.string().max(100).optional().nullable(),
+  locationFloor: z.string().min(1).max(100),
+  locationRoom: z.string().min(1).max(100),
+  tradeCategory: z.string().min(1).max(100),
+  description: z.string().min(3),
+  severity: SnagSeverityEnum.default('COSMETIC'),
+  assignedTradeFirm: z.string().max(255).optional().nullable(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  identifiedByName: z.string().min(2).max(255),
+  photos: z.array(SnagPhotoInputSchema).optional(),
+});
+export type CreateSnagItem = z.infer<typeof CreateSnagItemSchema>;
+
+export const UpdateSnagStatusSchema = z.object({
+  status: SnagStatusEnum,
+  verifiedByName: z.string().max(255).optional().nullable(),
+  photos: z.array(SnagPhotoInputSchema).optional(),
+});
+export type UpdateSnagStatus = z.infer<typeof UpdateSnagStatusSchema>;
+
+// Domain 5: Defects Liability Certificates
+export const CertificateTypeEnum = z.enum([
+  'PRACTICAL_COMPLETION',
+  'MAKING_GOOD_DEFECTS',
+  'FINAL_PAYMENT_CERTIFICATE',
+]);
+export type CertificateType = z.infer<typeof CertificateTypeEnum>;
+
+export const CreateDefectsCertificateSchema = z.object({
+  certificateType: CertificateTypeEnum,
+  certificateReference: z.string().min(2).max(100),
+  issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  dlpDurationMonths: z.number().int().min(1).max(36).default(6),
+  dlpExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  retentionAmountReleased: CurrencyAmountSchema.optional().nullable(),
+  architectName: z.string().min(2).max(255),
+  architectBoraqsNo: z.string().max(50).optional().nullable(),
+  qsName: z.string().min(2).max(255),
+  qsBoraqsNo: z.string().max(50).optional().nullable(),
+  signedCertificateKey: z.string().max(500).optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+export type CreateDefectsCertificate = z.infer<typeof CreateDefectsCertificateSchema>;

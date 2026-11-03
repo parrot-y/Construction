@@ -44,6 +44,8 @@ model User {
   project_members ProjectMember[]
   cost_entries   CostEntry[]  @relation("CostCreator")
   cost_approvals CostApproval[]
+  rfis_created   RFI[]        @relation("RfiAuthor")
+  rfi_responses  RFIResponse[]
 
   @@map("users")
 }
@@ -106,6 +108,11 @@ model Project {
   site_diaries         SiteDiary[]
   progress_records     ProgressRecord[]
   variation_orders     VariationOrder[]
+  rfis                 RFI[]
+  inspection_checklists InspectionChecklist[]
+  concrete_cube_tests  ConcreteCubeTest[]
+  snag_items           SnagItem[]
+  defects_liability_certificates DefectsLiabilityCertificate[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -432,4 +439,306 @@ model IdempotencyKey {
 
   @@unique([tenant_id, idempotency_key])
   @@map("idempotency_keys")
+}
+
+
+// =============================================================
+// DOMAIN EXTENSION 1: TECHNICAL QUERIES & RFIs
+// =============================================================
+
+enum RfiStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ANSWERED
+  REJECTED
+  CLOSED
+}
+
+enum RfiPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model RFI {
+  id                  String       @id @default(uuid()) @db.Uuid
+  tenant_id           String       @db.Uuid
+  project_id          String       @db.Uuid
+  rfi_number          Int          // Sequential per project: 1, 2, 3...
+  title               String       @db.VarChar(255)
+  question            String       @db.Text
+  suggested_solution  String?      @db.Text
+  drawing_reference   String?      @db.VarChar(100) // e.g. "STR-04 Rev C"
+  specification_clause String?     @db.VarChar(100) // e.g. "EASMM Sec 3.4"
+  priority            RfiPriority  @default(MEDIUM)
+  status              RfiStatus    @default(SUBMITTED)
+  cost_impact         Boolean      @default(false)
+  schedule_impact_days Int         @default(0)
+  assigned_to_role    String       @db.VarChar(50)  // "ARCHITECT", "STRUCTURAL_ENG", "SERVICES_ENG", "QS"
+  created_by_id       String       @db.Uuid
+  due_date            DateTime?    @db.Date
+  closed_at           DateTime?    @db.Timestamptz
+  created_at          DateTime     @default(now()) @db.Timestamptz
+  updated_at          DateTime     @updatedAt @db.Timestamptz
+
+  project             Project      @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  created_by          User         @relation("RfiAuthor", fields: [created_by_id], references: [id])
+  responses           RFIResponse[]
+  attachments         RFIAttachment[]
+
+  @@unique([project_id, rfi_number])
+  @@index([tenant_id, project_id, status])
+  @@map("rfis")
+}
+
+model RFIResponse {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenant_id       String       @db.Uuid
+  rfi_id          String       @db.Uuid
+  responder_id    String       @db.Uuid
+  official_answer String       @db.Text
+  is_accepted     Boolean      @default(true)
+  created_at      DateTime     @default(now()) @db.Timestamptz
+
+  rfi             RFI          @relation(fields: [rfi_id], references: [id], onDelete: Cascade)
+  responder       User         @relation(fields: [responder_id], references: [id])
+
+  @@index([tenant_id, rfi_id])
+  @@map("rfi_responses")
+}
+
+model RFIAttachment {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenant_id   String       @db.Uuid
+  rfi_id      String       @db.Uuid
+  storage_key String       @db.VarChar(500)
+  filename    String       @db.VarChar(255)
+  file_size   Int
+  mime_type   String       @db.VarChar(100)
+  created_at  DateTime     @default(now()) @db.Timestamptz
+
+  rfi         RFI          @relation(fields: [rfi_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, rfi_id])
+  @@map("rfi_attachments")
+}
+
+// =============================================================
+// DOMAIN EXTENSION 2: QUALITY ASSURANCE & INSPECTION CHECKLISTS
+// =============================================================
+
+enum ChecklistType {
+  PRE_POUR_CONCRETE
+  SUBSTRUCTURE_EXCAVATION
+  REBAR_VERIFICATION
+  SCAFFOLDING_SAFETY
+  WATERPROOFING_FLOOD_TEST
+  MEP_PRESSURE_TEST
+  PRE_PLASTER_WALLING
+  PRE_HANDOVER_INSPECTION
+}
+
+enum InspectionStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED_WITHOUT_COMMENTS
+  APPROVED_WITH_CONDITIONS
+  REJECTED
+}
+
+model InspectionChecklist {
+  id              String            @id @default(uuid()) @db.Uuid
+  tenant_id       String            @db.Uuid
+  project_id      String            @db.Uuid
+  checklist_type  ChecklistType
+  title           String            @db.VarChar(255)
+  location        String            @db.VarChar(255) // e.g. "Block B, 2nd Floor Slab"
+  status          InspectionStatus  @default(PENDING)
+  scheduled_date  DateTime          @db.Date
+  inspected_at    DateTime?         @db.Timestamptz
+  inspector_name  String?           @db.VarChar(255) // Consulting Engineer / Architect
+  inspector_role  String?           @db.VarChar(100)
+  signed_off_by_id String?          @db.Uuid
+  summary_notes   String?           @db.Text
+  created_at      DateTime          @default(now()) @db.Timestamptz
+  updated_at      DateTime          @updatedAt @db.Timestamptz
+
+  project         Project           @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  items           InspectionItem[]
+
+  @@index([tenant_id, project_id, checklist_type])
+  @@map("inspection_checklists")
+}
+
+model InspectionItem {
+  id                   String              @id @default(uuid()) @db.Uuid
+  tenant_id            String              @db.Uuid
+  checklist_id         String              @db.Uuid
+  order_idx            Int
+  check_point          String              @db.VarChar(255) // e.g. "Reinforcement cover blocks minimum 25mm"
+  is_mandatory         Boolean             @default(true)
+  result               String              @default("PENDING") @db.VarChar(20) // "PASS", "FAIL", "N/A", "PENDING"
+  deficiency_notes     String?             @db.Text
+  photo_storage_key    String?             @db.VarChar(500)
+
+  checklist            InspectionChecklist @relation(fields: [checklist_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, checklist_id])
+  @@map("inspection_items")
+}
+
+// =============================================================
+// DOMAIN EXTENSION 3: CONCRETE QUALITY & CUBE TEST REGISTRY
+// =============================================================
+
+enum ConcreteClass {
+  CLASS_15_20 // Blinding
+  CLASS_20_20 // Standard Structural (1:2:4)
+  CLASS_25_20 // High-Strength Columns / Slabs
+  CLASS_30_20 // Precast / Water-Retaining
+  CLASS_35_20 // Specialized High-Load
+}
+
+model ConcreteCubeTest {
+  id                    String            @id @default(uuid()) @db.Uuid
+  tenant_id             String            @db.Uuid
+  project_id            String            @db.Uuid
+  batch_reference       String            @db.VarChar(100) // e.g. "POUR-2026-11-04-SLAB3"
+  pour_location         String            @db.VarChar(255) // e.g. "Third Floor Slab & Beams Axis 1-6"
+  pour_date             DateTime          @db.Date
+  concrete_class        ConcreteClass     @default(CLASS_25_20)
+  target_strength_mpa   Decimal           @db.Decimal(5, 2) // e.g. 25.00 MPa
+  slump_tested_mm       Int?              // Measured slump in mm (e.g. 75mm)
+  supplier_name         String?           @db.VarChar(255) // "Site Batch" or Ready-Mix Vendor
+  delivery_docket_no    String?           @db.VarChar(100)
+  curing_tank_id        String?           @db.VarChar(50)
+  notes                 String?           @db.Text
+  created_at            DateTime          @default(now()) @db.Timestamptz
+
+  project               Project           @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  break_results         CubeBreakResult[]
+
+  @@index([tenant_id, project_id, pour_date])
+  @@map("concrete_cube_tests")
+}
+
+model CubeBreakResult {
+  id                   String           @id @default(uuid()) @db.Uuid
+  tenant_id            String           @db.Uuid
+  cube_test_id         String           @db.Uuid
+  cube_number          Int              // 1 to 6
+  break_age_days       Int              // 7 or 28 (or 14)
+  scheduled_break_date DateTime         @db.Date
+  actual_break_date    DateTime?        @db.Date
+  crushing_load_kn     Decimal?         @db.Decimal(8, 2) // Measured force in kN
+  compressive_mpa      Decimal?         @db.Decimal(6, 2) // Load / (150mm * 150mm) = N/mm2 (MPa)
+  is_pass              Boolean?
+  lab_name             String?          @db.VarChar(255) // "Ministry of Works" or commercial lab
+  certificate_key      String?          @db.VarChar(500) // S3 PDF storage key
+  tested_by            String?          @db.VarChar(255)
+
+  cube_test            ConcreteCubeTest @relation(fields: [cube_test_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, cube_test_id, scheduled_break_date])
+  @@map("cube_break_results")
+}
+
+// =============================================================
+// DOMAIN EXTENSION 4: HANDOVER & SNAGGING (PUNCH LIST)
+// =============================================================
+
+enum SnagSeverity {
+  COSMETIC
+  FUNCTIONAL
+  CRITICAL_SAFETY
+}
+
+enum SnagStatus {
+  OPEN
+  IN_PROGRESS
+  RECTIFIED_BY_CONTRACTOR
+  VERIFIED_CLOSED
+  CONTESTED
+}
+
+model SnagItem {
+  id                  String       @id @default(uuid()) @db.Uuid
+  tenant_id           String       @db.Uuid
+  project_id          String       @db.Uuid
+  snag_number         Int          // Sequential per project
+  location_block      String?      @db.VarChar(100) // e.g. "Block A"
+  location_floor      String       @db.VarChar(100) // e.g. "2nd Floor"
+  location_room       String       @db.VarChar(100) // e.g. "Apartment A3 - Master Bath"
+  trade_category      String       @db.VarChar(100) // "Tiling", "Painting", "Plumbing", "Electrical", "Joinery"
+  description         String       @db.Text
+  severity            SnagSeverity @default(COSMETIC)
+  status              SnagStatus   @default(OPEN)
+  assigned_trade_firm String?      @db.VarChar(255) // Subcontractor or internal crew
+  due_date            DateTime?    @db.Date
+  identified_by_name  String       @db.VarChar(255) // Architect / Client / QS / PM
+  identified_at       DateTime     @default(now()) @db.Timestamptz
+  rectified_at        DateTime?    @db.Timestamptz
+  verified_at         DateTime?    @db.Timestamptz
+  verified_by_name    String?      @db.VarChar(255)
+
+  project             Project      @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  photos              SnagPhoto[]
+
+  @@unique([project_id, snag_number])
+  @@index([tenant_id, project_id, status])
+  @@map("snag_items")
+}
+
+model SnagPhoto {
+  id             String     @id @default(uuid()) @db.Uuid
+  tenant_id      String     @db.Uuid
+  snag_item_id   String     @db.Uuid
+  photo_type     String     @db.VarChar(20) // "DEFECT" (before) or "RECTIFIED" (after)
+  storage_key    String     @db.VarChar(500)
+  caption        String?    @db.VarChar(255)
+  gps_latitude   Decimal?   @db.Decimal(9, 6)
+  gps_longitude  Decimal?   @db.Decimal(9, 6)
+  captured_at    DateTime   @default(now()) @db.Timestamptz
+
+  snag_item      SnagItem   @relation(fields: [snag_item_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, snag_item_id])
+  @@map("snag_photos")
+}
+
+// =============================================================
+// DOMAIN EXTENSION 5: DEFECTS LIABILITY & FINAL RETENTION CLOSEOUT
+// =============================================================
+
+enum CertificateType {
+  PRACTICAL_COMPLETION
+  MAKING_GOOD_DEFECTS
+  FINAL_PAYMENT_CERTIFICATE
+}
+
+model DefectsLiabilityCertificate {
+  id                      String          @id @default(uuid()) @db.Uuid
+  tenant_id               String          @db.Uuid
+  project_id              String          @db.Uuid
+  certificate_type        CertificateType
+  certificate_reference   String          @db.VarChar(100) // e.g. "CERT-PC-2026-001"
+  issue_date              DateTime        @db.Date
+  effective_date          DateTime        @db.Date
+  dlp_duration_months     Int             @default(6) // Typically 6 months under JBC 1999
+  dlp_expiry_date         DateTime?       @db.Date
+  retention_amount_released Decimal       @db.Decimal(15, 2) // 50% moiety or final 50%
+  architect_name          String          @db.VarChar(255)
+  architect_boraqs_no     String?         @db.VarChar(50)
+  qs_name                 String          @db.VarChar(255)
+  qs_boraqs_no            String?         @db.VarChar(50)
+  signed_certificate_key  String?         @db.VarChar(500) // S3 storage key of signed document
+  notes                   String?         @db.Text
+  created_at              DateTime        @default(now()) @db.Timestamptz
+
+  project                 Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, certificate_type])
+  @@map("defects_liability_certificates")
 }

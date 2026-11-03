@@ -17,6 +17,13 @@ import ClientDashboard from './components/ClientDashboard';
 import PhotoEvidenceGallery from './components/PhotoEvidenceGallery';
 import MilestoneTimeline from './components/MilestoneTimeline';
 import PhotoLightboxModal from './components/PhotoLightboxModal';
+import RfiManagementView from './components/RfiManagementView';
+import CreateRfiModal from './components/CreateRfiModal';
+import QualityControlView from './components/QualityControlView';
+import ConcreteCubeTestModal from './components/ConcreteCubeTestModal';
+import SnaggingListView from './components/SnaggingListView';
+import CreateSnagModal from './components/CreateSnagModal';
+import PracticalCompletionCard from './components/PracticalCompletionCard';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -737,6 +744,289 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('data-testid="download-summary-btn"');
       expect(html).toContain('/reports/site-diary/latest');
       expect(html).toContain('/reports/summary');
+    });
+  });
+
+  describe('Construction Lifecycle Extensions: RFI Technical Queries Suite', () => {
+    it('renders RfiManagementView with RFI register, priority badges, consultant roles, status badges, and elapsed days', () => {
+      const rawHtml = renderToString(<RfiManagementView projectId="project-rcp-2026" />);
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Request for Information (RFI) Register');
+      expect(html).toContain('RFI-001');
+      expect(html).toContain('Clarification on Pad Footing Reinforcement in Grid C-4');
+      expect(html).toContain('Structural Eng');
+      expect(html).toContain('CRITICAL');
+      expect(html).toContain('ANSWERED');
+      expect(html).toContain('5 days elapsed');
+
+      // Expandable thread verification
+      expect(html).toContain('Official Consultant Resolution Thread');
+      expect(html).toContain('Eng. Peter Gitau');
+      expect(html).toContain('SK-ST-04-Pad-Footing-C4-Revision.pdf');
+
+      // Action button
+      expect(html).toContain('+ New RFI');
+    });
+
+    it('renders CreateRfiModal with consultant role dropdown, priority options, drawing ref, and technical query form', () => {
+      const html = renderToString(
+        <CreateRfiModal
+          isOpen={true}
+          onClose={() => {}}
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />,
+      );
+
+      expect(html).toContain('New Request for Information (RFI)');
+      expect(html).toContain('RFI Subject / Title');
+      expect(html).toContain('Assigned Consultant');
+      expect(html).toContain('Priority Level');
+      expect(html).toContain('Specification / Drawing Reference');
+      expect(html).toContain('Technical Query Narrative');
+      expect(html).toContain('Submit RFI to Consultant');
+      expect(html).toContain('Architect (Lead Design Consultant)');
+      expect(html).toContain('Structural Engineer (BORAQS / EBK)');
+    });
+  });
+
+  describe('Construction Lifecycle Extensions: Quality Control & Concrete Cubes Suite', () => {
+    it('renders QualityControlView with pre-pour checklist items, PASS/FAIL verification, and location details', () => {
+      const html = renderToString(
+        <QualityControlView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          defaultTab="checklists"
+        />,
+      );
+
+      expect(html).toContain('Pre-Pour Hold Points &amp; Concrete Cube Crushing');
+      expect(html).toContain('Pre-Pour Inspection Checklists');
+      expect(html).toContain('Concrete Cube Crushing Tests');
+
+      // Active checklist details
+      expect(html).toContain('CHK-PRE-001');
+      expect(html).toContain('PRE_POUR_CONCRETE');
+      expect(html).toContain('Grid 3-B Ground Floor Raft Foundation');
+      expect(html).toContain('APPROVED_FOR_POUR');
+
+      // Interactive items table with pass/fail toggles
+      expect(html).toContain('Rebar sizing, spacing');
+      expect(html).toContain('Formwork rigidity');
+      expect(html).toContain('PASS ✓');
+      expect(html).toContain('FAIL ✕');
+      expect(html).toContain('Approve for Pour');
+      expect(html).toContain('Reject / Rework');
+    });
+
+    it('renders QualityControlView concrete cube tests with 7-day break, 28-day scheduled break, MPa gauge, and 25 MPa pass badge', () => {
+      const rawHtml = renderToString(
+        <QualityControlView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          defaultTab="cube-tests"
+        />,
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Concrete Cube Crushing Tests');
+      expect(html).toContain('KS 02-598 Testing Protocol');
+      expect(html).toContain('CUBE-2026-001');
+      expect(html).toContain('Class 25/20');
+      expect(html).toContain('18.6 MPa');
+      expect(html).toContain('27.8 MPa');
+      expect(html).toContain('PASS (27.8 MPa)');
+      expect(html).toContain('target 25 MPa');
+      expect(html).toContain('+ Log Cube Test');
+    });
+
+    it('renders ConcreteCubeTestModal with pour location, concrete class dropdown, batch ticket, and MPa break inputs', () => {
+      const html = renderToString(
+        <ConcreteCubeTestModal
+          isOpen={true}
+          onClose={() => {}}
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />,
+      );
+
+      expect(html).toContain('Log Concrete Cube Crushing Test');
+      expect(html).toContain('Pour Structural Location');
+      expect(html).toContain('Concrete Class &amp; Target');
+      expect(html).toContain('Pour Date');
+      expect(html).toContain('Batch Delivery Ticket #');
+      expect(html).toContain('Site Slump Result (mm)');
+      expect(html).toContain('7-Day Test Strength (MPa)');
+      expect(html).toContain('28-Day Final Strength (MPa)');
+      expect(html).toContain('Record Cube Test');
+    });
+  });
+
+  describe('Construction Lifecycle Extensions: Practical Completion Snagging Suite', () => {
+    it('renders SnaggingListView with spatial location breadcrumbs, trade categories, severity badges, and status counters', () => {
+      const html = renderToString(<SnaggingListView projectId="project-rcp-2026" />);
+
+      expect(html).toContain('Defects Snagging Punch List Register');
+      expect(html).toContain('SNG-001');
+      expect(html).toContain('Block A');
+      expect(html).toContain('2nd Floor');
+      expect(html).toContain('Room 204 (Master Ensuite)');
+      expect(html).toContain('Tiling');
+      expect(html).toContain('FUNCTIONAL');
+      expect(html).toContain('OPEN');
+
+      // SNG-002
+      expect(html).toContain('SNG-002');
+      expect(html).toContain('Painting');
+      expect(html).toContain('COSMETIC');
+      expect(html).toContain('RECTIFIED BY CONTRACTOR');
+
+      // Geotag pin and photos
+      expect(html).toContain('Geotag Pin');
+      expect(html).toContain('-1.268321');
+      expect(html).toContain('36.804412');
+      expect(html).toContain('BEFORE');
+      expect(html).toContain('AFTER');
+
+      // Buttons
+      expect(html).toContain('+ Add Snag Item');
+      expect(html).toContain('Mark Rectified');
+      expect(html).toContain('Verify &amp; Close');
+    });
+
+    it('renders CreateSnagModal with spatial zoning hierarchy (Block, Floor, Room), trade dropdown, severity levels, and GPS inputs', () => {
+      const html = renderToString(
+        <CreateSnagModal
+          isOpen={true}
+          onClose={() => {}}
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />,
+      );
+
+      expect(html).toContain('Add Snagging Item');
+      expect(html).toContain('Spatial Zoning (Block → Floor → Room)');
+      expect(html).toContain('Block / Wing');
+      expect(html).toContain('Floor Level');
+      expect(html).toContain('Room / Zone');
+      expect(html).toContain('Trade Category');
+      expect(html).toContain('Severity Level');
+      expect(html).toContain('Defect Description');
+      expect(html).toContain('GPS Latitude');
+      expect(html).toContain('GPS Longitude');
+    });
+  });
+
+  describe('Construction Lifecycle Extensions: Practical Completion & Retention Release Card Suite', () => {
+    it('renders PracticalCompletionCard with Certificate of Practical Completion, BORAQS registration numbers, and issue date', () => {
+      const rawHtml = renderToString(
+        <PracticalCompletionCard
+          projectName="Riverside Commercial Plaza"
+          projectCode="RCP-2026"
+        />,
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Practical Completion &amp; Retention Release Card');
+      expect(html).toContain('Certificate of Practical Completion');
+      expect(html).toContain('ISSUED');
+      expect(html).toContain('Arch. Peter M. Mwangi');
+      expect(html).toContain('BORAQS Reg. No. A-742');
+      expect(html).toContain('Qs. Faith Achieng');
+      expect(html).toContain('BORAQS Reg. No. Q-819');
+    });
+
+    it('displays First Moiety (50%) retention release formatted in KES', () => {
+      const rawHtml = renderToString(
+        <PracticalCompletionCard
+          projectName="Riverside Commercial Plaza"
+          projectCode="RCP-2026"
+          contractSum="45000000.00"
+          firstMoietyAmount="1125000.00"
+        />,
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('First Moiety (50%)');
+      expect(html).toContain('1125000.00');
+      expect(html).toContain('RELEASED');
+      expect(html).toContain('Released to Contractor ✓');
+      expect(html).toContain('IPC #10-FIN-RET1');
+    });
+
+    it('displays 6-Month Defects Liability Period (DLP) countdown and days remaining', () => {
+      const rawHtml = renderToString(
+        <PracticalCompletionCard
+          projectName="Riverside Commercial Plaza"
+          dlpDaysRemaining={124}
+        />,
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('6-Month Defects Liability Period (DLP) Countdown');
+      expect(html).toContain('124 Days Remaining');
+      expect(html).toContain('Expires 15 April 2027');
+      expect(html).toContain('Contractor Statutory Obligation');
+    });
+
+    it('displays Certificate of Making Good Defects and Second Moiety escrow status', () => {
+      const rawHtml = renderToString(
+        <PracticalCompletionCard
+          projectName="Riverside Commercial Plaza"
+          secondMoietyAmount="1125000.00"
+        />,
+      );
+      const html = rawHtml.replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Certificate of Making Good Defects');
+      expect(html).toContain('PENDING FINAL INSPECTION');
+      expect(html).toContain('10 April 2027');
+      expect(html).toContain('Second Moiety (Final 50%)');
+      expect(html).toContain('HELD IN ESCROW');
+    });
+  });
+
+  describe('Construction Lifecycle Extensions: Multi-Role Dashboard Embeddings', () => {
+    const mockSessionForRole = (role: string): AuthSession => ({
+      user: {
+        id: `user-${role.toLowerCase()}`,
+        email: `${role.toLowerCase()}@apexbuilders.co.ke`,
+        fullName: `${role} User`,
+        role,
+        tenant: {
+          id: 'tenant-123',
+          name: 'Apex Builders Kenya Ltd',
+          slug: 'apex-builders',
+          currency: 'KES',
+        },
+      },
+      permissions: ['project.view', 'cost.approve', 'variation.approve'],
+      token: 'mock-token',
+    });
+
+    it('embeds RfiManagementView, QualityControlView, and PracticalCompletionCard into PmQsDashboard', () => {
+      const html = renderToString(<Dashboard session={mockSessionForRole('PM_QS')} onLogout={() => {}} />);
+
+      expect(html).toContain('Request for Information (RFI) Register');
+      expect(html).toContain('Pre-Pour Hold Points &amp; Concrete Cube Crushing');
+      expect(html).toContain('Practical Completion &amp; Retention Release Card');
+    });
+
+    it('embeds QualityControlView and SnaggingListView into SupervisorDashboard', () => {
+      const html = renderToString(<Dashboard session={mockSessionForRole('SITE_SUPERVISOR')} onLogout={() => {}} />);
+
+      expect(html).toContain('Pre-Pour Hold Points &amp; Concrete Cube Crushing');
+      expect(html).toContain('Defects Snagging Punch List Register');
+    });
+
+    it('embeds PracticalCompletionCard and SnaggingListView into ClientDashboard with verification capability', () => {
+      const html = renderToString(<Dashboard session={mockSessionForRole('CLIENT')} onLogout={() => {}} />);
+
+      expect(html).toContain('Practical Completion &amp; Retention Release Card');
+      expect(html).toContain('Defects Snagging Punch List Register');
+      expect(html).toContain('Verify &amp; Close');
+      expect(html).not.toContain('+ Add Snag Item');
     });
   });
 });

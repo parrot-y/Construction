@@ -7,6 +7,9 @@ import BudgetSummaryCard from './BudgetSummaryCard';
 import CostManagementView from './CostManagementView';
 import VarianceMonitorCard from './VarianceMonitorCard';
 import VariationManagementView from './VariationManagementView';
+import RfiManagementView from './RfiManagementView';
+import QualityControlView from './QualityControlView';
+import PracticalCompletionCard from './PracticalCompletionCard';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -19,6 +22,7 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -93,6 +97,30 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
           <button onClick={() => setBoqSuccess(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
         </div>
       )}
+
+      {/* Navigation Module Tabs */}
+      <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
+        {[
+          { id: 'all', label: 'All Modules' },
+          { id: 'cost', label: '💰 Costs & BOQ' },
+          { id: 'variations', label: '📑 Variations' },
+          { id: 'rfis', label: '📋 RFI Register' },
+          { id: 'quality', label: '🧪 Quality & Cubes' },
+          { id: 'closeout', label: '🏆 Closeout & Retention' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-3 py-1.5 rounded-lg transition ${
+              activeTab === tab.id
+                ? 'bg-purple-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -241,13 +269,41 @@ export default function PmQsDashboard({ session }: PmQsDashboardProps): React.JS
       />
 
       {/* Variations & Scope Adjustments Workflow (Milestone M8) */}
-      <VariationManagementView
-        projectId="project-rcp-2026"
-        userRole="PM_QS"
-        canRequest={true}
-        canReview={true}
-        canApprove={false}
-      />
+      {(activeTab === 'all' || activeTab === 'variations') && (
+        <VariationManagementView
+          projectId="project-rcp-2026"
+          userRole="PM_QS"
+          canRequest={true}
+          canReview={true}
+          canApprove={false}
+        />
+      )}
+
+      {/* RFI Technical Clarifications Register */}
+      {(activeTab === 'all' || activeTab === 'rfis') && (
+        <RfiManagementView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          canCreate={true}
+        />
+      )}
+
+      {/* Pre-Pour Quality Hold Points & Concrete Cube Tests */}
+      {(activeTab === 'all' || activeTab === 'quality') && (
+        <QualityControlView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          canApprove={true}
+        />
+      )}
+
+      {/* Practical Completion & Retention Release Card */}
+      {(activeTab === 'all' || activeTab === 'closeout') && (
+        <PracticalCompletionCard
+          projectName="Riverside Commercial Plaza"
+          projectCode="RCP-2026"
+        />
+      )}
 
       {/* BOQ Import Modal */}
       <BoqImportModal

@@ -6,6 +6,8 @@ import PhotoEvidenceGallery from './PhotoEvidenceGallery';
 import { PhotoEvidenceItem } from './PhotoLightboxModal';
 import VarianceMonitorCard from './VarianceMonitorCard';
 import VariationManagementView from './VariationManagementView';
+import PracticalCompletionCard from './PracticalCompletionCard';
+import SnaggingListView from './SnaggingListView';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -357,6 +359,22 @@ export default function ClientDashboard({
 
       {/* Verified Photo Evidence Gallery (Milestone M9) */}
       <PhotoEvidenceGallery photos={photos} />
+
+      {/* Practical Completion & Retention Release Card */}
+      <PracticalCompletionCard
+        projectName={projectData.name}
+        projectCode={projectData.code}
+        contractSum={financials.originalAgreedBudget}
+      />
+
+      {/* Defects Snagging Verification Register */}
+      <SnaggingListView
+        projectId={projectData.id}
+        projectName={projectData.name}
+        canAdd={false}
+        canRectify={false}
+        canVerify={true}
+      />
     </div>
   );
 }

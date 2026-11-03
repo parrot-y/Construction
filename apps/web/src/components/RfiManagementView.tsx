@@ -1,0 +1,589 @@
+import React, { useState } from 'react';
+import CreateRfiModal, { RfiPriority, ConsultantRole } from './CreateRfiModal';
+
+export type RfiStatus = 'SUBMITTED' | 'ANSWERED' | 'CLOSED';
+
+export interface RfiResponseItem {
+  id: string;
+  respondentName: string;
+  respondentRole: string;
+  respondedAt: string;
+  content: string;
+  attachments?: Array<{ name: string; size: string; url?: string }>;
+}
+
+export interface RfiItemData {
+  id: string;
+  rfiNo: string;
+  title: string;
+  query: string;
+  priority: RfiPriority;
+  status: RfiStatus;
+  assignedConsultant: ConsultantRole;
+  drawingRef?: string;
+  submittedBy: string;
+  submittedAt: string;
+  daysElapsed: number;
+  responses: RfiResponseItem[];
+  attachments?: Array<{ name: string; size: string; url?: string }>;
+}
+
+interface RfiManagementViewProps {
+  projectId?: string;
+  projectName?: string;
+  initialRfis?: RfiItemData[];
+  canCreate?: boolean;
+}
+
+const DEFAULT_RFIS: RfiItemData[] = [
+  {
+    id: 'rfi-001',
+    rfiNo: 'RFI-001',
+    title: 'Clarification on Pad Footing Reinforcement in Grid C-4',
+    query:
+      'Structural drawing ST-102 Rev B indicates T16@200 for bottom reinforcement, but schedule BS-01 calls for T20@150 c/c. Ground bearing pressure test report #GT-49 confirms 220 kPa. Please clarify bottom bar diameter and spacing before blinding pour.',
+    priority: 'CRITICAL',
+    status: 'ANSWERED',
+    assignedConsultant: 'Structural Eng',
+    drawingRef: 'ST-102-REV-B / BS-01',
+    submittedBy: 'Eng. Kevin Ochieng (Site Agent)',
+    submittedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    daysElapsed: 5,
+    attachments: [
+      { name: 'Grid-C4-Pad-Footing-Discrepancy.pdf', size: '1.2 MB' },
+    ],
+    responses: [
+      {
+        id: 'resp-001',
+        respondentName: 'Eng. Peter Gitau, PE (EBK #A-3129)',
+        respondentRole: 'Lead Structural Engineer',
+        respondedAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+        content:
+          'Approved clarification: Use T20@150 c/c both ways (B1 & B2) with 50mm nominal concrete cover to comply with crack width criteria in fractured bedrock. Revise bar bending schedule accordingly. Official revision sketch SK-ST-04 attached.',
+        attachments: [
+          { name: 'SK-ST-04-Pad-Footing-C4-Revision.pdf', size: '2.8 MB' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'rfi-002',
+    rfiNo: 'RFI-002',
+    title: 'Borehole Water Piping Routing Clash with Basement Lift Pit',
+    query:
+      'Proposed 100mm HDPE booster rising main clashes with 300mm reinforced concrete shear wall of Basement Lift Pit #1. Request approval to sleeve through shear wall at elevation +1450mm with puddle flange cast-in.',
+    priority: 'HIGH',
+    status: 'SUBMITTED',
+    assignedConsultant: 'Services Eng',
+    drawingRef: 'MEP-PL-204 / AR-B1-02',
+    submittedBy: 'Sammy Waweru (Site Supervisor)',
+    submittedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+    daysElapsed: 3,
+    attachments: [
+      { name: 'Lift-Pit-Sleeve-Clash-Elevation.dwg', size: '3.4 MB' },
+    ],
+    responses: [],
+  },
+  {
+    id: 'rfi-003',
+    rfiNo: 'RFI-003',
+    title: 'Façade Sun Louver Fixing Details & Thermal Break Mullion',
+    query:
+      'Architectural elevation shows extruded aluminium aerofoil louvers along western curtain wall. Need confirmation on anodized coating thickness (25 microns) and anchor pull-out test requirements in lightweight hollow blocks.',
+    priority: 'MEDIUM',
+    status: 'ANSWERED',
+    assignedConsultant: 'Architect',
+    drawingRef: 'AR-DET-402 Rev C',
+    submittedBy: 'Eng. Kevin Ochieng (Site Agent)',
+    submittedAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+    daysElapsed: 7,
+    attachments: [
+      { name: 'Façade-Mullion-Detail-Section.pdf', size: '1.9 MB' },
+    ],
+    responses: [
+      {
+        id: 'resp-002',
+        respondentName: 'Arch. Peter M. Mwangi (BORAQS #A-742)',
+        respondentRole: 'Principal Architect',
+        respondedAt: new Date(Date.now() - 86400000 * 6).toISOString(),
+        content:
+          'Specification confirmed: 25-micron Qualicoat Class 2 natural anodized finish. Anchors must be chemical capsule M12 stainless steel Grade 316 with minimum 85mm embedment depth into solid concrete perimeter beams (not hollow blocks).',
+        attachments: [
+          { name: 'Architectural-Spec-Louver-Annex.pdf', size: '1.5 MB' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'rfi-004',
+    rfiNo: 'RFI-004',
+    title: 'Hardcore Filling Layer Compaction Spec & In-situ Density',
+    query:
+      'Confirm whether 300mm quarry hardcore layers require stone dust blinding before compaction with 10-ton vibratory roller per EASMM Section D.',
+    priority: 'LOW',
+    status: 'CLOSED',
+    assignedConsultant: 'QS',
+    drawingRef: 'EASMM Section D / Boq Item 1.04',
+    submittedBy: 'Faith Achieng (Lead QS)',
+    submittedAt: new Date(Date.now() - 86400000 * 12).toISOString(),
+    daysElapsed: 12,
+    attachments: [],
+    responses: [
+      {
+        id: 'resp-003',
+        respondentName: 'Faith Achieng (BORAQS #Q-819)',
+        respondentRole: 'Lead Quantity Surveyor',
+        respondedAt: new Date(Date.now() - 86400000 * 11).toISOString(),
+        content:
+          'Confirmed: 50mm quarry dust blinding is included in unit rate for Item 1.04. 95% MDD compaction test certificates required before DPM polyethylene sheeting placement.',
+      },
+    ],
+  },
+];
+
+export default function RfiManagementView({
+  projectId = 'project-rcp-2026',
+  projectName = 'Riverside Commercial Plaza',
+  initialRfis = DEFAULT_RFIS,
+  canCreate = true,
+}: RfiManagementViewProps): React.JSX.Element {
+  const [rfis, setRfis] = useState<RfiItemData[]>(initialRfis);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [expandedRfiId, setExpandedRfiId] = useState<string | null>('rfi-001');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | RfiStatus>('ALL');
+  const [priorityFilter, setPriorityFilter] = useState<'ALL' | RfiPriority>('ALL');
+  const [consultantFilter, setConsultantFilter] = useState<'ALL' | ConsultantRole>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [replyText, setReplyText] = useState<{ [rfiId: string]: string }>({});
+
+  const handleCreateRfi = (newRfi: any) => {
+    setRfis((prev) => [newRfi, ...prev]);
+    setExpandedRfiId(newRfi.id);
+  };
+
+  const handleToggleExpand = (id: string) => {
+    setExpandedRfiId((prev) => (prev === id ? null : id));
+  };
+
+  const handleCloseRfi = (id: string) => {
+    setRfis((prev) =>
+      prev.map((rfi) => (rfi.id === id ? { ...rfi, status: 'CLOSED' as const } : rfi))
+    );
+  };
+
+  const handleAddResponse = (rfiId: string) => {
+    const text = replyText[rfiId]?.trim();
+    if (!text) return;
+
+    setRfis((prev) =>
+      prev.map((rfi) => {
+        if (rfi.id !== rfiId) return rfi;
+        const newResponse: RfiResponseItem = {
+          id: `resp-${Date.now()}`,
+          respondentName: 'Faith Achieng (Consultant / QS)',
+          respondentRole: 'BORAQS Registered Professional',
+          respondedAt: new Date().toISOString(),
+          content: text,
+        };
+        return {
+          ...rfi,
+          status: 'ANSWERED' as const,
+          responses: [...rfi.responses, newResponse],
+        };
+      })
+    );
+
+    setReplyText((prev) => ({ ...prev, [rfiId]: '' }));
+  };
+
+  const filteredRfis = rfis.filter((rfi) => {
+    if (statusFilter !== 'ALL' && rfi.status !== statusFilter) return false;
+    if (priorityFilter !== 'ALL' && rfi.priority !== priorityFilter) return false;
+    if (consultantFilter !== 'ALL' && rfi.assignedConsultant !== consultantFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchText = `${rfi.rfiNo} ${rfi.title} ${rfi.query} ${rfi.assignedConsultant}`.toLowerCase();
+      if (!matchText.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const getPriorityBadge = (priority: RfiPriority) => {
+    switch (priority) {
+      case 'CRITICAL':
+        return 'bg-rose-50 text-rose-700 border-rose-200 font-bold';
+      case 'HIGH':
+        return 'bg-amber-50 text-amber-700 border-amber-200 font-semibold';
+      case 'MEDIUM':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'LOW':
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
+  const getStatusBadge = (status: RfiStatus) => {
+    switch (status) {
+      case 'SUBMITTED':
+        return 'bg-amber-50 text-amber-800 border-amber-200';
+      case 'ANSWERED':
+        return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+      case 'CLOSED':
+        return 'bg-slate-100 text-slate-600 border-slate-200';
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+      {/* Top Header */}
+      <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+              BORAQS / EBK Engineering Coordination
+            </span>
+            <span className="text-xs text-slate-400 font-mono">ISO 9001:2015</span>
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mt-1">
+            Request for Information (RFI) Register
+          </h3>
+          <p className="text-xs text-slate-500">
+            Contractor formal technical queries, drawing discrepancies, and consultant resolution threads
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {canCreate && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-3.5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            >
+              <span>+ New RFI</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Summary KPI Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 bg-slate-50/30 border-b border-slate-200 text-xs">
+        <div className="p-3 text-center">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+            Total RFIs Logged
+          </span>
+          <span className="text-lg font-bold font-mono text-slate-800 mt-0.5 block">
+            {rfis.length}
+          </span>
+        </div>
+        <div className="p-3 text-center">
+          <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider block">
+            Pending Consultant Reply
+          </span>
+          <span className="text-lg font-bold font-mono text-amber-700 mt-0.5 block">
+            {rfis.filter((r) => r.status === 'SUBMITTED').length}
+          </span>
+        </div>
+        <div className="p-3 text-center">
+          <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block">
+            Answered & Resolved
+          </span>
+          <span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
+            {rfis.filter((r) => r.status === 'ANSWERED').length}
+          </span>
+        </div>
+        <div className="p-3 text-center">
+          <span className="text-[10px] font-semibold text-rose-600 uppercase tracking-wider block">
+            Critical Path Queries
+          </span>
+          <span className="text-lg font-bold font-mono text-rose-700 mt-0.5 block">
+            {rfis.filter((r) => r.priority === 'CRITICAL').length}
+          </span>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="p-4 border-b border-slate-200 bg-white flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Status buttons */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            {(['ALL', 'SUBMITTED', 'ANSWERED', 'CLOSED'] as const).map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
+                  statusFilter === st
+                    ? 'bg-white text-purple-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {st === 'ALL' ? 'All Status' : st}
+              </button>
+            ))}
+          </div>
+
+          {/* Consultant Filter */}
+          <select
+            value={consultantFilter}
+            onChange={(e) => setConsultantFilter(e.target.value as any)}
+            className="text-xs px-2.5 py-1 border border-slate-200 rounded-lg text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+          >
+            <option value="ALL">All Consultants</option>
+            <option value="Architect">Architect</option>
+            <option value="Structural Eng">Structural Eng</option>
+            <option value="Services Eng">Services Eng</option>
+            <option value="QS">Quantity Surveyor</option>
+          </select>
+
+          {/* Priority Filter */}
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value as any)}
+            className="text-xs px-2.5 py-1 border border-slate-200 rounded-lg text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+          >
+            <option value="ALL">All Priorities</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search RFI #, subject, drawing..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full md:w-64 text-xs pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-slate-400"
+          />
+          <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+        </div>
+      </div>
+
+      {/* Interactive RFI Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[10px]">
+              <th className="p-3 font-semibold">RFI #</th>
+              <th className="p-3 font-semibold">Title & Reference</th>
+              <th className="p-3 font-semibold">Assigned Consultant</th>
+              <th className="p-3 font-semibold">Priority</th>
+              <th className="p-3 font-semibold">Status</th>
+              <th className="p-3 font-semibold">Elapsed</th>
+              <th className="p-3 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 text-slate-700">
+            {filteredRfis.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="p-8 text-center text-slate-400 text-xs">
+                  No RFIs found matching your filters.
+                </td>
+              </tr>
+            ) : (
+              filteredRfis.map((rfi) => {
+                const isExpanded = expandedRfiId === rfi.id;
+                return (
+                  <React.Fragment key={rfi.id}>
+                    <tr
+                      className={`hover:bg-slate-50/80 transition cursor-pointer ${
+                        isExpanded ? 'bg-purple-50/30' : ''
+                      }`}
+                      onClick={() => handleToggleExpand(rfi.id)}
+                    >
+                      <td className="p-3 font-mono font-bold text-purple-900 whitespace-nowrap">
+                        {rfi.rfiNo}
+                      </td>
+                      <td className="p-3">
+                        <div className="font-semibold text-slate-900">{rfi.title}</div>
+                        {rfi.drawingRef && (
+                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                            {`Ref: ${rfi.drawingRef}`}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 text-slate-800 rounded-md font-medium text-[11px] border border-slate-200">
+                          <span>👤</span>
+                          <span>{rfi.assignedConsultant}</span>
+                        </span>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider border ${getPriorityBadge(
+                            rfi.priority
+                          )}`}
+                        >
+                          {rfi.priority}
+                        </span>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${getStatusBadge(
+                            rfi.status
+                          )}`}
+                        >
+                          {rfi.status}
+                        </span>
+                      </td>
+                      <td className="p-3 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                        {`${rfi.daysElapsed} days elapsed`}
+                      </td>
+                      <td className="p-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleToggleExpand(rfi.id)}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 rounded border border-purple-200 transition"
+                        >
+                          {isExpanded ? 'Hide Thread ▲' : 'View Thread ▼'}
+                        </button>
+                      </td>
+                    </tr>
+
+                    {/* Expandable Response Thread */}
+                    {isExpanded && (
+                      <tr className="bg-slate-50/70 border-b border-purple-100">
+                        <td colSpan={7} className="p-4 sm:p-5">
+                          <div className="space-y-4 max-w-4xl mx-auto bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                            {/* Original Technical Query */}
+                            <div className="border-l-4 border-purple-500 pl-4 space-y-1.5">
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                                <div>
+                                  <span className="font-semibold text-slate-800">
+                                    Submitted by: {rfi.submittedBy}
+                                  </span>
+                                  <span className="mx-1">•</span>
+                                  <span>{new Date(rfi.submittedAt).toLocaleDateString()}</span>
+                                </div>
+                                <span className="font-mono text-purple-700 font-semibold">
+                                  Assigned to: {rfi.assignedConsultant}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-700 leading-relaxed font-sans">
+                                {rfi.query}
+                              </p>
+                              {rfi.attachments && rfi.attachments.length > 0 && (
+                                <div className="pt-2 flex flex-wrap gap-2">
+                                  {rfi.attachments.map((att, i) => (
+                                    <span
+                                      key={i}
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200 hover:bg-slate-200 cursor-pointer"
+                                    >
+                                      <span>📎</span>
+                                      <span>{att.name}</span>
+                                      <span className="text-slate-400">({att.size})</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Official Consultant Responses */}
+                            <div className="space-y-3 pt-2">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                                <span>💬</span>
+                                <span>Official Consultant Resolution Thread ({rfi.responses.length})</span>
+                              </h4>
+
+                              {rfi.responses.length === 0 ? (
+                                <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center gap-2">
+                                  <span>⏳</span>
+                                  <span>
+                                    Awaiting official written response from {rfi.assignedConsultant}. Lead time SLA: 48h.
+                                  </span>
+                                </div>
+                              ) : (
+                                rfi.responses.map((resp) => (
+                                  <div
+                                    key={resp.id}
+                                    className="p-3.5 bg-emerald-50/40 border border-emerald-200 rounded-xl space-y-2 text-xs"
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm">🏢</span>
+                                        <div>
+                                          <span className="font-bold text-slate-900 block">
+                                            {resp.respondentName}
+                                          </span>
+                                          <span className="text-[10px] text-emerald-800 font-medium">
+                                            {resp.respondentRole}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 font-mono">
+                                        {new Date(resp.respondedAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    <p className="text-slate-800 leading-relaxed font-sans">
+                                      {resp.content}
+                                    </p>
+                                    {resp.attachments && resp.attachments.length > 0 && (
+                                      <div className="pt-1 flex flex-wrap gap-2">
+                                        {resp.attachments.map((att, i) => (
+                                          <span
+                                            key={i}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-emerald-900 rounded-md text-[11px] font-mono border border-emerald-200 shadow-2xs hover:bg-emerald-50 cursor-pointer"
+                                          >
+                                            <span>📥</span>
+                                            <span>{att.name}</span>
+                                            <span className="text-emerald-600">({att.size})</span>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+
+                            {/* Reply & Closure Actions */}
+                            <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                              <div className="flex-1 flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder={`Add consultant reply to ${rfi.rfiNo}...`}
+                                  value={replyText[rfi.id] || ''}
+                                  onChange={(e) =>
+                                    setReplyText({ ...replyText, [rfi.id]: e.target.value })
+                                  }
+                                  className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-slate-400"
+                                />
+                                <button
+                                  onClick={() => handleAddResponse(rfi.id)}
+                                  className="px-3 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg transition shrink-0"
+                                >
+                                  Submit Reply
+                                </button>
+                              </div>
+
+                              {rfi.status !== 'CLOSED' && (
+                                <button
+                                  onClick={() => handleCloseRfi(rfi.id)}
+                                  className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition shrink-0"
+                                >
+                                  Close RFI ✓
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Create Modal */}
+      <CreateRfiModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        projectId={projectId}
+        projectName={projectName}
+        onRfiCreated={handleCreateRfi}
+      />
+    </div>
+  );
+}
