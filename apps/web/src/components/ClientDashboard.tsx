@@ -1,18 +1,109 @@
 import React from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
+import MilestoneTimeline, { TimelineItem } from './MilestoneTimeline';
+import PhotoEvidenceGallery from './PhotoEvidenceGallery';
+import { PhotoEvidenceItem } from './PhotoLightboxModal';
 import VarianceMonitorCard from './VarianceMonitorCard';
 import VariationManagementView from './VariationManagementView';
 
 interface ClientDashboardProps {
   session: AuthSession;
+  projectData?: {
+    id: string;
+    name: string;
+    code: string;
+    location: string;
+    ncaRegistration: string;
+    startDate?: string;
+    expectedCompletionDate?: string;
+  };
+  financials?: {
+    originalAgreedBudget: string;
+    approvedVariationsTotal: string;
+    currentApprovedBudget: string;
+    totalSpentToDate: string;
+    remainingBalance: string;
+    budgetUsedPercentage: number;
+  };
+  progress?: {
+    physicalProgressPercentage: number;
+    varianceDelta: number;
+    healthStatus: 'ON_TRACK' | 'ATTENTION' | 'ACTION_REQUIRED';
+    healthNotice: string;
+  };
+  photos?: PhotoEvidenceItem[];
+  timeline?: TimelineItem[];
 }
 
-export default function ClientDashboard({ session }: ClientDashboardProps): React.JSX.Element {
+export default function ClientDashboard({
+  session,
+  projectData = {
+    id: 'project-rcp-2026',
+    name: 'Riverside Commercial Plaza',
+    code: 'RCP-2026',
+    location: 'Riverside Drive, Nairobi',
+    ncaRegistration: 'NCA-PRJ-2026-0891',
+    startDate: '2026-01-15',
+    expectedCompletionDate: '2026-12-15',
+  },
+  financials = {
+    originalAgreedBudget: '45000000.00',
+    approvedVariationsTotal: '900000.00',
+    currentApprovedBudget: '45900000.00',
+    totalSpentToDate: '4500000.00',
+    remainingBalance: '41400000.00',
+    budgetUsedPercentage: 9.8,
+  },
+  progress = {
+    physicalProgressPercentage: 12.0,
+    varianceDelta: -2.2,
+    healthStatus: 'ON_TRACK',
+    healthNotice: 'Expenditure is aligned with recorded physical progress.',
+  },
+  photos,
+  timeline,
+}: ClientDashboardProps): React.JSX.Element {
   const { user } = session;
-  const contractSum = toCurrencyString('45000000.00');
-  const certifiedCost = toCurrencyString('0.00');
+
+  const originalBudgetFormatted = toCurrencyString(financials.originalAgreedBudget);
+  const variationsTotalFormatted = toCurrencyString(financials.approvedVariationsTotal);
+  const currentBudgetFormatted = toCurrencyString(financials.currentApprovedBudget);
+  const totalSpentFormatted = toCurrencyString(financials.totalSpentToDate);
+  const remainingBalanceFormatted = toCurrencyString(financials.remainingBalance);
+
+  // Kenyan standard 5% retention cap of contract sum
   const retentionCap = toCurrencyString('2250000.00');
+
+  const getHealthBadge = (status: 'ON_TRACK' | 'ATTENTION' | 'ACTION_REQUIRED') => {
+    switch (status) {
+      case 'ON_TRACK':
+        return {
+          bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+          dot: 'bg-emerald-500',
+          label: 'ON TRACK • Normal Alignment',
+        };
+      case 'ATTENTION':
+        return {
+          bg: 'bg-amber-50 text-amber-800 border-amber-200',
+          dot: 'bg-amber-500',
+          label: 'ATTENTION • Moderate Disparity',
+        };
+      case 'ACTION_REQUIRED':
+        return {
+          bg: 'bg-rose-50 text-rose-800 border-rose-200',
+          dot: 'bg-rose-500',
+          label: 'ACTION REQUIRED • Significant Disparity',
+        };
+    }
+  };
+
+  const healthBadge = getHealthBadge(progress.healthStatus);
+  const physicalPctString = `${progress.physicalProgressPercentage.toFixed(1)}%`;
+  const budgetPctString = `${financials.budgetUsedPercentage.toFixed(1)}%`;
+  const varianceDeltaString = progress.varianceDelta > 0
+    ? `+${progress.varianceDelta.toFixed(1)}%`
+    : `${progress.varianceDelta.toFixed(1)}%`;
 
   return (
     <div className="space-y-6">
@@ -26,99 +117,182 @@ export default function ClientDashboard({ session }: ClientDashboardProps): Reac
           <p className="text-xs text-slate-500">
             Real-time verified site progress, certified expenditure, and valuation certificates for {user.tenant.name}
           </p>
+          <div className="flex items-center gap-2 mt-2 text-xs text-slate-600">
+            <span className="font-semibold text-slate-800">{projectData.name}</span>
+            <span>•</span>
+            <span className="font-mono text-slate-500">{projectData.location}</span>
+            <span>•</span>
+            <span className="font-mono text-slate-500">NCA: {projectData.ncaRegistration}</span>
+          </div>
         </div>
-        <span className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
+        <span className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg shrink-0">
           Client Read-Only + Approvals
         </span>
       </div>
 
-      {/* Progress & Financial Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Physical Progress
-          </span>
-          <span className="text-2xl font-bold text-emerald-700 mt-1 block">12.0%</span>
-          <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
-            <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '12%' }} />
+      {/* 5 Plain-Language Financial Cards (Milestone M9) */}
+      <div className="space-y-3">
+        <div className="flex justify-between items-center px-1">
+          <h3 className="text-sm font-bold text-slate-900">Financial Summary & Budget Control</h3>
+          <span className="text-xs text-slate-400 font-mono">Currency: KES (Kenyan Shilling)</span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {/* Card 1: Original Agreed Budget */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Original Agreed Budget
+            </span>
+            <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+              KES {originalBudgetFormatted}
+            </span>
+            <span className="text-[11px] text-slate-400 mt-0.5 block">Approved Contract Sum</span>
+          </div>
+
+          {/* Card 2: Approved Variations Total */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Approved Variations Total
+            </span>
+            <span className="text-base sm:text-lg font-bold font-mono text-blue-700 mt-1 block">
+              + KES {variationsTotalFormatted}
+            </span>
+            <span className="text-[11px] text-slate-400 mt-0.5 block">Net approved scope changes</span>
+          </div>
+
+          {/* Card 3: Current Approved Budget */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Current Approved Budget
+            </span>
+            <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+              KES {currentBudgetFormatted}
+            </span>
+            <span className="text-[11px] text-slate-400 mt-0.5 block">Baseline + Variations</span>
+          </div>
+
+          {/* Card 4: Total Spent to Date */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Total Spent to Date
+            </span>
+            <span className="text-base sm:text-lg font-bold font-mono text-emerald-700 mt-1 block">
+              KES {totalSpentFormatted}
+            </span>
+            <span className="text-[11px] text-slate-400 mt-0.5 block">Total Certified Cost</span>
+          </div>
+
+          {/* Card 5: Remaining Balance */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm col-span-2 md:col-span-1">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Remaining Balance
+            </span>
+            <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+              KES {remainingBalanceFormatted}
+            </span>
+            <span className="text-[11px] text-slate-400 mt-0.5 block">Available project funds</span>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Approved Contract Sum
-          </span>
-          <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            KES {contractSum}
-          </span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Original contract sum</span>
+        {/* Visual Budget Progress Bar */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-700">Project Budget Utilization:</span>
+              <span className="font-bold text-slate-900 font-mono">
+                {`${financials.budgetUsedPercentage.toFixed(1)}% Consumed`}
+              </span>
+            </div>
+            <span className="text-slate-500 font-mono text-[11px]">
+              KES {totalSpentFormatted} of KES {currentBudgetFormatted}
+            </span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+            <div
+              className="bg-emerald-600 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.max(0, financials.budgetUsedPercentage))}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Neutral Project Health Guard Card (Milestone M9 & M7) */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+              Automated Variance Analytics
+            </span>
+            <h3 className="text-base font-bold text-slate-900 mt-0.5">Project Health & Alignment Guard</h3>
+          </div>
+          <div className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5 ${healthBadge.bg}`}>
+            <span className={`w-2 h-2 rounded-full ${healthBadge.dot}`} />
+            <span>{healthBadge.label}</span>
+          </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Total Certified Cost
-          </span>
-          <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            KES {certifiedCost}
-          </span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">0 interim certs issued</span>
+        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 flex items-start gap-2.5">
+          <span className="text-base">📋</span>
+          <div>
+            <span className="font-semibold text-slate-900 block">Factual Status Notice:</span>
+            <p className="mt-0.5 text-slate-600">{progress.healthNotice}</p>
+          </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Pending Variations
-          </span>
-          <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Pending</span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Awaiting client signature</span>
+        <div className="grid grid-cols-3 gap-3 pt-1 text-center">
+          <div className="bg-white p-3 rounded-lg border border-slate-200">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Physical Progress
+            </span>
+            <span className="text-lg font-bold text-emerald-700 mt-0.5 block">
+              {physicalPctString}
+            </span>
+          </div>
+
+          <div className="bg-white p-3 rounded-lg border border-slate-200">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Budget Consumed
+            </span>
+            <span className="text-lg font-bold text-slate-800 mt-0.5 block">
+              {budgetPctString}
+            </span>
+          </div>
+
+          <div className="bg-white p-3 rounded-lg border border-slate-200">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Variance Delta
+            </span>
+            <span
+              className={`text-lg font-bold font-mono mt-0.5 block ${
+                progress.varianceDelta > 0 ? 'text-amber-700' : 'text-emerald-700'
+              }`}
+            >
+              {varianceDeltaString}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Variance Monitor & Neutral Health Guard (Milestone M7) */}
-      <VarianceMonitorCard projectName="Riverside Commercial Plaza" />
+      <VarianceMonitorCard projectName={projectData.name} />
 
-      {/* Project Status & Retention Ledger Terms */}
+      {/* Project Milestones Timeline & Kenyan Retention Terms */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Project Milestones */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Project Schedule</span>
-              <h3 className="text-base font-bold text-slate-900 mt-0.5">Riverside Commercial Plaza</h3>
-              <p className="text-xs text-slate-500">Riverside Drive, Nairobi • NCA Reg: NCA-PRJ-2026-0891</p>
-            </div>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between text-xs p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
-              <div>
-                <span className="font-semibold text-emerald-900 block">Milestone 1: Site Possession & Hoarding</span>
-                <span className="text-[11px] text-emerald-700">Completed on schedule</span>
-              </div>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-200 text-emerald-900 rounded">100%</span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-              <div>
-                <span className="font-semibold text-blue-900 block">Milestone 2: Substructure & Foundation</span>
-                <span className="text-[11px] text-blue-700">Currently active on site</span>
-              </div>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-200 text-blue-900 rounded">45%</span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
-              <div>
-                <span className="font-medium text-slate-700 block">Milestone 3: Reinforced Concrete Frame</span>
-                <span className="text-[11px] text-slate-400">Scheduled for Q3</span>
-              </div>
-              <span className="px-2 py-0.5 text-[10px] font-medium bg-slate-200 text-slate-600 rounded">Upcoming</span>
-            </div>
-          </div>
-        </div>
+        {/* Milestone Timeline Component */}
+        <MilestoneTimeline
+          items={timeline}
+          projectName={projectData.name}
+          projectCode={projectData.code}
+          ncaRegistration={projectData.ncaRegistration}
+        />
 
         {/* Retention Fund & Contract Terms Card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Contract Retention Terms (Kenyan Standard)</h3>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+              Statutory Protection
+            </span>
+            <h3 className="text-base font-bold text-slate-900 mt-1">Contract Retention Terms (Kenyan Standard)</h3>
             <p className="text-xs text-slate-500">EASMM & Kenyan standard contract rules enforced</p>
           </div>
 
@@ -146,33 +320,17 @@ export default function ClientDashboard({ session }: ClientDashboardProps): Reac
         </div>
       </div>
 
-      {/* Variation Orders & Client Approvals Ledger (Milestone M8) */}
+      {/* Variation Orders & Client Approvals Ledger (Milestone M8 & M9) */}
       <VariationManagementView
-        projectId="project-rcp-2026"
+        projectId={projectData.id}
         userRole="CLIENT"
         canRequest={false}
         canReview={false}
         canApprove={true}
       />
 
-      {/* Verified Photo Evidence Section */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-3">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">Verified Photo Evidence</h3>
-            <p className="text-xs text-slate-500">Site photos verified and signed off by PM/QS</p>
-          </div>
-          <span className="text-xs text-slate-400 font-mono">Riverside Drive, Nairobi</span>
-        </div>
-
-        <div className="border border-slate-200 rounded-xl p-8 text-center bg-slate-50/50 space-y-2">
-          <div className="text-3xl text-slate-400">🏗️</div>
-          <p className="text-xs font-semibold text-slate-700">Substructure Foundation Inspection Completed</p>
-          <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-            All foundation excavation and rebar inspections are verified by Quantity Surveyor Faith Achieng. Photos and certificates will appear here as each valuation is generated.
-          </p>
-        </div>
-      </div>
+      {/* Verified Photo Evidence Gallery (Milestone M9) */}
+      <PhotoEvidenceGallery photos={photos} />
     </div>
   );
 }

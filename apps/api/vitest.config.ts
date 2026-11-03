@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    fileParallelism: false,
     env: {
       DATABASE_URL:
         process.env.DATABASE_URL ||

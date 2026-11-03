@@ -78,6 +78,7 @@ Record each review:
 | 2026-11-03 | M6 | Gemini | Completed and verified (88/88 tests green across 6 suites, daily site diary logging with weather, trade headcount matrix, material deliveries, geotagged photos with GPS, physical progress % against BOQ line items, IndexedDB offline mutation queue with auto-sync and Canvas client-side photo compression, Idempotency-Key cache lookup, and SupervisorDashboard & PmQsDashboard integration); ready for Claude review | — |
 | 2026-11-03 | M7 | Gemini + Subagents | Completed and verified (110/110 tests green across 13 suites, real-time project variance analytics, automatic latest physical progress retrieval, BOQ section breakdown, neutral health alert cards, PM/QS & Client dashboard integration, and RLS multi-tenant isolation); ready for Claude review | — |
 | 2026-11-03 | M8 | Gemini + Subagents | Completed and verified (118/118 tests green across 14 suites, contractual variations workflow, additions & omissions, QS evaluation, Client approval chain, atomic budget update invariant in withTenantTx, React 19 CreateVariationModal and VariationManagementView); ready for Claude review | — |
+| 2026-11-03 | M9 | Gemini + Subagents | Completed and verified (137/137 tests green across 15 suites, dedicated Client / Property Developer Portal, 5 plain-language financial numbers in Decimal, neutral health guard, Nairobi GPS geotagged photo gallery with lightbox, milestone progress timeline, and Kenyan standard retention terms); ready for Claude review | — |
 
 ## Closed items
 

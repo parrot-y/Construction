@@ -13,6 +13,10 @@ import PhysicalProgressModal from './components/PhysicalProgressModal';
 import VarianceMonitorCard from './components/VarianceMonitorCard';
 import CreateVariationModal from './components/CreateVariationModal';
 import VariationManagementView from './components/VariationManagementView';
+import ClientDashboard from './components/ClientDashboard';
+import PhotoEvidenceGallery from './components/PhotoEvidenceGallery';
+import MilestoneTimeline from './components/MilestoneTimeline';
+import PhotoLightboxModal from './components/PhotoLightboxModal';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -519,6 +523,171 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(clientHtml).toContain('Variation Orders &amp; Scope Adjustments');
       expect(clientHtml).toContain('Approve');
       expect(clientHtml).not.toContain('+ Request Variation');
+    });
+  });
+
+  describe('Milestone M9: Client / Developer Portal UI Suite', () => {
+    const clientSession: AuthSession = {
+      user: {
+        id: '44444444-4444-4444-4444-444444444444',
+        email: 'client@apexbuilders.co.ke',
+        fullName: 'Sarah Wambui',
+        role: 'CLIENT',
+        tenant: {
+          id: 'tenant-123',
+          name: 'Apex Builders Kenya Ltd',
+          slug: 'apex-builders',
+          currency: 'KES',
+        },
+      },
+      permissions: ['project.view', 'client.portal.access', 'report.view', 'variation.approve'],
+      token: 'mock-jwt-token-client',
+    };
+
+    it('renders the 5 plain-language financial cards with KES formatting and visual budget progress bar', () => {
+      const html = renderToString(<ClientDashboard session={clientSession} />);
+
+      // 5 Plain-Language Financial Cards
+      expect(html).toContain('Original Agreed Budget');
+      expect(html).toContain('45000000.00');
+
+      expect(html).toContain('Approved Variations Total');
+      expect(html).toContain('900000.00');
+
+      expect(html).toContain('Current Approved Budget');
+      expect(html).toContain('45900000.00');
+
+      expect(html).toContain('Total Spent to Date');
+      expect(html).toContain('4500000.00');
+
+      expect(html).toContain('Remaining Balance');
+      expect(html).toContain('41400000.00');
+
+      // Visual budget utilization bar
+      expect(html).toContain('Project Budget Utilization');
+      expect(html).toContain('9.8% Consumed');
+    });
+
+    it('renders interactive photo evidence gallery with Nairobi GPS tags and lightbox modal opens', () => {
+      // 1. Gallery renders with Nairobi GPS coordinates and verification badge
+      const galleryHtml = renderToString(
+        <PhotoEvidenceGallery
+          photos={[
+            {
+              id: 'p-1',
+              caption: 'Foundation blinding concrete poured and cured',
+              photo_url: '/uploads/evidence/rcp-2026/foundation_blinding_01.jpg',
+              latitude: -1.286389,
+              longitude: 36.817223,
+              captured_at: '2026-02-01T10:30:00.000Z',
+              weather: 'SUNNY_CLEAR',
+              recorded_by_name: 'David Kimani (Site Supervisor)',
+            },
+          ]}
+        />,
+      );
+
+      expect(galleryHtml).toContain('Verified Photo Evidence Gallery');
+      expect(galleryHtml).toContain('Foundation blinding concrete poured and cured');
+      expect(galleryHtml).toContain('-1.286389');
+      expect(galleryHtml).toContain('36.817223');
+      expect(galleryHtml).toContain('Verified');
+      expect(galleryHtml).toContain('Inspect Photo →');
+
+      // 2. Lightbox Modal renders with detailed inspection metadata
+      const modalHtml = renderToString(
+        <PhotoLightboxModal
+          isOpen={true}
+          photo={{
+            id: 'p-1',
+            caption: 'Foundation blinding concrete poured and cured',
+            photo_url: '/uploads/evidence/rcp-2026/foundation_blinding_01.jpg',
+            latitude: -1.286389,
+            longitude: 36.817223,
+            captured_at: '2026-02-01T10:30:00.000Z',
+            weather: 'SUNNY_CLEAR',
+            recorded_by_name: 'David Kimani (Site Supervisor)',
+          }}
+          onClose={() => {}}
+        />,
+      );
+
+      expect(modalHtml).toContain('Photo Inspection Lightbox');
+      expect(modalHtml).toContain('Verified Site Evidence');
+      expect(modalHtml).toContain('-1.286389');
+      expect(modalHtml).toContain('36.817223');
+      expect(modalHtml).toContain('Nairobi, Kenya');
+      expect(modalHtml).toContain('SUNNY_CLEAR');
+      expect(modalHtml).toContain('David Kimani (Site Supervisor)');
+      expect(modalHtml).toContain('Close Lightbox');
+    });
+
+    it('renders milestone progress timeline with percentage badges and inspector notes', () => {
+      const timelineHtml = renderToString(
+        <MilestoneTimeline
+          items={[
+            {
+              id: 't-1',
+              percentage: 100.0,
+              notes: 'Bulk earthworks and site hoarding complete.',
+              recorded_at: '2026-01-30',
+              item_description: 'Milestone 1: Site Possession & Hoarding',
+              section_code: 'Section 1: Preliminaries',
+            },
+            {
+              id: 't-2',
+              percentage: 50.0,
+              notes: 'Foundation excavation in fractured bedrock 80% done.',
+              recorded_at: '2026-02-15',
+              item_description: 'Milestone 2: Substructure Excavation',
+              section_code: 'Section 1: Substructure',
+            },
+          ]}
+        />,
+      );
+
+      expect(timelineHtml).toContain('Milestone Progress Timeline');
+      expect(timelineHtml).toContain('Milestone 1: Site Possession &amp; Hoarding');
+      expect(timelineHtml).toContain('Milestone 2: Substructure Excavation');
+      expect(timelineHtml).toContain('Section 1: Preliminaries');
+      expect(timelineHtml).toContain('Section 1: Substructure');
+      expect(timelineHtml).toContain('100.0%');
+      expect(timelineHtml).toContain('50.0%');
+      expect(timelineHtml).toContain('Bulk earthworks and site hoarding complete.');
+    });
+
+    it('ensures variation review actions (approve/reject) are available for Client', () => {
+      const html = renderToString(<ClientDashboard session={clientSession} />);
+
+      // Variation management view is embedded with approval capabilities
+      expect(html).toContain('Variation Orders &amp; Scope Adjustments');
+      expect(html).toContain('Approve');
+      expect(html).toContain('Reject');
+
+      // Requesting variations is restricted to contractors/QS
+      expect(html).not.toContain('+ Request Variation');
+    });
+
+    it('displays neutral project health guard card with factual notice and variance metrics', () => {
+      const html = renderToString(<ClientDashboard session={clientSession} />);
+
+      expect(html).toContain('Project Health &amp; Alignment Guard');
+      expect(html).toContain('ON TRACK • Normal Alignment');
+      expect(html).toContain('Expenditure is aligned with recorded physical progress.');
+      expect(html).toContain('Physical Progress');
+      expect(html).toContain('Budget Consumed');
+      expect(html).toContain('Variance Delta');
+    });
+
+    it('displays Kenyan standard contract retention terms with 10% deduction and 5% cap', () => {
+      const html = renderToString(<ClientDashboard session={clientSession} />);
+
+      expect(html).toContain('Contract Retention Terms (Kenyan Standard)');
+      expect(html).toContain('10% of Gross Certified Work');
+      expect(html).toContain('2250000.00');
+      expect(html).toContain('5% of Contract Sum');
+      expect(html).toContain('50% released at Practical Completion');
+      expect(html).toContain('50% released at end of Defects Liability Period (DLP)');
     });
   });
 });

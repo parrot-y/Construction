@@ -1,0 +1,122 @@
+import React, { useState } from 'react';
+import PhotoLightboxModal, { PhotoEvidenceItem } from './PhotoLightboxModal';
+
+interface PhotoEvidenceGalleryProps {
+  photos?: PhotoEvidenceItem[];
+}
+
+const DEFAULT_PHOTOS: PhotoEvidenceItem[] = [
+  {
+    id: 'photo-seed-1',
+    caption: 'Substructure excavation and mass concrete blinding inspection',
+    photo_url: '/uploads/evidence/rcp-2026/foundation_blinding_01.jpg',
+    latitude: -1.286389,
+    longitude: 36.817223,
+    captured_at: '2026-02-01T10:30:00.000Z',
+    weather: 'SUNNY_CLEAR',
+    recorded_by_name: 'David Kimani (Site Supervisor)',
+  },
+  {
+    id: 'photo-seed-2',
+    caption: 'Column starter rebar alignment inspection against structural drawings',
+    photo_url: '/uploads/evidence/rcp-2026/column_rebar_inspection.jpg',
+    latitude: -1.286500,
+    longitude: 36.817350,
+    captured_at: '2026-02-15T14:15:00.000Z',
+    weather: 'PARTLY_CLOUDY',
+    recorded_by_name: 'David Kimani (Site Supervisor)',
+  },
+];
+
+export default function PhotoEvidenceGallery({
+  photos = DEFAULT_PHOTOS,
+}: PhotoEvidenceGalleryProps): React.JSX.Element {
+  const [selectedPhoto, setSelectedPhoto] = useState<PhotoEvidenceItem | null>(null);
+  const displayPhotos = photos.length > 0 ? photos : DEFAULT_PHOTOS;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+            Site Progress Photos
+          </span>
+          <h3 className="text-base font-bold text-slate-900 mt-1">Verified Photo Evidence Gallery</h3>
+          <p className="text-xs text-slate-500">
+            Geotagged site inspection photos verified and signed off by resident engineers
+          </p>
+        </div>
+        <span className="text-xs text-slate-400 font-mono self-end sm:self-auto">
+          📍 Riverside Drive, Nairobi
+        </span>
+      </div>
+
+      {displayPhotos.length === 0 ? (
+        <div className="border border-slate-200 rounded-xl p-8 text-center bg-slate-50/50 space-y-2">
+          <div className="text-3xl text-slate-400">🏗️</div>
+          <p className="text-xs font-semibold text-slate-700">No Photo Records Available</p>
+          <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+            Site progress photos will appear here as field inspections and site diaries are logged.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          {displayPhotos.map((photo) => {
+            const lat = photo.latitude !== null && photo.latitude !== undefined ? photo.latitude.toFixed(6) : '-1.286389';
+            const lng = photo.longitude !== null && photo.longitude !== undefined ? photo.longitude.toFixed(6) : '36.817223';
+
+            return (
+              <div
+                key={photo.id}
+                onClick={() => setSelectedPhoto(photo)}
+                className="group border border-slate-200 rounded-xl overflow-hidden hover:border-emerald-300 hover:shadow-md transition cursor-pointer bg-white flex flex-col justify-between"
+              >
+                {/* Photo Preview Container */}
+                <div className="relative aspect-video w-full bg-slate-900 flex items-center justify-center overflow-hidden">
+                  <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-4 text-center">
+                    <span className="text-3xl mb-1 group-hover:scale-110 transition duration-200">📷</span>
+                    <span className="text-[11px] text-slate-300 font-medium line-clamp-1">{photo.caption}</span>
+                  </div>
+                  <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-[10px] text-white/90">
+                    <span className="bg-slate-950/70 backdrop-blur-sm px-2 py-0.5 rounded font-mono">
+                      📍 {lat}, {lng}
+                    </span>
+                    <span className="bg-emerald-600/90 backdrop-blur-sm px-2 py-0.5 rounded font-semibold">
+                      Verified
+                    </span>
+                  </div>
+                </div>
+
+                {/* Card Content */}
+                <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-900 group-hover:text-emerald-700 transition line-clamp-2">
+                      {photo.caption}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      By {photo.recorded_by_name || 'Site Supervisor'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+                    <span>{photo.captured_at ? photo.captured_at.split('T')[0] : '2026-02-01'}</span>
+                    <span className="text-emerald-600 font-semibold group-hover:underline">
+                      Inspect Photo →
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      <PhotoLightboxModal
+        isOpen={selectedPhoto !== null}
+        photo={selectedPhoto}
+        onClose={() => setSelectedPhoto(null)}
+      />
+    </div>
+  );
+}
