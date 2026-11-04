@@ -8,6 +8,15 @@ import {
   multiplyQuantityByRate,
   toCurrencyString,
   toDecimal,
+  getRebarUnitWeight,
+  calculateRebarCutLengthMeters,
+  calculateBs8666CutLengthExact,
+  calculateStockBars12m,
+  calculateKraVat16,
+  extractKraVat16FromGross,
+  calculateKraWithholdingTax,
+  calculateJbcDualMoietyRetention,
+  REBAR_UNIT_WEIGHTS_KG_PER_M,
 } from './index';
 
 describe('packages/money financial precision suite', () => {
@@ -132,6 +141,237 @@ describe('packages/money financial precision suite', () => {
       expect(res.isOverBudget).toBe(true);
       expect(res.status).toBe('OVERRUN');
       expect(res.remainingBudget).toBe('-150000.00');
+    });
+  });
+
+  describe('Rebar & Bar Bending Schedule (BBS) Math (Milestone M25)', () => {
+    it('returns exact BS 8666 unit weights for Kenyan high-yield rebar', () => {
+      expect(getRebarUnitWeight('Y8').toString()).toBe('0.395');
+      expect(getRebarUnitWeight('Y10').toString()).toBe('0.617');
+      expect(getRebarUnitWeight('Y12').toString()).toBe('0.888');
+      expect(getRebarUnitWeight('Y16').toString()).toBe('1.579');
+      expect(getRebarUnitWeight('Y20').toString()).toBe('2.466');
+      expect(getRebarUnitWeight('Y25').toString()).toBe('3.854');
+      expect(getRebarUnitWeight('Y32').toString()).toBe('6.313');
+    });
+
+    it('mathematically verifies rebar unit weights against theoretical formula rho * pi * d^2 / 4 with steel density 7850 kg/m3', () => {
+      const steelDensityKgPerM3 = 7850;
+      const diameters = [
+        { bar: 'Y8', dMm: 8, standardWeight: '0.395' },
+        { bar: 'Y10', dMm: 10, standardWeight: '0.617' },
+        { bar: 'Y12', dMm: 12, standardWeight: '0.888' },
+        { bar: 'Y16', dMm: 16, standardWeight: '1.579' }, // BS 8666 Table 1 standard nominal mass
+        { bar: 'Y20', dMm: 20, standardWeight: '2.466' },
+        { bar: 'Y25', dMm: 25, standardWeight: '3.854' }, // BS 8666 Table 1 standard nominal mass
+        { bar: 'Y32', dMm: 32, standardWeight: '6.313' },
+      ];
+
+      for (const item of diameters) {
+        const dM = item.dMm / 1000;
+        const areaM2 = (Math.PI * Math.pow(dM, 2)) / 4;
+        const theoreticalWeightKgPerM = steelDensityKgPerM3 * areaM2;
+        const tableWeight = parseFloat(REBAR_UNIT_WEIGHTS_KG_PER_M[item.bar] || '0');
+
+        // Difference between standard tabular weight and pure formula is <= 0.001 kg/m (due to standard rounding)
+        expect(Math.abs(theoreticalWeightKgPerM - tableWeight)).toBeLessThan(0.0015);
+        expect(REBAR_UNIT_WEIGHTS_KG_PER_M[item.bar]).toBe(item.standardWeight);
+      }
+    });
+
+    it('calculates Shape 00 straight cut length (L = A)', () => {
+      const cut = calculateRebarCutLengthMeters('00', 'Y16', 4500);
+      expect(cut.toString()).toBe('4.5');
+
+      const exactCut = calculateBs8666CutLengthExact('00', 'Y16', 4500);
+      expect(exactCut.toString()).toBe('4.5');
+    });
+
+    it('calculates Shape 11 single bend / crank with exact BS 8666 bend deduction (L = A + B - 0.5r - d)', () => {
+      // Bar Y16 (d = 16mm), A = 3000mm (3.0m), B = 600mm (0.6m)
+      // Standard BS 8666 Table 2 minimum bend radius: r = 2d = 32mm (0.032m)
+      // Cut length L = A + B - 0.5r - d = 3.0 + 0.6 - 0.5*(0.032) - 0.016 = 3.600 - 0.016 - 0.016 = 3.568m
+      const exactCut = calculateBs8666CutLengthExact('11', 'Y16', 3000, 600);
+      expect(exactCut.toString()).toBe('3.568');
+
+      // Via calculateRebarCutLengthMeters with exactDeductions option
+      const cutWithOptions = calculateRebarCutLengthMeters('11', 'Y16', 3000, 600, null, null, {
+        exactDeductions: true,
+      });
+      expect(cutWithOptions.toString()).toBe('3.568');
+    });
+
+    it('calculates Shape 21 L-bar cut length (nominal A + B and exact L = A + B - r - 2d)', () => {
+      // Simplified nominal A + B: 3000 + 450 = 3450mm = 3.45m
+      const cut = calculateRebarCutLengthMeters('21', 'Y16', 3000, 450);
+      expect(cut.toString()).toBe('3.45');
+
+      // Exact BS 8666 bend deduction: L = A + B - r - 2d
+      // Bar Y16 (d = 16mm), r = 2d = 32mm
+      // L = 3000 + 450 - 32 - 2*(16) = 3450 - 64 = 3386mm = 3.386m
+      const exactCut = calculateBs8666CutLengthExact('21', 'Y16', 3000, 450);
+      expect(exactCut.toString()).toBe('3.386');
+
+      // With custom bend radius r = 40mm: L = 3450 - 40 - 32 = 3378mm = 3.378m
+      const customRadiusCut = calculateBs8666CutLengthExact('21', 'Y16', 3000, 450, null, null, 40);
+      expect(customRadiusCut.toString()).toBe('3.378');
+    });
+
+    it('calculates Shape 51 rectangular stirrup link cut length with 24d hook allowance (L = 2(A + B) + 24d)', () => {
+      // 2 * (250mm + 400mm) = 1300mm = 1.30m + 24 * 8mm = 192mm = 0.192m => 1.492m
+      const cut = calculateRebarCutLengthMeters('51', 'Y8', 250, 400);
+      expect(cut.toString()).toBe('1.492');
+
+      const exactCut = calculateBs8666CutLengthExact('51', 'Y8', 250, 400);
+      expect(exactCut.toString()).toBe('1.492');
+
+      // Column starter link: A = 200mm, B = 350mm, Y8 (8mm): 2*(200+350) + 24*8 = 1100 + 192 = 1292mm = 1.292m
+      const linkCut = calculateBs8666CutLengthExact('51', 'Y8', 200, 350);
+      expect(linkCut.toString()).toBe('1.292');
+    });
+
+    it('calculates commercial 12m stock bar requirements N_12m = ceil(L_total / 12)', () => {
+      expect(calculateStockBars12m(0)).toBe(0);
+      expect(calculateStockBars12m(4.5)).toBe(1);   // 4.5m <= 12m -> 1 bar
+      expect(calculateStockBars12m(12.0)).toBe(1);  // exactly 12m -> 1 bar
+      expect(calculateStockBars12m(12.001)).toBe(2); // 12.001m -> 2 bars
+      expect(calculateStockBars12m(134.4)).toBe(12); // 134.4 / 12 = 11.2 -> ceil = 12 bars
+      expect(calculateStockBars12m('240.00')).toBe(20); // 240 / 12 = 20 bars
+    });
+  });
+
+  describe('Safaricom Daraja B2C Kenyan Phone Validation', () => {
+    // Regex matching KenyanPhoneSchema: /^(?:\+?254|0)[17]\d{8}$/
+    const kenyanPhoneRegex = /^(?:\+?254|0)[17]\d{8}$/;
+
+    it('accepts valid Kenyan mobile phone formats (+254, 254, and 0 prefixes for 07xx and 01xx)', () => {
+      expect(kenyanPhoneRegex.test('+254712345678')).toBe(true); // Standard Safaricom 07xx with +
+      expect(kenyanPhoneRegex.test('254712345678')).toBe(true);  // Daraja B2C gateway MSISDN
+      expect(kenyanPhoneRegex.test('0712345678')).toBe(true);   // Local Kenyan format
+      expect(kenyanPhoneRegex.test('+254112345678')).toBe(true); // Safaricom new 01xx prefix with +
+      expect(kenyanPhoneRegex.test('254112345678')).toBe(true);  // Daraja B2C 01xx
+      expect(kenyanPhoneRegex.test('0112345678')).toBe(true);   // Local 01xx format
+      expect(kenyanPhoneRegex.test('+254722000000')).toBe(true); // Safaricom corporate
+    });
+
+    it('rejects invalid, malformed, or foreign phone numbers', () => {
+      expect(kenyanPhoneRegex.test('+255712345678')).toBe(false); // Tanzania
+      expect(kenyanPhoneRegex.test('+256712345678')).toBe(false); // Uganda
+      expect(kenyanPhoneRegex.test('0812345678')).toBe(false);    // Invalid national mobile trunk (08xx)
+      expect(kenyanPhoneRegex.test('071234567')).toBe(false);     // Too short (9 digits)
+      expect(kenyanPhoneRegex.test('07123456789')).toBe(false);    // Too long (11 digits)
+      expect(kenyanPhoneRegex.test('invalid_phone')).toBe(false);
+      expect(kenyanPhoneRegex.test('')).toBe(false);
+    });
+  });
+
+  describe('KRA e-TIMS VSCU 16% VAT & Cap 470 Withholding Tax Precision', () => {
+    it('computes 16% KRA standard VAT with Decimal precision and ROUND_HALF_UP', () => {
+      // Supply of ready-mix concrete: KES 100,000.00 -> 16% VAT = 16,000.00 -> Gross = 116,000.00
+      const res = calculateKraVat16('100000.00');
+      expect(res.vatAmount.toString()).toBe('16000');
+      expect(toCurrencyString(res.vatAmount)).toBe('16000.00');
+      expect(toCurrencyString(res.grossAmount)).toBe('116000.00');
+      expect(res.taxableAmount.plus(res.vatAmount).equals(res.grossAmount)).toBe(true);
+    });
+
+    it('correctly rounds fractional cents in 16% VAT calculations', () => {
+      // Line item taxable: KES 14,375.45 * 0.16 = 2300.072 -> rounds to 2300.07
+      const res = calculateKraVat16('14375.45');
+      expect(res.vatAmount.toString()).toBe('2300.07');
+      expect(res.grossAmount.toString()).toBe('16675.52');
+      // Verifies e-TIMS VSCU invariant: totalInvoiceAmount = totalTaxableAmount + totalTaxAmount
+      expect(res.taxableAmount.plus(res.vatAmount).equals(res.grossAmount)).toBe(true);
+    });
+
+    it('extracts KRA 16% VAT from gross VAT-inclusive amounts without penny leakage', () => {
+      // Gross KES 116,000.00 inclusive -> Taxable KES 100,000.00, VAT KES 16,000.00
+      const res1 = extractKraVat16FromGross('116000.00');
+      expect(toCurrencyString(res1.taxableAmount)).toBe('100000.00');
+      expect(toCurrencyString(res1.vatAmount)).toBe('16000.00');
+      expect(res1.taxableAmount.plus(res1.vatAmount).equals(res1.grossAmount)).toBe(true);
+
+      // Gross KES 100,000.00 inclusive: 100000 / 1.16 = 86206.89655... -> 86206.90, VAT = 13793.10
+      const res2 = extractKraVat16FromGross('100000.00');
+      expect(toCurrencyString(res2.taxableAmount)).toBe('86206.90');
+      expect(toCurrencyString(res2.vatAmount)).toBe('13793.10');
+      expect(res2.taxableAmount.plus(res2.vatAmount).equals(res2.grossAmount)).toBe(true);
+    });
+
+    it('computes Kenyan statutory Withholding Tax (3% WHT) and Withholding VAT (2% WHVAT) per Cap 470', () => {
+      // Subcontractor valuation gross: KES 1,000,000.00
+      // WHT 3% = KES 30,000.00
+      // WHVAT 2% = KES 20,000.00
+      // Net Payable = 1,000,000 - 30,000 - 20,000 = KES 950,000.00
+      const cert = calculateKraWithholdingTax('1000000.00', '3.00', '2.00');
+      expect(toCurrencyString(cert.whtAmount)).toBe('30000.00');
+      expect(toCurrencyString(cert.whvatAmount)).toBe('20000.00');
+      expect(toCurrencyString(cert.totalWithheld)).toBe('50000.00');
+      expect(toCurrencyString(cert.netPayable)).toBe('950000.00');
+      expect(cert.netPayable.plus(cert.totalWithheld).equals(cert.grossAmount)).toBe(true);
+    });
+
+    it('handles fractional amounts under KRA WHT & WHVAT without rounding disparity', () => {
+      // Gross KES 333,333.33:
+      // WHT (3%): 333,333.33 * 0.03 = 9999.9999 -> rounds to 10,000.00
+      // WHVAT (2%): 333,333.33 * 0.02 = 6666.6666 -> rounds to 6,666.67
+      // Total withheld: 16,666.67
+      // Net payable: 333,333.33 - 16,666.67 = 316,666.66
+      const cert = calculateKraWithholdingTax('333333.33', '3.00', '2.00');
+      expect(toCurrencyString(cert.whtAmount)).toBe('10000.00');
+      expect(toCurrencyString(cert.whvatAmount)).toBe('6666.67');
+      expect(toCurrencyString(cert.totalWithheld)).toBe('16666.67');
+      expect(toCurrencyString(cert.netPayable)).toBe('316666.66');
+      expect(cert.netPayable.plus(cert.totalWithheld).equals(cert.grossAmount)).toBe(true);
+    });
+  });
+
+  describe('JBC 1999 Joint Building Council Dual-Moiety Retention', () => {
+    it('implements interim 10% retention deduction capped at 5% of Contract Sum', () => {
+      const contractSum = '50000000.00'; // KES 50M contract sum
+      // 5% cap = KES 2,500,000.00
+      // Interim valuation 1: Gross KES 10,000,000.00 -> 10% = KES 1,000,000.00 (< 2.5M cap)
+      const val1 = calculateJbcDualMoietyRetention(contractSum, '10000000.00', 'INTERIM');
+      expect(toCurrencyString(val1.retentionFundCap)).toBe('2500000.00');
+      expect(toCurrencyString(val1.totalRetentionHeld)).toBe('1000000.00');
+      expect(toCurrencyString(val1.remainingRetention)).toBe('1000000.00');
+
+      // Interim valuation 4: Gross KES 40,000,000.00 -> 10% = KES 4,000,000.00 -> Capped at KES 2,500,000.00
+      const val4 = calculateJbcDualMoietyRetention(contractSum, '40000000.00', 'INTERIM');
+      expect(toCurrencyString(val4.computedInterimRetention)).toBe('4000000.00');
+      expect(toCurrencyString(val4.totalRetentionHeld)).toBe('2500000.00'); // Enforces 5% limit
+    });
+
+    it('releases First Moiety (50% of retention fund = 2.5% of contract sum) upon Certificate of Practical Completion (CPC)', () => {
+      const contractSum = '50000000.00'; // KES 50M
+      // At Practical Completion, full 5% retention fund has accumulated = KES 2,500,000.00
+      const cpc = calculateJbcDualMoietyRetention(contractSum, '50000000.00', 'PRACTICAL_COMPLETION');
+      expect(toCurrencyString(cpc.totalRetentionHeld)).toBe('2500000.00');
+      expect(toCurrencyString(cpc.firstMoietyAmount)).toBe('1250000.00'); // 50% of retention fund
+      expect(toCurrencyString(cpc.releasedAmountForStage)).toBe('1250000.00');
+      expect(toCurrencyString(cpc.remainingRetention)).toBe('1250000.00'); // Second moiety remains held
+    });
+
+    it('releases Second Moiety (final 50% = remaining 2.5% of contract sum) upon Final Account / DLP Expiry', () => {
+      const contractSum = '50000000.00'; // KES 50M
+      const finalRelease = calculateJbcDualMoietyRetention(contractSum, '50000000.00', 'FINAL_ACCOUNT_DLP');
+      expect(toCurrencyString(finalRelease.secondMoietyAmount)).toBe('1250000.00');
+      expect(toCurrencyString(finalRelease.releasedAmountForStage)).toBe('1250000.00');
+      expect(toCurrencyString(finalRelease.remainingRetention)).toBe('0.00'); // Zero remaining retention
+      expect(finalRelease.firstMoietyAmount.plus(finalRelease.secondMoietyAmount).equals(finalRelease.totalRetentionHeld)).toBe(true);
+    });
+
+    it('supports 10% total retention contracts with 5% CPC release and 5% Final Account release', () => {
+      const contractSum = '20000000.00'; // KES 20M contract
+      // Project terms: 10% total retention cap = KES 2,000,000.00
+      const cpc = calculateJbcDualMoietyRetention(contractSum, '20000000.00', 'PRACTICAL_COMPLETION', '10.00', '10.00');
+      expect(toCurrencyString(cpc.retentionFundCap)).toBe('2000000.00'); // 10% of contract sum
+      expect(toCurrencyString(cpc.firstMoietyAmount)).toBe('1000000.00'); // 5% of contract sum at CPC
+      expect(toCurrencyString(cpc.remainingRetention)).toBe('1000000.00'); // Remaining 5% of contract sum
+
+      const finalRel = calculateJbcDualMoietyRetention(contractSum, '20000000.00', 'FINAL_ACCOUNT_DLP', '10.00', '10.00');
+      expect(toCurrencyString(finalRel.secondMoietyAmount)).toBe('1000000.00'); // 5% of contract sum at Final
+      expect(toCurrencyString(finalRel.remainingRetention)).toBe('0.00');
     });
   });
 });

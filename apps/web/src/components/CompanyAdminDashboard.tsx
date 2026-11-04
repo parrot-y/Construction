@@ -13,6 +13,7 @@ import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
 import { ETimsTaxComplianceView } from './ETimsTaxComplianceView';
 import { RetentionAndBondsView } from './RetentionAndBondsView';
 import { SubscriptionBillingView } from './SubscriptionBillingView';
+import { MpesaDisbursementView } from './MpesaDisbursementView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -364,6 +365,12 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
         activePlan="PORTFOLIO_TIER"
         monthlyFeeKes="25000.00"
         daysRemaining={26}
+      />
+
+      {/* Safaricom Daraja B2C Bulk Wages & Subcontractor Retention Disbursements (Milestone M26) */}
+      <MpesaDisbursementView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
       />
 
       {/* Invite Member Modal */}

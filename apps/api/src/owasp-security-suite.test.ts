@@ -181,6 +181,40 @@ describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
       expect(res.statusCode).toBe(404);
     });
 
+    it('Tenant B cannot view Tenant A bar bending schedules (returns 404)', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${projectAId}/bar-bending-schedules`,
+        headers: { cookie: tenantBCookie },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('Tenant B cannot view Tenant A B2C disbursements (returns 404)', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${projectAId}/b2c-disbursements`,
+        headers: { cookie: tenantBCookie },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('Tenant B cannot initiate B2C disbursement on Tenant A project (returns 404)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${projectAId}/b2c-disburse`,
+        headers: { cookie: tenantBCookie },
+        payload: {
+          disbursementType: 'CASUAL_LABOR_WAGE',
+          recipientPhone: '0711223344',
+          recipientName: 'Rogue Payout Worker',
+          amount: '1500.00',
+          idempotencyKey: `IDEM-ROGUE-${Date.now()}`,
+        },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
     it('Cryptographic token tampering on public portals must be rejected with 404/401', async () => {
       const tamperedToken = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
       const res = await app.inject({
@@ -250,6 +284,61 @@ describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
 
       expect(res.statusCode).toBe(404);
       expect(JSON.parse(res.body).error).toBe('Not Found');
+
+      // Check platform services routes trap SQLi in path parameters
+      const bbsRes = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${maliciousId}/bar-bending-schedules`,
+        headers: { cookie: tenantACookie },
+      });
+      expect(bbsRes.statusCode).toBe(404);
+
+      const b2cRes = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${maliciousId}/b2c-disbursements`,
+        headers: { cookie: tenantACookie },
+      });
+      expect(b2cRes.statusCode).toBe(404);
+
+      const subIdRes = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${projectAId}/bar-bending-schedules/${maliciousId}`,
+        headers: { cookie: tenantACookie },
+      });
+      expect(subIdRes.statusCode).toBe(404);
+    });
+
+    it('rejects malformed or tampered status in bar bending schedule with Zod validation (HTTP 400)', async () => {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/v1/projects/${projectAId}/bar-bending-schedules/00000000-0000-0000-0000-000000000001/status`,
+        headers: { cookie: tenantACookie },
+        payload: {
+          status: 'UNAUTHORIZED_EXPLOIT_STATUS',
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(JSON.parse(res.body).message).toContain('Invalid schedule status');
+    });
+
+    it('rejects non-UUID referenceId in B2C disbursement payload (HTTP 400)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${projectAId}/b2c-disburse`,
+        headers: { cookie: tenantACookie },
+        payload: {
+          disbursementType: 'CASUAL_LABOR_WAGE',
+          referenceId: "1' OR '1'='1",
+          recipientPhone: '0711223344',
+          recipientName: 'Valid Worker Name',
+          amount: '1200.00',
+          idempotencyKey: `IDEM-SQLI-${Date.now()}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(JSON.parse(res.body).message).toContain('Invalid referenceId format');
     });
 
     it('SQL injection attempt in JSON payload is safely parameterized by Prisma and does not drop tables', async () => {
@@ -414,6 +503,29 @@ describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
       expect(lastRes.statusCode).toBe(429);
       expect(lastRes.headers['retry-after']).toBeDefined();
       expect(JSON.parse(lastRes.body).message).toContain('Too many M-Pesa STK push requests');
+    });
+
+    it('Daraja B2C disbursement rate limiter triggers HTTP 429 after threshold', async () => {
+      // Rapidly fire 12 B2C disbursement requests for tenant B
+      let lastRes: any;
+      for (let i = 0; i < 12; i++) {
+        lastRes = await app.inject({
+          method: 'POST',
+          url: `/api/v1/projects/${projectBId}/b2c-disburse`,
+          headers: { cookie: tenantBCookie },
+          payload: {
+            disbursementType: 'CASUAL_LABOR_WAGE',
+            recipientPhone: '0711223344',
+            recipientName: 'Kamau Njoroge',
+            amount: '1200.00',
+            idempotencyKey: `IDEM-RATE-B2C-${Date.now()}-${i}`,
+          },
+        });
+      }
+
+      expect(lastRes.statusCode).toBe(429);
+      expect(lastRes.headers['retry-after']).toBeDefined();
+      expect(JSON.parse(lastRes.body).message).toContain('Too many B2C disbursement requests');
     });
   });
 

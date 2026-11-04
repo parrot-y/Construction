@@ -18,6 +18,7 @@ import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
 import { WhatsAppSiteWebhookView } from './WhatsAppSiteWebhookView';
 import { GeofencedClockInView } from './GeofencedClockInView';
 import { PlantTelematicsView } from './PlantTelematicsView';
+import { BarBendingScheduleView } from './BarBendingScheduleView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -275,6 +276,12 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
 
       {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
       <PlantTelematicsView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+      />
+
+      {/* BS 8666 / KS 02-598 Rebar Cutting Lists & Steel-Fixing Schedules (Milestone M25) */}
+      <BarBendingScheduleView
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
       />

@@ -49,6 +49,8 @@ import { RetentionAndBondsView } from './components/RetentionAndBondsView';
 import { SubscriptionBillingView } from './components/SubscriptionBillingView';
 import { GeofencedClockInView } from './components/GeofencedClockInView';
 import { PlantTelematicsView } from './components/PlantTelematicsView';
+import { BarBendingScheduleView } from './components/BarBendingScheduleView';
+import { MpesaDisbursementView } from './components/MpesaDisbursementView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1839,6 +1841,93 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('🛰️ Plant Telematics');
       expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
       expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
+    });
+  });
+
+  describe('Milestone M25 & M26: Rebar BBS Takeoff & Safaricom Daraja B2C Disbursements Suite', () => {
+    it('renders BarBendingScheduleView standalone with BS 8666 schedules and 12m stock math', () => {
+      const html = renderToString(
+        <BarBendingScheduleView projectId="project-rcp-2026" projectName="Riverside Commercial Plaza" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Rebar Takeoff &amp; BS 8666 Bar Bending Schedule (BBS)');
+      expect(html).toContain('KS 02-598 Certified');
+      expect(html).toContain('+ New BBS Schedule');
+      expect(html).toContain('BBS-SUB-001');
+      expect(html).toContain('Substructure Footings &amp; Ground Beams');
+      expect(html).toContain('14.850 T');
+      expect(html).toContain('APPROVED_FOR_CUTTING');
+    });
+
+    it('renders MpesaDisbursementView standalone with B2C bulk wages and retention releases', () => {
+      const html = renderToString(
+        <MpesaDisbursementView projectId="project-rcp-2026" projectName="Riverside Commercial Plaza" />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Safaricom Daraja B2C Bulk Wages &amp; Retention Disbursements');
+      expect(html).toContain('Live B2C Gateway');
+      expect(html).toContain('⚡ Disburse via M-Pesa B2C');
+      expect(html).toContain('Kariuki Mwangi (Site Mason)');
+      expect(html).toContain('KES 12,500.00');
+      expect(html).toContain('Athi River Plumbing Services');
+      expect(html).toContain('KES 50,000.00');
+      expect(html).toContain('SKL99887766');
+    });
+
+    it('embeds BarBendingScheduleView and MpesaDisbursementView into PmQsDashboard', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'Project Manager / QS',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['cost.manage', 'site.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('🏗️ Rebar BBS Takeoff');
+      expect(html).toContain('💸 M-Pesa B2C Payouts');
+      expect(html).toContain('Rebar Takeoff &amp; BS 8666 Bar Bending Schedule (BBS)');
+      expect(html).toContain('Safaricom Daraja B2C Bulk Wages &amp; Retention Disbursements');
+    });
+
+    it('embeds BarBendingScheduleView into SupervisorDashboard for site cutting lists', () => {
+      const superSession: AuthSession = {
+        user: {
+          id: 'user-super',
+          email: 'supervisor@apexbuilders.co.ke',
+          fullName: 'Site Supervisor',
+          role: 'SITE_SUPERVISOR',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['site.diary', 'cost.create'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Rebar Takeoff &amp; BS 8666 Bar Bending Schedule (BBS)');
+      expect(html).toContain('KS 02-598 Certified');
+    });
+
+    it('embeds MpesaDisbursementView into CompanyAdminDashboard for executive payouts', () => {
+      const adminSession: AuthSession = {
+        user: {
+          id: 'user-admin',
+          email: 'admin@apexbuilders.co.ke',
+          fullName: 'Admin User',
+          role: 'COMPANY_ADMIN',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['company.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Safaricom Daraja B2C Bulk Wages &amp; Retention Disbursements');
+      expect(html).toContain('Live B2C Gateway');
     });
   });
 });

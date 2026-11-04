@@ -228,3 +228,292 @@ export function calculateSectionVariance(
     status,
   };
 }
+
+/**
+ * Standard unit weight per meter (kg/m) for reinforcing steel bars under BS 8666 / KS 02-598:
+ * Formula: d^2 / 162.28 kg/m
+ */
+export const REBAR_UNIT_WEIGHTS_KG_PER_M: Record<string, string> = {
+  Y8: '0.395',
+  Y10: '0.617',
+  Y12: '0.888',
+  Y16: '1.579',
+  Y20: '2.466',
+  Y25: '3.854',
+  Y32: '6.313',
+};
+
+export function getRebarUnitWeight(barType: string): Decimal {
+  const weight = REBAR_UNIT_WEIGHTS_KG_PER_M[barType.toUpperCase()];
+  if (!weight) {
+    throw new Error(`Unsupported bar type: ${barType}`);
+  }
+  return new Decimal(weight);
+}
+
+export interface RebarCutLengthOptions {
+  radiusMm?: number;
+  exactDeductions?: boolean;
+}
+
+/**
+ * Calculates cutting length in meters based on BS 8666 standard shape codes:
+ * - 00: Straight bar (A)
+ * - 11: Single bend (A + B)
+ * - 21: L-Bar 90 deg bend (A + B)
+ * - 51: Rectangular Link/Stirrup (2 * (A + B) + hook allowance: 24 * d / 1000)
+ * - 61: Circular/Helical Link (pi * A + 24 * d / 1000)
+ *
+ * When options.exactDeductions is true, computes exact BS 8666 Table 2 formulas with bend deductions:
+ * - Shape 11: L = A + B - 0.5r - d
+ * - Shape 21: L = A + B - r - 2d
+ */
+export function calculateRebarCutLengthMeters(
+  shapeCode: string,
+  barType: string,
+  dimA: number,
+  dimB?: number | null,
+  dimC?: number | null,
+  dimD?: number | null,
+  options?: RebarCutLengthOptions,
+): Decimal {
+  if (options?.exactDeductions) {
+    return calculateBs8666CutLengthExact(shapeCode, barType, dimA, dimB, dimC, dimD, options.radiusMm);
+  }
+
+  const dMm = parseInt(barType.replace(/\D/g, ''), 10) || 12;
+  const aM = new Decimal(dimA).dividedBy(1000);
+  const bM = new Decimal(dimB || 0).dividedBy(1000);
+  const hookM = new Decimal(24).times(dMm).dividedBy(1000);
+
+  switch (shapeCode) {
+    case '00':
+      return aM.toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    case '11':
+    case '21':
+      return aM.plus(bM).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    case '51':
+      return aM.plus(bM).times(2).plus(hookM).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    case '61':
+      return aM.times(Math.PI).plus(hookM).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    default:
+      return aM.plus(bM).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+  }
+}
+
+/**
+ * Exact BS 8666:2005 / KS 02-598 cutting length formula implementations including bend deductions:
+ * - Shape 00: Straight bar: L = A
+ * - Shape 11: Single bend / crank: L = A + B - 0.5r - d
+ * - Shape 21: 90 deg bend / L-bar: L = A + B - r - 2d
+ * - Shape 51: Rectangular Link / Stirrup: L = 2(A + B) + 24d
+ * - Shape 61: Circular Link: L = pi * A + 24d
+ * 
+ * Standard minimum internal bend radius (r):
+ * - For bar diameter d <= 16mm: r = 2d (mandrel 4d)
+ * - For bar diameter d >= 20mm: r = 3.5d (mandrel 7d)
+ */
+export function calculateBs8666CutLengthExact(
+  shapeCode: string,
+  barType: string,
+  dimA: number,
+  dimB?: number | null,
+  _dimC?: number | null,
+  _dimD?: number | null,
+  radiusMm?: number | null,
+): Decimal {
+  const dMm = parseInt(barType.replace(/\D/g, ''), 10) || 12;
+  // Default to standard minimum bend radius per BS 8666 Table 2 if not explicitly specified
+  const rMm = radiusMm ?? (dMm <= 16 ? 2 * dMm : 3.5 * dMm);
+
+  const aM = new Decimal(dimA).dividedBy(1000);
+  const bM = new Decimal(dimB || 0).dividedBy(1000);
+  const dM = new Decimal(dMm).dividedBy(1000);
+  const rM = new Decimal(rMm).dividedBy(1000);
+  const hookM = new Decimal(24).times(dMm).dividedBy(1000);
+
+  switch (shapeCode) {
+    case '00':
+      return aM.toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    case '11':
+      // L = A + B - 0.5r - d
+      return aM.plus(bM).minus(rM.times(0.5)).minus(dM).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    case '21':
+      // L = A + B - r - 2d
+      return aM.plus(bM).minus(rM).minus(dM.times(2)).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    case '51':
+      // L = 2(A + B) + 24d
+      return aM.plus(bM).times(2).plus(hookM).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    case '61':
+      // L = pi * A + 24d
+      return aM.times(Math.PI).plus(hookM).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    default:
+      return aM.plus(bM).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+  }
+}
+
+/**
+ * Calculates number of standard 12.0m commercial stock bars required for total cut length:
+ * Formula: N_12m = ceil(L_total / 12)
+ */
+export function calculateStockBars12m(totalLengthMeters: DecimalValue): number {
+  const total = toDecimal(totalLengthMeters);
+  if (total.isZero() || total.isNegative()) {
+    return 0;
+  }
+  const bars = total.dividedBy(12).ceil();
+  return Math.max(1, bars.toNumber());
+}
+
+export interface KraVatResult {
+  taxableAmount: Decimal;
+  vatAmount: Decimal;
+  grossAmount: Decimal;
+  vatRatePct: string;
+}
+
+/**
+ * Computes KRA e-TIMS standard 16% VAT on taxable supply amount:
+ * VAT = ROUND(Taxable * 0.16, 2)
+ * Gross = Taxable + VAT
+ */
+export function calculateKraVat16(taxableAmount: DecimalValue): KraVatResult {
+  const taxable = toDecimal(taxableAmount);
+  const vat = taxable.times(new Decimal('0.16')).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const gross = taxable.plus(vat);
+  return {
+    taxableAmount: taxable,
+    vatAmount: vat,
+    grossAmount: gross,
+    vatRatePct: '16.00',
+  };
+}
+
+/**
+ * Extracts KRA e-TIMS 16% VAT from gross VAT-inclusive amount:
+ * Taxable = ROUND(Gross / 1.16, 2)
+ * VAT = Gross - Taxable
+ */
+export function extractKraVat16FromGross(grossAmount: DecimalValue): KraVatResult {
+  const gross = toDecimal(grossAmount);
+  const taxable = gross.dividedBy(new Decimal('1.16')).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const vat = gross.minus(taxable);
+  return {
+    taxableAmount: taxable,
+    vatAmount: vat,
+    grossAmount: gross,
+    vatRatePct: '16.00',
+  };
+}
+
+export interface KraWithholdingTaxResult {
+  grossAmount: Decimal;
+  whtRatePct: string;
+  whtAmount: Decimal;
+  whvatRatePct: string;
+  whvatAmount: Decimal;
+  totalWithheld: Decimal;
+  netPayable: Decimal;
+}
+
+/**
+ * Computes Kenyan statutory withholding tax under Income Tax Act Cap 470 (3% contractual fee for construction)
+ * and Value Added Tax Act Sec 42A (2% WHVAT).
+ * Formulations:
+ * WHT = ROUND(Gross * (whtRate / 100), 2)
+ * WHVAT = ROUND(Gross * (whvatRate / 100), 2)
+ * Net Payable = Gross - WHT - WHVAT
+ */
+export function calculateKraWithholdingTax(
+  grossAmount: DecimalValue,
+  whtRatePct: DecimalValue = '3.00',
+  whvatRatePct: DecimalValue = '2.00',
+): KraWithholdingTaxResult {
+  const gross = toDecimal(grossAmount);
+  const whtRate = toDecimal(whtRatePct);
+  const whvatRate = toDecimal(whvatRatePct);
+
+  const wht = gross.times(whtRate).dividedBy(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const whvat = gross.times(whvatRate).dividedBy(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const totalWithheld = wht.plus(whvat);
+  const netPayable = gross.minus(totalWithheld);
+
+  return {
+    grossAmount: gross,
+    whtRatePct: whtRate.toFixed(2),
+    whtAmount: wht,
+    whvatRatePct: whvatRate.toFixed(2),
+    whvatAmount: whvat,
+    totalWithheld,
+    netPayable,
+  };
+}
+
+export type JbcRetentionStage = 'INTERIM' | 'PRACTICAL_COMPLETION' | 'FINAL_ACCOUNT_DLP';
+
+export interface JbcRetentionResult {
+  contractSum: Decimal;
+  retentionFundCap: Decimal;
+  retentionCapPct: string;
+  interimRetentionRatePct: string;
+  computedInterimRetention: Decimal;
+  totalRetentionHeld: Decimal;
+  firstMoietyAmount: Decimal;
+  secondMoietyAmount: Decimal;
+  releasedAmountForStage: Decimal;
+  remainingRetention: Decimal;
+}
+
+/**
+ * Implements Joint Building Council (JBC 1999) dual-moiety retention mechanics:
+ * - Interim retention deduction: standard 10% on certified gross valuation.
+ * - Total retention fund cap: standard 5% (or project contract specified cap) of contract sum.
+ * - First Moiety (50% of retention fund = 2.5% of contract sum) released at Practical Completion (CPC).
+ * - Second Moiety (remaining 50% = 2.5% of contract sum) released at Final Account / DLP Expiry.
+ * Alternatively in projects where 10% total retention is retained: 5% released at CPC and 5% at Final Account.
+ */
+export function calculateJbcDualMoietyRetention(
+  contractSum: DecimalValue,
+  grossValuation: DecimalValue,
+  stage: JbcRetentionStage = 'INTERIM',
+  retentionDeductionPct: DecimalValue = '10.00',
+  retentionCapPct: DecimalValue = '5.00',
+): JbcRetentionResult {
+  const cSum = toDecimal(contractSum);
+  const gross = toDecimal(grossValuation);
+  const deductionPct = toDecimal(retentionDeductionPct);
+  const capPct = toDecimal(retentionCapPct);
+
+  const retentionFundCap = cSum.times(capPct).dividedBy(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const rawInterimRetention = gross.times(deductionPct).dividedBy(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const totalRetentionHeld = Decimal.min(rawInterimRetention, retentionFundCap);
+
+  // Dual moiety: 50% released at CPC, final 50% at Making Good Defects / Final Account
+  const firstMoiety = totalRetentionHeld.times('0.5').toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const secondMoiety = totalRetentionHeld.minus(firstMoiety);
+
+  let releasedAmount = toDecimal('0.00');
+  let remainingRetention = totalRetentionHeld;
+
+  if (stage === 'PRACTICAL_COMPLETION') {
+    releasedAmount = firstMoiety;
+    remainingRetention = secondMoiety;
+  } else if (stage === 'FINAL_ACCOUNT_DLP') {
+    releasedAmount = secondMoiety;
+    remainingRetention = toDecimal('0.00');
+  }
+
+  return {
+    contractSum: cSum,
+    retentionFundCap,
+    retentionCapPct: capPct.toFixed(2),
+    interimRetentionRatePct: deductionPct.toFixed(2),
+    computedInterimRetention: rawInterimRetention,
+    totalRetentionHeld,
+    firstMoietyAmount: firstMoiety,
+    secondMoietyAmount: secondMoiety,
+    releasedAmountForStage: releasedAmount,
+    remainingRetention,
+  };
+}
+

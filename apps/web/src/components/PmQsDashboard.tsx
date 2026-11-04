@@ -30,6 +30,8 @@ import { WhatsAppSiteWebhookView } from './WhatsAppSiteWebhookView';
 import { RetentionAndBondsView } from './RetentionAndBondsView';
 import { GeofencedClockInView } from './GeofencedClockInView';
 import { PlantTelematicsView } from './PlantTelematicsView';
+import { BarBendingScheduleView } from './BarBendingScheduleView';
+import { MpesaDisbursementView } from './MpesaDisbursementView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -43,7 +45,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -146,6 +148,8 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'retentionbonds', label: '🏦 Retention & Bonds' },
           { id: 'geofence', label: '📍 Site Geofencing' },
           { id: 'telematics', label: '🛰️ Plant Telematics' },
+          { id: 'rebar', label: '🏗️ Rebar BBS Takeoff' },
+          { id: 'disbursements', label: '💸 M-Pesa B2C Payouts' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -511,6 +515,22 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
       {(activeTab === 'all' || activeTab === 'telematics') && (
         <PlantTelematicsView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* BS 8666 / KS 02-598 Rebar Takeoff & Bar Bending Schedules (Milestone M25) */}
+      {(activeTab === 'all' || activeTab === 'rebar') && (
+        <BarBendingScheduleView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Safaricom Daraja B2C Bulk Wages & Retention Disbursements (Milestone M26) */}
+      {(activeTab === 'all' || activeTab === 'disbursements') && (
+        <MpesaDisbursementView
           projectId="project-rcp-2026"
           projectName="Riverside Commercial Plaza"
         />

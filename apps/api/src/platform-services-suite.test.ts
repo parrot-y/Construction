@@ -406,4 +406,203 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(body.pings.some((p: any) => p.isSiphoningEvent === true)).toBe(true);
     });
   });
+
+  // ===========================================================================
+  // 4. MILESTONE M25: REBAR TAKEOFF & BS 8666 BAR BENDING SCHEDULES (BBS)
+  // ===========================================================================
+  describe('Milestone M25: Rebar Takeoff & BS 8666 Bar Bending Schedules (BBS)', () => {
+    let createdScheduleId: string;
+
+    it('should create Bar Bending Schedule with calculated cut length, total weights, and 12m stock commercial bar count', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${testProjectId}/bar-bending-schedules`,
+        headers: { cookie: authCookie },
+        payload: {
+          scheduleNumber: 'BBS-SUB-001',
+          elementName: 'Substructure Foundation Footings & Ground Beams',
+          drawingRef: 'STR/DWG/04-REV2',
+          steelGrade: 'HIGH_YIELD_460',
+          items: [
+            {
+              memberTag: 'Footing F1 (1500x1500x400)',
+              barMark: '01',
+              barType: 'Y16',
+              numberOfMembers: 12,
+              barsPerMember: 8, // 96 bars
+              shapeCode: '00', // straight
+              dimensionAMm: 1400, // 1.40m
+            },
+            {
+              memberTag: 'Ground Beam GB1',
+              barMark: '02',
+              barType: 'Y20',
+              numberOfMembers: 4,
+              barsPerMember: 6, // 24 bars
+              shapeCode: '21', // L-Bar (A + B)
+              dimensionAMm: 5500, // 5.50m
+              dimensionBMm: 500,  // 0.50m => 6.00m
+            },
+            {
+              memberTag: 'Column Starter Bars C1',
+              barMark: '03',
+              barType: 'Y8',
+              numberOfMembers: 12,
+              barsPerMember: 14, // 168 links
+              shapeCode: '51', // Rectangular stirrup: 2*(200+350) + 24*8 = 1100 + 192 = 1292mm = 1.292m
+              dimensionAMm: 200,
+              dimensionBMm: 350,
+            },
+          ],
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = JSON.parse(res.body);
+      createdScheduleId = body.id;
+      expect(body.scheduleNumber).toBe('BBS-SUB-001');
+      expect(body.itemCount).toBe(3);
+      expect(body.status).toBe('DRAFT');
+      expect(Number(body.totalTonnage)).toBeGreaterThan(0.5);
+
+      // Verify individual bar calculations
+      const item01 = body.items.find((i: any) => i.barMark === '01');
+      expect(item01.cutLengthMeters).toBe('1.400');
+      expect(item01.totalBars).toBe(96);
+      expect(item01.totalLengthMeters).toBe('134.400');
+      expect(item01.unitWeightKgPerM).toBe('1.579'); // Y16 unit weight
+      expect(item01.standardBarsNeeded12m).toBe(12); // ceil(134.4 / 12) = 12
+
+      const item02 = body.items.find((i: any) => i.barMark === '02');
+      expect(item02.cutLengthMeters).toBe('6.000');
+      expect(item02.totalBars).toBe(24);
+      expect(item02.unitWeightKgPerM).toBe('2.466'); // Y20 unit weight
+    });
+
+    it('should list Bar Bending Schedules for project and calculate summary tonnage breakdown by bar size', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${testProjectId}/bar-bending-schedules`,
+        headers: { cookie: authCookie },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.summary.totalSchedules).toBeGreaterThanOrEqual(1);
+      expect(Number(body.summary.totalProjectTonnage)).toBeGreaterThan(0.5);
+      expect(body.summary.tonnageByType['Y16']).toBeDefined();
+      expect(body.summary.tonnageByType['Y20']).toBeDefined();
+      expect(body.summary.tonnageByType['Y8']).toBeDefined();
+    });
+
+    it('should retrieve single Bar Bending Schedule cutting list details', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${testProjectId}/bar-bending-schedules/${createdScheduleId}`,
+        headers: { cookie: authCookie },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.id).toBe(createdScheduleId);
+      expect(body.items.length).toBe(3);
+      expect(body.items[0].dimensions.aMm).toBeDefined();
+    });
+
+    it('should update schedule status to APPROVED_FOR_CUTTING', async () => {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/v1/projects/${testProjectId}/bar-bending-schedules/${createdScheduleId}/status`,
+        headers: { cookie: authCookie },
+        payload: { status: 'APPROVED_FOR_CUTTING' },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).status).toBe('APPROVED_FOR_CUTTING');
+    });
+  });
+
+  // ===========================================================================
+  // 5. MILESTONE M26: SAFARICOM DARAJA B2C BULK WAGES & RETENTIONS
+  // ===========================================================================
+  describe('Milestone M26: Safaricom Daraja B2C Bulk Wages & Retention Disbursements', () => {
+    const testIdempotencyKey = `IDEM-B2C-${Date.now()}`;
+    let conversationId: string;
+
+    it('should initiate Safaricom Daraja B2C disbursement for casual labor wage batch', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${testProjectId}/b2c-disburse`,
+        headers: { cookie: authCookie },
+        payload: {
+          disbursementType: 'CASUAL_LABOR_WAGE',
+          recipientPhone: '+254712345678',
+          recipientName: 'Kariuki Mwangi (Site Mason)',
+          amount: '12500.00',
+          remarks: 'Muster Roll Week 44 Payout',
+          idempotencyKey: testIdempotencyKey,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      conversationId = body.conversationId;
+      expect(body.status).toBe('COMPLETED');
+      expect(body.amount).toBe('12500.00');
+      expect(body.mpesaTransactionId).toBeDefined();
+      expect(body.isIdempotentReplay).toBe(false);
+    });
+
+    it('should handle idempotent replay for identical B2C idempotencyKey', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${testProjectId}/b2c-disburse`,
+        headers: { cookie: authCookie },
+        payload: {
+          disbursementType: 'CASUAL_LABOR_WAGE',
+          recipientPhone: '+254712345678',
+          recipientName: 'Kariuki Mwangi (Site Mason)',
+          amount: '12500.00',
+          remarks: 'Muster Roll Week 44 Payout',
+          idempotencyKey: testIdempotencyKey,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.isIdempotentReplay).toBe(true);
+      expect(body.amount).toBe('12500.00');
+    });
+
+    it('should process inbound Daraja B2C callback and update transaction status', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/billing/mpesa-b2c-callback',
+        payload: {
+          ConversationID: conversationId,
+          OriginatorConversationID: 'AGY-TEST-ORIG-01',
+          ResultCode: 0,
+          ResultDesc: 'The service request is processed successfully.',
+          TransactionID: 'SKL99887766',
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).ResultDesc).toBe('Accepted');
+    });
+
+    it('should list B2C disbursements and calculate total disbursed KES for project', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${testProjectId}/b2c-disbursements`,
+        headers: { cookie: authCookie },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.summary.totalDisbursements).toBeGreaterThanOrEqual(1);
+      expect(body.summary.completedCount).toBeGreaterThanOrEqual(1);
+      expect(Number(body.summary.totalDisbursedKes)).toBeGreaterThanOrEqual(12500);
+    });
+  });
 });

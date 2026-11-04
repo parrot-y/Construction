@@ -23,7 +23,7 @@ export const HealthCheckResponseSchema = z.object({
 
 export const KenyanPhoneSchema = z
   .string()
-  .regex(/^(?:\+254|0)[17]\d{8}$/, { message: 'Must be a valid Kenyan mobile phone number (e.g., +254712345678 or 0712345678)' });
+  .regex(/^(?:\+?254|0)[17]\d{8}$/, { message: 'Must be a valid Kenyan mobile phone number (e.g., +254712345678, 254712345678, or 0712345678)' });
 
 export const LoginRequestSchema = z.object({
   email: z.string().email({ message: 'Must be a valid email address' }),
@@ -1126,6 +1126,74 @@ export const IngestTelematicsPingSchema = z.object({
   fuelLevelPercent: z.string().regex(/^\d+(\.\d{1,2})?$/),
 });
 export type IngestTelematicsPing = z.infer<typeof IngestTelematicsPingSchema>;
+
+// -------------------------------------------------------------
+// REBAR TAKEOFF & BS 8666 BAR BENDING SCHEDULE (MILESTONE M25)
+// -------------------------------------------------------------
+export const BarTypeEnum = z.enum(['Y8', 'Y10', 'Y12', 'Y16', 'Y20', 'Y25', 'Y32']);
+export type BarType = z.infer<typeof BarTypeEnum>;
+
+export const ShapeCodeEnum = z.enum(['00', '11', '21', '51', '61']);
+export type ShapeCode = z.infer<typeof ShapeCodeEnum>;
+
+export const BarBendingItemInputSchema = z.object({
+  memberTag: z.string().min(1).max(100),
+  barMark: z.string().min(1).max(20),
+  barType: BarTypeEnum,
+  numberOfMembers: z.number().int().positive().default(1),
+  barsPerMember: z.number().int().positive().default(1),
+  shapeCode: ShapeCodeEnum.default('00'),
+  dimensionAMm: z.number().int().min(0),
+  dimensionBMm: z.number().int().min(0).optional().nullable(),
+  dimensionCMm: z.number().int().min(0).optional().nullable(),
+  dimensionDMm: z.number().int().min(0).optional().nullable(),
+});
+export type BarBendingItemInput = z.infer<typeof BarBendingItemInputSchema>;
+
+export const CreateBarBendingScheduleSchema = z.object({
+  scheduleNumber: z.string().min(3).max(50),
+  elementName: z.string().min(2).max(255),
+  drawingRef: z.string().max(100).optional().nullable(),
+  steelGrade: z.enum(['HIGH_YIELD_460', 'MILD_STEEL_250']).default('HIGH_YIELD_460'),
+  items: z.array(BarBendingItemInputSchema).min(1),
+});
+export type CreateBarBendingSchedule = z.infer<typeof CreateBarBendingScheduleSchema>;
+
+export const UpdateBarBendingScheduleStatusSchema = z.object({
+  status: z.enum(['DRAFT', 'APPROVED_FOR_CUTTING', 'FABRICATED']),
+});
+export type UpdateBarBendingScheduleStatus = z.infer<typeof UpdateBarBendingScheduleStatusSchema>;
+
+export { z };
+
+// -------------------------------------------------------------
+// SAFARICOM DARAJA B2C BULK DISBURSEMENT (MILESTONE M26)
+// -------------------------------------------------------------
+export const DisbursementTypeEnum = z.enum(['CASUAL_LABOR_WAGE', 'SUBCONTRACTOR_RETENTION', 'EMERGENCY_PETTY_CASH']);
+export type DisbursementType = z.infer<typeof DisbursementTypeEnum>;
+
+export const InitiateB2CDisbursementSchema = z.object({
+  disbursementType: DisbursementTypeEnum,
+  referenceId: z.string().optional().nullable(),
+  recipientPhone: KenyanPhoneSchema,
+  recipientName: z.string().min(2).max(255),
+  amount: CurrencyAmountSchema,
+  remarks: z.string().max(100).optional().nullable(),
+  idempotencyKey: z.string().min(5).max(100),
+});
+export type InitiateB2CDisbursement = z.infer<typeof InitiateB2CDisbursementSchema>;
+
+export const ProcessB2CCallbackSchema = z.object({
+  ConversationID: z.string(),
+  OriginatorConversationID: z.string(),
+  ResultCode: z.number().int(),
+  ResultDesc: z.string(),
+  TransactionID: z.string().optional().nullable(),
+  TransactionReceipt: z.string().optional().nullable(),
+  TransactionAmount: z.number().optional().nullable(),
+  B2CWorkingAccountAvailableFunds: z.number().optional().nullable(),
+});
+export type ProcessB2CCallback = z.infer<typeof ProcessB2CCallbackSchema>;
 
 
 

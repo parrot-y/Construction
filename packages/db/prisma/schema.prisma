@@ -28,6 +28,8 @@ model Tenant {
   audit_logs     AuditLog[]
   subscription_plans   SubscriptionPlan[]
   mpesa_subscriptions  MpesaSubscriptionTransaction[]
+  bar_bending_schedules BarBendingSchedule[]
+  mpesa_disbursements   MpesaDisbursementTransaction[]
 
   @@map("tenants")
 }
@@ -141,6 +143,8 @@ model Project {
   contractor_bonds      ContractorBondTracker[]
   geofences             ProjectGeofence[]
   worker_clock_events   WorkerClockEvent[]
+  bar_bending_schedules BarBendingSchedule[]
+  mpesa_disbursements   MpesaDisbursementTransaction[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -1586,6 +1590,93 @@ model PlantTelematicsPing {
 
   @@index([tenant_id, equipment_id, is_siphoning_event])
   @@map("plant_telematics_pings")
+}
+
+// =============================================================
+// REBAR TAKEOFF & BS 8666 BAR BENDING SCHEDULE (MILESTONE M25)
+// =============================================================
+
+model BarBendingSchedule {
+  id               String           @id @default(uuid()) @db.Uuid
+  tenant_id        String           @db.Uuid
+  project_id       String           @db.Uuid
+  schedule_number  String           @db.VarChar(50) // e.g. "BBS-SUB-001"
+  element_name     String           @db.VarChar(255) // e.g. "Foundation Footings & Ground Beams"
+  drawing_ref      String?          @db.VarChar(100) // e.g. "STR/DWG/04-REV2"
+  steel_grade      String           @default("HIGH_YIELD_460") @db.VarChar(50) // "HIGH_YIELD_460", "MILD_STEEL_250"
+  total_tonnage    Decimal          @default(0.000) @db.Decimal(10, 3)
+  status           String           @default("DRAFT") @db.VarChar(50) // "DRAFT", "APPROVED_FOR_CUTTING", "FABRICATED"
+  created_at       DateTime         @default(now()) @db.Timestamptz
+  updated_at       DateTime         @updatedAt @db.Timestamptz
+
+  project          Project          @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant           Tenant           @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  items            BarBendingItem[]
+
+  @@unique([tenant_id, project_id, schedule_number])
+  @@index([tenant_id, project_id, status])
+  @@map("bar_bending_schedules")
+}
+
+model BarBendingItem {
+  id                       String             @id @default(uuid()) @db.Uuid
+  tenant_id                String             @db.Uuid
+  schedule_id              String             @db.Uuid
+  member_tag               String             @db.VarChar(100) // e.g. "Footing F1"
+  bar_mark                 String             @db.VarChar(20) // e.g. "01"
+  bar_type                 String             @db.VarChar(10) // "Y8", "Y10", "Y12", "Y16", "Y20", "Y25", "Y32"
+  number_of_members        Int                @default(1)
+  bars_per_member          Int                @default(1)
+  total_bars               Int                @default(1)
+  shape_code               String             @default("00") @db.VarChar(10) // "00", "11", "21", "51", "61"
+  dimension_a_mm           Int                @default(0)
+  dimension_b_mm           Int?
+  dimension_c_mm           Int?
+  dimension_d_mm           Int?
+  cut_length_meters        Decimal            @db.Decimal(8, 3)
+  total_length_meters      Decimal            @db.Decimal(10, 3)
+  unit_weight_kg_per_m     Decimal            @db.Decimal(6, 3)
+  total_weight_kg          Decimal            @db.Decimal(10, 2)
+  standard_bars_needed_12m Int                @default(1)
+  created_at               DateTime           @default(now()) @db.Timestamptz
+  updated_at               DateTime           @updatedAt @db.Timestamptz
+
+  schedule                 BarBendingSchedule @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, schedule_id, bar_type])
+  @@map("bar_bending_items")
+}
+
+// =============================================================
+// SAFARICOM DARAJA B2C BULK WAGE & RETENTION DISBURSEMENTS (MILESTONE M26)
+// =============================================================
+
+model MpesaDisbursementTransaction {
+  id                         String    @id @default(uuid()) @db.Uuid
+  tenant_id                  String    @db.Uuid
+  project_id                 String    @db.Uuid
+  disbursement_type          String    @db.VarChar(50) // "CASUAL_LABOR_WAGE", "SUBCONTRACTOR_RETENTION", "EMERGENCY_PETTY_CASH"
+  reference_id               String?   @db.VarChar(100) // e.g. MusterRoll ID or RetentionRelease ID
+  recipient_phone            String    @db.VarChar(30)
+  recipient_name             String    @db.VarChar(255)
+  amount                     Decimal   @db.Decimal(12, 2)
+  b2c_command_id             String    @default("SalaryPayment") @db.VarChar(50) // "SalaryPayment", "BusinessPayment", "PromotionPayment"
+  conversation_id            String?   @db.VarChar(100)
+  originator_conversation_id String?   @db.VarChar(100)
+  mpesa_transaction_id       String?   @db.VarChar(50)
+  transaction_status         String    @default("PENDING") @db.VarChar(30) // "PENDING", "COMPLETED", "FAILED", "REVERSED"
+  result_code                Int?
+  result_desc                String?   @db.VarChar(255)
+  transaction_completed_at   DateTime? @db.Timestamptz
+  idempotency_key            String    @unique @db.VarChar(100)
+  created_at                 DateTime  @default(now()) @db.Timestamptz
+  updated_at                 DateTime  @updatedAt @db.Timestamptz
+
+  project                    Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                     Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, transaction_status])
+  @@map("mpesa_disbursement_transactions")
 }
 
 
