@@ -1284,15 +1284,15 @@ export type SoilTestMethod = z.infer<typeof SoilTestMethodEnum>;
 
 export const CreateGeotechnicalSoilTestSchema = z.object({
   testNumber: z.string().min(2).max(100),
-  testDate: z.string().optional(),
+  testDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid test date format' }).optional(),
   locationElement: z.string().min(2).max(255),
   layerType: SoilLayerTypeEnum.default('SUBBASE'),
   testMethod: SoilTestMethodEnum.default('SAND_REPLACEMENT'),
-  laboratoryMddGCm3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
-  laboratoryOmcPercent: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
-  fieldWetDensityGCm3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
+  laboratoryMddGCm3: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,3})?$/)]),
+  laboratoryOmcPercent: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]),
+  fieldWetDensityGCm3: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,3})?$/)]),
   fieldMoisturePercent: z.union([z.number().nonnegative(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
-  requiredCompactionPercent: z.union([z.number().positive(), z.string()]).optional().default(95.0),
+  requiredCompactionPercent: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).optional().default(95.0),
   dcpBlowsPer100mm: z.number().int().positive().optional().nullable(),
   inspectedBy: z.string().min(2).max(255),
 });
@@ -1325,23 +1325,23 @@ export const CreateAsphaltPavementBatchSchema = z.object({
   supplierName: z.string().min(2).max(255),
   mixType: AsphaltMixTypeEnum.default('AC_14_WEARING'),
   truckRegNo: z.string().min(3).max(50),
-  tonnageTons: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+  tonnageTons: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]),
   chainageStart: z.string().min(1).max(50),
   chainageEnd: z.string().min(1).max(50),
   laneDirection: LaneDirectionEnum.default('NORTHBOUND'),
-  plantTempC: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]),
-  deliveryTempC: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]),
-  breakdownTempC: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]),
-  finishTempC: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]),
-  designThicknessMm: z.union([z.number().positive(), z.string()]).optional().default(50.0),
+  plantTempC: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,1})?$/)]),
+  deliveryTempC: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,1})?$/)]),
+  breakdownTempC: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,1})?$/)]),
+  finishTempC: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,1})?$/)]),
+  designThicknessMm: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).optional().default(50.0),
   inspectedBy: z.string().min(2).max(255),
 });
 export type CreateAsphaltPavementBatch = z.infer<typeof CreateAsphaltPavementBatchSchema>;
 
 export const RecordAsphaltCoreTestSchema = z.object({
-  coreThicknessMm: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
-  coreDensityGCm3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
-  marshallDensityGCm3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
+  coreThicknessMm: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]),
+  coreDensityGCm3: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,3})?$/)]),
+  marshallDensityGCm3: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,3})?$/)]),
   inspectedBy: z.string().min(2).max(255).optional(),
 });
 export type RecordAsphaltCoreTest = z.infer<typeof RecordAsphaltCoreTestSchema>;

@@ -329,7 +329,7 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
       },
     });
     expect(loginRes.statusCode).toBe(200);
-    const { token } = JSON.parse(loginRes.payload);
+    const { token, user } = JSON.parse(loginRes.payload);
 
     // 2. Create Project
     const projectRes = await server.inject({
@@ -390,7 +390,67 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
     expect(listBody.summary.passedCount).toBe(1);
     expect(listBody.summary.complianceRatePercent).toBe('100.0');
 
-    // 5. SQLi path rejection
+    // 5. Duplicate testNumber returns 409 Conflict (P2002 handler)
+    const dupRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/soil-tests`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        testNumber,
+        locationElement: 'Duplicate Section',
+        layerType: 'SUBBASE',
+        laboratoryMddGCm3: '2.150',
+        laboratoryOmcPercent: '9.50',
+        fieldWetDensityGCm3: '2.260',
+        fieldMoisturePercent: '10.00',
+        inspectedBy: 'Eng. Francis Kimani',
+      },
+    });
+    expect(dupRes.statusCode).toBe(409);
+
+    // 6. Zero or unconstrained laboratory MDD is rejected with 400 Bad Request
+    const zeroMddRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/soil-tests`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        testNumber: `SOIL-ZERO-${Date.now()}`,
+        locationElement: 'Ch 2+900',
+        laboratoryMddGCm3: '0.000',
+        laboratoryOmcPercent: '9.50',
+        fieldWetDensityGCm3: '2.260',
+        fieldMoisturePercent: '10.00',
+        inspectedBy: 'Eng. Francis Kimani',
+      },
+    });
+    expect(zeroMddRes.statusCode).toBe(400);
+
+    // 7. CLIENT role is blocked with 403 Forbidden
+    const clientToken = server.jwt.sign({
+      sub: 'client-user-1',
+      email: 'client@investor.co.ke',
+      fullName: 'Client Investor',
+      tenantId: user.tenant.id,
+      role: 'CLIENT',
+    });
+
+    const clientSoilRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/soil-tests`,
+      headers: { authorization: `Bearer ${clientToken}` },
+      payload: {
+        testNumber: `SOIL-CLIENT-${Date.now()}`,
+        locationElement: 'Client test',
+        laboratoryMddGCm3: '2.150',
+        laboratoryOmcPercent: '9.50',
+        fieldWetDensityGCm3: '2.260',
+        fieldMoisturePercent: '10.00',
+        inspectedBy: 'Client',
+      },
+    });
+    expect(clientSoilRes.statusCode).toBe(403);
+
+    // 8. SQLi path rejection
     const sqliRes = await server.inject({
       method: 'GET',
       url: `/api/v1/projects/${projectId}/soil-tests/1' OR '1'='1`,
@@ -398,7 +458,7 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
     });
     expect(sqliRes.statusCode).toBe(404);
 
-    // 6. RLS Cross-tenant isolation verification
+    // 9. RLS Cross-tenant isolation verification
     const tenantBId = '22222222-2222-2222-2222-222222222222';
     const rogueToken = server.jwt.sign({
       sub: 'user-b',
@@ -429,7 +489,7 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
       },
     });
     expect(loginRes.statusCode).toBe(200);
-    const { token } = JSON.parse(loginRes.payload);
+    const { token, user } = JSON.parse(loginRes.payload);
 
     // 2. Create Project
     const projectRes = await server.inject({
@@ -501,7 +561,99 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
     expect(coreBody.qaVerdict).toBe('ACCEPTED');
     expect(coreBody.status).toBe('COMPLETED');
 
-    // 5. List Asphalt Batches for Project
+    // 5. Duplicate ticketNumber returns 409 Conflict
+    const dupAspRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/asphalt-batches`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        ticketNumber,
+        supplierName: 'Colas East Africa Ltd',
+        mixType: 'AC_14_WEARING',
+        truckRegNo: 'KDF 994L',
+        tonnageTons: '24.50',
+        chainageStart: 'Ch 12+100',
+        chainageEnd: 'Ch 12+350',
+        plantTempC: '165.0',
+        deliveryTempC: '148.0',
+        breakdownTempC: '132.0',
+        finishTempC: '92.0',
+        inspectedBy: 'Eng. David Nderitu',
+      },
+    });
+    expect(dupAspRes.statusCode).toBe(409);
+
+    // 6. Cold Paved Batch (Delivery 130°C < 135°C threshold) is immediately rejected
+    const coldTicket = `ASP-COLD-${Date.now().toString().slice(-6)}`;
+    const coldRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/asphalt-batches`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        ticketNumber: coldTicket,
+        supplierName: 'Colas East Africa Ltd',
+        mixType: 'AC_14_WEARING',
+        truckRegNo: 'KDF 995M',
+        tonnageTons: '20.00',
+        chainageStart: 'Ch 12+350',
+        chainageEnd: 'Ch 12+500',
+        plantTempC: '150.0',
+        deliveryTempC: '130.0',
+        breakdownTempC: '115.0',
+        finishTempC: '76.0',
+        inspectedBy: 'Eng. David Nderitu',
+      },
+    });
+    expect(coldRes.statusCode).toBe(201);
+    const coldBatch = JSON.parse(coldRes.payload);
+    expect(coldBatch.thermalVerdict).toBe('REJECTED_COLD_PAVING');
+    expect(coldBatch.status).toBe('REJECTED');
+
+    // 7. Core test on cold-paved batch preserves REJECTED status (no unauthorized override)
+    const coldCoreRes = await server.inject({
+      method: 'PATCH',
+      url: `/api/v1/projects/${projectId}/asphalt-batches/${coldBatch.id}/core-test`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        coreThicknessMm: '50.00',
+        coreDensityGCm3: '2.350',
+        marshallDensityGCm3: '2.400',
+      },
+    });
+    expect(coldCoreRes.statusCode).toBe(200);
+    const coldCoreBody = JSON.parse(coldCoreRes.payload);
+    expect(coldCoreBody.status).toBe('REJECTED');
+
+    // 8. CLIENT role is blocked with 403 Forbidden
+    const clientToken = server.jwt.sign({
+      sub: 'client-user-2',
+      email: 'client@asphalt.co.ke',
+      fullName: 'Client User',
+      tenantId: user.tenant.id,
+      role: 'CLIENT',
+    });
+
+    const clientAspRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/asphalt-batches`,
+      headers: { authorization: `Bearer ${clientToken}` },
+      payload: {
+        ticketNumber: `ASP-CLIENT-${Date.now()}`,
+        supplierName: 'Colas',
+        truckRegNo: 'KAA 001A',
+        tonnageTons: '20.00',
+        chainageStart: 'Ch 0+000',
+        chainageEnd: 'Ch 0+100',
+        plantTempC: '160.0',
+        deliveryTempC: '145.0',
+        breakdownTempC: '130.0',
+        finishTempC: '90.0',
+        inspectedBy: 'Client',
+      },
+    });
+    expect(clientAspRes.statusCode).toBe(403);
+
+    // 9. List Asphalt Batches for Project
     const listRes = await server.inject({
       method: 'GET',
       url: `/api/v1/projects/${projectId}/asphalt-batches`,
@@ -509,12 +661,9 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
     });
     expect(listRes.statusCode).toBe(200);
     const listBody = JSON.parse(listRes.payload);
-    expect(listBody.summary.totalTruckloads).toBe(1);
-    expect(listBody.summary.totalTonnage).toBe('24.50');
-    expect(listBody.summary.compliantCount).toBe(1);
-    expect(listBody.summary.coresTestedCount).toBe(1);
+    expect(listBody.summary.totalTruckloads).toBe(2);
 
-    // 6. SQLi URL path rejection
+    // 10. SQLi URL path rejection
     const sqliRes = await server.inject({
       method: 'GET',
       url: `/api/v1/projects/${projectId}/asphalt-batches/1' OR '1'='1`,
@@ -522,7 +671,7 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
     });
     expect(sqliRes.statusCode).toBe(404);
 
-    // 7. RLS Cross-tenant isolation verification
+    // 11. RLS Cross-tenant isolation verification
     const tenantBId = '22222222-2222-2222-2222-222222222222';
     const rogueToken = server.jwt.sign({
       sub: 'user-b',

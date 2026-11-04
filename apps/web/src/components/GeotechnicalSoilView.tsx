@@ -99,6 +99,8 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
   const [filterLayer, setFilterLayer] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Form State
   const [testNumber, setTestNumber] = useState(`SOIL-CMP-${Date.now().toString().slice(-4)}`);
@@ -141,34 +143,43 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 
   const handleCreateTest = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newRecord: SoilTestRecord = {
-      id: `st-${Date.now()}`,
-      testNumber,
-      testDate: new Date().toISOString(),
-      locationElement,
-      layerType,
-      testMethod,
-      laboratoryMddGCm3: parseFloat(labMdd).toFixed(3),
-      laboratoryOmcPercent: parseFloat(labOmc).toFixed(2),
-      fieldWetDensityGCm3: parseFloat(fieldWetDensity).toFixed(3),
-      fieldMoisturePercent: parseFloat(fieldMoisture).toFixed(2),
-      fieldDryDensityGCm3: formMetrics.dryDensity,
-      relativeCompactionPercent: formMetrics.rc,
-      requiredCompactionPercent: parseFloat(requiredCompaction).toFixed(2),
-      dcpBlowsPer100mm: dcpBlows || null,
-      estimatedCbrPercent: dcpBlows && dcpBlows > 0 ? (410 / Math.pow(100 / dcpBlows, 1.27)).toFixed(2) : null,
-      qaVerdict: formMetrics.verdict,
-      status: formMetrics.verdict === 'PASS' ? 'VERIFIED' : 'RE_COMPACTION_REQUIRED',
-      inspectedBy: inspectorName,
-    };
+    setErrorMessage(null);
+    setIsSubmitting(true);
 
-    if (onRecordTest) {
-      await onRecordTest(newRecord);
+    try {
+      const newRecord: SoilTestRecord = {
+        id: `st-${Date.now()}`,
+        testNumber,
+        testDate: new Date().toISOString(),
+        locationElement,
+        layerType,
+        testMethod,
+        laboratoryMddGCm3: parseFloat(labMdd).toFixed(3),
+        laboratoryOmcPercent: parseFloat(labOmc).toFixed(2),
+        fieldWetDensityGCm3: parseFloat(fieldWetDensity).toFixed(3),
+        fieldMoisturePercent: parseFloat(fieldMoisture).toFixed(2),
+        fieldDryDensityGCm3: formMetrics.dryDensity,
+        relativeCompactionPercent: formMetrics.rc,
+        requiredCompactionPercent: parseFloat(requiredCompaction).toFixed(2),
+        dcpBlowsPer100mm: dcpBlows || null,
+        estimatedCbrPercent: dcpBlows && dcpBlows > 0 ? (410 / Math.pow(100 / dcpBlows, 1.27)).toFixed(2) : null,
+        qaVerdict: formMetrics.verdict,
+        status: formMetrics.verdict === 'PASS' ? 'VERIFIED' : 'RE_COMPACTION_REQUIRED',
+        inspectedBy: inspectorName,
+      };
+
+      if (onRecordTest) {
+        await onRecordTest(newRecord);
+      }
+
+      setTests([newRecord, ...tests]);
+      setShowAddModal(false);
+      setLocationElement('');
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to submit soil test to server');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setTests([newRecord, ...tests]);
-    setShowAddModal(false);
-    setLocationElement('');
   };
 
   const getVerdictBadge = (verdict: SoilTestRecord['qaVerdict']) => {
@@ -274,14 +285,14 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
           <table className="min-w-full divide-y divide-gray-200 text-sm text-left">
             <thead className="bg-gray-50 text-gray-600 font-semibold text-xs uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3">Test No &amp; Date</th>
-                <th className="px-4 py-3">Location &amp; Layer</th>
-                <th className="px-4 py-3">Proctor Lab Target</th>
-                <th className="px-4 py-3">Field Measurements</th>
-                <th className="px-4 py-3">Compaction (RC %)</th>
-                <th className="px-4 py-3">DCP / Est. CBR</th>
-                <th className="px-4 py-3">QA Verdict</th>
-                <th className="px-4 py-3">Inspector</th>
+                <th scope="col" className="px-4 py-3">Test No &amp; Date</th>
+                <th scope="col" className="px-4 py-3">Location &amp; Layer</th>
+                <th scope="col" className="px-4 py-3">Proctor Lab Target</th>
+                <th scope="col" className="px-4 py-3">Field Measurements</th>
+                <th scope="col" className="px-4 py-3">Compaction (RC %)</th>
+                <th scope="col" className="px-4 py-3">DCP / Est. CBR</th>
+                <th scope="col" className="px-4 py-3">QA Verdict</th>
+                <th scope="col" className="px-4 py-3">Inspector</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -345,23 +356,40 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 
       {/* MODAL: Log Field Compaction Test */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-soil-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4"
+        >
           <div className="bg-white rounded-xl shadow-xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Record Field Soil Compaction Test</h3>
+                <h3 id="modal-soil-title" className="text-lg font-bold text-gray-900">Record Field Soil Compaction Test</h3>
                 <p className="text-xs text-gray-500">BS 1377 In-Situ Density &amp; Dynamic Cone Penetrometer (DCP)</p>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 text-lg">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                aria-label="Close modal"
+                className="text-gray-400 hover:text-gray-600 text-lg"
+              >
                 ✕
               </button>
             </div>
 
+            {errorMessage && (
+              <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium">
+                ⚠️ {errorMessage}
+              </div>
+            )}
+
             <form onSubmit={handleCreateTest} className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Test Number *</label>
+                  <label htmlFor="soil-test-number" className="block text-xs font-medium text-gray-700">Test Number *</label>
                   <input
+                    id="soil-test-number"
                     type="text"
                     required
                     value={testNumber}
@@ -370,8 +398,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Test Method</label>
+                  <label htmlFor="soil-test-method" className="block text-xs font-medium text-gray-700">Test Method</label>
                   <select
+                    id="soil-test-method"
                     value={testMethod}
                     onChange={(e) => setTestMethod(e.target.value as any)}
                     className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
@@ -384,8 +413,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700">Chainage / Structural Location *</label>
+                <label htmlFor="soil-location-element" className="block text-xs font-medium text-gray-700">Chainage / Structural Location *</label>
                 <input
+                  id="soil-location-element"
                   type="text"
                   required
                   placeholder="e.g. Subbase Ch 2+100 - 2+350 RHS"
@@ -397,8 +427,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Layer Type *</label>
+                  <label htmlFor="soil-layer-type" className="block text-xs font-medium text-gray-700">Layer Type *</label>
                   <select
+                    id="soil-layer-type"
                     value={layerType}
                     onChange={(e) => setLayerType(e.target.value as any)}
                     className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
@@ -411,8 +442,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Required Compaction (%)</label>
+                  <label htmlFor="soil-required-compaction" className="block text-xs font-medium text-gray-700">Required Compaction (%)</label>
                   <input
+                    id="soil-required-compaction"
                     type="number"
                     step="0.5"
                     required
@@ -426,8 +458,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
               {/* Proctor Targets */}
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <label className="block font-medium text-amber-900">Lab MDD Target (g/cm³)</label>
+                  <label htmlFor="soil-lab-mdd" className="block font-medium text-amber-900">Lab MDD Target (g/cm³)</label>
                   <input
+                    id="soil-lab-mdd"
                     type="number"
                     step="0.001"
                     required
@@ -437,8 +470,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-medium text-amber-900">Lab OMC Target (%)</label>
+                  <label htmlFor="soil-lab-omc" className="block font-medium text-amber-900">Lab OMC Target (%)</label>
                   <input
+                    id="soil-lab-omc"
                     type="number"
                     step="0.1"
                     required
@@ -452,8 +486,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
               {/* Field Measurements */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Field Wet Density (g/cm³) *</label>
+                  <label htmlFor="soil-wet-density" className="block text-xs font-medium text-gray-700">Field Wet Density (g/cm³) *</label>
                   <input
+                    id="soil-wet-density"
                     type="number"
                     step="0.001"
                     required
@@ -463,8 +498,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Field Moisture Content (%) *</label>
+                  <label htmlFor="soil-moisture" className="block text-xs font-medium text-gray-700">Field Moisture Content (%) *</label>
                   <input
+                    id="soil-moisture"
                     type="number"
                     step="0.1"
                     required
@@ -477,8 +513,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">DCP Blows / 100mm (Optional)</label>
+                  <label htmlFor="soil-dcp-blows" className="block text-xs font-medium text-gray-700">DCP Blows / 100mm (Optional)</label>
                   <input
+                    id="soil-dcp-blows"
                     type="number"
                     value={dcpBlows || ''}
                     onChange={(e) => setDcpBlows(parseInt(e.target.value) || undefined)}
@@ -486,8 +523,9 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Inspecting Engineer *</label>
+                  <label htmlFor="soil-inspector-name" className="block text-xs font-medium text-gray-700">Inspecting Engineer *</label>
                   <input
+                    id="soil-inspector-name"
                     type="text"
                     required
                     value={inspectorName}
@@ -518,11 +556,16 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
                   type="button"
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700">
-                  Save Soil Test Record
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Soil Test Record'}
                 </button>
               </div>
             </form>

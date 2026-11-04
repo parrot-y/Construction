@@ -486,6 +486,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
         return reply.status(201).send(result);
       } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A soil test with this test number already exists for this project',
+          });
+        }
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
@@ -593,6 +600,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
         return reply.status(201).send(result);
       } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A soil test with this test number already exists for this project',
+          });
+        }
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
@@ -1084,6 +1098,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
         return reply.status(201).send(result);
       } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A soil test with this test number already exists for this project',
+          });
+        }
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
@@ -1704,6 +1725,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
         return reply.status(201).send(result);
       } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A soil test with this test number already exists for this project',
+          });
+        }
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
@@ -1869,6 +1897,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
         return reply.status(201).send(result);
       } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A soil test with this test number already exists for this project',
+          });
+        }
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
@@ -2078,6 +2113,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
         return reply.status(201).send(result);
       } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A soil test with this test number already exists for this project',
+          });
+        }
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
@@ -2280,11 +2322,19 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
     '/api/v1/projects/:projectId/soil-tests',
     { preHandler: [server.authenticate] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId } = request.params as { projectId: string };
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users have read-only access to engineering quality tests',
+        });
       }
 
       const parseResult = CreateGeotechnicalSoilTestSchema.safeParse(request.body);
@@ -2391,6 +2441,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
         return reply.status(201).send(result);
       } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A soil test with this test number already exists for this project',
+          });
+        }
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
@@ -2470,11 +2527,19 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
     '/api/v1/projects/:projectId/asphalt-batches',
     { preHandler: [server.authenticate] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId } = request.params as { projectId: string };
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users have read-only access to asphalt pavement quality tickets',
+        });
       }
 
       const parseResult = CreateAsphaltPavementBatchSchema.safeParse(request.body);
@@ -2571,6 +2636,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
         return reply.status(201).send(result);
       } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A soil test with this test number already exists for this project',
+          });
+        }
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
@@ -2652,11 +2724,19 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
     '/api/v1/projects/:projectId/asphalt-batches/:batchId/core-test',
     { preHandler: [server.authenticate] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId, batchId } = request.params as { projectId: string; batchId: string };
 
       if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(batchId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Batch not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users cannot record core tests',
+        });
       }
 
       const parseResult = RecordAsphaltCoreTestSchema.safeParse(request.body);
@@ -2685,6 +2765,11 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             marshallDensityGCm3
           );
 
+          const isPriorRejected = batch.status === 'REJECTED' || batch.thermal_verdict === 'REJECTED_COLD_PAVING';
+          const newStatus = isPriorRejected
+            ? 'REJECTED'
+            : (coreEval.isAccepted ? 'COMPLETED' : 'REJECTED');
+
           const updated = await tx.asphaltPavementBatch.update({
             where: { id: batchId },
             data: {
@@ -2693,7 +2778,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               marshall_density_g_cm3: toDecimal(marshallDensityGCm3).toFixed(3),
               compaction_percent: coreEval.compactionPercent.toFixed(2),
               qa_verdict: coreEval.qaVerdict,
-              status: coreEval.isAccepted ? 'COMPLETED' : 'REJECTED',
+              status: newStatus,
               inspected_by: inspectedBy || batch.inspected_by,
             },
           });

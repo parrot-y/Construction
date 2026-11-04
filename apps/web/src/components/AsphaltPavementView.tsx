@@ -117,6 +117,8 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showCoreModal, setShowCoreModal] = useState<boolean>(false);
   const [selectedBatch, setSelectedBatch] = useState<AsphaltBatchRecord | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // New Batch Form State
   const [ticketNo, setTicketNo] = useState(`ASP-TKT-${Date.now().toString().slice(-4)}`);
@@ -180,82 +182,104 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const dTemp = parseFloat(deliveryTemp);
-    const fTemp = parseFloat(finishTemp);
-    let thermalVerdict: AsphaltBatchRecord['thermalVerdict'] = 'COMPLIANT';
-    if (dTemp < 135 || fTemp < 80) thermalVerdict = 'REJECTED_COLD_PAVING';
-    else if (dTemp < 140 || fTemp < 85) thermalVerdict = 'COLD_MIX_WARNING';
+    setErrorMessage(null);
+    setIsSubmitting(true);
 
-    const newRecord: AsphaltBatchRecord = {
-      id: `asp-${Date.now()}`,
-      ticketNumber: ticketNo,
-      supplierName,
-      mixType,
-      truckRegNo: truckReg,
-      tonnageTons: parseFloat(tonnage).toFixed(2),
-      chainage: `${chainageStart} - ${chainageEnd} (${laneDirection})`,
-      chainageStart,
-      chainageEnd,
-      laneDirection,
-      plantTempC: parseFloat(plantTemp).toFixed(1),
-      deliveryTempC: parseFloat(deliveryTemp).toFixed(1),
-      breakdownTempC: parseFloat(breakdownTemp).toFixed(1),
-      finishTempC: parseFloat(finishTemp).toFixed(1),
-      thermalVerdict,
-      designThicknessMm: parseFloat(designThickness).toFixed(2),
-      qaVerdict: 'PENDING_CORES',
-      status: thermalVerdict === 'REJECTED_COLD_PAVING' ? 'REJECTED' : 'LAID',
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const dTemp = parseFloat(deliveryTemp);
+      const fTemp = parseFloat(finishTemp);
+      let thermalVerdict: AsphaltBatchRecord['thermalVerdict'] = 'COMPLIANT';
+      if (dTemp < 135 || fTemp < 80) thermalVerdict = 'REJECTED_COLD_PAVING';
+      else if (dTemp < 140 || fTemp < 85) thermalVerdict = 'COLD_MIX_WARNING';
 
-    if (onRegisterBatch) {
-      await onRegisterBatch(newRecord);
+      const newRecord: AsphaltBatchRecord = {
+        id: `asp-${Date.now()}`,
+        ticketNumber: ticketNo,
+        supplierName,
+        mixType,
+        truckRegNo: truckReg,
+        tonnageTons: parseFloat(tonnage).toFixed(2),
+        chainage: `${chainageStart} - ${chainageEnd} (${laneDirection})`,
+        chainageStart,
+        chainageEnd,
+        laneDirection,
+        plantTempC: parseFloat(plantTemp).toFixed(1),
+        deliveryTempC: parseFloat(deliveryTemp).toFixed(1),
+        breakdownTempC: parseFloat(breakdownTemp).toFixed(1),
+        finishTempC: parseFloat(finishTemp).toFixed(1),
+        thermalVerdict,
+        designThicknessMm: parseFloat(designThickness).toFixed(2),
+        qaVerdict: 'PENDING_CORES',
+        status: thermalVerdict === 'REJECTED_COLD_PAVING' ? 'REJECTED' : 'LAID',
+        createdAt: new Date().toISOString(),
+      };
+
+      if (onRegisterBatch) {
+        await onRegisterBatch(newRecord);
+      }
+
+      setBatches([newRecord, ...batches]);
+      setShowAddModal(false);
+      setTruckReg('');
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to register asphalt batch');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setBatches([newRecord, ...batches]);
-    setShowAddModal(false);
-    setTruckReg('');
   };
 
   const handleRecordCore = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBatch) return;
+    setErrorMessage(null);
+    setIsSubmitting(true);
 
-    const coreThick = parseFloat(coreThickness);
-    const designThick = parseFloat(selectedBatch.designThicknessMm || '50.0');
-    const cDens = parseFloat(coreDensity);
-    const mDens = parseFloat(marshallDensity);
-    const compPct = (cDens / mDens) * 100;
+    try {
+      const coreThick = parseFloat(coreThickness);
+      const designThick = parseFloat(selectedBatch.designThicknessMm || '50.0');
+      const cDens = parseFloat(coreDensity);
+      const mDens = parseFloat(marshallDensity);
+      const compPct = (cDens / mDens) * 100;
 
-    let qaVerdict: AsphaltBatchRecord['qaVerdict'] = 'ACCEPTED';
-    if (compPct < 97.0 || coreThick < designThick - 3.0) qaVerdict = 'REJECTED_UNDER_COMPACTED';
-    else if (coreThick < designThick) qaVerdict = 'CONDITIONAL_PENALTY';
+      let qaVerdict: AsphaltBatchRecord['qaVerdict'] = 'ACCEPTED';
+      if (compPct < 97.0 || coreThick < designThick - 3.0) qaVerdict = 'REJECTED_UNDER_COMPACTED';
+      else if (coreThick < designThick) qaVerdict = 'CONDITIONAL_PENALTY';
 
-    if (onRecordCoreTest) {
-      await onRecordCoreTest(selectedBatch.id, {
-        coreThicknessMm: coreThick.toFixed(2),
-        coreDensityGCm3: cDens.toFixed(3),
-        marshallDensityGCm3: mDens.toFixed(3),
-      });
+      const isPriorRejected = selectedBatch.status === 'REJECTED' || selectedBatch.thermalVerdict === 'REJECTED_COLD_PAVING';
+      const newStatus = isPriorRejected
+        ? 'REJECTED'
+        : (qaVerdict === 'REJECTED_UNDER_COMPACTED' ? 'REJECTED' : 'COMPLETED');
+
+      if (onRecordCoreTest) {
+        await onRecordCoreTest(selectedBatch.id, {
+          coreThicknessMm: coreThick.toFixed(2),
+          coreDensityGCm3: cDens.toFixed(3),
+          marshallDensityGCm3: mDens.toFixed(3),
+        });
+      }
+
+      setBatches((prev) =>
+        prev.map((b) => {
+          if (b.id === selectedBatch.id) {
+            return {
+              ...b,
+              coreThicknessMm: coreThick.toFixed(1),
+              coreDensityGCm3: cDens.toFixed(3),
+              marshallDensityGCm3: mDens.toFixed(3),
+              compactionPercent: compPct.toFixed(2),
+              qaVerdict,
+              status: newStatus,
+            };
+          }
+          return b;
+        })
+      );
+      setShowCoreModal(false);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to record core test');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setBatches((prev) =>
-      prev.map((b) => {
-        if (b.id === selectedBatch.id) {
-          return {
-            ...b,
-            coreThicknessMm: coreThick.toFixed(1),
-            coreDensityGCm3: cDens.toFixed(3),
-            marshallDensityGCm3: mDens.toFixed(3),
-            compactionPercent: compPct.toFixed(2),
-            qaVerdict,
-            status: qaVerdict === 'REJECTED_UNDER_COMPACTED' ? 'REJECTED' : 'COMPLETED',
-          };
-        }
-        return b;
-      })
-    );
-    setShowCoreModal(false);
   };
 
   return (
@@ -337,14 +361,14 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
           <table className="min-w-full divide-y divide-gray-200 text-sm text-left">
             <thead className="bg-gray-50 text-gray-600 font-semibold text-xs uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3">Ticket &amp; Truck</th>
-                <th className="px-4 py-3">Mix &amp; Quantity</th>
-                <th className="px-4 py-3">Chainage Location</th>
-                <th className="px-4 py-3">Thermal Envelope</th>
-                <th className="px-4 py-3">Thermal Status</th>
-                <th className="px-4 py-3">Core Verification</th>
-                <th className="px-4 py-3">Core QA</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th scope="col" className="px-4 py-3">Ticket &amp; Truck</th>
+                <th scope="col" className="px-4 py-3">Mix &amp; Quantity</th>
+                <th scope="col" className="px-4 py-3">Chainage Location</th>
+                <th scope="col" className="px-4 py-3">Thermal Envelope</th>
+                <th scope="col" className="px-4 py-3">Thermal Status</th>
+                <th scope="col" className="px-4 py-3">Core Verification</th>
+                <th scope="col" className="px-4 py-3">Core QA</th>
+                <th scope="col" className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -410,23 +434,40 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
       {/* MODAL 1: Log Asphalt Batch Ticket */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-asphalt-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4"
+        >
           <div className="bg-white rounded-xl shadow-xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Log Asphalt Concrete Paving Batch</h3>
+                <h3 id="modal-asphalt-title" className="text-lg font-bold text-gray-900">Log Asphalt Concrete Paving Batch</h3>
                 <p className="text-xs text-gray-500">BS 594987 Plant Delivery &amp; Compaction Thermal Quality</p>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 text-lg">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                aria-label="Close modal"
+                className="text-gray-400 hover:text-gray-600 text-lg"
+              >
                 ✕
               </button>
             </div>
 
+            {errorMessage && (
+              <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium">
+                ⚠️ {errorMessage}
+              </div>
+            )}
+
             <form onSubmit={handleCreateBatch} className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Batch Ticket No *</label>
+                  <label htmlFor="asphalt-ticket-no" className="block text-xs font-medium text-gray-700">Batch Ticket No *</label>
                   <input
+                    id="asphalt-ticket-no"
                     type="text"
                     required
                     value={ticketNo}
@@ -435,8 +476,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Truck Registration No *</label>
+                  <label htmlFor="asphalt-truck-reg" className="block text-xs font-medium text-gray-700">Truck Registration No *</label>
                   <input
+                    id="asphalt-truck-reg"
                     type="text"
                     required
                     placeholder="e.g. KDF 994L"
@@ -449,8 +491,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Asphalt Supplier *</label>
+                  <label htmlFor="asphalt-supplier" className="block text-xs font-medium text-gray-700">Asphalt Supplier *</label>
                   <input
+                    id="asphalt-supplier"
                     type="text"
                     required
                     value={supplierName}
@@ -459,8 +502,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Pavement Mix Type *</label>
+                  <label htmlFor="asphalt-mix-type" className="block text-xs font-medium text-gray-700">Pavement Mix Type *</label>
                   <select
+                    id="asphalt-mix-type"
                     value={mixType}
                     onChange={(e) => setMixType(e.target.value as any)}
                     className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
@@ -476,8 +520,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Tonnage (Tonnes) *</label>
+                  <label htmlFor="asphalt-tonnage" className="block text-xs font-medium text-gray-700">Tonnage (Tonnes) *</label>
                   <input
+                    id="asphalt-tonnage"
                     type="number"
                     step="0.1"
                     required
@@ -487,8 +532,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Design Thickness (mm)</label>
+                  <label htmlFor="asphalt-design-thickness" className="block text-xs font-medium text-gray-700">Design Thickness (mm)</label>
                   <input
+                    id="asphalt-design-thickness"
                     type="number"
                     step="1"
                     required
@@ -501,8 +547,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Chainage Start *</label>
+                  <label htmlFor="asphalt-chainage-start" className="block text-xs font-medium text-gray-700">Chainage Start *</label>
                   <input
+                    id="asphalt-chainage-start"
                     type="text"
                     required
                     placeholder="Ch 12+100"
@@ -512,8 +559,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Chainage End *</label>
+                  <label htmlFor="asphalt-chainage-end" className="block text-xs font-medium text-gray-700">Chainage End *</label>
                   <input
+                    id="asphalt-chainage-end"
                     type="text"
                     required
                     placeholder="Ch 12+350"
@@ -523,8 +571,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Lane Direction</label>
+                  <label htmlFor="asphalt-lane-direction" className="block text-xs font-medium text-gray-700">Lane Direction</label>
                   <select
+                    id="asphalt-lane-direction"
                     value={laneDirection}
                     onChange={(e) => setLaneDirection(e.target.value)}
                     className="mt-1 w-full border border-gray-300 rounded-lg px-2 py-2 text-xs"
@@ -545,8 +594,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                 </span>
                 <div className="grid grid-cols-4 gap-2 text-xs">
                   <div>
-                    <label className="block text-gray-500">Plant Discharge</label>
+                    <label htmlFor="asphalt-plant-temp" className="block text-gray-500">Plant Discharge</label>
                     <input
+                      id="asphalt-plant-temp"
                       type="number"
                       step="0.5"
                       required
@@ -556,8 +606,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-500">Site Delivery (≥140°)</label>
+                    <label htmlFor="asphalt-delivery-temp" className="block text-gray-500">Site Delivery (≥140°)</label>
                     <input
+                      id="asphalt-delivery-temp"
                       type="number"
                       step="0.5"
                       required
@@ -567,8 +618,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-500">Breakdown Rolling</label>
+                    <label htmlFor="asphalt-breakdown-temp" className="block text-gray-500">Breakdown Rolling</label>
                     <input
+                      id="asphalt-breakdown-temp"
                       type="number"
                       step="0.5"
                       required
@@ -578,8 +630,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-500">Finish Rolling (≥85°)</label>
+                    <label htmlFor="asphalt-finish-temp" className="block text-gray-500">Finish Rolling (≥85°)</label>
                     <input
+                      id="asphalt-finish-temp"
                       type="number"
                       step="0.5"
                       required
@@ -592,8 +645,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700">Inspecting Resident Engineer *</label>
+                <label htmlFor="asphalt-inspector-name" className="block text-xs font-medium text-gray-700">Inspecting Resident Engineer *</label>
                 <input
+                  id="asphalt-inspector-name"
                   type="text"
                   required
                   value={inspectorName}
@@ -607,11 +661,16 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                   type="button"
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-gray-900 text-white font-medium rounded-lg hover:bg-black">
-                  Save Pavement Batch Ticket
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-gray-900 text-white font-medium rounded-lg hover:bg-black disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Pavement Batch Ticket'}
                 </button>
               </div>
             </form>
@@ -621,17 +680,33 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
       {/* MODAL 2: Record Core Drill Extraction */}
       {showCoreModal && selectedBatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-core-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4"
+        >
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Record Pavement Core Extraction</h3>
+                <h3 id="modal-core-title" className="text-lg font-bold text-gray-900">Record Pavement Core Extraction</h3>
                 <p className="text-xs text-gray-500">Batch: {selectedBatch.ticketNumber} • {selectedBatch.chainage}</p>
               </div>
-              <button onClick={() => setShowCoreModal(false)} className="text-gray-400 hover:text-gray-600 text-lg">
+              <button
+                type="button"
+                onClick={() => setShowCoreModal(false)}
+                aria-label="Close modal"
+                className="text-gray-400 hover:text-gray-600 text-lg"
+              >
                 ✕
               </button>
             </div>
+
+            {errorMessage && (
+              <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium">
+                ⚠️ {errorMessage}
+              </div>
+            )}
 
             <form onSubmit={handleRecordCore} className="space-y-4 text-sm">
               <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-xs space-y-1">
@@ -640,8 +715,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700">Extracted Core Thickness (mm) *</label>
+                <label htmlFor="core-thickness" className="block text-xs font-medium text-gray-700">Extracted Core Thickness (mm) *</label>
                 <input
+                  id="core-thickness"
                   type="number"
                   step="0.5"
                   required
@@ -653,8 +729,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">In-Situ Core Density (g/cm³) *</label>
+                  <label htmlFor="core-density" className="block text-xs font-medium text-gray-700">In-Situ Core Density (g/cm³) *</label>
                   <input
+                    id="core-density"
                     type="number"
                     step="0.001"
                     required
@@ -664,8 +741,9 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">Marshall Lab Density (g/cm³) *</label>
+                  <label htmlFor="marshall-density" className="block text-xs font-medium text-gray-700">Marshall Lab Density (g/cm³) *</label>
                   <input
+                    id="marshall-density"
                     type="number"
                     step="0.001"
                     required
@@ -696,11 +774,16 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                   type="button"
                   onClick={() => setShowCoreModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700">
-                  Save Core Verification
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Core Verification'}
                 </button>
               </div>
             </form>
