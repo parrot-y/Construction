@@ -20,6 +20,8 @@ import { GeofencedClockInView } from './GeofencedClockInView';
 import { PlantTelematicsView } from './PlantTelematicsView';
 import { BarBendingScheduleView } from './BarBendingScheduleView';
 import { RmcTransitTrackerView } from './RmcTransitTrackerView';
+import { GeotechnicalSoilView } from './GeotechnicalSoilView';
+import { AsphaltPavementView } from './AsphaltPavementView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -289,6 +291,18 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
 
       {/* BS EN 206 / KS 02-598 Ready-Mix Concrete Transit Slump Tracker (Milestone M27) */}
       <RmcTransitTrackerView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+      />
+
+      {/* Geotechnical Soil Compaction QA Engine (Milestone M29) */}
+      <GeotechnicalSoilView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+      />
+
+      {/* Asphalt Pavement Quality & Thermal Tracker (Milestone M30) */}
+      <AsphaltPavementView
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
       />

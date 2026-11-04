@@ -1263,6 +1263,89 @@ export const CreateStructuralSteelTakeoffSchema = z.object({
 });
 export type CreateStructuralSteelTakeoff = z.infer<typeof CreateStructuralSteelTakeoffSchema>;
 
+// -------------------------------------------------------------
+// GEOTECHNICAL SOIL COMPACTION QA ENGINE (MILESTONE M29)
+// -------------------------------------------------------------
+export const SoilLayerTypeEnum = z.enum([
+  'SUBGRADE',
+  'SUBBASE',
+  'BASE_COURSE',
+  'FOUNDATION_PAD',
+  'EMBANKMENT_FILL',
+]);
+export type SoilLayerType = z.infer<typeof SoilLayerTypeEnum>;
+
+export const SoilTestMethodEnum = z.enum([
+  'SAND_REPLACEMENT',
+  'NUCLEAR_GAUGE',
+  'CORE_CUTTER',
+]);
+export type SoilTestMethod = z.infer<typeof SoilTestMethodEnum>;
+
+export const CreateGeotechnicalSoilTestSchema = z.object({
+  testNumber: z.string().min(2).max(100),
+  testDate: z.string().optional(),
+  locationElement: z.string().min(2).max(255),
+  layerType: SoilLayerTypeEnum.default('SUBBASE'),
+  testMethod: SoilTestMethodEnum.default('SAND_REPLACEMENT'),
+  laboratoryMddGCm3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
+  laboratoryOmcPercent: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+  fieldWetDensityGCm3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
+  fieldMoisturePercent: z.union([z.number().nonnegative(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+  requiredCompactionPercent: z.union([z.number().positive(), z.string()]).optional().default(95.0),
+  dcpBlowsPer100mm: z.number().int().positive().optional().nullable(),
+  inspectedBy: z.string().min(2).max(255),
+});
+export type CreateGeotechnicalSoilTest = z.infer<typeof CreateGeotechnicalSoilTestSchema>;
+
+// -------------------------------------------------------------
+// ASPHALT PAVEMENT QUALITY & THERMAL TRACKER (MILESTONE M30)
+// -------------------------------------------------------------
+export const AsphaltMixTypeEnum = z.enum([
+  'AC_20_BASE',
+  'AC_14_WEARING',
+  'SUPERPAVE_19',
+  'SUPERPAVE_12_5',
+  'BITUMEN_MACADAM',
+]);
+export type AsphaltMixType = z.infer<typeof AsphaltMixTypeEnum>;
+
+export const LaneDirectionEnum = z.enum([
+  'NORTHBOUND',
+  'SOUTHBOUND',
+  'EASTBOUND',
+  'WESTBOUND',
+  'MAIN_CARRIAGEWAY',
+  'SERVICE_LANE',
+]);
+export type LaneDirection = z.infer<typeof LaneDirectionEnum>;
+
+export const CreateAsphaltPavementBatchSchema = z.object({
+  ticketNumber: z.string().min(2).max(100),
+  supplierName: z.string().min(2).max(255),
+  mixType: AsphaltMixTypeEnum.default('AC_14_WEARING'),
+  truckRegNo: z.string().min(3).max(50),
+  tonnageTons: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+  chainageStart: z.string().min(1).max(50),
+  chainageEnd: z.string().min(1).max(50),
+  laneDirection: LaneDirectionEnum.default('NORTHBOUND'),
+  plantTempC: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]),
+  deliveryTempC: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]),
+  breakdownTempC: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]),
+  finishTempC: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]),
+  designThicknessMm: z.union([z.number().positive(), z.string()]).optional().default(50.0),
+  inspectedBy: z.string().min(2).max(255),
+});
+export type CreateAsphaltPavementBatch = z.infer<typeof CreateAsphaltPavementBatchSchema>;
+
+export const RecordAsphaltCoreTestSchema = z.object({
+  coreThicknessMm: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+  coreDensityGCm3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
+  marshallDensityGCm3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
+  inspectedBy: z.string().min(2).max(255).optional(),
+});
+export type RecordAsphaltCoreTest = z.infer<typeof RecordAsphaltCoreTestSchema>;
+
 
 
 

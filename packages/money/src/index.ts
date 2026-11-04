@@ -684,3 +684,173 @@ export function calculateStructuralMemberTotals(
   };
 }
 
+// =============================================================
+// GEOTECHNICAL SOIL COMPACTION QA ENGINE (MILESTONE M29)
+// =============================================================
+
+export interface SoilCompactionEvaluation {
+  fieldDryDensityGCm3: Decimal;
+  relativeCompactionPercent: Decimal;
+  moistureDeviationPercent: Decimal;
+  estimatedCbrPercent: Decimal | null;
+  verdict: 'PASS' | 'FAIL_LOW_COMPACTION' | 'FAIL_MOISTURE_EXCESS' | 'FAIL_MOISTURE_DEFICIT';
+  isPass: boolean;
+  message: string;
+}
+
+export function calculateSoilCompaction(
+  laboratoryMddGCm3: DecimalValue,
+  laboratoryOmcPercent: DecimalValue,
+  fieldWetDensityGCm3: DecimalValue,
+  fieldMoisturePercent: DecimalValue,
+  requiredCompactionPercent: DecimalValue = 95.0,
+  dcpBlowsPer100mm?: number | null,
+): SoilCompactionEvaluation {
+  const labMdd = toDecimal(laboratoryMddGCm3);
+  const labOmc = toDecimal(laboratoryOmcPercent);
+  const wetDensity = toDecimal(fieldWetDensityGCm3);
+  const fieldMoisture = toDecimal(fieldMoisturePercent);
+  const reqCompaction = toDecimal(requiredCompactionPercent);
+
+  // Field dry density rho_d = rho_wet / (1 + w/100)
+  const moistureFactor = toDecimal(1).plus(fieldMoisture.dividedBy(100));
+  const fieldDryDensityGCm3 = wetDensity.dividedBy(moistureFactor).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+
+  // Relative Compaction RC % = (rho_d / rho_max) * 100
+  const relativeCompactionPercent = fieldDryDensityGCm3
+    .dividedBy(labMdd)
+    .times(100)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  // Delta moisture w_field - w_omc
+  const moistureDeviationPercent = fieldMoisture.minus(labOmc).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  // Estimated CBR % from DCP: CBR = 410 / (100 / blows)^1.27
+  let estimatedCbrPercent: Decimal | null = null;
+  if (dcpBlowsPer100mm && dcpBlowsPer100mm > 0) {
+    const penetrationRateMmPerBlow = 100 / dcpBlowsPer100mm;
+    const cbrValue = 410 / Math.pow(penetrationRateMmPerBlow, 1.27);
+    estimatedCbrPercent = new Decimal(Math.min(100, Math.max(1, cbrValue))).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  }
+
+  let verdict: SoilCompactionEvaluation['verdict'] = 'PASS';
+  let message = 'Compaction meets specification requirements (BS 1377 / KS 02-102).';
+
+  if (relativeCompactionPercent.lessThan(reqCompaction)) {
+    verdict = 'FAIL_LOW_COMPACTION';
+    message = `Insufficient relative compaction: achieved ${relativeCompactionPercent.toFixed(2)}% vs required ${reqCompaction.toFixed(2)}%. Additional roller passes required.`;
+  } else if (moistureDeviationPercent.greaterThan(2.5)) {
+    verdict = 'FAIL_MOISTURE_EXCESS';
+    message = `Excess moisture (+${moistureDeviationPercent.toFixed(2)}% above OMC): risk of heaving/spongy subgrade. Aeration required before recompaction.`;
+  } else if (moistureDeviationPercent.lessThan(-3.0)) {
+    verdict = 'FAIL_MOISTURE_DEFICIT';
+    message = `Moisture deficit (${moistureDeviationPercent.toFixed(2)}% below OMC): brittle compaction. Water spraying required.`;
+  }
+
+  return {
+    fieldDryDensityGCm3,
+    relativeCompactionPercent,
+    moistureDeviationPercent,
+    estimatedCbrPercent,
+    verdict,
+    isPass: verdict === 'PASS',
+    message,
+  };
+}
+
+// =============================================================
+// ASPHALT PAVEMENT QUALITY & THERMAL TRACKER (MILESTONE M30)
+// =============================================================
+
+export interface AsphaltThermalEvaluation {
+  thermalVerdict: 'COMPLIANT' | 'COLD_MIX_WARNING' | 'REJECTED_COLD_PAVING';
+  isPavingApproved: boolean;
+  message: string;
+}
+
+export function evaluateAsphaltThermalQuality(
+  plantTempC: DecimalValue,
+  deliveryTempC: DecimalValue,
+  breakdownTempC: DecimalValue,
+  finishTempC: DecimalValue,
+): AsphaltThermalEvaluation {
+  const plant = toDecimal(plantTempC);
+  const delivery = toDecimal(deliveryTempC);
+  const breakdown = toDecimal(breakdownTempC);
+  const finish = toDecimal(finishTempC);
+
+  if (delivery.lessThan(135.0) || finish.lessThan(80.0) || plant.greaterThan(190.0)) {
+    return {
+      thermalVerdict: 'REJECTED_COLD_PAVING',
+      isPavingApproved: false,
+      message: `CRITICAL THERMAL DEFICIT: Delivery ${delivery.toFixed(1)}°C (<135°C threshold), Finish ${finish.toFixed(1)}°C (<80°C freeze point), or Plant ${plant.toFixed(1)}°C (>190°C oxidation). Risk of severe aggregate crushing and premature raveling.`,
+    };
+  }
+
+  if (
+    delivery.lessThan(140.0) ||
+    finish.lessThan(85.0) ||
+    breakdown.lessThan(120.0) ||
+    plant.lessThan(150.0) ||
+    plant.greaterThan(180.0)
+  ) {
+    return {
+      thermalVerdict: 'COLD_MIX_WARNING',
+      isPavingApproved: true,
+      message: `THERMAL WARNING: Delivery ${delivery.toFixed(1)}°C (target ≥140°C), Breakdown ${breakdown.toFixed(1)}°C (target 120-140°C), or Finish ${finish.toFixed(1)}°C (target ≥85°C). Accelerate rolling train immediately.`,
+    };
+  }
+
+  return {
+    thermalVerdict: 'COMPLIANT',
+    isPavingApproved: true,
+    message: 'Asphalt paving temperatures within optimal BS 594987 / KS 02-1025 specifications.',
+  };
+}
+
+export interface AsphaltCoreEvaluation {
+  thicknessDeviationMm: Decimal;
+  compactionPercent: Decimal;
+  qaVerdict: 'ACCEPTED' | 'CONDITIONAL_PENALTY' | 'REJECTED_UNDER_COMPACTED';
+  isAccepted: boolean;
+  message: string;
+}
+
+export function calculateAsphaltCoreCompaction(
+  coreThicknessMm: DecimalValue,
+  designThicknessMm: DecimalValue,
+  coreDensityGCm3: DecimalValue,
+  marshallDensityGCm3: DecimalValue,
+): AsphaltCoreEvaluation {
+  const coreThick = toDecimal(coreThicknessMm);
+  const designThick = toDecimal(designThicknessMm);
+  const coreDensity = toDecimal(coreDensityGCm3);
+  const marshallDensity = toDecimal(marshallDensityGCm3);
+
+  const thicknessDeviationMm = coreThick.minus(designThick).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const compactionPercent = coreDensity
+    .dividedBy(marshallDensity)
+    .times(100)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  let qaVerdict: AsphaltCoreEvaluation['qaVerdict'] = 'ACCEPTED';
+  let message = 'Core compaction and thickness fully satisfy specification.';
+
+  // Target compaction >= 97.0% per road specification
+  if (compactionPercent.lessThan(97.0) || coreThick.lessThan(designThick.minus(3.0))) {
+    qaVerdict = 'REJECTED_UNDER_COMPACTED';
+    message = `Non-compliant core: Compaction ${compactionPercent.toFixed(2)}% (<97.0%) or Thickness ${coreThick.toFixed(1)}mm (<${designThick.minus(3.0).toFixed(1)}mm min). Milling and overlay required.`;
+  } else if (coreThick.lessThan(designThick)) {
+    qaVerdict = 'CONDITIONAL_PENALTY';
+    message = `Minor thickness deficit (${thicknessDeviationMm.toFixed(1)}mm vs design ${designThick.toFixed(1)}mm): Compaction ${compactionPercent.toFixed(2)}% passed. Subject to contract payment reduction.`;
+  }
+
+  return {
+    thicknessDeviationMm,
+    compactionPercent,
+    qaVerdict,
+    isAccepted: qaVerdict !== 'REJECTED_UNDER_COMPACTED',
+    message,
+  };
+}
+

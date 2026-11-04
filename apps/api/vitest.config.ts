@@ -8,7 +8,7 @@ export default defineConfig({
     env: {
       DATABASE_URL:
         process.env.DATABASE_URL ||
-        'postgresql://db_app:app_secret@127.0.0.1:54329/construction_test?schema=public',
+        'postgresql://db_app:app_secret@localhost:54329/construction_test?host=/tmp',
       JWT_SECRET: process.env.JWT_SECRET || 'dev-super-secure-jwt-signing-secret-key-32-chars-minimum!',
       COOKIE_SECRET: process.env.COOKIE_SECRET || 'dev-super-secure-cookie-secret-key-32-chars!',
     },

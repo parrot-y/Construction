@@ -8,6 +8,9 @@ import {
   evaluateRmcSlumpTolerance,
   getStructuralSteelSection,
   calculateStructuralMemberTotals,
+  calculateSoilCompaction,
+  evaluateAsphaltThermalQuality,
+  calculateAsphaltCoreCompaction,
 } from '@construction/money';
 import {
   InitiateMpesaStkPushSchema,
@@ -24,6 +27,9 @@ import {
   RecordRmcSlumpTestSchema,
   UpdateRmcDischargeSchema,
   CreateStructuralSteelTakeoffSchema,
+  CreateGeotechnicalSoilTestSchema,
+  CreateAsphaltPavementBatchSchema,
+  RecordAsphaltCoreTestSchema,
 } from '@construction/validation';
 import * as crypto from 'crypto';
 
@@ -2250,6 +2256,474 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             takeoffId: updated.id,
             takeoffNo: updated.takeoff_no,
             status: updated.status,
+            updatedAt: updated.updated_at.toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // =============================================================
+  // SECTION 8: GEOTECHNICAL SOIL COMPACTION QA ENGINE (MILESTONE M29)
+  // =============================================================
+
+  // 8.1 Record Geotechnical Soil Compaction Test
+  server.post(
+    '/api/v1/projects/:projectId/soil-tests',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      const parseResult = CreateGeotechnicalSoilTestSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid geotechnical soil test payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        testNumber,
+        testDate,
+        locationElement,
+        layerType,
+        testMethod,
+        laboratoryMddGCm3,
+        laboratoryOmcPercent,
+        fieldWetDensityGCm3,
+        fieldMoisturePercent,
+        requiredCompactionPercent,
+        dcpBlowsPer100mm,
+        inspectedBy,
+      } = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          // Engineering compaction math
+          const compactionEval = calculateSoilCompaction(
+            laboratoryMddGCm3,
+            laboratoryOmcPercent,
+            fieldWetDensityGCm3,
+            fieldMoisturePercent,
+            requiredCompactionPercent,
+            dcpBlowsPer100mm
+          );
+
+          const soilTest = await tx.geotechnicalSoilTest.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              test_number: testNumber,
+              test_date: testDate ? new Date(testDate) : new Date(),
+              location_element: locationElement,
+              layer_type: layerType,
+              test_method: testMethod,
+              laboratory_mdd_g_cm3: toDecimal(laboratoryMddGCm3).toFixed(3),
+              laboratory_omc_percent: toDecimal(laboratoryOmcPercent).toFixed(2),
+              field_wet_density_g_cm3: toDecimal(fieldWetDensityGCm3).toFixed(3),
+              field_moisture_percent: toDecimal(fieldMoisturePercent).toFixed(2),
+              field_dry_density_g_cm3: compactionEval.fieldDryDensityGCm3.toFixed(3),
+              relative_compaction_percent: compactionEval.relativeCompactionPercent.toFixed(2),
+              required_compaction_percent: toDecimal(requiredCompactionPercent).toFixed(2),
+              dcp_blows_per_100mm: dcpBlowsPer100mm || null,
+              estimated_cbr_percent: compactionEval.estimatedCbrPercent ? compactionEval.estimatedCbrPercent.toFixed(2) : null,
+              qa_verdict: compactionEval.verdict,
+              inspected_by: inspectedBy,
+              status: compactionEval.isPass ? 'VERIFIED' : 'RE_COMPACTION_REQUIRED',
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'RECORD_GEOTECHNICAL_SOIL_TEST',
+            entityType: 'GeotechnicalSoilTest',
+            entityId: soilTest.id,
+            changes: {
+              testNumber,
+              layerType,
+              relativeCompactionPercent: compactionEval.relativeCompactionPercent.toFixed(2),
+              qaVerdict: compactionEval.verdict,
+            },
+          });
+
+          return {
+            id: soilTest.id,
+            testNumber: soilTest.test_number,
+            locationElement: soilTest.location_element,
+            layerType: soilTest.layer_type,
+            testMethod: soilTest.test_method,
+            laboratoryMddGCm3: toDecimal(soilTest.laboratory_mdd_g_cm3.toString()).toFixed(3),
+            laboratoryOmcPercent: toDecimal(soilTest.laboratory_omc_percent.toString()).toFixed(2),
+            fieldWetDensityGCm3: toDecimal(soilTest.field_wet_density_g_cm3.toString()).toFixed(3),
+            fieldMoisturePercent: toDecimal(soilTest.field_moisture_percent.toString()).toFixed(2),
+            fieldDryDensityGCm3: toDecimal(soilTest.field_dry_density_g_cm3.toString()).toFixed(3),
+            relativeCompactionPercent: toDecimal(soilTest.relative_compaction_percent.toString()).toFixed(2),
+            requiredCompactionPercent: toDecimal(soilTest.required_compaction_percent.toString()).toFixed(2),
+            dcpBlowsPer100mm: soilTest.dcp_blows_per_100mm,
+            estimatedCbrPercent: soilTest.estimated_cbr_percent ? toDecimal(soilTest.estimated_cbr_percent.toString()).toFixed(2) : null,
+            qaVerdict: soilTest.qa_verdict,
+            isPass: compactionEval.isPass,
+            status: soilTest.status,
+            inspectedBy: soilTest.inspected_by,
+            createdAt: soilTest.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 8.2 List Geotechnical Soil Tests for Project
+  server.get(
+    '/api/v1/projects/:projectId/soil-tests',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const tests = await tx.geotechnicalSoilTest.findMany({
+            where: { project_id: projectId },
+            orderBy: { test_date: 'desc' },
+          });
+
+          const passedCount = tests.filter((t) => t.qa_verdict === 'PASS').length;
+          const failedCount = tests.length - passedCount;
+
+          return {
+            projectId,
+            summary: {
+              totalTests: tests.length,
+              passedCount,
+              failedCount,
+              complianceRatePercent: tests.length > 0 ? ((passedCount / tests.length) * 100).toFixed(1) : '100.0',
+            },
+            tests: tests.map((t) => ({
+              id: t.id,
+              testNumber: t.test_number,
+              testDate: t.test_date.toISOString(),
+              locationElement: t.location_element,
+              layerType: t.layer_type,
+              testMethod: t.test_method,
+              relativeCompactionPercent: toDecimal(t.relative_compaction_percent.toString()).toFixed(2),
+              requiredCompactionPercent: toDecimal(t.required_compaction_percent.toString()).toFixed(2),
+              estimatedCbrPercent: t.estimated_cbr_percent ? toDecimal(t.estimated_cbr_percent.toString()).toFixed(2) : null,
+              qaVerdict: t.qa_verdict,
+              status: t.status,
+              inspectedBy: t.inspected_by,
+            })),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // =============================================================
+  // SECTION 9: ASPHALT PAVEMENT QUALITY & THERMAL TRACKER (MILESTONE M30)
+  // =============================================================
+
+  // 9.1 Register Asphalt Pavement Batch with Thermal Quality
+  server.post(
+    '/api/v1/projects/:projectId/asphalt-batches',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      const parseResult = CreateAsphaltPavementBatchSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid asphalt pavement batch payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        ticketNumber,
+        supplierName,
+        mixType,
+        truckRegNo,
+        tonnageTons,
+        chainageStart,
+        chainageEnd,
+        laneDirection,
+        plantTempC,
+        deliveryTempC,
+        breakdownTempC,
+        finishTempC,
+        designThicknessMm,
+        inspectedBy,
+      } = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const thermalEval = evaluateAsphaltThermalQuality(plantTempC, deliveryTempC, breakdownTempC, finishTempC);
+
+          const batch = await tx.asphaltPavementBatch.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              ticket_number: ticketNumber,
+              supplier_name: supplierName,
+              mix_type: mixType,
+              truck_reg_no: truckRegNo,
+              tonnage_tons: toDecimal(tonnageTons).toFixed(2),
+              chainage_start: chainageStart,
+              chainage_end: chainageEnd,
+              lane_direction: laneDirection,
+              plant_temp_c: toDecimal(plantTempC).toFixed(1),
+              delivery_temp_c: toDecimal(deliveryTempC).toFixed(1),
+              breakdown_temp_c: toDecimal(breakdownTempC).toFixed(1),
+              finish_temp_c: toDecimal(finishTempC).toFixed(1),
+              thermal_verdict: thermalEval.thermalVerdict,
+              design_thickness_mm: toDecimal(designThicknessMm).toFixed(2),
+              inspected_by: inspectedBy,
+              status: thermalEval.isPavingApproved ? 'LAID' : 'REJECTED',
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'REGISTER_ASPHALT_PAVEMENT_BATCH',
+            entityType: 'AsphaltPavementBatch',
+            entityId: batch.id,
+            changes: {
+              ticketNumber,
+              mixType,
+              tonnageTons: toDecimal(tonnageTons).toFixed(2),
+              thermalVerdict: thermalEval.thermalVerdict,
+            },
+          });
+
+          return {
+            id: batch.id,
+            ticketNumber: batch.ticket_number,
+            mixType: batch.mix_type,
+            truckRegNo: batch.truck_reg_no,
+            tonnageTons: toDecimal(batch.tonnage_tons.toString()).toFixed(2),
+            chainageStart: batch.chainage_start,
+            chainageEnd: batch.chainage_end,
+            laneDirection: batch.lane_direction,
+            plantTempC: toDecimal(batch.plant_temp_c.toString()).toFixed(1),
+            deliveryTempC: toDecimal(batch.delivery_temp_c.toString()).toFixed(1),
+            breakdownTempC: toDecimal(batch.breakdown_temp_c.toString()).toFixed(1),
+            finishTempC: toDecimal(batch.finish_temp_c.toString()).toFixed(1),
+            thermalVerdict: batch.thermal_verdict,
+            isPavingApproved: thermalEval.isPavingApproved,
+            status: batch.status,
+            createdAt: batch.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 9.2 List Asphalt Pavement Batches for Project
+  server.get(
+    '/api/v1/projects/:projectId/asphalt-batches',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const batches = await tx.asphaltPavementBatch.findMany({
+            where: { project_id: projectId },
+            orderBy: { created_at: 'desc' },
+          });
+
+          let totalTonnage = toDecimal(0);
+          for (const b of batches) {
+            totalTonnage = totalTonnage.plus(toDecimal(b.tonnage_tons.toString()));
+          }
+
+          return {
+            projectId,
+            summary: {
+              totalTruckloads: batches.length,
+              totalTonnage: totalTonnage.toFixed(2),
+              compliantCount: batches.filter((b) => b.thermal_verdict === 'COMPLIANT').length,
+              rejectedCount: batches.filter((b) => b.status === 'REJECTED').length,
+              coresTestedCount: batches.filter((b) => b.core_density_g_cm3 !== null).length,
+            },
+            batches: batches.map((b) => ({
+              id: b.id,
+              ticketNumber: b.ticket_number,
+              supplierName: b.supplier_name,
+              mixType: b.mix_type,
+              truckRegNo: b.truck_reg_no,
+              tonnageTons: toDecimal(b.tonnage_tons.toString()).toFixed(2),
+              chainage: `${b.chainage_start} - ${b.chainage_end} (${b.lane_direction})`,
+              deliveryTempC: toDecimal(b.delivery_temp_c.toString()).toFixed(1),
+              finishTempC: toDecimal(b.finish_temp_c.toString()).toFixed(1),
+              thermalVerdict: b.thermal_verdict,
+              coreThicknessMm: b.core_thickness_mm ? toDecimal(b.core_thickness_mm.toString()).toFixed(1) : null,
+              compactionPercent: b.compaction_percent ? toDecimal(b.compaction_percent.toString()).toFixed(2) : null,
+              qaVerdict: b.qa_verdict,
+              status: b.status,
+              createdAt: b.created_at.toISOString(),
+            })),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 9.3 Record Core Extraction Test on Pavement Batch
+  server.patch(
+    '/api/v1/projects/:projectId/asphalt-batches/:batchId/core-test',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, batchId } = request.params as { projectId: string; batchId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(batchId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Batch not found' });
+      }
+
+      const parseResult = RecordAsphaltCoreTestSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid core test payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const { coreThicknessMm, coreDensityGCm3, marshallDensityGCm3, inspectedBy } = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const batch = await tx.asphaltPavementBatch.findFirst({
+            where: { id: batchId, project_id: projectId },
+          });
+          if (!batch) throw { status: 404, message: 'Asphalt pavement batch not found' };
+
+          const coreEval = calculateAsphaltCoreCompaction(
+            coreThicknessMm,
+            batch.design_thickness_mm,
+            coreDensityGCm3,
+            marshallDensityGCm3
+          );
+
+          const updated = await tx.asphaltPavementBatch.update({
+            where: { id: batchId },
+            data: {
+              core_thickness_mm: toDecimal(coreThicknessMm).toFixed(2),
+              core_density_g_cm3: toDecimal(coreDensityGCm3).toFixed(3),
+              marshall_density_g_cm3: toDecimal(marshallDensityGCm3).toFixed(3),
+              compaction_percent: coreEval.compactionPercent.toFixed(2),
+              qa_verdict: coreEval.qaVerdict,
+              status: coreEval.isAccepted ? 'COMPLETED' : 'REJECTED',
+              inspected_by: inspectedBy || batch.inspected_by,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'RECORD_ASPHALT_CORE_TEST',
+            entityType: 'AsphaltPavementBatch',
+            entityId: updated.id,
+            changes: {
+              coreThicknessMm: toDecimal(coreThicknessMm).toFixed(2),
+              compactionPercent: coreEval.compactionPercent.toFixed(2),
+              qaVerdict: coreEval.qaVerdict,
+            },
+          });
+
+          return {
+            id: updated.id,
+            ticketNumber: updated.ticket_number,
+            coreThicknessMm: toDecimal(updated.core_thickness_mm!.toString()).toFixed(1),
+            designThicknessMm: toDecimal(updated.design_thickness_mm.toString()).toFixed(1),
+            thicknessDeviationMm: coreEval.thicknessDeviationMm.toFixed(1),
+            coreDensityGCm3: toDecimal(updated.core_density_g_cm3!.toString()).toFixed(3),
+            marshallDensityGCm3: toDecimal(updated.marshall_density_g_cm3!.toString()).toFixed(3),
+            compactionPercent: toDecimal(updated.compaction_percent!.toString()).toFixed(2),
+            qaVerdict: updated.qa_verdict,
+            status: updated.status,
+            message: coreEval.message,
             updatedAt: updated.updated_at.toISOString(),
           };
         });

@@ -21,6 +21,9 @@ import {
   evaluateRmcSlumpTolerance,
   getStructuralSteelSection,
   calculateStructuralMemberTotals,
+  calculateSoilCompaction,
+  evaluateAsphaltThermalQuality,
+  calculateAsphaltCoreCompaction,
 } from './index';
 
 describe('packages/money financial precision suite', () => {
@@ -457,6 +460,84 @@ describe('packages/money financial precision suite', () => {
       expect(totals.totalWeightKg.toString()).toBe('7420');
       expect(totals.totalTonnage.toString()).toBe('7.42');
       expect(totals.totalPaintAreaM2.toString()).toBe('151');
+    });
+  });
+
+  describe('Milestone M29: Geotechnical Soil Compaction QA Engine', () => {
+    it('calculates relative compaction and validates PASS on acceptable moisture', () => {
+      // Lab MDD = 2.150 g/cm3, OMC = 9.50%
+      // Field wet density = 2.260 g/cm3, Field moisture = 10.00%
+      // Dry density = 2.260 / (1 + 0.10) = 2.0545 g/cm3 -> 2.055 g/cm3
+      // RC = (2.055 / 2.150) * 100 = 95.58%
+      const res = calculateSoilCompaction('2.150', '9.50', '2.260', '10.00', '95.00', 18);
+
+      expect(res.isPass).toBe(true);
+      expect(res.verdict).toBe('PASS');
+      expect(res.fieldDryDensityGCm3.toString()).toBe('2.055');
+      expect(res.relativeCompactionPercent.toString()).toBe('95.58');
+      expect(res.moistureDeviationPercent.toString()).toBe('0.5');
+      expect(res.estimatedCbrPercent).not.toBeNull();
+      // Penetration rate = 100 / 18 = 5.556 mm/blow -> CBR approx 46%
+      expect(res.estimatedCbrPercent?.toNumber()).toBeGreaterThan(40);
+    });
+
+    it('flags FAIL_LOW_COMPACTION when relative compaction is below required threshold', () => {
+      // Lab MDD = 2.200 g/cm3, Field wet = 2.100, moisture = 8.00%
+      // Dry density = 2.100 / 1.08 = 1.944 g/cm3
+      // RC = (1.944 / 2.200) * 100 = 88.36% (< 95%)
+      const res = calculateSoilCompaction('2.200', '8.50', '2.100', '8.00', '95.00');
+
+      expect(res.isPass).toBe(false);
+      expect(res.verdict).toBe('FAIL_LOW_COMPACTION');
+      expect(res.message).toContain('Additional roller passes required');
+    });
+
+    it('flags FAIL_MOISTURE_EXCESS when field moisture is > 2.5% above OMC', () => {
+      // Lab OMC = 10.0%, Field moisture = 13.5% (+3.5% excess)
+      // Even if RC >= 95%, spongy subgrade is rejected
+      const res = calculateSoilCompaction('2.000', '10.00', '2.200', '13.50', '95.00');
+
+      expect(res.isPass).toBe(false);
+      expect(res.verdict).toBe('FAIL_MOISTURE_EXCESS');
+      expect(res.message).toContain('heaving/spongy subgrade');
+    });
+  });
+
+  describe('Milestone M30: Asphalt Pavement Quality & Thermal Tracker', () => {
+    it('evaluates COMPLIANT thermal quality within BS 594987 temperature envelope', () => {
+      const evalResult = evaluateAsphaltThermalQuality('165.0', '148.0', '132.0', '92.0');
+      expect(evalResult.thermalVerdict).toBe('COMPLIANT');
+      expect(evalResult.isPavingApproved).toBe(true);
+    });
+
+    it('triggers REJECTED_COLD_PAVING when delivery or finish temperature is critically low', () => {
+      // Delivery temp 130°C < 135°C threshold
+      const evalResult = evaluateAsphaltThermalQuality('155.0', '130.0', '110.0', '75.0');
+      expect(evalResult.thermalVerdict).toBe('REJECTED_COLD_PAVING');
+      expect(evalResult.isPavingApproved).toBe(false);
+      expect(evalResult.message).toContain('CRITICAL THERMAL DEFICIT');
+    });
+
+    it('calculates asphalt core compaction and accepts compliant core samples', () => {
+      // Design thickness = 50.0mm, Core = 52.0mm
+      // Marshall density = 2.400 g/cm3, Core density = 2.340 g/cm3
+      // Compaction = (2.340 / 2.400) * 100 = 97.50% (>= 97%)
+      const coreRes = calculateAsphaltCoreCompaction('52.00', '50.00', '2.340', '2.400');
+
+      expect(coreRes.isAccepted).toBe(true);
+      expect(coreRes.qaVerdict).toBe('ACCEPTED');
+      expect(coreRes.compactionPercent.toString()).toBe('97.5');
+      expect(coreRes.thicknessDeviationMm.toString()).toBe('2');
+    });
+
+    it('flags CONDITIONAL_PENALTY when compaction is compliant but minor thickness deficit exists', () => {
+      // Design thickness = 50.0mm, Core = 48.0mm (-2.0mm deficit within -3.0mm allowable penalty band)
+      // Compaction = 98.0%
+      const coreRes = calculateAsphaltCoreCompaction('48.00', '50.00', '2.352', '2.400');
+
+      expect(coreRes.isAccepted).toBe(true);
+      expect(coreRes.qaVerdict).toBe('CONDITIONAL_PENALTY');
+      expect(coreRes.message).toContain('contract payment reduction');
     });
   });
 });

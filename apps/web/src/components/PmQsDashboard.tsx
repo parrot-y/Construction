@@ -34,6 +34,8 @@ import { BarBendingScheduleView } from './BarBendingScheduleView';
 import { MpesaDisbursementView } from './MpesaDisbursementView';
 import { RmcTransitTrackerView } from './RmcTransitTrackerView';
 import { StructuralSteelTakeoffView } from './StructuralSteelTakeoffView';
+import { GeotechnicalSoilView } from './GeotechnicalSoilView';
+import { AsphaltPavementView } from './AsphaltPavementView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -47,7 +49,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -154,6 +156,8 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'disbursements', label: '💸 M-Pesa B2C Payouts' },
           { id: 'rmc', label: '🚛 RMC Transit & Slump' },
           { id: 'steel', label: '⚙️ Structural Steel Takeoff' },
+          { id: 'soil', label: '⛰️ Geotechnical Soil QA' },
+          { id: 'asphalt', label: '🛣️ Asphalt Pavement QA' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -551,6 +555,22 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Structural Steel Framing & Fabrication Takeoff Engine (Milestone M28) */}
       {(activeTab === 'all' || activeTab === 'steel') && (
         <StructuralSteelTakeoffView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Geotechnical Soil Compaction QA Engine (Milestone M29) */}
+      {(activeTab === 'all' || activeTab === 'soil') && (
+        <GeotechnicalSoilView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Asphalt Pavement Quality & Thermal Tracker (Milestone M30) */}
+      {(activeTab === 'all' || activeTab === 'asphalt') && (
+        <AsphaltPavementView
           projectId="project-rcp-2026"
           projectName="Riverside Commercial Plaza"
         />

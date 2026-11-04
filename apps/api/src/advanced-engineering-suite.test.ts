@@ -315,4 +315,228 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
     });
     expect(crossTenantRes.statusCode).toBe(404);
   });
+
+  it('Milestone M29: Geotechnical Soil Compaction QA Engine', async () => {
+    const server = buildServer();
+
+    // 1. Authenticate PM/QS user
+    const loginRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: 'admin@apexbuilders.co.ke',
+        password: 'Password123!',
+      },
+    });
+    expect(loginRes.statusCode).toBe(200);
+    const { token } = JSON.parse(loginRes.payload);
+
+    // 2. Create Project
+    const projectRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/projects',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        name: 'Mombasa Road Dualing Phase 2',
+        code: `MRD-${Date.now().toString().slice(-4)}`,
+        originalContractSum: 350000000,
+        currentApprovedBudget: 350000000,
+      },
+    });
+    expect(projectRes.statusCode).toBe(201);
+    const { data: projectData } = JSON.parse(projectRes.payload);
+    const projectId = projectData.id;
+
+    // 3. Post Soil Compaction Test (Compliant)
+    const testNumber = `SOIL-CMP-${Date.now().toString().slice(-6)}`;
+    const soilRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/soil-tests`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        testNumber,
+        locationElement: 'Ch 2+400 - 2+650 Heavy Subbase',
+        layerType: 'SUBBASE',
+        testMethod: 'SAND_REPLACEMENT',
+        laboratoryMddGCm3: '2.150',
+        laboratoryOmcPercent: '9.50',
+        fieldWetDensityGCm3: '2.260',
+        fieldMoisturePercent: '10.00',
+        requiredCompactionPercent: '95.00',
+        dcpBlowsPer100mm: 18,
+        inspectedBy: 'Eng. Francis Kimani (Resident QA)',
+      },
+    });
+
+    expect(soilRes.statusCode).toBe(201);
+    const soilBody = JSON.parse(soilRes.payload);
+    expect(soilBody.testNumber).toBe(testNumber);
+    expect(soilBody.fieldDryDensityGCm3).toBe('2.055');
+    expect(soilBody.relativeCompactionPercent).toBe('95.58');
+    expect(soilBody.qaVerdict).toBe('PASS');
+    expect(soilBody.isPass).toBe(true);
+    expect(soilBody.status).toBe('VERIFIED');
+    expect(soilBody.estimatedCbrPercent).not.toBeNull();
+
+    // 4. List Soil Tests
+    const listRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/soil-tests`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(listRes.statusCode).toBe(200);
+    const listBody = JSON.parse(listRes.payload);
+    expect(listBody.summary.totalTests).toBe(1);
+    expect(listBody.summary.passedCount).toBe(1);
+    expect(listBody.summary.complianceRatePercent).toBe('100.0');
+
+    // 5. SQLi path rejection
+    const sqliRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/soil-tests/1' OR '1'='1`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(sqliRes.statusCode).toBe(404);
+
+    // 6. RLS Cross-tenant isolation verification
+    const tenantBId = '22222222-2222-2222-2222-222222222222';
+    const rogueToken = server.jwt.sign({
+      sub: 'user-b',
+      email: 'rogue@other.com',
+      fullName: 'Rogue User',
+      tenantId: tenantBId,
+      role: 'PM_QS',
+    });
+
+    const crossTenantRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/soil-tests`,
+      headers: { authorization: `Bearer ${rogueToken}` },
+    });
+    expect(crossTenantRes.statusCode).toBe(404);
+  });
+
+  it('Milestone M30: Asphalt Pavement Quality & Thermal Tracker', async () => {
+    const server = buildServer();
+
+    // 1. Authenticate PM/QS user
+    const loginRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: 'admin@apexbuilders.co.ke',
+        password: 'Password123!',
+      },
+    });
+    expect(loginRes.statusCode).toBe(200);
+    const { token } = JSON.parse(loginRes.payload);
+
+    // 2. Create Project
+    const projectRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/projects',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        name: 'Western Bypass Paving Section 4',
+        code: `WBP-${Date.now().toString().slice(-4)}`,
+        originalContractSum: 550000000,
+        currentApprovedBudget: 550000000,
+      },
+    });
+    expect(projectRes.statusCode).toBe(201);
+    const { data: projectData } = JSON.parse(projectRes.payload);
+    const projectId = projectData.id;
+
+    // 3. Register Asphalt Batch with Thermal Quality
+    const ticketNumber = `ASP-TKT-${Date.now().toString().slice(-6)}`;
+    const aspRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/asphalt-batches`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        ticketNumber,
+        supplierName: 'Colas East Africa Ltd',
+        mixType: 'AC_14_WEARING',
+        truckRegNo: 'KDF 994L',
+        tonnageTons: '24.50',
+        chainageStart: 'Ch 12+100',
+        chainageEnd: 'Ch 12+350',
+        laneDirection: 'MAIN_CARRIAGEWAY',
+        plantTempC: '165.0',
+        deliveryTempC: '148.0',
+        breakdownTempC: '132.0',
+        finishTempC: '92.0',
+        designThicknessMm: '50.00',
+        inspectedBy: 'Eng. David Nderitu',
+      },
+    });
+
+    expect(aspRes.statusCode).toBe(201);
+    const aspBody = JSON.parse(aspRes.payload);
+    expect(aspBody.ticketNumber).toBe(ticketNumber);
+    expect(aspBody.mixType).toBe('AC_14_WEARING');
+    expect(aspBody.tonnageTons).toBe('24.50');
+    expect(aspBody.thermalVerdict).toBe('COMPLIANT');
+    expect(aspBody.isPavingApproved).toBe(true);
+    expect(aspBody.status).toBe('LAID');
+    const batchId = aspBody.id;
+
+    // 4. Record Core Extraction Test on Pavement Batch
+    const coreRes = await server.inject({
+      method: 'PATCH',
+      url: `/api/v1/projects/${projectId}/asphalt-batches/${batchId}/core-test`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        coreThicknessMm: '52.00',
+        coreDensityGCm3: '2.340',
+        marshallDensityGCm3: '2.400',
+      },
+    });
+
+    expect(coreRes.statusCode).toBe(200);
+    const coreBody = JSON.parse(coreRes.payload);
+    expect(coreBody.coreThicknessMm).toBe('52.0');
+    expect(coreBody.thicknessDeviationMm).toBe('2.0');
+    expect(coreBody.compactionPercent).toBe('97.50');
+    expect(coreBody.qaVerdict).toBe('ACCEPTED');
+    expect(coreBody.status).toBe('COMPLETED');
+
+    // 5. List Asphalt Batches for Project
+    const listRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/asphalt-batches`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(listRes.statusCode).toBe(200);
+    const listBody = JSON.parse(listRes.payload);
+    expect(listBody.summary.totalTruckloads).toBe(1);
+    expect(listBody.summary.totalTonnage).toBe('24.50');
+    expect(listBody.summary.compliantCount).toBe(1);
+    expect(listBody.summary.coresTestedCount).toBe(1);
+
+    // 6. SQLi URL path rejection
+    const sqliRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/asphalt-batches/1' OR '1'='1`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(sqliRes.statusCode).toBe(404);
+
+    // 7. RLS Cross-tenant isolation verification
+    const tenantBId = '22222222-2222-2222-2222-222222222222';
+    const rogueToken = server.jwt.sign({
+      sub: 'user-b',
+      email: 'rogue@other.com',
+      fullName: 'Rogue User',
+      tenantId: tenantBId,
+      role: 'PM_QS',
+    });
+
+    const crossTenantRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/asphalt-batches`,
+      headers: { authorization: `Bearer ${rogueToken}` },
+    });
+    expect(crossTenantRes.statusCode).toBe(404);
+  });
 });

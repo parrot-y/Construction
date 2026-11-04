@@ -34,6 +34,8 @@ model Tenant {
   rmc_slump_tests       RmcSlumpTest[]
   structural_steel_takeoffs StructuralSteelTakeoff[]
   structural_steel_members  StructuralSteelMember[]
+  soil_tests                GeotechnicalSoilTest[]
+  asphalt_batches           AsphaltPavementBatch[]
 
   @@map("tenants")
 }
@@ -151,6 +153,8 @@ model Project {
   mpesa_disbursements   MpesaDisbursementTransaction[]
   rmc_deliveries        RmcBatchDelivery[]
   structural_steel_takeoffs StructuralSteelTakeoff[]
+  soil_tests            GeotechnicalSoilTest[]
+  asphalt_batches       AsphaltPavementBatch[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -1797,6 +1801,82 @@ model StructuralSteelMember {
 
   @@index([tenant_id, takeoff_id, section_type])
   @@map("structural_steel_members")
+}
+
+// =============================================================
+// GEOTECHNICAL SOIL COMPACTION QA ENGINE (MILESTONE M29)
+// =============================================================
+
+model GeotechnicalSoilTest {
+  id                          String           @id @default(uuid()) @db.Uuid
+  tenant_id                   String           @db.Uuid
+  project_id                  String           @db.Uuid
+  test_number                 String           @db.VarChar(100) // E.g. "SOIL-CMP-2026-001"
+  test_date                   DateTime         @default(now()) @db.Timestamptz
+  location_element            String           @db.VarChar(255) // E.g. "Sub-base Section Ch 1+200 - 1+450"
+  layer_type                  String           @default("SUBBASE") @db.VarChar(50) // "SUBGRADE", "SUBBASE", "BASE_COURSE", "FOUNDATION_PAD", "EMBANKMENT_FILL"
+  test_method                 String           @default("SAND_REPLACEMENT") @db.VarChar(50) // "SAND_REPLACEMENT", "NUCLEAR_GAUGE", "CORE_CUTTER"
+  laboratory_mdd_g_cm3        Decimal          @db.Decimal(6, 3) // Maximum Dry Density from Proctor test (g/cm3)
+  laboratory_omc_percent      Decimal          @db.Decimal(5, 2) // Optimum Moisture Content (%)
+  field_wet_density_g_cm3     Decimal          @db.Decimal(6, 3) // Measured in-situ wet density
+  field_moisture_percent      Decimal          @db.Decimal(5, 2) // Measured moisture content (%)
+  field_dry_density_g_cm3     Decimal          @db.Decimal(6, 3) // Calculated dry density
+  relative_compaction_percent Decimal          @db.Decimal(5, 2) // (field_dry / lab_mdd) * 100
+  required_compaction_percent Decimal          @default(95.00) @db.Decimal(5, 2) // Typically 95% or 98%
+  dcp_blows_per_100mm         Int?             // Dynamic Cone Penetrometer test
+  estimated_cbr_percent       Decimal?         @db.Decimal(5, 2) // California Bearing Ratio from DCP
+  qa_verdict                  String           @default("PASS") @db.VarChar(30) // "PASS", "FAIL_LOW_COMPACTION", "FAIL_MOISTURE_EXCESS", "FAIL_MOISTURE_DEFICIT"
+  inspected_by                String           @db.VarChar(255)
+  status                      String           @default("VERIFIED") @db.VarChar(50) // "VERIFIED", "RE_COMPACTION_REQUIRED"
+  created_at                  DateTime         @default(now()) @db.Timestamptz
+  updated_at                  DateTime         @updatedAt @db.Timestamptz
+
+  project                     Project          @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                      Tenant           @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, project_id, test_number])
+  @@index([tenant_id, project_id, layer_type])
+  @@map("geotechnical_soil_tests")
+}
+
+// =============================================================
+// ASPHALT PAVEMENT QUALITY & THERMAL TRACKER (MILESTONE M30)
+// =============================================================
+
+model AsphaltPavementBatch {
+  id                          String           @id @default(uuid()) @db.Uuid
+  tenant_id                   String           @db.Uuid
+  project_id                  String           @db.Uuid
+  ticket_number               String           @db.VarChar(100) // E.g. "ASP-BAM-55102"
+  supplier_name               String           @db.VarChar(255) // E.g. "Colas East Africa / H-Young Asphalt Plant"
+  mix_type                    String           @default("AC_14_WEARING") @db.VarChar(50) // "AC_20_BASE", "AC_14_WEARING", "SUPERPAVE_19", "SUPERPAVE_12_5", "BITUMEN_MACADAM"
+  truck_reg_no                String           @db.VarChar(50)
+  tonnage_tons                Decimal          @db.Decimal(8, 2) // E.g. 24.50 tons
+  chainage_start              String           @db.VarChar(50) // E.g. "Ch 4+500"
+  chainage_end                String           @db.VarChar(50) // E.g. "Ch 4+850"
+  lane_direction              String           @default("NORTHBOUND") @db.VarChar(50) // "NORTHBOUND", "SOUTHBOUND", "EASTBOUND", "WESTBOUND", "MAIN_CARRIAGEWAY"
+  plant_temp_c                Decimal          @db.Decimal(5, 1) // Batch plant discharge temp (e.g. 160.0 °C)
+  delivery_temp_c             Decimal          @db.Decimal(5, 1) // On-site delivery temp (e.g. 145.0 °C, min 140 °C)
+  breakdown_temp_c            Decimal          @db.Decimal(5, 1) // Breakdown rolling temp (e.g. 130.0 °C, 120-140 °C)
+  finish_temp_c               Decimal          @db.Decimal(5, 1) // Finish rolling temp (e.g. 90.0 °C, min 85 °C)
+  thermal_verdict             String           @default("COMPLIANT") @db.VarChar(30) // "COMPLIANT", "COLD_MIX_WARNING", "REJECTED_COLD_PAVING"
+  core_thickness_mm           Decimal?         @db.Decimal(6, 2) // Cut core thickness (e.g. 52.00 mm)
+  design_thickness_mm         Decimal          @default(50.00) @db.Decimal(6, 2) // Design thickness (e.g. 50.00 mm)
+  core_density_g_cm3          Decimal?         @db.Decimal(6, 3) // In-situ core density
+  marshall_density_g_cm3      Decimal?         @db.Decimal(6, 3) // Marshall laboratory target density
+  compaction_percent          Decimal?         @db.Decimal(5, 2) // (core_density / marshall_density) * 100
+  qa_verdict                  String           @default("PENDING_CORES") @db.VarChar(50) // "PENDING_CORES", "ACCEPTED", "CONDITIONAL_PENALTY", "REJECTED_UNDER_COMPACTED"
+  inspected_by                String           @db.VarChar(255)
+  status                      String           @default("LAID") @db.VarChar(50) // "IN_TRANSIT", "PAVING", "ROLLING", "LAID", "CORED", "COMPLETED", "REJECTED"
+  created_at                  DateTime         @default(now()) @db.Timestamptz
+  updated_at                  DateTime         @updatedAt @db.Timestamptz
+
+  project                     Project          @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                      Tenant           @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, project_id, ticket_number])
+  @@index([tenant_id, project_id, mix_type])
+  @@map("asphalt_pavement_batches")
 }
 
 

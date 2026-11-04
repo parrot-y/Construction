@@ -53,6 +53,8 @@ import { BarBendingScheduleView } from './components/BarBendingScheduleView';
 import { MpesaDisbursementView } from './components/MpesaDisbursementView';
 import { RmcTransitTrackerView } from './components/RmcTransitTrackerView';
 import { StructuralSteelTakeoffView } from './components/StructuralSteelTakeoffView';
+import { GeotechnicalSoilView } from './components/GeotechnicalSoilView';
+import { AsphaltPavementView } from './components/AsphaltPavementView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -2005,6 +2007,82 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
       expect(html).toContain('Bamburi Special Products Ltd');
       expect(html).toContain('KDH 482B');
+    });
+  });
+
+  describe('Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality', () => {
+    it('renders GeotechnicalSoilView with Proctor compaction, relative density, and DCP CBR calculations', () => {
+      const html = renderToString(
+        <GeotechnicalSoilView
+          projectId="project-test-soil"
+          projectName="Kenol-Sagana-Marua Highway"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Geotechnical Soil Compaction QA Engine');
+      expect(html).toContain('BS 1377 / BS 5930 / ASTM D1557 Proctor Density');
+      expect(html).toContain('SOIL-CMP-001');
+      expect(html).toContain('Subbase Section Ch 1+200 - 1+450 Main Carriageway');
+      expect(html).toContain('SAND REPLACEMENT');
+      expect(html).toContain('95.58%');
+      expect(html).toContain('46.50%');
+      expect(html).toContain('Eng. Francis Kimani');
+    });
+
+    it('renders AsphaltPavementView with BS 594987 temperature envelope and core drill test tracker', () => {
+      const html = renderToString(
+        <AsphaltPavementView
+          projectId="project-test-asphalt"
+          projectName="Kenol-Sagana-Marua Highway"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Asphalt Pavement Quality &amp; Thermal Tracker');
+      expect(html).toContain('BS 594987 / KS 02-1025 Laying Thermal Envelopes');
+      expect(html).toContain('ASP-COL-88910');
+      expect(html).toContain('Colas East Africa Ltd');
+      expect(html).toContain('KDF 994L');
+      expect(html).toContain('AC 14_WEARING');
+      expect(html).toContain('148.0°C');
+      expect(html).toContain('97.50%');
+    });
+
+    it('embeds GeotechnicalSoilView and AsphaltPavementView into PmQsDashboard', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'Project Manager / QS',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['cost.manage', 'site.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('⛰️ Geotechnical Soil QA');
+      expect(html).toContain('🛣️ Asphalt Pavement QA');
+      expect(html).toContain('Geotechnical Soil Compaction QA Engine');
+      expect(html).toContain('Asphalt Pavement Quality &amp; Thermal Tracker');
+    });
+
+    it('embeds GeotechnicalSoilView and AsphaltPavementView into SupervisorDashboard', () => {
+      const superSession: AuthSession = {
+        user: {
+          id: 'user-super',
+          email: 'supervisor@apexbuilders.co.ke',
+          fullName: 'Site Supervisor',
+          role: 'SITE_SUPERVISOR',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['site.diary', 'cost.create'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Geotechnical Soil Compaction QA Engine');
+      expect(html).toContain('Asphalt Pavement Quality &amp; Thermal Tracker');
     });
   });
 });
