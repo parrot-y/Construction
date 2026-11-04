@@ -30,6 +30,12 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   let subToken: string;
   let complianceToken: string;
 
+  let subcontractorPackageId: string;
+  let equipmentId: string;
+  const telematicsImei = `86901205${Date.now().toString().slice(-7)}`;
+  let laborerId: string;
+  let capturedCheckoutReqId: string;
+
   const projectCode = 'RCP-SIM-2026';
   const sampleBoqCsvPath = path.resolve(__dirname, '../../../docs/pilot/sample_boq_riverside_plaza.csv');
 
@@ -1019,9 +1025,424 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   });
 
   // ---------------------------------------------------------------------------
-  // STEP 16: Verify complete audit trail exists in audit_logs for all actions
+  // STEP 16: Commercial Heavy Machinery Fleet & CANBUS IoT Telematics (M16 & M24)
   // ---------------------------------------------------------------------------
-  it('Step 16: Verify complete, immutable audit trail exists in audit_logs for all 16 lifecycle operations', async () => {
+  it('Step 16: Commercial Heavy Machinery Fleet & CANBUS IoT Telematics with Diesel Siphoning Drop Detection (M16 & M24)', async () => {
+    // 1. Create plant equipment
+    const equipRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/equipment`,
+      headers: { cookie: adminCookie },
+      payload: {
+        equipmentCode: 'EXC-001',
+        name: 'CAT 320D Hydraulic Excavator',
+        equipmentType: 'EXCAVATOR',
+        ownershipType: 'OWNED',
+        ratePerUnitKes: '6500.00',
+        rateUnit: 'PER_HOUR',
+        registrationNo: 'KDF 819B',
+        supplierName: 'Simba Heavy Plant Hire Ltd',
+        currentHoursMeter: '1420.50',
+      },
+    });
+    expect(equipRes.statusCode).toBe(201);
+    equipmentId = JSON.parse(equipRes.body).equipment.id;
+
+    // 2. Attach CANBUS telematics device
+    const devRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/telematics-devices`,
+      headers: { cookie: adminCookie },
+      payload: {
+        equipmentId,
+        deviceImei: telematicsImei,
+        protocol: 'CANBUS',
+        simPhoneNumber: '+254711998877',
+        calibrationTankCapacityLiters: '400.00',
+      },
+    });
+    expect(devRes.statusCode).toBe(201);
+
+    // 3. Normal running ping (80% = 320L)
+    const ping1 = await server.inject({
+      method: 'POST',
+      url: '/api/v1/telematics/ping',
+      payload: {
+        deviceImei: telematicsImei,
+        latitude: '-1.286389',
+        longitude: '36.817223',
+        engineStatus: 'RUNNING',
+        engineRpm: 1800,
+        cumulativeEngineSeconds: 36000,
+        fuelLevelPercent: '80.00',
+      },
+    });
+    expect(ping1.statusCode).toBe(200);
+    expect(JSON.parse(ping1.body).isSiphoningEvent).toBe(false);
+
+    // 4. Siphoning drop ping (70% = 280L, 40L drop while STOPPED!)
+    const ping2 = await server.inject({
+      method: 'POST',
+      url: '/api/v1/telematics/ping',
+      payload: {
+        deviceImei: telematicsImei,
+        latitude: '-1.286389',
+        longitude: '36.817223',
+        engineStatus: 'STOPPED',
+        engineRpm: 0,
+        cumulativeEngineSeconds: 36000,
+        fuelLevelPercent: '70.00',
+      },
+    });
+    expect(ping2.statusCode).toBe(200);
+    expect(JSON.parse(ping2.body).isSiphoningEvent).toBe(true);
+
+    // Verify automated emergency SiteAlertNotification
+    const alert = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.siteAlertNotification.findFirst({
+        where: { project_id: projectId, alert_type: 'DIESEL_SIPHONING_FLAG' },
+      })
+    );
+    expect(alert).toBeDefined();
+    expect(alert?.delivery_channel).toBe('WHATSAPP');
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 17: Site Casual Labor Muster Roll & Haversine GPS Geofencing (M17 & M23)
+  // ---------------------------------------------------------------------------
+  it('Step 17: Site Casual Labor Muster Roll & Haversine GPS Geofenced Mobile Clock-in Engine (M17 & M23)', async () => {
+    // 1. Create site geofence (150m radius)
+    const geoRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/geofences`,
+      headers: { cookie: adminCookie },
+      payload: {
+        geofenceName: 'Riverside Main Gate & Perimeter Compound',
+        centerLatitude: '-1.286389',
+        centerLongitude: '36.817223',
+        radiusMeters: '150.00',
+      },
+    });
+    expect(geoRes.statusCode).toBe(201);
+
+    // 2. Register artisan laborer
+    const labRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/laborers`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        workerCode: 'WKR-SIM-01',
+        fullName: 'Juma Otieno Ochieng',
+        nationalIdNo: 'ID-28193849',
+        phoneNumber: '+254711223344',
+        tradeCategory: 'MASON',
+        skillLevel: 'ARTISAN_FUNDI',
+        dailyRateKes: '1600.00',
+      },
+    });
+    expect(labRes.statusCode).toBe(201);
+    laborerId = JSON.parse(labRes.body).laborer.id;
+
+    // 3. Clock-in on-site (~12m away) -> WITHIN_GEOFENCE
+    const clock1 = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/clock-in`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        laborerId,
+        clockType: 'CLOCK_IN',
+        capturedLatitude: '-1.286400',
+        capturedLongitude: '36.817230',
+        photoSelfieUrl: 'https://storage.mjengoledger.co.ke/selfies/juma_in.jpg',
+      },
+    });
+    expect(clock1.statusCode).toBe(201);
+    expect(JSON.parse(clock1.body).verificationStatus).toBe('WITHIN_GEOFENCE');
+
+    // 4. Clock-in off-site (~2.2km away) -> OUTSIDE_GEOFENCE_FLAGGED
+    const clock2 = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/clock-in`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        laborerId,
+        clockType: 'CLOCK_OUT',
+        capturedLatitude: '-1.305000',
+        capturedLongitude: '36.830000',
+      },
+    });
+    expect(clock2.statusCode).toBe(201);
+    expect(JSON.parse(clock2.body).verificationStatus).toBe('OUTSIDE_GEOFENCE_FLAGGED');
+
+    // 5. Weekly muster roll
+    const musterRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/muster-rolls`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        payrollNo: `MR-WK44-${Date.now().toString().slice(-4)}`,
+        weekEndingDate: '2026-11-06',
+        notes: 'Week 44 superstructure concrete column casting casual crew',
+        attendances: [
+          {
+            laborerId,
+            attendanceDate: '2026-11-06',
+            daysWorked: '5.00',
+            overtimeHours: '4.00',
+            taskAssigned: 'Block wall laying on Level 3 and curing',
+            verifiedBy: 'Eng. John Mwangi (Site Supervisor)',
+          },
+        ],
+      },
+    });
+    expect(musterRes.statusCode).toBe(201);
+    expect(JSON.parse(musterRes.body).musterRoll.netWagesPayableKes).toBe('9200.00');
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 18: DOSHS & NCA Field Safety Scorecard Audit (M18)
+  // ---------------------------------------------------------------------------
+  it('Step 18: DOSHS & NCA Field Safety Scorecard Audit with Automated Stop-Work Trigger (M18)', async () => {
+    const auditRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/safety-audits`,
+      headers: { cookie: supervisorCookie },
+      payload: {
+        auditNo: `SAF-NCA-${Date.now().toString().slice(-4)}`,
+        auditDate: '2026-11-04',
+        auditorName: 'Eng. K. Njoroge (NCA Inspectorate)',
+        auditorType: 'NCA_INSPECTOR',
+        ppeComplianceScore: '65.00',
+        scaffoldingAndEdgeProtectionStatus: 'FAIL_STOP_WORK',
+        excavationAndShoringStatus: 'MINOR_DEFECTS',
+        firstAidAndFireStationStatus: 'DEFICIENT',
+        electricalSafetyAndCablesStatus: 'PASS',
+        correctiveActionPlan: 'Erect proper toe boards and safety netting on Level 4 scaffolding',
+      },
+    });
+    expect(auditRes.statusCode).toBe(201);
+    const auditBody = JSON.parse(auditRes.body);
+    expect(auditBody.audit.auditOutcome).toBe('STOP_ORDER_ISSUED');
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 19: Automated KRA E-TIMS Electronic Tax Invoicing & Subcontractor TCC (M19)
+  // ---------------------------------------------------------------------------
+  it('Step 19: Automated KRA E-TIMS Electronic Tax Invoicing with Cryptographic Signature & Subcontractor TCC Tracking (M19)', async () => {
+    // 1. Create subcontractor package
+    const pkgRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/subcontractors`,
+      headers: { cookie: adminCookie },
+      payload: {
+        tradeCategory: 'ELECTRICAL',
+        firmName: 'Nairobi Volt Electricals Ltd',
+        contactPerson: 'Eng. David Mwangi',
+        phoneNumber: '+254722889900',
+        subcontractSum: '1500000.00',
+        retentionRatePct: '5.00',
+        status: 'ACTIVE',
+      },
+    });
+    expect(pkgRes.statusCode).toBe(201);
+    subcontractorPackageId = JSON.parse(pkgRes.body).id;
+
+    // 2. Track Subcontractor TCC
+    const tccRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/subcontractor-tcc`,
+      headers: { cookie: qsCookie },
+      payload: {
+        subcontractorPackageId,
+        pinNumber: 'P051234567A',
+        taxpayerName: 'Nairobi Volt Electricals Ltd',
+        tccNumber: 'KRA-TCC-2026-991',
+        tccExpiryDate: '2027-11-04',
+        complianceStatus: 'COMPLIANT',
+        withholdingTaxRate: '3.00',
+        withholdingVatRate: '2.00',
+      },
+    });
+    expect(tccRes.statusCode).toBe(201);
+
+    // 3. Issue KRA E-TIMS Tax Invoice
+    const invoiceNo = `INV-ETIMS-${Date.now().toString().slice(-6)}`;
+    const cuInvoiceNo = `KRAVSCU01${Date.now().toString().slice(-8)}`;
+    const invRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/etims-invoices`,
+      headers: { cookie: qsCookie },
+      payload: {
+        invoiceNumber: invoiceNo,
+        cuInvoiceNumber: cuInvoiceNo,
+        invoiceType: 'ORIGINAL',
+        buyerPin: 'P051998877Z',
+        buyerName: 'Riverside Commercial Center Ltd',
+        totalTaxableAmount: '100000.00',
+        totalTaxAmount: '16000.00',
+        totalInvoiceAmount: '116000.00',
+        taxBreakdown16: '16000.00',
+        qrCodeUrl: `https://itax.kra.go.ke/KRA-Portal/invoiceCheck.htm?invoiceNo=${cuInvoiceNo}`,
+        cryptographicSignature: 'MEYCIQCc9d1...DUMMY_VSCU_SIGNATURE',
+      },
+    });
+    expect(invRes.statusCode).toBe(201);
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 20: WhatsApp & SMS Two-Way Site Ops Webhooks (M20)
+  // ---------------------------------------------------------------------------
+  it('Step 20: WhatsApp & SMS Two-Way Site Ops Webhooks (#DIARY, #DELIVERY, #INCIDENT) with Swahili Bot Auto-Replies (M20)', async () => {
+    // Delivery webhook
+    const wh1 = await server.inject({
+      method: 'POST',
+      url: '/api/v1/webhooks/site-ops',
+      headers: { 'x-tenant-id': tenantId },
+      payload: {
+        senderPhone: '+254722889900',
+        senderName: 'Juma Foreman',
+        channel: 'WHATSAPP',
+        rawMessage: `#DELIVERY Bamburi Cement 200 bags received on site in good order`,
+        projectId,
+      },
+    });
+    expect(wh1.statusCode).toBe(200);
+    const wh1Body = JSON.parse(wh1.body);
+    expect(wh1Body.detectedCommand).toBe('DELIVERY');
+    expect(wh1Body.replyMessage).toContain('Delivery note imethibitishwa');
+
+    // Incident webhook
+    const wh2 = await server.inject({
+      method: 'POST',
+      url: '/api/v1/webhooks/site-ops',
+      headers: { 'x-tenant-id': tenantId },
+      payload: {
+        senderPhone: '+254722889900',
+        senderName: 'Juma Foreman',
+        channel: 'WHATSAPP',
+        rawMessage: `#INCIDENT Loose handrail detected on Block B scaffold`,
+        projectId,
+      },
+    });
+    expect(wh2.statusCode).toBe(200);
+    expect(JSON.parse(wh2.body).detectedCommand).toBe('INCIDENT');
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 21: JBC 1999 Dual-Moiety Retention Releases & Bank Bonds (M21)
+  // ---------------------------------------------------------------------------
+  it('Step 21: JBC 1999 Dual-Moiety Retention Releases with M-Pesa B2C Payout & Bank Performance Bonds (M21)', async () => {
+    // 1. First Moiety 50% Release at Practical Completion
+    const rel1 = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/subcontractor-retention-releases`,
+      headers: { cookie: qsCookie },
+      payload: {
+        releaseNo: `RET-${Date.now().toString().slice(-4)}`,
+        subcontractorPackageId,
+        moietyStage: 'FIRST_MOIETY_PRACTICAL_COMPLETION',
+        totalRetentionHeld: '150000.00',
+        releasePercentage: '50.00',
+        releaseAmount: '75000.00',
+        defectClearanceVerified: true,
+        qsRecommendationNotes: 'Practical completion achieved; 1st moiety 50% released per JBC 1999 Clause 30.',
+      },
+    });
+    expect(rel1.statusCode).toBe(201);
+    const releaseId = JSON.parse(rel1.body).id;
+
+    // Disburse via M-Pesa B2C
+    const disbRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`,
+      headers: { cookie: adminCookie },
+      payload: { status: 'PAID', disbursementRef: 'MPESA-B2C-RET-001' },
+    });
+    expect(disbRes.statusCode).toBe(200);
+    expect(JSON.parse(disbRes.body).status).toBe('PAID');
+
+    // 2. Contractor Bank Performance Bond
+    const bondRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/contractor-bonds`,
+      headers: { cookie: adminCookie },
+      payload: {
+        bondType: 'PERFORMANCE_BOND',
+        issuingInstitution: 'KCB Bank Kenya Ltd',
+        bondReferenceNo: 'KCB-PB-2026-991',
+        bondAmount: '4000000.00',
+        effectiveDate: '2026-11-04',
+        expiryDate: '2027-11-04',
+      },
+    });
+    expect(bondRes.statusCode).toBe(201);
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 22: Safaricom Daraja M-Pesa Subscription Billing (M22 / ADR-006)
+  // ---------------------------------------------------------------------------
+  it('Step 22: Safaricom Daraja M-Pesa Subscription Billing & Automated STK Push (M22 / ADR-006)', async () => {
+    // 1. Initiate STK Push
+    const stkRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/billing/mpesa-express',
+      headers: { cookie: adminCookie },
+      payload: {
+        phoneNumber: '0712345678',
+        planCode: 'PORTFOLIO_TIER',
+        amount: '25000.00',
+      },
+    });
+    expect(stkRes.statusCode).toBe(200);
+    capturedCheckoutReqId = JSON.parse(stkRes.body).checkoutRequestId;
+    expect(capturedCheckoutReqId).toBeDefined();
+
+    // 2. Safaricom Daraja confirmation callback
+    const receiptNo = `QA${Date.now().toString().slice(-8)}`;
+    const cbRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/billing/mpesa-callback',
+      payload: {
+        MerchantRequestID: 'MR_SIM_VALID',
+        CheckoutRequestID: capturedCheckoutReqId,
+        ResultCode: 0,
+        ResultDesc: 'The service request is processed successfully.',
+        MpesaReceiptNumber: receiptNo,
+      },
+    });
+    expect(cbRes.statusCode).toBe(200);
+    expect(JSON.parse(cbRes.body).status).toBe('SUCCESS');
+
+    // Verify tenant subscription status is now ACTIVE with PORTFOLIO_TIER
+    const subStatus = await server.inject({
+      method: 'GET',
+      url: '/api/v1/billing/subscription-status',
+      headers: { cookie: adminCookie },
+    });
+    expect(subStatus.statusCode).toBe(200);
+    expect(JSON.parse(subStatus.body).subscriptionState).toBe('ACTIVE');
+    expect(JSON.parse(subStatus.body).activePlan).toBe('PORTFOLIO_TIER');
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 23: Final Account Closeout & Project Archival under JBC 1999 Clause 34
+  // ---------------------------------------------------------------------------
+  it('Step 23: Final Account Closeout & Project Archival under JBC 1999 Clause 34', async () => {
+    const archiveRes = await server.inject({
+      method: 'PATCH',
+      url: `/api/v1/projects/${projectId}`,
+      headers: { cookie: adminCookie },
+      payload: { status: 'COMPLETED' },
+    });
+    expect(archiveRes.statusCode).toBe(200);
+    const updated = JSON.parse(archiveRes.body).data;
+    expect(updated.status).toBe('COMPLETED');
+  });
+
+  // ---------------------------------------------------------------------------
+  // STEP 24: Comprehensive Master Enterprise Audit Trail Verification
+  // ---------------------------------------------------------------------------
+  it('Step 24: Verify complete, immutable audit trail exists in audit_logs for all 24 lifecycle operations', async () => {
     const auditLogs = await withTenantTx(prisma, tenantId, async (tx) => {
       return tx.auditLog.findMany({
         where: { project_id: projectId },
@@ -1029,7 +1450,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       });
     });
 
-    expect(auditLogs.length).toBeGreaterThanOrEqual(14);
+    expect(auditLogs.length).toBeGreaterThanOrEqual(16);
 
     const actions = auditLogs.map((l) => l.action);
 
