@@ -785,5 +785,133 @@ export const ReviewSubcontractorValuationSchema = z.object({
 });
 export type ReviewSubcontractorValuation = z.infer<typeof ReviewSubcontractorValuationSchema>;
 
+// -------------------------------------------------------------
+// PLANT, MACHINERY & FUEL LOG SCHEMAS (MILESTONE M16)
+// -------------------------------------------------------------
+export const EquipmentTypeEnum = z.enum([
+  'EXCAVATOR',
+  'CONCRETE_MIXER',
+  'VIBRATOR_POKER',
+  'TOWER_CRANE',
+  'TIPPER_TRUCK',
+  'GENERATOR',
+  'WATER_BOWSER',
+  'DEWATERING_PUMP',
+  'COMPACTOR_ROLLER',
+  'OTHER',
+]);
+export type EquipmentType = z.infer<typeof EquipmentTypeEnum>;
+
+export const OwnershipTypeEnum = z.enum(['OWNED', 'HIRED_DRY', 'HIRED_WET']);
+export type OwnershipType = z.infer<typeof OwnershipTypeEnum>;
+
+export const CreatePlantEquipmentSchema = z.object({
+  equipmentCode: z.string().min(2).max(50),
+  name: z.string().min(2).max(255),
+  equipmentType: EquipmentTypeEnum,
+  ownershipType: OwnershipTypeEnum.default('OWNED'),
+  ratePerUnitKes: CurrencyAmountSchema.default('0.00'),
+  rateUnit: z.enum(['PER_HOUR', 'PER_DAY', 'PER_MONTH']).default('PER_DAY'),
+  registrationNo: z.string().max(50).optional().nullable(),
+  supplierName: z.string().max(255).optional().nullable(),
+  currentHoursMeter: z.string().regex(/^\d+(\.\d{1,2})?$/).default('0.00'),
+});
+export type CreatePlantEquipment = z.infer<typeof CreatePlantEquipmentSchema>;
+
+export const CreateEquipmentDailyLogSchema = z.object({
+  equipmentId: z.string().uuid(),
+  logDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  operatorName: z.string().min(2).max(255),
+  openingHoursMeter: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  closingHoursMeter: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  operatingHours: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  idleOrBreakdownHours: z.string().regex(/^\d+(\.\d{1,2})?$/).default('0.00'),
+  fuelLitersIssued: z.string().regex(/^\d+(\.\d{1,2})?$/).default('0.00'),
+  fuelCostPerLiterKes: CurrencyAmountSchema.default('180.00'),
+  activitiesPerformed: z.string().max(2000).optional().nullable(),
+  verifiedBySupervisor: z.string().min(2).max(255),
+});
+export type CreateEquipmentDailyLog = z.infer<typeof CreateEquipmentDailyLogSchema>;
+
+// -------------------------------------------------------------
+// CASUAL LABOR MUSTER ROLL & WAGE SCHEMAS (MILESTONE M17)
+// -------------------------------------------------------------
+export const TradeCategoryEnum = z.enum([
+  'MASON',
+  'CARPENTER',
+  'STEEL_FIXER',
+  'PLUMBER',
+  'ELECTRICIAN',
+  'PAINTER',
+  'TILER',
+  'CASUAL_LABORER',
+  'SCAFFOLDER',
+  'FOREMAN',
+]);
+export type TradeCategory = z.infer<typeof TradeCategoryEnum>;
+
+export const SkillLevelEnum = z.enum([
+  'CASUAL_MTU_WA_MKONO',
+  'SEMI_SKILLED',
+  'ARTISAN_FUNDI',
+  'CHARGEHAND_FOREMAN',
+]);
+export type SkillLevel = z.infer<typeof SkillLevelEnum>;
+
+export const CreateSiteLaborerSchema = z.object({
+  workerCode: z.string().min(2).max(50),
+  fullName: z.string().min(2).max(255),
+  nationalIdNo: z.string().min(6).max(20),
+  phoneNumber: z.string().regex(/^\+?254\d{9}$|^0[17]\d{8}$/, { message: 'Valid Kenyan mobile phone number' }),
+  tradeCategory: TradeCategoryEnum,
+  skillLevel: SkillLevelEnum.default('ARTISAN_FUNDI'),
+  dailyRateKes: CurrencyAmountSchema,
+});
+export type CreateSiteLaborer = z.infer<typeof CreateSiteLaborerSchema>;
+
+export const AttendanceItemInputSchema = z.object({
+  laborerId: z.string().uuid(),
+  attendanceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  daysWorked: z.string().regex(/^\d+(\.\d{1,2})?$/).default('1.00'),
+  overtimeHours: z.string().regex(/^\d+(\.\d{1,2})?$/).default('0.00'),
+  taskAssigned: z.string().max(255).optional().nullable(),
+  verifiedBy: z.string().min(2).max(255),
+});
+export type AttendanceItemInput = z.infer<typeof AttendanceItemInputSchema>;
+
+export const CreateLaborMusterRollSchema = z.object({
+  payrollNo: z.string().min(2).max(100),
+  weekEndingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  notes: z.string().max(2000).optional().nullable(),
+  attendances: z.array(AttendanceItemInputSchema).min(1, { message: 'At least one attendance line is required' }),
+});
+export type CreateLaborMusterRoll = z.infer<typeof CreateLaborMusterRollSchema>;
+
+export const ReviewLaborMusterRollSchema = z.object({
+  status: z.enum(['DRAFT', 'PENDING_VERIFICATION', 'QS_APPROVED', 'DISBURSED', 'REJECTED']),
+  disbursementReference: z.string().max(100).optional().nullable(),
+  approvedBy: z.string().min(2).max(255).optional().nullable(),
+});
+export type ReviewLaborMusterRoll = z.infer<typeof ReviewLaborMusterRollSchema>;
+
+// -------------------------------------------------------------
+// FIELD SAFETY AUDITS & DOSHS/NCA SCORECARDS (MILESTONE M18)
+// -------------------------------------------------------------
+export const CreateSafetyAuditSchema = z.object({
+  auditNo: z.string().min(2).max(100),
+  auditDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  auditorName: z.string().min(2).max(255),
+  auditorType: z.enum(['INTERNAL_SAFETY_OFFICER', 'NCA_INSPECTOR', 'DOSHS_OFFICER', 'LEAD_CONSULTANT']),
+  ppeComplianceScore: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  scaffoldingAndEdgeProtectionStatus: z.enum(['PASS', 'MINOR_DEFECTS', 'FAIL_STOP_WORK']),
+  excavationAndShoringStatus: z.enum(['PASS', 'MINOR_DEFECTS', 'FAIL_STOP_WORK', 'NOT_APPLICABLE']),
+  firstAidAndFireStationStatus: z.enum(['PASS', 'DEFICIENT', 'ABSENT']),
+  electricalSafetyAndCablesStatus: z.enum(['PASS', 'HAZARDOUS']),
+  correctiveActionPlan: z.string().max(3000).optional().nullable(),
+  reinspectionDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+export type CreateSafetyAudit = z.infer<typeof CreateSafetyAuditSchema>;
+
+
 
 

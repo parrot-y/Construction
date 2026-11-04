@@ -4,7 +4,7 @@ import { buildServer } from './index';
 
 describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations', () => {
   const server = buildServer();
-  const tenantId = '582625e7-fe7d-4cf9-84fb-781966af87fa'; // Apex Builders Kenya Ltd
+  let tenantId = 'e460c1cc-67a5-408c-841d-ed28280a44f2'; // Apex Builders Kenya Ltd
   let adminCookie: string;
   let supervisorCookie: string;
   let projectId: string;
@@ -14,6 +14,9 @@ describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-
 
   beforeAll(async () => {
     await server.ready();
+
+    const apex = await prisma.tenant.findFirst({ where: { name: 'Apex Builders Kenya Ltd' } });
+    if (apex) tenantId = apex.id;
 
     // 1. Authenticate as Company Admin (PM/QS authority)
     const adminLogin = await server.inject({

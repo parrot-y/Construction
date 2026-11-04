@@ -40,6 +40,9 @@ import { MaterialRequisitionView } from './components/MaterialRequisitionView';
 import { MaterialWastageVarianceCard } from './components/MaterialWastageVarianceCard';
 import { ProjectSCurveCashFlowCard } from './components/ProjectSCurveCashFlowCard';
 import { SubcontractorValuationView } from './components/SubcontractorValuationView';
+import { PlantEquipmentView } from './components/PlantEquipmentView';
+import { LaborMusterRollView } from './components/LaborMusterRollView';
+import { SafetyAuditScorecardView } from './components/SafetyAuditScorecardView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1481,6 +1484,119 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Site Material Requisitions &amp; Orders');
       expect(html).toContain('Material Wastage &amp; Shrinkage Engine');
+    });
+  });
+
+  describe('Milestones M16, M17 & M18: Plant Equipment, Labor Muster Roll & Safety Audits UI Suite', () => {
+    it('renders PlantEquipmentView with machinery registry, fuel burn rate and siphoning alerts', () => {
+      const html = renderToString(
+        <PlantEquipmentView
+          projectId="proj-test-1"
+          projectName="Kilimani Heavy Site"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Plant &amp; Heavy Equipment Manager');
+      expect(html).toContain('Total Machinery Fleet');
+      expect(html).toContain('Cumulative Operating Hours');
+      expect(html).toContain('Fuel Siphoning Risk Flags');
+      expect(html).toContain('CAT 320D Hydraulic Excavator');
+      expect(html).toContain('Excavators, Mixers, Cranes, Gensets');
+      expect(html).toContain('+ Register Plant Machine');
+      expect(html).toContain('+ Log Daily Hours &amp; Fuel');
+    });
+
+    it('renders LaborMusterRollView with Kenyan National ID validation, Fundis/Casuals count and M-Pesa payroll', () => {
+      const html = renderToString(
+        <LaborMusterRollView
+          projectId="proj-test-1"
+          projectName="Kilimani Heavy Site"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
+      expect(html).toContain('100% Kenyan National ID Verified');
+      expect(html).toContain('M-Pesa B2C Bulk Mobile Payroll');
+      expect(html).toContain('MR-WK44-001');
+      expect(html).toContain('MPESA-B2C-PAYROLL-882910');
+      expect(html).toContain('+ Register Artisan / Casual');
+      expect(html).toContain('+ Compile Weekly Muster Roll');
+    });
+
+    it('renders SafetyAuditScorecardView with DOSHS/NCA scorecards and stop-work order triggers', () => {
+      const html = renderToString(
+        <SafetyAuditScorecardView
+          projectId="proj-test-1"
+          projectName="Kilimani Heavy Site"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
+      expect(html).toContain('Average Compliance Score');
+      expect(html).toContain('Satisfactory Inspections');
+      expect(html).toContain('Auditing Authority Coverage');
+      expect(html).toContain('HSE Officer Wanjiku Kariuki');
+      expect(html).toContain('+ Record Field Safety Audit');
+    });
+
+    it('embeds Plant Equipment, Labor Muster Roll and Safety Audits into PmQsDashboard', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'Project Manager / QS',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['cost.manage', 'site.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('🚜 Plant &amp; Machinery');
+      expect(html).toContain('👷 Labor Muster Roll');
+      expect(html).toContain('🦺 Field Safety Scorecard');
+      expect(html).toContain('Plant &amp; Heavy Equipment Manager');
+      expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
+      expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
+    });
+
+    it('embeds Plant Equipment, Labor Muster Roll and Safety Audits into SupervisorDashboard', () => {
+      const superSession: AuthSession = {
+        user: {
+          id: 'user-super',
+          email: 'supervisor@apexbuilders.co.ke',
+          fullName: 'Site Supervisor',
+          role: 'SITE_SUPERVISOR',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['site.diary', 'cost.create'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Plant &amp; Heavy Equipment Manager');
+      expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
+      expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
+    });
+
+    it('embeds Plant Equipment, Labor Muster Roll and Safety Audits into CompanyAdminDashboard', () => {
+      const adminSession: AuthSession = {
+        user: {
+          id: 'user-admin',
+          email: 'admin@apexbuilders.co.ke',
+          fullName: 'Admin User',
+          role: 'COMPANY_ADMIN',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['company.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Plant &amp; Heavy Equipment Manager');
+      expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
+      expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
     });
   });
 });

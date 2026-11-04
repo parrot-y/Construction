@@ -22,6 +22,9 @@ import { MaterialRequisitionView } from './MaterialRequisitionView';
 import { MaterialWastageVarianceCard } from './MaterialWastageVarianceCard';
 import { ProjectSCurveCashFlowCard } from './ProjectSCurveCashFlowCard';
 import { SubcontractorValuationView } from './SubcontractorValuationView';
+import { PlantEquipmentView } from './PlantEquipmentView';
+import { LaborMusterRollView } from './LaborMusterRollView';
+import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -35,7 +38,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -130,6 +133,9 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'wastage', label: '⚖️ Wastage Variance' },
           { id: 'cashflow', label: '📈 Cash Flow & S-Curve' },
           { id: 'subvaluations', label: '📑 Subcontractor Valuations' },
+          { id: 'equipment', label: '🚜 Plant & Machinery' },
+          { id: 'muster', label: '👷 Labor Muster Roll' },
+          { id: 'safetyaudit', label: '🦺 Field Safety Scorecard' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -424,6 +430,33 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Subcontractor Valuations & Back-to-Back Retention Ledger */}
       {(activeTab === 'all' || activeTab === 'subvaluations') && (
         <SubcontractorValuationView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      )}
+
+      {/* Plant, Machinery & Fuel Siphoning Audit (Milestone M16) */}
+      {(activeTab === 'all' || activeTab === 'equipment') && (
+        <PlantEquipmentView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      )}
+
+      {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
+      {(activeTab === 'all' || activeTab === 'muster') && (
+        <LaborMusterRollView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      )}
+
+      {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
+      {(activeTab === 'all' || activeTab === 'safetyaudit') && (
+        <SafetyAuditScorecardView
           projectId="project-rcp-2026"
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"

@@ -126,6 +126,12 @@ model Project {
   wastage_reconciliations MaterialWastageReconciliation[]
   cash_flow_forecasts  ProjectCashFlowForecast[]
   subcontractor_valuations SubcontractorValuation[]
+  plant_equipment       PlantEquipment[]
+  equipment_daily_logs  PlantEquipmentDailyLog[]
+  site_laborers         SiteLaborer[]
+  muster_rolls          LaborMusterRoll[]
+  labor_attendances     LaborDailyAttendance[]
+  safety_audits         SafetyAuditRecord[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -1120,6 +1126,169 @@ model SubcontractorValuation {
   @@index([tenant_id, project_id, subcontractor_package_id])
   @@map("subcontractor_valuations")
 }
+
+// =============================================================
+// PLANT, MACHINERY & HEAVY EQUIPMENT (BUILD-SASA BENCHMARK)
+// =============================================================
+
+model PlantEquipment {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  tenant_id            String                   @db.Uuid
+  project_id           String                   @db.Uuid
+  equipment_code       String                   @db.VarChar(50) // e.g. "EXC-01", "MIX-02"
+  name                 String                   @db.VarChar(255)
+  equipment_type       String                   @db.VarChar(50) // "EXCAVATOR", "CONCRETE_MIXER", "VIBRATOR_POKER", "TOWER_CRANE", "TIPPER_TRUCK", "GENERATOR", "WATER_BOWSER", "DEWATERING_PUMP", "COMPACTOR_ROLLER"
+  ownership_type       String                   @default("OWNED") @db.VarChar(50) // "OWNED", "HIRED_DRY", "HIRED_WET"
+  rate_per_unit_kes    Decimal                  @default(0.00) @db.Decimal(12, 2)
+  rate_unit            String                   @default("PER_DAY") @db.VarChar(20) // "PER_HOUR", "PER_DAY", "PER_MONTH"
+  registration_no      String?                  @db.VarChar(50)
+  supplier_name        String?                  @db.VarChar(255)
+  current_hours_meter  Decimal                  @default(0.00) @db.Decimal(10, 2)
+  status               String                   @default("OPERATIONAL") @db.VarChar(50) // "OPERATIONAL", "MAINTENANCE", "BREAKDOWN", "DEMOBILIZED"
+  created_at           DateTime                 @default(now()) @db.Timestamptz
+  updated_at           DateTime                 @updatedAt @db.Timestamptz
+
+  project              Project                  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  daily_logs           PlantEquipmentDailyLog[]
+
+  @@unique([tenant_id, project_id, equipment_code])
+  @@map("plant_equipment")
+}
+
+model PlantEquipmentDailyLog {
+  id                         String         @id @default(uuid()) @db.Uuid
+  tenant_id                  String         @db.Uuid
+  project_id                 String         @db.Uuid
+  equipment_id               String         @db.Uuid
+  log_date                   DateTime       @db.Date
+  operator_name              String         @db.VarChar(255)
+  opening_hours_meter        Decimal        @db.Decimal(10, 2)
+  closing_hours_meter        Decimal        @db.Decimal(10, 2)
+  operating_hours            Decimal        @db.Decimal(8, 2)
+  idle_or_breakdown_hours    Decimal        @default(0.00) @db.Decimal(8, 2)
+  fuel_liters_issued         Decimal        @default(0.00) @db.Decimal(8, 2)
+  fuel_cost_per_liter_kes    Decimal        @default(180.00) @db.Decimal(8, 2)
+  total_fuel_cost_kes        Decimal        @default(0.00) @db.Decimal(12, 2)
+  fuel_burn_liters_per_hour  Decimal        @default(0.00) @db.Decimal(8, 2)
+  fuel_efficiency_status     String         @default("NORMAL") @db.VarChar(50) // "NORMAL", "ELEVATED_BURN", "SUSPECTED_SIPHONING"
+  activities_performed       String?        @db.Text
+  verified_by_supervisor     String         @db.VarChar(255)
+  created_at                 DateTime       @default(now()) @db.Timestamptz
+  updated_at                 DateTime       @updatedAt @db.Timestamptz
+
+  project                    Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  equipment                  PlantEquipment @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, equipment_id])
+  @@map("plant_equipment_daily_logs")
+}
+
+// =============================================================
+// CASUAL LABOR MUSTER ROLL & ARTISAN WAGE SHEETS (KENYA WAGES)
+// =============================================================
+
+model SiteLaborer {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  tenant_id          String                 @db.Uuid
+  project_id         String                 @db.Uuid
+  worker_code        String                 @db.VarChar(50)
+  full_name          String                 @db.VarChar(255)
+  national_id_no     String                 @db.VarChar(50)
+  phone_number       String                 @db.VarChar(50) // M-Pesa registered mobile
+  trade_category     String                 @db.VarChar(50) // "MASON", "CARPENTER", "STEEL_FIXER", "PLUMBER", "ELECTRICIAN", "PAINTER", "TILER", "CASUAL_LABORER", "SCAFFOLDER", "FOREMAN"
+  skill_level        String                 @default("ARTISAN_FUNDI") @db.VarChar(50) // "CASUAL_MTU_WA_MKONO", "SEMI_SKILLED", "ARTISAN_FUNDI", "CHARGEHAND_FOREMAN"
+  daily_rate_kes     Decimal                @db.Decimal(10, 2)
+  is_active          Boolean                @default(true)
+  created_at         DateTime               @default(now()) @db.Timestamptz
+  updated_at         DateTime               @updatedAt @db.Timestamptz
+
+  project            Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  attendance_records LaborDailyAttendance[]
+
+  @@unique([tenant_id, national_id_no])
+  @@index([tenant_id, project_id, trade_category])
+  @@map("site_laborers")
+}
+
+model LaborMusterRoll {
+  id                       String                 @id @default(uuid()) @db.Uuid
+  tenant_id                String                 @db.Uuid
+  project_id               String                 @db.Uuid
+  payroll_no               String                 @db.VarChar(100) // e.g. "PAY-2026-W44"
+  week_ending_date         DateTime               @db.Date
+  total_workers            Int
+  total_man_days           Decimal                @db.Decimal(8, 2)
+  gross_wages_kes          Decimal                @db.Decimal(14, 2)
+  statutory_deductions_kes Decimal                @default(0.00) @db.Decimal(12, 2)
+  net_wages_payable_kes    Decimal                @db.Decimal(14, 2)
+  status                   String                 @default("PENDING_VERIFICATION") @db.VarChar(50) // "DRAFT", "PENDING_VERIFICATION", "QS_APPROVED", "DISBURSED", "REJECTED"
+  disbursement_reference   String?                @db.VarChar(100) // e.g. "MPESA-BULK-B2C-98124"
+  disbursed_at             DateTime?              @db.Timestamptz
+  approved_by              String?                @db.VarChar(255)
+  notes                    String?                @db.Text
+  created_at               DateTime               @default(now()) @db.Timestamptz
+  updated_at               DateTime               @updatedAt @db.Timestamptz
+
+  project                  Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  attendance_records       LaborDailyAttendance[]
+
+  @@unique([tenant_id, project_id, payroll_no])
+  @@map("labor_muster_rolls")
+}
+
+model LaborDailyAttendance {
+  id                 String          @id @default(uuid()) @db.Uuid
+  tenant_id          String          @db.Uuid
+  project_id         String          @db.Uuid
+  muster_roll_id     String          @db.Uuid
+  laborer_id         String          @db.Uuid
+  attendance_date    DateTime        @db.Date
+  days_worked        Decimal         @default(1.00) @db.Decimal(4, 2)
+  overtime_hours     Decimal         @default(0.00) @db.Decimal(4, 2)
+  daily_earnings_kes Decimal         @db.Decimal(10, 2)
+  task_assigned      String?         @db.VarChar(255)
+  verified_by        String          @db.VarChar(255)
+  created_at         DateTime        @default(now()) @db.Timestamptz
+
+  project            Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  muster_roll        LaborMusterRoll @relation(fields: [muster_roll_id], references: [id], onDelete: Cascade)
+  laborer            SiteLaborer     @relation(fields: [laborer_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, muster_roll_id, laborer_id, attendance_date])
+  @@map("labor_daily_attendances")
+}
+
+// =============================================================
+// FIELD SAFETY AUDITS & DOSHS/NCA COMPLIANCE SCORECARDS
+// =============================================================
+
+model SafetyAuditRecord {
+  id                                      String    @id @default(uuid()) @db.Uuid
+  tenant_id                               String    @db.Uuid
+  project_id                              String    @db.Uuid
+  audit_no                                String    @db.VarChar(100) // e.g. "HSE-AUDIT-2026-004"
+  audit_date                              DateTime  @db.Date
+  auditor_name                            String    @db.VarChar(255)
+  auditor_type                            String    @db.VarChar(50) // "INTERNAL_SAFETY_OFFICER", "NCA_INSPECTOR", "DOSHS_OFFICER", "LEAD_CONSULTANT"
+  ppe_compliance_score                    Decimal   @db.Decimal(5, 2) // e.g. 95.00%
+  scaffolding_and_edge_protection_status  String    @db.VarChar(50) // "PASS", "MINOR_DEFECTS", "FAIL_STOP_WORK"
+  excavation_and_shoring_status           String    @db.VarChar(50) // "PASS", "MINOR_DEFECTS", "FAIL_STOP_WORK", "NOT_APPLICABLE"
+  first_aid_and_fire_station_status       String    @db.VarChar(50) // "PASS", "DEFICIENT", "ABSENT"
+  electrical_safety_and_cables_status     String    @db.VarChar(50) // "PASS", "HAZARDOUS"
+  overall_compliance_score                Decimal   @db.Decimal(5, 2) // e.g. 88.50%
+  audit_outcome                           String    @db.VarChar(50) // "SATISFACTORY", "CORRECTIVE_ACTION_REQUIRED", "STOP_ORDER_ISSUED"
+  corrective_action_plan                  String?   @db.Text
+  reinspection_due_date                   DateTime? @db.Date
+  status                                  String    @default("OPEN") @db.VarChar(50) // "OPEN", "CAPA_SUBMITTED", "CLOSED"
+  created_at                              DateTime  @default(now()) @db.Timestamptz
+  updated_at                              DateTime  @updatedAt @db.Timestamptz
+
+  project                                 Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, audit_outcome])
+  @@map("safety_audit_records")
+}
+
 
 
 

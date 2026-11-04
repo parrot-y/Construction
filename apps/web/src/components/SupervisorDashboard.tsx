@@ -12,6 +12,9 @@ import SafetyIncidentLogView from './SafetyIncidentLogView';
 import ProjectDocumentVaultView from './ProjectDocumentVaultView';
 import { MaterialRequisitionView } from './MaterialRequisitionView';
 import { MaterialWastageVarianceCard } from './MaterialWastageVarianceCard';
+import { PlantEquipmentView } from './PlantEquipmentView';
+import { LaborMusterRollView } from './LaborMusterRollView';
+import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -231,6 +234,27 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       <MaterialWastageVarianceCard
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
+      />
+
+      {/* Plant, Machinery & Fuel Siphoning Audit (Milestone M16) */}
+      <PlantEquipmentView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="SITE_SUPERVISOR"
+      />
+
+      {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
+      <LaborMusterRollView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="SITE_SUPERVISOR"
+      />
+
+      {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
+      <SafetyAuditScorecardView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="SITE_SUPERVISOR"
       />
 
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}

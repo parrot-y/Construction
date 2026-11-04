@@ -7,6 +7,9 @@ import ProjectDocumentVaultView from './ProjectDocumentVaultView';
 import StatutoryTaxManagementView from './StatutoryTaxManagementView';
 import { ProjectSCurveCashFlowCard } from './ProjectSCurveCashFlowCard';
 import { SubcontractorValuationView } from './SubcontractorValuationView';
+import { PlantEquipmentView } from './PlantEquipmentView';
+import { LaborMusterRollView } from './LaborMusterRollView';
+import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -314,6 +317,27 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
         userRole="ADMIN"
+      />
+
+      {/* Heavy Machinery & Fuel Siphoning Audit (Milestone M16) */}
+      <PlantEquipmentView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="COMPANY_ADMIN"
+      />
+
+      {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
+      <LaborMusterRollView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="COMPANY_ADMIN"
+      />
+
+      {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
+      <SafetyAuditScorecardView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="COMPANY_ADMIN"
       />
 
       {/* Invite Member Modal */}

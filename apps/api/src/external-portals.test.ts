@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeAll } from 'vitest';
+import { prisma, withTenantTx, hashPassword } from '@construction/db';
 import { buildServer } from './index';
 
 describe('External Stakeholder Portals Suite: Token-Based Zero Seat Tax Access', () => {
@@ -39,7 +40,46 @@ describe('External Stakeholder Portals Suite: Token-Based Zero Seat Tax Access',
     });
     supervisorCookie = supRes.headers['set-cookie'] as string;
 
-    // 3. Login as Kilimanjaro Admin (Tenant B)
+    // 3. Ensure Kilimanjaro Admin (Tenant B) exists and login
+    const tenantB = await prisma.tenant.upsert({
+      where: { slug: 'test-tenant-b-portals' },
+      update: {},
+      create: {
+        name: 'Kilimanjaro Lifecycle Engineering Ltd',
+        slug: 'test-tenant-b-portals',
+        currency: 'KES',
+      },
+    });
+
+    const defaultPasswordHash = await hashPassword('Password123!');
+    const userB = await prisma.user.upsert({
+      where: { email: 'admin@kilimanjarolifecycle.co.ke' },
+      update: { password_hash: defaultPasswordHash },
+      create: {
+        email: 'admin@kilimanjarolifecycle.co.ke',
+        password_hash: defaultPasswordHash,
+        full_name: 'Nelson Kibet',
+        is_active: true,
+      },
+    });
+
+    await withTenantTx(prisma, tenantB.id, async (tx) => {
+      await tx.membership.upsert({
+        where: {
+          tenant_id_user_id: {
+            tenant_id: tenantB.id,
+            user_id: userB.id,
+          },
+        },
+        update: { role: 'COMPANY_ADMIN' },
+        create: {
+          tenant_id: tenantB.id,
+          user_id: userB.id,
+          role: 'COMPANY_ADMIN',
+        },
+      });
+    });
+
     const bRes = await server.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
