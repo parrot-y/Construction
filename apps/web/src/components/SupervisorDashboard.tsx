@@ -16,6 +16,8 @@ import { PlantEquipmentView } from './PlantEquipmentView';
 import { LaborMusterRollView } from './LaborMusterRollView';
 import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
 import { WhatsAppSiteWebhookView } from './WhatsAppSiteWebhookView';
+import { GeofencedClockInView } from './GeofencedClockInView';
+import { PlantTelematicsView } from './PlantTelematicsView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -263,6 +265,18 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
         userRole="SITE_SUPERVISOR"
+      />
+
+      {/* Project Geofencing & Biometric Mobile Clock-In (Milestone M23) */}
+      <GeofencedClockInView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+      />
+
+      {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
+      <PlantTelematicsView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
       />
 
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}

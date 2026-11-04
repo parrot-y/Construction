@@ -12,6 +12,7 @@ import { LaborMusterRollView } from './LaborMusterRollView';
 import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
 import { ETimsTaxComplianceView } from './ETimsTaxComplianceView';
 import { RetentionAndBondsView } from './RetentionAndBondsView';
+import { SubscriptionBillingView } from './SubscriptionBillingView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -354,6 +355,15 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
         userRole="COMPANY_ADMIN"
+      />
+
+      {/* Safaricom Daraja M-Pesa Subscription Billing (Milestone M22 / ADR-006) */}
+      <SubscriptionBillingView
+        tenantName={session.user.tenant?.name || 'Apex Builders Kenya Ltd'}
+        subscriptionState="ACTIVE"
+        activePlan="PORTFOLIO_TIER"
+        monthlyFeeKes="25000.00"
+        daysRemaining={26}
       />
 
       {/* Invite Member Modal */}

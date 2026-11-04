@@ -28,6 +28,8 @@ import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
 import { ETimsTaxComplianceView } from './ETimsTaxComplianceView';
 import { WhatsAppSiteWebhookView } from './WhatsAppSiteWebhookView';
 import { RetentionAndBondsView } from './RetentionAndBondsView';
+import { GeofencedClockInView } from './GeofencedClockInView';
+import { PlantTelematicsView } from './PlantTelematicsView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -41,7 +43,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -142,6 +144,8 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'etims', label: '🧾 KRA e-TIMS Invoices' },
           { id: 'whatsapp', label: '💬 WhatsApp Site Bot' },
           { id: 'retentionbonds', label: '🏦 Retention & Bonds' },
+          { id: 'geofence', label: '📍 Site Geofencing' },
+          { id: 'telematics', label: '🛰️ Plant Telematics' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -493,6 +497,22 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           projectId="project-rcp-2026"
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
+        />
+      )}
+
+      {/* Project Geofencing & Biometric Mobile Clock-In (Milestone M23) */}
+      {(activeTab === 'all' || activeTab === 'geofence') && (
+        <GeofencedClockInView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
+      {(activeTab === 'all' || activeTab === 'telematics') && (
+        <PlantTelematicsView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
         />
       )}
 

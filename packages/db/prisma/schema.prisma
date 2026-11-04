@@ -26,6 +26,8 @@ model Tenant {
   projects       Project[]
   idempotency    IdempotencyKey[]
   audit_logs     AuditLog[]
+  subscription_plans   SubscriptionPlan[]
+  mpesa_subscriptions  MpesaSubscriptionTransaction[]
 
   @@map("tenants")
 }
@@ -137,6 +139,8 @@ model Project {
   site_alert_notifications SiteAlertNotification[]
   retention_releases    SubcontractorRetentionRelease[]
   contractor_bonds      ContractorBondTracker[]
+  geofences             ProjectGeofence[]
+  worker_clock_events   WorkerClockEvent[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -1157,6 +1161,8 @@ model PlantEquipment {
 
   project              Project                  @relation(fields: [project_id], references: [id], onDelete: Cascade)
   daily_logs           PlantEquipmentDailyLog[]
+  telematics_device    PlantTelematicsDevice?
+  telematics_pings     PlantTelematicsPing[]
 
   @@unique([tenant_id, project_id, equipment_code])
   @@map("plant_equipment")
@@ -1211,6 +1217,7 @@ model SiteLaborer {
 
   project            Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
   attendance_records LaborDailyAttendance[]
+  clock_events       WorkerClockEvent[]
 
   @@unique([tenant_id, national_id_no])
   @@index([tenant_id, project_id, trade_category])
@@ -1444,6 +1451,143 @@ model ContractorBondTracker {
   @@index([tenant_id, project_id, bond_type, claim_status])
   @@map("contractor_bond_trackers")
 }
+
+// =============================================================
+// SAFARICOM DARAJA M-PESA SUBSCRIPTION BILLING (M22 / ADR-006)
+// =============================================================
+
+model SubscriptionPlan {
+  id                    String    @id @default(uuid()) @db.Uuid
+  tenant_id             String    @db.Uuid
+  plan_code             String    @db.VarChar(50) // "PROJECT_TIER", "PORTFOLIO_TIER"
+  name                  String    @db.VarChar(255) // "Single Project Pro", "Full Portfolio Enterprise"
+  monthly_amount        Decimal   @db.Decimal(12, 2) // 7500.00 or 25000.00
+  max_active_projects   Int       @default(1)
+  billing_cycle         String    @default("MONTHLY") @db.VarChar(50)
+  status                String    @default("ACTIVE") @db.VarChar(50)
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @updatedAt @db.Timestamptz
+
+  tenant                Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, plan_code])
+  @@map("subscription_plans")
+}
+
+model MpesaSubscriptionTransaction {
+  id                         String    @id @default(uuid()) @db.Uuid
+  tenant_id                  String    @db.Uuid
+  phone_number               String    @db.VarChar(50) // E.g. "254712345678"
+  amount                     Decimal   @db.Decimal(12, 2)
+  merchant_request_id        String    @db.VarChar(100)
+  checkout_request_id        String    @unique @db.VarChar(100)
+  mpesa_receipt_number       String?   @db.VarChar(100) // E.g. "QA99824XJ"
+  transaction_status         String    @default("INITIATED") @db.VarChar(50) // "INITIATED", "SUCCESS", "FAILED", "CANCELLED"
+  result_code                Int?
+  result_desc                String?   @db.Text
+  plan_code                  String    @db.VarChar(50)
+  subscription_period_start  DateTime? @db.Timestamptz
+  subscription_period_end    DateTime? @db.Timestamptz
+  created_at                 DateTime  @default(now()) @db.Timestamptz
+  updated_at                 DateTime  @updatedAt @db.Timestamptz
+
+  tenant                     Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, transaction_status])
+  @@map("mpesa_subscription_transactions")
+}
+
+// =============================================================
+// PROJECT GEOFENCING & BIOMETRIC/GPS CLOCK-IN ENGINE (M23)
+// =============================================================
+
+model ProjectGeofence {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenant_id          String    @db.Uuid
+  project_id         String    @db.Uuid
+  geofence_name      String    @db.VarChar(255)
+  center_latitude    Decimal   @db.Decimal(9, 6)
+  center_longitude   Decimal   @db.Decimal(9, 6)
+  radius_meters      Decimal   @default(150.00) @db.Decimal(8, 2)
+  is_active          Boolean   @default(true)
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @updatedAt @db.Timestamptz
+
+  project            Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, is_active])
+  @@map("project_geofences")
+}
+
+model WorkerClockEvent {
+  id                          String      @id @default(uuid()) @db.Uuid
+  tenant_id                   String      @db.Uuid
+  project_id                  String      @db.Uuid
+  laborer_id                  String      @db.Uuid
+  clock_type                  String      @db.VarChar(20) // "CLOCK_IN", "CLOCK_OUT"
+  event_timestamp             DateTime    @default(now()) @db.Timestamptz
+  captured_latitude           Decimal     @db.Decimal(9, 6)
+  captured_longitude          Decimal     @db.Decimal(9, 6)
+  calculated_distance_meters  Decimal     @db.Decimal(8, 2)
+  verification_status         String      @default("WITHIN_GEOFENCE") @db.VarChar(50) // "WITHIN_GEOFENCE", "OUTSIDE_GEOFENCE_FLAGGED", "MANUAL_OVERRIDE"
+  photo_selfie_url            String?     @db.VarChar(500)
+  device_user_agent           String?     @db.VarChar(255)
+  created_at                  DateTime    @default(now()) @db.Timestamptz
+
+  project                     Project     @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  laborer                     SiteLaborer @relation(fields: [laborer_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, verification_status])
+  @@map("worker_clock_events")
+}
+
+// =============================================================
+// DIRECT PLANT GPS TELEMATICS & FUEL FLOW METERS (M24)
+// =============================================================
+
+model PlantTelematicsDevice {
+  id                               String              @id @default(uuid()) @db.Uuid
+  tenant_id                        String              @db.Uuid
+  equipment_id                     String              @unique @db.Uuid
+  device_imei                      String              @unique @db.VarChar(50)
+  protocol                         String              @default("GPS_MODEM") @db.VarChar(50) // "OBD2", "CANBUS", "GPS_MODEM", "MODBUS_FLOW"
+  sim_phone_number                 String?             @db.VarChar(50)
+  calibration_tank_capacity_liters Decimal             @default(300.00) @db.Decimal(8, 2)
+  status                           String              @default("ONLINE") @db.VarChar(50) // "ONLINE", "OFFLINE", "FAULT"
+  last_heartbeat_at                DateTime?           @db.Timestamptz
+  created_at                       DateTime            @default(now()) @db.Timestamptz
+  updated_at                       DateTime            @updatedAt @db.Timestamptz
+
+  equipment                        PlantEquipment      @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+  telematics_pings                 PlantTelematicsPing[]
+
+  @@index([tenant_id, status])
+  @@map("plant_telematics_devices")
+}
+
+model PlantTelematicsPing {
+  id                         String                @id @default(uuid()) @db.Uuid
+  tenant_id                  String                @db.Uuid
+  device_id                  String                @db.Uuid
+  equipment_id               String                @db.Uuid
+  ping_timestamp             DateTime              @default(now()) @db.Timestamptz
+  latitude                   Decimal               @db.Decimal(9, 6)
+  longitude                  Decimal               @db.Decimal(9, 6)
+  engine_status              String                @default("RUNNING") @db.VarChar(20) // "RUNNING", "IDLE", "STOPPED"
+  engine_rpm                 Int?
+  cumulative_engine_seconds  BigInt                @default(0)
+  fuel_level_percent         Decimal               @db.Decimal(5, 2)
+  calculated_fuel_liters     Decimal               @db.Decimal(8, 2)
+  is_siphoning_event         Boolean               @default(false)
+  created_at                 DateTime              @default(now()) @db.Timestamptz
+
+  telematics_device          PlantTelematicsDevice @relation(fields: [device_id], references: [id], onDelete: Cascade)
+  equipment                  PlantEquipment        @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, equipment_id, is_siphoning_event])
+  @@map("plant_telematics_pings")
+}
+
 
 
 

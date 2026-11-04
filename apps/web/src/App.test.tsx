@@ -46,6 +46,9 @@ import { SafetyAuditScorecardView } from './components/SafetyAuditScorecardView'
 import { ETimsTaxComplianceView } from './components/ETimsTaxComplianceView';
 import { WhatsAppSiteWebhookView } from './components/WhatsAppSiteWebhookView';
 import { RetentionAndBondsView } from './components/RetentionAndBondsView';
+import { SubscriptionBillingView } from './components/SubscriptionBillingView';
+import { GeofencedClockInView } from './components/GeofencedClockInView';
+import { PlantTelematicsView } from './components/PlantTelematicsView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1717,6 +1720,125 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
       expect(html).toContain('KRA e-TIMS Tax Compliance Engine');
       expect(html).toContain('Subcontractor Retention &amp; Bank Bonds Engine');
+    });
+  });
+
+  describe('Milestones M22, M23 & M24: Platform Services, Site Geofencing & IoT Telematics Suite', () => {
+    it('renders SubscriptionBillingView with Safaricom Daraja STK Push, metrics, and plan tiers', () => {
+      const html = renderToString(
+        <SubscriptionBillingView
+          tenantName="Apex Builders Kenya Ltd"
+          subscriptionState="ACTIVE"
+          activePlan="PORTFOLIO_TIER"
+          monthlyFeeKes="25000.00"
+          daysRemaining={26}
+          lastPaymentRef="NL88491023"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Safaricom Daraja M-Pesa Subscription Billing');
+      expect(html).toContain('Pay / Upgrade with M-Pesa');
+      expect(html).toContain('Portfolio Tier');
+      expect(html).toContain('Project Tier');
+      expect(html).toContain('KES 25,000');
+      expect(html).toContain('KES 7,500');
+      expect(html).toContain('26 Days');
+      expect(html).toContain('Unlimited');
+      expect(html).toContain('NL88491023');
+      expect(html).toContain('Daraja M-Pesa Subscription Transactions');
+    });
+
+    it('renders GeofencedClockInView with Haversine distance calculator, on-site verified and flagged violations', () => {
+      const html = renderToString(
+        <GeofencedClockInView
+          projectName="Upper Hill Commercial Tower"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
+      expect(html).toContain('GEOFENCE ENFORCED');
+      expect(html).toContain('Configure Geofence Perimeter');
+      expect(html).toContain('Mobile Biometric / GPS Clock-In Simulator');
+      expect(html).toContain('Main Gate (~15m)');
+      expect(html).toContain('Perimeter (~110m)');
+      expect(html).toContain('Off-Site (~2.5km)');
+      expect(html).toContain('Calculated Haversine Distance:');
+      expect(html).toContain('VERIFIED ON-SITE');
+      expect(html).toContain('OFF-SITE FLAGGED');
+      expect(html).toContain('Site Muster Roll Geofence Attendance Feed');
+    });
+
+    it('renders PlantTelematicsView with machinery fleet IoT telemetry, live fuel meters, and sudden diesel siphoning anomaly alert', () => {
+      const html = renderToString(
+        <PlantTelematicsView
+          projectName="Upper Hill Commercial Tower"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
+      expect(html).toContain('IOT ACTIVE');
+      expect(html).toContain('Register Telematics Hardware');
+      expect(html).toContain('Critical Fuel Theft Anomaly Flagged');
+      expect(html).toContain('Simulate 40L Diesel Siphoning Drop');
+      expect(html).toContain('DIESEL SIPHONING FLAG');
+      expect(html).toContain('NORMAL BURN');
+      expect(html).toContain('Machinery IoT Telemetry Feed &amp; Fuel Flow Log');
+    });
+
+    it('embeds SubscriptionBillingView into CompanyAdminDashboard', () => {
+      const adminSession: AuthSession = {
+        user: {
+          id: 'user-admin',
+          email: 'admin@apexbuilders.co.ke',
+          fullName: 'Admin User',
+          role: 'COMPANY_ADMIN',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['company.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Safaricom Daraja M-Pesa Subscription Billing');
+      expect(html).toContain('Pay / Upgrade with M-Pesa');
+    });
+
+    it('embeds GeofencedClockInView and PlantTelematicsView into SupervisorDashboard', () => {
+      const superSession: AuthSession = {
+        user: {
+          id: 'user-super',
+          email: 'supervisor@apexbuilders.co.ke',
+          fullName: 'Site Supervisor',
+          role: 'SITE_SUPERVISOR',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['site.diary', 'cost.create'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
+      expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
+    });
+
+    it('embeds GeofencedClockInView and PlantTelematicsView into PmQsDashboard', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'Project Manager / QS',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['cost.manage', 'site.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('📍 Site Geofencing');
+      expect(html).toContain('🛰️ Plant Telematics');
+      expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
+      expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
     });
   });
 });

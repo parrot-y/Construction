@@ -1050,6 +1050,84 @@ export const CreateContractorBondSchema = z.object({
 });
 export type CreateContractorBond = z.infer<typeof CreateContractorBondSchema>;
 
+// -------------------------------------------------------------
+// SAFARICOM DARAJA M-PESA SUBSCRIPTION BILLING (MILESTONE M22)
+// -------------------------------------------------------------
+export const SubscriptionPlanCodeEnum = z.enum(['PROJECT_TIER', 'PORTFOLIO_TIER']);
+export type SubscriptionPlanCode = z.infer<typeof SubscriptionPlanCodeEnum>;
+
+export const InitiateMpesaStkPushSchema = z.object({
+  phoneNumber: z.string().min(10).max(15),
+  planCode: SubscriptionPlanCodeEnum,
+  amount: CurrencyAmountSchema,
+});
+export type InitiateMpesaStkPush = z.infer<typeof InitiateMpesaStkPushSchema>;
+
+export const ProcessMpesaCallbackSchema = z.object({
+  MerchantRequestID: z.string(),
+  CheckoutRequestID: z.string(),
+  ResultCode: z.number().int(),
+  ResultDesc: z.string(),
+  MpesaReceiptNumber: z.string().optional().nullable(),
+  TransactionDate: z.string().optional().nullable(),
+  PhoneNumber: z.string().optional().nullable(),
+});
+export type ProcessMpesaCallback = z.infer<typeof ProcessMpesaCallbackSchema>;
+
+// -------------------------------------------------------------
+// PROJECT GEOFENCING & BIOMETRIC CLOCK-IN ENGINE (MILESTONE M23)
+// -------------------------------------------------------------
+export const CreateProjectGeofenceSchema = z.object({
+  geofenceName: z.string().min(2).max(255),
+  centerLatitude: z.string().regex(/^-?\d+(\.\d+)?$/, { message: 'Valid decimal latitude' }),
+  centerLongitude: z.string().regex(/^-?\d+(\.\d+)?$/, { message: 'Valid decimal longitude' }),
+  radiusMeters: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid radius in meters' }).default('150.00'),
+});
+export type CreateProjectGeofence = z.infer<typeof CreateProjectGeofenceSchema>;
+
+export const ClockTypeEnum = z.enum(['CLOCK_IN', 'CLOCK_OUT']);
+export type ClockType = z.infer<typeof ClockTypeEnum>;
+
+export const RecordWorkerClockInSchema = z.object({
+  laborerId: z.string().uuid(),
+  clockType: ClockTypeEnum.default('CLOCK_IN'),
+  capturedLatitude: z.string().regex(/^-?\d+(\.\d+)?$/, { message: 'Valid decimal latitude' }),
+  capturedLongitude: z.string().regex(/^-?\d+(\.\d+)?$/, { message: 'Valid decimal longitude' }),
+  photoSelfieUrl: z.string().max(500).optional().nullable(),
+  deviceUserAgent: z.string().max(255).optional().nullable(),
+});
+export type RecordWorkerClockIn = z.infer<typeof RecordWorkerClockInSchema>;
+
+// -------------------------------------------------------------
+// DIRECT PLANT GPS TELEMATICS & FUEL FLOW METERS (MILESTONE M24)
+// -------------------------------------------------------------
+export const TelematicsProtocolEnum = z.enum(['OBD2', 'CANBUS', 'GPS_MODEM', 'MODBUS_FLOW']);
+export type TelematicsProtocol = z.infer<typeof TelematicsProtocolEnum>;
+
+export const RegisterTelematicsDeviceSchema = z.object({
+  equipmentId: z.string().uuid(),
+  deviceImei: z.string().min(8).max(50),
+  protocol: TelematicsProtocolEnum.default('GPS_MODEM'),
+  simPhoneNumber: z.string().max(50).optional().nullable(),
+  calibrationTankCapacityLiters: z.string().regex(/^\d+(\.\d{1,2})?$/).default('300.00'),
+});
+export type RegisterTelematicsDevice = z.infer<typeof RegisterTelematicsDeviceSchema>;
+
+export const EngineStatusEnum = z.enum(['RUNNING', 'IDLE', 'STOPPED']);
+export type EngineStatus = z.infer<typeof EngineStatusEnum>;
+
+export const IngestTelematicsPingSchema = z.object({
+  deviceImei: z.string().min(8).max(50),
+  latitude: z.string().regex(/^-?\d+(\.\d+)?$/),
+  longitude: z.string().regex(/^-?\d+(\.\d+)?$/),
+  engineStatus: EngineStatusEnum.default('RUNNING'),
+  engineRpm: z.number().int().optional().nullable(),
+  cumulativeEngineSeconds: z.number().int().nonnegative().default(0),
+  fuelLevelPercent: z.string().regex(/^\d+(\.\d{1,2})?$/),
+});
+export type IngestTelematicsPing = z.infer<typeof IngestTelematicsPingSchema>;
+
+
 
 
 
