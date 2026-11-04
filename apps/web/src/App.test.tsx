@@ -51,6 +51,8 @@ import { GeofencedClockInView } from './components/GeofencedClockInView';
 import { PlantTelematicsView } from './components/PlantTelematicsView';
 import { BarBendingScheduleView } from './components/BarBendingScheduleView';
 import { MpesaDisbursementView } from './components/MpesaDisbursementView';
+import { RmcTransitTrackerView } from './components/RmcTransitTrackerView';
+import { StructuralSteelTakeoffView } from './components/StructuralSteelTakeoffView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1928,6 +1930,81 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Safaricom Daraja B2C Bulk Wages &amp; Retention Disbursements');
       expect(html).toContain('Live B2C Gateway');
+    });
+
+    it('renders RmcTransitTrackerView with BS EN 206 cold joint defense and slump verification', () => {
+      const html = renderToString(
+        <RmcTransitTrackerView
+          projectId="project-test-rmc"
+          projectName="Upper Hill Medical Suites"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
+      expect(html).toContain('BS EN 206 / KS 02-598 Cold-Joint Early Defense');
+      expect(html).toContain('BS EN 12350-2');
+      expect(html).toContain('RMC-BAM-88412');
+      expect(html).toContain('Bamburi Special Products Ltd');
+      expect(html).toContain('KDH 482B');
+      expect(html).toContain('CLASS 30 20');
+      expect(html).toContain('Slump Standard (BS EN 12350-2)');
+    });
+
+    it('renders StructuralSteelTakeoffView with BS 4 sections and intumescent coating estimator', () => {
+      const html = renderToString(
+        <StructuralSteelTakeoffView
+          projectId="project-test-steel"
+          projectName="Tatu City Logistics Park"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Structural Steel Framing &amp; Fabrication Takeoff Engine');
+      expect(html).toContain('BS 4 / BS EN 10056 / KS 02-104 Section Properties');
+      expect(html).toContain('STL-TKF-WH01');
+      expect(html).toContain('Warehouse Main Portal Frame Grid 1-8');
+      expect(html).toContain('11.422 T');
+      expect(html).toContain('262.60 m²');
+      expect(html).toContain('UB 406x178x74');
+      expect(html).toContain('S355JR');
+    });
+
+    it('embeds RmcTransitTrackerView and StructuralSteelTakeoffView into PmQsDashboard', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'Project Manager / QS',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['cost.manage', 'site.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('🚛 RMC Transit &amp; Slump');
+      expect(html).toContain('⚙️ Structural Steel Takeoff');
+      expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
+      expect(html).toContain('Structural Steel Framing &amp; Fabrication Takeoff Engine');
+    });
+
+    it('embeds RmcTransitTrackerView into SupervisorDashboard for live batch tickets and slump cone testing', () => {
+      const superSession: AuthSession = {
+        user: {
+          id: 'user-super',
+          email: 'supervisor@apexbuilders.co.ke',
+          fullName: 'Site Supervisor',
+          role: 'SITE_SUPERVISOR',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['site.diary', 'cost.create'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
+      expect(html).toContain('Bamburi Special Products Ltd');
+      expect(html).toContain('KDH 482B');
     });
   });
 });

@@ -19,6 +19,7 @@ import { WhatsAppSiteWebhookView } from './WhatsAppSiteWebhookView';
 import { GeofencedClockInView } from './GeofencedClockInView';
 import { PlantTelematicsView } from './PlantTelematicsView';
 import { BarBendingScheduleView } from './BarBendingScheduleView';
+import { RmcTransitTrackerView } from './RmcTransitTrackerView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -282,6 +283,12 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
 
       {/* BS 8666 / KS 02-598 Rebar Cutting Lists & Steel-Fixing Schedules (Milestone M25) */}
       <BarBendingScheduleView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+      />
+
+      {/* BS EN 206 / KS 02-598 Ready-Mix Concrete Transit Slump Tracker (Milestone M27) */}
+      <RmcTransitTrackerView
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
       />

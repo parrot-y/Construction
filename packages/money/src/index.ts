@@ -517,3 +517,170 @@ export function calculateJbcDualMoietyRetention(
   };
 }
 
+// =============================================================
+// READY-MIX CONCRETE (RMC) TRANSIT & SLUMP EVALUATION (MILESTONE M27)
+// =============================================================
+
+export interface RmcTransitEvaluation {
+  transitMinutes: number;
+  status: 'OPTIMAL' | 'WARNING_HYDRATION_ACCELERATING' | 'CRITICAL_COLD_JOINT_RISK';
+  statusLabel: string;
+  isColdJointRisk: boolean;
+  message: string;
+}
+
+/**
+ * Evaluates transit time of ready-mix concrete from batch plant dispatch to site discharge.
+ * Under BS EN 206 / KS 02-598:
+ * - <= 90 minutes: OPTIMAL (Safe hydration window)
+ * - 91 to 120 minutes: WARNING (Hydration accelerating, pour immediately)
+ * - > 120 minutes: CRITICAL_COLD_JOINT_RISK (High risk of uncompactable concrete & cold joint defect)
+ */
+export function evaluateRmcTransitStatus(
+  dispatchedAt: Date | string,
+  arrivedOrCurrentTime: Date | string = new Date(),
+): RmcTransitEvaluation {
+  const dispatchMs = new Date(dispatchedAt).getTime();
+  const arrivalMs = new Date(arrivedOrCurrentTime).getTime();
+  const diffMinutes = Math.max(0, Math.round((arrivalMs - dispatchMs) / 60000));
+
+  if (diffMinutes > 120) {
+    return {
+      transitMinutes: diffMinutes,
+      status: 'CRITICAL_COLD_JOINT_RISK',
+      statusLabel: 'Critical: Cold Joint Risk',
+      isColdJointRisk: true,
+      message: `Transit duration (${diffMinutes} min) exceeds 120 min max limit. Risk of setting in drum and severe cold joints.`,
+    };
+  } else if (diffMinutes > 90) {
+    return {
+      transitMinutes: diffMinutes,
+      status: 'WARNING_HYDRATION_ACCELERATING',
+      statusLabel: 'Warning: Hydration Accelerating',
+      isColdJointRisk: false,
+      message: `Transit duration (${diffMinutes} min) exceeds 90 min. Slump loss expected. Discharge must commence immediately.`,
+    };
+  }
+
+  return {
+    transitMinutes: diffMinutes,
+    status: 'OPTIMAL',
+    statusLabel: 'Optimal Workability',
+    isColdJointRisk: false,
+    message: `Transit duration (${diffMinutes} min) is within optimal hydration window (<= 90 min).`,
+  };
+}
+
+export interface RmcSlumpToleranceResult {
+  specifiedSlumpMm: number;
+  measuredSlumpMm: number;
+  deviationMm: number;
+  allowedToleranceMm: number;
+  isWithinTolerance: boolean;
+  verdict: 'ACCEPTED' | 'REJECTED';
+}
+
+/**
+ * Evaluates concrete slump test compliance against BS EN 12350-2:
+ * - Target 50 - 90mm: +/- 20mm
+ * - Target 100 - 150mm: +/- 25mm (Standard Kenyan pumped mix)
+ * - Target > 150mm: +/- 30mm
+ */
+export function evaluateRmcSlumpTolerance(
+  specifiedSlumpMm: number,
+  measuredSlumpMm: number,
+): RmcSlumpToleranceResult {
+  let allowedToleranceMm = 25;
+  if (specifiedSlumpMm < 100) {
+    allowedToleranceMm = 20;
+  } else if (specifiedSlumpMm > 150) {
+    allowedToleranceMm = 30;
+  }
+
+  const deviationMm = measuredSlumpMm - specifiedSlumpMm;
+  const isWithinTolerance = Math.abs(deviationMm) <= allowedToleranceMm;
+
+  return {
+    specifiedSlumpMm,
+    measuredSlumpMm,
+    deviationMm,
+    allowedToleranceMm,
+    isWithinTolerance,
+    verdict: isWithinTolerance ? 'ACCEPTED' : 'REJECTED',
+  };
+}
+
+// =============================================================
+// STRUCTURAL STEEL FRAMING & FABRICATION TAKEOFF (MILESTONE M28)
+// =============================================================
+
+export interface StructuralSteelSectionDef {
+  designation: string;
+  type: 'UB' | 'UC' | 'RHS' | 'SHS' | 'CHS' | 'ANGLE';
+  unitWeightKgPerM: string;
+  paintAreaM2PerM: string;
+}
+
+/**
+ * Standard British / Kenya Standard (BS 4 / BS EN 10056 / KS 02-104) structural steel sections
+ */
+export const STRUCTURAL_STEEL_SECTIONS: Record<string, StructuralSteelSectionDef> = {
+  'UB 406x178x74': { designation: 'UB 406x178x74', type: 'UB', unitWeightKgPerM: '74.200', paintAreaM2PerM: '1.510' },
+  'UB 406x178x67': { designation: 'UB 406x178x67', type: 'UB', unitWeightKgPerM: '67.100', paintAreaM2PerM: '1.500' },
+  'UB 305x165x40': { designation: 'UB 305x165x40', type: 'UB', unitWeightKgPerM: '40.300', paintAreaM2PerM: '1.230' },
+  'UC 203x203x46': { designation: 'UC 203x203x46', type: 'UC', unitWeightKgPerM: '46.100', paintAreaM2PerM: '1.200' },
+  'UC 254x254x73': { designation: 'UC 254x254x73', type: 'UC', unitWeightKgPerM: '73.100', paintAreaM2PerM: '1.500' },
+  'RHS 100x50x4.0': { designation: 'RHS 100x50x4.0', type: 'RHS', unitWeightKgPerM: '8.770', paintAreaM2PerM: '0.290' },
+  'RHS 150x100x5.0': { designation: 'RHS 150x100x5.0', type: 'RHS', unitWeightKgPerM: '18.700', paintAreaM2PerM: '0.490' },
+  'SHS 80x80x5.0': { designation: 'SHS 80x80x5.0', type: 'SHS', unitWeightKgPerM: '11.700', paintAreaM2PerM: '0.310' },
+  'SHS 100x100x6.0': { designation: 'SHS 100x100x6.0', type: 'SHS', unitWeightKgPerM: '17.500', paintAreaM2PerM: '0.390' },
+  'CHS 114.3x4.5': { designation: 'CHS 114.3x4.5', type: 'CHS', unitWeightKgPerM: '12.200', paintAreaM2PerM: '0.360' },
+  'ANGLE 100x100x8': { designation: 'ANGLE 100x100x8', type: 'ANGLE', unitWeightKgPerM: '12.200', paintAreaM2PerM: '0.390' },
+};
+
+export function getStructuralSteelSection(designation: string): StructuralSteelSectionDef {
+  const norm = designation.trim().toUpperCase();
+  const match = Object.entries(STRUCTURAL_STEEL_SECTIONS).find(([k]) => k.toUpperCase() === norm);
+  if (!match) {
+    // Default fallback calculation: estimate unit weight ~ 25 kg/m
+    return {
+      designation,
+      type: designation.startsWith('UB') ? 'UB' : designation.startsWith('UC') ? 'UC' : 'RHS',
+      unitWeightKgPerM: '25.000',
+      paintAreaM2PerM: '1.000',
+    };
+  }
+  return match[1];
+}
+
+export interface StructuralMemberTotals {
+  totalLengthMeters: Decimal;
+  totalWeightKg: Decimal;
+  totalTonnage: Decimal;
+  totalPaintAreaM2: Decimal;
+}
+
+export function calculateStructuralMemberTotals(
+  lengthMeters: DecimalValue,
+  quantity: number,
+  unitWeightKgPerM: DecimalValue,
+  paintAreaM2PerM: DecimalValue,
+): StructuralMemberTotals {
+  const len = toDecimal(lengthMeters);
+  const qty = new Decimal(quantity);
+  const weightPerM = toDecimal(unitWeightKgPerM);
+  const paintPerM = toDecimal(paintAreaM2PerM);
+
+  const totalLengthMeters = len.times(qty).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+  const totalWeightKg = totalLengthMeters.times(weightPerM).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const totalTonnage = totalWeightKg.dividedBy(1000).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+  const totalPaintAreaM2 = totalLengthMeters.times(paintPerM).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  return {
+    totalLengthMeters,
+    totalWeightKg,
+    totalTonnage,
+    totalPaintAreaM2,
+  };
+}
+

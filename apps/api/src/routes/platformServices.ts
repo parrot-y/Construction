@@ -1,6 +1,14 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
-import { toDecimal, getRebarUnitWeight, calculateRebarCutLengthMeters } from '@construction/money';
+import {
+  toDecimal,
+  getRebarUnitWeight,
+  calculateRebarCutLengthMeters,
+  evaluateRmcTransitStatus,
+  evaluateRmcSlumpTolerance,
+  getStructuralSteelSection,
+  calculateStructuralMemberTotals,
+} from '@construction/money';
 import {
   InitiateMpesaStkPushSchema,
   ProcessMpesaCallbackSchema,
@@ -12,6 +20,10 @@ import {
   UpdateBarBendingScheduleStatusSchema,
   InitiateB2CDisbursementSchema,
   ProcessB2CCallbackSchema,
+  CreateRmcBatchDeliverySchema,
+  RecordRmcSlumpTestSchema,
+  UpdateRmcDischargeSchema,
+  CreateStructuralSteelTakeoffSchema,
 } from '@construction/validation';
 import * as crypto from 'crypto';
 
@@ -1579,6 +1591,666 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               completedAt: d.transaction_completed_at?.toISOString(),
               createdAt: d.created_at.toISOString(),
             })),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // =============================================================
+  // SECTION 6: READY-MIX CONCRETE (RMC) BATCHING & TRANSIT TRACKER (MILESTONE M27)
+  // =============================================================
+
+  // 6.1 Register RMC Batch Delivery Ticket
+  server.post(
+    '/api/v1/projects/:projectId/rmc-deliveries',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      const parseResult = CreateRmcBatchDeliverySchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid RMC delivery payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        deliveryTicketNo,
+        supplierName,
+        truckRegistrationNo,
+        driverName,
+        driverPhone,
+        concreteClass,
+        orderedVolumeM3,
+        dispatchedAt,
+        pourLocationElement,
+      } = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const transitEval = evaluateRmcTransitStatus(dispatchedAt);
+
+          const delivery = await tx.rmcBatchDelivery.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              delivery_ticket_no: deliveryTicketNo,
+              supplier_name: supplierName,
+              truck_registration_no: truckRegistrationNo,
+              driver_name: driverName || null,
+              driver_phone: driverPhone || null,
+              concrete_class: concreteClass,
+              ordered_volume_m3: toDecimal(orderedVolumeM3).toFixed(2),
+              dispatched_at: new Date(dispatchedAt),
+              pour_location_element: pourLocationElement,
+              transit_duration_minutes: transitEval.transitMinutes,
+              status: transitEval.isColdJointRisk ? 'REJECTED_COLD_JOINT_RISK' : 'IN_TRANSIT',
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'REGISTER_RMC_DELIVERY',
+            entityType: 'RmcBatchDelivery',
+            entityId: delivery.id,
+            changes: {
+              deliveryTicketNo,
+              supplierName,
+              truckRegistrationNo,
+              concreteClass,
+              orderedVolumeM3: toDecimal(orderedVolumeM3).toFixed(2),
+            },
+          });
+
+          return {
+            deliveryId: delivery.id,
+            deliveryTicketNo: delivery.delivery_ticket_no,
+            truckRegistrationNo: delivery.truck_registration_no,
+            concreteClass: delivery.concrete_class,
+            orderedVolumeM3: toDecimal(delivery.ordered_volume_m3.toString()).toFixed(2),
+            status: delivery.status,
+            transitEvaluation: transitEval,
+            createdAt: delivery.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 6.2 List RMC Deliveries for Project
+  server.get(
+    '/api/v1/projects/:projectId/rmc-deliveries',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const deliveries = await tx.rmcBatchDelivery.findMany({
+            where: { project_id: projectId },
+            include: { slump_tests: true },
+            orderBy: { dispatched_at: 'desc' },
+          });
+
+          let totalVolumeM3 = toDecimal(0);
+          for (const d of deliveries) {
+            totalVolumeM3 = totalVolumeM3.plus(toDecimal(d.ordered_volume_m3.toString()));
+          }
+
+          return {
+            projectId,
+            summary: {
+              totalTruckloads: deliveries.length,
+              totalVolumeM3: totalVolumeM3.toFixed(2),
+              inTransitCount: deliveries.filter((d) => d.status === 'IN_TRANSIT').length,
+              completedCount: deliveries.filter((d) => d.status === 'COMPLETED').length,
+              rejectedCount: deliveries.filter((d) => d.status === 'REJECTED_COLD_JOINT_RISK').length,
+            },
+            deliveries: deliveries.map((d) => ({
+              id: d.id,
+              deliveryTicketNo: d.delivery_ticket_no,
+              supplierName: d.supplier_name,
+              truckRegistrationNo: d.truck_registration_no,
+              concreteClass: d.concrete_class,
+              orderedVolumeM3: toDecimal(d.ordered_volume_m3.toString()).toFixed(2),
+              pourLocationElement: d.pour_location_element,
+              transitDurationMinutes: d.transit_duration_minutes,
+              status: d.status,
+              waterAddedLiters: toDecimal(d.water_added_on_site_liters.toString()).toFixed(2),
+              slumpTestsCount: d.slump_tests.length,
+              latestSlumpMm: d.slump_tests[0]?.measured_slump_mm ?? null,
+              latestSlumpVerdict: d.slump_tests[0]?.qa_verdict ?? null,
+              dispatchedAt: d.dispatched_at.toISOString(),
+              arrivedAt: d.arrived_at?.toISOString() || null,
+            })),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 6.3 Record On-Site Slump & Temperature Test
+  server.post(
+    '/api/v1/projects/:projectId/rmc-deliveries/:deliveryId/slump-tests',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, deliveryId } = request.params as { projectId: string; deliveryId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(deliveryId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Delivery not found' });
+      }
+
+      const parseResult = RecordRmcSlumpTestSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid slump test payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        specifiedSlumpMm,
+        measuredSlumpMm,
+        slumpType,
+        concreteTemperatureC,
+        ambientTemperatureC,
+        testedByInspector,
+        cubesCastBatchNo,
+      } = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const delivery = await tx.rmcBatchDelivery.findFirst({
+            where: { id: deliveryId, project_id: projectId },
+          });
+          if (!delivery) throw { status: 404, message: 'RMC delivery not found' };
+
+          const slumpEval = evaluateRmcSlumpTolerance(specifiedSlumpMm, measuredSlumpMm);
+
+          const slumpTest = await tx.rmcSlumpTest.create({
+            data: {
+              tenant_id: tenantId,
+              delivery_id: deliveryId,
+              specified_slump_mm: specifiedSlumpMm,
+              measured_slump_mm: measuredSlumpMm,
+              slump_type: slumpType,
+              concrete_temperature_c: toDecimal(concreteTemperatureC).toFixed(1),
+              ambient_temperature_c: ambientTemperatureC ? toDecimal(ambientTemperatureC).toFixed(1) : null,
+              is_within_tolerance: slumpEval.isWithinTolerance,
+              cubes_cast_batch_no: cubesCastBatchNo || null,
+              tested_by_inspector: testedByInspector,
+              qa_verdict: slumpEval.verdict,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'RECORD_RMC_SLUMP_TEST',
+            entityType: 'RmcSlumpTest',
+            entityId: slumpTest.id,
+            changes: {
+              deliveryId,
+              specifiedSlumpMm,
+              measuredSlumpMm,
+              qaVerdict: slumpEval.verdict,
+            },
+          });
+
+          return {
+            slumpTestId: slumpTest.id,
+            deliveryId,
+            specifiedSlumpMm,
+            measuredSlumpMm,
+            deviationMm: slumpEval.deviationMm,
+            isWithinTolerance: slumpEval.isWithinTolerance,
+            verdict: slumpEval.verdict,
+            concreteTemperatureC: slumpTest.concrete_temperature_c.toString(),
+            testedByInspector,
+            createdAt: slumpTest.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 6.4 Update RMC Delivery Discharge & Water Added Status
+  server.patch(
+    '/api/v1/projects/:projectId/rmc-deliveries/:deliveryId/discharge',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, deliveryId } = request.params as { projectId: string; deliveryId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(deliveryId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Delivery not found' });
+      }
+
+      const parseResult = UpdateRmcDischargeSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid discharge payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const { arrivedAt, dischargeStartedAt, dischargeCompletedAt, waterAddedOnSiteLiters, rejectionReason, status } =
+        parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const delivery = await tx.rmcBatchDelivery.findFirst({
+            where: { id: deliveryId, project_id: projectId },
+          });
+          if (!delivery) throw { status: 404, message: 'RMC delivery not found' };
+
+          let transitDurationMinutes = delivery.transit_duration_minutes;
+          if (arrivedAt) {
+            const arr = new Date(arrivedAt).getTime();
+            const disp = new Date(delivery.dispatched_at).getTime();
+            transitDurationMinutes = Math.max(0, Math.round((arr - disp) / 60000));
+          }
+
+          const updated = await tx.rmcBatchDelivery.update({
+            where: { id: deliveryId },
+            data: {
+              arrived_at: arrivedAt ? new Date(arrivedAt) : delivery.arrived_at,
+              discharge_started_at: dischargeStartedAt ? new Date(dischargeStartedAt) : delivery.discharge_started_at,
+              discharge_completed_at: dischargeCompletedAt ? new Date(dischargeCompletedAt) : delivery.discharge_completed_at,
+              water_added_on_site_liters: waterAddedOnSiteLiters !== undefined ? toDecimal(waterAddedOnSiteLiters).toFixed(2) : delivery.water_added_on_site_liters,
+              rejection_reason: rejectionReason !== undefined ? rejectionReason : delivery.rejection_reason,
+              transit_duration_minutes: transitDurationMinutes,
+              status: status || (dischargeCompletedAt ? 'COMPLETED' : dischargeStartedAt ? 'POURING' : arrivedAt ? 'ARRIVED' : delivery.status),
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'UPDATE_RMC_DISCHARGE',
+            entityType: 'RmcBatchDelivery',
+            entityId: updated.id,
+            changes: {
+              status: updated.status,
+              waterAddedLiters: updated.water_added_on_site_liters.toString(),
+              transitDurationMinutes,
+            },
+          });
+
+          return {
+            deliveryId: updated.id,
+            deliveryTicketNo: updated.delivery_ticket_no,
+            status: updated.status,
+            transitDurationMinutes: updated.transit_duration_minutes,
+            waterAddedOnSiteLiters: toDecimal(updated.water_added_on_site_liters.toString()).toFixed(2),
+            updatedAt: updated.updated_at.toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // =============================================================
+  // SECTION 7: STRUCTURAL STEEL FRAMING & FABRICATION TAKEOFF (MILESTONE M28)
+  // =============================================================
+
+  // 7.1 Create Structural Steel Takeoff
+  server.post(
+    '/api/v1/projects/:projectId/structural-steel-takeoffs',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      const parseResult = CreateStructuralSteelTakeoffSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid structural steel takeoff payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const { takeoffNo, structureTitle, drawingReference, steelGrade, members } = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          let totalTakeoffTonnage = toDecimal(0);
+          let totalTakeoffPaintArea = toDecimal(0);
+
+          const processedMembers = members.map((m) => {
+            const sectionProps = getStructuralSteelSection(m.sectionDesignation);
+            const unitWeight = m.unitWeightKgPerM ? toDecimal(m.unitWeightKgPerM) : toDecimal(sectionProps.unitWeightKgPerM);
+            const paintArea = m.paintAreaM2PerM ? toDecimal(m.paintAreaM2PerM) : toDecimal(sectionProps.paintAreaM2PerM);
+
+            const totals = calculateStructuralMemberTotals(m.lengthMeters, m.quantity, unitWeight, paintArea);
+
+            totalTakeoffTonnage = totalTakeoffTonnage.plus(totals.totalTonnage);
+            totalTakeoffPaintArea = totalTakeoffPaintArea.plus(totals.totalPaintAreaM2);
+
+            return {
+              member_mark: m.memberMark,
+              section_type: m.sectionType,
+              section_designation: m.sectionDesignation,
+              unit_weight_kg_per_m: unitWeight.toFixed(3),
+              paint_area_m2_per_m: paintArea.toFixed(3),
+              length_meters: toDecimal(m.lengthMeters).toFixed(3),
+              quantity: m.quantity,
+              total_length_meters: totals.totalLengthMeters.toFixed(3),
+              total_weight_kg: totals.totalWeightKg.toFixed(2),
+              total_paint_area_m2: totals.totalPaintAreaM2.toFixed(2),
+              connection_bolts_count: m.connectionBoltsCount || 0,
+            };
+          });
+
+          const takeoff = await tx.structuralSteelTakeoff.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              takeoff_no: takeoffNo,
+              structure_title: structureTitle,
+              drawing_reference: drawingReference || null,
+              steel_grade: steelGrade,
+              total_tonnage: totalTakeoffTonnage.toFixed(3),
+              total_paint_area_m2: totalTakeoffPaintArea.toFixed(2),
+              status: 'DRAFT',
+              members: {
+                create: processedMembers.map((m) => ({
+                  tenant_id: tenantId,
+                  ...m,
+                })),
+              },
+            },
+            include: { members: true },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'CREATE_STRUCTURAL_STEEL_TAKEOFF',
+            entityType: 'StructuralSteelTakeoff',
+            entityId: takeoff.id,
+            changes: {
+              takeoffNo,
+              structureTitle,
+              totalTonnage: totalTakeoffTonnage.toFixed(3),
+              totalPaintAreaM2: totalTakeoffPaintArea.toFixed(2),
+              memberCount: members.length,
+            },
+          });
+
+          return {
+            takeoffId: takeoff.id,
+            takeoffNo: takeoff.takeoff_no,
+            structureTitle: takeoff.structure_title,
+            steelGrade: takeoff.steel_grade,
+            totalTonnage: toDecimal(takeoff.total_tonnage.toString()).toFixed(3),
+            totalPaintAreaM2: toDecimal(takeoff.total_paint_area_m2.toString()).toFixed(2),
+            memberCount: takeoff.members.length,
+            status: takeoff.status,
+            createdAt: takeoff.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 7.2 List Structural Steel Takeoffs for Project
+  server.get(
+    '/api/v1/projects/:projectId/structural-steel-takeoffs',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const takeoffs = await tx.structuralSteelTakeoff.findMany({
+            where: { project_id: projectId },
+            include: { members: true },
+            orderBy: { created_at: 'desc' },
+          });
+
+          let totalTonnage = toDecimal(0);
+          let totalPaintArea = toDecimal(0);
+          for (const t of takeoffs) {
+            totalTonnage = totalTonnage.plus(toDecimal(t.total_tonnage.toString()));
+            totalPaintArea = totalPaintArea.plus(toDecimal(t.total_paint_area_m2.toString()));
+          }
+
+          return {
+            projectId,
+            summary: {
+              totalTakeoffs: takeoffs.length,
+              totalTonnage: totalTonnage.toFixed(3),
+              totalPaintAreaM2: totalPaintArea.toFixed(2),
+            },
+            takeoffs: takeoffs.map((t) => ({
+              id: t.id,
+              takeoffNo: t.takeoff_no,
+              structureTitle: t.structure_title,
+              drawingReference: t.drawing_reference,
+              steelGrade: t.steel_grade,
+              totalTonnage: toDecimal(t.total_tonnage.toString()).toFixed(3),
+              totalPaintAreaM2: toDecimal(t.total_paint_area_m2.toString()).toFixed(2),
+              memberCount: t.members.length,
+              status: t.status,
+              createdAt: t.created_at.toISOString(),
+            })),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 7.3 Get Single Structural Steel Takeoff Details
+  server.get(
+    '/api/v1/projects/:projectId/structural-steel-takeoffs/:takeoffId',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, takeoffId } = request.params as { projectId: string; takeoffId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(takeoffId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Takeoff not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const takeoff = await tx.structuralSteelTakeoff.findFirst({
+            where: { id: takeoffId, project_id: projectId },
+            include: { members: { orderBy: { member_mark: 'asc' } } },
+          });
+          if (!takeoff) throw { status: 404, message: 'Structural steel takeoff not found' };
+
+          return {
+            id: takeoff.id,
+            takeoffNo: takeoff.takeoff_no,
+            structureTitle: takeoff.structure_title,
+            drawingReference: takeoff.drawing_reference,
+            steelGrade: takeoff.steel_grade,
+            totalTonnage: toDecimal(takeoff.total_tonnage.toString()).toFixed(3),
+            totalPaintAreaM2: toDecimal(takeoff.total_paint_area_m2.toString()).toFixed(2),
+            status: takeoff.status,
+            members: takeoff.members.map((m) => ({
+              id: m.id,
+              memberMark: m.member_mark,
+              sectionType: m.section_type,
+              sectionDesignation: m.section_designation,
+              unitWeightKgPerM: toDecimal(m.unit_weight_kg_per_m.toString()).toFixed(2),
+              paintAreaM2PerM: toDecimal(m.paint_area_m2_per_m.toString()).toFixed(3),
+              lengthMeters: toDecimal(m.length_meters.toString()).toFixed(3),
+              quantity: m.quantity,
+              totalLengthMeters: toDecimal(m.total_length_meters.toString()).toFixed(3),
+              totalWeightKg: toDecimal(m.total_weight_kg.toString()).toFixed(2),
+              totalPaintAreaM2: toDecimal(m.total_paint_area_m2.toString()).toFixed(2),
+              connectionBoltsCount: m.connection_bolts_count,
+            })),
+            createdAt: takeoff.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 7.4 Update Structural Steel Takeoff Status
+  server.patch(
+    '/api/v1/projects/:projectId/structural-steel-takeoffs/:takeoffId/status',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, takeoffId } = request.params as { projectId: string; takeoffId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(takeoffId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Takeoff not found' });
+      }
+
+      const { status } = request.body as { status: string };
+      const validStatuses = ['DRAFT', 'QS_APPROVED', 'FABRICATION_RELEASED', 'ERECTED'];
+      if (!status || !validStatuses.includes(status)) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+        });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const takeoff = await tx.structuralSteelTakeoff.findFirst({
+            where: { id: takeoffId, project_id: projectId },
+          });
+          if (!takeoff) throw { status: 404, message: 'Structural steel takeoff not found' };
+
+          const updated = await tx.structuralSteelTakeoff.update({
+            where: { id: takeoffId },
+            data: { status, approved_by: sub },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'UPDATE_STRUCTURAL_STEEL_TAKEOFF_STATUS',
+            entityType: 'StructuralSteelTakeoff',
+            entityId: updated.id,
+            changes: { oldStatus: takeoff.status, newStatus: status },
+          });
+
+          return {
+            takeoffId: updated.id,
+            takeoffNo: updated.takeoff_no,
+            status: updated.status,
+            updatedAt: updated.updated_at.toISOString(),
           };
         });
 

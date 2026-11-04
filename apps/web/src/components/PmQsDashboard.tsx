@@ -32,6 +32,8 @@ import { GeofencedClockInView } from './GeofencedClockInView';
 import { PlantTelematicsView } from './PlantTelematicsView';
 import { BarBendingScheduleView } from './BarBendingScheduleView';
 import { MpesaDisbursementView } from './MpesaDisbursementView';
+import { RmcTransitTrackerView } from './RmcTransitTrackerView';
+import { StructuralSteelTakeoffView } from './StructuralSteelTakeoffView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -45,7 +47,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -150,6 +152,8 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'telematics', label: '🛰️ Plant Telematics' },
           { id: 'rebar', label: '🏗️ Rebar BBS Takeoff' },
           { id: 'disbursements', label: '💸 M-Pesa B2C Payouts' },
+          { id: 'rmc', label: '🚛 RMC Transit & Slump' },
+          { id: 'steel', label: '⚙️ Structural Steel Takeoff' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -531,6 +535,22 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Safaricom Daraja B2C Bulk Wages & Retention Disbursements (Milestone M26) */}
       {(activeTab === 'all' || activeTab === 'disbursements') && (
         <MpesaDisbursementView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Ready-Mix Concrete (RMC) Batching & Transit Slump Tracker (Milestone M27) */}
+      {(activeTab === 'all' || activeTab === 'rmc') && (
+        <RmcTransitTrackerView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Structural Steel Framing & Fabrication Takeoff Engine (Milestone M28) */}
+      {(activeTab === 'all' || activeTab === 'steel') && (
+        <StructuralSteelTakeoffView
           projectId="project-rcp-2026"
           projectName="Riverside Commercial Plaza"
         />

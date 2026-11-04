@@ -324,6 +324,7 @@ export const ConcreteClassEnum = z.enum([
   'CLASS_25_20',
   'CLASS_30_20',
   'CLASS_35_20',
+  'CLASS_40_20',
 ]);
 export type ConcreteClass = z.infer<typeof ConcreteClassEnum>;
 
@@ -1194,6 +1195,73 @@ export const ProcessB2CCallbackSchema = z.object({
   B2CWorkingAccountAvailableFunds: z.number().optional().nullable(),
 });
 export type ProcessB2CCallback = z.infer<typeof ProcessB2CCallbackSchema>;
+
+// -------------------------------------------------------------
+// READY-MIX CONCRETE (RMC) BATCHING & TRANSIT SLUMP TRACKER (MILESTONE M27)
+// -------------------------------------------------------------
+export const CreateRmcBatchDeliverySchema = z.object({
+  deliveryTicketNo: z.string().min(3).max(100),
+  supplierName: z.string().min(2).max(255),
+  truckRegistrationNo: z.string().min(3).max(50),
+  driverName: z.string().max(255).optional().nullable(),
+  driverPhone: z.string().max(50).optional().nullable(),
+  concreteClass: ConcreteClassEnum,
+  orderedVolumeM3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+  dispatchedAt: z.string().datetime(),
+  pourLocationElement: z.string().min(3).max(255),
+});
+export type CreateRmcBatchDelivery = z.infer<typeof CreateRmcBatchDeliverySchema>;
+
+export const RecordRmcSlumpTestSchema = z.object({
+  specifiedSlumpMm: z.number().int().min(20).max(250).default(100),
+  measuredSlumpMm: z.number().int().min(0).max(300),
+  slumpType: z.enum(['TRUE_SLUMP', 'SHEAR_SLUMP', 'COLLAPSE_SLUMP']).default('TRUE_SLUMP'),
+  concreteTemperatureC: z.number().min(10).max(45),
+  ambientTemperatureC: z.number().min(5).max(50).optional().nullable(),
+  testedByInspector: z.string().min(2).max(255),
+  cubesCastBatchNo: z.string().max(100).optional().nullable(),
+});
+export type RecordRmcSlumpTest = z.infer<typeof RecordRmcSlumpTestSchema>;
+
+export const UpdateRmcDischargeSchema = z.object({
+  arrivedAt: z.string().datetime().optional().nullable(),
+  dischargeStartedAt: z.string().datetime().optional().nullable(),
+  dischargeCompletedAt: z.string().datetime().optional().nullable(),
+  waterAddedOnSiteLiters: z.number().min(0).max(500).default(0),
+  rejectionReason: z.string().max(1000).optional().nullable(),
+  status: z.enum(['IN_TRANSIT', 'ARRIVED', 'POURING', 'COMPLETED', 'REJECTED_COLD_JOINT_RISK']).optional(),
+});
+export type UpdateRmcDischarge = z.infer<typeof UpdateRmcDischargeSchema>;
+
+// -------------------------------------------------------------
+// STRUCTURAL STEEL FRAMING & FABRICATION TAKEOFF (MILESTONE M28)
+// -------------------------------------------------------------
+export const StructuralSteelGradeEnum = z.enum(['S275JR', 'S355JR', 'S355J2', 'S460NH']);
+export type StructuralSteelGrade = z.infer<typeof StructuralSteelGradeEnum>;
+
+export const StructuralSectionTypeEnum = z.enum(['UB', 'UC', 'RHS', 'SHS', 'CHS', 'ANGLE']);
+export type StructuralSectionType = z.infer<typeof StructuralSectionTypeEnum>;
+
+export const StructuralSteelMemberInputSchema = z.object({
+  memberMark: z.string().min(1).max(50),
+  sectionType: StructuralSectionTypeEnum,
+  sectionDesignation: z.string().min(2).max(100),
+  unitWeightKgPerM: z.union([z.number().positive(), z.string()]).optional(),
+  paintAreaM2PerM: z.union([z.number().positive(), z.string()]).optional(),
+  lengthMeters: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
+  quantity: z.number().int().min(1).default(1),
+  connectionBoltsCount: z.number().int().min(0).default(0),
+});
+export type StructuralSteelMemberInput = z.infer<typeof StructuralSteelMemberInputSchema>;
+
+export const CreateStructuralSteelTakeoffSchema = z.object({
+  takeoffNo: z.string().min(2).max(100),
+  structureTitle: z.string().min(3).max(255),
+  drawingReference: z.string().max(100).optional().nullable(),
+  steelGrade: StructuralSteelGradeEnum.default('S355JR'),
+  members: z.array(StructuralSteelMemberInputSchema).min(1),
+});
+export type CreateStructuralSteelTakeoff = z.infer<typeof CreateStructuralSteelTakeoffSchema>;
 
 
 

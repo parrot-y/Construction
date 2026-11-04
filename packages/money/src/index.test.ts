@@ -17,6 +17,10 @@ import {
   calculateKraWithholdingTax,
   calculateJbcDualMoietyRetention,
   REBAR_UNIT_WEIGHTS_KG_PER_M,
+  evaluateRmcTransitStatus,
+  evaluateRmcSlumpTolerance,
+  getStructuralSteelSection,
+  calculateStructuralMemberTotals,
 } from './index';
 
 describe('packages/money financial precision suite', () => {
@@ -372,6 +376,87 @@ describe('packages/money financial precision suite', () => {
       const finalRel = calculateJbcDualMoietyRetention(contractSum, '20000000.00', 'FINAL_ACCOUNT_DLP', '10.00', '10.00');
       expect(toCurrencyString(finalRel.secondMoietyAmount)).toBe('1000000.00'); // 5% of contract sum at Final
       expect(toCurrencyString(finalRel.remainingRetention)).toBe('0.00');
+    });
+  });
+
+  describe('Milestone M27: Ready-Mix Concrete (RMC) Transit & Slump Evaluation', () => {
+    it('evaluates optimal transit duration (<= 90 min) under BS EN 206 / KS 02-598', () => {
+      const now = new Date();
+      const dispatchedAt = new Date(now.getTime() - 45 * 60000); // 45 minutes ago
+      const evalResult = evaluateRmcTransitStatus(dispatchedAt, now);
+
+      expect(evalResult.transitMinutes).toBe(45);
+      expect(evalResult.status).toBe('OPTIMAL');
+      expect(evalResult.isColdJointRisk).toBe(false);
+      expect(evalResult.message).toContain('optimal hydration window');
+    });
+
+    it('flags warning when transit exceeds 90 minutes but <= 120 minutes', () => {
+      const now = new Date();
+      const dispatchedAt = new Date(now.getTime() - 105 * 60000); // 105 minutes ago
+      const evalResult = evaluateRmcTransitStatus(dispatchedAt, now);
+
+      expect(evalResult.transitMinutes).toBe(105);
+      expect(evalResult.status).toBe('WARNING_HYDRATION_ACCELERATING');
+      expect(evalResult.statusLabel).toContain('Hydration Accelerating');
+      expect(evalResult.isColdJointRisk).toBe(false);
+      expect(evalResult.message).toContain('Slump loss expected');
+    });
+
+    it('triggers critical cold joint risk hold point when transit exceeds 120 minutes', () => {
+      const now = new Date();
+      const dispatchedAt = new Date(now.getTime() - 135 * 60000); // 135 minutes ago
+      const evalResult = evaluateRmcTransitStatus(dispatchedAt, now);
+
+      expect(evalResult.transitMinutes).toBe(135);
+      expect(evalResult.status).toBe('CRITICAL_COLD_JOINT_RISK');
+      expect(evalResult.statusLabel).toContain('Cold Joint Risk');
+      expect(evalResult.isColdJointRisk).toBe(true);
+      expect(evalResult.message).toContain('severe cold joints');
+    });
+
+    it('evaluates slump compliance within +/- 25mm tolerance for pumped concrete (BS EN 12350-2)', () => {
+      // Target: 100mm, Measured: 115mm (deviation: +15mm <= 25mm) -> ACCEPTED
+      const res1 = evaluateRmcSlumpTolerance(100, 115);
+      expect(res1.isWithinTolerance).toBe(true);
+      expect(res1.deviationMm).toBe(15);
+      expect(res1.verdict).toBe('ACCEPTED');
+
+      // Target: 100mm, Measured: 65mm (deviation: -35mm > 25mm) -> REJECTED
+      const res2 = evaluateRmcSlumpTolerance(100, 65);
+      expect(res2.isWithinTolerance).toBe(false);
+      expect(res2.deviationMm).toBe(-35);
+      expect(res2.verdict).toBe('REJECTED');
+    });
+  });
+
+  describe('Milestone M28: Structural Steel Framing & Fabrication Takeoff', () => {
+    it('provides standard BS 4 / BS EN 10056 section properties (UB, UC, RHS, SHS, CHS, Angle)', () => {
+      const ub = getStructuralSteelSection('UB 406x178x74');
+      expect(ub.unitWeightKgPerM).toBe('74.200');
+      expect(ub.paintAreaM2PerM).toBe('1.510');
+
+      const uc = getStructuralSteelSection('UC 203x203x46');
+      expect(uc.unitWeightKgPerM).toBe('46.100');
+      expect(uc.paintAreaM2PerM).toBe('1.200');
+
+      const rhs = getStructuralSteelSection('RHS 100x50x4.0');
+      expect(rhs.unitWeightKgPerM).toBe('8.770');
+      expect(rhs.paintAreaM2PerM).toBe('0.290');
+    });
+
+    it('calculates member linear length, total weight in kg, tonnage, and paint area accurately', () => {
+      // 8 Rafters of UB 406x178x74, length 12.500m each
+      // Total linear meters: 8 * 12.500 = 100.000m
+      // Total weight: 100.000m * 74.200 kg/m = 7,420.00 kg = 7.420 Tonnes
+      // Total paint area: 100.000m * 1.510 m2/m = 151.00 m2
+      const ub = getStructuralSteelSection('UB 406x178x74');
+      const totals = calculateStructuralMemberTotals('12.500', 8, ub.unitWeightKgPerM, ub.paintAreaM2PerM);
+
+      expect(totals.totalLengthMeters.toString()).toBe('100');
+      expect(totals.totalWeightKg.toString()).toBe('7420');
+      expect(totals.totalTonnage.toString()).toBe('7.42');
+      expect(totals.totalPaintAreaM2.toString()).toBe('151');
     });
   });
 });

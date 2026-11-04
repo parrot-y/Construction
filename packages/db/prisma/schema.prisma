@@ -30,6 +30,8 @@ model Tenant {
   mpesa_subscriptions  MpesaSubscriptionTransaction[]
   bar_bending_schedules BarBendingSchedule[]
   mpesa_disbursements   MpesaDisbursementTransaction[]
+  rmc_deliveries        RmcBatchDelivery[]
+  structural_steel_takeoffs StructuralSteelTakeoff[]
 
   @@map("tenants")
 }
@@ -145,6 +147,8 @@ model Project {
   worker_clock_events   WorkerClockEvent[]
   bar_bending_schedules BarBendingSchedule[]
   mpesa_disbursements   MpesaDisbursementTransaction[]
+  rmc_deliveries        RmcBatchDelivery[]
+  structural_steel_takeoffs StructuralSteelTakeoff[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -631,6 +635,7 @@ enum ConcreteClass {
   CLASS_25_20 // High-Strength Columns / Slabs
   CLASS_30_20 // Precast / Water-Retaining
   CLASS_35_20 // Specialized High-Load
+  CLASS_40_20 // Prestressed / High Strength
 }
 
 model ConcreteCubeTest {
@@ -1677,6 +1682,117 @@ model MpesaDisbursementTransaction {
 
   @@index([tenant_id, project_id, transaction_status])
   @@map("mpesa_disbursement_transactions")
+}
+
+// =============================================================
+// READY-MIX CONCRETE (RMC) BATCHING & TRANSIT SLUMP TRACKER (MILESTONE M27)
+// =============================================================
+
+model RmcBatchDelivery {
+  id                         String         @id @default(uuid()) @db.Uuid
+  tenant_id                  String         @db.Uuid
+  project_id                 String         @db.Uuid
+  delivery_ticket_no         String         @db.VarChar(100) // e.g. "RMC-TKT-2026-9812"
+  supplier_name              String         @db.VarChar(255) // "Bamburi Special Products", "Rhombus Concrete", "Savannah RMC"
+  truck_registration_no      String         @db.VarChar(50)  // "KDH 482B", "KDA 918M"
+  driver_name                String?        @db.VarChar(255)
+  driver_phone               String?        @db.VarChar(50)
+  concrete_class             String         @db.VarChar(50)  // "CLASS_25_20", "CLASS_30_20", "CLASS_35_20", "CLASS_40_20"
+  ordered_volume_m3          Decimal        @db.Decimal(8, 2) // e.g. 7.50 m3
+  dispatched_at              DateTime       @db.Timestamptz
+  arrived_at                 DateTime?      @db.Timestamptz
+  discharge_started_at       DateTime?      @db.Timestamptz
+  discharge_completed_at     DateTime?      @db.Timestamptz
+  transit_duration_minutes   Int?           // Computed: arrived_at - dispatched_at
+  pour_location_element      String         @db.VarChar(255) // "Zone B 3rd Floor Suspended Slab Beams B1-B14"
+  status                     String         @default("IN_TRANSIT") @db.VarChar(50) // "IN_TRANSIT", "ARRIVED", "POURING", "COMPLETED", "REJECTED_COLD_JOINT_RISK"
+  water_added_on_site_liters Decimal        @default(0.00) @db.Decimal(6, 2) // Water unapproved tampering audit
+  rejection_reason           String?        @db.Text
+  created_at                 DateTime       @default(now()) @db.Timestamptz
+  updated_at                 DateTime       @updatedAt @db.Timestamptz
+
+  project                    Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                     Tenant         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  slump_tests                RmcSlumpTest[]
+
+  @@unique([tenant_id, project_id, delivery_ticket_no])
+  @@index([tenant_id, project_id, status])
+  @@map("rmc_batch_deliveries")
+}
+
+model RmcSlumpTest {
+  id                         String           @id @default(uuid()) @db.Uuid
+  tenant_id                  String           @db.Uuid
+  delivery_id                String           @db.Uuid
+  test_time                  DateTime         @default(now()) @db.Timestamptz
+  specified_slump_mm         Int              @default(100) // e.g. 100mm target
+  measured_slump_mm          Int              // e.g. 110mm
+  slump_type                 String           @default("TRUE_SLUMP") @db.VarChar(30) // "TRUE_SLUMP", "SHEAR_SLUMP", "COLLAPSE_SLUMP"
+  concrete_temperature_c     Decimal          @db.Decimal(4, 1) // e.g. 26.5 °C
+  ambient_temperature_c      Decimal?         @db.Decimal(4, 1)
+  is_within_tolerance        Boolean          @default(true) // Typically specified ± 25mm per BS EN 12350-2
+  cubes_cast_batch_no        String?          @db.VarChar(100) // Link to concrete cube test batch BT-xxx
+  tested_by_inspector        String           @db.VarChar(255)
+  qa_verdict                 String           @default("ACCEPTED") @db.VarChar(30) // "ACCEPTED", "REJECTED"
+  created_at                 DateTime         @default(now()) @db.Timestamptz
+  updated_at                 DateTime         @updatedAt @db.Timestamptz
+
+  delivery                   RmcBatchDelivery @relation(fields: [delivery_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, delivery_id])
+  @@map("rmc_slump_tests")
+}
+
+// =============================================================
+// STRUCTURAL STEEL FRAMING & FABRICATION TAKEOFF ENGINE (MILESTONE M28)
+// =============================================================
+
+model StructuralSteelTakeoff {
+  id                         String                  @id @default(uuid()) @db.Uuid
+  tenant_id                  String                  @db.Uuid
+  project_id                 String                  @db.Uuid
+  takeoff_no                 String                  @db.VarChar(100) // E.g. "STL-TKF-2026-01"
+  structure_title            String                  @db.VarChar(255) // E.g. "Warehouse Portal Frame Grid A-G"
+  drawing_reference          String?                 @db.VarChar(100) // E.g. "STR/STL/01-REV3"
+  steel_grade                String                  @default("S355JR") @db.VarChar(50) // "S275JR", "S355JR", "S355J2"
+  total_tonnage              Decimal                 @db.Decimal(12, 3) // Tonnes
+  total_paint_area_m2        Decimal                 @db.Decimal(12, 2) // Paint surface area for anti-corrosion / intumescent coating
+  status                     String                  @default("DRAFT") @db.VarChar(50) // "DRAFT", "QS_APPROVED", "FABRICATION_RELEASED", "ERECTED"
+  approved_by                String?                 @db.VarChar(255)
+  created_at                 DateTime                @default(now()) @db.Timestamptz
+  updated_at                 DateTime                @updatedAt @db.Timestamptz
+
+  project                    Project                 @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                     Tenant                  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  members                    StructuralSteelMember[]
+
+  @@unique([tenant_id, project_id, takeoff_no])
+  @@index([tenant_id, project_id, status])
+  @@map("structural_steel_takeoffs")
+}
+
+model StructuralSteelMember {
+  id                         String                 @id @default(uuid()) @db.Uuid
+  tenant_id                  String                 @db.Uuid
+  takeoff_id                 String                 @db.Uuid
+  member_mark                String                 @db.VarChar(50) // E.g. "RAFTER-R1", "COLUMN-C1", "PURLIN-P1"
+  section_type               String                 @db.VarChar(50) // "UB" (Universal Beam), "UC" (Universal Column), "RHS", "SHS", "CHS", "ANGLE"
+  section_designation        String                 @db.VarChar(100) // E.g. "UB 406x178x74", "UC 203x203x46", "RHS 100x50x4.0", "SHS 80x80x5.0"
+  unit_weight_kg_per_m       Decimal                @db.Decimal(8, 3) // E.g. 74.200 kg/m
+  paint_area_m2_per_m        Decimal                @db.Decimal(6, 3) // E.g. 1.510 m2/m
+  length_meters              Decimal                @db.Decimal(8, 3) // Length in meters (e.g. 12.500m)
+  quantity                   Int                    @default(1)
+  total_length_meters        Decimal                @db.Decimal(10, 3) // length * quantity
+  total_weight_kg            Decimal                @db.Decimal(12, 2) // total_length * unit_weight
+  total_paint_area_m2        Decimal                @db.Decimal(10, 2) // total_length * paint_area_per_m
+  connection_bolts_count     Int                    @default(0) // Bolt count (e.g. Grade 8.8 M20)
+  created_at                 DateTime               @default(now()) @db.Timestamptz
+  updated_at                 DateTime               @updatedAt @db.Timestamptz
+
+  takeoff                    StructuralSteelTakeoff @relation(fields: [takeoff_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, takeoff_id, section_type])
+  @@map("structural_steel_members")
 }
 
 
