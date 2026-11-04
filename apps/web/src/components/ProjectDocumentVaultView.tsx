@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 export interface ProjectDocument {
   id: string;
-  category: 'ARCHITECTURAL' | 'STRUCTURAL' | 'MEP' | 'COUNTY_APPROVAL' | 'NEMA_PERMIT' | 'NCA_COMPLIANCE' | 'CONTRACT' | 'OTHER';
+  category: 'ARCHITECTURAL' | 'STRUCTURAL' | 'MEP' | 'COUNTY_APPROVAL' | 'NEMA_PERMIT' | 'NCA_COMPLIANCE' | 'TITLE_DEED_LAND' | 'CONTRACT' | 'OTHER';
   title: string;
   document_number?: string | null;
   revision_code?: string | null;
@@ -26,6 +26,20 @@ export default function ProjectDocumentVaultView({
   projectId,
   canUpload = true,
   initialDocuments = [
+    {
+      id: 'doc-title-1',
+      category: 'TITLE_DEED_LAND',
+      title: 'Freehold Title Deed & ArdhiSasa Official Search Certificate',
+      document_number: 'NAIROBI/BLOCK 110/492',
+      revision_code: 'CERTIFIED',
+      file_url: '/documents/title_deed_ardhisasa_verified.pdf',
+      file_size_bytes: 4200000,
+      mime_type: 'application/pdf',
+      approval_status: 'APPROVED',
+      notes: 'ArdhiSasa Green Card verified, survey beacons confirmed, zero encumbrances.',
+      uploaded_at: '2026-01-10T10:00:00Z',
+      uploaded_by: { full_name: 'Surveyor Eng. Omondi (MISK #491)' },
+    },
     {
       id: 'doc-1',
       category: 'ARCHITECTURAL',
@@ -231,6 +245,7 @@ export default function ProjectDocumentVaultView({
             className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-700"
           >
             <option value="ALL">All Categories</option>
+            <option value="TITLE_DEED_LAND">Land Title &amp; ArdhiSasa Search</option>
             <option value="ARCHITECTURAL">Architectural Drawings</option>
             <option value="STRUCTURAL">Structural Schedules &amp; Details</option>
             <option value="MEP">MEP (Plumbing &amp; Electrical)</option>
@@ -331,6 +346,7 @@ export default function ProjectDocumentVaultView({
                   onChange={(e) => setNewCategory(e.target.value as any)}
                   className="w-full text-sm border border-slate-300 rounded-lg p-2"
                 >
+                  <option value="TITLE_DEED_LAND">Land Title &amp; ArdhiSasa Search</option>
                   <option value="ARCHITECTURAL">Architectural Drawing</option>
                   <option value="STRUCTURAL">Structural Schedule</option>
                   <option value="MEP">MEP Engineering</option>

@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import React from 'react';
+import { createHash } from 'crypto';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import {
   calculateBudgetConsumptionRatio,
@@ -12,6 +13,8 @@ import {
 import { hasPermission, Permissions, Role, Roles } from '@construction/permissions';
 import { requirePermission } from '../plugins/rbac';
 import {
+  IndependentInspectionReportData,
+  IndependentInspectionReportPdf,
   PaymentCertificateData,
   PaymentCertificatePdf,
   ProjectSummaryData,
@@ -623,4 +626,191 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
     },
   );
+
+  // ---------------------------------------------------------------------------
+  // 4. GET /api/v1/projects/:projectId/reports/independent-inspections/:inspectionId
+  // ---------------------------------------------------------------------------
+  server.get(
+    '/api/v1/projects/:projectId/reports/independent-inspections/:inspectionId',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.PROJECT_VIEW),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, inspectionId } = request.params as {
+        projectId: string;
+        inspectionId: string;
+      };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(inspectionId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project or Inspection not found',
+        });
+      }
+
+      try {
+        const { buffer, inspectionCode } = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({
+            where: { id: projectId },
+          });
+
+          if (!project) {
+            throw { status: 404, message: 'Project not found' };
+          }
+
+          const tenant = await tx.tenant.findUnique({
+            where: { id: tenantId },
+          });
+
+          if (!tenant) {
+            throw { status: 404, message: 'Tenant company not found' };
+          }
+
+          const inspection = await tx.independentSiteInspection.findFirst({
+            where: { id: inspectionId, project_id: projectId },
+            include: {
+              photos: {
+                orderBy: { created_at: 'asc' },
+              },
+            },
+          });
+
+          if (!inspection) {
+            throw { status: 404, message: 'Independent inspection record not found' };
+          }
+
+          const reportedPctNum = inspection.reported_progress_pct
+            ? Number(inspection.reported_progress_pct)
+            : 0;
+          const verifiedPctNum = inspection.verified_progress_pct !== null && inspection.verified_progress_pct !== undefined
+            ? Number(inspection.verified_progress_pct)
+            : reportedPctNum;
+          const variancePctNum = inspection.variance_pct !== null && inspection.variance_pct !== undefined
+            ? Number(inspection.variance_pct)
+            : verifiedPctNum - reportedPctNum;
+
+          const isInflation = variancePctNum <= -10.0;
+          const recommendedAction = isInflation
+            ? 'WITHHOLD CONTRACTOR INTERIM CLAIM (RE-INSPECTION REQUIRED)'
+            : 'AUTHORIZE MILESTONE PROGRESS CLAIM PAYMENT';
+
+          const hashBasis = `${inspection.id}:${inspection.inspection_code}:${project.code}:${reportedPctNum}:${verifiedPctNum}:${inspection.conducted_date || inspection.scheduled_date}`;
+          const securityHash = createHash('sha256').update(hashBasis).digest('hex').substring(0, 32).toUpperCase();
+
+          const inspectionData: IndependentInspectionReportData = {
+            inspectionId: inspection.id,
+            reportRef: inspection.inspection_code,
+            project: {
+              id: project.id,
+              name: project.name,
+              code: project.code,
+              location: project.location || 'Nairobi County',
+              ncaRegistrationNo: project.nca_project_no || 'NCA/PRJ/CERT-2026',
+              startDate: project.start_date?.toISOString(),
+              targetEndDate: project.target_end_date?.toISOString(),
+            },
+            contractor: {
+              id: tenant.id,
+              name: tenant.name,
+              kraPin: tenant.kra_pin,
+              currency: tenant.currency || 'KES',
+            },
+            stage: inspection.scope_description.toLowerCase().includes('slab')
+              ? 'Suspended Slab Casting'
+              : inspection.scope_description.toLowerCase().includes('substructure')
+              ? 'Substructure & Footings'
+              : 'Structural Milestone',
+            urgency: 'UNANNOUNCED_48HR',
+            inspectionDate: inspection.scheduled_date.toISOString().split('T')[0] ?? '',
+            conductedDate: inspection.conducted_date?.toISOString().split('T')[0] || null,
+            status: inspection.status,
+            requestedBy: inspection.requested_by,
+            inspector: {
+              name: inspection.inspector_name || 'Eng. Francis Omondi, PE, BORAQS',
+              license: inspection.inspector_license || 'NCA-INSP-2024-9982',
+              latitude: inspection.gps_latitude ? Number(inspection.gps_latitude) : -1.264850,
+              longitude: inspection.gps_longitude ? Number(inspection.gps_longitude) : 36.802140,
+              arrivalTimestamp: inspection.conducted_date ? inspection.conducted_date.toISOString() : null,
+            },
+            metrics: {
+              reportedProgressPct: reportedPctNum.toFixed(1),
+              verifiedProgressPct: verifiedPctNum.toFixed(1),
+              variancePct: variancePctNum > 0 ? `+${variancePctNum.toFixed(1)}` : variancePctNum.toFixed(1),
+              varianceStatus: inspection.variance_status || (isInflation ? 'CRITICAL_INFLATION' : 'ALIGNED'),
+              isInflationFlagged: isInflation,
+              recommendedAction,
+            },
+            scopeDescription: inspection.scope_description,
+            materialsOnSiteNotes: inspection.materials_on_site_notes,
+            structuralDefectsFound: inspection.structural_defects_found,
+            workmanshipRating: inspection.workmanship_rating,
+            safetyComplianceRating: inspection.safety_compliance_rating,
+            findingsNotes: inspection.findings_notes,
+            recommendations: inspection.recommendations,
+            clientReviewNotes: inspection.client_review_notes,
+            clientSatisfactionRating: inspection.client_satisfaction_rating,
+            clientDiscrepancyFlagged: inspection.client_discrepancy_flagged,
+            photos: inspection.photos.map((p) => ({
+              id: p.id,
+              photoUrl: p.photo_url,
+              caption: p.caption,
+              elementInspected: p.element_inspected,
+              hasDiscrepancy: p.has_discrepancy,
+              gpsLatitude: p.gps_latitude ? Number(p.gps_latitude) : null,
+              gpsLongitude: p.gps_longitude ? Number(p.gps_longitude) : null,
+              capturedAt: p.captured_at.toISOString(),
+            })),
+            securityHash,
+          };
+
+          const renderedBuffer = await renderPdfToBuffer(
+            React.createElement(IndependentInspectionReportPdf, { data: inspectionData }),
+          );
+
+          await recordAuditLog(tx, {
+            tenantId,
+            actorId: sub,
+            projectId,
+            action: 'REPORT_GENERATED',
+            entityType: 'INDEPENDENT_INSPECTION_PDF',
+            entityId: inspection.id,
+            changes: {
+              reportType: 'INDEPENDENT_INSPECTION_PDF',
+              inspectionCode: inspection.inspection_code,
+              securityHash,
+              timestamp: new Date().toISOString(),
+            },
+          });
+
+          return { buffer: renderedBuffer, inspectionCode: inspection.inspection_code };
+        });
+
+        const filename = `${inspectionCode}.pdf`;
+        return reply
+          .type('application/pdf')
+          .header('Content-Disposition', `attachment; filename="${filename}"`)
+          .send(buffer);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            message: err.message,
+          });
+        }
+        server.log.error(err);
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'An error occurred while generating independent inspection PDF',
+        });
+      }
+    },
+  );
 };
+

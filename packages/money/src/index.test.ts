@@ -24,6 +24,14 @@ import {
   calculateSoilCompaction,
   evaluateAsphaltThermalQuality,
   calculateAsphaltCoreCompaction,
+  calculateSimpsonsArea,
+  calculatePrismoidalVolume,
+  calculateEarthworkBalancing,
+  calculateEconomicHaul,
+  evaluateFuelSiphoningAnomaly,
+  evaluatePlantCanBusDiagnostics,
+  calculateInspectionProgressVariance,
+  evaluateTenderBids,
 } from './index';
 
 describe('packages/money financial precision suite', () => {
@@ -538,6 +546,279 @@ describe('packages/money financial precision suite', () => {
       expect(coreRes.isAccepted).toBe(true);
       expect(coreRes.qaVerdict).toBe('CONDITIONAL_PENALTY');
       expect(coreRes.message).toContain('contract payment reduction');
+    });
+  });
+
+  describe('Milestone M31: Survey & Topographic Cut/Fill Earthworks Engine', () => {
+    it('calculates cross-sectional area with Simpson 1/3 Rule on even intervals', () => {
+      // 5 ordinates = 4 intervals (even intervals) with spacing h = 2.0m
+      // ordinates: y = [2.0, 4.0, 6.0, 5.0, 3.0]
+      // Simpson 1/3: Area = (h/3) * [y0 + yn + 4*(y1 + y3) + 2*(y2)]
+      // = (2/3) * [2 + 3 + 4*(4 + 5) + 2*(6)] = (2/3) * [5 + 36 + 12] = (2/3) * 53 = 35.333 m2
+      const res = calculateSimpsonsArea(['2.0', '4.0', '6.0', '5.0', '3.0'], '2.0');
+      expect(res.methodUsed).toBe('SIMPSONS_1_3_PURE');
+      expect(res.intervalsCount).toBe(4);
+      expect(res.areaM2.toString()).toBe('35.333');
+    });
+
+    it('safely handles odd intervals using composite Simpson 1/3 + Trapezoidal rule', () => {
+      // 4 ordinates = 3 intervals (odd).
+      // Ordinates: [2.0, 4.0, 6.0, 8.0], h = 2.0m
+      // First 2 intervals (Simpson 1/3): (2/3) * [2.0 + 6.0 + 4*(4.0)] = (2/3) * 24.0 = 16.000 m2
+      // Final 1 interval (Trapezoid): (2/2) * (6.0 + 8.0) = 14.000 m2
+      // Total area = 16.000 + 14.000 = 30.000 m2
+      const res = calculateSimpsonsArea(['2.0', '4.0', '6.0', '8.0'], '2.0');
+      expect(res.methodUsed).toBe('SIMPSONS_COMPOSITE_TRAPEZOIDAL');
+      expect(res.intervalsCount).toBe(3);
+      expect(res.areaM2.toString()).toBe('30');
+    });
+
+    it('throws error when interval spacing is zero or negative', () => {
+      expect(() => calculateSimpsonsArea(['1.0', '2.0'], '0.0')).toThrow('strictly positive');
+      expect(() => calculateSimpsonsArea(['1.0', '2.0'], '-2.0')).toThrow('strictly positive');
+    });
+
+    it('calculates Prismoidal volume and computes Average End-Area correction', () => {
+      // Station 0+000: A1 = 45.000 m2, Station 0+050: A2 = 80.000 m2, L = 50.0m
+      // Mid-area Am surveyed = 60.000 m2
+      // Average End Area: (50/2) * (45 + 80) = 25 * 125 = 3,125.000 m3
+      // Prismoidal: (50/6) * (45 + 4*60 + 80) = (50/6) * 365 = 3,041.667 m3
+      // Prismoidal Correction Cp = 3,125.000 - 3,041.667 = 83.333 m3
+      const vol = calculatePrismoidalVolume('45.000', '80.000', '50.00', '60.000');
+      expect(vol.averageEndAreaVolumeM3.toString()).toBe('3125');
+      expect(vol.prismoidalVolumeM3.toString()).toBe('3041.667');
+      expect(vol.prismoidalCorrectionM3.toString()).toBe('83.333');
+    });
+
+    it('balances cut and compacted fill with geotechnical shrinkage and bulking factors', () => {
+      // Cut volume = 5,000 m3 bank
+      // Fill volume needed = 3,600 m3 compacted
+      // Shrinkage factor = 0.90 (meaning 1m3 bank gives 0.90m3 compacted fill)
+      // Adjusted fill required = 3,600 / 0.90 = 4,000 m3 bank cut consumed
+      // Net surplus cut = 5,000 - 4,000 = 1,000 m3 surplus cut
+      // Bulking factor = 1.25 -> Loose spoil haulage = 5,000 * 1.25 = 6,250 m3 loose
+      const balance = calculateEarthworkBalancing('5000.000', '3600.000', '0.900', '1.250');
+      expect(balance.adjustedFillM3.toString()).toBe('4000');
+      expect(balance.netVolumeM3.toString()).toBe('1000');
+      expect(balance.looseSpoilVolumeM3.toString()).toBe('6250');
+      expect(balance.isSurplusCut).toBe(true);
+    });
+
+    it('calculates Economic Limit of Haul (ELH) and Overhaul Cost', () => {
+      // Actual haul distance = 1,200m
+      // Contractual Freehaul Distance (FHD) = 500m
+      // Overhaul unit rate = KES 85.00 per m3-km
+      // Borrow pit unit rate = KES 350.00 per m3
+      // Overhaul distance = 1,200m - 500m = 700m (0.7 km)
+      // ELH = 500 + (350 / 85) = 500 + 4.12 = 504.12m
+      // Volume = 2,000 m3
+      // Overhaul cost = 2,000 * 0.700 km * 85.00 = KES 119,000.00
+      // Since 1,200m > 504.12m ELH, shouldBorrowLocally is true!
+      const haul = calculateEconomicHaul('1200.00', '500.00', '2000.00', '85.00', '350.00');
+      expect(haul.overhaulDistanceMeters.toString()).toBe('700');
+      expect(haul.economicLimitOfHaulMeters.toString()).toBe('504.12');
+      expect(haul.overhaulCostKes.toString()).toBe('119000');
+      expect(haul.shouldBorrowLocally).toBe(true);
+    });
+  });
+
+  describe('Milestone M32: Mobile Plant CAN-bus IoT & Deep Fuel Siphoning Anomaly Detector', () => {
+    it('detects RAPID_THEFT_SIPHON when fuel drops >= 8L while engine is STOPPED', () => {
+      const now = new Date();
+      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+      // Tank dropped from 220L to 195L (25L loss) in 10 minutes while STOPPED
+      const res = evaluateFuelSiphoningAnomaly('220.00', '195.00', tenMinutesAgo, now, 'STOPPED', '35.00');
+
+      expect(res.isSiphoning).toBe(true);
+      expect(res.anomalyType).toBe('RAPID_THEFT_SIPHON');
+      expect(res.severity).toBe('CRITICAL');
+      expect(res.dropLiters.toString()).toBe('25');
+      expect(res.message).toContain('CRITICAL DIESEL THEFT');
+    });
+
+    it('detects ACTIVE_SIPHON_IDLE when fuel burn rate exceeds 12 L/h while idling', () => {
+      const now = new Date();
+      const halfHourAgo = new Date(now.getTime() - 30 * 60 * 1000);
+      // In 30 min (0.5 h), dropped 10L -> 20 L/h rate (normal idle is ~2.5 L/h)
+      const res = evaluateFuelSiphoningAnomaly('150.00', '140.00', halfHourAgo, now, 'IDLE', '35.00');
+
+      expect(res.isSiphoning).toBe(true);
+      expect(res.anomalyType).toBe('ACTIVE_SIPHON_IDLE');
+      expect(res.severity).toBe('CRITICAL');
+      expect(res.dropRateLitersPerHour.toString()).toBe('20');
+      expect(res.message).toContain('ACTIVE SIPHONING AT IDLE');
+    });
+
+    it('detects EXCESSIVE_BURN_THEFT when fuel consumption exceeds 1.25x engine max burn rate', () => {
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      // Max burn is 35 L/h. Dropped 55L in 1 hour -> 55 L/h > 43.75 L/h limit
+      const res = evaluateFuelSiphoningAnomaly('280.00', '225.00', oneHourAgo, now, 'RUNNING', '35.00');
+
+      expect(res.isSiphoning).toBe(true);
+      expect(res.anomalyType).toBe('EXCESSIVE_BURN_THEFT');
+      expect(res.severity).toBe('HIGH');
+      expect(res.message).toContain('ABNORMAL FUEL LOSS');
+    });
+
+    it('identifies tank refuel event without flagging theft', () => {
+      const now = new Date();
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      // Fuel jumped from 40L to 240L (+200L)
+      const res = evaluateFuelSiphoningAnomaly('40.00', '240.00', fiveMinutesAgo, now, 'STOPPED');
+
+      expect(res.isSiphoning).toBe(false);
+      expect(res.anomalyType).toBe('FUEL_REFUEL_EVENT');
+      expect(res.message).toContain('Tank refueled');
+    });
+
+    it('evaluates CAN-bus telemetry for engine overheating and DTC fault codes', () => {
+      // Coolant 109°C (>108°C emergency), DTC P0300 (random misfire), 24V supply low at 22.0V
+      const diag = evaluatePlantCanBusDiagnostics('109.5', '115.0', '22.00', 'P0300, P0115');
+
+      expect(diag.hasThermalAlarm).toBe(true);
+      expect(diag.hasDtcAlarm).toBe(true);
+      expect(diag.hasElectricalAlarm).toBe(true);
+      expect(diag.alertSeverity).toBe('FATAL_SHUTDOWN');
+      expect(diag.faultMessages.length).toBe(3);
+      expect(diag.faultMessages[0]).toContain('CRITICAL ENGINE OVERHEAT');
+    });
+  });
+
+  describe('Milestone M33: Independent Site Inspection & Contractor Tender Evaluation Engine', () => {
+    describe('calculateInspectionProgressVariance', () => {
+      it('flags CRITICAL_INFLATION and requires alert when Delta <= -10%', () => {
+        // Contractor claims 65%, Independent inspector verifies only 50%
+        // Delta = 50 - 65 = -15% (<= -10%)
+        const res = calculateInspectionProgressVariance('65.00', '50.00');
+        expect(res.variancePct).toBe('-15.00');
+        expect(res.status).toBe('CRITICAL_INFLATION');
+        expect(res.alertRequired).toBe(true);
+        expect(res.discrepancyMessage).toContain('Critical progress inflation detected');
+        expect(res.discrepancyMessage).toContain('withholding');
+      });
+
+      it('flags CRITICAL_INFLATION at exact -10% boundary', () => {
+        // Reported 60%, Verified 50% -> Delta = -10%
+        const res = calculateInspectionProgressVariance('60', '50');
+        expect(res.variancePct).toBe('-10.00');
+        expect(res.status).toBe('CRITICAL_INFLATION');
+        expect(res.alertRequired).toBe(true);
+      });
+
+      it('flags MODERATE_INFLATION when -10% < Delta <= -5%', () => {
+        // Contractor claims 45%, Independent inspector verifies 38%
+        // Delta = 38 - 45 = -7%
+        const res = calculateInspectionProgressVariance('45.00', '38.00');
+        expect(res.variancePct).toBe('-7.00');
+        expect(res.status).toBe('MODERATE_INFLATION');
+        expect(res.alertRequired).toBe(false);
+        expect(res.discrepancyMessage).toContain('Moderate progress inflation');
+
+        // Boundary -5%
+        const resBound = calculateInspectionProgressVariance('50', '45');
+        expect(resBound.variancePct).toBe('-5.00');
+        expect(resBound.status).toBe('MODERATE_INFLATION');
+        expect(resBound.alertRequired).toBe(false);
+      });
+
+      it('flags ACCEPTABLE_ALIGNMENT when -5% < Delta < 5%', () => {
+        // Delta = 0%
+        const resZero = calculateInspectionProgressVariance('50.00', '50.00');
+        expect(resZero.variancePct).toBe('0.00');
+        expect(resZero.status).toBe('ACCEPTABLE_ALIGNMENT');
+        expect(resZero.alertRequired).toBe(false);
+
+        // Delta = -3%
+        const resMinus = calculateInspectionProgressVariance('50.00', '47.00');
+        expect(resMinus.status).toBe('ACCEPTABLE_ALIGNMENT');
+
+        // Delta = +4%
+        const resPlus = calculateInspectionProgressVariance('50.00', '54.00');
+        expect(resPlus.status).toBe('ACCEPTABLE_ALIGNMENT');
+      });
+
+      it('flags CONSERVATIVE_REPORTING when Delta >= 5%', () => {
+        // Contractor reported 40%, inspector verified 48% -> Delta = +8%
+        const res = calculateInspectionProgressVariance('40.00', '48.00');
+        expect(res.variancePct).toBe('8.00');
+        expect(res.status).toBe('CONSERVATIVE_REPORTING');
+        expect(res.alertRequired).toBe(false);
+        expect(res.discrepancyMessage).toContain('Conservative reporting');
+
+        // Boundary at exactly +5%
+        const resBound = calculateInspectionProgressVariance('50.00', '55.00');
+        expect(resBound.status).toBe('CONSERVATIVE_REPORTING');
+      });
+    });
+
+    describe('evaluateTenderBids', () => {
+      it('evaluates bids with 70% technical and 30% financial scoring and ranks them correctly', () => {
+        const budgetKes = '10000000.00'; // KES 10M
+        const bids = [
+          {
+            id: 'bid-1',
+            amountKes: '8000000.00', // Lowest bid -> Financial Score = (8M/8M)*100 = 100
+            durationWeeks: 12,
+            technicalScore: 70, // Combined = 70*0.7 + 100*0.3 = 49 + 30 = 79.00
+          },
+          {
+            id: 'bid-2',
+            amountKes: '10000000.00', // Financial Score = (8M/10M)*100 = 80
+            durationWeeks: 10,
+            technicalScore: 90, // Combined = 90*0.7 + 80*0.3 = 63 + 24 = 87.00
+          },
+          {
+            id: 'bid-3',
+            amountKes: '12500000.00', // Financial Score = (8M/12.5M)*100 = 64
+            durationWeeks: 14,
+            technicalScore: 75, // Combined = 75*0.7 + 64*0.3 = 52.5 + 19.2 = 71.70
+          },
+        ];
+
+        const ranked = evaluateTenderBids(bids, budgetKes);
+        expect(ranked).toHaveLength(3);
+
+        // Rank 1 should be bid-2 (highest combined score 87.00)
+        expect(ranked[0]?.id).toBe('bid-2');
+        expect(ranked[0]?.rank).toBe(1);
+        expect(ranked[0]?.financialScore).toBe(80);
+        expect(ranked[0]?.technicalScore).toBe(90);
+        expect(ranked[0]?.combinedScore).toBe(87);
+        expect(ranked[0]?.isLowestBid).toBe(false);
+
+        // Rank 2 should be bid-1 (combined score 79.00, lowest financial bid)
+        expect(ranked[1]?.id).toBe('bid-1');
+        expect(ranked[1]?.rank).toBe(2);
+        expect(ranked[1]?.financialScore).toBe(100);
+        expect(ranked[1]?.technicalScore).toBe(70);
+        expect(ranked[1]?.combinedScore).toBe(79);
+        expect(ranked[1]?.isLowestBid).toBe(true);
+
+        // Rank 3 should be bid-3 (combined score 71.70)
+        expect(ranked[2]?.id).toBe('bid-3');
+        expect(ranked[2]?.rank).toBe(3);
+        expect(ranked[2]?.financialScore).toBe(64);
+        expect(ranked[2]?.technicalScore).toBe(75);
+        expect(ranked[2]?.combinedScore).toBe(71.7);
+      });
+
+      it('safely handles empty bids array', () => {
+        const ranked = evaluateTenderBids([], '5000000');
+        expect(ranked).toEqual([]);
+      });
+
+      it('uses default technical score when technicalScore is omitted', () => {
+        const budgetKes = '5000000';
+        const bids = [
+          { id: 'bid-a', amountKes: '4000000', durationWeeks: 8 },
+        ];
+        const ranked = evaluateTenderBids(bids, budgetKes);
+        expect(ranked).toHaveLength(1);
+        expect(ranked[0]?.technicalScore).toBe(70);
+        expect(ranked[0]?.financialScore).toBe(100);
+        expect(ranked[0]?.combinedScore).toBe(79); // 70*0.7 + 100*0.3 = 49 + 30 = 79
+      });
     });
   });
 });

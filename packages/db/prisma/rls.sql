@@ -43,6 +43,12 @@ BEGIN
                     'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid ' ||
                     '       OR current_setting(''app.auth_context'', true) = ''portal'') ' ||
                     'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)';
+        ELSIF tbl.table_name = 'plant_telematics_devices' THEN
+            -- Plant telematics devices allows reading under auth_context = 'iot_ingest' for O(1) device lookup
+            EXECUTE 'CREATE POLICY tenant_isolation_policy ON plant_telematics_devices FOR ALL ' ||
+                    'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid ' ||
+                    '       OR current_setting(''app.auth_context'', true) = ''iot_ingest'') ' ||
+                    'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)';
         ELSE
             EXECUTE format(
                 'CREATE POLICY tenant_isolation_policy ON %I FOR ALL ' ||

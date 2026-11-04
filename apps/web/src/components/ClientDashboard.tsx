@@ -8,6 +8,8 @@ import VarianceMonitorCard from './VarianceMonitorCard';
 import VariationManagementView from './VariationManagementView';
 import PracticalCompletionCard from './PracticalCompletionCard';
 import SnaggingListView from './SnaggingListView';
+import IndependentSiteReportView from './IndependentSiteReportView';
+import ContractorTenderBoardView from './ContractorTenderBoardView';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -380,6 +382,116 @@ export default function ClientDashboard({
       {/* Variance Monitor & Neutral Health Guard (Milestone M7) */}
       <VarianceMonitorCard projectName={projectData.name} />
 
+      {/* Certified IPCs & Valuation Payments Schedule (Diaspora Multi-Currency Converted) */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                Certified Valuations Ledger
+              </span>
+              <span className="text-xs text-slate-500 font-mono">
+                Currency: {selectedCurrency} ({exchangeRates[selectedCurrency].label})
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-slate-900 mt-1">
+              Certified IPCs, Contractor Payments &amp; Variance Schedule
+            </h3>
+            <p className="text-xs text-slate-500">
+              Interim Payment Certificates certified by Quantity Surveyor and paid by Client Developer.
+            </p>
+          </div>
+
+          <div className="text-left sm:text-right text-xs">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase block">Total Net Paid to Date</span>
+            <span className="text-base font-mono font-bold text-emerald-700">
+              {formatWithCurrency('4050000.00')}
+            </span>
+            <span className="text-[10px] text-slate-400 block">Gross Certified: {formatWithCurrency(financials.totalSpentToDate)}</span>
+          </div>
+        </div>
+
+        {/* Dynamic Multi-Currency Valuation Summary Bar */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <span className="text-slate-500 text-[10px] uppercase font-semibold block">Total Contract Sum:</span>
+            <span className="text-sm font-bold font-mono text-slate-900 mt-0.5 block">
+              {formatWithCurrency(financials.originalAgreedBudget)}
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono">Base: KES {originalBudgetFormatted}</span>
+          </div>
+
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <span className="text-slate-500 text-[10px] uppercase font-semibold block">Gross Certified IPCs:</span>
+            <span className="text-sm font-bold font-mono text-emerald-700 mt-0.5 block">
+              {formatWithCurrency(financials.totalSpentToDate)}
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono">Base: KES {totalSpentFormatted}</span>
+          </div>
+
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <span className="text-slate-500 text-[10px] uppercase font-semibold block">Net Payments Disbursed:</span>
+            <span className="text-sm font-bold font-mono text-blue-700 mt-0.5 block">
+              {formatWithCurrency('4050000.00')}
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono">90% of Gross Certified</span>
+          </div>
+
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <span className="text-slate-500 text-[10px] uppercase font-semibold block">Monetary Progress Variance:</span>
+            <span className="text-sm font-bold font-mono text-emerald-700 mt-0.5 block">
+              {formatWithCurrency('1008000.00')} Favorable
+            </span>
+            <span className="text-[10px] text-emerald-600 font-medium">Under baseline estimate</span>
+          </div>
+        </div>
+
+        {/* Certified IPCs Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-600">
+                <th className="py-2.5 px-3">Certificate Ref</th>
+                <th className="py-2.5 px-3">Milestone Scope</th>
+                <th className="py-2.5 px-3">Date Certified</th>
+                <th className="py-2.5 px-3">Gross Certified ({selectedCurrency})</th>
+                <th className="py-2.5 px-3">10% Retention ({selectedCurrency})</th>
+                <th className="py-2.5 px-3">Net Payment ({selectedCurrency})</th>
+                <th className="py-2.5 px-3 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              <tr className="hover:bg-slate-50/60">
+                <td className="py-2.5 px-3 font-mono font-bold text-slate-800">IPC #01</td>
+                <td className="py-2.5 px-3 text-slate-700">Substructure &amp; Foundation Excavation</td>
+                <td className="py-2.5 px-3 text-slate-500 font-mono">2026-02-28</td>
+                <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{formatWithCurrency('2500000.00')}</td>
+                <td className="py-2.5 px-3 font-mono text-amber-700">{formatWithCurrency('250000.00')}</td>
+                <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">{formatWithCurrency('2250000.00')}</td>
+                <td className="py-2.5 px-3 text-right">
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    Paid
+                  </span>
+                </td>
+              </tr>
+              <tr className="hover:bg-slate-50/60">
+                <td className="py-2.5 px-3 font-mono font-bold text-slate-800">IPC #02</td>
+                <td className="py-2.5 px-3 text-slate-700">Ground Floor Columns &amp; Ring Beam</td>
+                <td className="py-2.5 px-3 text-slate-500 font-mono">2026-03-31</td>
+                <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{formatWithCurrency('2000000.00')}</td>
+                <td className="py-2.5 px-3 font-mono text-amber-700">{formatWithCurrency('200000.00')}</td>
+                <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">{formatWithCurrency('1800000.00')}</td>
+                <td className="py-2.5 px-3 text-right">
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    Paid
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Project Milestones Timeline & Kenyan Retention Terms */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Milestone Timeline Component */}
@@ -450,6 +562,20 @@ export default function ClientDashboard({
         canAdd={false}
         canRectify={false}
         canVerify={true}
+      />
+
+      {/* Buildsasa Diaspora Independent Site Inspection Reports (Milestone M33) */}
+      <IndependentSiteReportView
+        projectId={projectData.id}
+        projectName={projectData.name}
+        userRole="CLIENT"
+      />
+
+      {/* Buildsasa Contractor Tender Board & Bidding Interface (Milestone M33) */}
+      <ContractorTenderBoardView
+        projectId={projectData.id}
+        projectName={projectData.name}
+        userRole="CLIENT"
       />
     </div>
   );

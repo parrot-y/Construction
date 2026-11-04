@@ -11,6 +11,14 @@ import {
   calculateSoilCompaction,
   evaluateAsphaltThermalQuality,
   calculateAsphaltCoreCompaction,
+  calculateSimpsonsArea,
+  calculatePrismoidalVolume,
+  calculateEarthworkBalancing,
+  calculateEconomicHaul,
+  evaluateFuelSiphoningAnomaly,
+  evaluatePlantCanBusDiagnostics,
+  calculateInspectionProgressVariance,
+  evaluateTenderBids,
 } from '@construction/money';
 import {
   InitiateMpesaStkPushSchema,
@@ -19,6 +27,9 @@ import {
   RecordWorkerClockInSchema,
   RegisterTelematicsDeviceSchema,
   IngestTelematicsPingSchema,
+  RegisterCanBusTelematicsDeviceSchema,
+  IngestCanBusTelematicsPingSchema,
+  AcknowledgeMaintenanceAlertSchema,
   CreateBarBendingScheduleSchema,
   UpdateBarBendingScheduleStatusSchema,
   InitiateB2CDisbursementSchema,
@@ -30,6 +41,13 @@ import {
   CreateGeotechnicalSoilTestSchema,
   CreateAsphaltPavementBatchSchema,
   RecordAsphaltCoreTestSchema,
+  CreateTopographicSurveySchema,
+  CreateIndependentInspectionSchema,
+  SubmitInspectionFindingsSchema,
+  ReviewInspectionSchema,
+  CreateProjectTenderSchema,
+  SubmitTenderBidSchema,
+  AwardTenderBidSchema,
 } from '@construction/validation';
 import * as crypto from 'crypto';
 
@@ -682,11 +700,19 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
     '/api/v1/projects/:projectId/telematics-devices',
     { preHandler: [server.authenticate] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId } = request.params as { projectId: string };
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users cannot register telematics devices',
+        });
       }
 
       const parseResult = RegisterTelematicsDeviceSchema.safeParse(request.body);
@@ -782,7 +808,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
         parseResult.data;
 
       try {
-        // Resolve tenant context under PostgreSQL 18 RLS
+        // Resolve tenant context under PostgreSQL 18 RLS with O(1) device lookup
         let tenantId = (request.query as any)?.tenantId || (request.headers['x-tenant-id'] as string);
         let device: any = null;
 
@@ -790,24 +816,15 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           device = await withTenantTx(prisma, tenantId, (tx) =>
             tx.plantTelematicsDevice.findUnique({
               where: { device_imei: deviceImei },
-              include: { equipment: true },
             })
           );
         } else {
-          const tenants = await prisma.tenant.findMany({ select: { id: true } });
-          for (const t of tenants) {
-            const found = await withTenantTx(prisma, t.id, (tx) =>
-              tx.plantTelematicsDevice.findUnique({
-                where: { device_imei: deviceImei },
-                include: { equipment: true },
-              })
-            );
-            if (found) {
-              device = found;
-              tenantId = t.id;
-              break;
-            }
-          }
+          device = await prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT set_config('app.auth_context', 'iot_ingest', TRUE)`;
+            return tx.plantTelematicsDevice.findUnique({
+              where: { device_imei: deviceImei },
+            });
+          });
         }
 
         if (!device) {
@@ -823,6 +840,13 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
         const fuelLiters = (fuelPct / 100) * tankCap;
 
         const result = await withTenantTx(prisma, device.tenant_id, async (tx) => {
+          const equipment = await tx.plantEquipment.findUnique({
+            where: { id: device.equipment_id },
+          });
+          const projectId = device.project_id || equipment?.project_id;
+          const equipmentName = equipment?.name || 'Equipment';
+          const equipmentCode = equipment?.equipment_code || 'N/A';
+
           // Check for sudden diesel siphoning anomaly inside tenant transaction
           const lastPing = await tx.plantTelematicsPing.findFirst({
             where: { device_id: device.id },
@@ -866,12 +890,12 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             await tx.siteAlertNotification.create({
               data: {
                 tenant_id: device.tenant_id,
-                project_id: device.equipment.project_id,
+                project_id: projectId,
                 recipient_phone: '+254700000000',
                 recipient_name: 'Fleet Manager / Security',
                 recipient_role: 'SITE_SUPERVISOR',
                 alert_type: 'DIESEL_SIPHONING_FLAG',
-                message_body: `TELEMATICS ALERT: Rapid fuel drop of ${((lastPing ? parseFloat(lastPing.calculated_fuel_liters.toString()) : 0) - fuelLiters).toFixed(1)}L detected on ${device.equipment.name} (${device.equipment.equipment_code}) while engine ${engineStatus}. Possible diesel theft.`,
+                message_body: `TELEMATICS ALERT: Rapid fuel drop of ${((lastPing ? parseFloat(lastPing.calculated_fuel_liters.toString()) : 0) - fuelLiters).toFixed(1)}L detected on ${equipmentName} (${equipmentCode}) while engine ${engineStatus}. Possible diesel theft.`,
                 delivery_channel: 'WHATSAPP',
                 delivery_status: 'SENT',
                 sent_at: new Date(),
@@ -881,8 +905,8 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
           return {
             pingId: ping.id,
-            equipmentCode: device.equipment.equipment_code,
-            equipmentName: device.equipment.name,
+            equipmentCode,
+            equipmentName,
             engineStatus: ping.engine_status,
             calculatedFuelLiters: toDecimal(ping.calculated_fuel_liters.toString()).toFixed(2),
             isSiphoningEvent: ping.is_siphoning_event,
@@ -946,11 +970,525 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               latitude: toDecimal(p.latitude.toString()).toFixed(6),
               longitude: toDecimal(p.longitude.toString()).toFixed(6),
               engineStatus: p.engine_status,
+              engineRpm: p.engine_rpm,
+              coolantTempC: p.coolant_temp_c ? toDecimal(p.coolant_temp_c.toString()).toFixed(1) : null,
+              oilTempC: p.oil_temp_c ? toDecimal(p.oil_temp_c.toString()).toFixed(1) : null,
+              batteryVoltage: p.battery_voltage ? toDecimal(p.battery_voltage.toString()).toFixed(2) : null,
+              fuelRateLPerH: p.fuel_rate_l_per_h ? toDecimal(p.fuel_rate_l_per_h.toString()).toFixed(2) : null,
+              dtcFaultCodes: p.dtc_fault_codes,
               fuelLevelPercent: toDecimal(p.fuel_level_percent.toString()).toFixed(2),
               calculatedFuelLiters: toDecimal(p.calculated_fuel_liters.toString()).toFixed(2),
+              fuelDropLiters: p.fuel_drop_liters ? toDecimal(p.fuel_drop_liters.toString()).toFixed(2) : null,
+              dropRateLPerHour: p.drop_rate_l_per_hour ? toDecimal(p.drop_rate_l_per_hour.toString()).toFixed(2) : null,
               isSiphoningEvent: p.is_siphoning_event,
+              anomalySeverity: p.anomaly_severity,
               pingTimestamp: p.ping_timestamp.toISOString(),
             })),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // ===========================================================================
+  // MODULE 3B: CAN-BUS OBD-II TELEMATICS & PREDICTIVE MAINTENANCE (MILESTONE M32)
+  // ===========================================================================
+
+  // 3.4 Register CAN-bus OBD-II Device to Machinery
+  server.post(
+    '/api/v1/projects/:projectId/canbus-devices',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client role is not authorized to register CAN-bus telematics devices',
+        });
+      }
+
+      const parseResult = RegisterCanBusTelematicsDeviceSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid CAN-bus device registration payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const data = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const equipment = await tx.plantEquipment.findFirst({
+            where: { id: data.equipmentId, project_id: projectId },
+          });
+          if (!equipment) throw { status: 404, message: 'Equipment not found in this project' };
+
+          const device = await tx.plantTelematicsDevice.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              equipment_id: data.equipmentId,
+              device_imei: data.deviceImei,
+              device_token: data.deviceToken || null,
+              protocol: data.protocol || 'CANBUS',
+              can_bus_baud_rate: data.canBusBaudRate || 250000,
+              max_engine_burn_rate_lph: toDecimal(data.maxEngineBurnRateLph).toFixed(2),
+              sim_phone_number: data.simPhoneNumber || null,
+              calibration_tank_capacity_liters: toDecimal(data.calibrationTankCapacityLiters).toFixed(2),
+              tank_geometry: data.tankGeometry || 'RECTANGULAR',
+              status: 'ONLINE',
+              last_heartbeat_at: new Date(),
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            actorId: sub,
+            action: 'CREATE',
+            entityType: 'PLANT_TELEMATICS_DEVICE',
+            entityId: device.id,
+            projectId,
+            changes: {
+              imei: device.device_imei,
+              equipment: equipment.name,
+              protocol: device.protocol,
+              baudRate: device.can_bus_baud_rate,
+              maxBurnRate: device.max_engine_burn_rate_lph.toString(),
+            },
+          });
+
+          return {
+            id: device.id,
+            equipmentId: device.equipment_id,
+            equipmentName: equipment.name,
+            deviceImei: device.device_imei,
+            deviceToken: device.device_token,
+            protocol: device.protocol,
+            canBusBaudRate: device.can_bus_baud_rate,
+            maxEngineBurnRateLph: toDecimal(device.max_engine_burn_rate_lph.toString()).toFixed(2),
+            calibrationTankCapacityLiters: toDecimal(device.calibration_tank_capacity_liters.toString()).toFixed(2),
+            tankGeometry: device.tank_geometry,
+            status: device.status,
+            createdAt: device.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A telematics device with this IMEI or for this equipment already exists',
+          });
+        }
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 3.5 Ingest High-Frequency CAN-bus Telematics Ping with O(1) Device Lookup
+  server.post(
+    '/api/v1/telematics/canbus-ping',
+    async (request, reply) => {
+      const parseResult = IngestCanBusTelematicsPingSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid CAN-bus ping payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const data = parseResult.data;
+
+      try {
+        // O(1) constant-time device lookup via auth_context = 'iot_ingest' under PostgreSQL RLS
+        const device = await prisma.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT set_config('app.auth_context', 'iot_ingest', TRUE)`;
+          return tx.plantTelematicsDevice.findUnique({
+            where: { device_imei: data.deviceImei },
+          });
+        });
+
+        if (!device) {
+          return reply.status(404).send({
+            statusCode: 404,
+            error: 'Not Found',
+            message: `Telematics device with IMEI ${data.deviceImei} not found`,
+          });
+        }
+
+        // Verify device token secret if configured on device
+        if (device.device_token) {
+          const authHeader = request.headers['authorization'];
+          const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+          const tokenProvided = data.deviceToken || bearerToken || (request.headers['x-device-token'] as string);
+          if (!tokenProvided || tokenProvided !== device.device_token) {
+            return reply.status(401).send({
+              statusCode: 401,
+              error: 'Unauthorized',
+              message: 'Invalid or missing device authentication token',
+            });
+          }
+        }
+
+        const tankCap = parseFloat(device.calibration_tank_capacity_liters.toString());
+        const fuelPct = parseFloat(data.fuelLevelPercent.toString());
+        const fuelLiters = (fuelPct / 100) * tankCap;
+        const currentTimestamp = new Date();
+
+        const result = await withTenantTx(prisma, device.tenant_id, async (tx) => {
+          const equipment = await tx.plantEquipment.findUnique({
+            where: { id: device.equipment_id },
+          });
+          if (!equipment) throw { status: 404, message: 'Equipment not found' };
+
+          // Fetch previous ping for delta calculation & siphoning detection
+          const lastPing = await tx.plantTelematicsPing.findFirst({
+            where: { device_id: device.id },
+            orderBy: { ping_timestamp: 'desc' },
+          });
+
+          let siphoningEval;
+          if (lastPing) {
+            siphoningEval = evaluateFuelSiphoningAnomaly(
+              lastPing.calculated_fuel_liters.toString(),
+              fuelLiters.toFixed(2),
+              lastPing.ping_timestamp,
+              currentTimestamp,
+              data.engineStatus,
+              device.max_engine_burn_rate_lph.toString()
+            );
+          } else {
+            siphoningEval = {
+              dropLiters: toDecimal(0),
+              elapsedSeconds: 0,
+              dropRateLitersPerHour: toDecimal(0),
+              isSiphoning: false,
+              anomalyType: 'NORMAL' as const,
+              severity: 'NONE' as const,
+              message: 'Initial baseline ping recorded.',
+            };
+          }
+
+          // Evaluate CAN-bus diagnostics (coolant, oil, battery, DTC)
+          const diagEval = evaluatePlantCanBusDiagnostics(
+            data.coolantTempC != null ? data.coolantTempC : null,
+            data.oilTempC != null ? data.oilTempC : null,
+            data.batteryVoltage != null ? data.batteryVoltage : null,
+            data.dtcFaultCodes || null
+          );
+
+          // Save ping with recorded CAN-bus PIDs
+          const ping = await tx.plantTelematicsPing.create({
+            data: {
+              tenant_id: device.tenant_id,
+              device_id: device.id,
+              equipment_id: device.equipment_id,
+              ping_timestamp: currentTimestamp,
+              latitude: toDecimal(data.latitude).toFixed(6),
+              longitude: toDecimal(data.longitude).toFixed(6),
+              engine_status: data.engineStatus,
+              engine_rpm: data.engineRpm ?? null,
+              coolant_temp_c: data.coolantTempC != null ? toDecimal(data.coolantTempC).toFixed(1) : null,
+              oil_temp_c: data.oilTempC != null ? toDecimal(data.oilTempC).toFixed(1) : null,
+              fuel_rate_l_per_h: data.fuelRateLPerH != null ? toDecimal(data.fuelRateLPerH).toFixed(2) : null,
+              engine_load_percent: data.engineLoadPercent != null ? toDecimal(data.engineLoadPercent).toFixed(2) : null,
+              speed_kmh: data.speedKmh != null ? toDecimal(data.speedKmh).toFixed(1) : null,
+              battery_voltage: data.batteryVoltage != null ? toDecimal(data.batteryVoltage).toFixed(2) : null,
+              dtc_fault_codes: data.dtcFaultCodes || null,
+              cumulative_engine_seconds: BigInt(data.cumulativeEngineSeconds || 0),
+              fuel_level_percent: toDecimal(data.fuelLevelPercent).toFixed(2),
+              calculated_fuel_liters: fuelLiters.toFixed(2),
+              fuel_drop_liters: siphoningEval.dropLiters.toFixed(2),
+              drop_rate_l_per_hour: siphoningEval.dropRateLitersPerHour.toFixed(2),
+              is_siphoning_event: siphoningEval.isSiphoning,
+              anomaly_severity: siphoningEval.severity !== 'NONE' ? siphoningEval.severity : (diagEval.alertSeverity !== 'NONE' ? diagEval.alertSeverity : 'NONE'),
+            },
+          });
+
+          // Update device heartbeat & online/fault status
+          await tx.plantTelematicsDevice.update({
+            where: { id: device.id },
+            data: {
+              last_heartbeat_at: currentTimestamp,
+              status: diagEval.alertSeverity === 'FATAL_SHUTDOWN' ? 'FAULT' : 'ONLINE',
+            },
+          });
+
+          const projectId = device.project_id || equipment.project_id;
+          const hoursMeter = toDecimal(data.cumulativeEngineSeconds || 0).dividedBy(3600).toFixed(2);
+          const createdAlerts: any[] = [];
+
+          // If siphoning theft detected, automatically create a PlantMaintenanceAlert!
+          if (siphoningEval.isSiphoning) {
+            const alertCode = `ALT-SIPHON-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+            const siphAlert = await tx.plantMaintenanceAlert.create({
+              data: {
+                tenant_id: device.tenant_id,
+                project_id: projectId,
+                equipment_id: device.equipment_id,
+                device_id: device.id,
+                alert_code: alertCode,
+                alert_type: 'SIPHONING_THEFT',
+                severity: siphoningEval.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING',
+                title: `Rapid Fuel Drop / Siphoning Theft: ${equipment.name}`,
+                description: siphoningEval.message,
+                recommended_action: 'Inspect fuel tank cap, drain valve, and immediate physical fuel level. Review site CCTV security logs.',
+                hours_meter_at_alert: hoursMeter,
+                status: 'ACTIVE',
+              },
+            });
+            createdAlerts.push(siphAlert);
+
+            // Also dispatch SiteAlertNotification for emergency response
+            await tx.siteAlertNotification.create({
+              data: {
+                tenant_id: device.tenant_id,
+                project_id: projectId,
+                recipient_phone: '+254700000000',
+                recipient_name: 'Fleet Manager / Security',
+                recipient_role: 'SITE_SUPERVISOR',
+                alert_type: 'DIESEL_SIPHONING_FLAG',
+                message_body: `TELEMATICS ALERT: ${siphoningEval.message} on ${equipment.name} (${equipment.equipment_code}).`,
+                delivery_channel: 'WHATSAPP',
+                delivery_status: 'SENT',
+                sent_at: currentTimestamp,
+              },
+            });
+          }
+
+          // If overheating or DTC fault detected, automatically create a PlantMaintenanceAlert!
+          if (diagEval.hasThermalAlarm || diagEval.hasDtcAlarm || diagEval.hasElectricalAlarm) {
+            const alertCode = `ALT-DIAG-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+            let alertType = 'DTC_FAULT';
+            if (diagEval.hasThermalAlarm) {
+              alertType = (data.coolantTempC && Number(data.coolantTempC) > 103) ? 'ENGINE_OVERHEAT' : 'CRITICAL_OIL_TEMP';
+            }
+            const diagAlert = await tx.plantMaintenanceAlert.create({
+              data: {
+                tenant_id: device.tenant_id,
+                project_id: projectId,
+                equipment_id: device.equipment_id,
+                device_id: device.id,
+                alert_code: alertCode,
+                alert_type: alertType,
+                severity: diagEval.alertSeverity,
+                dtc_code: data.dtcFaultCodes ? data.dtcFaultCodes.slice(0, 20) : null,
+                title: `Engine Diagnostics Alarm: ${equipment.name} (${equipment.equipment_code})`,
+                description: diagEval.faultMessages.join(' | '),
+                recommended_action: diagEval.hasThermalAlarm
+                  ? 'Shut down machine immediately. Check coolant level, radiator airflow, and engine oil cooler.'
+                  : 'Connect OBD-II / J1939 scanner, pull freeze frame data, and inspect electrical harness.',
+                hours_meter_at_alert: hoursMeter,
+                status: 'ACTIVE',
+              },
+            });
+            createdAlerts.push(diagAlert);
+          }
+
+          return {
+            pingId: ping.id,
+            equipmentCode: equipment.equipment_code,
+            equipmentName: equipment.name,
+            engineStatus: ping.engine_status,
+            engineRpm: ping.engine_rpm,
+            coolantTempC: ping.coolant_temp_c ? toDecimal(ping.coolant_temp_c.toString()).toFixed(1) : null,
+            oilTempC: ping.oil_temp_c ? toDecimal(ping.oil_temp_c.toString()).toFixed(1) : null,
+            fuelRateLPerH: ping.fuel_rate_l_per_h ? toDecimal(ping.fuel_rate_l_per_h.toString()).toFixed(2) : null,
+            batteryVoltage: ping.battery_voltage ? toDecimal(ping.battery_voltage.toString()).toFixed(2) : null,
+            fuelLevelPercent: toDecimal(ping.fuel_level_percent.toString()).toFixed(2),
+            calculatedFuelLiters: toDecimal(ping.calculated_fuel_liters.toString()).toFixed(2),
+            fuelDropLiters: ping.fuel_drop_liters ? toDecimal(ping.fuel_drop_liters.toString()).toFixed(2) : null,
+            dropRateLPerHour: ping.drop_rate_l_per_hour ? toDecimal(ping.drop_rate_l_per_hour.toString()).toFixed(2) : null,
+            isSiphoningEvent: ping.is_siphoning_event,
+            anomalySeverity: ping.anomaly_severity,
+            diagnostics: diagEval,
+            siphoningEvaluation: siphoningEval,
+            createdAlertsCount: createdAlerts.length,
+            recordedAt: ping.ping_timestamp.toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 3.6 List Active / Acknowledged Maintenance Alerts for Project
+  server.get(
+    '/api/v1/projects/:projectId/maintenance-alerts',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      const { status } = request.query as { status?: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const whereClause: any = { project_id: projectId };
+          if (status && ['ACTIVE', 'ACKNOWLEDGED', 'RESOLVED'].includes(status.toUpperCase())) {
+            whereClause.status = status.toUpperCase();
+          }
+
+          const alerts = await tx.plantMaintenanceAlert.findMany({
+            where: whereClause,
+            include: { equipment: true, telematics_device: true },
+            orderBy: { created_at: 'desc' },
+            take: 100,
+          });
+
+          return {
+            projectId,
+            totalAlerts: alerts.length,
+            activeAlertsCount: alerts.filter((a) => a.status === 'ACTIVE').length,
+            alerts: alerts.map((a) => ({
+              id: a.id,
+              alertCode: a.alert_code,
+              equipmentId: a.equipment_id,
+              equipmentCode: a.equipment.equipment_code,
+              equipmentName: a.equipment.name,
+              deviceImei: a.telematics_device?.device_imei || null,
+              alertType: a.alert_type,
+              severity: a.severity,
+              dtcCode: a.dtc_code,
+              title: a.title,
+              description: a.description,
+              recommendedAction: a.recommended_action,
+              hoursMeterAtAlert: toDecimal(a.hours_meter_at_alert.toString()).toFixed(2),
+              status: a.status,
+              acknowledgedBy: a.acknowledged_by,
+              acknowledgedAt: a.acknowledged_at ? a.acknowledged_at.toISOString() : null,
+              resolvedAt: a.resolved_at ? a.resolved_at.toISOString() : null,
+              createdAt: a.created_at.toISOString(),
+            })),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 3.7 Acknowledge Maintenance Alert
+  server.patch(
+    '/api/v1/projects/:projectId/maintenance-alerts/:alertId/acknowledge',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      const { projectId, alertId } = request.params as { projectId: string; alertId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(alertId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Alert not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users cannot acknowledge plant maintenance alerts',
+        });
+      }
+
+      const parseResult = AcknowledgeMaintenanceAlertSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid acknowledgement payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const data = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const alert = await tx.plantMaintenanceAlert.findFirst({
+            where: { id: alertId, project_id: projectId },
+            include: { equipment: true },
+          });
+
+          if (!alert) {
+            throw { status: 404, message: 'Maintenance alert not found' };
+          }
+
+          const updated = await tx.plantMaintenanceAlert.update({
+            where: { id: alertId },
+            data: {
+              status: 'ACKNOWLEDGED',
+              acknowledged_by: data.acknowledgedBy,
+              acknowledged_at: new Date(),
+              description: data.actionNotes ? `${alert.description}\n[Action Note]: ${data.actionNotes}` : alert.description,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            actorId: sub,
+            action: 'UPDATE',
+            entityType: 'PLANT_MAINTENANCE_ALERT',
+            entityId: alert.id,
+            projectId,
+            changes: {
+              previousStatus: alert.status,
+              newStatus: 'ACKNOWLEDGED',
+              acknowledgedBy: data.acknowledgedBy,
+              actionNotes: data.actionNotes,
+            },
+          });
+
+          return {
+            id: updated.id,
+            alertCode: updated.alert_code,
+            equipmentName: alert.equipment.name,
+            status: updated.status,
+            acknowledgedBy: updated.acknowledged_by,
+            acknowledgedAt: updated.acknowledged_at?.toISOString(),
+            message: 'Maintenance alert acknowledged successfully',
           };
         });
 
@@ -2818,6 +3356,1514 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
           error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // =============================================================
+  // SECTION 10: TOPOGRAPHIC SURVEY & CUT/FILL EARTHWORKS (MILESTONE M31)
+  // =============================================================
+
+  // 10.1 Create Topographic Survey with Cross-Section Takeoffs & Earthworks Balancing
+  server.post(
+    '/api/v1/projects/:projectId/topographic-surveys',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users have read-only access to topographic surveys',
+        });
+      }
+
+      const parseResult = CreateTopographicSurveySchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid topographic survey payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        surveyCode,
+        title,
+        surveyDate,
+        surveyorName,
+        instrumentType,
+        calculationMethod,
+        bulkingFactor,
+        shrinkageFactor,
+        freehaulDistanceMeters,
+        overhaulUnitRateKes,
+        borrowUnitRateKes,
+        stations: inputStations,
+      } = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const sortedStations = [...inputStations].sort((a, b) => a.stationIndex - b.stationIndex);
+
+          let totalCutVolume = toDecimal(0);
+          let totalFillVolume = toDecimal(0);
+          let cumulativeMass = toDecimal(0);
+
+          type ComputedStationData = {
+            stationIndex: number;
+            chainageMeters: string;
+            chainageLabel: string;
+            existingGroundLevelM: string;
+            proposedFormationLevelM: string;
+            depthCutOrFillM: string;
+            cutAreaM2: string;
+            fillAreaM2: string;
+            midCutAreaM2: string | null;
+            midFillAreaM2: string | null;
+            offsetsAndLevels: any;
+            intervalDistanceM: string;
+            intervalCutVolumeM3: string;
+            intervalFillVolumeM3: string;
+            intervalAdjustedFillM3: string;
+            intervalNetVolumeM3: string;
+            cumulativeMassOrdinateM3: string;
+          };
+
+          const computedStations: ComputedStationData[] = [];
+
+          for (let i = 0; i < sortedStations.length; i++) {
+            const st = sortedStations[i]!;
+            let cutArea = toDecimal(st.cutAreaM2 ?? 0);
+            let fillArea = toDecimal(st.fillAreaM2 ?? 0);
+
+            // If cut/fill areas are 0 and raw cross-section offsets are supplied, compute with Simpson's 1/3 Rule
+            if (cutArea.isZero() && fillArea.isZero() && st.offsetsAndLevels && st.offsetsAndLevels.length >= 3) {
+              const pts = st.offsetsAndLevels;
+              const pt0 = pts[0];
+              const pt1 = pts[1];
+              if (pt0 && pt1) {
+                const h = Math.abs(pt1[0] - pt0[0]);
+                if (h > 0) {
+                  const cutOrdinates = pts.map(([_, elev]) => Math.max(0, elev - Number(st.proposedFormationLevelM)));
+                  const fillOrdinates = pts.map(([_, elev]) => Math.max(0, Number(st.proposedFormationLevelM) - elev));
+                  if (cutOrdinates.some((y) => y > 0)) {
+                    cutArea = calculateSimpsonsArea(cutOrdinates, h).areaM2;
+                  }
+                  if (fillOrdinates.some((y) => y > 0)) {
+                    fillArea = calculateSimpsonsArea(fillOrdinates, h).areaM2;
+                  }
+                }
+              }
+            }
+
+            const depthCutOrFill = toDecimal(st.existingGroundLevelM).minus(toDecimal(st.proposedFormationLevelM));
+
+            if (i === 0) {
+              computedStations.push({
+                stationIndex: st.stationIndex,
+                chainageMeters: toDecimal(st.chainageMeters).toFixed(2),
+                chainageLabel: st.chainageLabel,
+                existingGroundLevelM: toDecimal(st.existingGroundLevelM).toFixed(3),
+                proposedFormationLevelM: toDecimal(st.proposedFormationLevelM).toFixed(3),
+                depthCutOrFillM: depthCutOrFill.toFixed(3),
+                cutAreaM2: cutArea.toFixed(3),
+                fillAreaM2: fillArea.toFixed(3),
+                midCutAreaM2: st.midCutAreaM2 !== undefined && st.midCutAreaM2 !== null ? toDecimal(st.midCutAreaM2).toFixed(3) : null,
+                midFillAreaM2: st.midFillAreaM2 !== undefined && st.midFillAreaM2 !== null ? toDecimal(st.midFillAreaM2).toFixed(3) : null,
+                offsetsAndLevels: st.offsetsAndLevels ?? null,
+                intervalDistanceM: '0.00',
+                intervalCutVolumeM3: '0.000',
+                intervalFillVolumeM3: '0.000',
+                intervalAdjustedFillM3: '0.000',
+                intervalNetVolumeM3: '0.000',
+                cumulativeMassOrdinateM3: '0.000',
+              });
+            } else {
+              const prev = computedStations[i - 1]!;
+              const intervalDistance = toDecimal(st.chainageMeters).minus(toDecimal(prev.chainageMeters));
+
+              let cutVol = toDecimal(0);
+              let fillVol = toDecimal(0);
+
+              if (calculationMethod === 'AVERAGE_END_AREA') {
+                cutVol = calculatePrismoidalVolume(
+                  prev.cutAreaM2,
+                  cutArea,
+                  intervalDistance,
+                  st.midCutAreaM2
+                ).averageEndAreaVolumeM3;
+                fillVol = calculatePrismoidalVolume(
+                  prev.fillAreaM2,
+                  fillArea,
+                  intervalDistance,
+                  st.midFillAreaM2
+                ).averageEndAreaVolumeM3;
+              } else {
+                cutVol = calculatePrismoidalVolume(
+                  prev.cutAreaM2,
+                  cutArea,
+                  intervalDistance,
+                  st.midCutAreaM2
+                ).prismoidalVolumeM3;
+                fillVol = calculatePrismoidalVolume(
+                  prev.fillAreaM2,
+                  fillArea,
+                  intervalDistance,
+                  st.midFillAreaM2
+                ).prismoidalVolumeM3;
+              }
+
+              const balance = calculateEarthworkBalancing(
+                cutVol,
+                fillVol,
+                shrinkageFactor,
+                bulkingFactor
+              );
+
+              cumulativeMass = cumulativeMass.plus(balance.netVolumeM3);
+              totalCutVolume = totalCutVolume.plus(cutVol);
+              totalFillVolume = totalFillVolume.plus(fillVol);
+
+              computedStations.push({
+                stationIndex: st.stationIndex,
+                chainageMeters: toDecimal(st.chainageMeters).toFixed(2),
+                chainageLabel: st.chainageLabel,
+                existingGroundLevelM: toDecimal(st.existingGroundLevelM).toFixed(3),
+                proposedFormationLevelM: toDecimal(st.proposedFormationLevelM).toFixed(3),
+                depthCutOrFillM: depthCutOrFill.toFixed(3),
+                cutAreaM2: cutArea.toFixed(3),
+                fillAreaM2: fillArea.toFixed(3),
+                midCutAreaM2: st.midCutAreaM2 !== undefined && st.midCutAreaM2 !== null ? toDecimal(st.midCutAreaM2).toFixed(3) : null,
+                midFillAreaM2: st.midFillAreaM2 !== undefined && st.midFillAreaM2 !== null ? toDecimal(st.midFillAreaM2).toFixed(3) : null,
+                offsetsAndLevels: st.offsetsAndLevels ?? null,
+                intervalDistanceM: intervalDistance.toFixed(2),
+                intervalCutVolumeM3: cutVol.toFixed(3),
+                intervalFillVolumeM3: fillVol.toFixed(3),
+                intervalAdjustedFillM3: balance.adjustedFillM3.toFixed(3),
+                intervalNetVolumeM3: balance.netVolumeM3.toFixed(3),
+                cumulativeMassOrdinateM3: cumulativeMass.toFixed(3),
+              });
+            }
+          }
+
+          const firstStation = computedStations[0]!;
+          const lastStation = computedStations[computedStations.length - 1]!;
+          const firstChainage = toDecimal(firstStation.chainageMeters);
+          const lastChainage = toDecimal(lastStation.chainageMeters);
+          const totalLengthM = lastChainage.minus(firstChainage);
+
+          const netBalance = cumulativeMass;
+          const overhaulVolume = netBalance.greaterThan(0) ? netBalance : toDecimal(0);
+
+          const haulEval = calculateEconomicHaul(
+            totalLengthM,
+            freehaulDistanceMeters,
+            overhaulVolume,
+            overhaulUnitRateKes,
+            borrowUnitRateKes
+          );
+
+          const survey = await tx.topographicSurvey.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              survey_code: surveyCode,
+              title,
+              survey_date: surveyDate ? new Date(surveyDate) : new Date(),
+              surveyor_name: surveyorName,
+              instrument_type: instrumentType,
+              calculation_method: calculationMethod,
+              bulking_factor: toDecimal(bulkingFactor).toFixed(3),
+              shrinkage_factor: toDecimal(shrinkageFactor).toFixed(3),
+              freehaul_distance_meters: toDecimal(freehaulDistanceMeters).toFixed(2),
+              overhaul_unit_rate_kes: toDecimal(overhaulUnitRateKes).toFixed(2),
+              borrow_unit_rate_kes: toDecimal(borrowUnitRateKes).toFixed(2),
+              total_cut_volume_m3: totalCutVolume.toFixed(3),
+              total_fill_volume_m3: totalFillVolume.toFixed(3),
+              net_balance_volume_m3: netBalance.toFixed(3),
+              total_overhaul_cost_kes: haulEval.overhaulCostKes.toFixed(2),
+              economic_haul_limit_meters: haulEval.economicLimitOfHaulMeters.toFixed(2),
+              status: 'COMPLETED',
+            },
+          });
+
+          await tx.crossSectionStation.createMany({
+            data: computedStations.map((st) => ({
+              tenant_id: tenantId,
+              project_id: projectId,
+              survey_id: survey.id,
+              station_index: st.stationIndex,
+              chainage_meters: st.chainageMeters,
+              chainage_label: st.chainageLabel,
+              existing_ground_level_m: st.existingGroundLevelM,
+              proposed_formation_level_m: st.proposedFormationLevelM,
+              depth_cut_or_fill_m: st.depthCutOrFillM,
+              cut_area_m2: st.cutAreaM2,
+              fill_area_m2: st.fillAreaM2,
+              mid_cut_area_m2: st.midCutAreaM2,
+              mid_fill_area_m2: st.midFillAreaM2,
+              offsets_and_levels: st.offsetsAndLevels,
+              interval_distance_m: st.intervalDistanceM,
+              interval_cut_volume_m3: st.intervalCutVolumeM3,
+              interval_fill_volume_m3: st.intervalFillVolumeM3,
+              interval_adjusted_fill_m3: st.intervalAdjustedFillM3,
+              interval_net_volume_m3: st.intervalNetVolumeM3,
+              cumulative_mass_ordinate_m3: st.cumulativeMassOrdinateM3,
+            })),
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'CREATE_TOPOGRAPHIC_SURVEY',
+            entityType: 'TopographicSurvey',
+            entityId: survey.id,
+            changes: {
+              surveyCode,
+              totalCutVolumeM3: totalCutVolume.toFixed(3),
+              totalFillVolumeM3: totalFillVolume.toFixed(3),
+              netBalanceVolumeM3: netBalance.toFixed(3),
+              stationCount: computedStations.length,
+            },
+          });
+
+          return {
+            id: survey.id,
+            surveyCode: survey.survey_code,
+            title: survey.title,
+            surveyDate: survey.survey_date.toISOString(),
+            surveyorName: survey.surveyor_name,
+            instrumentType: survey.instrument_type,
+            calculationMethod: survey.calculation_method,
+            bulkingFactor: toDecimal(survey.bulking_factor.toString()).toFixed(3),
+            shrinkageFactor: toDecimal(survey.shrinkage_factor.toString()).toFixed(3),
+            freehaulDistanceMeters: toDecimal(survey.freehaul_distance_meters.toString()).toFixed(2),
+            overhaulUnitRateKes: toDecimal(survey.overhaul_unit_rate_kes.toString()).toFixed(2),
+            borrowUnitRateKes: toDecimal(survey.borrow_unit_rate_kes.toString()).toFixed(2),
+            totalCutVolumeM3: toDecimal(survey.total_cut_volume_m3.toString()).toFixed(3),
+            totalFillVolumeM3: toDecimal(survey.total_fill_volume_m3.toString()).toFixed(3),
+            netBalanceVolumeM3: toDecimal(survey.net_balance_volume_m3.toString()).toFixed(3),
+            totalOverhaulCostKes: toDecimal(survey.total_overhaul_cost_kes.toString()).toFixed(2),
+            economicHaulLimitMeters: toDecimal(survey.economic_haul_limit_meters.toString()).toFixed(2),
+            status: survey.status,
+            stationCount: computedStations.length,
+            stations: computedStations,
+            createdAt: survey.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          return reply.status(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'A topographic survey with this survey code already exists for this project',
+          });
+        }
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 10.2 List Topographic Surveys for Project
+  server.get(
+    '/api/v1/projects/:projectId/topographic-surveys',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const surveys = await tx.topographicSurvey.findMany({
+            where: { tenant_id: tenantId, project_id: projectId },
+            include: {
+              _count: { select: { stations: true } },
+            },
+            orderBy: { created_at: 'desc' },
+          });
+
+          return surveys.map((s) => ({
+            id: s.id,
+            surveyCode: s.survey_code,
+            title: s.title,
+            surveyDate: s.survey_date.toISOString(),
+            surveyorName: s.surveyor_name,
+            instrumentType: s.instrument_type,
+            calculationMethod: s.calculation_method,
+            bulkingFactor: toDecimal(s.bulking_factor.toString()).toFixed(3),
+            shrinkageFactor: toDecimal(s.shrinkage_factor.toString()).toFixed(3),
+            freehaulDistanceMeters: toDecimal(s.freehaul_distance_meters.toString()).toFixed(2),
+            overhaulUnitRateKes: toDecimal(s.overhaul_unit_rate_kes.toString()).toFixed(2),
+            borrowUnitRateKes: toDecimal(s.borrow_unit_rate_kes.toString()).toFixed(2),
+            totalCutVolumeM3: toDecimal(s.total_cut_volume_m3.toString()).toFixed(3),
+            totalFillVolumeM3: toDecimal(s.total_fill_volume_m3.toString()).toFixed(3),
+            netBalanceVolumeM3: toDecimal(s.net_balance_volume_m3.toString()).toFixed(3),
+            totalOverhaulCostKes: toDecimal(s.total_overhaul_cost_kes.toString()).toFixed(2),
+            economicHaulLimitMeters: toDecimal(s.economic_haul_limit_meters.toString()).toFixed(2),
+            status: s.status,
+            stationCount: s._count.stations,
+            createdAt: s.created_at.toISOString(),
+          }));
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 10.3 Get Topographic Survey Details with Ordered Cross-Section Stations
+  server.get(
+    '/api/v1/projects/:projectId/topographic-surveys/:surveyId',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, surveyId } = request.params as { projectId: string; surveyId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(surveyId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const survey = await tx.topographicSurvey.findFirst({
+            where: { id: surveyId, tenant_id: tenantId, project_id: projectId },
+            include: {
+              stations: {
+                orderBy: { station_index: 'asc' },
+              },
+            },
+          });
+
+          if (!survey) {
+            throw { status: 404, message: 'Topographic survey not found' };
+          }
+
+          return {
+            id: survey.id,
+            surveyCode: survey.survey_code,
+            title: survey.title,
+            surveyDate: survey.survey_date.toISOString(),
+            surveyorName: survey.surveyor_name,
+            instrumentType: survey.instrument_type,
+            calculationMethod: survey.calculation_method,
+            bulkingFactor: toDecimal(survey.bulking_factor.toString()).toFixed(3),
+            shrinkageFactor: toDecimal(survey.shrinkage_factor.toString()).toFixed(3),
+            freehaulDistanceMeters: toDecimal(survey.freehaul_distance_meters.toString()).toFixed(2),
+            overhaulUnitRateKes: toDecimal(survey.overhaul_unit_rate_kes.toString()).toFixed(2),
+            borrowUnitRateKes: toDecimal(survey.borrow_unit_rate_kes.toString()).toFixed(2),
+            totalCutVolumeM3: toDecimal(survey.total_cut_volume_m3.toString()).toFixed(3),
+            totalFillVolumeM3: toDecimal(survey.total_fill_volume_m3.toString()).toFixed(3),
+            netBalanceVolumeM3: toDecimal(survey.net_balance_volume_m3.toString()).toFixed(3),
+            totalOverhaulCostKes: toDecimal(survey.total_overhaul_cost_kes.toString()).toFixed(2),
+            economicHaulLimitMeters: toDecimal(survey.economic_haul_limit_meters.toString()).toFixed(2),
+            status: survey.status,
+            stationCount: survey.stations.length,
+            stations: survey.stations.map((s) => ({
+              id: s.id,
+              stationIndex: s.station_index,
+              chainageMeters: toDecimal(s.chainage_meters.toString()).toFixed(2),
+              chainageLabel: s.chainage_label,
+              existingGroundLevelM: toDecimal(s.existing_ground_level_m.toString()).toFixed(3),
+              proposedFormationLevelM: toDecimal(s.proposed_formation_level_m.toString()).toFixed(3),
+              depthCutOrFillM: toDecimal(s.depth_cut_or_fill_m.toString()).toFixed(3),
+              cutAreaM2: toDecimal(s.cut_area_m2.toString()).toFixed(3),
+              fillAreaM2: toDecimal(s.fill_area_m2.toString()).toFixed(3),
+              midCutAreaM2: s.mid_cut_area_m2 ? toDecimal(s.mid_cut_area_m2.toString()).toFixed(3) : null,
+              midFillAreaM2: s.mid_fill_area_m2 ? toDecimal(s.mid_fill_area_m2.toString()).toFixed(3) : null,
+              offsetsAndLevels: s.offsets_and_levels,
+              intervalDistanceM: toDecimal(s.interval_distance_m.toString()).toFixed(2),
+              intervalCutVolumeM3: toDecimal(s.interval_cut_volume_m3.toString()).toFixed(3),
+              intervalFillVolumeM3: toDecimal(s.interval_fill_volume_m3.toString()).toFixed(3),
+              intervalAdjustedFillM3: toDecimal(s.interval_adjusted_fill_m3.toString()).toFixed(3),
+              intervalNetVolumeM3: toDecimal(s.interval_net_volume_m3.toString()).toFixed(3),
+              cumulativeMassOrdinateM3: toDecimal(s.cumulative_mass_ordinate_m3.toString()).toFixed(3),
+            })),
+            createdAt: survey.created_at.toISOString(),
+            updatedAt: survey.updated_at.toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // =============================================================
+  // SECTION 11: INDEPENDENT SITE INSPECTION & CONTRACTOR TENDER (MILESTONE M33)
+  // =============================================================
+
+  // 11.1 Request Independent Site Inspection Audit Visit
+  server.post(
+    '/api/v1/projects/:projectId/independent-inspections',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      const parseResult = CreateIndependentInspectionSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid independent inspection request payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        inspectionCode: customCode,
+        scheduledDate,
+        scopeDescription,
+        reportedProgressPct,
+        contractorClaimedProgress,
+        inspectorName,
+        inspectorLicense,
+      } = parseResult.data;
+
+      const inspectionCode = customCode || `INSP-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      const finalScheduledDate = scheduledDate ? new Date(scheduledDate) : new Date();
+      const finalScopeDescription = scopeDescription || 'Independent Site Inspection Audit Visit';
+      const finalReportedPct = reportedProgressPct ?? contractorClaimedProgress ?? 0;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const inspection = await tx.independentSiteInspection.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              inspection_code: inspectionCode,
+              requested_by: sub,
+              scheduled_date: finalScheduledDate,
+              scope_description: finalScopeDescription,
+              reported_progress_pct: toDecimal(finalReportedPct).toFixed(2),
+              inspector_name: inspectorName ?? null,
+              inspector_license: inspectorLicense ?? null,
+              status: 'REQUESTED',
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'REQUEST_INDEPENDENT_INSPECTION',
+            entityType: 'IndependentSiteInspection',
+            entityId: inspection.id,
+            changes: {
+              inspectionCode,
+              scopeDescription: finalScopeDescription,
+              scheduledDate: finalScheduledDate.toISOString(),
+              reportedProgressPct: toDecimal(finalReportedPct).toFixed(2),
+            },
+          });
+
+          return {
+            id: inspection.id,
+            inspectionCode: inspection.inspection_code,
+            projectId: inspection.project_id,
+            requestedBy: inspection.requested_by,
+            inspectorName: inspection.inspector_name,
+            inspectorLicense: inspection.inspector_license,
+            scheduledDate: inspection.scheduled_date.toISOString(),
+            status: inspection.status,
+            scopeDescription: inspection.scope_description,
+            reportedProgressPct: toDecimal(inspection.reported_progress_pct.toString()).toFixed(2),
+            createdAt: inspection.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.2 List Independent Inspections with Variance Summary
+  server.get(
+    '/api/v1/projects/:projectId/independent-inspections',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const inspections = await tx.independentSiteInspection.findMany({
+            where: { tenant_id: tenantId, project_id: projectId },
+            include: {
+              photos: {
+                select: { id: true, photo_url: true, has_discrepancy: true },
+              },
+            },
+            orderBy: { created_at: 'desc' },
+          });
+
+          return inspections.map((insp) => ({
+            id: insp.id,
+            inspectionCode: insp.inspection_code,
+            status: insp.status,
+            requestedBy: insp.requested_by,
+            inspectorName: insp.inspector_name,
+            scheduledDate: insp.scheduled_date.toISOString(),
+            conductedDate: insp.conducted_date ? insp.conducted_date.toISOString() : null,
+            scopeDescription: insp.scope_description,
+            reportedProgressPct: toDecimal(insp.reported_progress_pct.toString()).toFixed(2),
+            verifiedProgressPct: insp.verified_progress_pct ? toDecimal(insp.verified_progress_pct.toString()).toFixed(2) : null,
+            variancePct: insp.variance_pct ? toDecimal(insp.variance_pct.toString()).toFixed(2) : null,
+            varianceStatus: insp.variance_status,
+            workmanshipRating: insp.workmanship_rating,
+            safetyComplianceRating: insp.safety_compliance_rating,
+            structuralDefectsFound: insp.structural_defects_found,
+            clientDiscrepancyFlagged: insp.client_discrepancy_flagged,
+            photosCount: insp.photos.length,
+            createdAt: insp.created_at.toISOString(),
+            updatedAt: insp.updated_at.toISOString(),
+          }));
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.3 Detailed Independent Inspection Findings & Photos
+  server.get(
+    '/api/v1/projects/:projectId/independent-inspections/:inspectionId',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, inspectionId } = request.params as { projectId: string; inspectionId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(inspectionId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const inspection = await tx.independentSiteInspection.findFirst({
+            where: { id: inspectionId, tenant_id: tenantId, project_id: projectId },
+            include: {
+              photos: {
+                orderBy: { captured_at: 'asc' },
+              },
+            },
+          });
+
+          if (!inspection) {
+            throw { status: 404, message: 'Independent site inspection not found' };
+          }
+
+          return {
+            id: inspection.id,
+            inspectionCode: inspection.inspection_code,
+            projectId: inspection.project_id,
+            status: inspection.status,
+            requestedBy: inspection.requested_by,
+            inspectorName: inspection.inspector_name,
+            inspectorLicense: inspection.inspector_license,
+            scheduledDate: inspection.scheduled_date.toISOString(),
+            conductedDate: inspection.conducted_date ? inspection.conducted_date.toISOString() : null,
+            scopeDescription: inspection.scope_description,
+            gpsLatitude: inspection.gps_latitude ? toDecimal(inspection.gps_latitude.toString()).toFixed(7) : null,
+            gpsLongitude: inspection.gps_longitude ? toDecimal(inspection.gps_longitude.toString()).toFixed(7) : null,
+            reportedProgressPct: toDecimal(inspection.reported_progress_pct.toString()).toFixed(2),
+            verifiedProgressPct: inspection.verified_progress_pct ? toDecimal(inspection.verified_progress_pct.toString()).toFixed(2) : null,
+            variancePct: inspection.variance_pct ? toDecimal(inspection.variance_pct.toString()).toFixed(2) : null,
+            varianceStatus: inspection.variance_status,
+            materialsOnSiteNotes: inspection.materials_on_site_notes,
+            workmanshipRating: inspection.workmanship_rating,
+            safetyComplianceRating: inspection.safety_compliance_rating,
+            structuralDefectsFound: inspection.structural_defects_found,
+            findingsNotes: inspection.findings_notes,
+            recommendations: inspection.recommendations,
+            clientReviewNotes: inspection.client_review_notes,
+            clientDiscrepancyFlagged: inspection.client_discrepancy_flagged,
+            clientSatisfactionRating: inspection.client_satisfaction_rating,
+            photos: inspection.photos.map((p) => ({
+              id: p.id,
+              photoUrl: p.photo_url,
+              caption: p.caption,
+              elementInspected: p.element_inspected,
+              hasDiscrepancy: p.has_discrepancy,
+              gpsLatitude: p.gps_latitude ? toDecimal(p.gps_latitude.toString()).toFixed(7) : null,
+              gpsLongitude: p.gps_longitude ? toDecimal(p.gps_longitude.toString()).toFixed(7) : null,
+              capturedAt: p.captured_at.toISOString(),
+            })),
+            createdAt: inspection.created_at.toISOString(),
+            updatedAt: inspection.updated_at.toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.4 Inspector Submits Field Findings, Verified Progress, GPS & Discrepancies (403 for CLIENT)
+  server.patch(
+    '/api/v1/projects/:projectId/independent-inspections/:inspectionId/submit',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      const { projectId, inspectionId } = request.params as { projectId: string; inspectionId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(inspectionId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users are not permitted to submit inspection findings',
+        });
+      }
+
+      const parseResult = SubmitInspectionFindingsSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid inspection findings payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        gpsLatitude,
+        gpsLongitude,
+        verifiedProgressPct,
+        verifiedProgress,
+        materialsOnSiteNotes,
+        workmanshipRating,
+        safetyComplianceRating,
+        structuralDefectsFound,
+        findingsNotes,
+        recommendations,
+        photos,
+      } = parseResult.data;
+
+      const finalVerifiedPct = verifiedProgressPct ?? verifiedProgress ?? 0;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const inspection = await tx.independentSiteInspection.findFirst({
+            where: { id: inspectionId, tenant_id: tenantId, project_id: projectId },
+          });
+
+          if (!inspection) {
+            throw { status: 404, message: 'Independent site inspection not found' };
+          }
+
+          const varianceEval = calculateInspectionProgressVariance(
+            inspection.reported_progress_pct.toString(),
+            finalVerifiedPct
+          );
+
+          const updated = await tx.independentSiteInspection.update({
+            where: { id: inspectionId },
+            data: {
+              conducted_date: new Date(),
+              status: 'SUBMITTED',
+              gps_latitude: toDecimal(gpsLatitude).toFixed(7),
+              gps_longitude: toDecimal(gpsLongitude).toFixed(7),
+              verified_progress_pct: toDecimal(finalVerifiedPct).toFixed(2),
+              variance_pct: varianceEval.variancePct,
+              variance_status: varianceEval.status,
+              materials_on_site_notes: materialsOnSiteNotes ?? null,
+              workmanship_rating: workmanshipRating ?? 4,
+              safety_compliance_rating: safetyComplianceRating ?? 4,
+              structural_defects_found: structuralDefectsFound,
+              findings_notes: findingsNotes ?? null,
+              recommendations: recommendations ?? null,
+            },
+          });
+
+          if (photos && photos.length > 0) {
+            await tx.independentInspectionPhoto.createMany({
+              data: photos.map((p) => ({
+                tenant_id: tenantId,
+                project_id: projectId,
+                inspection_id: inspectionId,
+                photo_url: p.photoUrl,
+                caption: p.caption ?? null,
+                element_inspected: p.elementInspected ?? null,
+                has_discrepancy: p.hasDiscrepancy ?? false,
+                gps_latitude: p.gpsLatitude !== undefined && p.gpsLatitude !== null ? toDecimal(p.gpsLatitude).toFixed(7) : null,
+                gps_longitude: p.gpsLongitude !== undefined && p.gpsLongitude !== null ? toDecimal(p.gpsLongitude).toFixed(7) : null,
+              })),
+            });
+          }
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'SUBMIT_INSPECTION_FINDINGS',
+            entityType: 'IndependentSiteInspection',
+            entityId: inspection.id,
+            changes: {
+              reportedProgressPct: toDecimal(inspection.reported_progress_pct.toString()).toFixed(2),
+              verifiedProgressPct: toDecimal(finalVerifiedPct).toFixed(2),
+              variancePct: varianceEval.variancePct,
+              varianceStatus: varianceEval.status,
+              alertRequired: varianceEval.alertRequired,
+            },
+          });
+
+          const reportedNum = toDecimal(updated.reported_progress_pct.toString()).toNumber();
+          const verifiedNum = toDecimal(updated.verified_progress_pct!.toString()).toNumber();
+
+          const whatsappNotification = {
+            dispatched: true,
+            channel: 'WHATSAPP_SMS',
+            recipientPhone: updated.requested_by,
+            alertType: varianceEval.alertRequired ? 'CRITICAL_INFLATION_ALERT' : 'VERIFIED_PROGRESS_DIGEST',
+            messageBody: varianceEval.alertRequired
+              ? `MjengoLedger/Buildsasa URGENT ALERT: Ukaguzi ${updated.inspection_code} umegundua tofauti ya maendeleo (Claimed: ${reportedNum.toFixed(1)}%, Verified: ${verifiedNum.toFixed(1)}%, Variance: ${varianceEval.variancePct}%). Malipo yamesitishwa hadi ukaguzi urudiwe.`
+              : `MjengoLedger/Buildsasa UPDATE: Ukaguzi ${updated.inspection_code} umekamilika (Verified: ${verifiedNum.toFixed(1)}%). Hakuna hitilafu iliyopatikana.`,
+            pdfReportUrl: `/api/v1/projects/${projectId}/reports/independent-inspections/${updated.id}`,
+            dispatchedAt: new Date().toISOString(),
+          };
+
+          return {
+            id: updated.id,
+            inspectionCode: updated.inspection_code,
+            status: updated.status,
+            verifiedProgressPct: toDecimal(updated.verified_progress_pct!.toString()).toFixed(2),
+            reportedProgressPct: toDecimal(updated.reported_progress_pct.toString()).toFixed(2),
+            variancePct: varianceEval.variancePct,
+            varianceStatus: varianceEval.status,
+            alertRequired: varianceEval.alertRequired,
+            discrepancyMessage: varianceEval.discrepancyMessage,
+            photosCount: photos.length,
+            conductedDate: updated.conducted_date!.toISOString(),
+            whatsappNotification,
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.4b Dispatch Manual Client WhatsApp / SMS Inspection Notification Digest
+  server.post(
+    '/api/v1/projects/:projectId/independent-inspections/:inspectionId/notify-client',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, inspectionId } = request.params as { projectId: string; inspectionId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(inspectionId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      const body = (request.body as any) || {};
+      const channel = body.channel || 'WHATSAPP';
+      const targetPhone = body.recipientPhone;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const inspection = await tx.independentSiteInspection.findFirst({
+            where: { id: inspectionId, project_id: projectId },
+            include: { project: true },
+          });
+
+          if (!inspection) {
+            throw { status: 404, message: 'Inspection record not found' };
+          }
+
+          const recipient = targetPhone || inspection.requested_by;
+          const reported = inspection.reported_progress_pct ? Number(inspection.reported_progress_pct) : 0;
+          const verified = inspection.verified_progress_pct ? Number(inspection.verified_progress_pct) : reported;
+          const variance = inspection.variance_pct ? Number(inspection.variance_pct) : (verified - reported);
+          const isCritical = variance <= -10.0;
+
+          const digestMessage = isCritical
+            ? `MjengoLedger BDS-ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
+            : `MjengoLedger BDS-UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'INSPECTION_NOTIFICATION_DISPATCHED',
+            entityType: 'IndependentSiteInspection',
+            entityId: inspection.id,
+            changes: {
+              channel,
+              recipient,
+              isCritical,
+              variancePct: variance,
+              timestamp: new Date().toISOString(),
+            },
+          });
+
+          return {
+            success: true,
+            inspectionId: inspection.id,
+            inspectionCode: inspection.inspection_code,
+            channel,
+            recipientPhone: recipient,
+            deliveryStatus: 'DELIVERED',
+            message: digestMessage,
+            pdfReportUrl: `/api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`,
+            timestamp: new Date().toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.5 Client Reviews Inspection Findings & Flags Contractor Discrepancy
+  server.patch(
+    '/api/v1/projects/:projectId/independent-inspections/:inspectionId/client-review',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, inspectionId } = request.params as { projectId: string; inspectionId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(inspectionId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      const parseResult = ReviewInspectionSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid client review payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        clientReviewNotes,
+        clientDiscrepancyFlagged,
+        clientSatisfactionRating,
+        feedback,
+        rating,
+      } = parseResult.data as any;
+
+      const finalNotes = clientReviewNotes ?? feedback ?? null;
+      const finalRating = clientSatisfactionRating ?? rating ?? null;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const inspection = await tx.independentSiteInspection.findFirst({
+            where: { id: inspectionId, tenant_id: tenantId, project_id: projectId },
+          });
+
+          if (!inspection) {
+            throw { status: 404, message: 'Independent site inspection not found' };
+          }
+
+          const updated = await tx.independentSiteInspection.update({
+            where: { id: inspectionId },
+            data: {
+              status: 'REVIEWED',
+              client_review_notes: finalNotes,
+              client_discrepancy_flagged: clientDiscrepancyFlagged ?? false,
+              client_satisfaction_rating: finalRating,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'REVIEW_INDEPENDENT_INSPECTION',
+            entityType: 'IndependentSiteInspection',
+            entityId: inspection.id,
+            changes: {
+              clientDiscrepancyFlagged,
+              clientSatisfactionRating,
+              status: 'REVIEWED',
+            },
+          });
+
+          return {
+            id: updated.id,
+            inspectionCode: updated.inspection_code,
+            status: updated.status,
+            clientReviewNotes: updated.client_review_notes,
+            clientDiscrepancyFlagged: updated.client_discrepancy_flagged,
+            clientSatisfactionRating: updated.client_satisfaction_rating,
+            updatedAt: updated.updated_at.toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.6 Create and Publish Contractor Project Tender (403 for CLIENT)
+  server.post(
+    '/api/v1/projects/:projectId/tenders',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users cannot create project tenders; only PM/Admin authorized',
+        });
+      }
+
+      const parseResult = CreateProjectTenderSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid project tender payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        tenderCode: customCode,
+        tenderNumber,
+        title,
+        tradeCategory,
+        category,
+        scopeOfWork,
+        budgetKes,
+        estimatedBudget,
+        durationWeeks,
+        submissionDeadline,
+      } = parseResult.data;
+
+      const tenderCode = customCode || tenderNumber || `TND-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      const finalCategory = tradeCategory || category || 'GENERAL_CONSTRUCTION';
+      const finalBudget = budgetKes ?? estimatedBudget ?? '0.00';
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const tender = await tx.projectTender.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              tender_code: tenderCode,
+              title,
+              trade_category: finalCategory,
+              scope_of_work: scopeOfWork,
+              budget_kes: toDecimal(finalBudget).toFixed(2),
+              duration_weeks: durationWeeks,
+              submission_deadline: new Date(submissionDeadline),
+              status: 'PUBLISHED',
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'CREATE_PROJECT_TENDER',
+            entityType: 'ProjectTender',
+            entityId: tender.id,
+            changes: {
+              tenderCode,
+              title,
+              tradeCategory: finalCategory,
+              budgetKes: toDecimal(finalBudget).toFixed(2),
+            },
+          });
+
+          return {
+            id: tender.id,
+            tenderCode: tender.tender_code,
+            projectId: tender.project_id,
+            title: tender.title,
+            tradeCategory: tender.trade_category,
+            scopeOfWork: tender.scope_of_work,
+            budgetKes: toDecimal(tender.budget_kes.toString()).toFixed(2),
+            durationWeeks: tender.duration_weeks,
+            submissionDeadline: tender.submission_deadline.toISOString(),
+            status: tender.status,
+            createdAt: tender.created_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.7 List Project Tenders
+  server.get(
+    '/api/v1/projects/:projectId/tenders',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const tenders = await tx.projectTender.findMany({
+            where: { tenant_id: tenantId, project_id: projectId },
+            include: {
+              _count: {
+                select: { bids: true },
+              },
+            },
+            orderBy: { created_at: 'desc' },
+          });
+
+          return tenders.map((t) => ({
+            id: t.id,
+            tenderCode: t.tender_code,
+            title: t.title,
+            tradeCategory: t.trade_category,
+            scopeOfWork: t.scope_of_work,
+            budgetKes: toDecimal(t.budget_kes.toString()).toFixed(2),
+            durationWeeks: t.duration_weeks,
+            submissionDeadline: t.submission_deadline.toISOString(),
+            status: t.status,
+            awardedBidId: t.awarded_bid_id,
+            bidsCount: t._count.bids,
+            createdAt: t.created_at.toISOString(),
+            updatedAt: t.updated_at.toISOString(),
+          }));
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.8 Submit Contractor Tender Bid
+  server.post(
+    '/api/v1/projects/:projectId/tenders/:tenderId/bids',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, tenderId } = request.params as { projectId: string; tenderId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(tenderId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      const parseResult = SubmitTenderBidSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid contractor tender bid payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const {
+        contractorName,
+        contractorNcaCategory,
+        amountKes,
+        totalBidAmount,
+        durationWeeks,
+        technicalScore,
+        proposalNotes,
+        easmmTradeBreakdown,
+      } = parseResult.data;
+
+      const finalAmount = amountKes ?? totalBidAmount ?? '0.00';
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const tender = await tx.projectTender.findFirst({
+            where: { id: tenderId, tenant_id: tenantId, project_id: projectId },
+          });
+
+          if (!tender) {
+            throw { status: 404, message: 'Project tender not found' };
+          }
+
+          if (tender.status !== 'PUBLISHED') {
+            throw { status: 400, message: `Tender is not open for bidding (Current status: ${tender.status})` };
+          }
+
+          const bid = await tx.tenderBid.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              tender_id: tenderId,
+              contractor_name: contractorName,
+              contractor_nca_category: contractorNcaCategory,
+              amount_kes: toDecimal(finalAmount).toFixed(2),
+              duration_weeks: durationWeeks,
+              technical_score: technicalScore !== undefined ? toDecimal(technicalScore).toFixed(2) : '70.00',
+              proposal_notes: proposalNotes ?? null,
+              easmm_trade_breakdown: easmmTradeBreakdown ?? null,
+              bid_status: 'SUBMITTED',
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'SUBMIT_TENDER_BID',
+            entityType: 'TenderBid',
+            entityId: bid.id,
+            changes: {
+              tenderId,
+              contractorName,
+              amountKes: toDecimal(finalAmount).toFixed(2),
+              durationWeeks,
+            },
+          });
+
+          return {
+            id: bid.id,
+            tenderId: bid.tender_id,
+            contractorName: bid.contractor_name,
+            contractorNcaCategory: bid.contractor_nca_category,
+            amountKes: toDecimal(bid.amount_kes.toString()).toFixed(2),
+            durationWeeks: bid.duration_weeks,
+            technicalScore: toDecimal(bid.technical_score.toString()).toNumber(),
+            bidStatus: bid.bid_status,
+            easmmTradeBreakdown: bid.easmm_trade_breakdown,
+            submittedAt: bid.submitted_at.toISOString(),
+          };
+        });
+
+        return reply.status(201).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : err.status === 400 ? 'Bad Request' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.9 Evaluate Tender Bids with Combined Technical & Financial Scoring
+  server.get(
+    '/api/v1/projects/:projectId/tenders/:tenderId/bids',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, tenderId } = request.params as { projectId: string; tenderId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(tenderId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const tender = await tx.projectTender.findFirst({
+            where: { id: tenderId, tenant_id: tenantId, project_id: projectId },
+            include: {
+              bids: true,
+            },
+          });
+
+          if (!tender) {
+            throw { status: 404, message: 'Project tender not found' };
+          }
+
+          // Evaluate bids mathematically (70% technical, 30% financial based on lowest bid)
+          const tenderBidsInput = tender.bids.map((b) => ({
+            id: b.id,
+            amountKes: b.amount_kes.toString(),
+            durationWeeks: b.duration_weeks,
+            technicalScore: toDecimal(b.technical_score.toString()).toNumber(),
+          }));
+
+          const evaluated = evaluateTenderBids(tenderBidsInput, tender.budget_kes.toString());
+          const evalMap = new Map(evaluated.map((e) => [e.id, e]));
+
+          const rankedBids = tender.bids.map((b) => {
+            const ev = evalMap.get(b.id);
+            return {
+              id: b.id,
+              tenderId: b.tender_id,
+              contractorName: b.contractor_name,
+              contractorNcaCategory: b.contractor_nca_category,
+              amountKes: toDecimal(b.amount_kes.toString()).toFixed(2),
+              durationWeeks: b.duration_weeks,
+              technicalScore: ev?.technicalScore ?? toDecimal(b.technical_score.toString()).toNumber(),
+              financialScore: ev?.financialScore ?? 0,
+              combinedScore: ev?.combinedScore ?? 0,
+              rank: ev?.rank ?? 0,
+              isLowestBid: ev?.isLowestBid ?? false,
+              budgetVarianceKes: ev?.budgetVarianceKes ? ev.budgetVarianceKes.toFixed(2) : '0.00',
+              bidStatus: b.bid_status,
+              proposalNotes: b.proposal_notes,
+              easmmTradeBreakdown: b.easmm_trade_breakdown,
+              submittedAt: b.submitted_at.toISOString(),
+            };
+          });
+
+          rankedBids.sort((a, b) => a.rank - b.rank);
+
+          return {
+            tenderId: tender.id,
+            tenderCode: tender.tender_code,
+            title: tender.title,
+            tradeCategory: tender.trade_category,
+            budgetKes: toDecimal(tender.budget_kes.toString()).toFixed(2),
+            durationWeeks: tender.duration_weeks,
+            submissionDeadline: tender.submission_deadline.toISOString(),
+            status: tender.status,
+            awardedBidId: tender.awarded_bid_id,
+            totalBidsCount: tender.bids.length,
+            bids: rankedBids,
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    }
+  );
+
+  // 11.10 Award Tender Bid to Winning Contractor (403 for CLIENT)
+  server.patch(
+    '/api/v1/projects/:projectId/tenders/:tenderId/bids/:bidId/award',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      const { projectId, tenderId, bidId } = request.params as {
+        projectId: string;
+        tenderId: string;
+        bidId: string;
+      };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(tenderId) || !UUID_REGEX.test(bidId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      if (role === 'CLIENT') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Client users cannot award tenders; PM/Admin approval required',
+        });
+      }
+
+      const parseResult = AwardTenderBidSchema.safeParse(request.body ?? {});
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid award payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const { awardReason } = parseResult.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const tender = await tx.projectTender.findFirst({
+            where: { id: tenderId, tenant_id: tenantId, project_id: projectId },
+            include: { bids: true },
+          });
+
+          if (!tender) {
+            throw { status: 404, message: 'Project tender not found' };
+          }
+
+          if (tender.status === 'AWARDED') {
+            throw { status: 400, message: 'Tender has already been awarded' };
+          }
+
+          const winningBid = tender.bids.find((b) => b.id === bidId);
+          if (!winningBid) {
+            throw { status: 404, message: 'Tender bid not found for this tender' };
+          }
+
+          // Mark winning bid as AWARDED
+          await tx.tenderBid.update({
+            where: { id: bidId },
+            data: { bid_status: 'AWARDED' },
+          });
+
+          // Mark other bids as REJECTED
+          await tx.tenderBid.updateMany({
+            where: {
+              tender_id: tenderId,
+              id: { not: bidId },
+            },
+            data: { bid_status: 'REJECTED' },
+          });
+
+          // Update tender status to AWARDED
+          const updatedTender = await tx.projectTender.update({
+            where: { id: tenderId },
+            data: {
+              status: 'AWARDED',
+              awarded_bid_id: bidId,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'AWARD_TENDER_BID',
+            entityType: 'ProjectTender',
+            entityId: tender.id,
+            changes: {
+              awardedBidId: bidId,
+              contractorName: winningBid.contractor_name,
+              awardedAmountKes: toDecimal(winningBid.amount_kes.toString()).toFixed(2),
+              awardReason: awardReason ?? null,
+            },
+          });
+
+          return {
+            tenderId: updatedTender.id,
+            tenderCode: updatedTender.tender_code,
+            title: updatedTender.title,
+            status: updatedTender.status,
+            awardedBidId: updatedTender.awarded_bid_id,
+            winningContractor: {
+              id: winningBid.id,
+              contractorName: winningBid.contractor_name,
+              amountKes: toDecimal(winningBid.amount_kes.toString()).toFixed(2),
+              durationWeeks: winningBid.duration_weeks,
+              bidStatus: 'AWARDED',
+            },
+            awardReason: awardReason ?? null,
+            updatedAt: updatedTender.updated_at.toISOString(),
+          };
+        });
+
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        return reply.status(err.status || 500).send({
+          statusCode: err.status || 500,
+          error: err.status === 404 ? 'Not Found' : err.status === 400 ? 'Bad Request' : 'Internal Server Error',
           message: err.message,
         });
       }

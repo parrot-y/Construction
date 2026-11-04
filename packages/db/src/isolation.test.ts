@@ -252,4 +252,119 @@ describe('PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001
       expect(log).toBeNull();
     });
   });
+
+  it('PostgreSQL 18 RLS Audit: asserts M31/M32 tables have relrowsecurity=true and relforcerowsecurity=true', async () => {
+    const requiredTables = [
+      'topographic_surveys',
+      'cross_section_stations',
+      'plant_maintenance_alerts',
+      'plant_telematics_devices',
+      'plant_telematics_pings',
+    ];
+
+    const catalogRows = await prisma.$queryRaw<CatalogRow[]>`
+      SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = ANY(${requiredTables});
+    `;
+
+    expect(catalogRows.length).toBe(requiredTables.length);
+    for (const row of catalogRows) {
+      expect(row.relrowsecurity).toBe(true);
+      expect(row.relforcerowsecurity).toBe(true);
+    }
+  });
+
+  it('PostgreSQL 18 RLS Ingest Bypass: auth_context = iot_ingest only permits device lookup and fails closed on data leakage', async () => {
+    let deviceAId = '';
+    const testImei = `IMEI-TEST-${Date.now()}`;
+
+    // 1. Seed equipment & telematics device under Tenant A context
+    await withTenantTx(prisma, tenantAId, async (tx) => {
+      const eq = await tx.plantEquipment.create({
+        data: {
+          tenant_id: tenantAId,
+          project_id: projectAId,
+          equipment_code: `EQ-TST-${Date.now().toString().slice(-4)}`,
+          name: 'Cat 320D Excavator',
+          equipment_type: 'EXCAVATOR',
+        },
+      });
+
+      const dev = await tx.plantTelematicsDevice.create({
+        data: {
+          tenant_id: tenantAId,
+          project_id: projectAId,
+          equipment_id: eq.id,
+          device_imei: testImei,
+          protocol: 'CANBUS',
+          device_token: `secret-token-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        },
+      });
+      deviceAId = dev.id;
+
+      await tx.plantTelematicsPing.create({
+        data: {
+          tenant_id: tenantAId,
+          device_id: dev.id,
+          equipment_id: eq.id,
+          latitude: -1.286389,
+          longitude: 36.817223,
+          fuel_level_percent: 75.0,
+          calculated_fuel_liters: 225.0,
+        },
+      });
+    });
+
+    // 2. Query device under auth_context = 'iot_ingest' WITHOUT tenant context
+    const lookupResult = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.auth_context', 'iot_ingest', TRUE)`;
+
+      // Device lookup by IMEI succeeds:
+      const device = await tx.plantTelematicsDevice.findUnique({
+        where: { device_imei: testImei },
+      });
+
+      // Tenant-scoped projects table is completely INVISIBLE (0 rows leaked)
+      const leakedProjects = await tx.project.findMany();
+
+      // Tenant-scoped pings table is completely INVISIBLE (0 rows leaked)
+      const leakedPings = await tx.plantTelematicsPing.findMany();
+
+      // Tenant-scoped plant_equipment table is completely INVISIBLE (0 rows leaked)
+      const leakedEquipment = await tx.plantEquipment.findMany();
+
+      return {
+        device,
+        leakedProjectsCount: leakedProjects.length,
+        leakedPingsCount: leakedPings.length,
+        leakedEquipmentCount: leakedEquipment.length,
+      };
+    });
+
+    expect(lookupResult.device).not.toBeNull();
+    expect(lookupResult.device?.id).toBe(deviceAId);
+    expect(lookupResult.device?.device_imei).toBe(testImei);
+    expect(lookupResult.device?.tenant_id).toBe(tenantAId);
+    expect(lookupResult.leakedProjectsCount).toBe(0);
+    expect(lookupResult.leakedPingsCount).toBe(0);
+    expect(lookupResult.leakedEquipmentCount).toBe(0);
+
+    // 3. WITH CHECK enforcement: Attempting to insert a rogue device under auth_context = 'iot_ingest'
+    // without app.current_tenant_id throws RLS policy error
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.auth_context', 'iot_ingest', TRUE)`;
+        await tx.plantTelematicsDevice.create({
+          data: {
+            tenant_id: tenantBId,
+            equipment_id: '00000000-0000-0000-0000-000000000001',
+            device_imei: 'IMEI-MALICIOUS-INSERT',
+          },
+        });
+      }),
+    ).rejects.toThrow();
+  });
 });

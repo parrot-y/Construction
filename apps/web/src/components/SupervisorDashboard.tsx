@@ -22,6 +22,7 @@ import { BarBendingScheduleView } from './BarBendingScheduleView';
 import { RmcTransitTrackerView } from './RmcTransitTrackerView';
 import { GeotechnicalSoilView } from './GeotechnicalSoilView';
 import { AsphaltPavementView } from './AsphaltPavementView';
+import { TopographicSurveyView } from './TopographicSurveyView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -303,6 +304,12 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
 
       {/* Asphalt Pavement Quality & Thermal Tracker (Milestone M30) */}
       <AsphaltPavementView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+      />
+
+      {/* Survey & Topographic Cut/Fill Earthworks Engine (Milestone M31) */}
+      <TopographicSurveyView
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
       />

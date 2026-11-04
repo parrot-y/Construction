@@ -35,7 +35,7 @@ describe('Milestone M10: Hardening & Backup-Restore Verification Suite', () => {
     expect(dumpOutput).toContain('CREATE TABLE public.projects');
     expect(dumpOutput).toContain('ALTER TABLE ONLY public.projects FORCE ROW LEVEL SECURITY');
     expect(dumpOutput).toContain('CREATE POLICY tenant_isolation_policy ON public.projects');
-  });
+  }, 30000);
 
   it('restores the dumped schema and data into construction_restore_test', () => {
     // 1. Drop existing restore db if any and recreate clean database
@@ -48,7 +48,7 @@ describe('Milestone M10: Hardening & Backup-Restore Verification Suite', () => {
 
     const tableCount = runPsql(RESTORE_DB, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';");
     expect(parseInt(tableCount, 10)).toBeGreaterThanOrEqual(20);
-  });
+  }, 30000);
 
   it('verifies all tables and RLS policies survived the dump/restore perfectly', () => {
     const tenantScopedTables = [

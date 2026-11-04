@@ -7,7 +7,7 @@ export default defineConfig({
     env: {
       DATABASE_URL:
         process.env.DATABASE_URL ||
-        'postgresql://db_app:app_secret@127.0.0.1:54329/construction_test?schema=public',
+        'postgresql://db_app:app_secret@localhost:54329/construction_test?host=/tmp&schema=public',
     },
   },
 });

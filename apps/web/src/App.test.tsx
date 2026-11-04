@@ -55,6 +55,11 @@ import { RmcTransitTrackerView } from './components/RmcTransitTrackerView';
 import { StructuralSteelTakeoffView } from './components/StructuralSteelTakeoffView';
 import { GeotechnicalSoilView } from './components/GeotechnicalSoilView';
 import { AsphaltPavementView } from './components/AsphaltPavementView';
+import { TopographicSurveyView } from './components/TopographicSurveyView';
+import PmQsDashboard from './components/PmQsDashboard';
+import IndependentSiteReportView from './components/IndependentSiteReportView';
+import ContractorTenderBoardView from './components/ContractorTenderBoardView';
+import LandingPortalHub from './components/LandingPortalHub';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1118,6 +1123,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Open Defects');
       expect(html).toContain('Rectified (Pending Sign-off)');
       expect(html).toContain('Submit Defect Rectification Proof');
+      expect(html).toContain('Subcontract Sum');
+      expect(html).toContain('5% Retention Held');
+      expect(html).toContain('subcontractor-valuations-tab');
     });
 
     it('renders SupplierPortalView with batch delivery schedule, docket numbers, and receiving logs', () => {
@@ -1137,6 +1145,10 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('DN-BAM-90812');
       expect(html).toContain('Ready-Mix Concrete Class 25/20');
       expect(html).toContain('Site Acknowledged &amp; Cast');
+      expect(html).toContain('Purchase Order');
+      expect(html).toContain('PO-RCP-2026-BAM-01');
+      expect(html).toContain('Delivered &amp; GRN-Verified');
+      expect(html).toContain('view-po-ledger-btn');
     });
 
     it('renders CompliancePortalView with NCA registration, statutory levy, supervisor accreditation, and cube pass rate', () => {
@@ -2084,5 +2096,438 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Geotechnical Soil Compaction QA Engine');
       expect(html).toContain('Asphalt Pavement Quality &amp; Thermal Tracker');
     });
+
+    it('renders TopographicSurveyView with Mass Haul Diagram, Cut/Fill metrics, and station takeoff table', () => {
+      const html = renderToString(
+        <TopographicSurveyView
+          projectId="project-test-survey"
+          projectName="A104 Mau Summit Highway"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Survey &amp; Topographic Cut/Fill Earthworks Engine');
+      expect(html).toContain('Simpson&#x27;s 1/3 Rule, Prismoidal Corrections, Mass Haul Diagram');
+      expect(html).toContain('SURV-RD-A104-001');
+      expect(html).toContain('Mass Haul Diagram (MHD)');
+      expect(html).toContain('Total Cut Volume');
+      expect(html).toContain('Total Fill Volume');
+      expect(html).toContain('Net Earthwork Balance');
+      expect(html).toContain('Economic Haul Limit');
+      expect(html).toContain('Total Overhaul Cost');
+      expect(html).toContain('Cross-Section Stations Takeoff Table');
+      expect(html).toContain('Ch 0+000');
+      expect(html).toContain('Ch 0+050');
+      expect(html).toContain('Ch 1+200');
+      expect(html).toContain('Balance Point (BP)');
+    });
+
+    it('embeds TopographicSurveyView into PmQsDashboard', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'Project Manager / QS',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['cost.manage', 'site.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('📐 Topographic Survey &amp; Earthworks');
+      expect(html).toContain('Survey &amp; Topographic Cut/Fill Earthworks Engine');
+      expect(html).toContain('Mass Haul Diagram (MHD)');
+    });
+
+    it('embeds TopographicSurveyView into SupervisorDashboard', () => {
+      const superSession: AuthSession = {
+        user: {
+          id: 'user-super',
+          email: 'supervisor@apexbuilders.co.ke',
+          fullName: 'Site Supervisor',
+          role: 'SITE_SUPERVISOR',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['site.diary', 'cost.create'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Survey &amp; Topographic Cut/Fill Earthworks Engine');
+      expect(html).toContain('Mass Haul Diagram (MHD)');
+    });
+
+    it('renders PlantTelematicsView CAN-bus Live Diagnostics Dashboard with overheat threshold indicators and ECU DTC codes', () => {
+      const html = renderToString(
+        <PlantTelematicsView
+          projectId="project-m32-test"
+          projectName="Konza Technopolis Depot"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // CAN-bus Live Diagnostics Dashboard assertions
+      expect(html).toContain('CAN-bus Live Diagnostics Dashboard');
+      expect(html).toContain('J1939 / OBD-II');
+      expect(html).toContain('Coolant Temp (PID 0x05)');
+      expect(html).toContain('Overheat threshold indicator');
+      expect(html).toContain('Engine Oil Temp');
+      expect(html).toContain('Engine Speed');
+      expect(html).toContain('Battery Voltage');
+      expect(html).toContain('ECU DTC Codes');
+      expect(html).toContain('94.2°C');
+      expect(html).toContain('98.5°C');
+      expect(html).toContain('24.20 V');
+    });
+
+    it('renders Diesel Siphoning Anomaly Incident Feed with severity badges and fuel loss rates', () => {
+      const html = renderToString(
+        <PlantTelematicsView
+          projectId="project-m32-test"
+          projectName="Konza Technopolis Depot"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Diesel Siphoning Anomaly Incident Feed');
+      expect(html).toContain('Deep telemetry fuel drain rate analysis and instant theft detection');
+      expect(html).toContain('CRITICAL');
+      expect(html).toContain('-40.00 Liters');
+      expect(html).toContain('480.00 L/h');
+      expect(html).toContain('Rapid Diesel Theft / Siphon Event');
+      expect(html).toContain('STOPPED');
+    });
+
+    it('renders Maintenance Alerts Feed and accessible Acknowledge Alert modal', () => {
+      const html = renderToString(
+        <PlantTelematicsView
+          projectId="project-m32-test"
+          projectName="Konza Technopolis Depot"
+          initialShowAcknowledgeModalForAlertId="alt-001"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // Alerts feed assertions
+      expect(html).toContain('Plant Maintenance &amp; Predictive Alerts Feed');
+      expect(html).toContain('ALT-SIPHON-001');
+      expect(html).toContain('ALT-DIAG-002');
+      expect(html).toContain('Acknowledge Alert');
+
+      // Accessible modal assertions
+      expect(html).toContain('role="dialog"');
+      expect(html).toContain('aria-modal="true"');
+      expect(html).toContain('aria-labelledby="ack-alert-modal-title"');
+      expect(html).toContain('id="ack-alert-modal-title"');
+      expect(html).toContain('Acknowledge Plant Maintenance Alert');
+      expect(html).toContain('for="ack-engineer-name"');
+      expect(html).toContain('id="ack-engineer-name"');
+      expect(html).toContain('for="ack-action-notes"');
+      expect(html).toContain('id="ack-action-notes"');
+      expect(html).toContain('Eng. Sarah Mwangi (Lead Plant Engineer)');
+    });
+  });
+
+  describe('Milestone M33: Buildsasa Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite', () => {
+    const mockSession = (role: string): AuthSession => ({
+      user: {
+        id: `user-${role.toLowerCase()}`,
+        email: `${role.toLowerCase()}@apexbuilders.co.ke`,
+        fullName: `Test ${role}`,
+        role,
+        tenant: {
+          id: 'tenant-123',
+          name: 'Apex Builders Kenya Ltd',
+          slug: 'apex-builders',
+          currency: 'KES',
+        },
+      },
+      permissions: ['project.view', 'tender.manage', 'inspection.view', 'inspection.book', 'variation.approve'],
+      token: `mock-token-${role.toLowerCase()}`,
+    });
+
+    it('renders IndependentSiteReportView with inspector credentials, GPS coordinates, and inspection stages', () => {
+      const html = renderToString(
+        <IndependentSiteReportView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="CLIENT"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // Header and badge assertions
+      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
+      expect(html).toContain('Diaspora Shield • Neutral Site Verification');
+      expect(html).toContain('NCA Registered Clerk of Works');
+      expect(html).toContain('Book Unannounced Inspection');
+
+      // Inspector Credentials & GPS telemetry
+      expect(html).toContain('Eng. Francis Omondi, PE, BORAQS');
+      expect(html).toContain('NCA-INSP-2024-9982');
+      expect(html).toContain('+254 722 890 123');
+      expect(html).toContain('-1.264850, 36.802140');
+      expect(html).toContain('± 3.2m GPS Accuracy');
+      expect(html).toContain('Verified Physical Site Presence');
+
+      // Inspection stage and status
+      expect(html).toContain('BDS-INSP-2026-0891-SLAB');
+      expect(html).toContain('COMPLETED');
+      expect(html).toContain('Slab (Suspended Slab Casting &amp; Reinforcement)');
+    });
+
+    it('displays Progress Variance Analysis with Critical Contractor Inflation alert and technical findings', () => {
+      const html = renderToString(
+        <IndependentSiteReportView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="CLIENT"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // Progress Variance Analysis
+      expect(html).toContain('Progress Variance Analysis');
+      expect(html).toContain('Critical Contractor Inflation');
+      expect(html).toContain('45.0%');
+      expect(html).toContain('32.0%');
+      expect(html).toContain('-13.0%');
+      expect(html).toContain('Critical Inflation');
+
+      // Technical findings & Materials Audit
+      expect(html).toContain('Structural Integrity Assessment');
+      expect(html).toContain('BS 8110');
+      expect(html).toContain('Materials Quality Audit (BS &amp; KEBS Standards)');
+      expect(html).toContain('Bamburi PowerPlus 42.5N');
+      expect(html).toContain('Apex TMT 500+ D16 &amp; D12');
+      expect(html).toContain('Kinatwa 20mm Blue Stone Ballast');
+      expect(html).toContain('Class 25 concrete');
+      expect(html).toContain('Health, Safety &amp; Environmental (HSE) Observations');
+      expect(html).toContain('Discrepancies Flagged by Clerk of Works');
+      expect(html).toContain('Neutral Inspector Recommendations &amp; Milestone Advice');
+
+      // Photo Evidence Gallery with category tabs
+      expect(html).toContain('Photo Evidence Gallery');
+      expect(html).toContain('photo-category-all');
+      expect(html).toContain('photo-category-structural');
+      expect(html).toContain('photo-category-materials');
+      expect(html).toContain('photo-category-finishes');
+      expect(html).toContain('photo-category-safety');
+
+      // Client Review & Rating Form
+      expect(html).toContain('Client Review &amp; Report Sign-Off');
+      expect(html).toContain('Sign Off Inspection Report');
+      expect(html).toContain('data-testid="submit-signoff-btn"');
+    });
+
+    it('renders ContractorTenderBoardView with active tenders, 70/30 technical/financial ranking, and award actions', () => {
+      const html = renderToString(
+        <ContractorTenderBoardView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // Header assertions
+      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Technical 70% • Financial 30% Evaluation');
+      expect(html).toContain('+ Post New Tender');
+      expect(html).toContain('Submit Contractor Bid');
+
+      // Active tenders
+      expect(html).toContain('BDS-TND-2026-STR-01');
+      expect(html).toContain('Reinforced Concrete Framing &amp; Suspended Slabs Package');
+      expect(html).toContain('18500000.00');
+      expect(html).toContain('UNDER_REVIEW');
+
+      // Ranked bids & evaluation view
+      expect(html).toContain('Evaluation Metric: Technical 70% | Financial 30%');
+      expect(html).toContain('Ranked Contractor Bids &amp; Commercial Evaluation');
+      expect(html).toContain('Apex Structural Builders Ltd');
+      expect(html).toContain('🥇 Rank 1');
+      expect(html).toContain('94.75 pts');
+      expect(html).toContain('Kilimani Construction Works Ltd');
+      expect(html).toContain('🥈 Rank 2');
+      expect(html).toContain('87.05 pts');
+      expect(html).toContain('Award Tender');
+
+      // Trade breakdown
+      expect(html).toContain('Bill of Quantities Trade Breakdown by Responsive Bidder');
+      expect(html).toContain('Direct Labor:');
+      expect(html).toContain('Materials Supply:');
+      expect(html).toContain('Plant &amp; Equipment:');
+      expect(html).toContain('Preliminaries &amp; Overheads:');
+    });
+
+    it('renders LandingPortalHub with Buildsasa hero banner, 4 key value cards, and 8-role interactive preview switcher', () => {
+      const html = renderToString(
+        <LandingPortalHub
+          onSelectRolePreview={() => {}}
+          onOpenLogin={() => {}}
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // Branding & Hero Banner
+      expect(html).toContain('Buildsasa Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
+      expect(html).toContain('Apex Builders Kenya Ltd');
+      expect(html).toContain('Sign in to access your project workspace');
+      expect(html).toContain('Diaspora Client Portal Preview');
+
+      // 4 Key Value Proposition Cards
+      expect(html).toContain('1. Diaspora Remote Property Owner Portal');
+      expect(html).toContain('2. Independent Neutral Site Inspection Service');
+      expect(html).toContain('3. Contractor &amp; Jobsite Operating System');
+      expect(html).toContain('4. Zero Seat Tax Portals');
+
+      // 8 Stakeholder Interactive Preview Switcher
+      expect(html).toContain('Instant Stakeholder Interactive Preview Switcher');
+      expect(html).toContain('Apex Builders Ltd Executive View');
+      expect(html).toContain('Commercial Management &amp; BOQ Studio');
+      expect(html).toContain('Mobile Site Diary, Plant Telematics &amp; Concrete Tests');
+      expect(html).toContain('Diaspora Property Developer Portal');
+      expect(html).toContain('Architect / Structural Engineer Review');
+      expect(html).toContain('Milestone Claims &amp; Work Orders');
+      expect(html).toContain('Purchase Orders &amp; Materials GRN');
+      expect(html).toContain('NCA / NEMA / County Safety Auditor');
+
+      // Preview buttons for roles
+      expect(html).toContain('data-testid="preview-role-btn-company_admin"');
+      expect(html).toContain('data-testid="preview-role-btn-pm_qs"');
+      expect(html).toContain('data-testid="preview-role-btn-site_supervisor"');
+      expect(html).toContain('data-testid="preview-role-btn-client"');
+      expect(html).toContain('data-testid="preview-role-btn-consultant"');
+      expect(html).toContain('data-testid="preview-role-btn-subcontractor"');
+      expect(html).toContain('data-testid="preview-role-btn-supplier"');
+      expect(html).toContain('data-testid="preview-role-btn-compliance"');
+    });
+
+    it('renders LandingPortalHub by default in unauthenticated App and provides sign-in toggle', () => {
+      const html = renderToString(<App />).replace(/<!-- -->/g, '');
+
+      // LandingPortalHub is loaded unauthenticated
+      expect(html).toContain('Buildsasa Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
+      expect(html).toContain('Apex Builders Kenya');
+      expect(html).toContain('Sign in to access your project workspace');
+      expect(html).toContain('open-login-btn');
+    });
+
+    it('embeds IndependentSiteReportView and ContractorTenderBoardView into ClientDashboard and verifies multi-currency conversion', () => {
+      const html = renderToString(
+        <ClientDashboard session={mockSession('CLIENT')} />
+      ).replace(/<!-- -->/g, '');
+
+      // Embedded M33 components in ClientDashboard
+      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
+      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+
+      // Certified IPCs, Payments, and Monetary Variance Schedule
+      expect(html).toContain('Certified Valuations Ledger');
+      expect(html).toContain('Certified IPCs, Contractor Payments &amp; Variance Schedule');
+      expect(html).toContain('Total Contract Sum:');
+      expect(html).toContain('Gross Certified IPCs:');
+      expect(html).toContain('Net Payments Disbursed:');
+      expect(html).toContain('Monetary Progress Variance:');
+      expect(html).toContain('IPC #01');
+      expect(html).toContain('IPC #02');
+
+      // Multi-currency toggles present
+      expect(html).toContain('currency-toggle-kes');
+      expect(html).toContain('currency-toggle-usd');
+      expect(html).toContain('currency-toggle-gbp');
+      expect(html).toContain('currency-toggle-eur');
+      expect(html).toContain('currency-toggle-aed');
+    });
+
+    it('embeds IndependentSiteReportView and ContractorTenderBoardView into PmQsDashboard with navigation tabs', () => {
+      const html = renderToString(
+        <PmQsDashboard session={mockSession('PM_QS')} />
+      ).replace(/<!-- -->/g, '');
+
+      // Navigation tabs in PM_QS workspace
+      expect(html).toContain('🕵️ Site Inspections');
+      expect(html).toContain('📑 Tender Board');
+
+      // Embedded M33 components in PmQsDashboard
+      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
+      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Technical 70% • Financial 30% Evaluation');
+      expect(html).toContain('Progress Variance Analysis');
+    });
+
+    it('renders BORAQS Certified PDF action, Certificate Docket modal, and WhatsApp Digest trigger in IndependentSiteReportView', () => {
+      const html = renderToString(
+        <IndependentSiteReportView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="CLIENT"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // Certified PDF download button
+      expect(html).toContain('Certified PDF');
+      expect(html).toContain('download-inspection-pdf-btn');
+      expect(html).toContain('/api/v1/projects/project-rcp-2026/reports/independent-inspections/insp-2026-003');
+
+      // Certificate docket preview button
+      expect(html).toContain('📜 Certificate Docket');
+      expect(html).toContain('preview-certificate-btn');
+
+      // WhatsApp mobile digest dispatch trigger
+      expect(html).toContain('💬 WhatsApp Digest');
+      expect(html).toContain('whatsapp-alert-btn');
+    });
+
+    it('renders Buildsasa Instant Building Construction Cost & Feasibility Estimator with 5 currencies and 6-stage drawdown', () => {
+      const html = renderToString(
+        <LandingPortalHub
+          onSelectRolePreview={() => {}}
+          onOpenLogin={() => {}}
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // Cost & Feasibility Estimator section
+      expect(html).toContain('Buildsasa Instant Construction Cost &amp; Feasibility Estimator');
+      expect(html).toContain('BORAQS &amp; JBC 2026 Baseline');
+      expect(html).toContain('calc-typology-select');
+      expect(html).toContain('calc-area-input');
+      expect(html).toContain('calc-region-select');
+      expect(html).toContain('calc-total-cost');
+      expect(html).toContain('calc-book-audit-btn');
+
+      // Multi-currency buttons in estimator
+      expect(html).toContain('calc-currency-kes');
+      expect(html).toContain('calc-currency-usd');
+      expect(html).toContain('calc-currency-gbp');
+      expect(html).toContain('calc-currency-eur');
+      expect(html).toContain('calc-currency-aed');
+
+      // 6-stage milestone drawdown schedule
+      expect(html).toContain('Substructure &amp; Slab (18%)');
+      expect(html).toContain('Structural Framing (28%)');
+      expect(html).toContain('Roofing &amp; Disposal (14%)');
+      expect(html).toContain('Finishes &amp; Tiling (24%)');
+      expect(html).toContain('MEP Services (11%)');
+      expect(html).toContain('External Drainage (5%)');
+    });
+
+    it('renders Kenyan Statutory Clearances (NEMA EIA, County Approval, DOSHS, NCWSC) and official certification modal in CompliancePortalView', () => {
+      const html = renderToString(
+        <CompliancePortalView
+          projectName="Riverside Commercial Plaza"
+          projectCode="RCP-2026"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      // Kenyan Statutory Clearances Register
+      expect(html).toContain('Kenyan Statutory Clearances &amp; Approvals');
+      expect(html).toContain('National Environment Management Authority (NEMA)');
+      expect(html).toContain('NEMA/EIA/PSPR/28194');
+      expect(html).toContain('Nairobi City County Urban Planning Directorate');
+      expect(html).toContain('NCC/PLN/ARCH/2025/1102');
+      expect(html).toContain('Directorate of Occupational Safety &amp; Health (DOSHS)');
+      expect(html).toContain('DOSHS/WR/NBI/40921');
+      expect(html).toContain('Nairobi City Water &amp; Sewerage Company (NCWSC)');
+      expect(html).toContain('NCWSC/CONN/PERMIT/2025/8920');
+      expect(html).toContain('Statutory Legal Guard Active');
+      expect(html).toContain('view-statutory-certificate-btn');
+    });
   });
 });
+

@@ -115,3 +115,53 @@ export interface ProjectSummaryData {
   };
   sections: SectionSummaryEntry[];
 }
+
+export interface IndependentInspectionReportData {
+  inspectionId: string;
+  reportRef: string;
+  project: ProjectHeaderInfo;
+  contractor: TenantInfo;
+  stage: string;
+  urgency: string;
+  inspectionDate: string;
+  conductedDate?: string | null;
+  status: string;
+  requestedBy: string;
+  inspector: {
+    name: string;
+    license: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    arrivalTimestamp?: string | null;
+  };
+  metrics: {
+    reportedProgressPct: string;
+    verifiedProgressPct: string;
+    variancePct: string;
+    varianceStatus: string;
+    isInflationFlagged: boolean;
+    recommendedAction: string;
+  };
+  scopeDescription: string;
+  materialsOnSiteNotes?: string | null;
+  structuralDefectsFound: boolean;
+  workmanshipRating?: number | null;
+  safetyComplianceRating?: number | null;
+  findingsNotes?: string | null;
+  recommendations?: string | null;
+  clientReviewNotes?: string | null;
+  clientSatisfactionRating?: number | null;
+  clientDiscrepancyFlagged: boolean;
+  photos: Array<{
+    id: string;
+    photoUrl: string;
+    caption?: string | null;
+    elementInspected?: string | null;
+    hasDiscrepancy: boolean;
+    gpsLatitude?: number | null;
+    gpsLongitude?: number | null;
+    capturedAt: string;
+  }>;
+  securityHash: string; // SHA-256 tamper-evident verification hash
+}
+

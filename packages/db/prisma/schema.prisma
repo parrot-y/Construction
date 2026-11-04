@@ -36,6 +36,15 @@ model Tenant {
   structural_steel_members  StructuralSteelMember[]
   soil_tests                GeotechnicalSoilTest[]
   asphalt_batches           AsphaltPavementBatch[]
+  plant_telematics_devices  PlantTelematicsDevice[]
+  plant_telematics_pings    PlantTelematicsPing[]
+  plant_maintenance_alerts  PlantMaintenanceAlert[]
+  topographic_surveys       TopographicSurvey[]
+  cross_section_stations    CrossSectionStation[]
+  independent_site_inspections IndependentSiteInspection[]
+  independent_inspection_photos IndependentInspectionPhoto[]
+  project_tenders           ProjectTender[]
+  tender_bids               TenderBid[]
 
   @@map("tenants")
 }
@@ -155,6 +164,14 @@ model Project {
   structural_steel_takeoffs StructuralSteelTakeoff[]
   soil_tests            GeotechnicalSoilTest[]
   asphalt_batches       AsphaltPavementBatch[]
+  plant_telematics_devices PlantTelematicsDevice[]
+  plant_maintenance_alerts PlantMaintenanceAlert[]
+  topographic_surveys   TopographicSurvey[]
+  cross_section_stations CrossSectionStation[]
+  independent_site_inspections IndependentSiteInspection[]
+  independent_inspection_photos IndependentInspectionPhoto[]
+  project_tenders       ProjectTender[]
+  tender_bids           TenderBid[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -1178,6 +1195,7 @@ model PlantEquipment {
   daily_logs           PlantEquipmentDailyLog[]
   telematics_device    PlantTelematicsDevice?
   telematics_pings     PlantTelematicsPing[]
+  maintenance_alerts   PlantMaintenanceAlert[]
 
   @@unique([tenant_id, project_id, equipment_code])
   @@map("plant_equipment")
@@ -1557,26 +1575,35 @@ model WorkerClockEvent {
 }
 
 // =============================================================
-// DIRECT PLANT GPS TELEMATICS & FUEL FLOW METERS (M24)
+// DIRECT PLANT GPS TELEMATICS & FUEL FLOW METERS (M24 / M32)
 // =============================================================
 
 model PlantTelematicsDevice {
-  id                               String              @id @default(uuid()) @db.Uuid
-  tenant_id                        String              @db.Uuid
-  equipment_id                     String              @unique @db.Uuid
-  device_imei                      String              @unique @db.VarChar(50)
-  protocol                         String              @default("GPS_MODEM") @db.VarChar(50) // "OBD2", "CANBUS", "GPS_MODEM", "MODBUS_FLOW"
-  sim_phone_number                 String?             @db.VarChar(50)
-  calibration_tank_capacity_liters Decimal             @default(300.00) @db.Decimal(8, 2)
-  status                           String              @default("ONLINE") @db.VarChar(50) // "ONLINE", "OFFLINE", "FAULT"
-  last_heartbeat_at                DateTime?           @db.Timestamptz
-  created_at                       DateTime            @default(now()) @db.Timestamptz
-  updated_at                       DateTime            @updatedAt @db.Timestamptz
+  id                               String                 @id @default(uuid()) @db.Uuid
+  tenant_id                        String                 @db.Uuid
+  project_id                       String?                @db.Uuid
+  equipment_id                     String                 @unique @db.Uuid
+  device_imei                      String                 @unique @db.VarChar(50)
+  device_token                     String?                @unique @db.VarChar(100) // Secret bearer token for IoT webhook authentication
+  protocol                         String                 @default("CANBUS") @db.VarChar(50) // "OBD2", "CANBUS", "GPS_MODEM", "MODBUS_FLOW"
+  can_bus_baud_rate                Int                    @default(250000) // 250kbps (J1939) or 500kbps (OBD2)
+  max_engine_burn_rate_lph         Decimal                @default(35.00) @db.Decimal(6, 2) // Engine physical max burn rate
+  sim_phone_number                 String?                @db.VarChar(50)
+  calibration_tank_capacity_liters Decimal                @default(300.00) @db.Decimal(8, 2)
+  tank_geometry                    String                 @default("RECTANGULAR") @db.VarChar(50)
+  status                           String                 @default("ONLINE") @db.VarChar(50) // "ONLINE", "OFFLINE", "FAULT"
+  last_heartbeat_at                DateTime?              @db.Timestamptz
+  created_at                       DateTime               @default(now()) @db.Timestamptz
+  updated_at                       DateTime               @updatedAt @db.Timestamptz
 
-  equipment                        PlantEquipment      @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+  equipment                        PlantEquipment         @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+  tenant                           Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  project                          Project?               @relation(fields: [project_id], references: [id], onDelete: SetNull)
   telematics_pings                 PlantTelematicsPing[]
+  maintenance_alerts               PlantMaintenanceAlert[]
 
   @@index([tenant_id, status])
+  @@index([tenant_id, project_id])
   @@map("plant_telematics_devices")
 }
 
@@ -1590,17 +1617,62 @@ model PlantTelematicsPing {
   longitude                  Decimal               @db.Decimal(9, 6)
   engine_status              String                @default("RUNNING") @db.VarChar(20) // "RUNNING", "IDLE", "STOPPED"
   engine_rpm                 Int?
+  coolant_temp_c             Decimal?              @db.Decimal(5, 1) // PID 0x05
+  oil_temp_c                 Decimal?              @db.Decimal(5, 1) // PID 0x5C
+  fuel_rate_l_per_h          Decimal?              @db.Decimal(6, 2) // PID 0x5E
+  engine_load_percent        Decimal?              @db.Decimal(5, 2) // PID 0x04
+  speed_kmh                  Decimal?              @db.Decimal(5, 1) // PID 0x0D
+  battery_voltage            Decimal?              @db.Decimal(4, 2) // Supply voltage
+  dtc_fault_codes            String?               @db.VarChar(255) // E.g. "P0300,P0115"
   cumulative_engine_seconds  BigInt                @default(0)
   fuel_level_percent         Decimal               @db.Decimal(5, 2)
   calculated_fuel_liters     Decimal               @db.Decimal(8, 2)
+  fuel_drop_liters           Decimal?              @db.Decimal(8, 2)
+  drop_rate_l_per_hour       Decimal?              @db.Decimal(8, 2)
   is_siphoning_event         Boolean               @default(false)
+  anomaly_severity           String?               @db.VarChar(20) // "NONE", "LOW", "HIGH", "CRITICAL"
   created_at                 DateTime              @default(now()) @db.Timestamptz
 
   telematics_device          PlantTelematicsDevice @relation(fields: [device_id], references: [id], onDelete: Cascade)
   equipment                  PlantEquipment        @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+  tenant                     Tenant                @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
+  @@index([device_id, ping_timestamp(sort: Desc)])
+  @@index([equipment_id, ping_timestamp(sort: Desc)])
   @@index([tenant_id, equipment_id, is_siphoning_event])
   @@map("plant_telematics_pings")
+}
+
+model PlantMaintenanceAlert {
+  id                         String                @id @default(uuid()) @db.Uuid
+  tenant_id                  String                @db.Uuid
+  project_id                 String                @db.Uuid
+  equipment_id               String                @db.Uuid
+  device_id                  String?               @db.Uuid
+  alert_code                 String                @db.VarChar(50) // E.g. "ALT-EXC01-001"
+  alert_type                 String                @db.VarChar(50) // "DTC_FAULT", "ENGINE_OVERHEAT", "CRITICAL_OIL_TEMP", "SERVICE_INTERVAL_DUE", "SIPHONING_THEFT"
+  severity                   String                @default("WARNING") @db.VarChar(20) // "INFO", "WARNING", "CRITICAL", "FATAL_SHUTDOWN"
+  dtc_code                   String?               @db.VarChar(20)
+  title                      String                @db.VarChar(255)
+  description                String                @db.Text
+  recommended_action         String?               @db.Text
+  hours_meter_at_alert       Decimal               @default(0.00) @db.Decimal(10, 2)
+  status                     String                @default("ACTIVE") @db.VarChar(30) // "ACTIVE", "ACKNOWLEDGED", "RESOLVED"
+  acknowledged_by            String?               @db.VarChar(255)
+  acknowledged_at            DateTime?             @db.Timestamptz
+  resolved_at                DateTime?             @db.Timestamptz
+  created_at                 DateTime              @default(now()) @db.Timestamptz
+  updated_at                 DateTime              @updatedAt @db.Timestamptz
+
+  project                    Project               @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                     Tenant                @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  equipment                  PlantEquipment        @relation(fields: [equipment_id], references: [id], onDelete: Cascade)
+  telematics_device          PlantTelematicsDevice? @relation(fields: [device_id], references: [id], onDelete: SetNull)
+
+  @@unique([tenant_id, alert_code])
+  @@index([tenant_id, project_id, status])
+  @@index([tenant_id, equipment_id, status])
+  @@map("plant_maintenance_alerts")
 }
 
 // =============================================================
@@ -1878,6 +1950,199 @@ model AsphaltPavementBatch {
   @@index([tenant_id, project_id, mix_type])
   @@map("asphalt_pavement_batches")
 }
+
+// =============================================================
+// TOPOGRAPHIC SURVEY & CUT/FILL EARTHWORKS (MILESTONE M31)
+// =============================================================
+
+model TopographicSurvey {
+  id                               String                 @id @default(uuid()) @db.Uuid
+  tenant_id                        String                 @db.Uuid
+  project_id                       String                 @db.Uuid
+  survey_code                      String                 @db.VarChar(100) // E.g. "SURV-RD-A104-001"
+  title                            String                 @db.VarChar(255)
+  survey_date                      DateTime               @default(now()) @db.Timestamptz
+  surveyor_name                    String                 @db.VarChar(255)
+  instrument_type                  String                 @default("TOTAL_STATION") @db.VarChar(50) // "TOTAL_STATION", "RTK_GNSS", "DRONE_LIDAR", "AUTO_LEVEL"
+  calculation_method               String                 @default("PRISMOIDAL") @db.VarChar(50) // "AVERAGE_END_AREA", "PRISMOIDAL", "SIMPSONS_RULE"
+  bulking_factor                   Decimal                @default(1.200) @db.Decimal(5, 3) // Loose volume factor (e.g. 1.20)
+  shrinkage_factor                 Decimal                @default(0.900) @db.Decimal(5, 3) // Compacted fill factor (e.g. 0.90)
+  freehaul_distance_meters         Decimal                @default(500.00) @db.Decimal(8, 2) // Contractual FHD (e.g. 500m)
+  overhaul_unit_rate_kes           Decimal                @default(85.00) @db.Decimal(10, 2) // KES per m3-station/km
+  borrow_unit_rate_kes             Decimal                @default(350.00) @db.Decimal(10, 2) // KES per m3 for borrow pit
+  total_cut_volume_m3              Decimal                @default(0.000) @db.Decimal(14, 3)
+  total_fill_volume_m3             Decimal                @default(0.000) @db.Decimal(14, 3)
+  net_balance_volume_m3            Decimal                @default(0.000) @db.Decimal(14, 3) // Cut - Adjusted Fill
+  total_overhaul_cost_kes          Decimal                @default(0.00) @db.Decimal(14, 2)
+  economic_haul_limit_meters       Decimal                @default(0.00) @db.Decimal(10, 2)
+  status                           String                 @default("COMPLETED") @db.VarChar(50) // "DRAFT", "COMPLETED", "SUPERSEDED"
+  created_at                       DateTime               @default(now()) @db.Timestamptz
+  updated_at                       DateTime               @updatedAt @db.Timestamptz
+
+  project                          Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                           Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  stations                         CrossSectionStation[]
+
+  @@unique([tenant_id, project_id, survey_code])
+  @@index([tenant_id, project_id, status])
+  @@map("topographic_surveys")
+}
+
+model CrossSectionStation {
+  id                               String             @id @default(uuid()) @db.Uuid
+  tenant_id                        String             @db.Uuid
+  project_id                       String             @db.Uuid
+  survey_id                        String             @db.Uuid
+  station_index                    Int                // 0, 1, 2, ...
+  chainage_meters                  Decimal            @db.Decimal(10, 2) // E.g. 0.00, 50.00, 100.00
+  chainage_label                   String             @db.VarChar(50) // E.g. "Ch 0+000", "Ch 0+050"
+  existing_ground_level_m          Decimal            @db.Decimal(8, 3) // Centerline EGL elevation
+  proposed_formation_level_m       Decimal            @db.Decimal(8, 3) // Centerline PFL elevation
+  depth_cut_or_fill_m              Decimal            @db.Decimal(8, 3) // Positive = cut, negative = fill
+  cut_area_m2                      Decimal            @default(0.000) @db.Decimal(10, 3)
+  fill_area_m2                     Decimal            @default(0.000) @db.Decimal(10, 3)
+  mid_cut_area_m2                  Decimal?           @db.Decimal(10, 3) // For Prismoidal formula
+  mid_fill_area_m2                 Decimal?           @db.Decimal(10, 3)
+  offsets_and_levels               Json?              // [[offset_m, elevation_m], ...]
+  interval_distance_m              Decimal            @default(0.00) @db.Decimal(8, 2) // Distance from previous station
+  interval_cut_volume_m3           Decimal            @default(0.000) @db.Decimal(14, 3)
+  interval_fill_volume_m3          Decimal            @default(0.000) @db.Decimal(14, 3)
+  interval_adjusted_fill_m3        Decimal            @default(0.000) @db.Decimal(14, 3)
+  interval_net_volume_m3           Decimal            @default(0.000) @db.Decimal(14, 3)
+  cumulative_mass_ordinate_m3      Decimal            @default(0.000) @db.Decimal(14, 3)
+  created_at                       DateTime           @default(now()) @db.Timestamptz
+
+  survey                           TopographicSurvey  @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+  tenant                           Tenant             @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  project                          Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([survey_id, station_index])
+  @@unique([survey_id, chainage_meters])
+  @@index([tenant_id, survey_id, chainage_meters])
+  @@index([tenant_id, project_id])
+  @@map("cross_section_stations")
+}
+
+// =============================================================
+// INDEPENDENT SITE INSPECTION & CONTRACTOR TENDER (MILESTONE M33)
+// =============================================================
+
+model IndependentSiteInspection {
+  id                               String                         @id @default(uuid()) @db.Uuid
+  tenant_id                        String                         @db.Uuid
+  project_id                       String                         @db.Uuid
+  inspection_code                  String                         @db.VarChar(50)
+  requested_by                     String                         @db.VarChar(255)
+  inspector_name                   String?                        @db.VarChar(255)
+  inspector_license                String?                        @db.VarChar(100)
+  scheduled_date                   DateTime                       @db.Timestamptz
+  conducted_date                   DateTime?                      @db.Timestamptz
+  status                           String                         @default("REQUESTED") @db.VarChar(50) // "REQUESTED", "SCHEDULED", "IN_PROGRESS", "SUBMITTED", "REVIEWED"
+  scope_description                String                         @db.Text
+  gps_latitude                     Decimal?                       @db.Decimal(10, 7)
+  gps_longitude                    Decimal?                       @db.Decimal(10, 7)
+  reported_progress_pct            Decimal                        @default(0.00) @db.Decimal(5, 2)
+  verified_progress_pct            Decimal?                       @db.Decimal(5, 2)
+  variance_pct                     Decimal?                       @db.Decimal(5, 2)
+  variance_status                  String?                        @db.VarChar(50)
+  materials_on_site_notes          String?                        @db.Text
+  workmanship_rating               Int?
+  safety_compliance_rating         Int?
+  structural_defects_found         Boolean                        @default(false)
+  findings_notes                   String?                        @db.Text
+  recommendations                  String?                        @db.Text
+  client_review_notes              String?                        @db.Text
+  client_discrepancy_flagged       Boolean                        @default(false)
+  client_satisfaction_rating       Int?
+  created_at                       DateTime                       @default(now()) @db.Timestamptz
+  updated_at                       DateTime                       @updatedAt @db.Timestamptz
+
+  project                          Project                        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                           Tenant                         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  photos                           IndependentInspectionPhoto[]
+
+  @@unique([tenant_id, project_id, inspection_code])
+  @@index([tenant_id, project_id, status])
+  @@map("independent_site_inspections")
+}
+
+model IndependentInspectionPhoto {
+  id                               String                         @id @default(uuid()) @db.Uuid
+  tenant_id                        String                         @db.Uuid
+  project_id                       String                         @db.Uuid
+  inspection_id                    String                         @db.Uuid
+  photo_url                        String                         @db.Text
+  caption                          String?                        @db.VarChar(255)
+  element_inspected                String?                        @db.VarChar(100)
+  has_discrepancy                  Boolean                        @default(false)
+  gps_latitude                     Decimal?                       @db.Decimal(10, 7)
+  gps_longitude                    Decimal?                       @db.Decimal(10, 7)
+  captured_at                      DateTime                       @default(now()) @db.Timestamptz
+  created_at                       DateTime                       @default(now()) @db.Timestamptz
+
+  inspection                       IndependentSiteInspection      @relation(fields: [inspection_id], references: [id], onDelete: Cascade)
+  project                          Project                        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                           Tenant                         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, inspection_id])
+  @@index([tenant_id, project_id])
+  @@map("independent_inspection_photos")
+}
+
+model ProjectTender {
+  id                               String                         @id @default(uuid()) @db.Uuid
+  tenant_id                        String                         @db.Uuid
+  project_id                       String                         @db.Uuid
+  tender_code                      String                         @db.VarChar(50)
+  title                            String                         @db.VarChar(255)
+  trade_category                   String                         @db.VarChar(100)
+  scope_of_work                    String                         @db.Text
+  budget_kes                       Decimal                        @db.Decimal(14, 2)
+  duration_weeks                   Int
+  submission_deadline              DateTime                       @db.Timestamptz
+  status                           String                         @default("PUBLISHED") @db.VarChar(50) // "DRAFT", "PUBLISHED", "UNDER_EVALUATION", "AWARDED", "CLOSED", "CANCELLED"
+  awarded_bid_id                   String?                        @db.Uuid
+  created_at                       DateTime                       @default(now()) @db.Timestamptz
+  updated_at                       DateTime                       @updatedAt @db.Timestamptz
+
+  project                          Project                        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                           Tenant                         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  bids                             TenderBid[]
+
+  @@unique([tenant_id, project_id, tender_code])
+  @@index([tenant_id, project_id, status])
+  @@map("project_tenders")
+}
+
+model TenderBid {
+  id                               String                         @id @default(uuid()) @db.Uuid
+  tenant_id                        String                         @db.Uuid
+  project_id                       String                         @db.Uuid
+  tender_id                        String                         @db.Uuid
+  contractor_name                  String                         @db.VarChar(255)
+  contractor_nca_category          String                         @db.VarChar(50)
+  amount_kes                       Decimal                        @db.Decimal(14, 2)
+  duration_weeks                   Int
+  technical_score                  Decimal                        @default(70.00) @db.Decimal(5, 2)
+  financial_score                  Decimal                        @default(0.00) @db.Decimal(5, 2)
+  combined_score                   Decimal                        @default(0.00) @db.Decimal(5, 2)
+  rank                             Int?
+  bid_status                       String                         @default("SUBMITTED") @db.VarChar(50) // "SUBMITTED", "UNDER_REVIEW", "SHORTLISTED", "AWARDED", "DISQUALIFIED", "REJECTED"
+  proposal_notes                   String?                        @db.Text
+  easmm_trade_breakdown            Json?
+  submitted_at                     DateTime                       @default(now()) @db.Timestamptz
+  created_at                       DateTime                       @default(now()) @db.Timestamptz
+  updated_at                       DateTime                       @updatedAt @db.Timestamptz
+
+  tender                           ProjectTender                  @relation(fields: [tender_id], references: [id], onDelete: Cascade)
+  project                          Project                        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tenant                           Tenant                         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, tender_id])
+  @@index([tenant_id, project_id])
+  @@map("tender_bids")
+}
+
 
 
 

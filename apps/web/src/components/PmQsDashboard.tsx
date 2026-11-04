@@ -36,6 +36,9 @@ import { RmcTransitTrackerView } from './RmcTransitTrackerView';
 import { StructuralSteelTakeoffView } from './StructuralSteelTakeoffView';
 import { GeotechnicalSoilView } from './GeotechnicalSoilView';
 import { AsphaltPavementView } from './AsphaltPavementView';
+import { TopographicSurveyView } from './TopographicSurveyView';
+import IndependentSiteReportView from './IndependentSiteReportView';
+import ContractorTenderBoardView from './ContractorTenderBoardView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -49,7 +52,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -158,6 +161,9 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'steel', label: '⚙️ Structural Steel Takeoff' },
           { id: 'soil', label: '⛰️ Geotechnical Soil QA' },
           { id: 'asphalt', label: '🛣️ Asphalt Pavement QA' },
+          { id: 'survey', label: '📐 Topographic Survey & Earthworks' },
+          { id: 'inspections', label: '🕵️ Site Inspections' },
+          { id: 'tenders', label: '📑 Tender Board' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -573,6 +579,32 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
         <AsphaltPavementView
           projectId="project-rcp-2026"
           projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Topographic Survey & Earthworks Engine (Milestone M31) */}
+      {(activeTab === 'all' || activeTab === 'survey') && (
+        <TopographicSurveyView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+        />
+      )}
+
+      {/* Buildsasa Diaspora Independent Site Inspection Reports (Milestone M33) */}
+      {(activeTab === 'all' || activeTab === 'inspections') && (
+        <IndependentSiteReportView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      )}
+
+      {/* Buildsasa Contractor Tender Board & Bidding Studio (Milestone M33) */}
+      {(activeTab === 'all' || activeTab === 'tenders') && (
+        <ContractorTenderBoardView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
         />
       )}
 

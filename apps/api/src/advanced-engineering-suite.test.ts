@@ -688,4 +688,523 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
     });
     expect(crossTenantRes.statusCode).toBe(404);
   });
+
+  it('Milestone M31: Survey & Topographic Cut/Fill Earthworks Engine (Simpson Rule, Prismoidal Corrections & Mass Haul)', async () => {
+    const server = buildServer();
+
+    // 1. Authenticate PM/QS user
+    const loginRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: 'admin@apexbuilders.co.ke',
+        password: 'Password123!',
+      },
+    });
+    expect(loginRes.statusCode).toBe(200);
+    const { token, user } = JSON.parse(loginRes.payload);
+
+    // 2. Create Highway Earthworks Project
+    const projectRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/projects',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        name: 'A104 Mau Summit Highway Earthworks',
+        code: `HWY-${Date.now().toString().slice(-4)}`,
+        originalContractSum: 150000000,
+        currentApprovedBudget: 150000000,
+      },
+    });
+    expect(projectRes.statusCode).toBe(201);
+    const { data: projectData } = JSON.parse(projectRes.payload);
+    const projectId = projectData.id;
+
+    // 3. Create Topographic Survey with 3 Cross-Section Stations
+    // Station 0+000: Ch 0.00m, EGL 1850.500m, PFL 1845.000m, Cut Area = 45.000 m2
+    // Station 0+050: Ch 50.00m, EGL 1853.000m, PFL 1845.000m, Cut Area = 80.000 m2, Mid-Cut = 60.000 m2
+    //   -> Prismoidal cut volume between 0 and 50m: (50/6)*(45 + 4*60 + 80) = (50/6)*365 = 3041.667 m3
+    // Station 1+200: Ch 1200.00m, EGL 1845.000m, PFL 1845.000m, Cut Area = 0, Fill Area = 0
+    // Total survey span = 1200m > FHD (500m).
+    // Freehaul Distance = 500m, Overhaul Rate = KES 85.00, Borrow Rate = KES 350.00.
+    // ELH = 500 + (350 / 85) = 504.12m.
+    const surveyCode = `SURV-RD-A104-${Date.now().toString().slice(-5)}`;
+    const surveyPayload = {
+      surveyCode,
+      title: 'A104 Alignment Chainage 0+000 to 1+200 Earthworks Takeoff',
+      surveyDate: new Date().toISOString(),
+      surveyorName: 'Surv. Geoffrey Kiprop',
+      instrumentType: 'TOTAL_STATION',
+      calculationMethod: 'PRISMOIDAL',
+      bulkingFactor: '1.200',
+      shrinkageFactor: '0.900',
+      freehaulDistanceMeters: '500.00',
+      overhaulUnitRateKes: '85.00',
+      borrowUnitRateKes: '350.00',
+      stations: [
+        {
+          stationIndex: 0,
+          chainageMeters: '0.00',
+          chainageLabel: 'Ch 0+000',
+          existingGroundLevelM: '1850.500',
+          proposedFormationLevelM: '1845.000',
+          cutAreaM2: '45.000',
+          fillAreaM2: '0.000',
+        },
+        {
+          stationIndex: 1,
+          chainageMeters: '50.00',
+          chainageLabel: 'Ch 0+050',
+          existingGroundLevelM: '1853.000',
+          proposedFormationLevelM: '1845.000',
+          cutAreaM2: '80.000',
+          fillAreaM2: '0.000',
+          midCutAreaM2: '60.000',
+        },
+        {
+          stationIndex: 2,
+          chainageMeters: '1200.00',
+          chainageLabel: 'Ch 1+200',
+          existingGroundLevelM: '1845.000',
+          proposedFormationLevelM: '1845.000',
+          cutAreaM2: '0.000',
+          fillAreaM2: '0.000',
+        },
+      ],
+    };
+
+    const createRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/topographic-surveys`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: surveyPayload,
+    });
+
+    expect(createRes.statusCode).toBe(201);
+    const surveyBody = JSON.parse(createRes.payload);
+    expect(surveyBody.surveyCode).toBe(surveyCode);
+    expect(surveyBody.stationCount).toBe(3);
+    expect(surveyBody.calculationMethod).toBe('PRISMOIDAL');
+    expect(surveyBody.economicHaulLimitMeters).toBe('504.12');
+
+    // Verify Prismoidal volume accuracy between station 0 and station 1
+    const st1 = surveyBody.stations.find((s: any) => s.stationIndex === 1);
+    expect(st1).toBeDefined();
+    expect(st1.intervalDistanceM).toBe('50.00');
+    expect(st1.intervalCutVolumeM3).toBe('3041.667');
+    expect(st1.cumulativeMassOrdinateM3).toBe('3041.667');
+
+    // Total cut volume should be >= 3041.667 m3
+    expect(Number(surveyBody.totalCutVolumeM3)).toBeGreaterThanOrEqual(3041.667);
+    expect(Number(surveyBody.totalOverhaulCostKes)).toBeGreaterThan(0);
+
+    // 4. Duplicate Survey Code Rejection (P2002 conflict -> 409)
+    const dupRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/topographic-surveys`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: surveyPayload,
+    });
+    expect(dupRes.statusCode).toBe(409);
+    const dupBody = JSON.parse(dupRes.payload);
+    expect(dupBody.message).toBe('A topographic survey with this survey code already exists for this project');
+
+    // 5. Payload Validation Error (< 2 stations -> 400 Bad Request)
+    const invalidRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/topographic-surveys`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        ...surveyPayload,
+        surveyCode: `SURV-INVALID-${Date.now()}`,
+        stations: [surveyPayload.stations[0]], // only 1 station
+      },
+    });
+    expect(invalidRes.statusCode).toBe(400);
+
+    // 6. CLIENT Role Guard (403 Forbidden)
+    const clientToken = server.jwt.sign({
+      sub: 'client-user-survey',
+      email: 'client@survey.co.ke',
+      fullName: 'Client Rep',
+      tenantId: user.tenant.id,
+      role: 'CLIENT',
+    });
+
+    const clientRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/topographic-surveys`,
+      headers: { authorization: `Bearer ${clientToken}` },
+      payload: {
+        ...surveyPayload,
+        surveyCode: `SURV-CLIENT-${Date.now()}`,
+      },
+    });
+    expect(clientRes.statusCode).toBe(403);
+    const clientBody = JSON.parse(clientRes.payload);
+    expect(clientBody.message).toContain('read-only access');
+
+    // 7. List Surveys for Project (200 OK)
+    const listRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/topographic-surveys`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(listRes.statusCode).toBe(200);
+    const listBody = JSON.parse(listRes.payload);
+    expect(Array.isArray(listBody)).toBe(true);
+    expect(listBody.length).toBeGreaterThanOrEqual(1);
+    const listed = listBody.find((s: any) => s.id === surveyBody.id);
+    expect(listed).toBeDefined();
+    expect(listed.surveyCode).toBe(surveyCode);
+    expect(listed.stationCount).toBe(3);
+
+    // 8. Get Survey Details with Ordered Stations (200 OK)
+    const getRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/topographic-surveys/${surveyBody.id}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(getRes.statusCode).toBe(200);
+    const getBody = JSON.parse(getRes.payload);
+    expect(getBody.id).toBe(surveyBody.id);
+    expect(getBody.stations).toHaveLength(3);
+    expect(getBody.stations[0].stationIndex).toBe(0);
+    expect(getBody.stations[1].stationIndex).toBe(1);
+    expect(getBody.stations[2].stationIndex).toBe(2);
+    expect(getBody.stations[0].chainageLabel).toBe('Ch 0+000');
+    expect(getBody.stations[1].chainageLabel).toBe('Ch 0+050');
+    expect(getBody.stations[2].chainageLabel).toBe('Ch 1+200');
+
+    // 9. Verify Simpson's 1/3 Rule automatic calculation from offsetsAndLevels
+    // 5 cross-section points spaced at h = 2.0m:
+    // offsets: -4, -2, 0, 2, 4
+    // elevations: 1847, 1849, 1851, 1850, 1848
+    // PFL: 1845.000
+    // depths: 2.0, 4.0, 6.0, 5.0, 3.0 -> Simpson's area = 35.333 m2
+    const simpsonSurveyRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/topographic-surveys`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        surveyCode: `SURV-SIMPSON-${Date.now()}`,
+        title: 'Simpson Rule Offset Calibration Test',
+        surveyorName: 'Surv. Kiprop',
+        instrumentType: 'RTK_GNSS',
+        stations: [
+          {
+            stationIndex: 0,
+            chainageMeters: '0.00',
+            chainageLabel: 'Ch 0+000',
+            existingGroundLevelM: '1851.000',
+            proposedFormationLevelM: '1845.000',
+            cutAreaM2: 0,
+            fillAreaM2: 0,
+            offsetsAndLevels: [
+              [-4, 1847],
+              [-2, 1849],
+              [0, 1851],
+              [2, 1850],
+              [4, 1848],
+            ],
+          },
+          {
+            stationIndex: 1,
+            chainageMeters: '20.00',
+            chainageLabel: 'Ch 0+020',
+            existingGroundLevelM: '1851.000',
+            proposedFormationLevelM: '1845.000',
+            cutAreaM2: '35.333',
+            fillAreaM2: 0,
+          },
+        ],
+      },
+    });
+    expect(simpsonSurveyRes.statusCode).toBe(201);
+    const simpsonSurveyBody = JSON.parse(simpsonSurveyRes.payload);
+    expect(simpsonSurveyBody.stations[0].cutAreaM2).toBe('35.333');
+
+    // 10. Non-existent survey returns 404
+    const notFoundRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/topographic-surveys/00000000-0000-0000-0000-000000000000`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(notFoundRes.statusCode).toBe(404);
+  });
+
+  it('Milestone M32: Mobile Plant CAN-bus IoT OBD-II Telematics & Deep Fuel Siphoning Anomaly Detector & Predictive Maintenance', async () => {
+    const server = buildServer();
+
+    // 1. Authenticate PM/QS user
+    const loginRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: 'admin@apexbuilders.co.ke',
+        password: 'Password123!',
+      },
+    });
+    expect(loginRes.statusCode).toBe(200);
+    const { token, user } = JSON.parse(loginRes.payload);
+
+    // 2. Create Project
+    const projectRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/projects',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        name: 'Konza Smart City Earthmoving Depot',
+        code: `KNZ-${Date.now().toString().slice(-4)}`,
+        originalContractSum: 95000000,
+        currentApprovedBudget: 95000000,
+      },
+    });
+    expect(projectRes.statusCode).toBe(201);
+    const { data: projectData } = JSON.parse(projectRes.payload);
+    const projectId = projectData.id;
+
+    // 3. Create Plant Equipment
+    const equipRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/equipment`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        name: 'CAT 336D Hydraulic Excavator',
+        equipmentCode: `EXC-336-${Date.now().toString().slice(-4)}`,
+        equipmentType: 'EXCAVATOR',
+        registrationNumber: 'KDH 100Z',
+        hourlyRateKes: 7500,
+      },
+    });
+    expect(equipRes.statusCode).toBe(201);
+    const equipBody = JSON.parse(equipRes.payload);
+    const equipmentId = equipBody.equipment.id;
+
+    // 4. Register CAN-bus OBD-II Device to Machinery
+    const deviceImei = `86901205${Date.now().toString().slice(-7)}`;
+    const deviceToken = `canbus-token-${Date.now()}`;
+    const regRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/canbus-devices`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        equipmentId,
+        deviceImei,
+        deviceToken,
+        protocol: 'CANBUS',
+        canBusBaudRate: 250000,
+        maxEngineBurnRateLph: '38.50',
+        simPhoneNumber: '+254711998877',
+        calibrationTankCapacityLiters: '400.00',
+        tankGeometry: 'RECTANGULAR',
+      },
+    });
+    expect(regRes.statusCode).toBe(201);
+    const regBody = JSON.parse(regRes.payload);
+    expect(regBody.deviceImei).toBe(deviceImei);
+    expect(regBody.canBusBaudRate).toBe(250000);
+    expect(regBody.maxEngineBurnRateLph).toBe('38.50');
+    expect(regBody.calibrationTankCapacityLiters).toBe('400.00');
+    expect(regBody.tankGeometry).toBe('RECTANGULAR');
+    expect(regBody.status).toBe('ONLINE');
+
+    // 5. P2002 Conflict check on duplicate IMEI or Equipment
+    const dupRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/canbus-devices`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        equipmentId,
+        deviceImei,
+        protocol: 'CANBUS',
+        canBusBaudRate: 250000,
+        maxEngineBurnRateLph: '38.50',
+        calibrationTankCapacityLiters: '400.00',
+        tankGeometry: 'RECTANGULAR',
+      },
+    });
+    expect(dupRes.statusCode).toBe(409);
+    const dupBody = JSON.parse(dupRes.payload);
+    expect(dupBody.message).toBe('A telematics device with this IMEI or for this equipment already exists');
+
+    // 6. CLIENT role is blocked with 403 Forbidden from registering devices
+    const clientToken = server.jwt.sign({
+      sub: 'client-user-m32',
+      email: 'client@konza.co.ke',
+      fullName: 'Client Consultant',
+      tenantId: user.tenant.id,
+      role: 'CLIENT',
+    });
+
+    const clientRegRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/canbus-devices`,
+      headers: { authorization: `Bearer ${clientToken}` },
+      payload: {
+        equipmentId,
+        deviceImei: `86901205${Date.now().toString().slice(-7)}`,
+        canBusBaudRate: 250000,
+        maxEngineBurnRateLph: '38.50',
+        calibrationTankCapacityLiters: '400.00',
+      },
+    });
+    expect(clientRegRes.statusCode).toBe(403);
+
+    // 7. Ingest Baseline Normal CAN-bus Telematics Ping (Engine RUNNING, 85% fuel = 340.00L)
+    const ping1Res = await server.inject({
+      method: 'POST',
+      url: '/api/v1/telematics/canbus-ping',
+      payload: {
+        deviceImei,
+        deviceToken,
+        latitude: '-1.292100',
+        longitude: '36.821900',
+        engineStatus: 'RUNNING',
+        engineRpm: 1850,
+        coolantTempC: '92.4',
+        oilTempC: '98.0',
+        fuelRateLPerH: '21.50',
+        engineLoadPercent: '68.00',
+        speedKmh: '0.0',
+        batteryVoltage: '24.20',
+        cumulativeEngineSeconds: 36000,
+        fuelLevelPercent: '85.00',
+      },
+    });
+    expect(ping1Res.statusCode).toBe(200);
+    const ping1Body = JSON.parse(ping1Res.payload);
+    expect(ping1Body.calculatedFuelLiters).toBe('340.00');
+    expect(ping1Body.coolantTempC).toBe('92.4');
+    expect(ping1Body.batteryVoltage).toBe('24.20');
+    expect(ping1Body.isSiphoningEvent).toBe(false);
+    expect(ping1Body.anomalySeverity).toBe('NONE');
+
+    // 8. Ingest CAN-bus Ping with Rapid Diesel Siphoning Drop (Engine STOPPED, fuel drops from 340L to 300L = 40L drop)
+    const ping2Res = await server.inject({
+      method: 'POST',
+      url: '/api/v1/telematics/canbus-ping',
+      payload: {
+        deviceImei,
+        deviceToken,
+        latitude: '-1.292100',
+        longitude: '36.821900',
+        engineStatus: 'STOPPED',
+        engineRpm: 0,
+        coolantTempC: '65.0',
+        oilTempC: '70.0',
+        fuelRateLPerH: '0.00',
+        engineLoadPercent: '0.00',
+        speedKmh: '0.0',
+        batteryVoltage: '24.10',
+        cumulativeEngineSeconds: 36000,
+        fuelLevelPercent: '75.00', // 300L (40L loss while STOPPED)
+      },
+    });
+    expect(ping2Res.statusCode).toBe(200);
+    const ping2Body = JSON.parse(ping2Res.payload);
+    expect(ping2Body.calculatedFuelLiters).toBe('300.00');
+    expect(ping2Body.fuelDropLiters).toBe('40.00');
+    expect(ping2Body.isSiphoningEvent).toBe(true);
+    expect(ping2Body.anomalySeverity).toBe('CRITICAL');
+    expect(ping2Body.siphoningEvaluation.anomalyType).toBe('RAPID_THEFT_SIPHON');
+    expect(ping2Body.createdAlertsCount).toBeGreaterThanOrEqual(1);
+
+    // 9. Ingest CAN-bus Ping with Severe Engine Overheat (>108°C) & Active DTC Codes
+    const ping3Res = await server.inject({
+      method: 'POST',
+      url: '/api/v1/telematics/canbus-ping',
+      payload: {
+        deviceImei,
+        deviceToken,
+        latitude: '-1.292100',
+        longitude: '36.821900',
+        engineStatus: 'RUNNING',
+        engineRpm: 2200,
+        coolantTempC: '112.5', // > 108°C FATAL_SHUTDOWN threshold
+        oilTempC: '124.0', // > 120°C oil thermal warning
+        fuelRateLPerH: '32.00',
+        batteryVoltage: '24.00',
+        dtcFaultCodes: 'P0115,P0217',
+        cumulativeEngineSeconds: 36600,
+        fuelLevelPercent: '74.00',
+      },
+    });
+    expect(ping3Res.statusCode).toBe(200);
+    const ping3Body = JSON.parse(ping3Res.payload);
+    expect(ping3Body.diagnostics.hasThermalAlarm).toBe(true);
+    expect(ping3Body.diagnostics.hasDtcAlarm).toBe(true);
+    expect(ping3Body.diagnostics.alertSeverity).toBe('FATAL_SHUTDOWN');
+    expect(ping3Body.createdAlertsCount).toBeGreaterThanOrEqual(1);
+
+    // 10. List Plant Maintenance Alerts for Project
+    const alertsRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/maintenance-alerts`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(alertsRes.statusCode).toBe(200);
+    const alertsBody = JSON.parse(alertsRes.payload);
+    expect(alertsBody.totalAlerts).toBeGreaterThanOrEqual(2);
+    expect(alertsBody.activeAlertsCount).toBeGreaterThanOrEqual(2);
+
+    const siphAlert = alertsBody.alerts.find((a: any) => a.alertType === 'SIPHONING_THEFT');
+    expect(siphAlert).toBeDefined();
+    expect(siphAlert.severity).toBe('CRITICAL');
+    expect(siphAlert.status).toBe('ACTIVE');
+
+    const diagAlert = alertsBody.alerts.find((a: any) => a.alertType === 'ENGINE_OVERHEAT');
+    expect(diagAlert).toBeDefined();
+    expect(diagAlert.dtcCode).toContain('P0115');
+
+    // 11. Client role is blocked with 403 Forbidden from acknowledging alerts
+    const clientAckRes = await server.inject({
+      method: 'PATCH',
+      url: `/api/v1/projects/${projectId}/maintenance-alerts/${siphAlert.id}/acknowledge`,
+      headers: { authorization: `Bearer ${clientToken}` },
+      payload: {
+        acknowledgedBy: 'Unauthorized Client',
+        actionNotes: 'Attempting client ack',
+      },
+    });
+    expect(clientAckRes.statusCode).toBe(403);
+
+    // 12. PM/QS Acknowledges the Siphoning Alert
+    const ackRes = await server.inject({
+      method: 'PATCH',
+      url: `/api/v1/projects/${projectId}/maintenance-alerts/${siphAlert.id}/acknowledge`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        acknowledgedBy: 'Eng. Sarah Mwangi (Lead Plant Engineer)',
+        actionNotes: 'Physical fuel dip confirmed 40L missing. CCTV footage archived for police report.',
+      },
+    });
+    expect(ackRes.statusCode).toBe(200);
+    const ackBody = JSON.parse(ackRes.payload);
+    expect(ackBody.status).toBe('ACKNOWLEDGED');
+    expect(ackBody.acknowledgedBy).toBe('Eng. Sarah Mwangi (Lead Plant Engineer)');
+
+    // 13. Verify Alert List reflects ACKNOWLEDGED status
+    const verifiedAlertsRes = await server.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/maintenance-alerts?status=ACKNOWLEDGED`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(verifiedAlertsRes.statusCode).toBe(200);
+    const verifiedAlertsBody = JSON.parse(verifiedAlertsRes.payload);
+    expect(verifiedAlertsBody.alerts.some((a: any) => a.id === siphAlert.id)).toBe(true);
+
+    // 14. O(1) device lookup returns 404 for unregistered IMEI
+    const notFoundImeiRes = await server.inject({
+      method: 'POST',
+      url: '/api/v1/telematics/canbus-ping',
+      payload: {
+        deviceImei: '999999999999999',
+        latitude: '-1.292100',
+        longitude: '36.821900',
+        fuelLevelPercent: '50.00',
+      },
+    });
+    expect(notFoundImeiRes.statusCode).toBe(404);
+  });
 });

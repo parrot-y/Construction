@@ -13,6 +13,16 @@ export interface SupplierDelivery {
   notes?: string;
 }
 
+export interface SupplierPoSummary {
+  poNumber: string;
+  totalPoCommitmentKes: string;
+  deliveredGrnTotalKes: string;
+  paidAmountKes: string;
+  pendingPaymentKes: string;
+  remainingCommitmentKes: string;
+  paymentTerms: string;
+}
+
 interface SupplierPortalViewProps {
   token?: string;
   supplierName?: string;
@@ -20,8 +30,19 @@ interface SupplierPortalViewProps {
   projectName?: string;
   projectCode?: string;
   deliveries?: SupplierDelivery[];
+  poSummary?: SupplierPoSummary;
   onBackToDashboard?: () => void;
 }
+
+const DEFAULT_PO_SUMMARY: SupplierPoSummary = {
+  poNumber: 'PO-RCP-2026-BAM-01',
+  totalPoCommitmentKes: '3,200,000.00',
+  deliveredGrnTotalKes: '1,870,000.00',
+  paidAmountKes: '1,500,000.00',
+  pendingPaymentKes: '370,000.00',
+  remainingCommitmentKes: '1,330,000.00',
+  paymentTerms: '14 Days Net from Verified Site GRN',
+};
 
 export default function SupplierPortalView({
   token: _token = 'demo-supplier-token',
@@ -66,9 +87,11 @@ export default function SupplierPortalView({
       notes: 'Scheduled for pour at 08:00 AM. Site access cleared via Gate 2.',
     },
   ],
+  poSummary = DEFAULT_PO_SUMMARY,
   onBackToDashboard,
 }: SupplierPortalViewProps): React.JSX.Element {
   const [filter, setFilter] = useState<'ALL' | 'RECEIVED' | 'PENDING'>('ALL');
+  const [showPoModal, setShowPoModal] = useState(false);
 
   const filteredDeliveries = deliveries.filter((d) => {
     if (filter === 'ALL') return true;
@@ -86,7 +109,7 @@ export default function SupplierPortalView({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 rounded-full">
-              Material Supplier & Batching Portal • Zero Seat Tax
+              Material Supplier &amp; Batching Portal • Zero Seat Tax
             </span>
             <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
               Verified Dispatch Link
@@ -99,6 +122,13 @@ export default function SupplierPortalView({
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowPoModal(true)}
+            data-testid="view-po-ledger-btn"
+            className="px-3.5 py-1.5 text-xs font-semibold text-blue-300 hover:text-white bg-blue-900/60 hover:bg-blue-800 border border-blue-700 rounded-lg transition"
+          >
+            📑 PO &amp; Invoicing Ledger
+          </button>
           {onBackToDashboard && (
             <button
               onClick={onBackToDashboard}
@@ -114,8 +144,35 @@ export default function SupplierPortalView({
         </div>
       </header>
 
+      {/* PO Commercial Summary Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-xs font-semibold text-slate-500">Purchase Order</p>
+          <p className="text-sm font-mono font-bold text-blue-700 truncate mt-0.5">{poSummary.poNumber}</p>
+          <span className="text-[10px] text-slate-400">Total: KES {poSummary.totalPoCommitmentKes}</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-xs font-semibold text-slate-500">Delivered &amp; GRN-Verified</p>
+          <p className="text-base font-mono font-bold text-slate-900 mt-0.5">KES {poSummary.deliveredGrnTotalKes}</p>
+          <span className="text-[10px] text-emerald-600 font-semibold">63% of PO fulfilled</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-xs font-semibold text-slate-500">Cleared &amp; Paid</p>
+          <p className="text-base font-mono font-bold text-emerald-700 mt-0.5">KES {poSummary.paidAmountKes}</p>
+          <span className="text-[10px] text-slate-500">KRA e-TIMS Tax Reconciled</span>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-xs font-semibold text-slate-500">Pending Invoice Settlement</p>
+          <p className="text-base font-mono font-bold text-amber-700 mt-0.5">KES {poSummary.pendingPaymentKes}</p>
+          <span className="text-[10px] text-slate-500">{poSummary.paymentTerms}</span>
+        </div>
+      </div>
+
       {/* Filter and stats */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex gap-2">
           {(['ALL', 'RECEIVED', 'PENDING'] as const).map((mode) => (
             <button
@@ -181,12 +238,73 @@ export default function SupplierPortalView({
 
             {del.received_by && (
               <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                <span className="text-emerald-600 font-bold">✓</span> Received & Slump Tested by: {del.received_by}
+                <span className="text-emerald-600 font-bold">✓</span> Received &amp; Slump Tested by: {del.received_by}
               </p>
             )}
           </div>
         ))}
       </div>
+
+      {/* PO Invoicing Modal */}
+      {showPoModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  Commercial Purchase Order Ledger
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-1">
+                  {poSummary.poNumber} • Reconciliation
+                </h3>
+              </div>
+              <button onClick={() => setShowPoModal(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-500">Contract Commitment:</span>
+                <span className="font-bold text-slate-900">KES {poSummary.totalPoCommitmentKes}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-500">Delivered &amp; GRN Confirmed:</span>
+                <span className="font-bold text-blue-700">KES {poSummary.deliveredGrnTotalKes}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-500">Total Payments Cleared:</span>
+                <span className="font-bold text-emerald-700">KES {poSummary.paidAmountKes}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-500">Pending Invoice Settlement:</span>
+                <span className="font-bold text-amber-700">KES {poSummary.pendingPaymentKes}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Remaining Balance:</span>
+                <span className="font-bold text-slate-900">KES {poSummary.remainingCommitmentKes}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs rounded-lg shadow-sm"
+              >
+                🖨️ Print Reconciliation Statement
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPoModal(false)}
+                className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

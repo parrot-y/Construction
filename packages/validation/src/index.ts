@@ -9,11 +9,11 @@ export const CurrencyAmountSchema = z
 
 export const UnitRateSchema = z
   .string()
-  .regex(/^\d+(\.\d{1,4})?$/, { message: 'Unit rate must be a positive decimal with up to 4 decimal places' });
+  .regex(/^(?!0+(?:\.0+)?$)\d+(\.\d{1,4})?$/, { message: 'Unit rate must be a positive decimal with up to 4 decimal places' });
 
 export const QuantitySchema = z
   .string()
-  .regex(/^\d+(\.\d{1,4})?$/, { message: 'Quantity must be a positive decimal with up to 4 decimal places' });
+  .regex(/^(?!0+(?:\.0+)?$)\d+(\.\d{1,4})?$/, { message: 'Quantity must be a positive decimal with up to 4 decimal places' });
 
 export const HealthCheckResponseSchema = z.object({
   status: z.literal('ok'),
@@ -1110,7 +1110,7 @@ export const RegisterTelematicsDeviceSchema = z.object({
   deviceImei: z.string().min(8).max(50),
   protocol: TelematicsProtocolEnum.default('GPS_MODEM'),
   simPhoneNumber: z.string().max(50).optional().nullable(),
-  calibrationTankCapacityLiters: z.string().regex(/^\d+(\.\d{1,2})?$/).default('300.00'),
+  calibrationTankCapacityLiters: z.string().regex(/^(?!0+(?:\.0+)?$)\d+(\.\d{1,2})?$/).default('300.00'),
 });
 export type RegisterTelematicsDevice = z.infer<typeof RegisterTelematicsDeviceSchema>;
 
@@ -1206,7 +1206,7 @@ export const CreateRmcBatchDeliverySchema = z.object({
   driverName: z.string().max(255).optional().nullable(),
   driverPhone: z.string().max(50).optional().nullable(),
   concreteClass: ConcreteClassEnum,
-  orderedVolumeM3: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+  orderedVolumeM3: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]),
   dispatchedAt: z.string().datetime(),
   pourLocationElement: z.string().min(3).max(255),
 });
@@ -1248,7 +1248,7 @@ export const StructuralSteelMemberInputSchema = z.object({
   sectionDesignation: z.string().min(2).max(100),
   unitWeightKgPerM: z.union([z.number().positive(), z.string()]).optional(),
   paintAreaM2PerM: z.union([z.number().positive(), z.string()]).optional(),
-  lengthMeters: z.union([z.number().positive(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]),
+  lengthMeters: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,3})?$/)]),
   quantity: z.number().int().min(1).default(1),
   connectionBoltsCount: z.number().int().min(0).default(0),
 });
@@ -1345,6 +1345,197 @@ export const RecordAsphaltCoreTestSchema = z.object({
   inspectedBy: z.string().min(2).max(255).optional(),
 });
 export type RecordAsphaltCoreTest = z.infer<typeof RecordAsphaltCoreTestSchema>;
+
+// -------------------------------------------------------------
+// TOPOGRAPHIC SURVEY & CUT/FILL EARTHWORKS (MILESTONE M31)
+// -------------------------------------------------------------
+export const SurveyCalculationMethodEnum = z.enum(['AVERAGE_END_AREA', 'PRISMOIDAL', 'SIMPSONS_RULE']);
+export type SurveyCalculationMethod = z.infer<typeof SurveyCalculationMethodEnum>;
+
+export const CreateCrossSectionStationInputSchema = z.object({
+  stationIndex: z.number().int().nonnegative(),
+  chainageMeters: z.union([z.number().nonnegative(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+  chainageLabel: z.string().min(1).max(50),
+  existingGroundLevelM: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d{1,3})?$/)]),
+  proposedFormationLevelM: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d{1,3})?$/)]),
+  cutAreaM2: z.union([z.number().nonnegative(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]).default(0),
+  fillAreaM2: z.union([z.number().nonnegative(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]).default(0),
+  midCutAreaM2: z.union([z.number().nonnegative(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]).optional().nullable(),
+  midFillAreaM2: z.union([z.number().nonnegative(), z.string().regex(/^\d+(?:\.\d{1,3})?$/)]).optional().nullable(),
+  offsetsAndLevels: z.array(z.tuple([z.number(), z.number()])).optional().nullable(),
+});
+export type CreateCrossSectionStationInput = z.infer<typeof CreateCrossSectionStationInputSchema>;
+
+export const CreateTopographicSurveySchema = z.object({
+  surveyCode: z.string().min(2).max(100),
+  title: z.string().min(2).max(255),
+  surveyDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid survey date format' }).optional(),
+  surveyorName: z.string().min(2).max(255),
+  instrumentType: z.enum(['TOTAL_STATION', 'RTK_GNSS', 'DRONE_LIDAR', 'AUTO_LEVEL']).default('TOTAL_STATION'),
+  calculationMethod: SurveyCalculationMethodEnum.default('PRISMOIDAL'),
+  bulkingFactor: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,3})?$/)]).default(1.200),
+  shrinkageFactor: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,3})?$/)]).default(0.900),
+  freehaulDistanceMeters: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).default(500.00),
+  overhaulUnitRateKes: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).default(85.00),
+  borrowUnitRateKes: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).default(350.00),
+  stations: z.array(CreateCrossSectionStationInputSchema).min(2, { message: 'Survey must contain at least 2 cross-section stations' }),
+});
+export type CreateTopographicSurvey = z.infer<typeof CreateTopographicSurveySchema>;
+
+// -------------------------------------------------------------
+// CAN-BUS OBD-II TELEMATICS & PREDICTIVE MAINTENANCE (MILESTONE M32)
+// -------------------------------------------------------------
+export const RegisterCanBusTelematicsDeviceSchema = z.object({
+  equipmentId: z.string().uuid(),
+  deviceImei: z.string().min(8).max(50),
+  deviceToken: z.string().max(100).optional().nullable(),
+  protocol: z.enum(['OBD2', 'CANBUS', 'GPS_MODEM', 'MODBUS_FLOW']).default('CANBUS'),
+  canBusBaudRate: z.union([z.literal(250000), z.literal(500000)]).default(250000),
+  maxEngineBurnRateLph: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).default(35.00),
+  simPhoneNumber: z.string().max(50).optional().nullable(),
+  calibrationTankCapacityLiters: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).default(300.00),
+  tankGeometry: z.enum(['RECTANGULAR', 'CYLINDRICAL_HORIZONTAL', 'CUSTOM_CURVE']).default('RECTANGULAR'),
+});
+export type RegisterCanBusTelematicsDevice = z.infer<typeof RegisterCanBusTelematicsDeviceSchema>;
+
+export const IngestCanBusTelematicsPingSchema = z.object({
+  deviceImei: z.string().min(8).max(50),
+  deviceToken: z.string().max(100).optional().nullable(),
+  latitude: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]),
+  longitude: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]),
+  engineStatus: z.enum(['RUNNING', 'IDLE', 'STOPPED']).default('RUNNING'),
+  engineRpm: z.number().int().min(0).max(8000).optional().nullable(),
+  coolantTempC: z.union([z.number().min(-40).max(150), z.string().regex(/^-?\d+(?:\.\d{1,1})?$/)]).optional().nullable(),
+  oilTempC: z.union([z.number().min(-40).max(180), z.string().regex(/^-?\d+(?:\.\d{1,1})?$/)]).optional().nullable(),
+  fuelRateLPerH: z.union([z.number().nonnegative(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]).optional().nullable(),
+  engineLoadPercent: z.union([z.number().min(0).max(100), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]).optional().nullable(),
+  speedKmh: z.union([z.number().min(0).max(250), z.string().regex(/^\d+(?:\.\d{1,1})?$/)]).optional().nullable(),
+  batteryVoltage: z.union([z.number().min(0).max(36), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]).optional().nullable(),
+  dtcFaultCodes: z.string().max(255).optional().nullable(),
+  cumulativeEngineSeconds: z.number().int().nonnegative().default(0),
+  fuelLevelPercent: z.union([z.number().min(0).max(100), z.string().regex(/^\d+(?:\.\d{1,2})?$/)]),
+});
+export type IngestCanBusTelematicsPing = z.infer<typeof IngestCanBusTelematicsPingSchema>;
+
+export const AcknowledgeMaintenanceAlertSchema = z.object({
+  acknowledgedBy: z.string().min(2).max(255),
+  actionNotes: z.string().max(1000).optional(),
+});
+export type AcknowledgeMaintenanceAlert = z.infer<typeof AcknowledgeMaintenanceAlertSchema>;
+
+// -------------------------------------------------------------
+// INDEPENDENT SITE INSPECTION & CONTRACTOR TENDERING (MILESTONE M33 / BUILDSASA PARITY)
+// -------------------------------------------------------------
+
+export const InspectionPhotoInputSchema = z.object({
+  photoUrl: z.string().min(3),
+  caption: z.string().max(255).optional().nullable(),
+  elementInspected: z.string().max(100).optional().nullable(),
+  tag: z.string().max(50).optional().nullable(),
+  hasDiscrepancy: z.boolean().default(false),
+  gpsLatitude: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]).optional().nullable(),
+  gpsLongitude: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]).optional().nullable(),
+});
+export type InspectionPhotoInput = z.infer<typeof InspectionPhotoInputSchema>;
+
+export const CreateIndependentInspectionSchema = z.object({
+  inspectionCode: z.string().min(2).max(50).optional(),
+  stage: z.string().min(2).max(100).optional().default('SUBSTRUCTURE'),
+  scheduledDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid scheduled date format' }).optional(),
+  scopeDescription: z.string().min(3).max(2000).optional(),
+  reportedProgressPct: z.union([
+    z.number().min(0).max(100),
+    z.string().regex(/^\d+(?:\.\d{1,2})?$/),
+  ]).optional(),
+  contractorClaimedProgress: z.union([
+    z.number().min(0).max(100),
+    z.string().regex(/^\d+(?:\.\d{1,2})?$/),
+  ]).optional(),
+  inspectorName: z.string().min(2).max(255).optional().nullable(),
+  inspectorLicense: z.string().min(2).max(100).optional().nullable(),
+  inspectorPhone: z.string().max(50).optional().nullable(),
+});
+export type CreateIndependentInspection = z.infer<typeof CreateIndependentInspectionSchema>;
+
+export const SubmitInspectionFindingsSchema = z.object({
+  gpsLatitude: z.union([z.number().min(-90).max(90), z.string().regex(/^-?\d+(?:\.\d+)?$/)]),
+  gpsLongitude: z.union([z.number().min(-180).max(180), z.string().regex(/^-?\d+(?:\.\d+)?$/)]),
+  verifiedProgressPct: z.union([
+    z.number().min(0).max(100),
+    z.string().regex(/^\d+(?:\.\d{1,2})?$/),
+  ]).optional(),
+  verifiedProgress: z.union([
+    z.number().min(0).max(100),
+    z.string().regex(/^\d+(?:\.\d{1,2})?$/),
+  ]).optional(),
+  cementBrandVerified: z.string().max(255).optional().nullable(),
+  rebarVerified: z.string().max(255).optional().nullable(),
+  materialsOnSiteNotes: z.string().max(2000).optional().nullable(),
+  workmanshipRating: z.number().int().min(1).max(5).optional().default(4),
+  safetyComplianceRating: z.number().int().min(1).max(5).optional().default(4),
+  structuralDefectsFound: z.boolean().default(false),
+  findingsNotes: z.string().max(5000).optional().nullable(),
+  findingsSummary: z.string().max(5000).optional().nullable(),
+  recommendations: z.string().max(5000).optional().nullable(),
+  photos: z.array(InspectionPhotoInputSchema).optional().default([]),
+});
+export type SubmitInspectionFindings = z.infer<typeof SubmitInspectionFindingsSchema>;
+
+export const ReviewInspectionSchema = z.object({
+  clientReviewNotes: z.string().max(2000).optional().nullable(),
+  feedback: z.string().max(2000).optional().nullable(),
+  clientDiscrepancyFlagged: z.boolean().default(false),
+  clientSatisfactionRating: z.number().int().min(1).max(5).optional().nullable(),
+  rating: z.number().int().min(1).max(5).optional().nullable(),
+});
+export type ReviewInspection = z.infer<typeof ReviewInspectionSchema>;
+
+export const CreateProjectTenderSchema = z.object({
+  tenderCode: z.string().min(2).max(50).optional(),
+  tenderNumber: z.string().min(2).max(50).optional(),
+  title: z.string().min(3).max(255),
+  tradeCategory: z.string().min(2).max(100).optional(),
+  category: z.string().min(2).max(100).optional(),
+  scopeOfWork: z.string().min(5).max(10000),
+  budgetKes: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).optional(),
+  estimatedBudget: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).optional(),
+  currency: z.string().max(10).default('KES'),
+  durationWeeks: z.number().int().positive().optional().default(24),
+  submissionDeadline: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid submission deadline date format' }),
+});
+export type CreateProjectTender = z.infer<typeof CreateProjectTenderSchema>;
+
+export const SubmitTenderBidSchema = z.object({
+  contractorName: z.string().min(2).max(255),
+  contractorNcaCategory: z.string().min(2).max(50),
+  amountKes: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).optional(),
+  totalBidAmount: z.union([z.number().positive(), z.string().regex(/^(?!0+(?:\.0+)?$)\d+(?:\.\d{1,2})?$/)]).optional(),
+  currency: z.string().max(10).default('KES'),
+  durationWeeks: z.number().int().positive(),
+  technicalScore: z.number().min(0).max(100).optional(),
+  proposalNotes: z.string().max(5000).optional().nullable(),
+  easmmTradeBreakdown: z.any().optional().nullable(),
+});
+export type SubmitTenderBid = z.infer<typeof SubmitTenderBidSchema>;
+
+export const EvaluateTenderBidsSchema = z.object({
+  evaluations: z.array(
+    z.object({
+      bidId: z.string().uuid(),
+      technicalScore: z.number().min(0).max(100),
+      financialScore: z.number().min(0).max(100).optional(),
+      notes: z.string().max(1000).optional().nullable(),
+    }),
+  ).optional(),
+});
+export type EvaluateTenderBids = z.infer<typeof EvaluateTenderBidsSchema>;
+
+export const AwardTenderBidSchema = z.object({
+  bidId: z.string().uuid().optional(),
+  awardReason: z.string().max(1000).optional().nullable(),
+});
+export type AwardTenderBid = z.infer<typeof AwardTenderBidSchema>;
+
 
 
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -9,6 +9,17 @@ export interface ComplianceSummary {
   prePourInspectionsConducted: number;
 }
 
+export interface StatutoryPermit {
+  id: string;
+  authority: string;
+  permitNumber: string;
+  description: string;
+  issueDate: string;
+  expiryDate?: string;
+  status: 'VALID' | 'APPROVED_STAMPED' | 'CONDITIONAL' | 'PENDING';
+  leadOfficer: string;
+}
+
 interface CompliancePortalViewProps {
   token?: string;
   auditorName?: string;
@@ -16,6 +27,7 @@ interface CompliancePortalViewProps {
   projectName?: string;
   projectCode?: string;
   complianceSummary?: ComplianceSummary;
+  statutoryPermits?: StatutoryPermit[];
   cubeTests?: Array<{
     id: string;
     batch_reference: string;
@@ -38,6 +50,47 @@ interface CompliancePortalViewProps {
   onBackToDashboard?: () => void;
 }
 
+const DEFAULT_STATUTORY_PERMITS: StatutoryPermit[] = [
+  {
+    id: 'perm-nema',
+    authority: 'National Environment Management Authority (NEMA)',
+    permitNumber: 'NEMA/EIA/PSPR/28194',
+    description: 'Environmental Impact Assessment (EIA) License with dust & noise mitigation',
+    issueDate: '2025-08-14',
+    expiryDate: '2027-08-14',
+    status: 'VALID',
+    leadOfficer: 'EIA Lead Expert #0841',
+  },
+  {
+    id: 'perm-county',
+    authority: 'Nairobi City County Urban Planning Directorate',
+    permitNumber: 'NCC/PLN/ARCH/2025/1102 & STRUCT/2025/094',
+    description: 'Stamped Approved Architectural & Structural Drawings (Zone 4 Commercial)',
+    issueDate: '2025-10-02',
+    status: 'APPROVED_STAMPED',
+    leadOfficer: 'Arch. M. Kamau, County Planning',
+  },
+  {
+    id: 'perm-doshs',
+    authority: 'Directorate of Occupational Safety & Health (DOSHS)',
+    permitNumber: 'DOSHS/WR/NBI/40921',
+    description: 'Workplace Safety & Health Registration Certificate (OSHA 2007)',
+    issueDate: '2025-11-19',
+    expiryDate: '2026-11-19',
+    status: 'VALID',
+    leadOfficer: 'Safety Inspector J. Njoroge',
+  },
+  {
+    id: 'perm-ncwsc',
+    authority: 'Nairobi City Water & Sewerage Company (NCWSC)',
+    permitNumber: 'NCWSC/CONN/PERMIT/2025/8920',
+    description: 'Water Connection & Effluent Discharge Approval',
+    issueDate: '2025-12-05',
+    status: 'VALID',
+    leadOfficer: 'Eng. P. Otieno, Water Services',
+  },
+];
+
 export default function CompliancePortalView({
   token: _token = 'demo-compliance-token',
   auditorName = 'Eng. Faith Mutua',
@@ -52,6 +105,7 @@ export default function CompliancePortalView({
     totalBatchesSampled: 8,
     prePourInspectionsConducted: 14,
   },
+  statutoryPermits = DEFAULT_STATUTORY_PERMITS,
   cubeTests = [
     {
       id: 'c-1',
@@ -100,6 +154,20 @@ export default function CompliancePortalView({
   ],
   onBackToDashboard,
 }: CompliancePortalViewProps): React.JSX.Element {
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+
+  const getPermitStatusBadge = (status: StatutoryPermit['status']) => {
+    switch (status) {
+      case 'VALID':
+      case 'APPROVED_STAMPED':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      case 'CONDITIONAL':
+        return 'bg-amber-100 text-amber-800 border-amber-300';
+      case 'PENDING':
+        return 'bg-slate-100 text-slate-800 border-slate-300';
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6" data-testid="compliance-portal-view">
       {/* Header */}
@@ -107,7 +175,7 @@ export default function CompliancePortalView({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-              NCA & Regulatory Compliance Portal • Zero Seat Tax
+              NCA &amp; Regulatory Compliance Portal • Zero Seat Tax
             </span>
             <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
               Auditor Direct Link
@@ -120,6 +188,13 @@ export default function CompliancePortalView({
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCertificateModal(true)}
+            data-testid="view-statutory-certificate-btn"
+            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-300 hover:text-white bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-700 rounded-lg transition flex items-center gap-1.5"
+          >
+            <span>📜 Statutory Docket Certificate</span>
+          </button>
           {onBackToDashboard && (
             <button
               onClick={onBackToDashboard}
@@ -169,6 +244,56 @@ export default function CompliancePortalView({
             {complianceSummary.concreteCubePassRate}
           </p>
           <p className="text-[10px] text-slate-500">KS 02-598 Standard ({complianceSummary.totalBatchesSampled} Batches)</p>
+        </div>
+      </div>
+
+      {/* Kenyan Statutory Clearances & Approvals Register */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Kenyan Statutory Clearances &amp; Approvals</h3>
+            <p className="text-xs text-slate-500">
+              NEMA, County Government Stamped Drawings, DOSHS OSHA 2007 &amp; Water Services
+            </p>
+          </div>
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+            Statutory Legal Guard Active
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th className="p-3">Statutory Authority</th>
+                <th className="p-3">Permit / Reference No</th>
+                <th className="p-3">Scope / Approval Scope</th>
+                <th className="p-3">Issue Date</th>
+                <th className="p-3">Supervising Official</th>
+                <th className="p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {statutoryPermits.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-50">
+                  <td className="p-3 font-semibold text-slate-900">{p.authority}</td>
+                  <td className="p-3 font-mono font-bold text-blue-700">{p.permitNumber}</td>
+                  <td className="p-3 text-slate-600 max-w-xs">{p.description}</td>
+                  <td className="p-3 text-slate-600">{p.issueDate}</td>
+                  <td className="p-3 text-slate-700 font-medium">{p.leadOfficer}</td>
+                  <td className="p-3">
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getPermitStatusBadge(
+                        p.status
+                      )}`}
+                    >
+                      {p.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -255,6 +380,69 @@ export default function CompliancePortalView({
           ))}
         </div>
       </div>
+
+      {/* Statutory Certificate Print / Verification Modal */}
+      {showCertificateModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  REPUBLIC OF KENYA • STATUTORY CLEARANCE DOCKET
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">
+                  Official Site Compliance Certificate
+                </h3>
+                <p className="text-xs text-slate-500">Project: {projectName} ({projectCode})</p>
+              </div>
+              <button
+                onClick={() => setShowCertificateModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3 font-mono">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-500">NCA Registration:</span>
+                <span className="font-bold text-slate-900">{complianceSummary.ncaSiteRegistration}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-500">NEMA EIA License:</span>
+                <span className="font-bold text-emerald-700">NEMA/EIA/PSPR/28194 (VALID)</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-500">County Approval:</span>
+                <span className="font-bold text-emerald-700">NCC/PLN/ARCH/2025/1102 (STAMPED)</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-500">DOSHS Workplace Reg:</span>
+                <span className="font-bold text-slate-900">DOSHS/WR/NBI/40921 (ACTIVE)</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Cryptographic Seal:</span>
+                <span className="text-[10px] text-purple-700 font-bold">SHA-256: 7F4A8C910B3E...CERTIFIED</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs rounded-lg shadow-sm"
+              >
+                🖨️ Print Statutory Docket
+              </button>
+              <button
+                onClick={() => setShowCertificateModal(false)}
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -854,3 +854,692 @@ export function calculateAsphaltCoreCompaction(
   };
 }
 
+// =============================================================
+// TOPOGRAPHIC SURVEY & CUT/FILL EARTHWORKS ENGINE (MILESTONE M31)
+// =============================================================
+
+export interface SimpsonRuleResult {
+  areaM2: Decimal;
+  methodUsed: 'SIMPSONS_1_3_PURE' | 'SIMPSONS_COMPOSITE_TRAPEZOIDAL';
+  intervalsCount: number;
+}
+
+/**
+ * Calculates cross-sectional area using Simpson's 1/3 Rule with parity fallback.
+ * Strictly prevents runtime crashes when intervals count is odd or < 2.
+ */
+export function calculateSimpsonsArea(
+  ordinates: DecimalValue[],
+  intervalSpacingMeters: DecimalValue
+): SimpsonRuleResult {
+  const h = toDecimal(intervalSpacingMeters);
+  if (h.isZero() || h.isNegative()) {
+    throw new Error('Interval spacing must be strictly positive');
+  }
+
+  const n = ordinates.length - 1; // number of intervals
+  if (n < 1) {
+    return { areaM2: new Decimal(0), methodUsed: 'SIMPSONS_1_3_PURE', intervalsCount: 0 };
+  }
+  if (n === 1) {
+    // 1 interval -> pure Trapezoidal
+    const y0 = toDecimal(ordinates[0] ?? 0);
+    const y1 = toDecimal(ordinates[1] ?? 0);
+    const area = h.dividedBy(2).times(y0.plus(y1)).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+    return { areaM2: area, methodUsed: 'SIMPSONS_COMPOSITE_TRAPEZOIDAL', intervalsCount: 1 };
+  }
+
+  // If n is even, apply pure Simpson's 1/3 Rule
+  if (n % 2 === 0) {
+    let sumOdd = new Decimal(0);
+    let sumEven = new Decimal(0);
+    for (let i = 1; i < n; i++) {
+      const val = toDecimal(ordinates[i] ?? 0);
+      if (i % 2 === 1) {
+        sumOdd = sumOdd.plus(val);
+      } else {
+        sumEven = sumEven.plus(val);
+      }
+    }
+    const y0 = toDecimal(ordinates[0] ?? 0);
+    const yn = toDecimal(ordinates[n] ?? 0);
+    const area = h
+      .dividedBy(3)
+      .times(y0.plus(yn).plus(sumOdd.times(4)).plus(sumEven.times(2)))
+      .toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+
+    return { areaM2: area, methodUsed: 'SIMPSONS_1_3_PURE', intervalsCount: n };
+  }
+
+  // If n is odd (e.g. 3, 5, 7), evaluate Simpson's 1/3 for first (n-1) intervals,
+  // and add Trapezoidal rule for the final interval [n-1, n].
+  const simpsonOrdinates = ordinates.slice(0, n); // 0 to n-1 (even count of intervals = n-1)
+  const simpsonPart = calculateSimpsonsArea(simpsonOrdinates, h);
+
+  const yPrev = toDecimal(ordinates[n - 1] ?? 0);
+  const yLast = toDecimal(ordinates[n] ?? 0);
+  const trapezoidPart = h.dividedBy(2).times(yPrev.plus(yLast));
+
+  const totalArea = simpsonPart.areaM2.plus(trapezoidPart).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+
+  return {
+    areaM2: totalArea,
+    methodUsed: 'SIMPSONS_COMPOSITE_TRAPEZOIDAL',
+    intervalsCount: n,
+  };
+}
+
+export interface EarthworkPrismoidalVolume {
+  averageEndAreaVolumeM3: Decimal;
+  prismoidalVolumeM3: Decimal;
+  prismoidalCorrectionM3: Decimal;
+}
+
+/**
+ * Calculates volume between two stations using both Average End-Area and Prismoidal formulas.
+ */
+export function calculatePrismoidalVolume(
+  area1M2: DecimalValue,
+  area2M2: DecimalValue,
+  distanceMeters: DecimalValue,
+  midAreaM2?: DecimalValue | null
+): EarthworkPrismoidalVolume {
+  const a1 = toDecimal(area1M2);
+  const a2 = toDecimal(area2M2);
+  const L = toDecimal(distanceMeters);
+
+  if (L.isNegative()) {
+    throw new Error('Distance between stations cannot be negative');
+  }
+
+  const averageEndAreaVolumeM3 = L.dividedBy(2).times(a1.plus(a2)).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+
+  let prismoidalVolumeM3: Decimal;
+  if (midAreaM2 !== undefined && midAreaM2 !== null) {
+    const am = toDecimal(midAreaM2);
+    prismoidalVolumeM3 = L.dividedBy(6)
+      .times(a1.plus(am.times(4)).plus(a2))
+      .toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+  } else {
+    // Standard geometric root approximation if mid-area not surveyed: Am = ((sqrt(A1) + sqrt(A2)) / 2)^2
+    const root1 = new Decimal(Math.sqrt(Math.max(0, a1.toNumber())));
+    const root2 = new Decimal(Math.sqrt(Math.max(0, a2.toNumber())));
+    const am = root1.plus(root2).dividedBy(2).pow(2);
+    prismoidalVolumeM3 = L.dividedBy(6)
+      .times(a1.plus(am.times(4)).plus(a2))
+      .toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+  }
+
+  const prismoidalCorrectionM3 = averageEndAreaVolumeM3.minus(prismoidalVolumeM3).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+
+  return {
+    averageEndAreaVolumeM3,
+    prismoidalVolumeM3,
+    prismoidalCorrectionM3,
+  };
+}
+
+export interface MassHaulBalanceResult {
+  adjustedFillM3: Decimal;
+  netVolumeM3: Decimal;
+  looseSpoilVolumeM3: Decimal;
+  isSurplusCut: boolean;
+}
+
+/**
+ * Balances cut and fill volumes considering geotechnical bulking and shrinkage factors.
+ * Prevents division-by-zero if shrinkage factor <= 0.
+ */
+export function calculateEarthworkBalancing(
+  cutVolumeM3: DecimalValue,
+  fillVolumeM3: DecimalValue,
+  shrinkageFactor: DecimalValue = 0.90,
+  bulkingFactor: DecimalValue = 1.20
+): MassHaulBalanceResult {
+  const cut = toDecimal(cutVolumeM3);
+  const fill = toDecimal(fillVolumeM3);
+  const shrinkage = toDecimal(shrinkageFactor);
+  const bulking = toDecimal(bulkingFactor);
+
+  if (shrinkage.isZero() || shrinkage.isNegative()) {
+    throw new Error('Geotechnical shrinkage factor must be strictly positive');
+  }
+
+  // Compacted fill requires (fill / shrinkage) bank cut
+  const adjustedFillM3 = fill.dividedBy(shrinkage).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+  const netVolumeM3 = cut.minus(adjustedFillM3).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+  const looseSpoilVolumeM3 = cut.times(bulking).toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
+
+  return {
+    adjustedFillM3,
+    netVolumeM3,
+    looseSpoilVolumeM3,
+    isSurplusCut: netVolumeM3.greaterThanOrEqualTo(0),
+  };
+}
+
+export interface EconomicHaulEvaluation {
+  economicLimitOfHaulMeters: Decimal;
+  freehaulDistanceMeters: Decimal;
+  overhaulDistanceMeters: Decimal;
+  overhaulCostKes: Decimal;
+  shouldBorrowLocally: boolean;
+}
+
+/**
+ * Computes Economic Limit of Haul (ELH) and Overhaul Costs per KeNHA civil engineering standards.
+ */
+export function calculateEconomicHaul(
+  actualHaulDistanceMeters: DecimalValue,
+  freehaulDistanceMeters: DecimalValue,
+  overhaulVolumeM3: DecimalValue,
+  overhaulUnitRateKes: DecimalValue,
+  borrowPitUnitRateKes: DecimalValue
+): EconomicHaulEvaluation {
+  const dist = toDecimal(actualHaulDistanceMeters);
+  const fhd = toDecimal(freehaulDistanceMeters);
+  const vol = toDecimal(overhaulVolumeM3);
+  const overhaulRate = toDecimal(overhaulUnitRateKes);
+  const borrowRate = toDecimal(borrowPitUnitRateKes);
+
+  if (overhaulRate.isZero() || overhaulRate.isNegative()) {
+    throw new Error('Overhaul unit rate must be strictly positive to compute economic haul limits');
+  }
+
+  // ELH = FHD + (Borrow Rate / Overhaul Rate)
+  const economicLimitOfHaulMeters = fhd
+    .plus(borrowRate.dividedBy(overhaulRate))
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  const overhaulDist = Decimal.max(0, dist.minus(fhd)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  // Overhaul Cost = Volume * (Overhaul Distance / 1000 or per station) * Rate
+  const overhaulStationKm = overhaulDist.dividedBy(1000);
+  const overhaulCostKes = vol.times(overhaulStationKm).times(overhaulRate).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  return {
+    economicLimitOfHaulMeters,
+    freehaulDistanceMeters: fhd,
+    overhaulDistanceMeters: overhaulDist,
+    overhaulCostKes,
+    shouldBorrowLocally: dist.greaterThan(economicLimitOfHaulMeters),
+  };
+}
+
+// =============================================================
+// MOBILE PLANT CAN-BUS TELEMATICS & FUEL ANOMALY ENGINE (M32)
+// =============================================================
+
+export interface FuelSiphoningEvaluation {
+  dropLiters: Decimal;
+  elapsedSeconds: number;
+  dropRateLitersPerHour: Decimal;
+  isSiphoning: boolean;
+  anomalyType: 'NORMAL' | 'RAPID_THEFT_SIPHON' | 'ACTIVE_SIPHON_IDLE' | 'EXCESSIVE_BURN_THEFT' | 'FUEL_REFUEL_EVENT';
+  severity: 'NONE' | 'LOW' | 'HIGH' | 'CRITICAL';
+  message: string;
+}
+
+export function evaluateFuelSiphoningAnomaly(
+  previousFuelLiters: DecimalValue,
+  currentFuelLiters: DecimalValue,
+  previousTimestamp: Date | string,
+  currentTimestamp: Date | string,
+  engineStatus: 'RUNNING' | 'IDLE' | 'STOPPED',
+  maxEngineBurnRateLph: DecimalValue = 35.00
+): FuelSiphoningEvaluation {
+  const prevL = toDecimal(previousFuelLiters);
+  const currL = toDecimal(currentFuelLiters);
+  const maxBurn = toDecimal(maxEngineBurnRateLph);
+
+  const t1 = new Date(previousTimestamp).getTime();
+  const t2 = new Date(currentTimestamp).getTime();
+  const elapsedSeconds = Math.max(1, Math.floor((t2 - t1) / 1000));
+  const elapsedHours = new Decimal(elapsedSeconds).dividedBy(3600);
+
+  const deltaLiters = prevL.minus(currL);
+
+  // If delta is negative, fuel was added (Refuel event)
+  if (deltaLiters.lessThan(-10.0)) {
+    return {
+      dropLiters: deltaLiters,
+      elapsedSeconds,
+      dropRateLitersPerHour: new Decimal(0),
+      isSiphoning: false,
+      anomalyType: 'FUEL_REFUEL_EVENT',
+      severity: 'NONE',
+      message: `Tank refueled: +${deltaLiters.abs().toFixed(1)}L added.`,
+    };
+  }
+
+  // Calculate hourly consumption rate
+  const dropRateLitersPerHour = deltaLiters.greaterThan(0)
+    ? deltaLiters.dividedBy(elapsedHours).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    : new Decimal(0);
+
+  // 1. Engine STOPPED theft
+  if (engineStatus === 'STOPPED' && deltaLiters.greaterThanOrEqualTo(8.0) && elapsedSeconds <= 7200) {
+    return {
+      dropLiters: deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
+      elapsedSeconds,
+      dropRateLitersPerHour,
+      isSiphoning: true,
+      anomalyType: 'RAPID_THEFT_SIPHON',
+      severity: 'CRITICAL',
+      message: `CRITICAL DIESEL THEFT: ${deltaLiters.toFixed(1)}L dropped in ${Math.round(elapsedSeconds / 60)} min while engine STOPPED.`,
+    };
+  }
+
+  // 2. Engine IDLE theft
+  if (engineStatus === 'IDLE' && dropRateLitersPerHour.greaterThan(12.0) && deltaLiters.greaterThanOrEqualTo(5.0)) {
+    return {
+      dropLiters: deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
+      elapsedSeconds,
+      dropRateLitersPerHour,
+      isSiphoning: true,
+      anomalyType: 'ACTIVE_SIPHON_IDLE',
+      severity: 'CRITICAL',
+      message: `ACTIVE SIPHONING AT IDLE: Fuel consumption rate of ${dropRateLitersPerHour.toFixed(1)} L/h exceeds normal idle limit (max 4.0 L/h).`,
+    };
+  }
+
+  // 3. Engine RUNNING abnormal burn
+  const maxPhysicalBurn = maxBurn.times(1.25);
+  if (engineStatus === 'RUNNING' && dropRateLitersPerHour.greaterThan(maxPhysicalBurn) && deltaLiters.greaterThanOrEqualTo(10.0)) {
+    return {
+      dropLiters: deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
+      elapsedSeconds,
+      dropRateLitersPerHour,
+      isSiphoning: true,
+      anomalyType: 'EXCESSIVE_BURN_THEFT',
+      severity: 'HIGH',
+      message: `ABNORMAL FUEL LOSS: Measured burn rate ${dropRateLitersPerHour.toFixed(1)} L/h exceeds engine physical maximum (${maxPhysicalBurn.toFixed(1)} L/h). Suspected inline fuel diversion.`,
+    };
+  }
+
+  return {
+    dropLiters: deltaLiters.greaterThan(0) ? deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP) : new Decimal(0),
+    elapsedSeconds,
+    dropRateLitersPerHour,
+    isSiphoning: false,
+    anomalyType: 'NORMAL',
+    severity: 'NONE',
+    message: 'Normal fuel consumption pattern verified.',
+  };
+}
+
+export interface PlantCanBusDiagnostics {
+  hasThermalAlarm: boolean;
+  hasDtcAlarm: boolean;
+  hasElectricalAlarm: boolean;
+  alertSeverity: 'NONE' | 'INFO' | 'WARNING' | 'CRITICAL' | 'FATAL_SHUTDOWN';
+  faultMessages: string[];
+}
+
+export function evaluatePlantCanBusDiagnostics(
+  coolantTempC?: DecimalValue | null,
+  oilTempC?: DecimalValue | null,
+  batteryVoltage?: DecimalValue | null,
+  dtcCodes?: string | null
+): PlantCanBusDiagnostics {
+  const faultMessages: string[] = [];
+  let alertSeverity: PlantCanBusDiagnostics['alertSeverity'] = 'NONE';
+  let hasThermalAlarm = false;
+  let hasDtcAlarm = false;
+  let hasElectricalAlarm = false;
+
+  if (coolantTempC !== undefined && coolantTempC !== null) {
+    const cTemp = toDecimal(coolantTempC);
+    if (cTemp.greaterThan(108.0)) {
+      hasThermalAlarm = true;
+      alertSeverity = 'FATAL_SHUTDOWN';
+      faultMessages.push(`CRITICAL ENGINE OVERHEAT: Coolant temperature ${cTemp.toFixed(1)}°C exceeds emergency shutdown threshold (108°C).`);
+    } else if (cTemp.greaterThan(103.0)) {
+      hasThermalAlarm = true;
+      alertSeverity = 'CRITICAL';
+      faultMessages.push(`ENGINE OVERHEAT WARNING: Coolant temperature ${cTemp.toFixed(1)}°C exceeds 103°C limit.`);
+    }
+  }
+
+  if (oilTempC !== undefined && oilTempC !== null) {
+    const oTemp = toDecimal(oilTempC);
+    if (oTemp.greaterThan(120.0)) {
+      hasThermalAlarm = true;
+      if (alertSeverity !== 'FATAL_SHUTDOWN') alertSeverity = 'CRITICAL';
+      faultMessages.push(`HIGH OIL TEMPERATURE: Engine oil ${oTemp.toFixed(1)}°C exceeds lubrication safety envelope.`);
+    }
+  }
+
+  if (batteryVoltage !== undefined && batteryVoltage !== null) {
+    const volt = toDecimal(batteryVoltage);
+    if (volt.greaterThan(18.0) && volt.lessThan(23.5)) {
+      hasElectricalAlarm = true;
+      if (alertSeverity === 'NONE') alertSeverity = 'WARNING';
+      faultMessages.push(`ELECTRICAL FAULT: 24V supply voltage dropped to ${volt.toFixed(1)}V. Suspected alternator failure.`);
+    } else if (volt.lessThan(11.8) && volt.greaterThan(0)) {
+      hasElectricalAlarm = true;
+      if (alertSeverity === 'NONE') alertSeverity = 'WARNING';
+      faultMessages.push(`ELECTRICAL FAULT: 12V supply voltage dropped to ${volt.toFixed(1)}V. Battery draining.`);
+    }
+  }
+
+  if (dtcCodes && dtcCodes.trim().length > 0) {
+    hasDtcAlarm = true;
+    if (alertSeverity === 'NONE') alertSeverity = 'WARNING';
+    faultMessages.push(`ACTIVE ECU DTC FAULT CODES: ${dtcCodes.trim()}`);
+  }
+
+  return {
+    hasThermalAlarm,
+    hasDtcAlarm,
+    hasElectricalAlarm,
+    alertSeverity,
+    faultMessages,
+  };
+}
+
+// =============================================================
+// MILESTONE M33: INDEPENDENT SITE INSPECTION & TENDER SCORING ENGINE
+// =============================================================
+
+export type InspectionVarianceStatus =
+  | 'CRITICAL_INFLATION'
+  | 'MODERATE_INFLATION'
+  | 'ACCEPTABLE_ALIGNMENT'
+  | 'CONSERVATIVE_REPORTING';
+
+export interface InspectionProgressVarianceResult {
+  variancePct: string;
+  status: InspectionVarianceStatus;
+  alertRequired: boolean;
+  discrepancyMessage: string;
+}
+
+/**
+ * Calculates progress variance between contractor reported % and independent verified %
+ * Delta = verified - reported
+ *
+ * - Delta <= -10%: CRITICAL_INFLATION (alertRequired = true)
+ * - -10% < Delta <= -5%: MODERATE_INFLATION (alertRequired = false)
+ * - -5% < Delta < 5%: ACCEPTABLE_ALIGNMENT (alertRequired = false)
+ * - Delta >= 5%: CONSERVATIVE_REPORTING (alertRequired = false)
+ */
+export function calculateInspectionProgressVariance(
+  reportedPct: DecimalValue,
+  verifiedPct: DecimalValue
+): InspectionProgressVarianceResult {
+  const rep = toDecimal(reportedPct);
+  const ver = toDecimal(verifiedPct);
+  const delta = ver.minus(rep);
+  const variancePct = delta.toFixed(2);
+
+  let status: InspectionVarianceStatus;
+  let alertRequired = false;
+  let discrepancyMessage = '';
+
+  if (delta.lessThanOrEqualTo(-10.0)) {
+    status = 'CRITICAL_INFLATION';
+    alertRequired = true;
+    discrepancyMessage = `Critical progress inflation detected: Reported progress (${rep.toFixed(1)}%) exceeds verified progress (${ver.toFixed(1)}%) by ${delta.abs().toFixed(1)}%. Immediate payment withholding recommended.`;
+  } else if (delta.lessThanOrEqualTo(-5.0)) {
+    status = 'MODERATE_INFLATION';
+    alertRequired = false;
+    discrepancyMessage = `Moderate progress inflation detected: Reported progress (${rep.toFixed(1)}%) exceeds verified progress (${ver.toFixed(1)}%) by ${delta.abs().toFixed(1)}%. Review site measurement sheets prior to valuation.`;
+  } else if (delta.lessThan(5.0)) {
+    status = 'ACCEPTABLE_ALIGNMENT';
+    alertRequired = false;
+    discrepancyMessage = `Acceptable alignment: Progress variance is within allowable construction tolerance (${delta.toFixed(1)}%).`;
+  } else {
+    status = 'CONSERVATIVE_REPORTING';
+    alertRequired = false;
+    discrepancyMessage = `Conservative reporting: Verified progress (${ver.toFixed(1)}%) exceeds contractor reported progress (${rep.toFixed(1)}%) by ${delta.toFixed(1)}%.`;
+  }
+
+  return {
+    variancePct,
+    status,
+    alertRequired,
+    discrepancyMessage,
+  };
+}
+
+export interface TenderBidInput {
+  id: string;
+  amountKes: DecimalValue;
+  durationWeeks: number;
+  technicalScore?: number;
+}
+
+export interface EvaluatedTenderBid {
+  id: string;
+  amountKes: Decimal;
+  durationWeeks: number;
+  technicalScore: number;
+  financialScore: number;
+  combinedScore: number;
+  rank: number;
+  isLowestBid: boolean;
+  budgetVarianceKes: Decimal;
+}
+
+/**
+ * Evaluates contractor tender bids with combined scoring:
+ * - 70% Technical weight
+ * - 30% Financial weight (based on lowest bid ratio: (Lowest / Bid) * 100)
+ *
+ * Returns ranked list sorted by combinedScore descending.
+ */
+export function evaluateTenderBids(
+  bids: TenderBidInput[],
+  budgetKes: DecimalValue
+): EvaluatedTenderBid[] {
+  if (!bids || bids.length === 0) {
+    return [];
+  }
+
+  const budget = toDecimal(budgetKes);
+
+  // Find lowest valid positive bid
+  const validBids = bids.filter((b) => toDecimal(b.amountKes).greaterThan(0));
+  const minBidAmount = validBids.length > 0
+    ? Decimal.min(...validBids.map((b) => toDecimal(b.amountKes)))
+    : new Decimal(0);
+
+  const evaluated: EvaluatedTenderBid[] = bids.map((bid) => {
+    const amount = toDecimal(bid.amountKes);
+    const techScore = bid.technicalScore !== undefined ? toDecimal(bid.technicalScore) : new Decimal(70);
+
+    let financialScore = new Decimal(0);
+    if (minBidAmount.greaterThan(0) && amount.greaterThan(0)) {
+      financialScore = minBidAmount.dividedBy(amount).times(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+    }
+
+    // 70% technical, 30% financial
+    const combinedScore = techScore
+      .times(0.70)
+      .plus(financialScore.times(0.30))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+    const isLowestBid = minBidAmount.greaterThan(0) && amount.equals(minBidAmount);
+    const budgetVarianceKes = budget.minus(amount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+    return {
+      id: bid.id,
+      amountKes: amount,
+      durationWeeks: bid.durationWeeks,
+      technicalScore: techScore.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber(),
+      financialScore: financialScore.toNumber(),
+      combinedScore: combinedScore.toNumber(),
+      rank: 0, // Assigned after sorting
+      isLowestBid,
+      budgetVarianceKes,
+    };
+  });
+
+  // Sort by combinedScore desc, tie-break by amountKes asc
+  evaluated.sort((a, b) => {
+    if (b.combinedScore !== a.combinedScore) {
+      return b.combinedScore - a.combinedScore;
+    }
+    return a.amountKes.minus(b.amountKes).toNumber();
+  });
+
+  // Assign ranks
+  evaluated.forEach((b, idx) => {
+    b.rank = idx + 1;
+  });
+
+  return evaluated;
+}
+
+export type ProgressInflationStatus =
+  | 'CRITICAL_INFLATION'
+  | 'MODERATE_INFLATION'
+  | 'ALIGNED'
+  | 'CONSERVATIVE_CLAIM';
+
+export interface ProgressInflationResult {
+  claimedProgress: Decimal;
+  verifiedProgress: Decimal;
+  variancePercentage: Decimal; // verified - claimed, e.g. -15.00
+  inflationRatePercentage: Decimal; // claimed - verified, e.g. 15.00
+  status: ProgressInflationStatus;
+  hasInflation: boolean;
+  isCritical: boolean;
+  alert: string;
+  recommendations: string;
+}
+
+/**
+ * Buildsasa Parity: Evaluates progress inflation between contractor claims and independent inspector findings.
+ * E.g., contractor claiming 55% or 65% when inspector verifies 40% or 48% (variance <= -15%) triggers CRITICAL_INFLATION.
+ */
+export function calculateProgressInflation(
+  contractorClaimedProgress: DecimalValue,
+  verifiedProgress: DecimalValue,
+): ProgressInflationResult {
+  const claimed = toDecimal(contractorClaimedProgress);
+  const verified = toDecimal(verifiedProgress);
+
+  const variance = verified.minus(claimed).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const inflationRate = claimed.minus(verified).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  if (variance.lessThanOrEqualTo(-15.0)) {
+    return {
+      claimedProgress: claimed,
+      verifiedProgress: verified,
+      variancePercentage: variance,
+      inflationRatePercentage: inflationRate,
+      status: 'CRITICAL_INFLATION',
+      hasInflation: true,
+      isCritical: true,
+      alert: `CRITICAL_INFLATION: Contractor claimed progress (${claimed.toFixed(2)}%) is materially inflated by ${inflationRate.toFixed(2)}% above independently verified site progress (${verified.toFixed(2)}%).`,
+      recommendations: 'Withhold interim contractor disbursement. Conduct mandatory joint QS physical remeasurement and audit site delivery dockets against in-situ quantities.',
+    };
+  }
+
+  if (variance.lessThanOrEqualTo(-5.0)) {
+    return {
+      claimedProgress: claimed,
+      verifiedProgress: verified,
+      variancePercentage: variance,
+      inflationRatePercentage: inflationRate,
+      status: 'MODERATE_INFLATION',
+      hasInflation: true,
+      isCritical: false,
+      alert: `MODERATE_INFLATION: Contractor progress claim (${claimed.toFixed(2)}%) exceeds verified site progress (${verified.toFixed(2)}%) by ${inflationRate.toFixed(2)}%.`,
+      recommendations: 'Reconcile contractor progress claim against site supervisor log before certifying interim valuation.',
+    };
+  }
+
+  if (variance.greaterThanOrEqualTo(5.0)) {
+    return {
+      claimedProgress: claimed,
+      verifiedProgress: verified,
+      variancePercentage: variance,
+      inflationRatePercentage: inflationRate,
+      status: 'CONSERVATIVE_CLAIM',
+      hasInflation: false,
+      isCritical: false,
+      alert: `CONSERVATIVE_CLAIM: Verified progress (${verified.toFixed(2)}%) is ahead of contractor claim (${claimed.toFixed(2)}%) by ${variance.abs().toFixed(2)}%.`,
+      recommendations: 'Acknowledge advanced milestone achievement in interim valuation certificate.',
+    };
+  }
+
+  return {
+    claimedProgress: claimed,
+    verifiedProgress: verified,
+    variancePercentage: variance,
+    inflationRatePercentage: inflationRate,
+    status: 'ALIGNED',
+    hasInflation: false,
+    isCritical: false,
+    alert: `PROGRESS_ALIGNED: Contractor claim (${claimed.toFixed(2)}%) closely matches independently verified progress (${verified.toFixed(2)}%). Variance is within allowable tolerance.`,
+    recommendations: 'Proceed with standard interim valuation and payment processing.',
+  };
+}
+
+export type DiasporaCurrency = 'KES' | 'USD' | 'GBP' | 'EUR' | 'AED';
+
+export const DIASPORA_EXCHANGE_RATES: Record<DiasporaCurrency, number> = {
+  KES: 1.0,
+  USD: 129.50,
+  GBP: 165.20,
+  EUR: 140.80,
+  AED: 35.25,
+};
+
+/**
+ * Converts monetary amounts between supported diaspora currencies (KES, USD, GBP, EUR, AED).
+ */
+export function convertDiasporaCurrency(
+  amount: DecimalValue,
+  fromCurrency: DiasporaCurrency | string,
+  toCurrency: DiasporaCurrency | string,
+  customRates?: Partial<Record<DiasporaCurrency, number>>,
+): Decimal {
+  const from = fromCurrency.toUpperCase() as DiasporaCurrency;
+  const to = toCurrency.toUpperCase() as DiasporaCurrency;
+  const amt = toDecimal(amount);
+
+  if (from === to) {
+    return amt.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  }
+
+  const rates: Record<string, number> = { ...DIASPORA_EXCHANGE_RATES, ...customRates };
+  const fromRate = rates[from] || 1.0;
+  const toRate = rates[to] || 1.0;
+
+  // Convert to KES base first, then to target currency
+  const inKes = amt.times(fromRate);
+  const converted = inKes.dividedBy(toRate);
+
+  return converted.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+}
+
+/**
+ * Formats monetary amounts with the corresponding currency symbol/prefix.
+ */
+export function formatDiasporaCurrency(
+  amount: DecimalValue,
+  currency: DiasporaCurrency | string,
+): string {
+  const c = currency.toUpperCase();
+  const amtStr = toDecimal(amount).toFixed(2, Decimal.ROUND_HALF_UP);
+  switch (c) {
+    case 'USD':
+      return `$${amtStr}`;
+    case 'GBP':
+      return `£${amtStr}`;
+    case 'EUR':
+      return `€${amtStr}`;
+    case 'AED':
+      return `AED ${amtStr}`;
+    case 'KES':
+    default:
+      return `KES ${amtStr}`;
+  }
+}
+
+
+

@@ -3,3 +3,4 @@ export * from './renderPdf';
 export * from './PaymentCertificatePdf';
 export * from './SiteDiaryReportPdf';
 export * from './ProjectSummaryPdf';
+export * from './IndependentInspectionReportPdf';
