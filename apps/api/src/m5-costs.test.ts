@@ -104,9 +104,6 @@ describe('Milestone M5: Budget, Append-Only Costs & Approvals Suite', () => {
 
     // Retrieve Project A for Tenant A
     const projA = await withTenantTx(prisma, tenantAId, async (tx) => {
-      // Clean existing cost entries for a pristine test run
-      await tx.costEntry.deleteMany({});
-
       return tx.project.findFirst({
         where: { tenant_id: tenantAId, code: 'RCP-2026' },
         include: {

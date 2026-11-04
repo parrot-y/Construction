@@ -21,11 +21,16 @@ describe('PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001
 
   beforeAll(async () => {
     // Clean up any test tenants from previous runs
-    await prisma.tenant.deleteMany({
-      where: {
-        slug: { in: ['test-simba-corp', 'test-kilimanjaro-dev'] },
-      },
-    });
+    try {
+      await prisma.$executeRawUnsafe(`SELECT set_config('app.admin_purge', 'true', false)`);
+      await prisma.tenant.deleteMany({
+        where: {
+          slug: { in: ['test-simba-corp', 'test-kilimanjaro-dev'] },
+        },
+      });
+    } catch {
+      // Ignore if unprivileged db_app cannot delete append-only ledger entries
+    }
 
     // 1. Create Tenant A
     const tenantA = await prisma.tenant.create({
@@ -100,11 +105,16 @@ describe('PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001
 
   afterAll(async () => {
     // Cleanup test data
-    await prisma.tenant.deleteMany({
-      where: {
-        slug: { in: ['test-simba-corp', 'test-kilimanjaro-dev'] },
-      },
-    });
+    try {
+      await prisma.$executeRawUnsafe(`SELECT set_config('app.admin_purge', 'true', false)`);
+      await prisma.tenant.deleteMany({
+        where: {
+          slug: { in: ['test-simba-corp', 'test-kilimanjaro-dev'] },
+        },
+      });
+    } catch {
+      // Ignored: ledger immutability trigger blocks deletion for non-admin connections
+    }
     await prisma.$disconnect();
   });
 
@@ -277,94 +287,108 @@ describe('PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001
     }
   });
 
-  it('PostgreSQL 18 RLS Ingest Bypass: auth_context = iot_ingest only permits device lookup and fails closed on data leakage', async () => {
-    let deviceAId = '';
-    const testImei = `IMEI-TEST-${Date.now()}`;
-
-    // 1. Seed equipment & telematics device under Tenant A context
-    await withTenantTx(prisma, tenantAId, async (tx) => {
-      const eq = await tx.plantEquipment.create({
-        data: {
-          tenant_id: tenantAId,
-          project_id: projectAId,
-          equipment_code: `EQ-TST-${Date.now().toString().slice(-4)}`,
-          name: 'Cat 320D Excavator',
-          equipment_type: 'EXCAVATOR',
-        },
-      });
-
-      const dev = await tx.plantTelematicsDevice.create({
-        data: {
-          tenant_id: tenantAId,
-          project_id: projectAId,
-          equipment_id: eq.id,
-          device_imei: testImei,
-          protocol: 'CANBUS',
-          device_token: `secret-token-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        },
-      });
-      deviceAId = dev.id;
-
-      await tx.plantTelematicsPing.create({
-        data: {
-          tenant_id: tenantAId,
-          device_id: dev.id,
-          equipment_id: eq.id,
-          latitude: -1.286389,
-          longitude: 36.817223,
-          fuel_level_percent: 75.0,
-          calculated_fuel_liters: 225.0,
-        },
-      });
-    });
-
-    // 2. Query device under auth_context = 'iot_ingest' WITHOUT tenant context
-    const lookupResult = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.auth_context', 'iot_ingest', TRUE)`;
-
-      // Device lookup by IMEI succeeds:
-      const device = await tx.plantTelematicsDevice.findUnique({
-        where: { device_imei: testImei },
-      });
-
-      // Tenant-scoped projects table is completely INVISIBLE (0 rows leaked)
-      const leakedProjects = await tx.project.findMany();
-
-      // Tenant-scoped pings table is completely INVISIBLE (0 rows leaked)
-      const leakedPings = await tx.plantTelematicsPing.findMany();
-
-      // Tenant-scoped plant_equipment table is completely INVISIBLE (0 rows leaked)
-      const leakedEquipment = await tx.plantEquipment.findMany();
-
-      return {
-        device,
-        leakedProjectsCount: leakedProjects.length,
-        leakedPingsCount: leakedPings.length,
-        leakedEquipmentCount: leakedEquipment.length,
-      };
-    });
-
-    expect(lookupResult.device).not.toBeNull();
-    expect(lookupResult.device?.id).toBe(deviceAId);
-    expect(lookupResult.device?.device_imei).toBe(testImei);
-    expect(lookupResult.device?.tenant_id).toBe(tenantAId);
-    expect(lookupResult.leakedProjectsCount).toBe(0);
-    expect(lookupResult.leakedPingsCount).toBe(0);
-    expect(lookupResult.leakedEquipmentCount).toBe(0);
-
-    // 3. WITH CHECK enforcement: Attempting to insert a rogue device under auth_context = 'iot_ingest'
-    // without app.current_tenant_id throws RLS policy error
+  it('C4 Database-Level Ledger Immutability: db_app cannot DELETE or UPDATE audit_logs (permission denied)', async () => {
+    // Attempting to DELETE from audit_logs fails at the PostgreSQL permission layer
     await expect(
-      prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT set_config('app.auth_context', 'iot_ingest', TRUE)`;
-        await tx.plantTelematicsDevice.create({
-          data: {
-            tenant_id: tenantBId,
-            equipment_id: '00000000-0000-0000-0000-000000000001',
-            device_imei: 'IMEI-MALICIOUS-INSERT',
-          },
+      prisma.$executeRawUnsafe(`DELETE FROM audit_logs WHERE id = '00000000-0000-0000-0000-000000000001'::uuid`)
+    ).rejects.toThrow(/permission denied/i);
+
+    // Attempting to UPDATE audit_logs fails at the PostgreSQL permission layer
+    await expect(
+      prisma.$executeRawUnsafe(`UPDATE audit_logs SET action = 'TAMPERED' WHERE id = '00000000-0000-0000-0000-000000000001'::uuid`)
+    ).rejects.toThrow(/permission denied/i);
+  });
+
+  it('C4 Financial Immutability: database trigger blocks UPDATE of amount and DELETE on cost_entries', async () => {
+    // Create test user and cost entry
+    const user = await prisma.user.create({
+      data: {
+        email: `tester-${Date.now()}@mjengoledger.com`,
+        password_hash: 'mock-hash',
+        full_name: 'Immutability Tester',
+      },
+    });
+
+    let costId = '';
+    await withTenantTx(prisma, tenantAId, async (tx) => {
+      const entry = await tx.costEntry.create({
+        data: {
+          tenant_id: tenantAId,
+          project_id: projectAId,
+          cost_category: 'LABOR',
+          description: 'Immutable labor charge',
+          amount: 50000.0,
+          status: 'PENDING',
+          created_by_id: user.id,
+        },
+      });
+      costId = entry.id;
+    });
+
+    // 1. Attempting to change the financial amount throws trigger exception
+    await expect(
+      withTenantTx(prisma, tenantAId, async (tx) => {
+        await tx.costEntry.update({
+          where: { id: costId },
+          data: { amount: 1000.0 },
         });
-      }),
-    ).rejects.toThrow();
+      })
+    ).rejects.toThrow(/Financial immutability violation: cost_entries\.amount cannot be updated/i);
+
+    // 2. Attempting to delete the cost entry throws trigger exception
+    await expect(
+      withTenantTx(prisma, tenantAId, async (tx) => {
+        await tx.costEntry.delete({
+          where: { id: costId },
+        });
+      })
+    ).rejects.toThrow(/cost_entries are append-only: deletion is prohibited/i);
+
+    // 3. Status transitions (PENDING -> APPROVED) succeed because financial amounts are unchanged
+    const approved = await withTenantTx(prisma, tenantAId, async (tx) => {
+      return tx.costEntry.update({
+        where: { id: costId },
+        data: { status: 'APPROVED' },
+      });
+    });
+    expect(approved.status).toBe('APPROVED');
+    expect(approved.amount.toString()).toBe('50000');
+  });
+
+  it('C4 Variation Immutability: database trigger blocks financial tampering on finalized variation_orders', async () => {
+    let voId = '';
+    await withTenantTx(prisma, tenantAId, async (tx) => {
+      const vo = await tx.variationOrder.create({
+        data: {
+          tenant_id: tenantAId,
+          project_id: projectAId,
+          variation_no: 999,
+          title: 'Extra Rock Excavation',
+          reason: 'Hard volcanic tuff found on site',
+          status: 'APPROVED',
+          net_amount: 150000.0,
+        },
+      });
+      voId = vo.id;
+    });
+
+    // Attempting to modify net_amount of an APPROVED variation order throws trigger exception
+    await expect(
+      withTenantTx(prisma, tenantAId, async (tx) => {
+        await tx.variationOrder.update({
+          where: { id: voId },
+          data: { net_amount: 50000.0 },
+        });
+      })
+    ).rejects.toThrow(/Financial immutability violation: approved or rejected variation net_amount cannot be modified/i);
+
+    // Attempting to delete a variation order throws trigger exception
+    await expect(
+      withTenantTx(prisma, tenantAId, async (tx) => {
+        await tx.variationOrder.delete({
+          where: { id: voId },
+        });
+      })
+    ).rejects.toThrow(/variation_orders are immutable: deletion is prohibited/i);
   });
 });

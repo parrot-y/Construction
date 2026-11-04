@@ -633,7 +633,7 @@ describe('packages/money financial precision suite', () => {
       expect(res.anomalyType).toBe('RAPID_THEFT_SIPHON');
       expect(res.severity).toBe('CRITICAL');
       expect(res.dropLiters.toString()).toBe('25');
-      expect(res.message).toContain('CRITICAL DIESEL THEFT');
+      expect(res.message).toContain('CRITICAL FUEL LEVEL VARIANCE');
     });
 
     it('detects ACTIVE_SIPHON_IDLE when fuel burn rate exceeds 12 L/h while idling', () => {
@@ -646,7 +646,7 @@ describe('packages/money financial precision suite', () => {
       expect(res.anomalyType).toBe('ACTIVE_SIPHON_IDLE');
       expect(res.severity).toBe('CRITICAL');
       expect(res.dropRateLitersPerHour.toString()).toBe('20');
-      expect(res.message).toContain('ACTIVE SIPHONING AT IDLE');
+      expect(res.message).toContain('ABNORMAL FUEL CONSUMPTION AT IDLE');
     });
 
     it('detects EXCESSIVE_BURN_THEFT when fuel consumption exceeds 1.25x engine max burn rate', () => {

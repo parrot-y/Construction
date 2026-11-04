@@ -110,30 +110,21 @@ describe('Milestone M7: Variance Flags, Section Breakdown & Project Dashboard Su
     });
     tenantBCookie = tbRes.headers['set-cookie'] as string;
 
+    const testProjectCode = `M7-VAR-${Date.now().toString().slice(-6)}`;
+
     // 6. Create dedicated Project and BOQ structure for Tenant A Milestone M7 verification
     await withTenantTx(prisma, tenantAId, async (tx) => {
-      const proj = await tx.project.upsert({
-        where: { tenant_id_code: { tenant_id: tenantAId, code: 'M7-VAR-2026' } },
-        update: {
-          current_approved_budget: '20000000.00',
-          original_contract_sum: '20000000.00',
-          status: 'ACTIVE',
-        },
-        create: {
+      const proj = await tx.project.create({
+        data: {
           tenant_id: tenantAId,
-          code: 'M7-VAR-2026',
-          name: 'M7 Variance Testing Plaza',
+          code: testProjectCode,
+          name: `M7 Variance Testing Plaza ${testProjectCode}`,
           status: 'ACTIVE',
           current_approved_budget: '20000000.00',
           original_contract_sum: '20000000.00',
         },
       });
       projectAId = proj.id;
-
-      // Clean existing records for clean test isolation
-      await tx.progressRecord.deleteMany({ where: { project_id: proj.id } });
-      await tx.costEntry.deleteMany({ where: { project_id: proj.id } });
-      await tx.bOQ.deleteMany({ where: { project_id: proj.id } });
 
       // Create Active BOQ with 3 Sections
       const boq = await tx.bOQ.create({
@@ -315,7 +306,7 @@ describe('Milestone M7: Variance Flags, Section Breakdown & Project Dashboard Su
     // Section 3 (Allocated: 5,000,000):
     //   - Approved: 6,000,000 (120.00% -> OVERRUN, >100%)
     await withTenantTx(prisma, tenantAId, async (tx) => {
-      await tx.costEntry.deleteMany({ where: { project_id: projectAId } });
+      await tx.costEntry.updateMany({ where: { project_id: projectAId, status: 'APPROVED' }, data: { status: 'VOID' } });
 
       // Section 1 entries
       await tx.costEntry.create({
@@ -430,7 +421,7 @@ describe('Milestone M7: Variance Flags, Section Breakdown & Project Dashboard Su
       // Actual spend: KES 6,000,000 -> 30% cost consumption
       // Physical progress: 40% (0.40) -> Delta = 30% - 40% = -10% <= 0%
       await withTenantTx(prisma, tenantAId, async (tx) => {
-        await tx.costEntry.deleteMany({ where: { project_id: projectAId } });
+        await tx.costEntry.updateMany({ where: { project_id: projectAId, status: 'APPROVED' }, data: { status: 'VOID' } });
         await tx.costEntry.create({
           data: {
             tenant_id: tenantAId,
@@ -468,7 +459,7 @@ describe('Milestone M7: Variance Flags, Section Breakdown & Project Dashboard Su
       // Spend: KES 10,000,000 -> 50% cost consumption
       // Physical progress: 42% (0.42) -> Delta = 50% - 42% = +8% (0% < 8% < 15%)
       await withTenantTx(prisma, tenantAId, async (tx) => {
-        await tx.costEntry.deleteMany({ where: { project_id: projectAId } });
+        await tx.costEntry.updateMany({ where: { project_id: projectAId, status: 'APPROVED' }, data: { status: 'VOID' } });
         await tx.costEntry.create({
           data: {
             tenant_id: tenantAId,
@@ -508,7 +499,7 @@ describe('Milestone M7: Variance Flags, Section Breakdown & Project Dashboard Su
       // Spend: KES 14,000,000 -> 70% cost consumption
       // Physical progress: 40% (0.40) -> Delta = 70% - 40% = +30% (>= 15%)
       await withTenantTx(prisma, tenantAId, async (tx) => {
-        await tx.costEntry.deleteMany({ where: { project_id: projectAId } });
+        await tx.costEntry.updateMany({ where: { project_id: projectAId, status: 'APPROVED' }, data: { status: 'VOID' } });
         await tx.costEntry.create({
           data: {
             tenant_id: tenantAId,

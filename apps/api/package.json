@@ -9,7 +9,7 @@
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'api: lint passed'"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@construction/db": "workspace:*",

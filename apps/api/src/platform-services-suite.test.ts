@@ -10,6 +10,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
   let testProjectId: string;
   let testEquipmentId: string;
   let testLaborerId: string;
+  let testDeviceToken: string;
 
   const testDeviceImei = `86901205${Date.now().toString().slice(-7)}`;
   const testWorkerCode = `WKR-${Date.now().toString().slice(-4)}`;
@@ -136,10 +137,47 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       capturedCheckoutRequestId = body.checkoutRequestId;
     });
 
-    it('should return 404 when processing callback for unknown checkout request ID', async () => {
+    it('should reject unauthenticated M-Pesa callback with 401 Unauthorized (C1 hardening)', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/billing/mpesa-callback',
+        payload: {
+          MerchantRequestID: 'MR_TEST_FORGED',
+          CheckoutRequestID: capturedCheckoutRequestId,
+          ResultCode: 0,
+          ResultDesc: 'Success',
+        },
+      });
+
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('should reject authenticated callback missing explicit tenantId with 400 Bad Request (C1 hardening)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/billing/mpesa-callback',
+        headers: {
+          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+        },
+        payload: {
+          MerchantRequestID: 'MR_TEST_VALID',
+          CheckoutRequestID: capturedCheckoutRequestId,
+          ResultCode: 0,
+          ResultDesc: 'Success',
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(JSON.parse(res.body).message).toContain('Explicit valid tenantId is required');
+    });
+
+    it('should return 404 when processing callback for unknown checkout request ID', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/billing/mpesa-callback?tenantId=${testTenantId}`,
+        headers: {
+          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+        },
         payload: {
           MerchantRequestID: 'MR_TEST_UNKNOWN',
           CheckoutRequestID: 'ws_CO_NONEXISTENT_ID_99999',
@@ -156,7 +194,10 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
 
       const callbackRes = await app.inject({
         method: 'POST',
-        url: '/api/v1/billing/mpesa-callback',
+        url: `/api/v1/billing/mpesa-callback?tenantId=${testTenantId}`,
+        headers: {
+          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+        },
         payload: {
           MerchantRequestID: 'MR_TEST_VALID',
           CheckoutRequestID: capturedCheckoutRequestId,
@@ -317,6 +358,8 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(body.deviceImei).toBe(testDeviceImei);
       expect(body.calibrationTankCapacityLiters).toBe('400.00');
       expect(body.status).toBe('ONLINE');
+      testDeviceToken = body.deviceToken;
+      expect(testDeviceToken).toBeDefined();
     });
 
     it('should reject duplicate registration of same device IMEI', async () => {
@@ -335,10 +378,35 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(409);
     });
 
+    it('should reject unauthenticated telematics ping without token with 401 Unauthorized (C3 hardening)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/telematics/ping',
+        headers: {
+          'x-tenant-id': testTenantId,
+        },
+        payload: {
+          deviceImei: testDeviceImei,
+          latitude: '-1.292100',
+          longitude: '36.821900',
+          engineStatus: 'RUNNING',
+          engineRpm: 1800,
+          cumulativeEngineSeconds: 36000,
+          fuelLevelPercent: '80.00',
+        },
+      });
+
+      expect(res.statusCode).toBe(401);
+    });
+
     it('should ingest normal telematics ping (engine running, 80% fuel = 320L)', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/telematics/ping',
+        headers: {
+          'x-device-token': testDeviceToken,
+          'x-tenant-id': testTenantId,
+        },
         payload: {
           deviceImei: testDeviceImei,
           latitude: '-1.292100',
@@ -361,6 +429,10 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/telematics/ping',
+        headers: {
+          'x-device-token': testDeviceToken,
+          'x-tenant-id': testTenantId,
+        },
         payload: {
           deviceImei: testDeviceImei,
           latitude: '-1.292100',
@@ -388,7 +460,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       );
 
       expect(alert).toBeDefined();
-      expect(alert?.message_body).toContain('Rapid fuel drop of 40.0L detected');
+      expect(alert?.message_body).toContain('Rapid fuel level drop of 40.0L detected');
       expect(alert?.delivery_channel).toBe('WHATSAPP');
     });
 
@@ -529,7 +601,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
     const testIdempotencyKey = `IDEM-B2C-${Date.now()}`;
     let conversationId: string;
 
-    it('should initiate Safaricom Daraja B2C disbursement for casual labor wage batch', async () => {
+    it('should initiate Safaricom Daraja B2C disbursement in PENDING state awaiting gateway confirmation (C1 hardening)', async () => {
       const res = await app.inject({
         method: 'POST',
         url: `/api/v1/projects/${testProjectId}/b2c-disburse`,
@@ -547,9 +619,8 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
       conversationId = body.conversationId;
-      expect(body.status).toBe('COMPLETED');
+      expect(body.status).toBe('PENDING');
       expect(body.amount).toBe('12500.00');
-      expect(body.mpesaTransactionId).toBeDefined();
       expect(body.isIdempotentReplay).toBe(false);
     });
 
@@ -571,13 +642,53 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
       expect(body.isIdempotentReplay).toBe(true);
+      expect(body.status).toBe('PENDING');
       expect(body.amount).toBe('12500.00');
     });
 
-    it('should process inbound Daraja B2C callback and update transaction status', async () => {
+    it('should reject unauthenticated B2C callback with 401 Unauthorized (C1 hardening)', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/billing/mpesa-b2c-callback',
+        payload: {
+          ConversationID: conversationId,
+          OriginatorConversationID: 'AGY-TEST-ORIG-01',
+          ResultCode: 0,
+          ResultDesc: 'The service request is processed successfully.',
+          TransactionID: 'SKL99887766',
+        },
+      });
+
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('should reject authenticated B2C callback missing tenantId with 400 Bad Request (C1 hardening)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/billing/mpesa-b2c-callback',
+        headers: {
+          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+        },
+        payload: {
+          ConversationID: conversationId,
+          OriginatorConversationID: 'AGY-TEST-ORIG-01',
+          ResultCode: 0,
+          ResultDesc: 'The service request is processed successfully.',
+          TransactionID: 'SKL99887766',
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(JSON.parse(res.body).message).toContain('Explicit valid tenantId is required');
+    });
+
+    it('should process inbound Daraja B2C callback and update transaction status to COMPLETED', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/billing/mpesa-b2c-callback?tenantId=${testTenantId}`,
+        headers: {
+          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+        },
         payload: {
           ConversationID: conversationId,
           OriginatorConversationID: 'AGY-TEST-ORIG-01',

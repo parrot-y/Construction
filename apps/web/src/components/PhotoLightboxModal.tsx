@@ -110,6 +110,11 @@ export default function PhotoLightboxModal({
               </span>
             </div>
           </div>
+
+          {/* Kenya Data Protection Act 2019 Notice (M5) */}
+          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 leading-relaxed">
+            <span className="font-semibold text-slate-700">Kenya Data Protection Act (2019) Notice:</span> GPS geolocation data and site photographs are captured solely for contractual works verification and milestone audit.
+          </div>
         </div>
 
         {/* Footer */}

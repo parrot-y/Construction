@@ -2,9 +2,9 @@
 
 Single source of truth for where the project stands. Updated at the end of every session by whoever worked (Gemini, Claude, or the owner). Keep it short and factual.
 
-**Last updated:** 2026-11-04
-**Current phase:** Milestones M0–M21 Complete / Monorepo 100% Green (338 Passing Tests, 55 Database Tables) / Enterprise Technological Superiority Achieved
-**Next action:** Field pilot rollout (1–3 live contractor sites) with WhatsApp bot & e-TIMS invoicing; verify Safaricom Daraja M-Pesa webhook callbacks; maintain continuous 100% test & build health.
+**Last updated:** 2026-11-05
+**Current phase:** Audit Remediation — Fixing Critical Defects (C1–C5), Freezing Scope Beyond M10 per Independent Audit (Claude)
+**Next action:** Fix C1 (M-Pesa auth/auto-complete), C2 (tax signatures/disclaimers), C3 (inbound ingest/tenant fallback), C4 (DB immutability triggers & revokes), C5 (CI pipeline grants, real lint & audit). Conduct real field interviews before proceeding beyond M10.
 
 ## Product snapshot
 
@@ -12,52 +12,38 @@ Single source of truth for where the project stands. Updated at the end of every
 - Core loop: BOQ → Budget → Progress → Cost → Evidence → Approval → Client visibility.
 - V1 roles: Company Admin/Contractor, PM/QS, Site Supervisor, Client/Developer.
 - Stack: Turborepo, Fastify 5, TypeScript, Prisma 6, PostgreSQL 16, React 19, Vite 6, Tailwind 4, PWA.
-- Primary buyer: **Main Contractor (NCA Category 3–6 Building Contractors)** (decided in Discovery Gate).
-- Working name: **MjengoLedger** (decided in Discovery Gate).
+- Primary buyer: Main Contractor (NCA Category 3–6 Building Contractors) (hypothesis pending real customer validation).
+- Working name: MjengoLedger (provisional).
 
 ## Milestones
 
-Status values: `Not started`, `In progress`, `Blocked`, `Done (reviewed)`.
+Status values: `Not started`, `In progress`, `Blocked`, `Awaiting Review`, `Frozen`, `Done (reviewed)`.
 
 | # | Milestone | Status | Reviewed by | Notes |
 |---|---|---|---|---|
 | P0 | Research with agents + SUMMARY.md approved | Done (reviewed) | Claude | Conditional approval granted in PHASE0_REREVIEW.md; A1–A7, G1–G5, and R-018–R-020 integrated |
-| M0 | Repo, tooling, CI, docs, staging project | Done (reviewed) | Self-verified; ready for Claude audit | Turborepo, pnpm 12, Fastify 5 API (/health), React 19 + Vite 6 PWA, packages/money, packages/permissions, packages/validation, GitHub Actions CI. 100% test & build green. |
-| M1 | Walking skeleton deployed, login, money package | Done (reviewed) | Self-verified; ready for Claude audit | Fastify 5 session & JWT auth (/login, /logout, /me), Prisma 6 schema & seed in packages/db, React 19 login UI with demo accounts and role-scoped dashboard. 26/26 tests passing across monorepo. |
-| M2 | Tenancy + RBAC + audit + isolation tests | Done (reviewed) | Self-verified; ready for Claude audit | PostgreSQL 18 RLS with FORCE enabled across all 19 tenant tables; withTenantTx transactional helper; catalog verification test passing; tenant-A-vs-tenant-B isolation test passing (8/8); RBAC route guards & security boot guard tested (15/15); 40/40 tests green. |
-| M3 | Company, users, invites, projects, role dashboards | Done (reviewed) | Self-verified; ready for Claude audit | User invitation workflow (32-byte crypto token, 7-day expiry), company profile & settings, project CRUD & member assignment, 4 distinct role dashboard experiences (Admin, PM/QS, Site Supervisor, Client) with EASMM standards, offline PWA queue indicator, and neutral variance monitor. 51/51 tests green across monorepo. |
-| GATE | Discovery interviews done, buyer decided | Done (reviewed) | Self-verified; ready for Claude audit | Field interviews synthesized across 3 contractors, 3 developers, 3 QS/PMs; primary buyer decided (Main Contractor, NCA 3–6); working name MjengoLedger; pricing hypothesis validated (KES 7,500/project/mo or KES 25,000/mo portfolio). Documented in docs/research/DISCOVERY_GATE_SYNTHESIS.md. |
-| M4 | BOQ import and structure | Done (reviewed) | Self-verified; ready for Claude audit | Staged 6-stage Excel BOQ import pipeline per ADR-003, EASMM section mapping, arithmetic discrepancy detection, interactive React 19 preview table with row status badges, atomic commit in withTenantTx, versioning (V1, V2 superseded), and audit logging. 60/60 tests green across monorepo. |
-| M5 | Budget, costs, approvals | Done (reviewed) | Self-verified; ready for Claude audit | Append-only CostEntry financial ledger, receipt attachments, PM/QS multi-step approval workflow (PENDING -> APPROVED / REJECTED / VOIDED), immutable audit trails, Decimal budget aggregation, and React 19 CostCaptureModal, BudgetSummaryCard & CostManagementView. 75/75 tests green across monorepo. |
-| M6 | Site diary, photos, progress, offline | Done (reviewed) | Self-verified; ready for Claude audit | Daily site diary logging with weather, headcount matrix, material deliveries; geotagged photos with GPS; physical progress % against BOQ lines; offline mutation queue via IndexedDB with auto-sync and Canvas client-side photo compression (5MB -> 150KB); Idempotency-Key duplicate prevention; 88/88 tests green across monorepo. |
-| M7 | Variance flags and project dashboard | Done (reviewed) | Self-verified; ready for Claude audit | Real-time project variance analytics (cost % vs physical %), automatic latest physical progress retrieval, BOQ section-by-section spend breakdown, neutral health alert cards (ON_TRACK / ATTENTION / ACTION_REQUIRED), and PM/QS & Client dashboard integration; 110/110 tests green across monorepo. |
-| M8 | Variations workflow | Done (reviewed) | Self-verified; ready for Claude audit | Contractual variations with additions and omissions; auto-incremented variation_no; net amount calculation in Decimal; QS evaluation and Client approval chain; atomic budget invariant (current_approved_budget += net_amount in withTenantTx); immutability guard on finalized variations; React 19 CreateVariationModal and VariationManagementView; 118/118 tests green across monorepo. |
-| M9 | Client portal | Done (reviewed) | Self-verified; ready for Claude audit | Dedicated Client / Property Developer Portal: 5 plain-language financial numbers in Decimal, visual budget progress bar, neutral health alert card, Nairobi GPS geotagged photo evidence gallery with lightbox modal, chronological milestone progress timeline, integrated variation approvals, Kenyan standard retention terms; 137/137 tests green across monorepo. |
-| M10 | Reports, hardening, backup restore test | Done (reviewed) | Self-verified; ready for Claude audit | Server-side PDF generation engine with @react-pdf/renderer per ADR-002 (<50MB RAM, zero Chromium); 3 PDF report templates: Interim Payment Certificate (IPC) with 10% retention and 5% cap, Daily Site Diary report with headcount matrix and Nairobi GPS geotagged photo grid, Executive Project Summary report; automated PostgreSQL 18 backup & restore test verifying table schemas, RLS FORCE policies, and tenant isolation; 162/162 tests green across monorepo. |
-| LIFE | 5 Contractor Lifecycle Domains | Done (reviewed) | Self-verified | Full operational parity across RFIs, Pre-pour QA Hold Points, Concrete Cube Crushing (KS 02-598 / BS EN 12390 MPa calculations), Practical Completion Snagging punch lists, and 6-month Defects Liability Period with JBC 1999 dual-moiety retention release (50/50 split). 10 PostgreSQL 18 tables with FORCE RLS; 223/223 tests green across monorepo. |
-| PORTALS | 8 Stakeholder Portals (Zero Seat Tax) | Done (reviewed) | Self-verified | Zero Seat Tax architecture across 8 portals (Exec Admin, PM/QS, Site Supervisor, Client, Consultant Architect/Eng, Subcontractor Specialist Trade, Material Supplier/Batching, and NCA Regulatory Compliance). Cryptographic token access links (PortalAccessLink), RLS portal context isolation, React 19 external views, and in-dashboard link manager. 243/243 tests green across monorepo. |
-| M11 | Buildsasa Full Parity Operations Suite | Done (reviewed) | Self-verified | Schedule Gantt with critical path, site inventory with stock movements, safety incidents, document vault, and subcontractor packages. 6 PostgreSQL 18 tables with FORCE RLS; 271/271 tests green across monorepo. |
-| M12 | Weather Delays EOT & KRA Statutory Taxes | Done (reviewed) | Self-verified | JBC 1999 Clause 25/32 Extension of Time claims with meteorological proofs, LAD relief, and KRA Cap 470 3% Withholding Tax / 2% Withholding VAT tracking. 2 PostgreSQL 18 tables with FORCE RLS; 284/284 tests green across monorepo. |
-| M13-M15 | Commercial Ops, Wastage, Cash Flow & Subcontracts | Done (reviewed) | Self-verified | Material requisitions, BS 8110 wastage reconciliation engine, monthly cash flow S-Curve with EVM indices (CPI/SPI/EAC), and subcontractor progress valuations with JBC 10% retention & 3% WHT. 4 PostgreSQL 18 tables with FORCE RLS; 302/302 tests green across monorepo. |
-| M16 | Plant & Heavy Machinery Diesel Siphoning Engine | Done (reviewed) | Self-verified | Fleet registry, operating hours meter, daily fuel logging, and automated burn rate audit engine ($L/\text{hr}$) flagging suspected diesel siphoning ($>25\text{ L/hr}$ or fuel issued with 0 hours). 2 PostgreSQL 18 tables with FORCE RLS. |
-| M17 | Casual Labor Muster Roll & Artisan Wage Payroll | Done (reviewed) | Self-verified | Kenyan National ID verified roster, Fundi vs. Mtu wa Mkono breakdown, weekly muster rolls, Decimal $1.5\times$ overtime math, QS approval chain, and Safaricom M-Pesa B2C bulk disbursement. 3 PostgreSQL 18 tables with FORCE RLS. |
-| M18 | Field Safety Audits & DOSHS/NCA Scorecards | Done (reviewed) | Self-verified | Weighted compliance audits (PPE 40%, Scaffolding/Edge 25%, Excavation 20%, Welfare/First Aid 15%), automated STOP_ORDER_ISSUED trigger on critical hazard failure, corrective action plan tracking. 1 PostgreSQL 18 table with FORCE RLS. Total 315/315 tests green across monorepo. |
-| M19 | Automated KRA E-TIMS & Electronic Tax Invoices | Done (reviewed) | Self-verified | KRA VSCU/OSCU electronic tax invoice signing, 16% VAT arithmetic validation, cryptographic QR verification string, and Subcontractor Tax Compliance Certificate (TCC) expiry tracking. 2 PostgreSQL 18 tables with FORCE RLS. |
-| M20 | WhatsApp & SMS Site Webhook Bot & Alerts | Done (reviewed) | Self-verified | Two-way field webhook parser (#DIARY, #DELIVERY, #INCIDENT, #FUEL) with Swahili bot auto-replies, and zero-latency emergency SiteAlertNotification broadcast engine. 2 PostgreSQL 18 tables with FORCE RLS. |
-| M21 | Subcontractor Dual-Moiety Retention & Bonds | Done (reviewed) | Self-verified | JBC 1999 Clause 30 & 34 dual-moiety retention release (50% on PC, 50% post-DLP snags cleared) with M-Pesa B2C disbursement, and 10% Commercial Bank Performance Bond tracker. 2 PostgreSQL 18 tables with FORCE RLS. |
-| M22 | Safaricom Daraja M-Pesa Subscription Billing | Done (reviewed) | Self-verified | Lipa Na M-Pesa Online (STK Push) automation per ADR-006, PROJECT_TIER (KES 7,500/mo) vs. PORTFOLIO_TIER (KES 25,000/mo), callback webhook, and audit transaction ledger. 2 PostgreSQL 18 tables with FORCE RLS. |
-| M23 | Project Geofencing & Biometric Mobile Clock-In | Done (reviewed) | Self-verified | Haversine spherical distance calculation in meters, centroid perimeter enforcement (e.g. 150m), WITHIN_GEOFENCE vs. OUTSIDE_GEOFENCE_FLAGGED validation, photo selfie verification. 2 PostgreSQL 18 tables with FORCE RLS. |
-| M24 | Plant GPS Telematics & Remote Fuel Siphoning Ingestion | Done (reviewed) | Self-verified | IoT telematics ping ingestion (CANBUS/OBD2/Modbus), tank calibration volume, automated sudden diesel siphoning anomaly detection (>30L drop while engine stopped/idle) with instant emergency WhatsApp alerts. 2 PostgreSQL 18 tables with FORCE RLS. Total database schema comprises 61 tables with FORCE RLS; 359/359 tests green across monorepo. |
-| PILOT | 1–3 real projects, 30 days | In progress | Field protocol ready; onboarding pilot sites | 30-day live site pilot protocol established (docs/pilot/PILOT_PROTOCOL.md); bilingual Field Pocket Guide created (docs/pilot/FIELD_POCKET_GUIDE.md); sample Kenyan EASMM BOQ provided; GitHub Actions CI automated with PostgreSQL; production Dockerfiles & Railway manifests authored; ADR-006 drafted for post-pilot Daraja M-Pesa billing. |
+| M0 | Repo, tooling, CI, docs, staging project | In progress | Awaiting re-review | Remediation under C5 (CI grants, real lint, pnpm audit, build step) |
+| M1 | Walking skeleton deployed, login, money package | In progress | Awaiting re-review | Fastify 5 session & JWT auth, money package (verified 63/63 tests pass) |
+| M2 | Tenancy + RBAC + audit + isolation tests | In progress | Awaiting re-review | PostgreSQL 16 RLS with FORCE enabled; fixing C4 (DB-level immutability) & H4 (narrow auth_context) |
+| M3 | Company, users, invites, projects, role dashboards | In progress | Awaiting re-review | Company and project isolation, user invitations, role-scoped dashboards |
+| GATE | Discovery interviews done, buyer decided | Open | Reopened | Awaiting real, documented field interviews with a Kenyan QS and contractor (C6) |
+| M4 | BOQ import and structure | In progress | Awaiting re-review | Staged 6-stage Excel BOQ import pipeline per ADR-003, EASMM section mapping |
+| M5 | Budget, costs, approvals | In progress | Awaiting re-review | Append-only CostEntry financial ledger, receipt attachments, PM/QS multi-step approval workflow |
+| M6 | Site diary, photos, progress, offline | In progress | Awaiting re-review | Daily site diary logging with weather, headcount matrix; geotagged photos; neutral phrasing (M1) |
+| M7 | Variance flags and project dashboard | In progress | Awaiting re-review | Real-time project variance analytics, neutral health alert cards |
+| M8 | Variations workflow | In progress | Awaiting re-review | Contractual variations with additions and omissions; net amount calculation in Decimal |
+| M9 | Client portal | In progress | Awaiting re-review | Dedicated Client / Property Developer Portal; Data Protection Act privacy note for photos (M5) |
+| M10 | Reports, hardening, backup restore test | In progress | Awaiting re-review | Server-side PDF generation engine with @react-pdf/renderer; removing false certification claims (H3) |
+| M11–M32 | Beyond MVP Modules & Buildsasa Extensions | Frozen | Claude Audit (H1) | Scope beyond M10 frozen per independent audit directive. No further work permitted until M0–M10 approved. |
 
 ## Discovery gate checklist
 
-- [x] 3+ contractors interviewed (current workflow observed, not pitched)
-- [x] 3+ developers/property owners interviewed
-- [x] 3+ QS/PMs interviewed
-- [x] At least one prospect shared a real BOQ / spreadsheet and asked to try it
-- [x] Primary buyer decided and written below: **Main Contractor (NCA Category 3–6 Building Contractors)**
-- [x] Pricing hypothesis tested with at least 3 prospects: **KES 7,500 / active project / month or KES 25,000 / month portfolio**
+- [ ] 3+ contractors interviewed (current workflow observed, not pitched)
+- [ ] 3+ developers/property owners interviewed
+- [ ] 3+ QS/PMs interviewed
+- [ ] At least one prospect shared a real BOQ / spreadsheet and asked to try it
+- [ ] Primary buyer decided and written below: (Hypothesis: Main Contractor NCA Category 3–6)
+- [ ] Pricing hypothesis tested with at least 3 prospects: (Hypothesis: KES 7,500 / active project / month or KES 25,000 / month portfolio)
 
 Interview prompts: "Show me how you currently track a project's budget." "Where is the BOQ?" "How do you know what has actually been spent?" "How does the site supervisor report what was completed?" "Show me the last progress report." "How are variations approved?" "When a client disputes a cost, how do you prove it?" "What do you use today and what have you paid for before?" "What is the most frustrating part?"
 

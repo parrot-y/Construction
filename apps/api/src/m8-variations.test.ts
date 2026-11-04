@@ -114,19 +114,15 @@ describe('Milestone M8: Variations Workflow Suite', () => {
     });
     tenantBCookie = tbRes.headers['set-cookie'] as string;
 
+    const testProjectCode = `M8-VAR-${Date.now().toString().slice(-6)}`;
+
     // Create dedicated Project and BOQ item for Tenant A Milestone M8 verification
     await withTenantTx(prisma, tenantAId, async (tx) => {
-      const proj = await tx.project.upsert({
-        where: { tenant_id_code: { tenant_id: tenantAId, code: 'M8-VAR-2026' } },
-        update: {
-          current_approved_budget: '45000000.00',
-          original_contract_sum: '45000000.00',
-          status: 'ACTIVE',
-        },
-        create: {
+      const proj = await tx.project.create({
+        data: {
           tenant_id: tenantAId,
-          code: 'M8-VAR-2026',
-          name: 'Riverside Commercial Plaza M8',
+          code: testProjectCode,
+          name: `Riverside Commercial Plaza ${testProjectCode}`,
           status: 'ACTIVE',
           current_approved_budget: '45000000.00',
           original_contract_sum: '45000000.00',
@@ -134,11 +130,7 @@ describe('Milestone M8: Variations Workflow Suite', () => {
       });
       projectAId = proj.id;
 
-      // Clean existing variations for pristine test run
-      await tx.variationItem.deleteMany({ where: { variation_order: { project_id: proj.id } } });
-      await tx.variationOrder.deleteMany({ where: { project_id: proj.id } });
-
-      // Clean and seed a dedicated BOQ item for this project
+      // Seed a dedicated BOQ item for this project
       const existingBoq = await tx.bOQ.findFirst({
         where: { project_id: proj.id },
       });

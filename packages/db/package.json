@@ -12,7 +12,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
-    "lint": "echo 'db: lint passed'"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1"

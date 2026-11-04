@@ -69,7 +69,6 @@ describe('Milestones M16, M17 & M18: Site Operations, Plant Utilization & Siphon
         await tx.siteLaborer.deleteMany({ where: { project_id: projectId } });
         await tx.plantEquipmentDailyLog.deleteMany({ where: { project_id: projectId } });
         await tx.plantEquipment.deleteMany({ where: { project_id: projectId } });
-        await tx.auditLog.deleteMany({ where: { project_id: projectId } });
         await tx.project.deleteMany({ where: { id: projectId } });
       });
     }

@@ -1126,11 +1126,11 @@ export function evaluateFuelSiphoningAnomaly(
       isSiphoning: true,
       anomalyType: 'RAPID_THEFT_SIPHON',
       severity: 'CRITICAL',
-      message: `CRITICAL DIESEL THEFT: ${deltaLiters.toFixed(1)}L dropped in ${Math.round(elapsedSeconds / 60)} min while engine STOPPED.`,
+      message: `CRITICAL FUEL LEVEL VARIANCE: ${deltaLiters.toFixed(1)}L drop in ${Math.round(elapsedSeconds / 60)} min while engine STOPPED (unmatched to logged issue).`,
     };
   }
 
-  // 2. Engine IDLE theft
+  // 2. Engine IDLE anomaly
   if (engineStatus === 'IDLE' && dropRateLitersPerHour.greaterThan(12.0) && deltaLiters.greaterThanOrEqualTo(5.0)) {
     return {
       dropLiters: deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
@@ -1139,7 +1139,7 @@ export function evaluateFuelSiphoningAnomaly(
       isSiphoning: true,
       anomalyType: 'ACTIVE_SIPHON_IDLE',
       severity: 'CRITICAL',
-      message: `ACTIVE SIPHONING AT IDLE: Fuel consumption rate of ${dropRateLitersPerHour.toFixed(1)} L/h exceeds normal idle limit (max 4.0 L/h).`,
+      message: `ABNORMAL FUEL CONSUMPTION AT IDLE: Fuel consumption rate of ${dropRateLitersPerHour.toFixed(1)} L/h exceeds normal idle limit (max 4.0 L/h).`,
     };
   }
 

@@ -36,7 +36,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   let laborerId: string;
   let capturedCheckoutReqId: string;
 
-  const projectCode = 'RCP-SIM-2026';
+  const projectCode = `RCP-SIM-${Date.now().toString().slice(-6)}`;
   const sampleBoqCsvPath = path.resolve(__dirname, '../../../docs/pilot/sample_boq_riverside_plaza.csv');
 
   beforeAll(async () => {
@@ -1062,11 +1062,16 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       },
     });
     expect(devRes.statusCode).toBe(201);
+    const telematicsToken = JSON.parse(devRes.body).deviceToken;
 
     // 3. Normal running ping (80% = 320L)
     const ping1 = await server.inject({
       method: 'POST',
       url: '/api/v1/telematics/ping',
+      headers: {
+        'x-device-token': telematicsToken,
+        'x-tenant-id': tenantId,
+      },
       payload: {
         deviceImei: telematicsImei,
         latitude: '-1.286389',
@@ -1084,6 +1089,10 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     const ping2 = await server.inject({
       method: 'POST',
       url: '/api/v1/telematics/ping',
+      headers: {
+        'x-device-token': telematicsToken,
+        'x-tenant-id': tenantId,
+      },
       payload: {
         deviceImei: telematicsImei,
         latitude: '-1.286389',
@@ -1126,14 +1135,16 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(geoRes.statusCode).toBe(201);
 
     // 2. Register artisan laborer
+    const simWorkerCode = `WKR-SIM-${Date.now().toString().slice(-4)}`;
+    const simNationalId = `ID-${Date.now().toString().slice(-6)}`;
     const labRes = await server.inject({
       method: 'POST',
       url: `/api/v1/projects/${projectId}/laborers`,
       headers: { cookie: supervisorCookie },
       payload: {
-        workerCode: 'WKR-SIM-01',
+        workerCode: simWorkerCode,
         fullName: 'Juma Otieno Ochieng',
-        nationalIdNo: 'ID-28193849',
+        nationalIdNo: simNationalId,
         phoneNumber: '+254711223344',
         tradeCategory: 'MASON',
         skillLevel: 'ARTISAN_FUNDI',
@@ -1297,7 +1308,10 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     const wh1 = await server.inject({
       method: 'POST',
       url: '/api/v1/webhooks/site-ops',
-      headers: { 'x-tenant-id': tenantId },
+      headers: {
+        'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
+        'x-tenant-id': tenantId,
+      },
       payload: {
         senderPhone: '+254722889900',
         senderName: 'Juma Foreman',
@@ -1315,7 +1329,10 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     const wh2 = await server.inject({
       method: 'POST',
       url: '/api/v1/webhooks/site-ops',
-      headers: { 'x-tenant-id': tenantId },
+      headers: {
+        'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
+        'x-tenant-id': tenantId,
+      },
       payload: {
         senderPhone: '+254722889900',
         senderName: 'Juma Foreman',
@@ -1401,7 +1418,10 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     const receiptNo = `QA${Date.now().toString().slice(-8)}`;
     const cbRes = await server.inject({
       method: 'POST',
-      url: '/api/v1/billing/mpesa-callback',
+      url: `/api/v1/billing/mpesa-callback?tenantId=${tenantId}`,
+      headers: {
+        'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+      },
       payload: {
         MerchantRequestID: 'MR_SIM_VALID',
         CheckoutRequestID: capturedCheckoutReqId,

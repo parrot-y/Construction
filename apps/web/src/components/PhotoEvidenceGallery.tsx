@@ -51,6 +51,14 @@ export default function PhotoEvidenceGallery({
         </span>
       </div>
 
+      {/* Statutory Data Protection Notice (M5) */}
+      <div className="text-[10px] text-slate-500 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+        <span>🛡️</span>
+        <span>
+          <strong>Data Protection Notice:</strong> Geolocation data and site imagery are recorded strictly for contractual milestone verification under the Kenya Data Protection Act 2019.
+        </span>
+      </div>
+
       {displayPhotos.length === 0 ? (
         <div className="border border-slate-200 rounded-xl p-8 text-center bg-slate-50/50 space-y-2">
           <div className="text-3xl text-slate-400">🏗️</div>

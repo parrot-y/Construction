@@ -29,6 +29,7 @@ We mandate a **two-layer defense-in-depth isolation architecture** with an expli
 - Every repository method requires a typed `TenantContext` and a transactional client `tx: Prisma.TransactionClient`.
 
 ### Layer 2: PostgreSQL Row-Level Security with Mandatory Role Separation
+- **Target Engine:** PostgreSQL 16 (Standard Production & CI Target, compatible through PostgreSQL 18).
 - Two distinct database roles:
   - `db_migrator`: Table owner, used exclusively during CI/CD migrations (`prisma migrate deploy`).
   - `db_app`: Non-owner runtime role without `rolsuper` and without `rolbypassrls`, used exclusively by the Fastify API.

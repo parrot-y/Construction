@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'web: lint passed'"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@construction/money": "workspace:*",

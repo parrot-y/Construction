@@ -74,20 +74,25 @@ jobs:
             END \$\$;
             GRANT ALL PRIVILEGES ON DATABASE construction_test TO db_migrator;
             GRANT ALL PRIVILEGES ON SCHEMA public TO db_migrator;
-            GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO db_app;
-            GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO db_app;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO db_app;
-            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO db_app;
           "
 
-          # 2. Deploy Prisma Schema
+          # 2. Deploy Prisma Schema as db_migrator (creates all tables with correct ownership)
           DATABASE_URL="postgresql://db_migrator:migrator_secret@localhost:5432/construction_test?schema=public" \
           pnpm --filter @construction/db prisma db push --skip-generate
 
-          # 3. Apply Row-Level Security
+          # 3. Grant schema permissions to db_app AFTER tables exist, and configure default privileges for db_migrator (C5)
+          psql -h localhost -U postgres -d construction_test -c "
+            GRANT USAGE ON SCHEMA public TO db_app;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO db_app;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO db_app;
+            ALTER DEFAULT PRIVILEGES FOR ROLE db_migrator IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO db_app;
+            ALTER DEFAULT PRIVILEGES FOR ROLE db_migrator IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO db_app;
+          "
+
+          # 4. Apply Row-Level Security, Ledger Immutability, and Triggers (C4, R-014, R-024)
           psql -h localhost -U postgres -d construction_test -f packages/db/prisma/rls.sql
 
-          # 4. Seed Database
+          # 5. Seed Database
           DATABASE_URL="postgresql://db_migrator:migrator_secret@localhost:5432/construction_test?schema=public" \
           pnpm --filter @construction/db run prisma:seed
 
@@ -97,7 +102,13 @@ jobs:
       - name: Run Typecheck
         run: pnpm run typecheck
 
-      - name: Run Unit & Integration Tests
+      - name: Build All Packages
+        run: pnpm run build
+
+      - name: Security Vulnerability Audit
+        run: pnpm audit --prod --audit-level=high
+
+      - name: Run Unit & Integration Tests (App Role & RLS Isolation)
         env:
           DATABASE_URL: postgresql://db_app:app_secret@localhost:5432/construction_test?schema=public
         run: pnpm run test --force

@@ -420,9 +420,12 @@ export const PaymentCertificatePdf: React.FC<{ data: PaymentCertificateData }> =
 
         {/* Kenyan Retention Terms Callout */}
         <View style={styles.policyBox}>
-          <Text style={styles.policyTitle}>Statutory Kenyan Retention Fund Provisions (BORAQS / JBCC Standard)</Text>
+          <Text style={styles.policyTitle}>Contractual Retention Fund Terms (Reference Provisions)</Text>
           <Text style={styles.policyText}>
-            Interim retention deduction of {financials.retentionDeductionRate} applies on gross valuation up to a maximum cap of {financials.retentionMaxCapRate} (KES {financials.retentionMaxCapAmount}). In accordance with Kenyan standard building contracts, 50% of the retention fund is released upon Practical Completion (Handover) and the remaining 50% upon issuance of the Final Certificate at the expiry of the Defects Liability Period (DLP).
+            Interim retention deduction of {financials.retentionDeductionRate} applies on gross valuation up to a maximum cap of {financials.retentionMaxCapRate} (KES {financials.retentionMaxCapAmount}). In accordance with standard building subcontract terms, 50% of the retention fund is typically released upon Practical Completion (Handover) and the remaining 50% upon issuance of the Final Certificate at the expiry of the Defects Liability Period (DLP).
+          </Text>
+          <Text style={{ fontSize: 6.5, color: '#64748b', marginTop: 4, fontStyle: 'italic' }}>
+            NOTICE: This document is a software-generated payment valuation record. It does not constitute statutory certification under the Architects and Quantity Surveyors Act (Cap 525). Official valuation certificates must be validated and stamped by a registered Quantity Surveyor.
           </Text>
         </View>
 

@@ -16,6 +16,7 @@ describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
   let adminAId: string;
   let supervisorAId: string;
   let diaryAId: string;
+  let testProjectCode: string;
 
   beforeAll(async () => {
     await server.ready();
@@ -108,22 +109,15 @@ describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
     });
     tenantBCookie = tbRes.headers['set-cookie'] as string;
 
+    testProjectCode = `M10-REP-${Date.now().toString().slice(-6)}`;
+
     // 5. Seed dedicated Project, BOQ, Costs, Variations, Diaries, and Progress for Tenant A
     await withTenantTx(prisma, tenantAId, async (tx) => {
-      const proj = await tx.project.upsert({
-        where: { tenant_id_code: { tenant_id: tenantAId, code: 'M10-REP-2026' } },
-        update: {
-          name: 'Riverside Commercial Plaza M10',
-          location: 'Riverside Drive, Nairobi',
-          nca_project_no: 'NCA-PRJ-2026-0891',
-          original_contract_sum: '45000000.00',
-          current_approved_budget: '45900000.00',
-          status: 'ACTIVE',
-        },
-        create: {
+      const proj = await tx.project.create({
+        data: {
           tenant_id: tenantAId,
-          code: 'M10-REP-2026',
-          name: 'Riverside Commercial Plaza M10',
+          code: testProjectCode,
+          name: `Riverside Commercial Plaza ${testProjectCode}`,
           location: 'Riverside Drive, Nairobi',
           nca_project_no: 'NCA-PRJ-2026-0891',
           original_contract_sum: '45000000.00',
@@ -132,13 +126,6 @@ describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
         },
       });
       projectAId = proj.id;
-
-      // Clean old child records
-      await tx.costEntry.deleteMany({ where: { project_id: projectAId } });
-      await tx.variationOrder.deleteMany({ where: { project_id: projectAId } });
-      await tx.progressRecord.deleteMany({ where: { project_id: projectAId } });
-      await tx.siteDiary.deleteMany({ where: { project_id: projectAId } });
-      await tx.bOQ.deleteMany({ where: { project_id: projectAId } });
 
       // BOQ
       const boq = await tx.bOQ.create({
@@ -337,7 +324,7 @@ describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('application/pdf');
-    expect(res.headers['content-disposition']).toBe('attachment; filename="IPC-M10-REP-2026.pdf"');
+    expect(res.headers['content-disposition']).toBe(`attachment; filename="IPC-${testProjectCode}.pdf"`);
 
     const pdfBuffer = res.rawPayload;
     expect(Buffer.isBuffer(pdfBuffer)).toBe(true);
@@ -372,7 +359,7 @@ describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('application/pdf');
-    expect(res.headers['content-disposition']).toContain('SiteDiary-M10-REP-2026');
+    expect(res.headers['content-disposition']).toContain(`SiteDiary-${testProjectCode}`);
     expect(res.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
   });
 
@@ -388,7 +375,7 @@ describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('application/pdf');
-    expect(res.headers['content-disposition']).toBe('attachment; filename="ProjectSummary-M10-REP-2026.pdf"');
+    expect(res.headers['content-disposition']).toBe(`attachment; filename="ProjectSummary-${testProjectCode}.pdf"`);
     expect(res.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
   });
 

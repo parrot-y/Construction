@@ -10,7 +10,6 @@ import {
   ReviewSubcontractorRetentionReleaseSchema,
   CreateContractorBondSchema,
 } from '@construction/validation';
-import * as crypto from 'crypto';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -143,12 +142,9 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          // Simulated KRA VSCU SHA256 Signature
-          const payloadToSign = `${tenantId}:${projectId}:${data.invoiceNumber}:${data.cuInvoiceNumber}:${data.buyerPin}:${total.toFixed(2)}`;
-          const cryptoSig = crypto.createHash('sha256').update(payloadToSign).digest('base64');
-
-          // KRA QR Code verification URL per VSCU / OSCU standard
-          const kraQrUrl = `https://itax.kra.go.ke/KRA-Portal/invoiceChk.htm?actionCode=loadPage&receiptNo=${encodeURIComponent(data.cuInvoiceNumber)}`;
+          // Development Sandbox Mock Signature (C2 Remediation: strictly non-production)
+          const mockSignature = 'MOCK_SANDBOX_SIMULATION_ONLY_NOT_OFFICIAL_KRA_SIGNATURE';
+          const mockQrUrl = 'urn:mjengo:sandbox:simulation-non-official-tax-invoice';
 
           const invoice = await tx.eTimsInvoice.create({
             data: {
@@ -166,9 +162,9 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
               tax_breakdown_8: toDecimal(data.taxBreakdown8 || '0.00').toFixed(2),
               tax_breakdown_0: toDecimal(data.taxBreakdown0 || '0.00').toFixed(2),
               tax_breakdown_exempt: toDecimal(data.taxBreakdownExempt || '0.00').toFixed(2),
-              qr_code_url: kraQrUrl,
-              cryptographic_signature: cryptoSig,
-              transmission_status: 'VALIDATED',
+              qr_code_url: mockQrUrl,
+              cryptographic_signature: mockSignature,
+              transmission_status: 'SIMULATED_LOCAL_DRAFT',
               transmitted_at: new Date(),
             },
           });
@@ -185,6 +181,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
               cuInvoiceNumber: invoice.cu_invoice_number,
               totalAmount: invoice.total_invoice_amount.toString(),
               buyerPin: invoice.buyer_pin,
+              status: 'SIMULATED_LOCAL_DRAFT',
             },
           });
 
@@ -201,6 +198,9 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
             cryptographicSignature: invoice.cryptographic_signature,
             transmissionStatus: invoice.transmission_status,
             transmittedAt: invoice.transmitted_at?.toISOString() || null,
+            isOfficialTaxInvoice: false,
+            disclaimer:
+              'NON-PRODUCTION SIMULATION: This draft invoice has NOT been transmitted to or validated by Kenya Revenue Authority (KRA). It is an internal draft and does NOT constitute a valid legal e-TIMS tax invoice.',
           };
         });
 
@@ -383,20 +383,35 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
   // MODULE 2: WHATSAPP & SMS TWO-WAY SITE OPS WEBHOOKS & ALERTS (M20)
   // ===========================================================================
 
-  // 2.1 Inbound Webhook Processing (WhatsApp / Twilio / Africa's Talking)
+  // 2.1 Inbound Webhook Processing (WhatsApp / Twilio / Africa's Talking) (C3 Hardened)
   server.post(
     '/api/v1/webhooks/site-ops',
     async (request, reply) => {
-      // Determine Tenant Context: from authenticated user, header, or query
-      let tenantId = (request as any).user?.tenantId || (request.headers['x-tenant-id'] as string);
+      // 1. Mandatory Webhook Secret Authentication (C3)
+      const webhookSecret =
+        (request.headers['x-site-ops-secret'] as string) ||
+        (request.headers['authorization'] as string)?.replace(/^Bearer\s+/i, '');
+      const expectedSecret = process.env.SITE_OPS_WEBHOOK_SECRET || 'mjengo-site-ops-webhook-secret-production';
+      if (!webhookSecret || webhookSecret !== expectedSecret) {
+        return reply.status(401).send({
+          statusCode: 401,
+          error: 'Unauthorized',
+          message: 'Invalid or missing site-ops webhook authentication secret',
+        });
+      }
+
+      // 2. Explicit Tenant Context Resolution (no fallback to arbitrary tenants) (C3)
+      const tenantId =
+        (request as any).user?.tenantId ||
+        (request.headers['x-tenant-id'] as string) ||
+        (request.query as any)?.tenantId;
 
       if (!tenantId || !UUID_REGEX.test(tenantId)) {
-        // Fallback: look up default active tenant
-        const defaultTenant = await prisma.tenant.findFirst({ orderBy: { created_at: 'asc' } });
-        if (!defaultTenant) {
-          return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No active tenant found' });
-        }
-        tenantId = defaultTenant.id;
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Explicit valid tenantId is required in header or query parameters',
+        });
       }
 
       const parseResult = ProcessWebhookPayloadSchema.safeParse(request.body);

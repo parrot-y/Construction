@@ -116,18 +116,13 @@ describe('Lifecycle Extensions Suite: 5 Domains & Strict RLS Isolation', () => {
     tenantBCookie = tbRes.headers['set-cookie'] as string;
 
     // 5. Seed Project A for Tenant A (Contract Sum: KES 10,000,000.00 for JBC 1999 5% retention verification)
+    const lcCode = `LC-APEX-${Date.now().toString().slice(-6)}`;
     await withTenantTx(prisma, tenantAId, async (tx) => {
-      const proj = await tx.project.upsert({
-        where: { tenant_id_code: { tenant_id: tenantAId, code: 'LC-APEX-01' } },
-        update: {
-          current_approved_budget: '10000000.00',
-          original_contract_sum: '10000000.00',
-          status: 'ACTIVE',
-        },
-        create: {
+      const proj = await tx.project.create({
+        data: {
           tenant_id: tenantAId,
-          code: 'LC-APEX-01',
-          name: 'Apex Parkview Commercial Center',
+          code: lcCode,
+          name: `Apex Parkview Commercial Center ${lcCode}`,
           location: 'Kilimani, Nairobi',
           nca_project_no: 'NCA-PR-2026-98124',
           status: 'ACTIVE',
@@ -136,23 +131,6 @@ describe('Lifecycle Extensions Suite: 5 Domains & Strict RLS Isolation', () => {
         },
       });
       projectAId = proj.id;
-
-      // Clean up any test records from prior runs to ensure deterministic sequencing
-      await tx.rFIResponse.deleteMany({ where: { rfi: { project_id: projectAId } } });
-      await tx.rFIAttachment.deleteMany({ where: { rfi: { project_id: projectAId } } });
-      await tx.rFI.deleteMany({ where: { project_id: projectAId } });
-
-      await tx.inspectionItem.deleteMany({ where: { checklist: { project_id: projectAId } } });
-      await tx.inspectionChecklist.deleteMany({ where: { project_id: projectAId } });
-
-      await tx.cubeBreakResult.deleteMany({ where: { cube_test: { project_id: projectAId } } });
-      await tx.concreteCubeTest.deleteMany({ where: { project_id: projectAId } });
-
-      await tx.snagPhoto.deleteMany({ where: { snag_item: { project_id: projectAId } } });
-      await tx.snagItem.deleteMany({ where: { project_id: projectAId } });
-
-      await tx.defectsLiabilityCertificate.deleteMany({ where: { project_id: projectAId } });
-      await tx.auditLog.deleteMany({ where: { project_id: projectAId } });
     });
   });
 

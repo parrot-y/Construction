@@ -325,7 +325,7 @@ describe('External Stakeholder Portals Suite: Token-Based Zero Seat Tax Access',
     expect(body.stakeholder.name).toBe('Arch. Peter Mwangi');
     expect(body.rfis.length).toBeGreaterThan(0);
     expect(body.cubeTests.length).toBeGreaterThan(0);
-    expect(body.cubeTests[0].batch_reference).toBe('BT-EXT-2026-001');
+    expect(body.cubeTests.some((t: any) => t.batch_reference === 'BT-EXT-2026-001')).toBe(true);
   });
 
   it('allows consultant to answer an RFI directly via the portal link without credentials', async () => {

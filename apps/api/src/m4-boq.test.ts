@@ -92,20 +92,19 @@ describe('Milestone M4: Staged Excel BOQ Import & Structure Suite', () => {
     });
     clientCookie = clientRes.headers['set-cookie'] as string;
 
-    // Retrieve active Project A for Apex Builders
+    // Create dedicated active Project A for Apex Builders
+    const testProjectCode = `M4-BOQ-${Date.now().toString().slice(-6)}`;
     const project = await withTenantTx(prisma, tenantAId, async (tx) => {
-      return tx.project.findFirst({
-        where: { tenant_id: tenantAId, code: 'RCP-2026' },
+      return tx.project.create({
+        data: {
+          tenant_id: tenantAId,
+          code: testProjectCode,
+          name: `Riverside Commercial Plaza ${testProjectCode}`,
+          status: 'ACTIVE',
+        },
       });
     });
-    projectAId = project!.id;
-
-    // Clean up any test BOQs for project A from previous test runs
-    await withTenantTx(prisma, tenantAId, async (tx) => {
-      await tx.bOQ.deleteMany({
-        where: { project_id: projectAId },
-      });
-    });
+    projectAId = project.id;
 
     // Create a Tenant B for multi-tenant cross-isolation checks
     const tenantB = await prisma.tenant.upsert({

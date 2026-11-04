@@ -16,6 +16,7 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
   let adminAId: string;
   let sampleBoqItem1Id: string;
   let sampleBoqItem2Id: string;
+  let testProjectCode: string;
 
   beforeAll(async () => {
     await server.ready();
@@ -107,26 +108,16 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
     });
     tenantBCookie = tbRes.headers['set-cookie'] as string;
 
+    testProjectCode = `M9-CP-${Date.now().toString().slice(-6)}`;
+
     // 5. Seed dedicated Project, BOQ, Costs, Variations, Diaries, and Progress for Tenant A
     await withTenantTx(prisma, tenantAId, async (tx) => {
       // 5.1 Project
-      const proj = await tx.project.upsert({
-        where: { tenant_id_code: { tenant_id: tenantAId, code: 'M9-CP-2026' } },
-        update: {
-          name: 'Riverside Commercial Plaza M9',
-          description: 'Prime commercial plaza development in Riverside, Nairobi',
-          location: 'Riverside Drive, Nairobi',
-          nca_project_no: 'NCA-PRJ-2026-0891',
-          original_contract_sum: '45000000.00',
-          current_approved_budget: '45000000.00',
-          status: 'ACTIVE',
-          start_date: new Date('2026-01-15T00:00:00.000Z'),
-          target_end_date: new Date('2026-12-15T00:00:00.000Z'),
-        },
-        create: {
+      const proj = await tx.project.create({
+        data: {
           tenant_id: tenantAId,
-          code: 'M9-CP-2026',
-          name: 'Riverside Commercial Plaza M9',
+          code: testProjectCode,
+          name: `Riverside Commercial Plaza ${testProjectCode}`,
           description: 'Prime commercial plaza development in Riverside, Nairobi',
           location: 'Riverside Drive, Nairobi',
           nca_project_no: 'NCA-PRJ-2026-0891',
@@ -138,13 +129,6 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
         },
       });
       projectAId = proj.id;
-
-      // Clean up previous child records for clean test run
-      await tx.costEntry.deleteMany({ where: { project_id: projectAId } });
-      await tx.variationOrder.deleteMany({ where: { project_id: projectAId } });
-      await tx.progressRecord.deleteMany({ where: { project_id: projectAId } });
-      await tx.siteDiary.deleteMany({ where: { project_id: projectAId } });
-      await tx.bOQ.deleteMany({ where: { project_id: projectAId } });
 
       // 5.2 BOQ Baseline
       const boq = await tx.bOQ.create({
@@ -689,8 +673,8 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
     const { project } = body.data;
 
     expect(project.id).toBe(projectAId);
-    expect(project.name).toBe('Riverside Commercial Plaza M9');
-    expect(project.code).toBe('M9-CP-2026');
+    expect(project.name).toBe(`Riverside Commercial Plaza ${testProjectCode}`);
+    expect(project.code).toBe(testProjectCode);
     expect(project.location).toBe('Riverside Drive, Nairobi');
     expect(project.nca_registration_no).toBe('NCA-PRJ-2026-0891');
     expect(project.start_date).toBe('2026-01-15');

@@ -7,7 +7,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'permissions: lint passed'"
+    "lint": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

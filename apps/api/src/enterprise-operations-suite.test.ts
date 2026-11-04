@@ -103,7 +103,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
       expect(body.message).toContain('Arithmetic mismatch');
     });
 
-    it('should generate and validate compliant KRA E-TIMS invoice with VSCU signature and QR URL', async () => {
+    it('should register draft simulated E-TIMS invoice with mock signature and sandbox disclaimer (C2 hardening)', async () => {
       const res = await app.inject({
         method: 'POST',
         url: `/api/v1/projects/${testProjectId}/etims-invoices`,
@@ -118,8 +118,8 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
           totalTaxAmount: '80000.00', // 16% VAT
           totalInvoiceAmount: '580000.00',
           taxBreakdown16: '80000.00',
-          qrCodeUrl: 'https://itax.kra.go.ke/KRA-Portal/invoiceChk.htm',
-          cryptographicSignature: 'VSCU_INIT_SIG',
+          qrCodeUrl: 'urn:mock-etims-qr-simulation',
+          cryptographicSignature: 'MOCK_SANDBOX_SIMULATION_ONLY_NOT_OFFICIAL_KRA_SIGNATURE',
         },
       });
 
@@ -127,9 +127,10 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
       const body = JSON.parse(res.body);
       expect(body.invoiceNumber).toBe(testInvoiceNo);
       expect(body.cuInvoiceNumber).toBe(testCuInvoiceNo);
-      expect(body.transmissionStatus).toBe('VALIDATED');
-      expect(body.qrCodeUrl).toContain('https://itax.kra.go.ke');
-      expect(body.cryptographicSignature).toBeDefined();
+      expect(body.transmissionStatus).toBe('SIMULATED_LOCAL_DRAFT');
+      expect(body.isOfficialTaxInvoice).toBe(false);
+      expect(body.disclaimer).toContain('NON-PRODUCTION SIMULATION');
+      expect(body.cryptographicSignature).toContain('MOCK_SANDBOX_SIMULATION_ONLY');
     });
 
     it('should list E-TIMS invoices with taxable and tax totals', async () => {
@@ -193,11 +194,51 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
   // MILESTONE M20: WHATSAPP & SMS TWO-WAY SITE OPS WEBHOOKS & ALERTS
   // ===========================================================================
   describe('Milestone M20: WhatsApp / SMS Inbound Webhook & Emergency Alert Dispatch', () => {
+    it('should reject unauthenticated site-ops webhook without secret with 401 Unauthorized (C3 hardening)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/webhooks/site-ops',
+        headers: {
+          'x-tenant-id': testTenantId,
+        },
+        payload: {
+          senderPhone: '+254712345678',
+          senderName: 'Foreman Kiprono',
+          channel: 'WHATSAPP',
+          rawMessage: '#DIARY 14 masons on site',
+          projectId: testProjectId,
+        },
+      });
+
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('should reject site-ops webhook without tenantId with 400 Bad Request and not fallback to oldest tenant (C3 hardening)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/webhooks/site-ops',
+        headers: {
+          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
+        },
+        payload: {
+          senderPhone: '+254712345678',
+          senderName: 'Foreman Kiprono',
+          channel: 'WHATSAPP',
+          rawMessage: '#DIARY 14 masons on site',
+          projectId: testProjectId,
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(JSON.parse(res.body).message).toContain('Explicit valid tenantId is required');
+    });
+
     it('should parse #DIARY message and return intelligent auto-reply', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
+          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
           'x-tenant-id': testTenantId,
         },
         payload: {
@@ -222,6 +263,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
+          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
           'x-tenant-id': testTenantId,
         },
         payload: {
@@ -245,6 +287,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
+          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
           'x-tenant-id': testTenantId,
         },
         payload: {
@@ -281,6 +324,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
+          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
           'x-tenant-id': testTenantId,
         },
         payload: {
