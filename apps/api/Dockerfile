@@ -27,7 +27,7 @@ RUN pnpm --filter @construction/db run build
 RUN pnpm --filter @construction/api run build
 
 # Production runner stage
-FROM node:22-alpine AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
@@ -45,4 +45,4 @@ USER nodejs
 EXPOSE 3001
 
 WORKDIR /app/apps/api
-CMD ["node", "dist/index.js"]
+CMD ["pnpm", "start"]

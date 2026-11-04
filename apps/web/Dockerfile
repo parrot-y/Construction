@@ -13,7 +13,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages ./packages
 COPY apps/web ./apps/web
-COPY tsconfig.json ./
+COPY tsconfig.json tsconfig.base.json ./
 
 RUN pnpm --filter @construction/permissions run build || true
 RUN pnpm --filter @construction/money run build || true
