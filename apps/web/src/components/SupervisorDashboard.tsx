@@ -15,6 +15,7 @@ import { MaterialWastageVarianceCard } from './MaterialWastageVarianceCard';
 import { PlantEquipmentView } from './PlantEquipmentView';
 import { LaborMusterRollView } from './LaborMusterRollView';
 import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
+import { WhatsAppSiteWebhookView } from './WhatsAppSiteWebhookView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -252,6 +253,13 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
       <SafetyAuditScorecardView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="SITE_SUPERVISOR"
+      />
+
+      {/* WhatsApp & SMS Site Webhook Feed (Milestone M20) */}
+      <WhatsAppSiteWebhookView
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
         userRole="SITE_SUPERVISOR"

@@ -22,6 +22,7 @@ import { operationsRoutes } from './routes/operations';
 import { contractClaimsRoutes } from './routes/contractClaims';
 import { commercialOperationsRoutes } from './routes/commercialOperations';
 import { siteOperationsRoutes } from './routes/siteOperations';
+import { enterpriseOperationsRoutes } from './routes/enterpriseOperations';
 
 export function buildServer(): FastifyInstance {
   const server = fastify({
@@ -114,6 +115,7 @@ export function buildServer(): FastifyInstance {
   server.register(contractClaimsRoutes);
   server.register(commercialOperationsRoutes);
   server.register(siteOperationsRoutes);
+  server.register(enterpriseOperationsRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

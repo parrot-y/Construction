@@ -132,6 +132,11 @@ model Project {
   muster_rolls          LaborMusterRoll[]
   labor_attendances     LaborDailyAttendance[]
   safety_audits         SafetyAuditRecord[]
+  etims_invoices        ETimsInvoice[]
+  site_webhook_logs     SiteWebhookLog[]
+  site_alert_notifications SiteAlertNotification[]
+  retention_releases    SubcontractorRetentionRelease[]
+  contractor_bonds      ContractorBondTracker[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -934,6 +939,8 @@ model SubcontractorPackage {
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
   valuations           SubcontractorValuation[]
+  tax_compliances      SubcontractorTaxCompliance[]
+  retention_releases   SubcontractorRetentionRelease[]
 
   @@index([tenant_id, project_id, trade_category])
   @@map("subcontractor_packages")
@@ -1288,6 +1295,156 @@ model SafetyAuditRecord {
   @@index([tenant_id, project_id, audit_outcome])
   @@map("safety_audit_records")
 }
+
+// =============================================================
+// KRA E-TIMS & ELECTRONIC TAX INVOICE COMPLIANCE (M19)
+// =============================================================
+
+model ETimsInvoice {
+  id                      String    @id @default(uuid()) @db.Uuid
+  tenant_id               String    @db.Uuid
+  project_id              String    @db.Uuid
+  invoice_number          String    @db.VarChar(100) // Internal invoice reference e.g. "INV-2026-001"
+  cu_invoice_number       String    @db.VarChar(100) // KRA Control Unit invoice e.g. "KRAVSCU010000000001"
+  invoice_type            String    @default("ORIGINAL") @db.VarChar(50) // "ORIGINAL", "CREDIT_NOTE", "DEBIT_NOTE"
+  buyer_pin               String    @db.VarChar(50) // KRA PIN format e.g. "P051234567Z"
+  buyer_name              String    @db.VarChar(255)
+  total_taxable_amount    Decimal   @db.Decimal(15, 2)
+  total_tax_amount        Decimal   @db.Decimal(15, 2)
+  total_invoice_amount    Decimal   @db.Decimal(15, 2)
+  tax_breakdown_16        Decimal   @default(0.00) @db.Decimal(15, 2) // Standard 16% VAT
+  tax_breakdown_8         Decimal   @default(0.00) @db.Decimal(15, 2) // Fuel 8% VAT
+  tax_breakdown_0         Decimal   @default(0.00) @db.Decimal(15, 2) // Zero-rated
+  tax_breakdown_exempt    Decimal   @default(0.00) @db.Decimal(15, 2) // Exempt
+  qr_code_url             String    @db.VarChar(500) // Verification URL
+  cryptographic_signature String    @db.VarChar(255) // Base64 signature
+  transmission_status     String    @default("PENDING") @db.VarChar(50) // "PENDING", "TRANSMITTED", "VALIDATED", "FAILED"
+  transmitted_at          DateTime? @db.Timestamptz
+  created_at              DateTime  @default(now()) @db.Timestamptz
+  updated_at              DateTime  @updatedAt @db.Timestamptz
+
+  project                 Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, invoice_number])
+  @@index([tenant_id, project_id, transmission_status])
+  @@map("etims_invoices")
+}
+
+model SubcontractorTaxCompliance {
+  id                       String               @id @default(uuid()) @db.Uuid
+  tenant_id                String               @db.Uuid
+  subcontractor_package_id String               @db.Uuid
+  pin_number               String               @db.VarChar(50) // KRA PIN
+  taxpayer_name            String               @db.VarChar(255)
+  tcc_number               String               @db.VarChar(100) // Tax Compliance Certificate number
+  tcc_expiry_date          DateTime             @db.Date
+  compliance_status        String               @default("COMPLIANT") @db.VarChar(50) // "COMPLIANT", "EXPIRED", "NON_COMPLIANT", "EXEMPT"
+  withholding_tax_rate     Decimal              @default(3.00) @db.Decimal(5, 2) // 3% standard for building contractors
+  withholding_vat_rate     Decimal              @default(2.00) @db.Decimal(5, 2) // 2% standard WHVAT
+  last_verified_at         DateTime             @default(now()) @db.Timestamptz
+  created_at               DateTime             @default(now()) @db.Timestamptz
+  updated_at               DateTime             @updatedAt @db.Timestamptz
+
+  subcontractor_package    SubcontractorPackage @relation(fields: [subcontractor_package_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, compliance_status])
+  @@map("subcontractor_tax_compliances")
+}
+
+// =============================================================
+// WHATSAPP & SMS TWO-WAY SITE OPS WEBHOOKS & ALERTS (M20)
+// =============================================================
+
+model SiteWebhookLog {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenant_id         String    @db.Uuid
+  project_id        String?   @db.Uuid
+  sender_phone      String    @db.VarChar(50) // E.g. "+254712345678"
+  sender_name       String?   @db.VarChar(255)
+  channel           String    @default("WHATSAPP") @db.VarChar(20) // "WHATSAPP", "SMS"
+  raw_message       String    @db.Text
+  detected_command  String    @db.VarChar(50) // "DIARY", "DELIVERY", "INCIDENT", "PLANT_FUEL", "UNKNOWN"
+  processed_status  String    @default("PROCESSED") @db.VarChar(50) // "PROCESSED", "FAILED", "PENDING_REVIEW"
+  extracted_data    Json?     @db.JsonB
+  reply_message     String?   @db.Text
+  created_at        DateTime  @default(now()) @db.Timestamptz
+
+  project           Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, detected_command, processed_status])
+  @@map("site_webhook_logs")
+}
+
+model SiteAlertNotification {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenant_id         String    @db.Uuid
+  project_id        String    @db.Uuid
+  recipient_phone   String    @db.VarChar(50)
+  recipient_name    String    @db.VarChar(255)
+  recipient_role    String    @db.VarChar(50) // "PROJECT_MANAGER", "QUANTITY_SURVEYOR", "SITE_SUPERVISOR", "SAFETY_OFFICER"
+  alert_type        String    @db.VarChar(50) // "CRITICAL_SAFETY_STOP_WORK", "DIESEL_SIPHONING_FLAG", "STRUCTURAL_CONCRETE_FAIL", "BUDGET_OVERRUN"
+  message_body      String    @db.Text
+  delivery_channel  String    @default("WHATSAPP") @db.VarChar(20) // "WHATSAPP", "SMS", "IN_APP"
+  delivery_status   String    @default("SENT") @db.VarChar(50) // "QUEUED", "SENT", "DELIVERED", "FAILED"
+  sent_at           DateTime? @db.Timestamptz
+  created_at        DateTime  @default(now()) @db.Timestamptz
+
+  project           Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, alert_type])
+  @@map("site_alert_notifications")
+}
+
+// =============================================================
+// RETENTION RELEASE & CONTRACTOR PERFORMANCE BONDS (M21)
+// =============================================================
+
+model SubcontractorRetentionRelease {
+  id                         String               @id @default(uuid()) @db.Uuid
+  tenant_id                  String               @db.Uuid
+  project_id                 String               @db.Uuid
+  subcontractor_package_id   String               @db.Uuid
+  release_no                 String               @db.VarChar(100) // E.g. "RET-REL-001"
+  moiety_stage               String               @db.VarChar(50) // "FIRST_MOIETY_PRACTICAL_COMPLETION", "SECOND_MOIETY_FINAL_COMPLETION"
+  total_retention_held       Decimal              @db.Decimal(15, 2)
+  release_percentage         Decimal              @default(50.00) @db.Decimal(5, 2) // Typically 50.00%
+  release_amount             Decimal              @db.Decimal(15, 2)
+  qs_recommendation_notes    String?              @db.Text
+  defect_clearance_verified  Boolean              @default(false)
+  status                     String               @default("PENDING_QS_REVIEW") @db.VarChar(50) // "PENDING_QS_REVIEW", "APPROVED_BY_DIRECTOR", "PAID", "REJECTED"
+  disbursement_ref           String?              @db.VarChar(100) // E.g. "MPESA-B2C-QA8192" or "EFT-KCB-9921"
+  disbursed_at               DateTime?            @db.Timestamptz
+  created_at                 DateTime             @default(now()) @db.Timestamptz
+  updated_at                 DateTime             @updatedAt @db.Timestamptz
+
+  project                    Project              @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  subcontractor_package      SubcontractorPackage @relation(fields: [subcontractor_package_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, status])
+  @@map("subcontractor_retention_releases")
+}
+
+model ContractorBondTracker {
+  id                         String    @id @default(uuid()) @db.Uuid
+  tenant_id                  String    @db.Uuid
+  project_id                 String    @db.Uuid
+  bond_type                  String    @db.VarChar(50) // "PERFORMANCE_BOND", "ADVANCE_PAYMENT_GUARANTEE", "RETENTION_BOND", "BID_TENDER_BOND"
+  issuing_institution        String    @db.VarChar(255) // E.g. "Kenya Commercial Bank (KCB)", "Equity Bank", "Britam Insurance"
+  bond_reference_no          String    @db.VarChar(100)
+  bond_amount                Decimal   @db.Decimal(15, 2)
+  effective_date             DateTime  @db.Date
+  expiry_date                DateTime  @db.Date
+  claim_status               String    @default("ACTIVE") @db.VarChar(50) // "ACTIVE", "RELEASED", "CALLED_CLAIMED", "EXPIRED"
+  discharge_certificate_ref  String?   @db.VarChar(100)
+  created_at                 DateTime  @default(now()) @db.Timestamptz
+  updated_at                 DateTime  @updatedAt @db.Timestamptz
+
+  project                    Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, bond_type, claim_status])
+  @@map("contractor_bond_trackers")
+}
+
 
 
 

@@ -43,6 +43,9 @@ import { SubcontractorValuationView } from './components/SubcontractorValuationV
 import { PlantEquipmentView } from './components/PlantEquipmentView';
 import { LaborMusterRollView } from './components/LaborMusterRollView';
 import { SafetyAuditScorecardView } from './components/SafetyAuditScorecardView';
+import { ETimsTaxComplianceView } from './components/ETimsTaxComplianceView';
+import { WhatsAppSiteWebhookView } from './components/WhatsAppSiteWebhookView';
+import { RetentionAndBondsView } from './components/RetentionAndBondsView';
 import { AuthSession } from './types/auth';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
@@ -1597,6 +1600,123 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Plant &amp; Heavy Equipment Manager');
       expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
       expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
+    });
+  });
+
+  describe('Milestones M19, M20 & M21: Enterprise Operations Suite (e-TIMS, WhatsApp, Retention & Bonds)', () => {
+    it('renders ETimsTaxComplianceView with KRA VSCU invoice metrics, QR preview and TCC status', () => {
+      const html = renderToString(
+        <ETimsTaxComplianceView
+          projectId="proj-test-1"
+          projectName="Riverside Commercial Plaza"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('KRA e-TIMS Tax Compliance Engine');
+      expect(html).toContain('Electronic Tax Invoices &amp; TCC Ledger');
+      expect(html).toContain('Total e-TIMS Invoices');
+      expect(html).toContain('Taxable Construction Turnover');
+      expect(html).toContain('16% VAT Collected');
+      expect(html).toContain('INV-2026-001');
+      expect(html).toContain('KRAVSCU010000000084');
+      expect(html).toContain('Generate e-TIMS Invoice');
+      expect(html).toContain('Verify Subcontractor TCC');
+    });
+
+    it('renders WhatsAppSiteWebhookView with inbound feed, Swahili bot auto-reply and emergency alert status', () => {
+      const html = renderToString(
+        <WhatsAppSiteWebhookView
+          projectId="proj-test-1"
+          projectName="Riverside Commercial Plaza"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('WhatsApp Site Ops Bot &amp; Webhook Engine');
+      expect(html).toContain('Field WhatsApp Bot &amp; Incident Dispatch');
+      expect(html).toContain('WhatsApp Messages Processed');
+      expect(html).toContain('Foreman Kiprono');
+      expect(html).toContain('#DIARY 14 masons, 22 casuals on site');
+      expect(html).toContain('Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo');
+      expect(html).toContain('Simulate Inbound WhatsApp');
+      expect(html).toContain('Broadcast Safety Alert');
+    });
+
+    it('renders RetentionAndBondsView with JBC 1999 dual-moiety retention and commercial bank bonds', () => {
+      const html = renderToString(
+        <RetentionAndBondsView
+          projectId="proj-test-1"
+          projectName="Riverside Commercial Plaza"
+        />
+      ).replace(/<!-- -->/g, '');
+
+      expect(html).toContain('Subcontractor Retention &amp; Bank Bonds Engine');
+      expect(html).toContain('Retention Releases &amp; Performance Bonds');
+      expect(html).toContain('Subcontract Retention Held');
+      expect(html).toContain('Active Performance Bonds');
+      expect(html).toContain('RET-REL-001');
+      expect(html).toContain('Nairobi Volt Electricals Ltd');
+      expect(html).toContain('1st Moiety (PC)');
+      expect(html).toContain('Disburse M-Pesa B2C');
+      expect(html).toContain('Issue Retention Release');
+      expect(html).toContain('Register Bank Bond');
+    });
+
+    it('embeds e-TIMS, WhatsApp and Retention/Bonds into PmQsDashboard', () => {
+      const pmSession: AuthSession = {
+        user: {
+          id: 'user-pm',
+          email: 'pm@apexbuilders.co.ke',
+          fullName: 'Project Manager / QS',
+          role: 'PM_QS',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['cost.manage', 'site.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('🧾 KRA e-TIMS Invoices');
+      expect(html).toContain('💬 WhatsApp Site Bot');
+      expect(html).toContain('🏦 Retention &amp; Bonds');
+      expect(html).toContain('KRA e-TIMS Tax Compliance Engine');
+      expect(html).toContain('WhatsApp Site Ops Bot &amp; Webhook Engine');
+      expect(html).toContain('Subcontractor Retention &amp; Bank Bonds Engine');
+    });
+
+    it('embeds WhatsApp Site Webhook into SupervisorDashboard', () => {
+      const superSession: AuthSession = {
+        user: {
+          id: 'user-super',
+          email: 'supervisor@apexbuilders.co.ke',
+          fullName: 'Site Supervisor',
+          role: 'SITE_SUPERVISOR',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['site.diary', 'cost.create'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('WhatsApp Site Ops Bot &amp; Webhook Engine');
+      expect(html).toContain('Field WhatsApp Bot &amp; Incident Dispatch');
+    });
+
+    it('embeds e-TIMS and Retention/Bonds into CompanyAdminDashboard', () => {
+      const adminSession: AuthSession = {
+        user: {
+          id: 'user-admin',
+          email: 'admin@apexbuilders.co.ke',
+          fullName: 'Admin User',
+          role: 'COMPANY_ADMIN',
+          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+        },
+        permissions: ['company.manage'],
+        token: 'token',
+      };
+
+      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      expect(html).toContain('KRA e-TIMS Tax Compliance Engine');
+      expect(html).toContain('Subcontractor Retention &amp; Bank Bonds Engine');
     });
   });
 });

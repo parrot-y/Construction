@@ -25,6 +25,9 @@ import { SubcontractorValuationView } from './SubcontractorValuationView';
 import { PlantEquipmentView } from './PlantEquipmentView';
 import { LaborMusterRollView } from './LaborMusterRollView';
 import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
+import { ETimsTaxComplianceView } from './ETimsTaxComplianceView';
+import { WhatsAppSiteWebhookView } from './WhatsAppSiteWebhookView';
+import { RetentionAndBondsView } from './RetentionAndBondsView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -38,7 +41,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -136,6 +139,9 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'equipment', label: '🚜 Plant & Machinery' },
           { id: 'muster', label: '👷 Labor Muster Roll' },
           { id: 'safetyaudit', label: '🦺 Field Safety Scorecard' },
+          { id: 'etims', label: '🧾 KRA e-TIMS Invoices' },
+          { id: 'whatsapp', label: '💬 WhatsApp Site Bot' },
+          { id: 'retentionbonds', label: '🏦 Retention & Bonds' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
           { id: 'portals', label: '🌐 Stakeholder Portals' },
         ].map((tab) => (
@@ -457,6 +463,33 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
       {(activeTab === 'all' || activeTab === 'safetyaudit') && (
         <SafetyAuditScorecardView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      )}
+
+      {/* KRA e-TIMS Electronic Tax Invoices & TCC Compliance (Milestone M19) */}
+      {(activeTab === 'all' || activeTab === 'etims') && (
+        <ETimsTaxComplianceView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      )}
+
+      {/* WhatsApp & SMS Two-Way Site Ops Webhook Stream (Milestone M20) */}
+      {(activeTab === 'all' || activeTab === 'whatsapp') && (
+        <WhatsAppSiteWebhookView
+          projectId="project-rcp-2026"
+          projectName="Riverside Commercial Plaza"
+          userRole="PM_QS"
+        />
+      )}
+
+      {/* Subcontractor Dual-Moiety Retention & Contractor Performance Bonds (Milestone M21) */}
+      {(activeTab === 'all' || activeTab === 'retentionbonds') && (
+        <RetentionAndBondsView
           projectId="project-rcp-2026"
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"

@@ -10,6 +10,8 @@ import { SubcontractorValuationView } from './SubcontractorValuationView';
 import { PlantEquipmentView } from './PlantEquipmentView';
 import { LaborMusterRollView } from './LaborMusterRollView';
 import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
+import { ETimsTaxComplianceView } from './ETimsTaxComplianceView';
+import { RetentionAndBondsView } from './RetentionAndBondsView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -335,6 +337,20 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
       <SafetyAuditScorecardView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="COMPANY_ADMIN"
+      />
+
+      {/* KRA e-TIMS Tax Compliance Engine (Milestone M19) */}
+      <ETimsTaxComplianceView
+        projectId="project-rcp-2026"
+        projectName="Riverside Commercial Plaza"
+        userRole="COMPANY_ADMIN"
+      />
+
+      {/* Retention Releases & Contractor Performance Bonds (Milestone M21) */}
+      <RetentionAndBondsView
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
         userRole="COMPANY_ADMIN"

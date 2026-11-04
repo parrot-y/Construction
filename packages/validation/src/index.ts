@@ -912,6 +912,145 @@ export const CreateSafetyAuditSchema = z.object({
 });
 export type CreateSafetyAudit = z.infer<typeof CreateSafetyAuditSchema>;
 
+// -------------------------------------------------------------
+// KRA E-TIMS & ELECTRONIC TAX INVOICE SCHEMAS (MILESTONE M19)
+// -------------------------------------------------------------
+export const ETimsInvoiceTypeEnum = z.enum(['ORIGINAL', 'CREDIT_NOTE', 'DEBIT_NOTE']);
+export type ETimsInvoiceType = z.infer<typeof ETimsInvoiceTypeEnum>;
+
+export const ETimsTransmissionStatusEnum = z.enum(['PENDING', 'TRANSMITTED', 'VALIDATED', 'FAILED']);
+export type ETimsTransmissionStatus = z.infer<typeof ETimsTransmissionStatusEnum>;
+
+export const CreateETimsInvoiceSchema = z.object({
+  projectId: z.string().uuid(),
+  invoiceNumber: z.string().min(2).max(100),
+  cuInvoiceNumber: z.string().min(2).max(100),
+  invoiceType: ETimsInvoiceTypeEnum.default('ORIGINAL'),
+  buyerPin: z.string().min(8).max(20),
+  buyerName: z.string().min(2).max(255),
+  totalTaxableAmount: CurrencyAmountSchema,
+  totalTaxAmount: CurrencyAmountSchema,
+  totalInvoiceAmount: CurrencyAmountSchema,
+  taxBreakdown16: CurrencyAmountSchema.default('0.00'),
+  taxBreakdown8: CurrencyAmountSchema.default('0.00'),
+  taxBreakdown0: CurrencyAmountSchema.default('0.00'),
+  taxBreakdownExempt: CurrencyAmountSchema.default('0.00'),
+  qrCodeUrl: z.string().min(5).max(500),
+  cryptographicSignature: z.string().min(2).max(255),
+});
+export type CreateETimsInvoice = z.infer<typeof CreateETimsInvoiceSchema>;
+
+export const SubcontractorComplianceStatusEnum = z.enum(['COMPLIANT', 'EXPIRED', 'NON_COMPLIANT', 'EXEMPT']);
+export type SubcontractorComplianceStatus = z.infer<typeof SubcontractorComplianceStatusEnum>;
+
+export const CreateSubcontractorTaxComplianceSchema = z.object({
+  subcontractorPackageId: z.string().uuid(),
+  pinNumber: z.string().min(8).max(50),
+  taxpayerName: z.string().min(2).max(255),
+  tccNumber: z.string().min(2).max(100),
+  tccExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  complianceStatus: SubcontractorComplianceStatusEnum.default('COMPLIANT'),
+  withholdingTaxRate: z.string().regex(/^\d+(\.\d{1,2})?$/).default('3.00'),
+  withholdingVatRate: z.string().regex(/^\d+(\.\d{1,2})?$/).default('2.00'),
+});
+export type CreateSubcontractorTaxCompliance = z.infer<typeof CreateSubcontractorTaxComplianceSchema>;
+
+// -------------------------------------------------------------
+// WHATSAPP & SMS TWO-WAY SITE OPS WEBHOOKS & ALERTS (MILESTONE M20)
+// -------------------------------------------------------------
+export const WebhookChannelEnum = z.enum(['WHATSAPP', 'SMS']);
+export type WebhookChannel = z.infer<typeof WebhookChannelEnum>;
+
+export const DetectedCommandEnum = z.enum(['DIARY', 'DELIVERY', 'INCIDENT', 'PLANT_FUEL', 'UNKNOWN']);
+export type DetectedCommand = z.infer<typeof DetectedCommandEnum>;
+
+export const ProcessWebhookPayloadSchema = z.object({
+  senderPhone: z.string().min(8).max(50),
+  senderName: z.string().max(255).optional().nullable(),
+  channel: WebhookChannelEnum.default('WHATSAPP'),
+  rawMessage: z.string().min(1).max(4000),
+  projectId: z.string().uuid().optional().nullable(),
+});
+export type ProcessWebhookPayload = z.infer<typeof ProcessWebhookPayloadSchema>;
+
+export const AlertRecipientRoleEnum = z.enum([
+  'PROJECT_MANAGER',
+  'QUANTITY_SURVEYOR',
+  'SITE_SUPERVISOR',
+  'SAFETY_OFFICER',
+  'DIRECTOR',
+]);
+export type AlertRecipientRole = z.infer<typeof AlertRecipientRoleEnum>;
+
+export const AlertTypeEnum = z.enum([
+  'CRITICAL_SAFETY_STOP_WORK',
+  'DIESEL_SIPHONING_FLAG',
+  'STRUCTURAL_CONCRETE_FAIL',
+  'BUDGET_OVERRUN',
+]);
+export type AlertType = z.infer<typeof AlertTypeEnum>;
+
+export const CreateSiteAlertNotificationSchema = z.object({
+  projectId: z.string().uuid(),
+  recipientPhone: z.string().min(8).max(50),
+  recipientName: z.string().min(2).max(255),
+  recipientRole: AlertRecipientRoleEnum,
+  alertType: AlertTypeEnum,
+  messageBody: z.string().min(3).max(2000),
+  deliveryChannel: z.enum(['WHATSAPP', 'SMS', 'IN_APP']).default('WHATSAPP'),
+});
+export type CreateSiteAlertNotification = z.infer<typeof CreateSiteAlertNotificationSchema>;
+
+// -------------------------------------------------------------
+// RETENTION RELEASE & CONTRACTOR PERFORMANCE BONDS (MILESTONE M21)
+// -------------------------------------------------------------
+export const MoietyStageEnum = z.enum(['FIRST_MOIETY_PRACTICAL_COMPLETION', 'SECOND_MOIETY_FINAL_COMPLETION']);
+export type MoietyStage = z.infer<typeof MoietyStageEnum>;
+
+export const CreateSubcontractorRetentionReleaseSchema = z.object({
+  projectId: z.string().uuid(),
+  subcontractorPackageId: z.string().uuid(),
+  releaseNo: z.string().min(2).max(100),
+  moietyStage: MoietyStageEnum,
+  totalRetentionHeld: CurrencyAmountSchema,
+  releasePercentage: z.string().regex(/^\d+(\.\d{1,2})?$/).default('50.00'),
+  releaseAmount: CurrencyAmountSchema,
+  qsRecommendationNotes: z.string().max(2000).optional().nullable(),
+  defectClearanceVerified: z.boolean().default(false),
+});
+export type CreateSubcontractorRetentionRelease = z.infer<typeof CreateSubcontractorRetentionReleaseSchema>;
+
+export const ReviewSubcontractorRetentionReleaseSchema = z.object({
+  status: z.enum(['PENDING_QS_REVIEW', 'APPROVED_BY_DIRECTOR', 'PAID', 'REJECTED']),
+  disbursementRef: z.string().max(100).optional().nullable(),
+});
+export type ReviewSubcontractorRetentionRelease = z.infer<typeof ReviewSubcontractorRetentionReleaseSchema>;
+
+export const BondTypeEnum = z.enum([
+  'PERFORMANCE_BOND',
+  'ADVANCE_PAYMENT_GUARANTEE',
+  'RETENTION_BOND',
+  'BID_TENDER_BOND',
+]);
+export type BondType = z.infer<typeof BondTypeEnum>;
+
+export const BondClaimStatusEnum = z.enum(['ACTIVE', 'RELEASED', 'CALLED_CLAIMED', 'EXPIRED']);
+export type BondClaimStatus = z.infer<typeof BondClaimStatusEnum>;
+
+export const CreateContractorBondSchema = z.object({
+  projectId: z.string().uuid(),
+  bondType: BondTypeEnum,
+  issuingInstitution: z.string().min(2).max(255),
+  bondReferenceNo: z.string().min(2).max(100),
+  bondAmount: CurrencyAmountSchema,
+  effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  claimStatus: BondClaimStatusEnum.default('ACTIVE'),
+  dischargeCertificateRef: z.string().max(100).optional().nullable(),
+});
+export type CreateContractorBond = z.infer<typeof CreateContractorBondSchema>;
+
+
 
 
 
