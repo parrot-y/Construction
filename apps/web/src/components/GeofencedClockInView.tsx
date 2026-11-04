@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { queueOfflineMutation } from '../services/offline-sync';
 
 export interface GeofenceItem {
   id: string;
@@ -150,16 +151,21 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 
     const dist = previewDistance.toFixed(2);
     const status = isWithinRadius ? 'WITHIN_GEOFENCE' : 'OUTSIDE_GEOFENCE_FLAGGED';
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
     try {
-      if (onRecordClockIn) {
-        await onRecordClockIn({
-          laborerId: 'dummy-laborer-id',
-          clockType,
-          capturedLatitude: capturedLat,
-          capturedLongitude: capturedLng,
-          photoSelfieUrl: selfieUrl,
-        });
+      const payload = {
+        laborerId: 'dummy-laborer-id',
+        clockType,
+        capturedLatitude: capturedLat,
+        capturedLongitude: capturedLng,
+        photoSelfieUrl: selfieUrl,
+      };
+
+      if (isOffline) {
+        await queueOfflineMutation(projectName || 'project-site', `/api/v1/projects/active/clock-in`, payload);
+      } else if (onRecordClockIn) {
+        await onRecordClockIn(payload);
       }
 
       const newEvent: WorkerClockEventItem = {
@@ -175,10 +181,11 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
       };
 
       setClockEvents([newEvent, ...clockEvents]);
+      const offlineSuffix = isOffline ? ' (Stored locally in IndexedDB offline queue)' : '';
       setFeedback(
         status === 'WITHIN_GEOFENCE'
-          ? `✓ Verified On-Site Attendance: ${selectedWorker} clocked in at ${dist}m from centroid.`
-          : `⚠ Off-Site Warning Flagged: ${selectedWorker} is ${dist}m away (exceeds ${activeGeofence?.radiusMeters}m radius).`
+          ? `✓ Verified On-Site Attendance: ${selectedWorker} clocked in at ${dist}m from centroid.${offlineSuffix}`
+          : `⚠ Off-Site Warning Flagged: ${selectedWorker} is ${dist}m away (exceeds ${activeGeofence?.radiusMeters}m radius).${offlineSuffix}`
       );
     } catch (err: any) {
       setFeedback(`Error: ${err.message}`);

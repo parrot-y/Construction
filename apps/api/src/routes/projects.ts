@@ -3,6 +3,8 @@ import { Permissions } from '@construction/permissions';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { requirePermission } from '../plugins/rbac';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // GET /api/v1/projects (requires PROJECT_VIEW)
   server.get(
@@ -41,6 +43,10 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     async (request, reply) => {
       const { tenantId } = request.user;
       const { id } = request.params as { id: string };
+
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
+      }
 
       const project = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.project.findUnique({
@@ -138,6 +144,11 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { id } = request.params as { id: string };
+
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
+      }
+
       const body = request.body as {
         name?: string;
         description?: string;
@@ -182,6 +193,11 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { id } = request.params as { id: string };
+
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
+      }
+
       const body = request.body as { userId: string; role?: string };
 
       if (!body.userId) {
@@ -231,6 +247,10 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { id, userId } = request.params as { id: string; userId: string };
+
+      if (!UUID_REGEX.test(id) || !UUID_REGEX.test(userId)) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Project or Member not found' });
+      }
 
       await withTenantTx(prisma, tenantId, async (tx) => {
         await tx.projectMember.delete({

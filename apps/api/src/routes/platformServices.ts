@@ -13,6 +13,21 @@ import * as crypto from 'crypto';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Rate limiter for M-Pesa STK push requests (prevents toll fraud and flooding)
+const MAX_STK_PUSH_PER_WINDOW = 10;
+const STK_PUSH_WINDOW_MS = 5 * 60 * 1000; // 5-minute sliding window
+const tenantStkPushMap = new Map<string, { count: number; resetAt: number }>();
+
+// Cleanup stale rate limit records
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of tenantStkPushMap.entries()) {
+    if (now > entry.resetAt) {
+      tenantStkPushMap.delete(id);
+    }
+  }
+}, 60 * 1000).unref();
+
 // Haversine Distance Helper in Meters
 function calculateHaversineDistanceMeters(
   lat1: number,
@@ -105,6 +120,25 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
     { preHandler: [server.authenticate] },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
+
+      // Rate limit check
+      const now = Date.now();
+      const stkLimit = tenantStkPushMap.get(tenantId);
+      if (stkLimit && now < stkLimit.resetAt && stkLimit.count >= MAX_STK_PUSH_PER_WINDOW) {
+        const retryAfterSeconds = Math.ceil((stkLimit.resetAt - now) / 1000);
+        reply.header('Retry-After', retryAfterSeconds);
+        return reply.status(429).send({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Too many M-Pesa STK push requests. Please wait before initiating another request.',
+        });
+      }
+
+      if (!stkLimit || now > stkLimit.resetAt) {
+        tenantStkPushMap.set(tenantId, { count: 1, resetAt: now + STK_PUSH_WINDOW_MS });
+      } else {
+        stkLimit.count += 1;
+      }
 
       const parseResult = InitiateMpesaStkPushSchema.safeParse(request.body);
       if (!parseResult.success) {
@@ -835,6 +869,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
           const pings = await tx.plantTelematicsPing.findMany({
             where: {
               equipment: {
