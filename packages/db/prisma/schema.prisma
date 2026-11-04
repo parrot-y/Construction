@@ -31,7 +31,9 @@ model Tenant {
   bar_bending_schedules BarBendingSchedule[]
   mpesa_disbursements   MpesaDisbursementTransaction[]
   rmc_deliveries        RmcBatchDelivery[]
+  rmc_slump_tests       RmcSlumpTest[]
   structural_steel_takeoffs StructuralSteelTakeoff[]
+  structural_steel_members  StructuralSteelMember[]
 
   @@map("tenants")
 }
@@ -1738,6 +1740,7 @@ model RmcSlumpTest {
   updated_at                 DateTime         @updatedAt @db.Timestamptz
 
   delivery                   RmcBatchDelivery @relation(fields: [delivery_id], references: [id], onDelete: Cascade)
+  tenant                     Tenant           @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@index([tenant_id, delivery_id])
   @@map("rmc_slump_tests")
@@ -1790,6 +1793,7 @@ model StructuralSteelMember {
   updated_at                 DateTime               @updatedAt @db.Timestamptz
 
   takeoff                    StructuralSteelTakeoff @relation(fields: [takeoff_id], references: [id], onDelete: Cascade)
+  tenant                     Tenant                 @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@index([tenant_id, takeoff_id, section_type])
   @@map("structural_steel_members")

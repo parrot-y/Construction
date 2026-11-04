@@ -1855,7 +1855,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             deviationMm: slumpEval.deviationMm,
             isWithinTolerance: slumpEval.isWithinTolerance,
             verdict: slumpEval.verdict,
-            concreteTemperatureC: slumpTest.concrete_temperature_c.toString(),
+            concreteTemperatureC: toDecimal(slumpTest.concrete_temperature_c.toString()).toFixed(1),
             testedByInspector,
             createdAt: slumpTest.created_at.toISOString(),
           };
@@ -2178,7 +2178,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               memberMark: m.member_mark,
               sectionType: m.section_type,
               sectionDesignation: m.section_designation,
-              unitWeightKgPerM: toDecimal(m.unit_weight_kg_per_m.toString()).toFixed(2),
+              unitWeightKgPerM: toDecimal(m.unit_weight_kg_per_m.toString()).toFixed(3),
               paintAreaM2PerM: toDecimal(m.paint_area_m2_per_m.toString()).toFixed(3),
               lengthMeters: toDecimal(m.length_meters.toString()).toFixed(3),
               quantity: m.quantity,
