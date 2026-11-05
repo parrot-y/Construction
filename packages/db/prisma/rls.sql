@@ -27,29 +27,13 @@ BEGIN
         
         -- 4. Create single permissive policy with USING and WITH CHECK
         -- NULLIF ensures empty string does not throw cast error and fails closed (evaluates to NULL)
-        IF tbl.table_name = 'memberships' THEN
-            EXECUTE 'CREATE POLICY tenant_isolation_policy ON memberships FOR ALL ' ||
-                    'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid ' ||
-                    '       OR current_setting(''app.auth_context'', true) = ''login'') ' ||
-                    'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)';
-        ELSIF tbl.table_name = 'invitations' THEN
-            EXECUTE 'CREATE POLICY tenant_isolation_policy ON invitations FOR ALL ' ||
-                    'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid ' ||
-                    '       OR current_setting(''app.auth_context'', true) = ''invite'') ' ||
-                    'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)';
-        ELSIF tbl.table_name = 'portal_access_links' THEN
-            EXECUTE 'CREATE POLICY tenant_isolation_policy ON portal_access_links FOR ALL ' ||
-                    'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid ' ||
-                    '       OR current_setting(''app.auth_context'', true) = ''portal'') ' ||
-                    'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)';
-        ELSE
-            EXECUTE format(
-                'CREATE POLICY tenant_isolation_policy ON %I FOR ALL ' ||
-                'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid) ' ||
-                'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)',
-                tbl.table_name
-            );
-        END IF;
+        -- Pure fail-closed tenant isolation without any auth_context bypasses (H4, 2c)
+        EXECUTE format(
+            'CREATE POLICY tenant_isolation_policy ON %I FOR ALL ' ||
+            'USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid) ' ||
+            'WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'', true), '''')::uuid)',
+            tbl.table_name
+        );
     END LOOP;
 END
 $$;
@@ -169,3 +153,119 @@ $$;
 
 REVOKE ALL ON FUNCTION lookup_telematics_device(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_telematics_device(TEXT) TO db_app;
+
+-- Narrow SECURITY DEFINER lookup function for User Memberships during Login (H4, 2c)
+DROP FUNCTION IF EXISTS lookup_user_memberships_for_login(UUID);
+CREATE OR REPLACE FUNCTION lookup_user_memberships_for_login(p_user_id UUID)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  user_id UUID,
+  role VARCHAR,
+  created_at TIMESTAMPTZ,
+  tenant_name VARCHAR,
+  tenant_slug VARCHAR,
+  tenant_currency VARCHAR
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT m.id, m.tenant_id, m.user_id, m.role, m.created_at,
+         t.name AS tenant_name, t.slug AS tenant_slug, t.currency AS tenant_currency
+  FROM public.memberships m
+  JOIN public.tenants t ON t.id = m.tenant_id
+  WHERE m.user_id = p_user_id;
+$$;
+REVOKE ALL ON FUNCTION lookup_user_memberships_for_login(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_user_memberships_for_login(UUID) TO db_app;
+
+-- Narrow SECURITY DEFINER lookup function for Invitation Acceptance (H4, 2c)
+DROP FUNCTION IF EXISTS lookup_invitation_by_token(TEXT);
+CREATE OR REPLACE FUNCTION lookup_invitation_by_token(p_token TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  email VARCHAR,
+  phone VARCHAR,
+  role VARCHAR,
+  status VARCHAR,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id, email, phone, role, status, expires_at, created_at
+  FROM public.invitations
+  WHERE token = p_token
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_invitation_by_token(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_invitation_by_token(TEXT) TO db_app;
+
+-- Narrow SECURITY DEFINER lookup function for Stakeholder Portal by SHA-256 Hash (H4, H5, 2c, 2d)
+DROP FUNCTION IF EXISTS lookup_portal_link_by_hash(TEXT);
+CREATE OR REPLACE FUNCTION lookup_portal_link_by_hash(p_token_hash TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  project_id UUID,
+  portal_type VARCHAR,
+  stakeholder_name VARCHAR,
+  stakeholder_role VARCHAR,
+  is_active BOOLEAN,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id, project_id, portal_type, stakeholder_name, stakeholder_role, is_active, expires_at, created_at
+  FROM public.portal_access_links
+  WHERE token_hash = p_token_hash
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_portal_link_by_hash(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_portal_link_by_hash(TEXT) TO db_app;
+
+-- Narrow SECURITY DEFINER lookup function for Inbound M-Pesa STK Callback (C1, 2b)
+DROP FUNCTION IF EXISTS lookup_mpesa_stk_transaction(TEXT);
+CREATE OR REPLACE FUNCTION lookup_mpesa_stk_transaction(p_checkout_request_id TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  checkout_request_id VARCHAR,
+  amount NUMERIC,
+  transaction_status VARCHAR
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id, checkout_request_id, amount, transaction_status
+  FROM public.mpesa_subscription_transactions
+  WHERE checkout_request_id = p_checkout_request_id
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_mpesa_stk_transaction(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_mpesa_stk_transaction(TEXT) TO db_app;
+
+-- Narrow SECURITY DEFINER lookup function for Inbound M-Pesa B2C Callback (C1, 2b)
+DROP FUNCTION IF EXISTS lookup_mpesa_b2c_transaction(TEXT);
+CREATE OR REPLACE FUNCTION lookup_mpesa_b2c_transaction(p_conversation_id TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  conversation_id VARCHAR,
+  originator_conversation_id VARCHAR,
+  transaction_status VARCHAR
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id, conversation_id, originator_conversation_id, transaction_status
+  FROM public.mpesa_disbursement_transactions
+  WHERE conversation_id = p_conversation_id OR originator_conversation_id = p_conversation_id
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_mpesa_b2c_transaction(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_mpesa_b2c_transaction(TEXT) TO db_app;

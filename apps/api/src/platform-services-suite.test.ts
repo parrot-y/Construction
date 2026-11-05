@@ -152,10 +152,11 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(401);
     });
 
-    it('should reject authenticated callback missing explicit tenantId with 400 Bad Request (C1 hardening)', async () => {
+    it('should ignore spoofed tenantId and resolve tenant securely from database transaction (C1 & 2b hardening)', async () => {
+      const attackerTenantId = '00000000-0000-0000-0000-000000000000';
       const res = await app.inject({
         method: 'POST',
-        url: '/api/v1/billing/mpesa-callback',
+        url: `/api/v1/billing/mpesa-callback?tenantId=${attackerTenantId}`,
         headers: {
           'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
         },
@@ -164,11 +165,12 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
           CheckoutRequestID: capturedCheckoutRequestId,
           ResultCode: 0,
           ResultDesc: 'Success',
+          MpesaReceiptNumber: 'NL12345678',
         },
       });
 
-      expect(res.statusCode).toBe(400);
-      expect(JSON.parse(res.body).message).toContain('Explicit valid tenantId is required');
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).tenantId).toBe(testTenantId);
     });
 
     it('should return 404 when processing callback for unknown checkout request ID', async () => {
@@ -449,12 +451,12 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(body.calculatedFuelLiters).toBe('280.00');
       expect(body.isSiphoningEvent).toBe(true);
 
-      // Verify that an automated SiteAlertNotification of type DIESEL_SIPHONING_FLAG was dispatched
+      // Verify that an automated SiteAlertNotification of type DIESEL_DISCREPANCY_FLAG was dispatched (2e neutral wording)
       const alert = await withTenantTx(prisma, testTenantId, (tx) =>
         tx.siteAlertNotification.findFirst({
           where: {
             project_id: testProjectId,
-            alert_type: 'DIESEL_SIPHONING_FLAG',
+            alert_type: { in: ['DIESEL_DISCREPANCY_FLAG', 'DIESEL_SIPHONING_FLAG'] },
           },
         })
       );
@@ -662,10 +664,11 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(401);
     });
 
-    it('should reject authenticated B2C callback missing tenantId with 400 Bad Request (C1 hardening)', async () => {
+    it('should ignore spoofed tenantId and resolve tenant securely from database disbursement (C1 & 2b hardening)', async () => {
+      const attackerTenantId = '00000000-0000-0000-0000-000000000000';
       const res = await app.inject({
         method: 'POST',
-        url: '/api/v1/billing/mpesa-b2c-callback',
+        url: `/api/v1/billing/mpesa-b2c-callback?tenantId=${attackerTenantId}`,
         headers: {
           'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
         },
@@ -678,8 +681,8 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
         },
       });
 
-      expect(res.statusCode).toBe(400);
-      expect(JSON.parse(res.body).message).toContain('Explicit valid tenantId is required');
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).tenantId).toBe(testTenantId);
     });
 
     it('should process inbound Daraja B2C callback and update transaction status to COMPLETED', async () => {

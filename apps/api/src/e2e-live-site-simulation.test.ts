@@ -4,6 +4,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { generateSignedSiteOpsToken } from './services/securityConfig';
 
 describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Project', () => {
   const server = buildServer();
@@ -1109,7 +1110,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     // Verify automated emergency SiteAlertNotification
     const alert = await withTenantTx(prisma, tenantId, (tx) =>
       tx.siteAlertNotification.findFirst({
-        where: { project_id: projectId, alert_type: 'DIESEL_SIPHONING_FLAG' },
+        where: { project_id: projectId, alert_type: { in: ['DIESEL_DISCREPANCY_FLAG', 'DIESEL_SIPHONING_FLAG'] } },
       })
     );
     expect(alert).toBeDefined();
@@ -1309,8 +1310,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       method: 'POST',
       url: '/api/v1/webhooks/site-ops',
       headers: {
-        'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
-        'x-tenant-id': tenantId,
+        'x-site-ops-token': generateSignedSiteOpsToken(tenantId),
       },
       payload: {
         senderPhone: '+254722889900',
@@ -1330,8 +1330,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       method: 'POST',
       url: '/api/v1/webhooks/site-ops',
       headers: {
-        'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
-        'x-tenant-id': tenantId,
+        'x-site-ops-token': generateSignedSiteOpsToken(tenantId),
       },
       payload: {
         senderPhone: '+254722889900',

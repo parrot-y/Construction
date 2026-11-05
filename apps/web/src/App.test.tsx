@@ -1523,7 +1523,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Plant &amp; Heavy Equipment Manager');
       expect(html).toContain('Total Machinery Fleet');
       expect(html).toContain('Cumulative Operating Hours');
-      expect(html).toContain('Fuel Siphoning Risk Flags');
+      expect(html).toContain('Fuel Discrepancy Risk Flags');
       expect(html).toContain('CAT 320D Hydraulic Excavator');
       expect(html).toContain('Excavators, Mixers, Cranes, Gensets');
       expect(html).toContain('+ Register Plant Machine');
@@ -1796,9 +1796,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
       expect(html).toContain('IOT ACTIVE');
       expect(html).toContain('Register Telematics Hardware');
-      expect(html).toContain('Critical Fuel Theft Anomaly Flagged');
-      expect(html).toContain('Simulate 40L Diesel Siphoning Drop');
-      expect(html).toContain('DIESEL SIPHONING FLAG');
+      expect(html).toContain('Critical Fuel Discrepancy Flagged');
+      expect(html).toContain('Simulate 40L Rapid Fuel Drop');
+      expect(html).toContain('DIESEL DISCREPANCY FLAG');
       expect(html).toContain('NORMAL BURN');
       expect(html).toContain('Machinery IoT Telemetry Feed &amp; Fuel Flow Log');
     });
@@ -2188,12 +2188,12 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         />
       ).replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Diesel Siphoning Anomaly Incident Feed');
-      expect(html).toContain('Deep telemetry fuel drain rate analysis and instant theft detection');
+      expect(html).toContain('Fuel Discrepancy Anomaly Incident Feed');
+      expect(html).toContain('Deep telemetry fuel drain rate analysis and anomaly variance detection');
       expect(html).toContain('CRITICAL');
       expect(html).toContain('-40.00 Liters');
       expect(html).toContain('480.00 L/h');
-      expect(html).toContain('Rapid Diesel Theft / Siphon Event');
+      expect(html).toContain('Rapid Fuel Level Drop Event');
       expect(html).toContain('STOPPED');
     });
 
@@ -2208,7 +2208,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       // Alerts feed assertions
       expect(html).toContain('Plant Maintenance &amp; Predictive Alerts Feed');
-      expect(html).toContain('ALT-SIPHON-001');
+      expect(html).toContain('ALT-FUEL-DISC-001');
       expect(html).toContain('ALT-DIAG-002');
       expect(html).toContain('Acknowledge Alert');
 

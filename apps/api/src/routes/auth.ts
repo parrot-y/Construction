@@ -64,19 +64,9 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     const { email, password, tenantId } = parseResult.data;
 
-    // Retrieve user and their tenant memberships inside scoped auth transaction
-    const user = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.auth_context', 'login', TRUE)`;
-      return tx.user.findUnique({
-        where: { email: email.toLowerCase() },
-        include: {
-          memberships: {
-            include: {
-              tenant: true,
-            },
-          },
-        },
-      });
+    // Retrieve user directly from public schema without auth_context bypasses (2c)
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
     });
 
     if (!user || !user.is_active) {
@@ -107,7 +97,24 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     // Reset failed login counter on successful authentication
     failedLoginsMap.delete(clientIp);
 
-    if (user.memberships.length === 0) {
+    // Retrieve tenant memberships via narrow SECURITY DEFINER lookup function without auth_context bypasses (2c)
+    const membershipRows = await prisma.$queryRaw<any[]>`
+      SELECT * FROM lookup_user_memberships_for_login(${user.id}::uuid);
+    `;
+
+    const memberships = membershipRows.map((m) => ({
+      id: m.id,
+      tenant_id: m.tenant_id,
+      role: m.role,
+      tenant: {
+        id: m.tenant_id,
+        name: m.tenant_name,
+        slug: m.tenant_slug,
+        currency: m.tenant_currency || 'KES',
+      },
+    }));
+
+    if (memberships.length === 0) {
       return reply.status(403).send({
         error: 'Forbidden',
         message: 'User does not belong to any active company tenant',
@@ -116,8 +123,8 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     // Select target membership
     const activeMembership = tenantId
-      ? user.memberships.find((m) => m.tenant_id === tenantId)
-      : user.memberships[0];
+      ? memberships.find((m) => m.tenant_id === tenantId)
+      : memberships[0];
 
     if (!activeMembership) {
       return reply.status(403).send({

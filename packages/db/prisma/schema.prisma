@@ -814,7 +814,7 @@ model PortalAccessLink {
   portal_type      String    @db.VarChar(50) // "CLIENT", "CONSULTANT", "SUBCONTRACTOR", "SUPPLIER", "COMPLIANCE"
   stakeholder_name String    @db.VarChar(255)
   stakeholder_role String?   @db.VarChar(100) // e.g. "Architect", "Structural Engineer", "Electrical Subcontractor", "Ready-Mix Supplier", "NCA Compliance Officer"
-  token            String    @unique @db.VarChar(255)
+  token_hash       String    @unique @db.VarChar(64)
   is_active        Boolean   @default(true)
   expires_at       DateTime  @db.Timestamptz
   created_at       DateTime  @default(now()) @db.Timestamptz
@@ -1216,7 +1216,7 @@ model PlantEquipmentDailyLog {
   fuel_cost_per_liter_kes    Decimal        @default(180.00) @db.Decimal(8, 2)
   total_fuel_cost_kes        Decimal        @default(0.00) @db.Decimal(12, 2)
   fuel_burn_liters_per_hour  Decimal        @default(0.00) @db.Decimal(8, 2)
-  fuel_efficiency_status     String         @default("NORMAL") @db.VarChar(50) // "NORMAL", "ELEVATED_BURN", "SUSPECTED_SIPHONING"
+  fuel_efficiency_status     String         @default("NORMAL") @db.VarChar(50) // "NORMAL", "ELEVATED_BURN", "SUSPECTED_DISCREPANCY"
   activities_performed       String?        @db.Text
   verified_by_supervisor     String         @db.VarChar(255)
   created_at                 DateTime       @default(now()) @db.Timestamptz
@@ -1422,7 +1422,7 @@ model SiteAlertNotification {
   recipient_phone   String    @db.VarChar(50)
   recipient_name    String    @db.VarChar(255)
   recipient_role    String    @db.VarChar(50) // "PROJECT_MANAGER", "QUANTITY_SURVEYOR", "SITE_SUPERVISOR", "SAFETY_OFFICER"
-  alert_type        String    @db.VarChar(50) // "CRITICAL_SAFETY_STOP_WORK", "DIESEL_SIPHONING_FLAG", "STRUCTURAL_CONCRETE_FAIL", "BUDGET_OVERRUN"
+  alert_type        String    @db.VarChar(50) // "CRITICAL_SAFETY_STOP_WORK", "DIESEL_DISCREPANCY_FLAG", "STRUCTURAL_CONCRETE_FAIL", "BUDGET_OVERRUN"
   message_body      String    @db.Text
   delivery_channel  String    @default("WHATSAPP") @db.VarChar(20) // "WHATSAPP", "SMS", "IN_APP"
   delivery_status   String    @default("SENT") @db.VarChar(50) // "QUEUED", "SENT", "DELIVERED", "FAILED"
@@ -1650,7 +1650,7 @@ model PlantMaintenanceAlert {
   equipment_id               String                @db.Uuid
   device_id                  String?               @db.Uuid
   alert_code                 String                @db.VarChar(50) // E.g. "ALT-EXC01-001"
-  alert_type                 String                @db.VarChar(50) // "DTC_FAULT", "ENGINE_OVERHEAT", "CRITICAL_OIL_TEMP", "SERVICE_INTERVAL_DUE", "SIPHONING_THEFT"
+  alert_type                 String                @db.VarChar(50) // "DTC_FAULT", "ENGINE_OVERHEAT", "CRITICAL_OIL_TEMP", "SERVICE_INTERVAL_DUE", "FUEL_DISCREPANCY"
   severity                   String                @default("WARNING") @db.VarChar(20) // "INFO", "WARNING", "CRITICAL", "FATAL_SHUTDOWN"
   dtc_code                   String?               @db.VarChar(20)
   title                      String                @db.VarChar(255)

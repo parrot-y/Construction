@@ -18,7 +18,7 @@ export interface SiteAlertItem {
   recipientPhone: string;
   recipientName: string;
   recipientRole: string;
-  alertType: 'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN';
+  alertType: 'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_DISCREPANCY_FLAG' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN';
   messageBody: string;
   deliveryChannel: 'WHATSAPP' | 'SMS' | 'IN_APP';
   deliveryStatus: 'QUEUED' | 'SENT' | 'DELIVERED' | 'FAILED';
@@ -57,7 +57,9 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
   const [recipientName, setRecipientName] = useState('Eng. David Mwangi');
   const [recipientPhone, setRecipientPhone] = useState('+254722889900');
   const [recipientRole, setRecipientRole] = useState('PROJECT_MANAGER');
-  const [alertType, setAlertType] = useState<'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN'>('CRITICAL_SAFETY_STOP_WORK');
+  const [alertType, setAlertType] = useState<
+    'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_DISCREPANCY_FLAG' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN'
+  >('CRITICAL_SAFETY_STOP_WORK');
   const [alertMessage, setAlertMessage] = useState('URGENT: Scaffold edge protection failure observed on North Elevation. Stop work ordered.');
 
   // Default logs state
@@ -536,7 +538,8 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                   >
                     <option value="CRITICAL_SAFETY_STOP_WORK">CRITICAL STOP-WORK</option>
                     <option value="STRUCTURAL_CONCRETE_FAIL">CONCRETE CUBE FAILURE</option>
-                    <option value="DIESEL_SIPHONING_FLAG">DIESEL SIPHONING ALERT</option>
+                    <option value="DIESEL_DISCREPANCY_FLAG">DIESEL DISCREPANCY ALERT</option>
+                    <option value="DIESEL_SIPHONING_FLAG">DIESEL DISCREPANCY (LEGACY FLAG)</option>
                     <option value="BUDGET_OVERRUN">BUDGET OVERRUN ALERT</option>
                   </select>
                 </div>

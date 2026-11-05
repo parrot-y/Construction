@@ -985,6 +985,7 @@ export type AlertRecipientRole = z.infer<typeof AlertRecipientRoleEnum>;
 
 export const AlertTypeEnum = z.enum([
   'CRITICAL_SAFETY_STOP_WORK',
+  'DIESEL_DISCREPANCY_FLAG',
   'DIESEL_SIPHONING_FLAG',
   'STRUCTURAL_CONCRETE_FAIL',
   'BUDGET_OVERRUN',

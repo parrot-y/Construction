@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import { CreatePortalLinkSchema } from '@construction/validation';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
 import { toDecimal } from '@construction/money';
 
@@ -10,26 +10,31 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 /**
  * Resolves a portal access link by token with Fail-Closed security.
- * Uses auth_context = 'portal' to look up the link without leaking tenant data.
+ * Uses narrow SECURITY DEFINER lookup_portal_link_by_hash with SHA-256 without auth_context bypasses (2c, 2d).
  */
 async function resolvePortalLink(token: string, expectedType?: string) {
   if (!token || typeof token !== 'string' || token.trim().length === 0) {
     return null;
   }
 
-  const link = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT set_config('app.auth_context', 'portal', TRUE)`;
-    return tx.portalAccessLink.findUnique({
-      where: { token: token.trim() },
-    });
-  });
+  const tokenHash = createHash('sha256').update(token.trim()).digest('hex');
+
+  const rows = await prisma.$queryRaw<any[]>`
+    SELECT * FROM lookup_portal_link_by_hash(${tokenHash}::text);
+  `;
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const link = rows[0];
 
   if (!link || !link.is_active) {
     return null;
   }
 
   // Check expiration
-  if (new Date() > link.expires_at) {
+  if (new Date() > new Date(link.expires_at)) {
     return null;
   }
 
@@ -85,7 +90,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       }
 
       const { portalType, stakeholderName, stakeholderRole, expiresInDays } = parseResult.data;
-      const token = randomBytes(32).toString('hex');
+      const rawToken = randomBytes(32).toString('hex');
+      const tokenHash = createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
 
       try {
@@ -105,7 +111,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
               portal_type: portalType,
               stakeholder_name: stakeholderName,
               stakeholder_role: stakeholderRole,
-              token,
+              token_hash: tokenHash,
               is_active: true,
               expires_at: expiresAt,
             },
@@ -129,6 +135,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           return created;
         });
 
+        // Show the raw token only once at creation (2d, H5)
         return reply.status(201).send({
           statusCode: 201,
           data: {
@@ -136,8 +143,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             portalType: link.portal_type,
             stakeholderName: link.stakeholder_name,
             stakeholderRole: link.stakeholder_role,
-            token: link.token,
-            linkUrl: `/portal/${link.portal_type.toLowerCase()}/${link.token}`,
+            token: rawToken,
+            linkUrl: `/portal/${link.portal_type.toLowerCase()}/${rawToken}`,
             expiresAt: link.expires_at.toISOString(),
             createdAt: link.created_at.toISOString(),
           },
@@ -190,8 +197,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           portalType: l.portal_type,
           stakeholderName: l.stakeholder_name,
           stakeholderRole: l.stakeholder_role,
-          token: l.token,
-          linkUrl: `/portal/${l.portal_type.toLowerCase()}/${l.token}`,
+          token: null, // Tokens stored as SHA-256 hashes; never exposed in listings (2d, H5)
+          linkUrl: null,
           isActive: l.is_active && new Date() < l.expires_at,
           expiresAt: l.expires_at.toISOString(),
           createdAt: l.created_at.toISOString(),

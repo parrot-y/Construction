@@ -24,8 +24,12 @@ import { commercialOperationsRoutes } from './routes/commercialOperations';
 import { siteOperationsRoutes } from './routes/siteOperations';
 import { enterpriseOperationsRoutes } from './routes/enterpriseOperations';
 import { platformServicesRoutes } from './routes/platformServices';
+import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
+  // Validate production security invariants (Fail-Closed on missing/short secrets)
+  validateEnvironmentSecurity();
+
   const server = fastify({
     logger: {
       level: process.env.LOG_LEVEL || 'info',

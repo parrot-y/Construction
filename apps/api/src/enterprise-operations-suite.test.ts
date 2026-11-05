@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { generateSignedSiteOpsToken } from './services/securityConfig';
 
 describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
   let app: FastifyInstance;
@@ -213,12 +214,12 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
       expect(res.statusCode).toBe(401);
     });
 
-    it('should reject site-ops webhook without tenantId with 400 Bad Request and not fallback to oldest tenant (C3 hardening)', async () => {
+    it('should reject site-ops webhook without signed token with 401 Unauthorized (2b cryptographic binding)', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
-          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
+          'x-site-ops-secret': 'invalid-unsigned-token',
         },
         payload: {
           senderPhone: '+254712345678',
@@ -229,8 +230,8 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
         },
       });
 
-      expect(res.statusCode).toBe(400);
-      expect(JSON.parse(res.body).message).toContain('Explicit valid tenantId is required');
+      expect(res.statusCode).toBe(401);
+      expect(JSON.parse(res.body).message).toContain('Invalid or missing signed site-ops webhook');
     });
 
     it('should parse #DIARY message and return intelligent auto-reply', async () => {
@@ -238,8 +239,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
-          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
-          'x-tenant-id': testTenantId,
+          'x-site-ops-token': generateSignedSiteOpsToken(testTenantId),
         },
         payload: {
           senderPhone: '+254712345678',
@@ -263,8 +263,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
-          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
-          'x-tenant-id': testTenantId,
+          'x-site-ops-token': generateSignedSiteOpsToken(testTenantId),
         },
         payload: {
           senderPhone: '+254722998877',
@@ -287,8 +286,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
-          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
-          'x-tenant-id': testTenantId,
+          'x-site-ops-token': generateSignedSiteOpsToken(testTenantId),
         },
         payload: {
           senderPhone: '+254733445566',
@@ -324,8 +322,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
         method: 'POST',
         url: '/api/v1/webhooks/site-ops',
         headers: {
-          'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
-          'x-tenant-id': testTenantId,
+          'x-site-ops-token': generateSignedSiteOpsToken(testTenantId),
         },
         payload: {
           senderPhone: '+254700112233',

@@ -48,7 +48,7 @@ export interface PlantMaintenanceAlertItem {
   equipmentCode?: string;
   equipmentName: string;
   deviceImei?: string | null;
-  alertType: 'DTC_FAULT' | 'ENGINE_OVERHEAT' | 'CRITICAL_OIL_TEMP' | 'SERVICE_INTERVAL_DUE' | 'SIPHONING_THEFT';
+  alertType: 'DTC_FAULT' | 'ENGINE_OVERHEAT' | 'CRITICAL_OIL_TEMP' | 'SERVICE_INTERVAL_DUE' | 'FUEL_DISCREPANCY' | 'SIPHONING_THEFT';
   severity: 'INFO' | 'WARNING' | 'CRITICAL' | 'FATAL_SHUTDOWN';
   dtcCode?: string | null;
   title: string;
@@ -199,15 +199,15 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   const defaultAlerts: PlantMaintenanceAlertItem[] = [
     {
       id: 'alt-001',
-      alertCode: 'ALT-SIPHON-001',
+      alertCode: 'ALT-FUEL-DISC-001',
       equipmentCode: 'EXC-001',
       equipmentName: 'CAT 320D Hydraulic Excavator',
       deviceImei: '869012059918234',
-      alertType: 'SIPHONING_THEFT',
+      alertType: 'FUEL_DISCREPANCY',
       severity: 'CRITICAL',
-      title: 'Rapid Fuel Drop / Siphoning Theft: CAT 320D Hydraulic Excavator',
-      description: 'CRITICAL DIESEL THEFT: 40.0L dropped in 5 min while engine STOPPED.',
-      recommendedAction: 'Inspect fuel tank cap, drain valve, and immediate physical fuel level. Review site CCTV security logs.',
+      title: 'Rapid Fuel Drop / Discrepancy Flag: CAT 320D Hydraulic Excavator',
+      description: 'CRITICAL FUEL VARIANCE: 40.0L dropped in 5 min while engine STOPPED.',
+      recommendedAction: 'Inspect fuel tank cap, drain valve, and immediate physical fuel level. Reconcile with site fuel log.',
       hoursMeterAtAlert: '1420.50',
       status: 'ACTIVE',
       createdAt: new Date(Date.now() - 300000).toISOString(),
@@ -358,15 +358,15 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
       if (isSiphoning) {
         const newAlert: PlantMaintenanceAlertItem = {
           id: `alt-${Date.now()}`,
-          alertCode: `ALT-SIPHON-${Date.now().toString(36).toUpperCase()}`,
+          alertCode: `ALT-FUEL-DISC-${Date.now().toString(36).toUpperCase()}`,
           equipmentCode: equipCode,
           equipmentName: equipName,
           deviceImei: selectedImei,
-          alertType: 'SIPHONING_THEFT',
+          alertType: 'FUEL_DISCREPANCY',
           severity: 'CRITICAL',
-          title: `Rapid Fuel Drop / Siphoning Theft: ${equipName}`,
-          description: `CRITICAL DIESEL THEFT: ${dropLiters.toFixed(1)}L dropped while engine ${simEngineStatus}.`,
-          recommendedAction: 'Inspect fuel tank cap, drain valve, and immediate physical fuel level. Review site CCTV security logs.',
+          title: `Rapid Fuel Drop / Discrepancy Flag: ${equipName}`,
+          description: `CRITICAL FUEL VARIANCE: ${dropLiters.toFixed(1)}L dropped while engine ${simEngineStatus}.`,
+          recommendedAction: 'Inspect fuel tank cap, drain valve, and immediate physical fuel level. Reconcile with site fuel log.',
           hoursMeterAtAlert: '1420.50',
           status: 'ACTIVE',
           createdAt: new Date().toISOString(),
@@ -376,7 +376,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 
       setFeedback(
         isSiphoning
-          ? `🚨 CRITICAL SIPHONING ALERT: Rapid fuel drop of ${dropLiters.toFixed(1)}L detected while engine ${simEngineStatus}. Automatic WhatsApp safety alert dispatched!`
+          ? `🚨 CRITICAL FUEL DISCREPANCY ALERT: Rapid fuel drop of ${dropLiters.toFixed(1)}L detected while engine ${simEngineStatus}. Automatic WhatsApp safety alert dispatched!`
           : `✓ Telematics ping ingested: ${equipName} (${previewFuelLiters.toFixed(1)}L / ${simFuelPct}%) - Status: ${simEngineStatus}.`
       );
     } catch (err: any) {
@@ -496,16 +496,16 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
         </div>
       </div>
 
-      {/* Siphoning Alert Banner if any anomaly present */}
+      {/* Discrepancy Alert Banner if any anomaly present */}
       {activeSiphoningPings.length > 0 && (
         <div className="p-4 rounded-xl bg-rose-50 border-2 border-rose-300 shadow-sm flex items-start gap-4">
           <div className="p-2 bg-rose-100 rounded-lg text-rose-700 font-bold text-xl">⚠️</div>
           <div className="flex-1">
             <h4 className="font-bold text-rose-900 text-sm">
-              Critical Fuel Theft Anomaly Flagged ({activeSiphoningPings.length} Incident Detected)
+              Critical Fuel Discrepancy Flagged ({activeSiphoningPings.length} Incident Detected)
             </h4>
             <p className="text-xs text-rose-800 mt-1">
-              Sudden diesel volume drop &gt;30 Liters detected while machinery engine was STOPPED/IDLE. Automatic WhatsApp safety alerts dispatched to site supervisor and security personnel.
+              Sudden diesel volume drop &gt;30 Liters detected while machinery engine was STOPPED/IDLE. Automatic WhatsApp safety alerts dispatched to site supervisor and plant engineering personnel.
             </p>
           </div>
         </div>
@@ -532,7 +532,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-xs font-semibold text-rose-600 uppercase tracking-wider">Siphoning Violations</p>
+          <p className="text-xs font-semibold text-rose-600 uppercase tracking-wider">Fuel Discrepancies</p>
           <p className="text-xl font-bold text-rose-700 mt-1">{activeSiphoningPings.length}</p>
           <p className="text-xs text-rose-600 mt-1">&gt;30L sudden drop events</p>
         </div>
@@ -682,8 +682,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex justify-between items-center">
           <div>
-            <h3 className="font-bold text-slate-800 text-sm">Diesel Siphoning Anomaly Incident Feed</h3>
-            <p className="text-xs text-slate-500">Deep telemetry fuel drain rate analysis and instant theft detection</p>
+            <h3 className="font-bold text-slate-800 text-sm">Fuel Discrepancy Anomaly Incident Feed</h3>
+            <p className="text-xs text-slate-500">Deep telemetry fuel drain rate analysis and anomaly variance detection</p>
           </div>
           <span className="text-xs font-semibold px-2 py-1 bg-rose-100 text-rose-800 rounded border border-rose-200">
             {siphoningEventsList.length} Anomaly Events
@@ -707,7 +707,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
               {siphoningEventsList.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-4 text-center text-slate-400">
-                    No fuel siphoning anomalies detected. Machinery fuel consumption operating normally.
+                    No fuel discrepancies detected. Machinery fuel consumption operating normally.
                   </td>
                 </tr>
               ) : (
@@ -751,7 +751,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     </td>
                     <td className="p-3">
                       {evt.isSiphoningEvent ? (
-                        <span className="font-semibold text-rose-700">Rapid Diesel Theft / Siphon Event</span>
+                        <span className="font-semibold text-rose-700">Rapid Fuel Level Drop Event</span>
                       ) : (
                         <span className="text-slate-600">Monitored Fuel Drop</span>
                       )}
@@ -862,7 +862,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
             onClick={triggerSiphoningSimulation}
             className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-sm"
           >
-            Simulate 40L Diesel Siphoning Drop
+            Simulate 40L Rapid Fuel Drop
           </button>
         </div>
 
@@ -1038,7 +1038,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                   <td className="p-3">
                     {p.isSiphoningEvent ? (
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                        DIESEL SIPHONING FLAG
+                        DIESEL DISCREPANCY FLAG
                       </span>
                     ) : (
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">

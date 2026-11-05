@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { verifySignedSiteOpsToken } from '../services/securityConfig';
 import {
   CreateETimsInvoiceSchema,
   CreateSubcontractorTaxComplianceSchema,
@@ -387,32 +388,32 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
   server.post(
     '/api/v1/webhooks/site-ops',
     async (request, reply) => {
-      // 1. Mandatory Webhook Secret Authentication (C3)
-      const webhookSecret =
+      // 1. Mandatory Signed Token Authentication & Cryptographic Tenant Binding (C3, 2b)
+      const token =
+        (request.headers['x-site-ops-token'] as string) ||
         (request.headers['x-site-ops-secret'] as string) ||
         (request.headers['authorization'] as string)?.replace(/^Bearer\s+/i, '');
-      const expectedSecret = process.env.SITE_OPS_WEBHOOK_SECRET || 'mjengo-site-ops-webhook-secret-production';
-      if (!webhookSecret || webhookSecret !== expectedSecret) {
+
+      const authenticatedTenantId = verifySignedSiteOpsToken(token);
+      if (!authenticatedTenantId) {
         return reply.status(401).send({
           statusCode: 401,
           error: 'Unauthorized',
-          message: 'Invalid or missing site-ops webhook authentication secret',
+          message: 'Invalid or missing signed site-ops webhook authentication token',
         });
       }
 
-      // 2. Explicit Tenant Context Resolution (no fallback to arbitrary tenants) (C3)
-      const tenantId =
-        (request as any).user?.tenantId ||
-        (request.headers['x-tenant-id'] as string) ||
-        (request.query as any)?.tenantId;
-
-      if (!tenantId || !UUID_REGEX.test(tenantId)) {
-        return reply.status(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Explicit valid tenantId is required in header or query parameters',
+      // 2. Reject any attempt to spoof tenantId via header or query params (2b)
+      const headerTenantId = request.headers['x-tenant-id'] as string;
+      if (headerTenantId && headerTenantId !== authenticatedTenantId) {
+        return reply.status(401).send({
+          statusCode: 401,
+          error: 'Unauthorized',
+          message: 'Tenant header mismatch: cannot override cryptographically signed tenant context',
         });
       }
+
+      const tenantId = authenticatedTenantId;
 
       const parseResult = ProcessWebhookPayloadSchema.safeParse(request.body);
       if (!parseResult.success) {
@@ -514,6 +515,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
 
           return {
             webhookId: log.id,
+            tenantId,
             detectedCommand: log.detected_command,
             processedStatus: log.processed_status,
             replyMessage: log.reply_message,
