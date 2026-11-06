@@ -2,6 +2,11 @@
   "$schema": "https://turbo.build/schema.json",
   "globalPassThroughEnv": [
     "DATABASE_URL",
+    "PG_BIN",
+    "PG_SOCKET",
+    "PG_PORT",
+    "PG_DB",
+    "PG_SUPERUSER",
     "JWT_SECRET",
     "COOKIE_SECRET",
     "NODE_ENV",
