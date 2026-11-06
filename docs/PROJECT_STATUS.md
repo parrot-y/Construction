@@ -4,7 +4,7 @@ Single source of truth for where the project stands. Updated at the end of every
 
 **Last updated:** 2026-11-06
 **Current phase:** Handover consolidation + buildsasa.com Gate 0 audit (Devin taking over from Gemini)
-**Next action:** Owner to (1) approve Gate 0 → start Gate 1 module walkthrough of console.buildsasa.com before trial expiry ~2026-11-10, (2) answer R-026 (were discovery interviews real?), (3) decide priority: console research vs remediation review vs discovery gate. R-031 (backup-restore test env-coupled, CI red) needs fixing regardless.
+**Next action:** Claude audits PR #1 (branch `devin/gate1-2-research-and-design`). On approval: Gate 4 build plan for delta slices (ADR-007 quotes-to-cash → ADR-008 certificates/retention → ADR-009 client visibility → ADR-010 CO limits). Still open: R-026 (real interviews?), R-032 (status table vs git log), trial expiry ~Nov 10 for any further console research.
 
 ## Product snapshot
 
