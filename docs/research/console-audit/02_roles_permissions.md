@@ -60,3 +60,20 @@ Team → Invite member: FULL NAME, WORK EMAIL, ROLE (14 minus Client), TEMP PASS
 
 ## "Viewing as" `[OBSERVED]`
 Sidebar control "Viewing as: Contractor" — lets the owner preview the workspace as a role sees it (role-scoped nav). Exact mechanics partially observed [INFERRED].
+
+## Live account probes — 2026-11-06 (owner-provided role accounts) [OBSERVED]
+
+Four role accounts exercised read-only. Raw captures kept LOCAL ONLY (`/tmp/sasa-audit2/`) — not committed per audit remediation.
+
+| Account role | Login path | Landing view | Sidebar scope | Access probes |
+|---|---|---|---|---|
+| Quantity Surveyor (watson) | Contractor sign-in | Dashboard (CO analytics widgets) | FULL module tree visible | Opened: Financials, Commitments, Quotes, Invoicing, Inventory, Inspections, Safety incidents, Team, Attendance, Reports, Correspondence, Directory, Subcontractors, Company documents, Coordination issues, Schedule, Daily log, Announcements, Inbox. **Role manager → ACCESS DENIED** (matches Manage Team=OFF) |
+| Architect (abel) | Contractor sign-in | Dashboard | FULL module tree visible (incl. Role manager entry) | Same broad page access as QS incl. Financials/Quotes/Invoicing pages. **Role manager → ACCESS DENIED** despite menu entry visible |
+| QA/QC Officer (lisa) | Contractor sign-in | **Projects** (not Dashboard — field-role landing) | **PRUNED**: no Dashboard; Money group shows only Inventory (no Financials/Commitments/Quotes/Invoicing); People group lacks Team + Role manager; Documents & reports lacks Reports | Opened: Inventory, Inspections, Safety incidents, Attendance, Correspondence, Directory, Subcontractors, Company documents, Coordination issues, Schedule, Daily log, Checklists, Punch list, Observations. Money/financial pages absent from nav entirely |
+| Client/Owner (brendakosgeijeptoo…) | — | **LOGIN FAILED** — "Invalid email or password" on BOTH client and contractor paths (tried gmail.com; owner may have typo'd or invite not accepted) | — | Needs corrected credentials or invite acceptance |
+
+### New observed facts
+1. **Sidebar is role-pruned**, not just action-gated: QA/QC loses Dashboard, all Money pages except Inventory, Team/Role manager, and Reports. QS/Architect see the full tree but Role manager denies at open (permission ≠ menu visibility — inconsistent UX worth noting).
+2. **Dashboard is role-specific**: contractor/QS/architect land on CO-analytics dashboard; QA/QC lands on Projects list. Confirms per-role default views [OBSERVED].
+3. Page-level access ≠ action-level: QS/Architect can *open* Financials/Quotes/Invoicing pages — whether create/approve buttons inside are gated was NOT tested (would need form interaction; deferred).
+4. Role manager remains the authoritative rights source — matrix above stands; probes confirm Manage Team and View Financials/Reports gating at nav level.
