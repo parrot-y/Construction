@@ -20,6 +20,9 @@ Resumable progress tracker. Update after every session.
 - [x] Pricing/plans/billing captured incl. Paystack, AI credits, self-hosted
 - [x] Deliverables: 01_overview … 10_opportunities, SUMMARY.md, 03_workflows/README.md, 04_journeys, 05_data_model (ERD), 06_integrations, 07_sitemap, 08_pricing
 
+## Owner plan (2026-11-06)
+Owner will create additional trial accounts (14-day) for other roles while Claude audits PR #1. Protocol ready: `ROLE_SIMULATION_PROTOCOL.md` — 7 role accounts needed, per-role capture checklist, 7 end-to-end simulation scenarios (S1–S7). Team invites into POWELL workspace preferred for staff roles; client needs Client-tab invite (record creation — will ask before sending).
+
 ## Not done / Not reachable
 - [ ] Client dashboard interior — needs client invite (requires creating data; ask owner)
 - [ ] Saved-record workflows (statuses beyond empty states) — would need ZZ-RESEARCH- records; ask owner if wanted
