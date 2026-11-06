@@ -1425,7 +1425,7 @@ export const AcknowledgeMaintenanceAlertSchema = z.object({
 export type AcknowledgeMaintenanceAlert = z.infer<typeof AcknowledgeMaintenanceAlertSchema>;
 
 // -------------------------------------------------------------
-// INDEPENDENT SITE INSPECTION & CONTRACTOR TENDERING (MILESTONE M33 / BUILDSASA PARITY)
+// INDEPENDENT SITE INSPECTION & CONTRACTOR TENDERING (MILESTONE M33 )
 // -------------------------------------------------------------
 
 export const InspectionPhotoInputSchema = z.object({

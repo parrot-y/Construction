@@ -20,7 +20,7 @@ interface CurrentUserRole {
   rolbypassrls: boolean;
 }
 
-describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite', () => {
+describe('Operations E2E Integration Suite', () => {
   let app: FastifyInstance;
   let adminCookie: string;
   let pmCookie: string;
@@ -101,11 +101,11 @@ describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite'
     // 5. Seed and Login as Tenant B (Cross-Tenant Isolation Adversary)
     const defaultPasswordHash = await hashPassword('Password123!');
     const tenantB = await prisma.tenant.upsert({
-      where: { slug: 'test-buildsasa-tenant-b' },
+      where: { slug: 'test-platform-tenant-b' },
       update: {},
       create: {
         name: 'Kilimanjaro Development Ltd',
-        slug: 'test-buildsasa-tenant-b',
+        slug: 'test-platform-tenant-b',
         currency: 'KES',
       },
     });
@@ -169,7 +169,7 @@ describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite'
   afterAll(async () => {
     // Clean up Tenant B test data
     await prisma.tenant.deleteMany({
-      where: { slug: 'test-buildsasa-tenant-b' },
+      where: { slug: 'test-platform-tenant-b' },
     });
     await prisma.$disconnect();
   });
@@ -177,8 +177,8 @@ describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite'
   // ===========================================================================
   // AUDIT AREA 2: PostgreSQL 18 Row-Level Security Verification
   // ===========================================================================
-  it('RLS-01: Verifies that buildsasa parity tables enforce ENABLE and FORCE ROW LEVEL SECURITY under db_app', async () => {
-    const parityTables = [
+  it('RLS-01: Verifies that operations tables enforce ENABLE and FORCE ROW LEVEL SECURITY under db_app', async () => {
+    const opsTables = [
       'independent_site_inspections',
       'independent_inspection_photos',
       'project_tenders',
@@ -191,10 +191,10 @@ describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite'
       FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public'
-        AND c.relname = ANY(${parityTables});
+        AND c.relname = ANY(${opsTables});
     `;
 
-    expect(catalogRows.length).toBe(parityTables.length);
+    expect(catalogRows.length).toBe(opsTables.length);
     for (const row of catalogRows) {
       expect(row.relrowsecurity).toBe(true);
       expect(row.relforcerowsecurity).toBe(true);
@@ -213,7 +213,7 @@ describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite'
   });
 
   // ===========================================================================
-  // AUDIT AREA 1 & 3: Buildsasa Contractor Tender Board & 70/30 Scoring Engine
+  // AUDIT AREA 1 & 3: Platform Contractor Tender Board & 70/30 Scoring Engine
   // ===========================================================================
   it('TND-01: Step (a & b) - PM_QS logs in and posts a Project Tender for KES 45,000,000 (Residential Villa)', async () => {
     const tenderPayload = {
@@ -421,7 +421,7 @@ describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite'
       recommendations: 'Contractor progress claim is materially inflated by 15.0% (claimed 55% vs verified 40%). Withhold interim disbursement pending QS joint remeasurement.',
       photos: [
         {
-          photoUrl: 'https://storage.buildsasa.co.ke/inspections/runda-footing-d16.jpg',
+          photoUrl: 'https://storage.example.com/inspections/runda-footing-d16.jpg',
           caption: 'Foundation footing with D16 high-yield deformed bars verified',
           elementInspected: 'REBAR',
           hasDiscrepancy: false,
@@ -429,7 +429,7 @@ describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite'
           gpsLongitude: 36.8123187,
         },
         {
-          photoUrl: 'https://storage.buildsasa.co.ke/inspections/bamburi-cement-batch.jpg',
+          photoUrl: 'https://storage.example.com/inspections/bamburi-cement-batch.jpg',
           caption: 'Bamburi Powerplus 42.5N cement bags on site docket',
           elementInspected: 'CEMENT',
           hasDiscrepancy: false,
@@ -437,7 +437,7 @@ describe('Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite'
           gpsLongitude: 36.8123187,
         },
         {
-          photoUrl: 'https://storage.buildsasa.co.ke/inspections/incomplete-dpc-walling.jpg',
+          photoUrl: 'https://storage.example.com/inspections/incomplete-dpc-walling.jpg',
           caption: 'Incomplete foundation walling contradicts contractor claimed 55% milestone',
           elementInspected: 'FOUNDATION_WALLING',
           hasDiscrepancy: true,

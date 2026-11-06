@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
 
-describe('Buildsasa Parity Operations Suite: Schedule, Inventory, Safety, Documents & Subcontractors', () => {
+describe('Operations Suite: Schedule, Inventory, Safety, Documents & Subcontractors', () => {
   let server: FastifyInstance;
   let adminCookie: string;
   let supervisorCookie: string;

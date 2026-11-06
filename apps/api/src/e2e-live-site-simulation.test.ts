@@ -1165,7 +1165,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
         clockType: 'CLOCK_IN',
         capturedLatitude: '-1.286400',
         capturedLongitude: '36.817230',
-        photoSelfieUrl: 'https://storage.mjengoledger.co.ke/selfies/juma_in.jpg',
+        photoSelfieUrl: 'https://storage.example.com/selfies/juma_in.jpg',
       },
     });
     expect(clock1.statusCode).toBe(201);

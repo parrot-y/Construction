@@ -430,7 +430,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
         />
       )}
 
-      {/* Material Purchase Requisitions & Orders (Buildsasa Benchmark) */}
+      {/* Material Purchase Requisitions & Orders (Platform Benchmark) */}
       {(activeTab === 'all' || activeTab === 'requisitions') && (
         <MaterialRequisitionView
           projectId="project-rcp-2026"
@@ -590,7 +590,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
         />
       )}
 
-      {/* Buildsasa Diaspora Independent Site Inspection Reports (Milestone M33) */}
+      {/* Platform Diaspora Independent Site Inspection Reports (Milestone M33) */}
       {(activeTab === 'all' || activeTab === 'inspections') && (
         <IndependentSiteReportView
           projectId="project-rcp-2026"
@@ -599,7 +599,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
         />
       )}
 
-      {/* Buildsasa Contractor Tender Board & Bidding Studio (Milestone M33) */}
+      {/* Platform Contractor Tender Board & Bidding Studio (Milestone M33) */}
       {(activeTab === 'all' || activeTab === 'tenders') && (
         <ContractorTenderBoardView
           projectId="project-rcp-2026"

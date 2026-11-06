@@ -63,7 +63,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
         eventTimestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
         calculatedDistanceMeters: '14.20',
         verificationStatus: 'WITHIN_GEOFENCE',
-        photoSelfieUrl: 'https://storage.mjengoledger.co.ke/selfies/wkr102_in.jpg',
+        photoSelfieUrl: 'https://storage.example.com/selfies/wkr102_in.jpg',
       },
       {
         id: 'clk-02',
@@ -74,7 +74,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
         eventTimestamp: new Date(Date.now() - 3600000 * 2.8).toISOString(),
         calculatedDistanceMeters: '1840.50',
         verificationStatus: 'OUTSIDE_GEOFENCE_FLAGGED',
-        photoSelfieUrl: 'https://storage.mjengoledger.co.ke/selfies/wkr108_flag.jpg',
+        photoSelfieUrl: 'https://storage.example.com/selfies/wkr108_flag.jpg',
       },
       {
         id: 'clk-03',
@@ -94,7 +94,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   const [clockType, setClockType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
   const [capturedLat, setCapturedLat] = useState('-1.292150');
   const [capturedLng, setCapturedLng] = useState('36.821920');
-  const [selfieUrl, setSelfieUrl] = useState('https://storage.mjengoledger.co.ke/selfies/sample.jpg');
+  const [selfieUrl, setSelfieUrl] = useState('https://storage.example.com/selfies/sample.jpg');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 

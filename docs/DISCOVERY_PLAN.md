@@ -1,6 +1,6 @@
 # DISCOVERY_PLAN.md — customer discovery before heavy build-out
 
-**Date:** 2026-11-06 · **Status:** BLOCKED on R-026 — the existing `docs/research/DISCOVERY_GATE_SYNTHESIS.md` claims 9 interviews; owner must confirm they were real. If synthetic, this plan replaces it.
+**Date:** 2026-11-06 · **Status:** RESOLVED (R-026 closed 2026-11-06) — owner confirmed the 9 "interviews" in `docs/research/DISCOVERY_GATE_SYNTHESIS.md` were AI-synthesized, not real. Per owner decision the interview track is **descoped**: workflow evidence now comes from the reference-console research (`docs/research/console-audit/`). **Buyer, product name and pricing remain UNVALIDATED hypotheses** — to be tested during the live-site pilot, not assumed. The interview script below is retained as a reusable asset for pilot feedback sessions.
 
 ## Goal
 Confirm the primary paying customer and validate pricing before building beyond M10 (per audit freeze H1).

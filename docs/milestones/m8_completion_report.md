@@ -2,14 +2,14 @@
 
 **Status:** Completed & Self-Verified  
 **Date:** 2026-11-03  
-**Product:** MjengoLedger  
+**Product:** Platform  
 **Test Suite Status:** 118/118 passing tests across monorepo (100% green builds, 0 type errors)
 
 ---
 
 ## 1. Executive Summary
 
-Milestone M8 delivers the contractual variations workflow for MjengoLedger, formalizing additions and omissions to the project scope and maintaining the fundamental financial invariant:
+Milestone M8 delivers the contractual variations workflow for Platform, formalizing additions and omissions to the project scope and maintaining the fundamental financial invariant:
 
 $$\text{Current Approved Budget} = \text{Original BOQ Budget} + \sum \text{Approved Variations}$$
 

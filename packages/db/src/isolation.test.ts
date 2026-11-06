@@ -303,7 +303,7 @@ describe('PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001
     // Create test user and cost entry
     const user = await prisma.user.create({
       data: {
-        email: `tester-${Date.now()}@mjengoledger.com`,
+        email: `tester-${Date.now()}@example.com`,
         password_hash: 'mock-hash',
         full_name: 'Immutability Tester',
       },

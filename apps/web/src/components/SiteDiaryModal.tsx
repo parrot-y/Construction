@@ -34,7 +34,7 @@ export default function SiteDiaryModal({
   const [supplierName, setSupplierName] = useState('Bamburi Cement Ltd');
   const [deliveryNote, setDeliveryNote] = useState('DN-90124');
 
-  // Plant & Machinery Equipment State (Buildsasa / ConTech Parity)
+  // Plant & Machinery Equipment State
   const [equipmentName, setEquipmentName] = useState('Concrete Mixer 350L (Diesel)');
   const [equipmentHours, setEquipmentHours] = useState('6.0');
   const [fuelLitres, setFuelLitres] = useState('15');
@@ -341,7 +341,7 @@ export default function SiteDiaryModal({
             </div>
           </div>
 
-          {/* Plant, Machinery & Equipment Tracking (Buildsasa / ConTech Parity) */}
+          {/* Plant, Machinery & Equipment Tracking */}
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <div className="flex justify-between items-center">
               <span className="font-bold text-slate-800">🚜 Plant & Equipment Log</span>

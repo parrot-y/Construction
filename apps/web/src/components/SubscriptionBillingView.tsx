@@ -226,7 +226,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
         <div className={`p-6 rounded-xl border ${activePlan === 'PORTFOLIO_TIER' ? 'border-emerald-500 ring-2 ring-emerald-100 bg-white' : 'border-slate-200 bg-slate-50'}`}>
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Enterprise Parity</span>
+              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Enterprise</span>
               <h3 className="text-lg font-bold text-slate-800 mt-1">Portfolio Tier</h3>
               <p className="text-2xl font-bold text-slate-900 mt-2">KES 25,000 <span className="text-xs font-normal text-slate-500">/ month</span></p>
             </div>

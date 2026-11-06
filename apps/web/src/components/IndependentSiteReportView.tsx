@@ -312,7 +312,7 @@ export default function IndependentSiteReportView({
         name: 'Clerk of Works Dispatching...',
         ncaRegistration: 'NCA Independent Inspector Registry',
         phone: bookContactPhone,
-        email: 'dispatch@buildsasa.co.ke',
+        email: 'dispatch@example.com',
         latitude: -1.264850,
         longitude: 36.802140,
         accuracyMeters: 3.0,
@@ -443,7 +443,7 @@ export default function IndependentSiteReportView({
             </span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Buildsasa Independent Site Inspection Reports
+            Platform Independent Site Inspection Reports
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Unannounced third-party Clerk of Works audits, GPS-verified progress reality, and material quality assurance for {projectName}.
@@ -903,7 +903,7 @@ export default function IndependentSiteReportView({
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                  Buildsasa Neutral Field Audit
+                  Platform Neutral Field Audit
                 </span>
                 <h3 className="text-base font-bold text-slate-900 mt-1">
                   Book Unannounced Site Inspection

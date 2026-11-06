@@ -1,4 +1,4 @@
-# PRD.md — MjengoLedger (Gate 2 synthesis output)
+# PRD.md — Platform (Gate 2 synthesis output)
 
 **Date:** 2026-11-06 · **Status:** DRAFT for owner approval · **Depends on:** customer discovery (see DISCOVERY_PLAN.md) for buyer confirmation.
 

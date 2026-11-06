@@ -45,7 +45,7 @@ Run these as full journeys per role, screenshotting each step:
 - Redact real data in all captures; credentials via env vars only.
 
 ## Deliverables per role
-- `pages-dom/role-<name>-*.json` dumps + screenshots
+- Redacted summaries appended to `02_roles_permissions.md` / `03_workflows/` / `04_journeys.md`. Raw DOM dumps and screenshots stay LOCAL ONLY — never committed (audit remediation rule: no raw captures in repo).
 - Workflow notes appended to `03_workflows/` files (role-specific sections)
 - Permission observations appended to `02_roles_permissions.md` (observed vs inferred)
 - Journey evidence appended to `04_journeys.md`

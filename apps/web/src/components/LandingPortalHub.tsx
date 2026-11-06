@@ -171,7 +171,7 @@ export default function LandingPortalHub({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-black text-slate-900 tracking-tight">
-                Buildsasa Kenya
+                Platform Kenya
               </span>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase">
                 Construction OS
@@ -209,7 +209,7 @@ export default function LandingPortalHub({
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            Buildsasa Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal
+            Platform Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal
           </h1>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
@@ -366,7 +366,7 @@ export default function LandingPortalHub({
         </div>
       </section>
 
-      {/* Buildsasa Instant Building Construction Cost & Feasibility Estimator */}
+      {/* Platform Instant Building Construction Cost & Feasibility Estimator */}
       <section className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
           <div>
@@ -377,7 +377,7 @@ export default function LandingPortalHub({
               <span className="text-xs text-slate-400 font-mono">BORAQS &amp; JBC 2026 Baseline</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
-              Buildsasa Instant Construction Cost &amp; Feasibility Estimator
+              Platform Instant Construction Cost &amp; Feasibility Estimator
             </h2>
             <p className="text-xs text-slate-400">
               Calculate preliminary budget, milestone cash flows, and diaspora exchange rates per Kenyan Joint Building Council standards.
@@ -562,7 +562,7 @@ export default function LandingPortalHub({
               Instant Stakeholder Interactive Preview Switcher
             </h2>
             <p className="text-xs text-slate-500">
-              Click any of the 8 stakeholder roles to instantly preview their dedicated, tailored Buildsasa interface without typing credentials.
+              Click any of the 8 stakeholder roles to instantly preview their dedicated, tailored Platform interface without typing credentials.
             </p>
           </div>
         </div>
@@ -615,7 +615,7 @@ export default function LandingPortalHub({
       {/* Footer Branding */}
       <footer className="pt-6 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2">
         <p>
-          Buildsasa Kenya • Enterprise Construction Operating System &amp; Diaspora Remote Property Owner Portal
+          Platform Kenya • Enterprise Construction Operating System &amp; Diaspora Remote Property Owner Portal
         </p>
         <p className="text-[11px] text-slate-400 font-mono">
           Compliant with BORAQS, NCA (National Construction Authority), EASMM 2008, KRA e-TIMS &amp; NEMA regulations.

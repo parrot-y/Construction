@@ -8,7 +8,7 @@ Resumable progress tracker. Update after every session.
 ## Environment notes
 - Automation: `puppeteer-core` + system `/usr/bin/google-chrome` (headless). Scripts in `/tmp/sasa-audit/` (ephemeral — recreate if wiped).
 - Credentials passed via env vars `SASA_EMAIL` / `SASA_PASSWORD` at runtime only — never stored.
-- Screenshots: `screenshots/`; page DOM dumps: `pages-dom/*.json`; API map: `api-endpoints-full.txt` (250 paths).
+- Screenshots: `screenshots/` (retained). Page DOM dumps (`pages-dom/`) and `api-endpoints-full.txt` were purged from the repo 2026-11-06 per Claude audit remediation — findings preserved in the numbered docs; raw captures must NOT be recommitted.
 
 ## Done — Gate 1 coverage
 - [x] All sidebar modules visited and dumped (~35 pages)

@@ -66,7 +66,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="font-semibold">Online & Synchronized</span>
-          <span className="text-emerald-600 hidden sm:inline">• Real-time connection to MjengoLedger Cloud</span>
+          <span className="text-emerald-600 hidden sm:inline">• Real-time connection to Platform Cloud</span>
         </div>
         <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-100 rounded border border-emerald-200 font-semibold">
           IndexedDB Offline Queue Active

@@ -1,7 +1,7 @@
 # MVP_SCOPE.md — V1 feature cut (Gate 2 output)
 
 **Date:** 2026-11-06 · **Status:** DRAFT for owner approval
-**Basis:** Buildsasa console research (`docs/research/console-audit/`) + existing MjengoLedger milestones M0–M10 + discovery synthesis.
+**Basis:** Reference-console research (`docs/research/console-audit/`) + existing Platform milestones M0–M10. (Prior "discovery synthesis" was AI-generated, not real interviews — R-026; buyer/name/pricing unvalidated.)
 
 ## Guiding principle
 Thin end-to-end slices in the money chain: **BOQ → budget → progress/cost → evidence → approval → client visibility**. Everything else is "later" unless it's table stakes for the core loop.

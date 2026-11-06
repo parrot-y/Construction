@@ -441,7 +441,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         if (masonMatch && masonMatch[1]) extractedData.masons = parseInt(masonMatch[1], 10);
         if (casualMatch && casualMatch[1]) extractedData.casuals = parseInt(casualMatch[1], 10);
 
-        replyMessage = `MjengoLedger: Asante ${senderName || 'Supervisor'}. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo. (Masons: ${extractedData.masons || 0}, Casuals: ${extractedData.casuals || 0}).`;
+        replyMessage = `Platform: Asante ${senderName || 'Supervisor'}. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo. (Masons: ${extractedData.masons || 0}, Casuals: ${extractedData.casuals || 0}).`;
       } else if (upperMsg.startsWith('#DELIVERY') || upperMsg.startsWith('DELIVERY:')) {
         detectedCommand = 'DELIVERY';
         // Extract material delivery clues
@@ -449,13 +449,13 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         if (bagsMatch && bagsMatch[1]) extractedData.quantity = bagsMatch[1];
         extractedData.summary = rawMessage.replace(/^[#]DELIVERY[:\s]*/i, '').trim();
 
-        replyMessage = `MjengoLedger: Delivery note imethibitishwa: "${extractedData.summary}". Storekeeper ataangalia mzigo kabla ya kutoa GRN.`;
+        replyMessage = `Platform: Delivery note imethibitishwa: "${extractedData.summary}". Storekeeper ataangalia mzigo kabla ya kutoa GRN.`;
       } else if (upperMsg.startsWith('#INCIDENT') || upperMsg.startsWith('INCIDENT:')) {
         detectedCommand = 'INCIDENT';
         extractedData.isSafetyCritical = upperMsg.includes('STOP') || upperMsg.includes('COLLAPSE') || upperMsg.includes('INJURY') || upperMsg.includes('FALL');
         extractedData.incidentDetails = rawMessage.replace(/^[#]INCIDENT[:\s]*/i, '').trim();
 
-        replyMessage = `MjengoLedger SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: ${extractedData.isSafetyCritical ? 'CRITICAL STOP-WORK' : 'INCIDENT LOGGED'}.`;
+        replyMessage = `Platform SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: ${extractedData.isSafetyCritical ? 'CRITICAL STOP-WORK' : 'INCIDENT LOGGED'}.`;
       } else if (upperMsg.startsWith('#FUEL') || upperMsg.startsWith('#PLANT') || upperMsg.startsWith('FUEL:')) {
         detectedCommand = 'PLANT_FUEL';
         const litersMatch = rawMessage.match(/(\d+(?:\.\d+)?)\s*(?:l|liters?|litres?)/i);
@@ -463,9 +463,9 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         if (litersMatch && litersMatch[1]) extractedData.liters = litersMatch[1];
         if (hoursMatch && hoursMatch[1]) extractedData.hours = hoursMatch[1];
 
-        replyMessage = `MjengoLedger Fuel Audit: Mafuta (${extractedData.liters || 0}L) yamerekodiwa kwa masaa (${extractedData.hours || 0} hrs). Siphoning verification active.`;
+        replyMessage = `Platform Fuel Audit: Mafuta (${extractedData.liters || 0}L) yamerekodiwa kwa masaa (${extractedData.hours || 0} hrs). Siphoning verification active.`;
       } else {
-        replyMessage = `MjengoLedger Bot: Karibu! Tuma ujumbe ukitumia #DIARY, #DELIVERY, #INCIDENT, au #FUEL kurekodi shughuli za tovuti moja kwa moja.`;
+        replyMessage = `Platform Bot: Karibu! Tuma ujumbe ukitumia #DIARY, #DELIVERY, #INCIDENT, au #FUEL kurekodi shughuli za tovuti moja kwa moja.`;
       }
 
       try {

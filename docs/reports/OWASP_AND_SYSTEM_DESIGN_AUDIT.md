@@ -1,6 +1,6 @@
-# MjengoLedger — Comprehensive Security & OWASP Top 10 Defensive Audit Report
+# Platform — Comprehensive Security & OWASP Top 10 Defensive Audit Report
 
-**System Name:** MjengoLedger (Multi-Tenant Construction Financial SaaS for Kenya)  
+**System Name:** Platform (Multi-Tenant Construction Financial SaaS for Kenya)  
 **Document Version:** 1.0.0  
 **Audit Date:** 2026-11-03  
 **Auditor:** Security & OWASP Auditor (Antigravity Defensive Security Engine)  
@@ -12,9 +12,9 @@
 
 ## 1. Executive Summary
 
-A comprehensive defensive security audit of the **MjengoLedger** codebase was conducted against the **OWASP Top 10 (2021/2025 Web Application Security Standards)** and the core architectural mandates established in [`docs/SYSTEM_DESIGN.md`](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/SYSTEM_DESIGN.md) and ADR-001 through ADR-006.
+A comprehensive defensive security audit of the **Platform** codebase was conducted against the **OWASP Top 10 (2021/2025 Web Application Security Standards)** and the core architectural mandates established in [`docs/SYSTEM_DESIGN.md`](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/SYSTEM_DESIGN.md) and ADR-001 through ADR-006.
 
-The overall security posture of MjengoLedger is **Exceptional (Enterprise-Grade Defensive Architecture)**. The platform implements an uncompromising two-layer defense-in-depth model for multi-tenancy, zero-float financial precision, append-only ledger immutability, and strict role-based access control.
+The overall security posture of Platform is **Exceptional (Enterprise-Grade Defensive Architecture)**. The platform implements an uncompromising two-layer defense-in-depth model for multi-tenancy, zero-float financial precision, append-only ledger immutability, and strict role-based access control.
 
 During this audit, defensive hardening patches were applied directly to the codebase to eliminate information leakage, protect against brute-force credential stuffing, enforce strict invitation validation, and ensure production cryptographic key hygiene. All tests remain **100% green**.
 
@@ -360,4 +360,4 @@ The following defensive hardening improvements were implemented and verified dur
   - **Overall result: 100% Green**.
 
 ---
-*Report certified by Antigravity Defensive Security Engine — MjengoLedger Security Audit.*
+*Report certified by Antigravity Defensive Security Engine — Platform Security Audit.*

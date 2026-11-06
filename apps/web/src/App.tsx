@@ -200,7 +200,7 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
             className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition"
           >
             <span>←</span>
-            <span>Back to Buildsasa Kenya Landing Portal Hub</span>
+            <span>Back to Platform Kenya Landing Portal Hub</span>
           </button>
         </div>
         <LoginForm onLoginSuccess={(newSession) => setSession(newSession)} />
@@ -208,7 +208,7 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
     );
   }
 
-  // 4. Default Buildsasa Landing Portal Experience Hub
+  // 4. Default Platform Landing Portal Experience Hub
   return (
     <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
       <LandingPortalHub

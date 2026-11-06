@@ -1239,9 +1239,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // MILESTONE M11: OPERATIONS SUITE FRONTEND COMPONENTS (BUILDSASA PARITY)
+  // MILESTONE M11: OPERATIONS SUITE FRONTEND COMPONENTS 
   // ---------------------------------------------------------------------------
-  describe('Milestone M11: Operations Suite Frontend Components (Buildsasa Parity)', () => {
+  describe('Milestone M11: Operations Suite Frontend Components ', () => {
     it('renders ProjectScheduleGanttView with WBS phases, tasks, and progress indicators', () => {
       const html = renderToString(
         <ProjectScheduleGanttView projectId="test-proj-1" />
@@ -2226,7 +2226,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
   });
 
-  describe('Milestone M33: Buildsasa Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite', () => {
+  describe('Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite', () => {
     const mockSession = (role: string): AuthSession => ({
       user: {
         id: `user-${role.toLowerCase()}`,
@@ -2254,7 +2254,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Header and badge assertions
-      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
+      expect(html).toContain('Platform Independent Site Inspection Reports');
       expect(html).toContain('Diaspora Shield • Neutral Site Verification');
       expect(html).toContain('NCA Registered Clerk of Works');
       expect(html).toContain('Book Unannounced Inspection');
@@ -2326,7 +2326,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Header assertions
-      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Platform Contractor Tender Board &amp; Bidding Studio');
       expect(html).toContain('Technical 70% • Financial 30% Evaluation');
       expect(html).toContain('+ Post New Tender');
       expect(html).toContain('Submit Contractor Bid');
@@ -2356,7 +2356,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Preliminaries &amp; Overheads:');
     });
 
-    it('renders LandingPortalHub with Buildsasa hero banner, 4 key value cards, and 8-role interactive preview switcher', () => {
+    it('renders LandingPortalHub with Platform hero banner, 4 key value cards, and 8-role interactive preview switcher', () => {
       const html = renderToString(
         <LandingPortalHub
           onSelectRolePreview={() => {}}
@@ -2365,7 +2365,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Branding & Hero Banner
-      expect(html).toContain('Buildsasa Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
+      expect(html).toContain('Platform Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
       expect(html).toContain('Apex Builders Kenya Ltd');
       expect(html).toContain('Sign in to access your project workspace');
       expect(html).toContain('Diaspora Client Portal Preview');
@@ -2402,7 +2402,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<App />).replace(/<!-- -->/g, '');
 
       // LandingPortalHub is loaded unauthenticated
-      expect(html).toContain('Buildsasa Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
+      expect(html).toContain('Platform Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
       expect(html).toContain('Apex Builders Kenya');
       expect(html).toContain('Sign in to access your project workspace');
       expect(html).toContain('open-login-btn');
@@ -2414,8 +2414,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Embedded M33 components in ClientDashboard
-      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
-      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Platform Independent Site Inspection Reports');
+      expect(html).toContain('Platform Contractor Tender Board &amp; Bidding Studio');
 
       // Certified IPCs, Payments, and Monetary Variance Schedule
       expect(html).toContain('Certified Valuations Ledger');
@@ -2445,8 +2445,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('📑 Tender Board');
 
       // Embedded M33 components in PmQsDashboard
-      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
-      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Platform Independent Site Inspection Reports');
+      expect(html).toContain('Platform Contractor Tender Board &amp; Bidding Studio');
       expect(html).toContain('Technical 70% • Financial 30% Evaluation');
       expect(html).toContain('Progress Variance Analysis');
     });
@@ -2474,7 +2474,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('whatsapp-alert-btn');
     });
 
-    it('renders Buildsasa Instant Building Construction Cost & Feasibility Estimator with 5 currencies and 6-stage drawdown', () => {
+    it('renders Platform Instant Building Construction Cost & Feasibility Estimator with 5 currencies and 6-stage drawdown', () => {
       const html = renderToString(
         <LandingPortalHub
           onSelectRolePreview={() => {}}
@@ -2483,7 +2483,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Cost & Feasibility Estimator section
-      expect(html).toContain('Buildsasa Instant Construction Cost &amp; Feasibility Estimator');
+      expect(html).toContain('Platform Instant Construction Cost &amp; Feasibility Estimator');
       expect(html).toContain('BORAQS &amp; JBC 2026 Baseline');
       expect(html).toContain('calc-typology-select');
       expect(html).toContain('calc-area-input');

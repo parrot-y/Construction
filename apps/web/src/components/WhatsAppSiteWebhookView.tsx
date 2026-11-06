@@ -74,7 +74,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         detectedCommand: 'DIARY',
         processedStatus: 'PROCESSED',
         extractedData: { masons: 14, casuals: 22 },
-        replyMessage: 'MjengoLedger: Asante Foreman Kiprono. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo. (Masons: 14, Casuals: 22).',
+        replyMessage: 'Platform: Asante Foreman Kiprono. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo. (Masons: 14, Casuals: 22).',
         createdAt: '2026-11-04T07:45:00Z',
       },
       {
@@ -86,7 +86,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         detectedCommand: 'DELIVERY',
         processedStatus: 'PROCESSED',
         extractedData: { quantity: '200', summary: '200 bags Bamburi Nguvu 42.5R' },
-        replyMessage: 'MjengoLedger: Delivery note imethibitishwa: "200 bags Bamburi Nguvu 42.5R". Storekeeper ataangalia mzigo kabla ya kutoa GRN.',
+        replyMessage: 'Platform: Delivery note imethibitishwa: "200 bags Bamburi Nguvu 42.5R". Storekeeper ataangalia mzigo kabla ya kutoa GRN.',
         createdAt: '2026-11-04T08:30:00Z',
       },
       {
@@ -98,7 +98,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         detectedCommand: 'INCIDENT',
         processedStatus: 'PROCESSED',
         extractedData: { isSafetyCritical: true },
-        replyMessage: 'MjengoLedger SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: CRITICAL STOP-WORK.',
+        replyMessage: 'Platform SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: CRITICAL STOP-WORK.',
         createdAt: '2026-11-04T09:15:00Z',
       },
     ]
@@ -138,20 +138,20 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
     e.preventDefault();
     const upper = rawMessage.toUpperCase();
     let cmd: any = 'UNKNOWN';
-    let reply = 'MjengoLedger: Message processed.';
+    let reply = 'Platform: Message processed.';
 
     if (upper.includes('#DIARY')) {
       cmd = 'DIARY';
-      reply = `MjengoLedger: Asante ${senderName}. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo.`;
+      reply = `Platform: Asante ${senderName}. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo.`;
     } else if (upper.includes('#DELIVERY')) {
       cmd = 'DELIVERY';
-      reply = 'MjengoLedger: Delivery note imethibitishwa na kuhifadhiwa.';
+      reply = 'Platform: Delivery note imethibitishwa na kuhifadhiwa.';
     } else if (upper.includes('#INCIDENT')) {
       cmd = 'INCIDENT';
-      reply = 'MjengoLedger SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer mara moja!';
+      reply = 'Platform SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer mara moja!';
     } else if (upper.includes('#FUEL')) {
       cmd = 'PLANT_FUEL';
-      reply = 'MjengoLedger Fuel Audit: Mafuta yamenakiliwa kwa mfumo.';
+      reply = 'Platform Fuel Audit: Mafuta yamenakiliwa kwa mfumo.';
     }
 
     const newLog: WebhookLogItem = {

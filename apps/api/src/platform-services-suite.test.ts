@@ -291,7 +291,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
           clockType: 'CLOCK_IN',
           capturedLatitude: '-1.292150',
           capturedLongitude: '36.821920',
-          photoSelfieUrl: 'https://storage.mjengoledger.co.ke/selfies/wkr999_in.jpg',
+          photoSelfieUrl: 'https://storage.example.com/selfies/wkr999_in.jpg',
         },
       });
 

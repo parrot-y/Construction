@@ -1,6 +1,6 @@
 # GATE 3 — Design reconciliation: existing SYSTEM_DESIGN vs new MVP scope
 
-**Date:** 2026-11-06 · **Reviewer:** Devin (CTO) · **Status:** DRAFT for owner + Claude audit
+**Date:** 2026-11-06 · **Reviewer:** Devin (CTO) · **Status:** PENDING — Gate 3 NOT self-certified; awaiting owner + Claude audit. Independent critique in `docs/CRITIC_REVIEW_DESIGN.md` (verdict: CONDITIONAL).
 **Inputs:** `docs/MVP_SCOPE.md`, `docs/research/console-audit/` (Buildsasa study), existing `docs/SYSTEM_DESIGN.md` + ADR-001…006, current Prisma schema (70+ models).
 
 ## Verdict
@@ -39,15 +39,8 @@ Bidding→ProjectTender/TenderBid already built (bonus); AI credits; self-host; 
 - **ADR-009** Client visibility controls (ProjectClient entity, SitePhoto.client_visible, notes-never-shared rule)
 - **ADR-010** Change-order/variation upgrade (trigger types, assignees, PM→Owner chain, per-role approval_limit_minor)
 
-## Design-pass checklist (self-review vs skills/system-design-review)
-- Tenant isolation: all new tables get RLS FORCE + isolation tests — YES by convention
-- Payments idempotent: M-Pesa callbacks already hardened (R-021) — YES
-- Server-side RBAC on every route — YES (requirePermission pattern)
-- Audit trail complete — YES (append-only audit_logs)
-- Weak networks — offline queue exists; extend to new field forms — YES
-- Backups restorable — verified (M10 suite green)
-- One-person ops — monolith + Postgres + PWA, managed Postgres later — YES
-- Over-engineering check — 70 models already built is arguably AHEAD of MVP; new slices must not widen scope beyond MUST list — FLAG for Critic
+## Design-pass checklist
+Self-review moved to independent critique: see `docs/CRITIC_REVIEW_DESIGN.md` — verdict CONDITIONAL (items 1–5 PARTIAL until slice tests land; C-01 route-auth CI guard and C-02 scope-debt flagged). This reconciliation does not certify Gate 3.
 
 ## Recommendation
-Approve Gate 3 conditionally: adopt the 4 delta ADRs, then Gate 4 build plan re-sequences remaining work as: (1) quotes-to-cash slice, (2) client certificates/retention slice, (3) client-visibility + CO-upgrade slice, (4) punch/checklist polish — all on top of the frozen-but-remediated M0–M10 base. Everything M11+ stays frozen until owner + Claude sign off.
+Gate 3 remains **pending owner approval**. Proposed sequencing if approved: (1) quotes-to-cash slice, (2) client certificates/retention slice, (3) client-visibility + CO-upgrade slice, (4) punch/checklist polish — all on top of the frozen-but-remediated M0–M10 base. Everything M11+ stays frozen until owner + Claude sign off.

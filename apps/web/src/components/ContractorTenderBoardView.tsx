@@ -272,7 +272,7 @@ export default function ContractorTenderBoardView({
     setTenders([newTender, ...tenders]);
     setSelectedTenderId(newTender.id);
     setShowPostTenderModal(false);
-    setActionSuccess(`Tender package "${newTender.title}" successfully posted to Buildsasa Tender Board!`);
+    setActionSuccess(`Tender package "${newTender.title}" successfully posted to Platform Tender Board!`);
     setNewTitle('');
     setNewScope('');
     if (onTenderCreated) onTenderCreated(newTender);
@@ -385,7 +385,7 @@ export default function ContractorTenderBoardView({
             </span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Buildsasa Contractor Tender Board &amp; Bidding Studio
+            Platform Contractor Tender Board &amp; Bidding Studio
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Transparent e-tendering, automated combined score ranking, and contractor contract awards for {projectName}.

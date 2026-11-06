@@ -564,14 +564,14 @@ export default function ClientDashboard({
         canVerify={true}
       />
 
-      {/* Buildsasa Diaspora Independent Site Inspection Reports (Milestone M33) */}
+      {/* Platform Diaspora Independent Site Inspection Reports (Milestone M33) */}
       <IndependentSiteReportView
         projectId={projectData.id}
         projectName={projectData.name}
         userRole="CLIENT"
       />
 
-      {/* Buildsasa Contractor Tender Board & Bidding Interface (Milestone M33) */}
+      {/* Platform Contractor Tender Board & Bidding Interface (Milestone M33) */}
       <ContractorTenderBoardView
         projectId={projectData.id}
         projectName={projectData.name}

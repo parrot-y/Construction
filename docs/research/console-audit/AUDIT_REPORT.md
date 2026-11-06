@@ -94,7 +94,7 @@ Method: puppeteer-core scripts, ~1 action/2 s, screenshots per step, field table
 
 ## g) Gaps & corrections to assumptions
 
-1. **Product shape differs from our earlier parity audit.** Buildsasa is organised around **change orders, checklists, punch/observations, daily logs, plans/drawings, crews, quotes/invoices** — a contractor field-ops + commercial tool — not primarily valuations/BOQ/certificates (those exist under Business tier: "BOQ & payment certificates"). Our MjengoLedger is heavier on BOQ/valuations/retention. Both matter; the overlap is large but the emphasis differs. `[INFERRED]`
+1. **Product shape differs from our earlier parity audit.** Buildsasa is organised around **change orders, checklists, punch/observations, daily logs, plans/drawings, crews, quotes/invoices** — a contractor field-ops + commercial tool — not primarily valuations/BOQ/certificates (those exist under Business tier: "BOQ & payment certificates"). Our Platform is heavier on BOQ/valuations/retention. Both matter; the overlap is large but the emphasis differs. `[INFERRED]`
 2. **Two-sided market confirmed**: contractors AND property owners (diaspora) are both first-class funnels. `[OBSERVED]`
 3. **Self-hosted offering** means enterprise buyers exist; our SaaS-only posture may miss that segment — note as opportunity/threat.
 4. **AI is a billed feature** (ai-credits checkout) — they've productised AI usage; we should note pricing/UX of that.

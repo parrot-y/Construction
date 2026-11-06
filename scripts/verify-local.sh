@@ -35,7 +35,7 @@ LOG_FILE="${REPO_ROOT}/docs/evidence/verify-${COMMIT_HASH}.log"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
 echo "================================================================================"
-echo "MJENGOLEDGER LOCAL CI VERIFICATION REPLICA"
+echo "PLATFORM LOCAL CI VERIFICATION REPLICA"
 echo "Commit:   ${COMMIT_HASH}"
 echo "Log file: ${LOG_FILE}"
 echo "Started:  $(date -u +"%Y-%m-%dT%H:%M:%SZ")"

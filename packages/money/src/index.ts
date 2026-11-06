@@ -1423,7 +1423,7 @@ export interface ProgressInflationResult {
 }
 
 /**
- * Buildsasa Parity: Evaluates progress inflation between contractor claims and independent inspector findings.
+ *  Evaluates progress inflation between contractor claims and independent inspector findings.
  * E.g., contractor claiming 55% or 65% when inspector verifies 40% or 48% (variance <= -15%) triggers CRITICAL_INFLATION.
  */
 export function calculateProgressInflation(

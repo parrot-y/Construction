@@ -1,4 +1,4 @@
-# MjengoLedger — Site Supervisor & Foreman Field Pocket Guide (Mwongozo wa Site)
+# Platform — Site Supervisor & Foreman Field Pocket Guide (Mwongozo wa Site)
 
 **Target Role:** Site Supervisors, Foremen (*Capitao*), Field Engineers & Clerks of Works  
 **Devices Supported:** Android (Chrome), iOS (Safari), KaiOS / Feature Browser  
@@ -9,7 +9,7 @@
 
 ## 1. Fast PWA Setup on Your Phone (Dakika Mbili)
 
-`MjengoLedger` is a Progressive Web App (PWA). It does **not** take up 100MB of phone memory from the Google Play Store, and it works even when Safaricom / Airtel network drops to 2G or offline.
+`Platform` is a Progressive Web App (PWA). It does **not** take up 100MB of phone memory from the Google Play Store, and it works even when Safaricom / Airtel network drops to 2G or offline.
 
 ```
 +-------------------------------------------------------------------------+
@@ -17,13 +17,13 @@
 | STEP 2: Go to the site URL provided by your PM/QS.                      |
 | STEP 3: Tap the 3 dots (⋮) in the top right corner of Chrome.            |
 | STEP 4: Tap "Install App" or "Add to Home Screen".                      |
-| STEP 5: An icon named "MjengoLedger" appears on your phone screen!      |
+| STEP 5: An icon named "Platform" appears on your phone screen!      |
 +-------------------------------------------------------------------------+
 ```
 
 ### Checking Offline Mode (*Bila Bundles au Network*):
 1. Turn on **Airplane Mode** (Disconnect Wi-Fi and Mobile Data).
-2. Open `MjengoLedger` from your home screen.
+2. Open `Platform` from your home screen.
 3. Notice the top banner: **"Offline Mode • Local Queue Active"**.
 4. You can still post site diaries, count workers, log cement deliveries, and snap photos. Everything saves safely to your phone storage (`IndexedDB`) and automatically uploads as soon as network returns.
 
@@ -81,7 +81,7 @@ Under Kenyan building regulations (**NCA Cap 499A** and **BORAQS Cap 525**), the
 ### B. Concrete Cube Crushing Protocol
 For every major pour (footings, columns, suspended slab):
 1. Cast a batch of **6 concrete test cubes** ($150 \times 150 \times 150\text{ mm}$).
-2. Log Batch Reference in MjengoLedger: e.g. `BT-001`.
+2. Log Batch Reference in Platform: e.g. `BT-001`.
 3. Record Slump Test: e.g. `100 mm`.
 4. Write date and batch code with permanent marker on the cubes after demoulding (24 hrs).
 5. Submerge cubes in water curing tank on site.
@@ -108,7 +108,7 @@ When approaching Practical Completion or during trade finishes (tiling, plumbing
 
 ## 5. Summary Cheat Sheet for Site Foremen
 
-| Time | Action | Screen in MjengoLedger | Duration |
+| Time | Action | Screen in Platform | Duration |
 |---|---|---|---|
 | **07:30 AM** | Record morning weather, site status, and worker headcount | **Site Diary Modal** | 45 seconds |
 | **During Day** | Log material trucks arriving on site + snap photo of docket | **Site Diary -> Delivery** | 30 seconds |
@@ -118,4 +118,4 @@ When approaching Practical Completion or during trade finishes (tiling, plumbing
 | **Friday PM** | Walk site with PM and record physical progress % | **Record Physical Progress** | 3 minutes |
 
 **Support Contact:**  
-Call or WhatsApp your Project Manager / QS or email `support@mjengoledger.co.ke` if your device needs assistance.
+Call or WhatsApp your Project Manager / QS or email `support@example.com` if your device needs assistance.

@@ -1,11 +1,11 @@
 # GATE 1 PLAN — Buildsasa console: full inside-out study
 
 **Date:** 2026-11-06 · **Owner:** Devin · **Status:** EXECUTED 2026-11-06 — deliverables in this folder; awaiting owner Gate 1 review
-**Goal:** Come out of this gate understanding Buildsasa completely enough to (a) replicate every user role/portal and how modules connect, and (b) feed Gate 2 product definition for MjengoLedger.
+**Goal:** Come out of this gate understanding Buildsasa completely enough to (a) replicate every user role/portal and how modules connect, and (b) feed Gate 2 product definition for Platform.
 
 ## What we already have (done)
 
-- Full nav/module tree captured (35 page dumps in `pages-dom/`, screenshots in `screenshots/`)
+- Full nav/module tree captured (page dumps were in `pages-dom/` — purged 2026-11-06 per audit remediation; screenshots in `screenshots/` retained)
 - All 14 roles identified in Role manager with descriptions
 - Pricing/plans/billing captured (Starter $23/mo 3 seats, Business $69/mo 10 seats, Paystack M-Pesa/card/bank, self-hosted option)
 - 77 API endpoints mapped; tech fingerprint complete
@@ -49,7 +49,7 @@ Global: Ctrl+K search · New menu · currency switch (KES/USD) · notifications 
 17. `07_sitemap.md` — full nav tree (mostly done)
 18. `08_pricing_and_limits.md` — plans, seats, AI credits, feature gating
 19. `09_ux_findings.md` — strengths/friction for Kenyan contractors
-20. `10_opportunities.md` — where MjengoLedger beats them
+20. `10_opportunities.md` — where Platform beats them
 21. `SUMMARY.md` — feature checklist: feature | Buildsasa has it? | priority for our MVP
 22. Update `PROGRESS.md` continuously; every created record (none so far) in `CREATED_RECORDS.md`
 

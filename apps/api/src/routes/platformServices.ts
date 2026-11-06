@@ -4302,8 +4302,8 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             recipientPhone: updated.requested_by,
             alertType: varianceEval.alertRequired ? 'CRITICAL_INFLATION_ALERT' : 'VERIFIED_PROGRESS_DIGEST',
             messageBody: varianceEval.alertRequired
-              ? `MjengoLedger/Buildsasa URGENT ALERT: Ukaguzi ${updated.inspection_code} umegundua tofauti ya maendeleo (Claimed: ${reportedNum.toFixed(1)}%, Verified: ${verifiedNum.toFixed(1)}%, Variance: ${varianceEval.variancePct}%). Malipo yamesitishwa hadi ukaguzi urudiwe.`
-              : `MjengoLedger/Buildsasa UPDATE: Ukaguzi ${updated.inspection_code} umekamilika (Verified: ${verifiedNum.toFixed(1)}%). Hakuna hitilafu iliyopatikana.`,
+              ? `Platform URGENT ALERT: Ukaguzi ${updated.inspection_code} umegundua tofauti ya maendeleo (Claimed: ${reportedNum.toFixed(1)}%, Verified: ${verifiedNum.toFixed(1)}%, Variance: ${varianceEval.variancePct}%). Malipo yamesitishwa hadi ukaguzi urudiwe.`
+              : `Platform UPDATE: Ukaguzi ${updated.inspection_code} umekamilika (Verified: ${verifiedNum.toFixed(1)}%). Hakuna hitilafu iliyopatikana.`,
             pdfReportUrl: `/api/v1/projects/${projectId}/reports/independent-inspections/${updated.id}`,
             dispatchedAt: new Date().toISOString(),
           };
@@ -4369,8 +4369,8 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           const isCritical = variance <= -10.0;
 
           const digestMessage = isCritical
-            ? `MjengoLedger BDS-ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
-            : `MjengoLedger BDS-UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
+            ? `Platform BDS-ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
+            : `Platform BDS-UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
 
           await recordAuditLog(tx, {
             tenantId,

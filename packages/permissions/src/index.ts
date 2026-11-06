@@ -47,14 +47,14 @@ export const Permissions = {
   COMPANY_INVITE: 'company.invite',
   COMPANY_MANAGE: 'company.manage',
 
-  // Buildsasa Parity: Tender Board
+  // Tender Board
   TENDER_CREATE: 'tender.create',
   TENDER_VIEW: 'tender.view',
   TENDER_BID: 'tender.bid',
   TENDER_EVALUATE: 'tender.evaluate',
   TENDER_AWARD: 'tender.award',
 
-  // Buildsasa Parity: Independent Site Inspections
+  // Independent Site Inspections
   INSPECTION_REQUEST: 'inspection.request',
   INSPECTION_SUBMIT: 'inspection.submit',
   INSPECTION_VIEW: 'inspection.view',
@@ -63,7 +63,7 @@ export const Permissions = {
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
 
-// Role to Permission Matrix (V1 Baseline + Buildsasa Parity Matrix)
+// Role to Permission Matrix (V1 Baseline + Extended Role Matrix)
 export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
   [Roles.ADMIN]: [
     Permissions.PROJECT_CREATE,

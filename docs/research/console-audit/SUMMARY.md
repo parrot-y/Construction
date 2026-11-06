@@ -1,12 +1,14 @@
-# SUMMARY — Buildsasa console research (Gate 1)
+# SUMMARY — reference-console research (Gate 1)
+
+**Evidence basis:** all ✅/field claims below are **[OBSERVED]** in the authorised contractor console on 2026-11-06 (read-only; no records created). Anything not seen is marked **not observed** — it may exist behind roles, saved records, or the native app we could not reach; it is NOT proven absent. "Our wedge" rows mean *candidate differentiators, not observed in the audited surfaces* — unverified until role-by-role accounts (`ROLE_SIMULATION_PROTOCOL.md`) or customer validation.
 
 **Account:** Contractor workspace (JUMUIA CONTRACTORS / POWELL), USD display, trial ~4 days left at 2026-11-06.
 **Coverage:** all sidebar modules visited, ~20 create/edit forms captured read-only, 14-role permission matrix extracted, 250 API endpoints mapped, client path tested (separate account system).
 **Not reachable:** client dashboard (needs client invite), other workspaces/tenants, saved-record workflows (no records created — see CREATED_RECORDS.md), native mobile app.
 
-## Feature checklist — Buildsasa has it? → our MVP priority
+## Feature checklist — reference product has it? → our MVP priority
 
-| Feature | Buildsasa | Our MVP priority |
+| Feature | Reference console | Our MVP priority |
 |---|---|---|
 | Projects hub w/ lifecycle statuses | ✅ | Must |
 | Change orders w/ trigger/cost/schedule/approval chain | ✅ core | Must |
@@ -40,10 +42,10 @@
 | Multi-currency display (KES/USD) | ✅ | Must (KES-first for us) |
 | Paystack billing (M-Pesa/card/bank) | ✅ | Must |
 | Self-hosted option | ✅ | Not now |
-| eTIMS/VSCU tax invoices | ❌ not observed | **Our wedge — Should/Must** |
-| SMS notifications | ❌ not observed | **Our wedge — Should** |
-| Offline sync for field use | ❌ not observed | **Our wedge — Must** |
-| Per-project pricing | ❌ (per-seat) | **Our wedge** |
+| eTIMS/VSCU tax invoices | not observed | **Candidate differentiator — Should/Must (unverified)** |
+| SMS notifications | not observed | **Candidate differentiator — Should (unverified)** |
+| Offline sync for field use | not observed | **Candidate differentiator — Must (unverified)** |
+| Per-project pricing | per-seat observed | **Candidate differentiator (unverified)** |
 
 ## Biggest strategic takeaways
 1. Their centre of gravity = field ops + change orders + client transparency; ours = BOQ→budget→progress→cost→evidence→approval→client. Overlap is large; differentiate on QS-depth, M-Pesa/eTIMS, offline, KES pricing.

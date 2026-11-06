@@ -1,4 +1,4 @@
-# Skills pack — MjengoLedger program playbook
+# Skills pack — Platform program playbook
 
 Index of working procedures. Each skill lists when to use it, the procedure, a checklist, an output template, and common mistakes. Follow these for every phase; a deliverable is not accepted until its skill's checklist passes and the reviewer role signs off.
 

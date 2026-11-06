@@ -1,4 +1,4 @@
-# 10 — Opportunities for MjengoLedger
+# 10 — Opportunities for Platform
 
 Where we can beat Buildsasa for the Kenyan market `[INFERRED]` — validate in Gate 2/customer discovery.
 
