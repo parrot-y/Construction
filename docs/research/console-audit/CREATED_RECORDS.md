@@ -4,9 +4,13 @@ Log of every record created inside the buildsasa.com console account during rese
 
 | Date | Record type | Identifier / name | Action needed |
 |---|---|---|---|
-| — | — | None created | Read-only exploration only; no records created, nothing to clean up |
+| 2026-11-06 | Change order | **CO-4990** — "ZZ-RESEARCH-DO NOT ACT: boundary wall" (MAKUNDI APARTMENTS, Owner request, $100, +2d, ended status **Approved**) | Delete or Void in Change orders list |
+| 2026-11-06 | Daily log | **Fri 6 Nov entry** — "ZZ-RESEARCH test entry: scaffold inspection and material check. Safe to delete." (4 labour-days, crew "ZZ-RESEARCH Crew") | Delete/edit in Daily log → Friday cell |
+| 2026-11-06 | Quote | **Q-0001** — "ZZ-RESEARCH-DO NOT ACT: boundary wall quote" (client "ZZ-RESEARCH Client", $4,235, status **Sent** — a share link was generated) | Delete in Quotes list; link is inert (fake client email) |
 
 Notes:
-- Login was performed with the owner-provided account (role observed: Contractor, workspace "POWELL", currency USD, free trial with ~4 days remaining at time of audit).
-- No forms were submitted, no invites sent, no payments or notifications triggered.
+- Login was performed with the owner-provided account (role observed: Contractor, workspace "POWELL", currency USD, free trial).
+- The quote was marked **Sent** during the send-flow test — its share link points to a fake client (`zz-research@example.com`), so nothing was delivered anywhere real. No emails/WhatsApps were actually dispatched by us; "Send" only generates the link + status change.
+- The CO was advanced Drafted → PM Review → Approved during lifecycle testing. It is a dummy $100/+2d record on the test project.
+- The daily log is text-only (no photos/video attached), so nothing was exposed to the client portal beyond what the written-notes rule already hides.
 - Credentials were never written to any file, screenshot, or log.

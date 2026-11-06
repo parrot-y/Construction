@@ -25,17 +25,26 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 
 ## Not done / Not reachable
 - [ ] Client dashboard interior — needs client invite (requires creating data; ask owner)
-- [ ] Saved-record workflows (statuses beyond empty states) — would need ZZ-RESEARCH- records; ask owner if wanted
+- [x] Saved-record workflows — partially done 2026-11-06: CO lifecycle, daily log, quote send flow exercised live (see § above); invoice/commitment/inspection/punch/checklist saved states still not reached
 - [ ] Module-access toggle granularity per role — permission toggles captured; module list appears derived [INFERRED]
 - [ ] "Viewing as" role preview mechanics — partially observed
 - [ ] Bidding flow detail (no jobs/bid-packages in this workspace)
 - [ ] Ask Buildsasa AI / Shemmy chat — not exercised
 - [ ] Upload flow end-to-end (presign observed in bundle only)
 
+## 2026-11-06 — Deep pass + created records (owner directive: test everything)
+- All 13 project-detail tabs' bodies extracted → `12_deep_pass_and_created_records.md` §1 (BOQ revisions immutable, drawings revision stacking, closeout stage machine, finishes client-approval loop).
+- Money group children enumerated: Financials · Commitments · Quotes · Invoicing · Inventory · Billing & plan.
+- **Records created & driven live** (logged in CREATED_RECORDS.md):
+  - CO-4990: created via UI, walked Drafted → PM Review → Approved; per-status action buttons + actor activity log captured.
+  - Daily log (Fri 6 Nov): created; week dashboard counters; **per-media client-visibility checkbox — written notes never shown to client**.
+  - Q-0001 quote: created, Draft → Sent; send panel exposes Copy/WhatsApp/Email/PDF + client-portal "Quotes & proposals" inbox with comment/request-changes loop.
+- Remaining "not reached": saved-state UI for invoice/commitment/inspection/punch/checklist/subcontractor/crew/RFI/incident/correspondence/contact; "Viewing as" mechanics; Ask AI/Shemmy; upload pipeline; bidding.
+
 ## Blockers / flags
 - **Trial expiry ~2026-11-10** — if it lapses, remaining items become "Not reachable" permanently.
-- R-026 (real interviews?) still unanswered — blocks Discovery Gate.
-- No records created in account (CREATED_RECORDS.md clean).
+- R-026 closed 2026-11-06: the 9 "discovery interviews" were synthetic; owner redirected validation to this console audit instead. Buyer/product-name/pricing remain UNVALIDATED.
+- 3 ZZ-RESEARCH- records now exist in the account (see CREATED_RECORDS.md for cleanup).
 
 ## 2026-11-06 — Role account probes (owner-provided accounts)
 - QS, Architect, QA/QC accounts exercised read-only; findings appended to `02_roles_permissions.md` ("Live account probes"). Key facts: sidebar is role-pruned (QA/QC loses Dashboard, Money pages, Team/Role manager, Reports); QS/Architect see full nav but Role manager denies at open; role-specific landing views confirmed.
