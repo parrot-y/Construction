@@ -38,3 +38,16 @@ Reports · Company documents · Unfiled documents · Filters · Export PDF · re
 1. **Role taxonomy expansion** — we have PM_QS/SITE_SUPERVISOR/CLIENT/etc.; observed ladder: EXECUTIVE > PM > SUPERINTENDENT > SITE_ENGINEER > TRADE_LEAD > FOREMAN > WORKER > VIEWER (+CLIENT, SUBCONTRACTOR portals already done).
 2. **New modules not yet built:** Inbox (team messaging), Observations, Action plans, Assignments, Crews, Directory, Roles admin, Company documents vault (categories: Policies/Templates/Certifications/Insurance/HR/Legal), Unfiled documents triage, Scheduled reports, Coordination + Correspondence project tabs, Plans & drawings viewer (trade-filtered), Field view (mobile-first field UI), Attendance module.
 3. **Permission scoping pattern:** same IA for all; capabilities gated per role (Money depth, People write access, Files access, CO tab visibility).
+
+## Deep-dive captures (PM account, 2026-11-08)
+
+- **Observations**: list + "New Observation" — fields: title, type (Quality/Safety/Environmental/Commissioning), priority (Low/Medium/High), location ("Level 2 — Grid C4"), project, description. Statuses: Open / In Review / Closed. Sub-tab "Corrective actions" with "New corrective action": plan title, owner, due date, project, **source ref (e.g. OBS-102 — links to observation)**, ordered steps (Step 1…). Statuses: Active / Overdue (derived) / Completed.
+- **Assignments**: "Assignments by trade" + "Assign a form" — checklist/form assignment to trades.
+- **Checklists**: Templates / My checklists / Upload / **Form Builder / New Template** (AI extraction from paper forms).
+- **Attendance**: Today / History / Check In / Report Leave or Off-Day.
+- **Crews**: crew list management (New Crew for senior field roles).
+- **Correspondence** (Projects tab): types **Letter / Submittal / Transmittal / Notice** + AI draft ("delay notice to client").
+- **Coordination** (Projects tab): "Coordination issues" — unified RFIs & issues view.
+- **Company documents** (Files): categories Policies / Templates / Certifications / Insurance / HR / Legal + **expiry tracking** ("which documents expire soon?") + Upload. "Unfiled documents" triage.
+- **Reports**: Financial / Operational / By Project / By Region / Custom / **Scheduled** + Export PDF/Excel.
+- Every list has an "Ask Buildsasa AI" inline prompt scoped to that module.
