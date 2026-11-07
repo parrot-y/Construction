@@ -2122,3 +2122,24 @@ export const ConsultantReviewSchema = z.object({
   notes: z.string().max(5000).optional().nullable(),
 });
 export type ConsultantReview = z.infer<typeof ConsultantReviewSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-10: Daily attendance
+// -----------------------------------------------------------------------------
+
+export const AttendanceStatusEnum = z.enum(['PRESENT', 'HALF_DAY', 'LEAVE', 'OFF_DAY', 'ABSENT']);
+
+export const RecordAttendanceSchema = z.object({
+  laborerId: z.string().uuid(),
+  workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // default today
+  status: AttendanceStatusEnum.default('PRESENT'),
+  notes: z.string().max(2000).optional().nullable(),
+  crewId: z.string().uuid().optional().nullable(),
+});
+export type RecordAttendance = z.infer<typeof RecordAttendanceSchema>;
+
+export const CheckInOutSchema = z.object({
+  laborerId: z.string().uuid(),
+  workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+});

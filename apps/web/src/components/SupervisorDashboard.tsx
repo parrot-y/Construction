@@ -27,6 +27,7 @@ import InboxView from './InboxView';
 import AnnouncementsView from './AnnouncementsView';
 import ObservationsView from './ObservationsView';
 import CrewsView from './CrewsView';
+import AttendanceView from './AttendanceView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -323,6 +324,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       <InboxView currentUserId={session?.user?.id} />
       <ObservationsView projectId="project-rcp-2026" canManage={true} />
       <CrewsView canManage={true} />
+      <AttendanceView canManage={true} />
       <AnnouncementsView canManage={false} />
 
       <QualityControlView

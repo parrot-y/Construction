@@ -196,6 +196,7 @@ model Project {
   corrective_actions    CorrectiveAction[]
   crews                 Crew[]
   correspondence_items  CorrespondenceItem[]
+  daily_attendances     DailyAttendance[]
   scheduled_reports     ScheduledReport[]
 
   @@unique([tenant_id, code])
@@ -1341,6 +1342,7 @@ model SiteLaborer {
   project            Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
   attendance_records LaborDailyAttendance[]
   clock_events       WorkerClockEvent[]
+  daily_attendances  DailyAttendance[]
 
   @@unique([tenant_id, national_id_no])
   @@index([tenant_id, project_id, trade_category])
@@ -2709,6 +2711,7 @@ model Crew {
 
   project         Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
   members         CrewMember[]
+  attendances     DailyAttendance[]
 
   @@index([tenant_id, project_id, status])
   @@map("crews")
@@ -2839,4 +2842,38 @@ model ScheduledReportRun {
 
   @@index([tenant_id, report_id, ran_at])
   @@map("scheduled_report_runs")
+}
+
+// -------------------------------------------------------------
+// DAILY ATTENDANCE (Gate-5 G5-10): observed Site > Attendance —
+// Today / History / Check In / Report Leave or Off-Day.
+// Per-laborer per-project per-day register; distinct from payroll
+// LaborDailyAttendance (weekly muster) and geofenced
+// WorkerClockEvent (IoT). Optional crew link.
+// -------------------------------------------------------------
+
+model DailyAttendance {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  laborer_id      String    @db.Uuid
+  crew_id         String?   @db.Uuid
+  work_date       DateTime  @db.Date
+  status          String    @default("PRESENT") @db.VarChar(15) // "PRESENT","HALF_DAY","LEAVE","OFF_DAY","ABSENT"
+  check_in_at     DateTime? @db.Timestamptz
+  check_out_at    DateTime? @db.Timestamptz
+  hours_worked    Decimal?  @db.Decimal(4, 2)
+  notes           String?   @db.Text
+  recorded_by_id  String?   @db.Uuid
+  recorded_by_name String?  @db.VarChar(255)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  laborer         SiteLaborer @relation(fields: [laborer_id], references: [id], onDelete: Cascade)
+  crew            Crew?     @relation(fields: [crew_id], references: [id], onDelete: SetNull)
+
+  @@unique([tenant_id, project_id, laborer_id, work_date])
+  @@index([tenant_id, project_id, work_date])
+  @@map("daily_attendances")
 }

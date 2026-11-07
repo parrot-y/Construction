@@ -35,6 +35,7 @@ import { crewsRoutes } from './routes/crews';
 import { companyDocumentsRoutes } from './routes/companyDocuments';
 import { correspondenceRoutes } from './routes/correspondence';
 import { scheduledReportsRoutes } from './routes/scheduledReports';
+import { attendanceRoutes } from './routes/attendance';
 import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
@@ -144,6 +145,7 @@ export function buildServer(): FastifyInstance {
   server.register(companyDocumentsRoutes);
   server.register(correspondenceRoutes);
   server.register(scheduledReportsRoutes);
+  server.register(attendanceRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {
