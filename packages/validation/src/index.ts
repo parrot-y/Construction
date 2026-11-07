@@ -1905,6 +1905,8 @@ export type UpdateProjectDetails = z.infer<typeof UpdateProjectDetailsSchema>;
 
 export const AssignProjectMemberSchema = z.object({
   userId: z.string().uuid(),
-  role: ProjectMemberRoleEnum.default('MEMBER'),
+  // Free-form project-scoped role label (legacy roles like PROJECT_QS,
+  // PM_QS, SITE_SUPERVISOR are valid); observed modal offers PM/Architect/QS.
+  role: z.string().min(1).max(50).default('MEMBER'),
 });
 export type AssignProjectMember = z.infer<typeof AssignProjectMemberSchema>;

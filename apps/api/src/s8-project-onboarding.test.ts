@@ -151,10 +151,10 @@ describe('Gate-4 S8: Project onboarding & edit', () => {
       expect(res.statusCode).toBe(200);
       expect(JSON.parse(res.body).data.role).toBe(role);
     }
-    // invalid role rejected
+    // empty role rejected
     expect((await server.inject({
       method: 'POST', url: `/api/v1/projects/${projectId}/members`, headers: { cookie: adminCookie },
-      payload: { userId: qsUserId, role: 'SUPERUSER' },
+      payload: { userId: qsUserId, role: '' },
     })).statusCode).toBe(400);
 
     const detail = await server.inject({
