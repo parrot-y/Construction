@@ -523,6 +523,99 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
   );
 
   // -------------------------------------------------------------------------
+  // POST /api/v1/client/quotes/:id/respond - Authenticated client accept/decline
+  // -------------------------------------------------------------------------
+  server.post(
+    '/api/v1/client/quotes/:id/respond',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      if (role !== 'CLIENT') {
+        return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'Client role required' });
+      }
+      const { id } = request.params as { id: string };
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Quote not found' });
+      }
+      const parsed = PublicQuoteRespondSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: parsed.error.issues[0]?.message });
+      }
+      const data = parsed.data;
+
+      const user = await prisma.user.findUnique({ where: { id: sub }, select: { email: true, full_name: true } });
+      if (!user?.email) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'User not found' });
+      }
+
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const quote = await tx.quote.findFirst({
+            where: {
+              id,
+              client_email: { equals: user.email, mode: 'insensitive' },
+            },
+          });
+          if (!quote) {
+            throw { status: 404, message: 'Quote not found' };
+          }
+          if (quote.status !== 'SENT') {
+            throw { status: 409, message: `Quote already ${quote.status.toLowerCase()}` };
+          }
+
+          let newStatus = quote.status;
+          let respondedBy: string | null = null;
+          let responseNote: string | null = null;
+
+          if (data.action === 'accept') {
+            if (!data.typedName || data.typedName.trim().length < 2) {
+              throw { status: 400, message: 'Typing your full name is required to accept this quote' };
+            }
+            newStatus = 'ACCEPTED';
+            respondedBy = data.typedName.trim();
+            responseNote = data.note ?? null;
+          } else if (data.action === 'decline') {
+            newStatus = 'DECLINED';
+            respondedBy = data.typedName?.trim() || user.full_name || null;
+            responseNote = data.note ?? null;
+          }
+
+          const result = await tx.quote.update({
+            where: { id: quote.id },
+            data: {
+              status: newStatus,
+              responded_at: newStatus !== 'SENT' ? new Date() : quote.responded_at,
+              responded_by: respondedBy ?? quote.responded_by,
+              response_note: responseNote ?? quote.response_note,
+            },
+            include: { items: true },
+          });
+
+          const eventName = data.action === 'accept' ? 'ACCEPTED' : data.action === 'decline' ? 'DECLINED' : 'COMMENT';
+          await addQuoteEvent(tx, tenantId, quote.id, 'CLIENT', eventName, respondedBy ?? user.full_name, data.note ?? null);
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId: quote.project_id,
+            actorId: sub,
+            action: `QUOTE_${eventName}`,
+            entityType: 'Quote',
+            entityId: quote.id,
+            changes: { action: data.action, respondedBy, via: 'client-portal' },
+            ipAddress: request.ip,
+            userAgent: (request.headers['user-agent'] as string) || null,
+          });
+          return result;
+        });
+
+        return reply.send({ quote: formatQuote(updated) });
+      } catch (err: any) {
+        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        throw err;
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
   // PUBLIC: GET /api/public/quotes/:token - View shared quote
   // -------------------------------------------------------------------------
   server.get('/api/public/quotes/:token', async (request, reply) => {

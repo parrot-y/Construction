@@ -14,6 +14,7 @@ import { ETimsTaxComplianceView } from './ETimsTaxComplianceView';
 import { RetentionAndBondsView } from './RetentionAndBondsView';
 import { SubscriptionBillingView } from './SubscriptionBillingView';
 import { MpesaDisbursementView } from './MpesaDisbursementView';
+import QuotesManagementView from './QuotesManagementView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -372,6 +373,9 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"
       />
+
+      {/* Quotes-to-Cash: quotations, client acceptance, project conversion (Gate-4 S1) */}
+      <QuotesManagementView />
 
       {/* Invite Member Modal */}
       {showInviteModal && (

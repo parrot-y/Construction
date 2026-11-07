@@ -10,6 +10,7 @@ import PracticalCompletionCard from './PracticalCompletionCard';
 import SnaggingListView from './SnaggingListView';
 import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
+import ClientQuotesView from './ClientQuotesView';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -577,6 +578,9 @@ export default function ClientDashboard({
         projectName={projectData.name}
         userRole="CLIENT"
       />
+
+      {/* Quotes & Proposals addressed to this client (Gate-4 S1) */}
+      <ClientQuotesView />
     </div>
   );
 }

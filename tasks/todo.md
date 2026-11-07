@@ -12,8 +12,15 @@
 - [x] Security: share token stored as SHA-256 hash only; `lookup_quote_by_share_hash` SECURITY DEFINER fn in rls.sql (same pattern as portal links); token rotates on re-send; all public reads/writes inside `withTenantTx` under RLS
 - [x] Tests: `apps/api/src/quotes.test.ts` — 15 tests (RBAC, totals, send, public view/respond, client inbox, tenant isolation, convert, event trail)
 - [x] verify-local.sh GREEN — 343/343 tests, typecheck/lint/build clean (evidence: docs/evidence/verify-7ff5992.log)
-- [ ] Frontend: contractor quotes UI + public quote page + client portal quotes tab
-- [ ] Commit + push S1
+- [x] Backend committed + pushed (`fb3a036`)
+- [x] `POST /api/v1/client/quotes/:id/respond` — authenticated client accept/decline (email-matched, typed-name)
+- [x] Frontend:
+  - `QuotesManagementView.tsx` — contractor quotes module (create form w/ line items, live totals, send→share link, detail+events, convert)
+  - `ClientQuotesView.tsx` — client portal quotes inbox w/ inline typed-name accept/decline
+  - `PublicQuoteView.tsx` — public share-link page (`?portal=quote&token=`)
+  - Wired: PmQsDashboard '💼 Quotes & Cash' tab, CompanyAdminDashboard section, ClientDashboard section, App.tsx portal route
+- [x] verify-local.sh GREEN — 344/344 API tests, 113/113 web tests, typecheck/build clean (`docs/evidence/verify-fb3a036.log`)
+- [ ] Commit + push S1 frontend
 
 ## Prior: Gate 4 build plan (2026-11-07)
 

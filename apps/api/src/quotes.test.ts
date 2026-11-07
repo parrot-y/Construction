@@ -221,6 +221,36 @@ describe('Gate-4 S1: Quotes-to-cash suite', () => {
     expect(found.status).toBe('ACCEPTED');
   });
 
+  it('lets an authenticated client accept a sent quote via the portal', async () => {
+    const create = await server.inject({
+      method: 'POST',
+      url: '/api/v1/quotes',
+      headers: { cookie: adminCookie },
+      payload: {
+        title: 'Portal-responded quote',
+        clientName: 'David Omondi',
+        clientEmail: 'client@apexbuilders.co.ke',
+        items: [{ description: 'Portal test item', quantity: 2, unitRate: 1000 }],
+      },
+    });
+    const q = JSON.parse(create.body).quote;
+    await server.inject({
+      method: 'POST',
+      url: `/api/v1/quotes/${q.id}/send`,
+      headers: { cookie: adminCookie },
+      payload: {},
+    });
+
+    const res = await server.inject({
+      method: 'POST',
+      url: `/api/v1/client/quotes/${q.id}/respond`,
+      headers: { cookie: clientCookie },
+      payload: { action: 'accept', typedName: 'David Omondi' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).quote.status).toBe('ACCEPTED');
+  });
+
   it('hides tenant A quotes from tenant B', async () => {
     const res = await server.inject({
       method: 'GET',

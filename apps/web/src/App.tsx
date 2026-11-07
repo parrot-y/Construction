@@ -7,11 +7,12 @@ import SubcontractorPortalView from './components/portals/SubcontractorPortalVie
 import SupplierPortalView from './components/portals/SupplierPortalView';
 import CompliancePortalView from './components/portals/CompliancePortalView';
 import ClientDashboard from './components/ClientDashboard';
+import PublicQuoteView from './components/PublicQuoteView';
 import { AuthSession } from './types/auth';
 
 interface AppProps {
   initialPortal?: {
-    type: 'consultant' | 'subcontractor' | 'supplier' | 'compliance' | 'client';
+    type: 'consultant' | 'subcontractor' | 'supplier' | 'compliance' | 'client' | 'quote';
     token: string;
   };
 }
@@ -155,6 +156,12 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
         return (
           <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
             <CompliancePortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+          </main>
+        );
+      case 'quote':
+        return (
+          <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+            <PublicQuoteView token={externalPortal.token} onBack={handleExitPortal} />
           </main>
         );
       case 'client':

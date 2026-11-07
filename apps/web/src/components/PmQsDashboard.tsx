@@ -39,6 +39,7 @@ import { AsphaltPavementView } from './AsphaltPavementView';
 import { TopographicSurveyView } from './TopographicSurveyView';
 import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
+import QuotesManagementView from './QuotesManagementView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -52,7 +53,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -162,6 +163,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'soil', label: '⛰️ Geotechnical Soil QA' },
           { id: 'asphalt', label: '🛣️ Asphalt Pavement QA' },
           { id: 'survey', label: '📐 Topographic Survey & Earthworks' },
+          { id: 'quotes', label: '💼 Quotes & Cash' },
           { id: 'inspections', label: '🕵️ Site Inspections' },
           { id: 'tenders', label: '📑 Tender Board' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
@@ -607,6 +609,9 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           userRole="PM_QS"
         />
       )}
+
+      {/* Quotes-to-Cash: quotations, client acceptance, project conversion (Gate-4 S1) */}
+      {(activeTab === 'all' || activeTab === 'quotes') && <QuotesManagementView />}
 
       {/* BOQ Import Modal */}
       <BoqImportModal
