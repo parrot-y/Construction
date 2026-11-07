@@ -1831,3 +1831,80 @@ export const PaymentApplicationActionSchema = z.object({
   path: ['comments'],
 });
 export type PaymentApplicationAction = z.infer<typeof PaymentApplicationActionSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-4 S8: Project onboarding & edit (observed Edit-project modal parity)
+// -----------------------------------------------------------------------------
+
+export const ProjectHealthStatusEnum = z.enum([
+  'PLANNING',
+  'ON_TRACK',
+  'AT_RISK',
+  'CLOSING',
+  'ARCHIVED',
+  // Legacy/internal values kept for backward compatibility
+  'ACTIVE',
+  'COMPLETED',
+  'ON_HOLD',
+]);
+export type ProjectHealthStatus = z.infer<typeof ProjectHealthStatusEnum>;
+
+export const ProjectMemberRoleEnum = z.enum([
+  'PROJECT_LEAD',
+  'PM',
+  'ARCHITECT',
+  'QS',
+  'SITE_MANAGER',
+  'CLIENT',
+  'MEMBER',
+]);
+export type ProjectMemberRole = z.infer<typeof ProjectMemberRoleEnum>;
+
+const MoneyAmount = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount');
+const Coord = z.string().regex(/^-?\d+(\.\d{1,6})?$/, 'Must be a valid coordinate');
+const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
+
+export const CreateProjectDetailsSchema = z.object({
+  name: z.string().min(2).max(255),
+  code: z.string().min(1).max(50),
+  // Legacy aliases accepted for backward compatibility
+  budget: z.union([z.number(), z.string()]).optional().nullable(),
+  originalContractSum: z.union([z.number(), z.string()]).optional().nullable(),
+  currentApprovedBudget: z.union([z.number(), z.string()]).optional().nullable(),
+  description: z.string().max(5000).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+  mapLatitude: Coord.optional().nullable(),
+  mapLongitude: Coord.optional().nullable(),
+  contractValue: MoneyAmount.optional().nullable(),
+  contractCurrency: z.string().length(3).optional().nullable(),
+  ncaProjectNo: z.string().max(100).optional().nullable(),
+  moneyAtRiskKes: MoneyAmount.optional().nullable(),
+  status: ProjectHealthStatusEnum.optional().nullable(),
+  startDate: IsoDate.optional().nullable(),
+  targetEndDate: IsoDate.optional().nullable(),
+});
+export type CreateProjectDetails = z.infer<typeof CreateProjectDetailsSchema>;
+
+export const UpdateProjectDetailsSchema = z.object({
+  name: z.string().min(2).max(255).optional(),
+  code: z.string().min(1).max(50).optional(),
+  description: z.string().max(5000).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+  mapLatitude: Coord.optional().nullable(),
+  mapLongitude: Coord.optional().nullable(),
+  contractValue: MoneyAmount.optional().nullable(),
+  contractCurrency: z.string().length(3).optional().nullable(),
+  ncaProjectNo: z.string().max(100).optional().nullable(),
+  moneyAtRiskKes: MoneyAmount.optional().nullable(),
+  status: ProjectHealthStatusEnum.optional().nullable(),
+  startDate: IsoDate.optional().nullable(),
+  targetEndDate: IsoDate.optional().nullable(),
+  progressPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field must be provided' });
+export type UpdateProjectDetails = z.infer<typeof UpdateProjectDetailsSchema>;
+
+export const AssignProjectMemberSchema = z.object({
+  userId: z.string().uuid(),
+  role: ProjectMemberRoleEnum.default('MEMBER'),
+});
+export type AssignProjectMember = z.infer<typeof AssignProjectMemberSchema>;

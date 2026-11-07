@@ -12,6 +12,7 @@ import QualityControlView from './QualityControlView';
 import PracticalCompletionCard from './PracticalCompletionCard';
 import CertificatesCloseoutView from './CertificatesCloseoutView';
 import CommitmentsView from './CommitmentsView';
+import ProjectOnboardingView from './ProjectOnboardingView';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
 import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import SiteInventoryManagementView from './SiteInventoryManagementView';
@@ -56,7 +57,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -169,6 +170,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'quotes', label: '💼 Quotes & Cash' },
           { id: 'invoices', label: '🧾 Invoicing' },
           { id: 'commitments', label: '🤝 Commitments' },
+          { id: 'project', label: '🏗️ Project' },
           { id: 'inspections', label: '🕵️ Site Inspections' },
           { id: 'tenders', label: '📑 Tender Board' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
@@ -630,6 +632,9 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {(activeTab === 'all' || activeTab === 'commitments') && (
         <CommitmentsView projectId="project-rcp-2026" canManage={true} />
       )}
+
+      {/* Project onboarding & edit (Gate-4 S8) */}
+      {(activeTab === 'all' || activeTab === 'project') && <ProjectOnboardingView />}
 
       {/* BOQ Import Modal */}
       <BoqImportModal

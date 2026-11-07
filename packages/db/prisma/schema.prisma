@@ -117,6 +117,10 @@ model Project {
   code                 String          @db.VarChar(50)
   description          String?         @db.Text
   location             String?         @db.VarChar(255)
+  map_latitude         Decimal?        @db.Decimal(9, 6) // Gate-4 S8: map pin
+  map_longitude        Decimal?        @db.Decimal(9, 6)
+  contract_currency    String          @default("KES") @db.VarChar(3) // Gate-4 S8: KES-first, USD optional
+  money_at_risk_kes    Decimal?        @db.Decimal(15, 2) // Gate-4 S8: observed money-at-risk field
   nca_project_no       String?         @db.VarChar(100) // NCA Project Registration ID
   status               String          @default("ACTIVE") @db.VarChar(50) // "PLANNING", "ACTIVE", "COMPLETED", "ON_HOLD"
   original_contract_sum Decimal        @default(0.00) @db.Decimal(15, 2)
