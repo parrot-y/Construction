@@ -1,10 +1,16 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
-import { CreatePortalLinkSchema } from '@construction/validation';
+import { CreatePortalLinkSchema, ClientVariationRespondSchema } from '@construction/validation';
 import { randomBytes, createHash } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
 import { toDecimal } from '@construction/money';
+import {
+  applyCoBudgetRollup,
+  claimCoTransition,
+  normalizeCoStatus,
+  recordCoEvent,
+} from '../services/variationWorkflow';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -660,5 +666,184 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       statusCode: 200,
       data: payload,
     });
+  });
+
+  // ===========================================================================
+  // 7. PROJECT CLIENT / DEVELOPER PORTAL — CHANGE ORDER APPROVAL (ADR-010)
+  // ===========================================================================
+
+  // GET /api/v1/portals/client/:token/change-orders
+  server.get('/api/v1/portals/client/:token/change-orders', async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'CLIENT');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired client access token',
+      });
+    }
+
+    const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+      const [project, changeOrders] = await Promise.all([
+        tx.project.findFirst({ where: { id: link.project_id } }),
+        tx.variationOrder.findMany({
+          where: { project_id: link.project_id },
+          include: {
+            items: { orderBy: { id: 'asc' } },
+            events: { orderBy: { created_at: 'asc' } },
+          },
+          orderBy: { variation_no: 'asc' },
+        }),
+      ]);
+
+      return {
+        stakeholder: {
+          name: link.stakeholder_name,
+          role: link.stakeholder_role || 'Project Client / Developer',
+        },
+        project: project
+          ? { id: project.id, name: project.name, code: project.code, status: project.status }
+          : null,
+        changeOrders: changeOrders.map((co) => ({
+          ...co,
+          status: normalizeCoStatus(co.status),
+        })),
+      };
+    });
+
+    return reply.status(200).send({ statusCode: 200, data: payload });
+  });
+
+  // POST /api/v1/portals/client/:token/change-orders/:coId/respond
+  server.post('/api/v1/portals/client/:token/change-orders/:coId/respond', async (request, reply) => {
+    const { token, coId } = request.params as { token: string; coId: string };
+    const link = await resolvePortalLink(token, 'CLIENT');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired client access token',
+      });
+    }
+
+    if (!UUID_REGEX.test(coId)) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Change order not found',
+      });
+    }
+
+    const parsed = ClientVariationRespondSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid response payload',
+        details: parsed.error.errors,
+      });
+    }
+    const { action, signedName, comments } = parsed.data;
+
+    try {
+      const result = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const project = await tx.project.findFirst({ where: { id: link.project_id } });
+        if (!project) {
+          throw { status: 404, message: 'Project not found' };
+        }
+
+        const variation = await tx.variationOrder.findFirst({
+          where: { id: coId, project_id: link.project_id },
+        });
+        if (!variation) {
+          throw { status: 404, message: 'Change order not found on this project' };
+        }
+
+        const currentStatus = normalizeCoStatus(variation.status);
+        if (currentStatus !== 'OWNER_REVIEW') {
+          throw {
+            status: 400,
+            message: `This change order is not awaiting owner approval (status: ${currentStatus})`,
+          };
+        }
+
+        const actorName = signedName || link.stakeholder_name;
+        const newStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+        let newBudget = project.current_approved_budget.toString();
+
+        // Atomic claim on OWNER_REVIEW — prevents double decisions via
+        // concurrent portal submissions or a parallel contractor review.
+        const claimed = await claimCoTransition(
+          tx,
+          coId,
+          variation.status,
+          newStatus,
+          newStatus === 'APPROVED' ? new Date() : null,
+        );
+        if (!claimed) {
+          throw { status: 409, message: 'Change order was already decided — please refresh' };
+        }
+
+        if (newStatus === 'APPROVED') {
+          newBudget = await applyCoBudgetRollup(tx, project, variation.net_amount);
+        }
+
+        const updated = await tx.variationOrder.findUniqueOrThrow({ where: { id: coId } });
+
+        await recordCoEvent(
+          tx,
+          link.tenant_id,
+          coId,
+          'CLIENT_PORTAL',
+          actorName,
+          newStatus === 'APPROVED' ? 'APPROVED' : 'REJECTED',
+          comments || `Responded via client portal link`,
+        );
+
+        await recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          actorId: link.id,
+          action: `CO_${action}_VIA_CLIENT_PORTAL`,
+          entityType: 'VariationOrder',
+          entityId: coId,
+          changes: {
+            stakeholder: link.stakeholder_name,
+            signedName: actorName,
+            previousStatus: currentStatus,
+            newStatus,
+            previousBudget: project.current_approved_budget.toString(),
+            newBudget,
+          },
+          ipAddress: request.ip,
+          userAgent: (request.headers['user-agent'] as string) || null,
+        });
+
+        return { ...updated, status: normalizeCoStatus(updated.status) };
+      });
+
+      return reply.status(200).send({
+        statusCode: 200,
+        message: `Change order ${action === 'APPROVE' ? 'approved' : 'rejected'} successfully`,
+        data: result,
+      });
+    } catch (err: any) {
+      if (err.status) {
+        return reply.status(err.status).send({
+          statusCode: err.status,
+          error: err.status === 404 ? 'Not Found' : 'Bad Request',
+          message: err.message,
+        });
+      }
+      server.log.error(err, 'Failed to process client portal change-order response');
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to process change-order response',
+      });
+    }
   });
 };

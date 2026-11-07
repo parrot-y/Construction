@@ -32,6 +32,7 @@ export default function CreateVariationModal({
 }: CreateVariationModalProps): React.JSX.Element | null {
   const [title, setTitle] = useState('');
   const [reason, setReason] = useState('');
+  const [triggerType, setTriggerType] = useState('OTHER');
   const [timeExtensionDays, setTimeExtensionDays] = useState('0');
   const [items, setItems] = useState<VariationItemDraft[]>([
     {
@@ -149,6 +150,7 @@ export default function CreateVariationModal({
       const payload = {
         title: title.trim(),
         reason: reason.trim(),
+        triggerType,
         timeExtensionDays: parsedDays,
         items: items.map((item) => {
           const qty = Math.abs(parseFloat(item.quantity));
@@ -165,6 +167,7 @@ export default function CreateVariationModal({
 
       const res = await fetch(`/api/v1/projects/${projectId}/variations`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -252,11 +255,11 @@ export default function CreateVariationModal({
         )}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Order Title & Time Extension */}
+          {/* Order Title, Trigger & Time Extension */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Variation Title *
+                Change Order Title *
               </label>
               <input
                 type="text"
@@ -267,6 +270,27 @@ export default function CreateVariationModal({
                 className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Trigger
+              </label>
+              <select
+                value={triggerType}
+                onChange={(e) => setTriggerType(e.target.value)}
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+              >
+                <option value="DESIGN_CLARIFICATION">Design clarification</option>
+                <option value="OWNER_REQUEST">Owner request</option>
+                <option value="UNFORESEEN_CONDITION">Unforeseen condition</option>
+                <option value="CODE_COMPLIANCE">Code compliance</option>
+                <option value="STRUCTURAL_REVIEW">Structural review</option>
+                <option value="WEATHER_DELAY">Weather / delay</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2" />
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Time Extension (Days)

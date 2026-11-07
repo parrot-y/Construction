@@ -108,9 +108,9 @@ BEGIN
     END IF;
 
     IF TG_OP = 'UPDATE' THEN
-        IF OLD.status IN ('APPROVED', 'REJECTED') THEN
+        IF OLD.status IN ('APPROVED', 'REJECTED', 'VOID') THEN
             IF NEW.net_amount <> OLD.net_amount THEN
-                RAISE EXCEPTION 'Financial immutability violation: approved or rejected variation net_amount cannot be modified';
+                RAISE EXCEPTION 'Financial immutability violation: decided variation net_amount cannot be modified';
             END IF;
         END IF;
         IF NEW.tenant_id <> OLD.tenant_id OR NEW.project_id <> OLD.project_id THEN

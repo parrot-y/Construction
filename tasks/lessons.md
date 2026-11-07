@@ -25,3 +25,11 @@
 15. **ADR-005 money rule applies to NEW code too**: never `Math.round(x*100)/100` or `+`/`*` on money — use `calculateLineTotal`/`toDecimal` from `@construction/money`, ROUND_HALF_UP to cents at line level, subtotal = exact sum of line totals.
 16. **Route auth needs a CI guard, not vigilance**: static-scan `server.METHOD('path', {preHandler…})` registrations; anything without `authenticate` must be in an explicit allowlist (C-01 test enforces both directions).
 17. **git push 403 on large packs**: set `git config http.postBuffer 524288000` before pushing rewritten history.
+
+## 2026-11-07 — S3 change orders + environment lessons
+
+18. **pnpm 12 shebang-less bootstrap breaks turbo**: `~/.local/bin/pnpm` → `lib/node_modules/pnpm/pnpm` is intentionally shebang-less (kernel ENOEXEC). Shells fall back to `sh`, but turbo/Rust `Command::spawn` does NOT — every `turbo run` task failed with "Exec format error (os error 8)". Fix: repoint the symlink to the real native binary `lib/node_modules/pnpm/node_modules/@pnpm/exe.linux-x64/pnpm` (same version, directly exec'able). If turbo spawn fails, check `which -a pnpm` first.
+19. **API tests need the ephemeral DB env**: vitest suites skip/fail without `DATABASE_URL`+`PG_*`. For fast iteration, replicate verify-local steps 1–6 manually on a scratch cluster, run `pnpm vitest run <file>` inside `apps/api`, then do the full `verify-local.sh` only on the final head.
+20. **Prisma Decimal `.toString()` drops trailing zeros**: `Decimal('10000.00').toString()` → `'10000'`. API money fields must use `.toFixed(2)` when a stable 2dp string contract is expected (approval limits, budgets).
+21. **Include-then-write staleness**: `tx.model.create({include})` returns rows fetched BEFORE subsequent writes in the same tx — re-`findUniqueOrThrow` after `recordCoEvent`/audit writes if the response must contain them.
+22. **Legacy status normalization**: keep `normalizeCoStatus` at read boundaries; guarded `updateMany({where:{status: <raw stored>}})` claims transitions AND migrates legacy rows in one write.

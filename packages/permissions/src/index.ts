@@ -170,6 +170,9 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.PROGRESS_VIEW,
     Permissions.VARIATION_REQUEST,
     Permissions.VARIATION_REVIEW,
+    // ADR-010: PMs may finally approve COs only within their configured
+    // co_approval_limit; larger amounts escalate to OWNER_REVIEW (server-side).
+    Permissions.VARIATION_APPROVE,
     Permissions.REPORT_GENERATE,
     Permissions.REPORT_VIEW,
     Permissions.TENDER_CREATE,

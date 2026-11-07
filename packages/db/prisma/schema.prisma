@@ -72,11 +72,15 @@ model User {
 }
 
 model Membership {
-  id         String     @id @default(uuid()) @db.Uuid
-  tenant_id  String     @db.Uuid
-  user_id    String     @db.Uuid
-  role       String     @db.VarChar(50) // "ADMIN", "PM_QS", "SITE_SUPERVISOR", "CLIENT"
-  created_at DateTime   @default(now()) @db.Timestamptz
+  id                String     @id @default(uuid()) @db.Uuid
+  tenant_id         String     @db.Uuid
+  user_id           String     @db.Uuid
+  role              String     @db.VarChar(50) // "ADMIN", "PM_QS", "SITE_SUPERVISOR", "CLIENT"
+  // ADR-010: max |net_amount| (KES) this member may finally approve on a
+  // change order. NULL = no self-approval authority for non-owner roles;
+  // owner roles (ADMIN/COMPANY_ADMIN/CLIENT) are always unlimited.
+  co_approval_limit Decimal?   @db.Decimal(15, 2)
+  created_at        DateTime   @default(now()) @db.Timestamptz
 
   tenant     Tenant     @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -434,18 +438,57 @@ model VariationOrder {
   variation_no         Int
   title                String          @db.VarChar(255)
   reason               String          @db.Text
-  status               String          @default("SUBMITTED") @db.VarChar(50) // "SUBMITTED", "QS_EVALUATED", "APPROVED", "REJECTED"
+  // ADR-010 lifecycle: DRAFT -> PM_REVIEW -> OWNER_REVIEW -> APPROVED | REJECTED | VOID
+  // Legacy values SUBMITTED/QS_EVALUATED are normalized to PM_REVIEW at read time.
+  status               String          @default("DRAFT") @db.VarChar(50)
+  trigger_type         String?         @db.VarChar(50) // DESIGN_CLARIFICATION | OWNER_REQUEST | UNFORESEEN_CONDITION | CODE_COMPLIANCE | STRUCTURAL_REVIEW | WEATHER_DELAY | OTHER
+  linked_rfi_id        String?         @db.Uuid
+  requested_by_id      String?         @db.Uuid
   net_amount           Decimal         @db.Decimal(15, 2) // Positive or negative
   time_extension_days  Int             @default(0)
+  submitted_at         DateTime?       @db.Timestamptz
   approved_at          DateTime?       @db.Timestamptz
   created_at           DateTime        @default(now()) @db.Timestamptz
 
   project              Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
   items                VariationItem[]
+  assignees            VariationAssignee[]
+  events               VariationEvent[]
 
   @@unique([project_id, variation_no])
   @@index([tenant_id, project_id, status])
   @@map("variation_orders")
+}
+
+model VariationAssignee {
+  id                  String          @id @default(uuid()) @db.Uuid
+  tenant_id           String          @db.Uuid
+  variation_order_id  String          @db.Uuid
+  project_member_id   String          @db.Uuid
+  role                String          @db.VarChar(20) // "REVIEWER" | "APPROVER"
+  created_at          DateTime        @default(now()) @db.Timestamptz
+
+  variation_order     VariationOrder  @relation(fields: [variation_order_id], references: [id], onDelete: Cascade)
+
+  @@unique([variation_order_id, project_member_id, role])
+  @@index([tenant_id, variation_order_id])
+  @@map("variation_assignees")
+}
+
+model VariationEvent {
+  id                  String          @id @default(uuid()) @db.Uuid
+  tenant_id           String          @db.Uuid
+  variation_order_id  String          @db.Uuid
+  actor_type          String          @db.VarChar(20) // "USER" | "CLIENT" | "CLIENT_PORTAL" | "SYSTEM"
+  actor_name          String          @db.VarChar(255)
+  event               String          @db.VarChar(50) // CREATED | SUBMITTED | EVALUATED | ESCALATED | APPROVED | REJECTED | VOIDED
+  note                String?         @db.Text
+  created_at          DateTime        @default(now()) @db.Timestamptz
+
+  variation_order     VariationOrder  @relation(fields: [variation_order_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, variation_order_id, created_at])
+  @@map("variation_events")
 }
 
 model VariationItem {

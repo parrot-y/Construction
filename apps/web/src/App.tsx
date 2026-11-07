@@ -6,7 +6,7 @@ import ConsultantPortalView from './components/portals/ConsultantPortalView';
 import SubcontractorPortalView from './components/portals/SubcontractorPortalView';
 import SupplierPortalView from './components/portals/SupplierPortalView';
 import CompliancePortalView from './components/portals/CompliancePortalView';
-import ClientDashboard from './components/ClientDashboard';
+import ClientPortalView from './components/portals/ClientPortalView';
 import PublicQuoteView from './components/PublicQuoteView';
 import { AuthSession } from './types/auth';
 
@@ -167,19 +167,7 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
       case 'client':
         return (
           <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-            <ClientDashboard
-              session={{
-                user: {
-                  id: 'client-guest',
-                  email: 'client@stakeholder.co.ke',
-                  fullName: 'Project Client / Developer',
-                  role: 'CLIENT',
-                  tenant: { id: 'tenant-1', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
-                },
-                permissions: ['project.view'],
-                token: externalPortal.token,
-              }}
-            />
+            <ClientPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
           </main>
         );
       default:

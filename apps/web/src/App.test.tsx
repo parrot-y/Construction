@@ -475,7 +475,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Riverside Commercial Plaza');
 
       // Form inputs
-      expect(html).toContain('Variation Title *');
+      expect(html).toContain('Change Order Title *');
       expect(html).toContain('Time Extension (Days)');
       expect(html).toContain('Reason / Technical Justification *');
 
@@ -493,7 +493,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Submit Variation Order');
     });
 
-    it('renders VariationManagementView with status badges, formatted KES net amount, time extension days, and action buttons', () => {
+    it('renders VariationManagementView with ADR-010 status badges, formatted KES net amount, and action buttons', () => {
       const html = renderToString(
         <VariationManagementView
           projectId="test-proj-id"
@@ -501,18 +501,65 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
           canRequest={true}
           canReview={true}
           canApprove={true}
+          initialVariations={[
+            {
+              id: 'vo-1',
+              variation_no: 1,
+              title: 'CO-1: Foundation Deepening',
+              reason: 'Geotechnical report detected loose subsoil.',
+              status: 'APPROVED',
+              net_amount: '900000.00',
+              time_extension_days: 14,
+              created_at: new Date().toISOString(),
+              items: [],
+            },
+            {
+              id: 'vo-2',
+              variation_no: 2,
+              title: 'CO-2: Membrane Upgrade',
+              reason: 'High water table requires upgrade.',
+              status: 'PM_REVIEW',
+              trigger_type: 'UNFORESEEN_CONDITION',
+              net_amount: '450000.00',
+              time_extension_days: 5,
+              created_at: new Date().toISOString(),
+              items: [],
+            },
+            {
+              id: 'vo-3',
+              variation_no: 3,
+              title: 'CO-3: Canopy Omission',
+              reason: 'Value engineering omission.',
+              status: 'OWNER_REVIEW',
+              net_amount: '-280000.00',
+              time_extension_days: 0,
+              created_at: new Date().toISOString(),
+              items: [],
+            },
+            {
+              id: 'vo-4',
+              variation_no: 4,
+              title: 'CO-4: Draft Drainage',
+              reason: 'Draft pending submission.',
+              status: 'DRAFT',
+              net_amount: '50000.00',
+              time_extension_days: 0,
+              created_at: new Date().toISOString(),
+              items: [],
+            },
+          ]}
         />,
       );
 
-      // Header & Request button
-      expect(html).toContain('Variation Orders &amp; Scope Adjustments');
-      expect(html).toContain('Milestone M8');
-      expect(html).toContain('+ Request Variation');
+      // Header & request button
+      expect(html).toContain('Change Orders');
+      expect(html).toContain('+ New Change Order');
 
-      // Status badges
-      expect(html).toContain('SUBMITTED');
-      expect(html).toContain('QS_EVALUATED');
+      // ADR-010 status badges + trigger label
+      expect(html).toContain('PM REVIEW');
+      expect(html).toContain('OWNER REVIEW');
       expect(html).toContain('APPROVED');
+      expect(html).toContain('Unforeseen condition');
 
       // Formatted KES amounts and time extensions
       expect(html).toContain('900000.00');
@@ -522,8 +569,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       // Action buttons
       expect(html).toContain('Evaluate');
-      expect(html).toContain('Approve');
+      expect(html).toContain('Owner Approve');
       expect(html).toContain('Reject');
+      expect(html).toContain('Submit for PM review');
     });
 
     it('renders VariationManagementView embedded inside PM_QS and CLIENT dashboards', () => {
@@ -562,14 +610,14 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       };
 
       const qsHtml = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
-      expect(qsHtml).toContain('Variation Orders &amp; Scope Adjustments');
-      expect(qsHtml).toContain('+ Request Variation');
-      expect(qsHtml).toContain('Evaluate');
+      expect(qsHtml).toContain('Change Orders');
+      expect(qsHtml).toContain('+ New Change Order');
+      expect(qsHtml).toContain('PM REVIEW');
 
       const clientHtml = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
-      expect(clientHtml).toContain('Variation Orders &amp; Scope Adjustments');
-      expect(clientHtml).toContain('Approve');
-      expect(clientHtml).not.toContain('+ Request Variation');
+      expect(clientHtml).toContain('Change Orders');
+      expect(clientHtml).toContain('OWNER REVIEW');
+      expect(clientHtml).not.toContain('+ New Change Order');
     });
   });
 
@@ -719,12 +767,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<ClientDashboard session={clientSession} />);
 
       // Variation management view is embedded with approval capabilities
-      expect(html).toContain('Variation Orders &amp; Scope Adjustments');
-      expect(html).toContain('Approve');
-      expect(html).toContain('Reject');
+      expect(html).toContain('Change Orders');
+      expect(html).toContain('OWNER REVIEW');
 
-      // Requesting variations is restricted to contractors/QS
-      expect(html).not.toContain('+ Request Variation');
+      // Requesting change orders is restricted to contractors/QS
+      expect(html).not.toContain('+ New Change Order');
     });
 
     it('displays neutral project health guard card with factual notice and variance metrics', () => {

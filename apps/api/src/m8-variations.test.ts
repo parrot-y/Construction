@@ -214,7 +214,7 @@ describe('Milestone M8: Variations Workflow Suite', () => {
     const body = JSON.parse(res.body);
     expect(body.data).toBeDefined();
     expect(body.data.variation_no).toBe(1);
-    expect(body.data.status).toBe('SUBMITTED');
+    expect(body.data.status).toBe('DRAFT');
     expect(body.data.time_extension_days).toBe(14);
     expect(body.data.items).toHaveLength(2);
 
@@ -232,7 +232,7 @@ describe('Milestone M8: Variations Workflow Suite', () => {
         where: {
           entity_type: 'VariationOrder',
           entity_id: variation1Id,
-          action: 'VARIATION_SUBMITTED',
+          action: 'VARIATION_CREATED',
         },
       });
     });
@@ -275,15 +275,24 @@ describe('Milestone M8: Variations Workflow Suite', () => {
     expect(body.data.variation_no).toBe(2);
     // Calculation: 100,000.00 - 250,000.00 = -150,000.00
     expect(body.data.net_amount).toBe('-150000.00');
-    expect(body.data.status).toBe('SUBMITTED');
+    expect(body.data.status).toBe('DRAFT');
 
     variation2Id = body.data.id;
   });
 
   // ---------------------------------------------------------------------------
-  // 3. PM_QS Evaluates Variation Order -> Status Transitions to QS_EVALUATED
+  // 3. ADR-010: Submit DRAFT -> PM_REVIEW, then PM_QS evaluates (comment only)
   // ---------------------------------------------------------------------------
-  it('allows PM_QS to evaluate variation order, transitioning status to QS_EVALUATED without modifying project budget', async () => {
+  it('submits variation to PM_REVIEW then allows PM_QS evaluation without modifying project budget', async () => {
+    // Submit the draft first (ADR-010 lifecycle)
+    const submitRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectAId}/variations/${variation1Id}/submit`,
+      headers: { cookie: qsCookie },
+    });
+    expect(submitRes.statusCode).toBe(200);
+    expect(JSON.parse(submitRes.body).data.status).toBe('PM_REVIEW');
+
     // Record budget before review
     const projBefore = await withTenantTx(prisma, tenantAId, async (tx) => {
       return tx.project.findUnique({ where: { id: projectAId } });
@@ -302,7 +311,7 @@ describe('Milestone M8: Variations Workflow Suite', () => {
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    expect(body.data.status).toBe('QS_EVALUATED');
+    expect(body.data.status).toBe('PM_REVIEW');
     expect(body.data.approved_at).toBeNull();
 
     // Verify budget remains unchanged during evaluation
@@ -371,6 +380,13 @@ describe('Milestone M8: Variations Workflow Suite', () => {
   // 5. Rejection Workflow -> Budget Unaffected
   // ---------------------------------------------------------------------------
   it('allows rejection of variation order and leaves project approved budget completely unchanged', async () => {
+    // Submit variation 2 draft to PM_REVIEW first (ADR-010)
+    await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectAId}/variations/${variation2Id}/submit`,
+      headers: { cookie: qsCookie },
+    });
+
     const projBefore = await withTenantTx(prisma, tenantAId, async (tx) => {
       return tx.project.findUnique({ where: { id: projectAId } });
     });
@@ -463,9 +479,9 @@ describe('Milestone M8: Variations Workflow Suite', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 8. Least Privilege RBAC: PM_QS Cannot Approve Variation Orders
+  // 8. ADR-010: PM_QS approval without configured limit escalates to OWNER_REVIEW
   // ---------------------------------------------------------------------------
-  it('enforces RBAC: PM_QS cannot approve variation order (lacks VARIATION_APPROVE)', async () => {
+  it('escalates PM_QS approval attempt to OWNER_REVIEW when no approval limit is configured', async () => {
     // Submit a fresh variation to test
     const submitRes = await server.inject({
       method: 'POST',
@@ -486,20 +502,27 @@ describe('Milestone M8: Variations Workflow Suite', () => {
       },
     });
     expect(submitRes.statusCode).toBe(201);
-    const var3Id = JSON.parse(submitRes.body).data.id;
+    const var3 = JSON.parse(submitRes.body).data;
+    expect(var3.status).toBe('DRAFT');
 
-    // PM_QS attempts approval
-    const approveRes = await server.inject({
+    await server.inject({
       method: 'POST',
-      url: `/api/v1/projects/${projectAId}/variations/${var3Id}/review`,
+      url: `/api/v1/projects/${projectAId}/variations/${var3.id}/submit`,
       headers: { cookie: qsCookie },
-      payload: { action: 'APPROVE', comments: 'QS self-approving variation' },
     });
 
-    expect(approveRes.statusCode).toBe(403);
+    // PM_QS has VARIATION_APPROVE but no configured co_approval_limit —
+    // the server must escalate to OWNER_REVIEW rather than approve.
+    const approveRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectAId}/variations/${var3.id}/review`,
+      headers: { cookie: qsCookie },
+      payload: { action: 'APPROVE', comments: 'QS attempting approval' },
+    });
+
+    expect(approveRes.statusCode).toBe(200);
     const body = JSON.parse(approveRes.body);
-    expect(body.error).toBe('Forbidden');
-    expect(body.message).toContain('variation.approve');
+    expect(body.data.status).toBe('OWNER_REVIEW');
   });
 
   // ---------------------------------------------------------------------------

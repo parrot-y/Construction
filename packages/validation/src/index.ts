@@ -196,19 +196,50 @@ export const VariationItemInputSchema = z.object({
 });
 export type VariationItemInput = z.infer<typeof VariationItemInputSchema>;
 
+export const VariationTriggerTypeSchema = z.enum([
+  'DESIGN_CLARIFICATION',
+  'OWNER_REQUEST',
+  'UNFORESEEN_CONDITION',
+  'CODE_COMPLIANCE',
+  'STRUCTURAL_REVIEW',
+  'WEATHER_DELAY',
+  'OTHER',
+]);
+export type VariationTriggerType = z.infer<typeof VariationTriggerTypeSchema>;
+
 export const CreateVariationOrderSchema = z.object({
   title: z.string().min(3).max(255),
   reason: z.string().min(5).max(4000),
+  triggerType: VariationTriggerTypeSchema.optional().nullable(),
+  linkedRfiId: z.string().uuid().optional().nullable(),
+  assigneeIds: z.array(z.string().uuid()).max(20).optional().default([]),
   timeExtensionDays: z.number().int().min(0).max(3650).default(0),
   items: z.array(VariationItemInputSchema).min(1, { message: 'At least one variation item is required' }),
 });
 export type CreateVariationOrder = z.infer<typeof CreateVariationOrderSchema>;
 
-export const ReviewVariationOrderSchema = z.object({
-  action: z.enum(['EVALUATE', 'APPROVE', 'REJECT']),
-  comments: z.string().max(2000).optional(),
-});
+export const ReviewVariationOrderSchema = z
+  .object({
+    action: z.enum(['EVALUATE', 'APPROVE', 'REJECT', 'VOID']),
+    comments: z.string().max(2000).optional(),
+  })
+  .refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
+    message: 'A rejection reason (comments) is required',
+    path: ['comments'],
+  });
 export type ReviewVariationOrder = z.infer<typeof ReviewVariationOrderSchema>;
+
+export const ClientVariationRespondSchema = z
+  .object({
+    action: z.enum(['APPROVE', 'REJECT']),
+    signedName: z.string().min(2).max(255),
+    comments: z.string().max(2000).optional(),
+  })
+  .refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
+    message: 'A rejection reason (comments) is required',
+    path: ['comments'],
+  });
+export type ClientVariationRespond = z.infer<typeof ClientVariationRespondSchema>;
 
 export const AcceptInvitationSchema = z.object({
   token: z.string().min(16, { message: 'Invalid invitation token' }).max(128),

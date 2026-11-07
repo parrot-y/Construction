@@ -57,3 +57,18 @@
 
 ## Review
 (filled at completion)
+
+## S3 Change Orders (ADR-010) — in progress (2026-11-07)
+
+- [x] Schema: VariationOrder +trigger_type/linked_rfi_id/requested_by_id/submitted_at; VariationAssignee; VariationEvent; Membership.co_approval_limit; VOID added to financial-immutability trigger
+- [x] Validation: VariationTriggerTypeSchema, extended Create/Review schemas (reject requires reason)
+- [x] Permissions: PM_QS gains VARIATION_APPROVE (limit-enforced server-side)
+- [x] variationWorkflow.ts: limit resolution, coCanApprove, claimCoTransition (atomic updateMany guard), applyCoBudgetRollup
+- [x] variations.ts: DRAFT create, /submit, reworked /review (EVALUATE/APPROVE/REJECT/VOID), events in detail, 409 on concurrent transition
+- [x] externalPortals.ts: token-scoped client CO list + respond (OWNER_REVIEW only, typed-name signature)
+- [x] route-guard allowlist: 2 token portal CO routes
+- [x] company.ts: PATCH member co-approval-limit (COMPANY_MANAGE, audit-logged, Decimal)
+- [x] UI: VariationManagementView real-fetch + ADR-010 statuses/filters/actions/activity feed; CreateVariationModal trigger; ClientPortalView token approval page; credentials:'include' fixes
+- [x] Tests: m8-variations updated to new lifecycle; s3-change-orders.test.ts (12 tests: limits, boundary, escalation, owner path, reject reason, void, events, token portal, cross-project isolation)
+- [ ] verify-local green on final head + evidence log
+- [ ] PROJECT_STATUS.md + commit + push

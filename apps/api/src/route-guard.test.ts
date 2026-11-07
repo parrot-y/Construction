@@ -28,6 +28,8 @@ const UNAUTHENTICATED_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/portals/subcontractor/:token/snags/:snagId/rectify': 'Token-scoped snag reply',
   'GET /api/v1/portals/supplier/:token': 'Token-scoped supplier portal',
   'GET /api/v1/portals/compliance/:token': 'Token-scoped compliance portal',
+  'GET /api/v1/portals/client/:token/change-orders': 'Token-scoped client CO approval list (ADR-010)',
+  'POST /api/v1/portals/client/:token/change-orders/:coId/respond': 'Token-scoped client CO approval (ADR-010)',
   'POST /api/v1/invitations/accept': 'Invitation token acceptance flow',
   'POST /api/v1/billing/mpesa-callback': 'Safaricom Daraja STK callback (checkout-request-id lookup)',
   'POST /api/v1/billing/mpesa-b2c-callback': 'Safaricom Daraja B2C callback (result lookup)',

@@ -226,11 +226,11 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             }
           }
 
-          // 10. Pending Variations: SUBMITTED or QS_EVALUATED awaiting client review
+          // 10. Pending Variations: OWNER_REVIEW awaiting client decision (ADR-010)
           const pendingVariationsRaw = await tx.variationOrder.findMany({
             where: {
               project_id: projectId,
-              status: { in: ['SUBMITTED', 'QS_EVALUATED'] },
+              status: 'OWNER_REVIEW',
             },
             include: {
               items: {

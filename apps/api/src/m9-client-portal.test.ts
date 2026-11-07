@@ -261,7 +261,7 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
         },
       });
 
-      // Variation 2: SUBMITTED (+450,000.00) - Awaiting review
+      // Variation 2: OWNER_REVIEW (+450,000.00) - Awaiting client decision (ADR-010)
       await tx.variationOrder.create({
         data: {
           tenant_id: tenantAId,
@@ -269,7 +269,7 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
           variation_no: 2,
           title: 'High-performance curtain wall glazing specification enhancement',
           reason: 'Architectural acoustic enhancement for street-facing facade',
-          status: 'SUBMITTED',
+          status: 'OWNER_REVIEW',
           net_amount: '450000.00',
           time_extension_days: 7,
           items: {
@@ -287,7 +287,7 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
         },
       });
 
-      // Variation 3: QS_EVALUATED (+320,000.00) - Awaiting client approval
+      // Variation 3: OWNER_REVIEW (+320,000.00) - Awaiting client approval (ADR-010)
       await tx.variationOrder.create({
         data: {
           tenant_id: tenantAId,
@@ -295,7 +295,7 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
           variation_no: 3,
           title: 'Sub-basement waterproofing bentonite membrane addition',
           reason: 'High groundwater table detected during seasonal rains',
-          status: 'QS_EVALUATED',
+          status: 'OWNER_REVIEW',
           net_amount: '320000.00',
           time_extension_days: 5,
           items: {
@@ -579,7 +579,7 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
   // ---------------------------------------------------------------------------
   // TEST 6: Pending variations count and list
   // ---------------------------------------------------------------------------
-  it('lists only SUBMITTED and QS_EVALUATED variations awaiting client review', async () => {
+  it('lists only OWNER_REVIEW variations awaiting client decision (ADR-010)', async () => {
     const res = await server.inject({
       method: 'GET',
       url: `/api/v1/projects/${projectAId}/client-portal`,
@@ -594,10 +594,10 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
     expect(pending_variations.items).toHaveLength(2);
 
     const statuses = pending_variations.items.map((v: any) => v.status);
-    expect(statuses).toContain('SUBMITTED');
-    expect(statuses).toContain('QS_EVALUATED');
+    expect(statuses).toEqual(['OWNER_REVIEW', 'OWNER_REVIEW']);
     expect(statuses).not.toContain('APPROVED');
     expect(statuses).not.toContain('REJECTED');
+    expect(statuses).not.toContain('PM_REVIEW');
 
     const v2 = pending_variations.items.find((v: any) => v.variation_no === 2);
     expect(v2.net_amount).toBe('450000.00');

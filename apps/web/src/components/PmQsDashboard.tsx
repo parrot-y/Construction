@@ -338,7 +338,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           userRole="PM_QS"
           canRequest={true}
           canReview={true}
-          canApprove={false}
+          canApprove={true}
         />
       )}
 

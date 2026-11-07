@@ -469,10 +469,20 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(submitVoRes.statusCode).toBe(201);
     const voData = JSON.parse(submitVoRes.body).data;
     expect(voData.variation_no).toBe(1);
-    expect(voData.status).toBe('SUBMITTED');
+    // ADR-010: change orders are created as DRAFT and explicitly submitted
+    expect(voData.status).toBe('DRAFT');
     expect(voData.time_extension_days).toBe(7);
     expect(voData.net_amount).toBe('177500.00');
     variationOrderId = voData.id;
+
+    // 5.1b Submit the draft change order into PM_REVIEW
+    const submitCoRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/variations/${variationOrderId}/submit`,
+      headers: { cookie: qsCookie },
+    });
+    expect(submitCoRes.statusCode).toBe(200);
+    expect(JSON.parse(submitCoRes.body).data.status).toBe('PM_REVIEW');
 
     // 5.2 QS evaluates Variation Order
     const budgetBeforeEval = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -491,7 +501,8 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
 
     expect(evalRes.statusCode).toBe(200);
     const evalData = JSON.parse(evalRes.body).data;
-    expect(evalData.status).toBe('QS_EVALUATED');
+    // ADR-010: evaluation is a comment-only step; status stays PM_REVIEW
+    expect(evalData.status).toBe('PM_REVIEW');
 
     // Invariant: Budget must NOT change during evaluation
     const budgetAfterEval = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -1480,7 +1491,8 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(actions).toContain('PROGRESS_RECORDED');
     expect(actions).toContain('COST_CREATED');
     expect(actions).toContain('COST_APPROVED');
-    expect(actions).toContain('VARIATION_SUBMITTED');
+    expect(actions).toContain('VARIATION_CREATED');
+    expect(actions).toContain('VARIATION_SUBMIT');
     expect(actions).toContain('VARIATION_EVALUATE');
     expect(actions).toContain('VARIATION_APPROVE');
     expect(actions).toContain('REPORT_GENERATED');
