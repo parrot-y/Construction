@@ -103,7 +103,9 @@ Project → **Client tab** (project-specific, NOT under People/Team):
 - Fallbacks: **Copy invite link** · **Send invite on WhatsApp** · **view-only link** for non-signup viewing
 - Daily logs shared by default (media opt-in per entry); internal notes private; inspections shared individually
 
-Client portal interior (verified with owner-supplied login): Home · My sites · Messages · Quotes & proposals · Site reporting · Request a project · Account; project interior tabs: Progress · 360° tour · Daily logs · Inspections · Approvals & invoices · Chat. Client account page: email, full name, phone/WhatsApp, country, Save, Sign out.
+Client portal interior [OBSERVED live 2026-11-06 with owner-supplied client login]: sidebar = Home · My sites · Messages · Quotes & proposals · Site reporting · Request a project · Account. Home shows site cards (MAKUNDI APARTMENTS, "JUMUIA CONTRACTORS · Nairobi · 0% complete"), a "Neutral site reporting" upsell (independent Buildsasa inspection service), and "Request a project" (client-initiated tender: "Need fencing, solar, CCTV or a gate?"). Onboarding modal "Karibu, brenda!" frames value props: real progress photos, approve-and-pay from Home, chat with team, independent eyes.
+
+Client quote acceptance E2E [OBSERVED]: quote appeared under Quotes & proposals once the client email matched ("Waiting for you"). Detail renders the quotation document: line items ("110 item × KES 5,000 → KES 550,000"), Subtotal/Total, Deposit to start 50% (KES 275,000), terms, validity. **Accept flow = typed-name e-signature**: "Accept quote" → panel "Accept KES 550,000 … Typing your name confirms you accept" → type full name → "Confirm acceptance" → `POST /api/public/quotes/{token}/respond` → "Quote accepted by Brenda Kosgei on 7 Nov 2026". Decline + "Comment or ask for a change" thread also present. Contractor list immediately shows **Accepted | by Brenda Kosgei** and unlocks **Start project** action — closing the quote→accept→project chain.
 
 ---
 
@@ -197,9 +199,26 @@ Every sidebar module was opened; create-form interiors captured for ~25 flows. S
 | Site checks page | ⚠️ [NOT REACHED] — nav renders Dashboard (project-scoped or stub) |
 | Settings | ✅ Account Security + Company captured earlier (`settings-*.json` local) |
 | Role Manager matrix | ✅ extracted earlier for all 14 roles |
-| Role-scoped logins | ✅ QS, Architect, QA/QC probed; Client portal verified |
+| Role-scoped logins | ✅ QS, Architect, QA/QC probed; **Client portal verified end-to-end** (§5, §6c) |
+| Quote → client accept → contractor status | ✅ **full loop OBSERVED** — client typed-name acceptance synced back as "Accepted by Brenda Kosgei" + Start project action |
+| Contract sum → variation rollup → certificates | ✅ OBSERVED (§6b); certificate save-state still NOT REACHED |
 
-**Remaining gaps (honest):** saved-state detail for invoice/commitment/inspection/punch/checklist; "Viewing as" switcher mechanics; Ask AI / Shemmy chat; upload pipeline end-to-end; bidding flow (no bid packages in workspace).
+**Remaining gaps (honest):** saved-state detail for invoice/commitment/inspection/punch/checklist; "Viewing as" switcher mechanics; Ask AI / Shemmy chat; upload pipeline end-to-end; bidding flow (no bid packages in workspace); certificate create save; remaining field-module creates (crew/subcontractor/contact/incident/RFI/correspondence/announcement/inventory).
+
+## 6b. Contract sum setup + certificates live state [OBSERVED]
+
+- Variations tab → "Set contract sum" opens editor: contract sum (numeric, currency follows top-bar toggle — USD shown, hint says switch to KES to enter KES), start date, finish date → `PUT /api/projects/{id}/contract`. Saved dummy **$1,000,000** on MAKUNDI APARTMENTS (cleanup: reset/zero it).
+- After save, Analytics/Cost control/Categories unblocked: Original contract sum $1,000,000 · Approved variations +$100.10 (CO-4990) · **Revised contract sum $1,000,100.10** — variations roll up automatically.
+- Certificates tab with contract sum set: Certified to date $0 (0%), Paid $0, Retention held $0, **Still to certify $1,000,100.10**, "Cumulative valuation against contract 0%".
+- **Architecture finding:** certificate history already lists **#ZZ-APP-01** (the payment application) as its single row with per-status action buttons (Submitted/Under review/Certified/Paid/Rejected) + Attach — payment applications and payment certificates share one underlying record model [OBSERVED]. The client-side IPC form (period valuation, retention %, advance recovery, live NET PAYABLE) computes live but a save attempt was abandoned when inputs were ambiguous — saved-state certificate still [NOT REACHED].
+
+## 6c. Client invite → registration → dashboard flow [OBSERVED end-to-end]
+
+Owner supplied working client credentials (previous failure was wrong password). Verified chain:
+1. Contractor invites client on the **project's Client tab** (project-scoped, separate from People/Team invites — Team also lists brendah as a member with assignable roles: dual-path identity).
+2. Client registers/logs in at the **separate client path** ("I'm a client" on login) — contractor creds rejected there.
+3. Client lands on client dashboard (Home/My sites/Messages/Quotes & proposals/Site reporting/Request a project/Account); MAKUNDI APARTMENTS appears under "Your sites" as "JUMUIA CONTRACTORS · Nairobi · 0% complete".
+4. Quote sent to the client's email surfaces in **Quotes & proposals** (see §4 + acceptance E2E above) — proving contractor→client record sync is keyed on **email match**, not invite token alone.
 
 ## 7. What this means for our build [INFERRED]
 

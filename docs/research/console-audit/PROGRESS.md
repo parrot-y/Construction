@@ -55,6 +55,13 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 
 ## 2026-11-06 — Role account probes (owner-provided accounts)
 - QS, Architect, QA/QC accounts exercised read-only; findings appended to `02_roles_permissions.md` ("Live account probes"). Key facts: sidebar is role-pruned (QA/QC loses Dashboard, Money pages, Team/Role manager, Reports); QS/Architect see full nav but Role manager denies at open; role-specific landing views confirmed.
-- Client/owner account (brendakosgeijeptoo26@gmail.com) FAILED login on both client and contractor paths — "Invalid email or password". Needs corrected credentials or invite acceptance from owner.
 - New deliverable: `11_contractor_feature_review.md` — feature-by-feature contractor sidebar review with match/improve/differentiate priorities (owner directive: solid contractor hub first, portals sync inside).
 - Raw captures kept local only (`/tmp/sasa-audit2/`) — not committed.
+
+## 2026-11-06 (later) — Client portal verified + quote loop closed + money chain
+- **Client login fixed** (correct password supplied): full client dashboard captured — Home/My sites/Messages/Quotes & proposals/Site reporting/Request a project/Account. Client invite→register→dashboard chain confirmed project-scoped via Client tab.
+- **Quote E2E loop OBSERVED:** edited Q-0001 client email → share panel confirmed email-match sync → client Quotes & proposals showed it "Waiting for you" → quotation document (line items, KES 550,000, 50% deposit KES 275,000) → **typed-name e-signature acceptance** (`POST /api/public/quotes/{token}/respond`) → contractor list shows "Accepted | by Brenda Kosgei" + **Start project** action. Full quotes-to-cash chain proven live.
+- **Contract sum set** ($1,000,000 dummy via PUT /contract): unlocked revised contract sum $1,000,100.10 (CO-4990 rolls up), certificates "still to certify" balance, analytics.
+- **Certificate/payment-application unification found:** #ZZ-APP-01 appears in Certificates history with status action buttons — applications and certificates share one record model.
+- Certificate create form re-captured live (live THIS PERIOD/RETENTION/NET PAYABLE computation, 5 statuses, scan attach); save still not exercised — inputs ambiguous, cancelled cleanly.
+- All findings → `12_deep_pass_and_created_records.md` §5/§6b/§6c; cleanup rows added to CREATED_RECORDS.md (contract sum reset, quote now Accepted — do not click Start project).
