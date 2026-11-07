@@ -17,6 +17,7 @@ import AnnouncementsView from './AnnouncementsView';
 import InboxView from './InboxView';
 import ObservationsView from './ObservationsView';
 import CrewsView from './CrewsView';
+import CompanyDocumentsView from './CompanyDocumentsView';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
 import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import SiteInventoryManagementView from './SiteInventoryManagementView';
@@ -61,7 +62,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox' | 'observations' | 'crews'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox' | 'observations' | 'crews' | 'documents'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -179,6 +180,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'inbox', label: '✉️ Inbox' },
           { id: 'observations', label: '🔍 Observations' },
           { id: 'crews', label: '👷 Crews' },
+          { id: 'documents', label: '📁 Documents' },
           { id: 'inspections', label: '🕵️ Site Inspections' },
           { id: 'tenders', label: '📑 Tender Board' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
@@ -646,6 +648,9 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
 
       {/* Announcements (Gate-5 G5-1) */}
       {(activeTab === 'all' || activeTab === 'announcements') && <AnnouncementsView canManage={true} />}
+
+      {/* Company documents vault (Gate-5 G5-7) */}
+      {(activeTab === 'all' || activeTab === 'documents') && <CompanyDocumentsView canManage={true} />}
 
       {/* Crews (Gate-5 G5-5) */}
       {(activeTab === 'all' || activeTab === 'crews') && <CrewsView canManage={true} />}

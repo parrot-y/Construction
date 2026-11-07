@@ -2024,3 +2024,31 @@ export const AddCrewMemberSchema = z.object({
   dailyRateKes: z.string().regex(/^\d+(\.\d{1,2})?$/).optional().nullable(),
 });
 export type AddCrewMember = z.infer<typeof AddCrewMemberSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-7: Company documents vault
+// -----------------------------------------------------------------------------
+
+export const CompanyDocCategoryEnum = z.enum(['POLICY', 'TEMPLATE', 'CERTIFICATION', 'INSURANCE', 'HR', 'LEGAL', 'OTHER']);
+
+export const CreateCompanyDocumentSchema = z.object({
+  title: z.string().min(2).max(255),
+  category: CompanyDocCategoryEnum.optional().nullable(), // omit → lands in Unfiled
+  referenceNo: z.string().max(100).optional().nullable(),
+  fileName: z.string().max(255).optional().nullable(),
+  mimeType: z.string().max(100).optional().nullable(),
+  fileSize: z.number().int().positive().optional().nullable(),
+  storageKey: z.string().max(500).optional().nullable(),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  notes: z.string().max(5000).optional().nullable(),
+});
+export type CreateCompanyDocument = z.infer<typeof CreateCompanyDocumentSchema>;
+
+export const UpdateCompanyDocumentSchema = z.object({
+  title: z.string().min(2).max(255).optional(),
+  category: CompanyDocCategoryEnum.optional().nullable(),
+  referenceNo: z.string().max(100).optional().nullable(),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  status: z.enum(['ACTIVE', 'ARCHIVED']).optional(),
+  notes: z.string().max(5000).optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });

@@ -83,6 +83,7 @@ export const Permissions = {
   INVOICE_VIEW: 'invoice.view',
   INVOICE_EDIT: 'invoice.edit',
   INVOICE_SEND: 'invoice.send',
+  DOCUMENT_MANAGE: 'document.manage',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
@@ -100,6 +101,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.DOCUMENT_MANAGE,
     Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
     Permissions.SITE_DIARY_VIEW,
@@ -141,6 +143,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.DOCUMENT_MANAGE,
     Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
     Permissions.SITE_DIARY_VIEW,
@@ -181,6 +184,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.DOCUMENT_MANAGE,
     Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
     Permissions.SITE_DIARY_VIEW,
@@ -270,6 +274,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.DOCUMENT_MANAGE,
     Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_VIEW,
     Permissions.PROGRESS_VIEW,
@@ -294,6 +299,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.DOCUMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
     Permissions.SITE_DIARY_VIEW,
     Permissions.PROGRESS_RECORD,
@@ -318,6 +324,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.SITE_DIARY_VIEW,
     Permissions.PROGRESS_RECORD,
     Permissions.PROGRESS_VIEW,
+    Permissions.DOCUMENT_MANAGE,
     Permissions.REPORT_VIEW,
     Permissions.TENDER_VIEW,
     Permissions.INSPECTION_VIEW,
@@ -343,6 +350,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.SITE_DIARY_VIEW,
     Permissions.PROGRESS_RECORD,
     Permissions.PROGRESS_VIEW,
+    Permissions.REPORT_VIEW,
     Permissions.INSPECTION_VIEW,
   ],
   // WORKER: minimal field — diary log + progress + plans view.

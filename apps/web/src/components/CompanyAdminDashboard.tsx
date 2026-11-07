@@ -17,6 +17,8 @@ import { MpesaDisbursementView } from './MpesaDisbursementView';
 import QuotesManagementView from './QuotesManagementView';
 import InvoicingView from './InvoicingView';
 import AnnouncementsView from './AnnouncementsView';
+import CompanyDocumentsView from './CompanyDocumentsView';
+import InboxView from './InboxView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -383,6 +385,12 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
       <InvoicingView />
 
       <AnnouncementsView canManage={true} />
+
+      {/* Company documents vault (Gate-5 G5-7) */}
+      <CompanyDocumentsView canManage={true} />
+
+      {/* Team inbox (Gate-5 G5-3) */}
+      <InboxView />
 
       {/* Invite Member Modal */}
       {showInviteModal && (

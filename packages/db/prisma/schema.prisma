@@ -2717,3 +2717,34 @@ model CrewMember {
   @@index([tenant_id, crew_id])
   @@map("crew_members")
 }
+
+// -------------------------------------------------------------
+// COMPANY DOCUMENTS VAULT (Gate-5 G5-7): observed Files & reports >
+// Company documents — tenant-level vault with categories
+// (Policies/Templates/Certifications/Insurance/HR/Legal), expiry
+// tracking, and "Unfiled documents" triage (category null until
+// filed). Distinct from project-scoped ProjectDocument.
+// -------------------------------------------------------------
+
+model CompanyDocument {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  title           String    @db.VarChar(255)
+  category        String?   @db.VarChar(30) // null = UNFILED; "POLICY","TEMPLATE","CERTIFICATION","INSURANCE","HR","LEGAL","OTHER"
+  reference_no    String?   @db.VarChar(100) // e.g. NCA cert no., policy no.
+  file_name       String?   @db.VarChar(255)
+  mime_type       String?   @db.VarChar(100)
+  file_size       Int?
+  storage_key     String?   @db.VarChar(500)
+  expiry_date     DateTime? @db.Date
+  status          String    @default("ACTIVE") @db.VarChar(15) // "ACTIVE","ARCHIVED"
+  uploaded_by_id  String?   @db.Uuid
+  uploaded_by_name String   @db.VarChar(255)
+  notes           String?   @db.Text
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  @@index([tenant_id, category, status])
+  @@index([tenant_id, expiry_date])
+  @@map("company_documents")
+}
