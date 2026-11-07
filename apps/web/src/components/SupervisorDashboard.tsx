@@ -23,6 +23,8 @@ import { RmcTransitTrackerView } from './RmcTransitTrackerView';
 import { GeotechnicalSoilView } from './GeotechnicalSoilView';
 import { AsphaltPavementView } from './AsphaltPavementView';
 import { TopographicSurveyView } from './TopographicSurveyView';
+import InboxView from './InboxView';
+import AnnouncementsView from './AnnouncementsView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -315,6 +317,10 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       />
 
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}
+      {/* Team inbox + announcements (Gate-5 G5-1/G5-3) */}
+      <InboxView currentUserId={session?.user?.id} />
+      <AnnouncementsView canManage={false} />
+
       <QualityControlView
         projectId="project-rcp-2026"
         projectName="Riverside Commercial Plaza"

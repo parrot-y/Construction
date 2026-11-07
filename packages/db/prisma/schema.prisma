@@ -191,6 +191,7 @@ model Project {
   commitments           Commitment[]
   payment_applications  PaymentApplication[]
   announcements         Announcement[]
+  inbox_messages        InboxMessage[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -2577,4 +2578,43 @@ model AnnouncementRead {
   @@unique([announcement_id, user_id])
   @@index([tenant_id, announcement_id])
   @@map("announcement_reads")
+}
+
+// -------------------------------------------------------------
+// INBOX (Gate-5 G5-3): team messaging observed as Home > Inbox
+// for all field-capable roles. Project-scoped or tenant-wide,
+// role-targeted, threaded replies, read receipts.
+// -------------------------------------------------------------
+
+model InboxMessage {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String?   @db.Uuid
+  sender_id       String    @db.Uuid
+  sender_name     String    @db.VarChar(255)
+  body            String    @db.Text
+  audience        String    @default("PROJECT_TEAM") @db.VarChar(20) // "ALL_MEMBERS","PROJECT_TEAM","ROLE"
+  target_roles    String[]  @default([])
+  parent_id       String?   @db.Uuid // thread reply
+  created_at      DateTime  @default(now()) @db.Timestamptz
+
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  reads           InboxMessageRead[]
+
+  @@index([tenant_id, project_id, created_at])
+  @@map("inbox_messages")
+}
+
+model InboxMessageRead {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenant_id       String   @db.Uuid
+  message_id      String   @db.Uuid
+  user_id         String   @db.Uuid
+  read_at         DateTime @default(now()) @db.Timestamptz
+
+  message         InboxMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+
+  @@unique([message_id, user_id])
+  @@index([tenant_id, message_id])
+  @@map("inbox_message_reads")
 }

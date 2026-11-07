@@ -1940,3 +1940,18 @@ export const UpdateAnnouncementSchema = z.object({
   expiresAt: z.string().datetime().optional().nullable(),
 }).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
 export type UpdateAnnouncement = z.infer<typeof UpdateAnnouncementSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-3: Inbox messages
+// -----------------------------------------------------------------------------
+
+export const InboxAudienceEnum = z.enum(['ALL_MEMBERS', 'PROJECT_TEAM', 'ROLE']);
+
+export const SendInboxMessageSchema = z.object({
+  body: z.string().min(1).max(5000),
+  projectId: z.string().uuid().optional().nullable(),
+  audience: InboxAudienceEnum.default('PROJECT_TEAM'),
+  targetRoles: z.array(z.string().min(1).max(50)).max(20).optional(),
+  parentId: z.string().uuid().optional().nullable(),
+});
+export type SendInboxMessage = z.infer<typeof SendInboxMessageSchema>;
