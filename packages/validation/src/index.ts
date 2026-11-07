@@ -1994,3 +1994,33 @@ export const UpdateCorrectiveActionSchema = z.object({
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   ownerName: z.string().min(2).max(255).optional(),
 }).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-5: Crews
+// -----------------------------------------------------------------------------
+
+export const CreateCrewSchema = z.object({
+  name: z.string().min(2).max(255),
+  trade: z.string().min(2).max(100),
+  foremanName: z.string().max(255).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateCrew = z.infer<typeof CreateCrewSchema>;
+
+export const UpdateCrewSchema = z.object({
+  name: z.string().min(2).max(255).optional(),
+  trade: z.string().min(2).max(100).optional(),
+  foremanName: z.string().max(255).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+export const AddCrewMemberSchema = z.object({
+  name: z.string().min(2).max(255),
+  trade: z.string().max(100).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  dailyRateKes: z.string().regex(/^\d+(\.\d{1,2})?$/).optional().nullable(),
+});
+export type AddCrewMember = z.infer<typeof AddCrewMemberSchema>;

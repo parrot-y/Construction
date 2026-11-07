@@ -26,6 +26,7 @@ import { TopographicSurveyView } from './TopographicSurveyView';
 import InboxView from './InboxView';
 import AnnouncementsView from './AnnouncementsView';
 import ObservationsView from './ObservationsView';
+import CrewsView from './CrewsView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -321,6 +322,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       {/* Team inbox + announcements (Gate-5 G5-1/G5-3) */}
       <InboxView currentUserId={session?.user?.id} />
       <ObservationsView projectId="project-rcp-2026" canManage={true} />
+      <CrewsView canManage={true} />
       <AnnouncementsView canManage={false} />
 
       <QualityControlView
