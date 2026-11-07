@@ -1,6 +1,12 @@
 # tasks/todo.md — active plan
 
-## Current: competitor-console cleanup + remaining coverage (2026-11-07)
+## Current: Gate 4 build plan (2026-11-07)
+
+- [x] Research/cleanup phase complete — all reachable console coverage done
+- [x] GATE4_BUILD_PLAN.md written — 8 contractor-hub slices (S1 quotes→cash first)
+- [ ] Owner approves slice order → start S1 (Quotes→cash)
+
+## Prior: competitor-console cleanup + remaining coverage (2026-11-07)
 
 - [x] Void/reject CO-4990 → **Rejected** (verified in variation log + dashboard analytics)
 - [x] Reject punch item PL-2419 → **Rejected**
