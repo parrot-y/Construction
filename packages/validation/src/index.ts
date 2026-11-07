@@ -1702,3 +1702,51 @@ export const CloseoutTransitionSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 export type CloseoutTransition = z.infer<typeof CloseoutTransitionSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-4 S5: Commitments -> Claims -> Payment Applications
+// -----------------------------------------------------------------------------
+
+export const CreateCommitmentSchema = z.object({
+  vendorName: z.string().min(2).max(255),
+  vendorType: z.enum(['SUBCONTRACTOR', 'SUPPLIER', 'CONSULTANT', 'OTHER']).default('SUBCONTRACTOR'),
+  scopeDescription: z.string().max(5000).optional().nullable(),
+  contractValue: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount'),
+  currency: z.string().length(3).default('KES'),
+  retentionPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  retentionCapPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  advanceAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  advancePaid: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  advanceRecoverPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  costCode: z.string().max(50).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateCommitment = z.infer<typeof CreateCommitmentSchema>;
+
+export const UpdateCommitmentSchema = z.object({
+  vendorName: z.string().min(2).max(255).optional(),
+  scopeDescription: z.string().max(5000).optional().nullable(),
+  status: z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'TERMINATED']).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type UpdateCommitment = z.infer<typeof UpdateCommitmentSchema>;
+
+export const CreatePaymentApplicationSchema = z.object({
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart must be YYYY-MM-DD'),
+  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd must be YYYY-MM-DD'),
+  grossClaimed: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount'),
+  whtPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  previousBalance: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreatePaymentApplication = z.infer<typeof CreatePaymentApplicationSchema>;
+
+export const PaymentApplicationActionSchema = z.object({
+  action: z.enum(['SUBMIT', 'APPROVE', 'REJECT', 'MARK_PAID']),
+  comments: z.string().max(2000).optional(),
+  paidReference: z.string().max(100).optional().nullable(),
+}).refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
+  message: 'A rejection reason (comments) is required',
+  path: ['comments'],
+});
+export type PaymentApplicationAction = z.infer<typeof PaymentApplicationActionSchema>;

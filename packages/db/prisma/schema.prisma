@@ -184,6 +184,8 @@ model Project {
   quotes                Quote[]
   invoices              Invoice[]
   payment_certificates  PaymentCertificate[]
+  commitments           Commitment[]
+  payment_applications  PaymentApplication[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -2408,4 +2410,79 @@ model PaymentCertificate {
   @@unique([project_id, certificate_no])
   @@index([tenant_id, project_id, status])
   @@map("payment_certificates")
+}
+
+// -------------------------------------------------------------
+// COMMITMENTS -> CLAIMS -> PAYMENT APPLICATIONS (Gate-4 S5)
+// Vendor-agnostic commitment ledger (subcontractors, suppliers,
+// consultants) with periodic payment applications, retention and
+// advance-recovery math in Decimal.
+// -------------------------------------------------------------
+
+model Commitment {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenant_id              String    @db.Uuid
+  project_id             String    @db.Uuid
+  commitment_no          Int       // Sequential per project
+  vendor_name            String    @db.VarChar(255)
+  vendor_type            String    @default("SUBCONTRACTOR") @db.VarChar(30) // "SUBCONTRACTOR","SUPPLIER","CONSULTANT","OTHER"
+  scope_description      String?   @db.Text
+  contract_value         Decimal   @db.Decimal(15, 2)
+  currency               String    @default("KES") @db.VarChar(3)
+  retention_pct          Decimal   @default(5.00) @db.Decimal(5, 2)
+  retention_cap_pct      Decimal   @default(5.00) @db.Decimal(5, 2) // Cap as % of contract value (JBC-style)
+  advance_amount         Decimal   @default(0) @db.Decimal(15, 2)
+  advance_paid           Decimal   @default(0) @db.Decimal(15, 2)
+  advance_recover_pct    Decimal   @default(0) @db.Decimal(5, 2) // % of each gross claim recovered until advance cleared
+  cost_code              String?   @db.VarChar(50)
+  status                 String    @default("ACTIVE") @db.VarChar(20) // "DRAFT","ACTIVE","COMPLETED","TERMINATED"
+  subcontractor_package_id String? @db.Uuid
+  notes                  String?   @db.Text
+  created_at             DateTime  @default(now()) @db.Timestamptz
+  updated_at             DateTime  @updatedAt @db.Timestamptz
+
+  project                Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  applications           PaymentApplication[]
+
+  @@unique([project_id, commitment_no])
+  @@index([tenant_id, project_id, status])
+  @@map("commitments")
+}
+
+model PaymentApplication {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenant_id              String    @db.Uuid
+  project_id             String    @db.Uuid
+  commitment_id          String    @db.Uuid
+  application_no         Int       // Sequential per commitment
+  period_start           DateTime  @db.Date
+  period_end             DateTime  @db.Date
+  gross_claimed          Decimal   @db.Decimal(15, 2)
+  previous_certified     Decimal   @db.Decimal(15, 2) // Gross certified on prior APPROVED/PAID applications
+  cumulative_certified   Decimal   @db.Decimal(15, 2)
+  retention_withheld     Decimal   @db.Decimal(15, 2) // This application
+  retention_held         Decimal   @db.Decimal(15, 2) // Cumulative held after this application
+  advance_recovered      Decimal   @db.Decimal(15, 2) // This application
+  advance_outstanding    Decimal   @db.Decimal(15, 2) // Remaining advance after this application
+  wht_pct                Decimal   @default(0) @db.Decimal(5, 2) // Kenyan WHT (e.g. 3% subcontractors)
+  wht_amount             Decimal   @default(0) @db.Decimal(15, 2)
+  previous_balance       Decimal   @default(0) @db.Decimal(15, 2) // Carried amount due from prior applications
+  net_payable            Decimal   @db.Decimal(15, 2)
+  status                 String    @default("DRAFT") @db.VarChar(20) // "DRAFT","SUBMITTED","APPROVED","PAID","REJECTED"
+  submitted_at           DateTime? @db.Timestamptz
+  approved_at            DateTime? @db.Timestamptz
+  paid_at                DateTime? @db.Timestamptz
+  paid_reference         String?   @db.VarChar(100)
+  submitted_by_id        String?   @db.Uuid
+  approved_by_id         String?   @db.Uuid
+  notes                  String?   @db.Text
+  created_at             DateTime  @default(now()) @db.Timestamptz
+  updated_at             DateTime  @updatedAt @db.Timestamptz
+
+  project                Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  commitment             Commitment @relation(fields: [commitment_id], references: [id], onDelete: Cascade)
+
+  @@unique([commitment_id, application_no])
+  @@index([tenant_id, project_id, status])
+  @@map("payment_applications")
 }
