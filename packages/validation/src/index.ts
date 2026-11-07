@@ -139,10 +139,16 @@ export type MaterialDelivery = z.infer<typeof MaterialDeliverySchema>;
 export const SitePhotoInputSchema = z.object({
   storageKey: z.string().max(500),
   caption: z.string().max(255).optional().nullable(),
+  clientVisible: z.boolean().optional(),
   takenAt: z.string().datetime().optional(),
   gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
   gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
 });
+
+export const UpdateSitePhotoVisibilitySchema = z.object({
+  clientVisible: z.boolean(),
+});
+export type UpdateSitePhotoVisibility = z.infer<typeof UpdateSitePhotoVisibilitySchema>;
 export type SitePhotoInput = z.infer<typeof SitePhotoInputSchema>;
 
 export const CreateSiteDiarySchema = z.object({
@@ -151,6 +157,7 @@ export const CreateSiteDiarySchema = z.object({
   weather: WeatherConditionEnum,
   siteStatus: SiteStatusEnum,
   generalNotes: z.string().max(4000).optional().nullable(),
+  isNonWorkDay: z.boolean().optional(),
   laborHeadcounts: z.array(TradeHeadcountSchema).optional(),
   deliveries: z.array(MaterialDeliverySchema).optional(),
   photos: z.array(SitePhotoInputSchema).optional(),

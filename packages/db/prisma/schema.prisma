@@ -279,6 +279,7 @@ model SiteDiary {
   weather          String               @db.VarChar(50) // "SUNNY", "RAIN_DELAY", "HEAVY_RAIN"
   site_status      String               @db.VarChar(50) // "OPERATIONAL", "STOPPED", "PARTIAL"
   general_notes    String?              @db.Text
+  is_non_work_day  Boolean              @default(false) // Gate-4 S7: weekend/holiday/no-work flag
   recorded_by_id   String               @db.Uuid
   created_at       DateTime             @default(now()) @db.Timestamptz
 
@@ -298,6 +299,7 @@ model SitePhoto {
   site_diary_id  String     @db.Uuid
   storage_key    String     @db.VarChar(500) // S3 object key
   caption        String?    @db.VarChar(255)
+  client_visible Boolean    @default(false) // Gate-4 S7: opt-in per-photo client visibility
   taken_at       DateTime   @db.Timestamptz
   gps_latitude   Decimal?   @db.Decimal(9, 6)
   gps_longitude  Decimal?   @db.Decimal(9, 6)

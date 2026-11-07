@@ -20,6 +20,8 @@ export default function SiteDiaryModal({
   const [weather, setWeather] = useState('SUNNY_CLEAR');
   const [siteStatus, setSiteStatus] = useState('OPERATIONAL');
   const [generalNotes, setGeneralNotes] = useState('');
+  const [isNonWorkDay, setIsNonWorkDay] = useState(false);
+  const [photoClientVisible, setPhotoClientVisible] = useState(false);
 
   // Labor Headcount State
   const [masons, setMasons] = useState('4');
@@ -85,6 +87,7 @@ export default function SiteDiaryModal({
       weather,
       siteStatus,
       generalNotes: combinedNotes || undefined,
+      isNonWorkDay,
       laborHeadcounts: [
         { tradeType: 'Mason', headcount: parseInt(masons, 10) || 0 },
         { tradeType: 'Carpenter', headcount: parseInt(carpenters, 10) || 0 },
@@ -107,6 +110,7 @@ export default function SiteDiaryModal({
             {
               storageKey: `evidence/${projectId}/${Date.now()}-${photoFile.name}`,
               caption: photoCaption.trim() || undefined,
+              clientVisible: photoClientVisible,
               gpsLatitude: -1.286389, // Nairobi site coordinates
               gpsLongitude: 36.817223,
             },
@@ -139,6 +143,7 @@ export default function SiteDiaryModal({
       const res = await fetch(`/api/v1/projects/${projectId}/site-diaries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -238,6 +243,18 @@ export default function SiteDiaryModal({
                 <option value="PARTIAL">🟡 Partial Operations</option>
                 <option value="STOPPED">🔴 Site Work Stopped</option>
               </select>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="nonWorkDay"
+                checked={isNonWorkDay}
+                onChange={(e) => setIsNonWorkDay(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              <label htmlFor="nonWorkDay" className="text-[11px] font-semibold text-slate-600">
+                Non-work day (weekend / holiday / site closed)
+              </label>
             </div>
           </div>
 
@@ -414,6 +431,19 @@ export default function SiteDiaryModal({
               onChange={(e) => setPhotoCaption(e.target.value)}
               className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white mt-1"
             />
+            <div className="flex items-start gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="photoClientVisible"
+                checked={photoClientVisible}
+                onChange={(e) => setPhotoClientVisible(e.target.checked)}
+                className="mt-0.5 rounded border-slate-300"
+              />
+              <label htmlFor="photoClientVisible" className="text-[11px] text-slate-600 leading-snug">
+                <span className="font-semibold text-slate-700">Share with client</span> — this photo
+                appears in the client portal. Notes are never shared; only photos you opt in are visible.
+              </label>
+            </div>
           </div>
 
           {/* General Notes */}

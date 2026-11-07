@@ -5,6 +5,7 @@ import {
   CreateSiteDiarySchema,
   CreateProgressRecordSchema,
   SitePhotoInputSchema,
+  UpdateSitePhotoVisibilitySchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 
@@ -90,6 +91,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 weather: data.weather,
                 site_status: data.siteStatus,
                 general_notes: data.generalNotes || null,
+                is_non_work_day: data.isNonWorkDay ?? false,
               },
             });
             // Clean up existing headcounts & deliveries for replacement
@@ -104,6 +106,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 weather: data.weather,
                 site_status: data.siteStatus,
                 general_notes: data.generalNotes || null,
+                is_non_work_day: data.isNonWorkDay ?? false,
                 recorded_by_id: sub,
               },
             });
@@ -144,6 +147,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 site_diary_id: diary!.id,
                 storage_key: p.storageKey,
                 caption: p.caption || null,
+                client_visible: p.clientVisible ?? false,
                 taken_at: p.takenAt ? new Date(p.takenAt) : new Date(),
                 gps_latitude: p.gpsLatitude !== undefined && p.gpsLatitude !== null ? p.gpsLatitude : null,
                 gps_longitude: p.gpsLongitude !== undefined && p.gpsLongitude !== null ? p.gpsLongitude : null,
@@ -347,6 +351,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
               site_diary_id: diaryId,
               storage_key: data.storageKey,
               caption: data.caption || null,
+              client_visible: data.clientVisible ?? false,
               taken_at: data.takenAt ? new Date(data.takenAt) : new Date(),
               gps_latitude: data.gpsLatitude !== undefined && data.gpsLatitude !== null ? data.gpsLatitude : null,
               gps_longitude: data.gpsLongitude !== undefined && data.gpsLongitude !== null ? data.gpsLongitude : null,
@@ -598,6 +603,87 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         latestOverallProgress: latestOverall,
         latestOverallPercentage: (parseFloat(latestOverall) * 100).toFixed(2),
       });
+    },
+  );
+
+
+  // ---------------------------------------------------------------------------
+  // 6. PATCH /api/v1/projects/:projectId/site-diaries/:diaryId/photos/:photoId/visibility
+  // Gate-4 S7: per-photo client visibility toggle (opt-in sharing)
+  // ---------------------------------------------------------------------------
+  server.patch(
+    '/api/v1/projects/:projectId/site-diaries/:diaryId/photos/:photoId/visibility',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.SITE_DIARY_CREATE),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, diaryId, photoId } = request.params as {
+        projectId: string;
+        diaryId: string;
+        photoId: string;
+      };
+
+      const parseResult = UpdateSitePhotoVisibilitySchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid visibility payload',
+          details: parseResult.error.errors,
+        });
+      }
+      const { clientVisible } = parseResult.data;
+
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const photo = await tx.sitePhoto.findFirst({
+            where: { id: photoId, site_diary_id: diaryId },
+            include: { site_diary: { select: { project_id: true } } },
+          });
+          if (!photo || photo.site_diary.project_id !== projectId) {
+            throw { status: 404, message: 'Site photo not found' };
+          }
+
+          const record = await tx.sitePhoto.update({
+            where: { id: photoId },
+            data: { client_visible: clientVisible },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'SITE_PHOTO_VISIBILITY_UPDATED',
+            entityType: 'SitePhoto',
+            entityId: photoId,
+            changes: { clientVisible },
+            ipAddress: request.ip,
+            userAgent: request.headers['user-agent'] || null,
+          });
+
+          return record;
+        });
+
+        return reply.status(200).send({ message: 'Photo visibility updated', data: updated });
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            message: err.message,
+          });
+        }
+        server.log.error(err, 'Failed to update photo visibility');
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to update photo visibility',
+        });
+      }
     },
   );
 };

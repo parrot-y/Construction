@@ -147,9 +147,27 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             recorded_by_name: string;
           }> = [];
 
+          // Gate-4 S7: only photos explicitly opted-in (client_visible) are shared;
+          // diary notes/general_notes are NEVER exposed to the client portal.
+          const dailyUpdates: Array<{
+            entry_date: string;
+            weather: string;
+            site_status: string;
+            is_non_work_day: boolean;
+            visible_photo_count: number;
+          }> = [];
+
           for (const diary of siteDiaries) {
             const recordedByName = userMap.get(diary.recorded_by_id) || 'Site Supervisor';
-            for (const photo of diary.photos) {
+            const visiblePhotos = diary.photos.filter((p) => p.client_visible);
+            dailyUpdates.push({
+              entry_date: diary.entry_date.toISOString().slice(0, 10),
+              weather: diary.weather ?? 'UNKNOWN',
+              site_status: diary.site_status ?? 'UNKNOWN',
+              is_non_work_day: diary.is_non_work_day,
+              visible_photo_count: visiblePhotos.length,
+            });
+            for (const photo of visiblePhotos) {
               photoEvidence.push({
                 id: photo.id,
                 caption: photo.caption || 'Verified Site Evidence',
@@ -341,6 +359,7 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
               health_notice: detailedVariance.message,
             },
             photo_evidence: photoEvidence,
+            daily_updates: dailyUpdates,
             timeline,
             pending_variations,
             payment_certificates,
