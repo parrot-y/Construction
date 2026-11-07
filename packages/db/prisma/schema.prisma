@@ -195,6 +195,8 @@ model Project {
   site_observations     SiteObservation[]
   corrective_actions    CorrectiveAction[]
   crews                 Crew[]
+  correspondence_items  CorrespondenceItem[]
+  scheduled_reports     ScheduledReport[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -2747,4 +2749,84 @@ model CompanyDocument {
   @@index([tenant_id, category, status])
   @@index([tenant_id, expiry_date])
   @@map("company_documents")
+}
+
+// -------------------------------------------------------------
+// CORRESPONDENCE LOG (Gate-5 G5-8): observed Projects >
+// Correspondence — formal project letters: Letter, Submittal,
+// Transmittal, Notice. Sequential per project, direction-aware.
+// -------------------------------------------------------------
+
+model CorrespondenceItem {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  corr_number     Int       // sequential per project → COR-001…
+  type            String    @db.VarChar(20) // "LETTER","SUBMITTAL","TRANSMITTAL","NOTICE"
+  direction       String    @default("OUTGOING") @db.VarChar(10) // "OUTGOING","INCOMING"
+  subject         String    @db.VarChar(500)
+  from_name       String    @db.VarChar(255)
+  to_name         String    @db.VarChar(255)
+  reference       String?   @db.VarChar(100) // e.g. "VO/2026/014", consultant ref
+  letter_date     DateTime? @db.Date
+  status          String    @default("DRAFT") @db.VarChar(15) // "DRAFT","SENT","RECEIVED","RESPONDED","FILED"
+  body            String?   @db.Text
+  attachment_name String?   @db.VarChar(255)
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, corr_number])
+  @@index([tenant_id, project_id, type])
+  @@map("correspondence_items")
+}
+
+// -------------------------------------------------------------
+// SCHEDULED REPORTS (Gate-5 G5-9): observed Files & reports >
+// Scheduled — saved report definitions with frequency, recipient
+// list, project scope, and run history. Generation snapshots a
+// tenant summary into ScheduledReportRun; external delivery is a
+// later integration.
+// -------------------------------------------------------------
+
+model ScheduledReport {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String?   @db.Uuid
+  name            String    @db.VarChar(255)
+  report_type     String    @db.VarChar(20) // "FINANCIAL","OPERATIONAL","BY_PROJECT","BY_REGION","CUSTOM"
+  frequency       String    @db.VarChar(10) // "DAILY","WEEKLY","MONTHLY"
+  day_of_week     Int?      // 0=Sun…6=Sat (WEEKLY)
+  day_of_month    Int?      // 1-28 (MONTHLY)
+  recipients      String[]  @default([]) // emails or role labels
+  format          String    @default("PDF") @db.VarChar(10) // "PDF","EXCEL","JSON"
+  status          String    @default("ACTIVE") @db.VarChar(10) // "ACTIVE","PAUSED"
+  next_run_at     DateTime? @db.Timestamptz
+  last_run_at     DateTime? @db.Timestamptz
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  runs            ScheduledReportRun[]
+
+  @@index([tenant_id, status, next_run_at])
+  @@map("scheduled_reports")
+}
+
+model ScheduledReportRun {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  report_id       String    @db.Uuid
+  ran_at          DateTime  @default(now()) @db.Timestamptz
+  status          String    @db.VarChar(10) // "SUCCESS","FAILED"
+  summary         Json?     // snapshot payload
+  error           String?   @db.Text
+
+  report          ScheduledReport @relation(fields: [report_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, report_id, ran_at])
+  @@map("scheduled_report_runs")
 }

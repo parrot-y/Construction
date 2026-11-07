@@ -33,6 +33,8 @@ import { inboxRoutes } from './routes/inbox';
 import { observationsRoutes } from './routes/observations';
 import { crewsRoutes } from './routes/crews';
 import { companyDocumentsRoutes } from './routes/companyDocuments';
+import { correspondenceRoutes } from './routes/correspondence';
+import { scheduledReportsRoutes } from './routes/scheduledReports';
 import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
@@ -140,6 +142,8 @@ export function buildServer(): FastifyInstance {
   server.register(observationsRoutes);
   server.register(crewsRoutes);
   server.register(companyDocumentsRoutes);
+  server.register(correspondenceRoutes);
+  server.register(scheduledReportsRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

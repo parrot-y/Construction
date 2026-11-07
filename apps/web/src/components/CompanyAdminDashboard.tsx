@@ -19,6 +19,7 @@ import InvoicingView from './InvoicingView';
 import AnnouncementsView from './AnnouncementsView';
 import CompanyDocumentsView from './CompanyDocumentsView';
 import InboxView from './InboxView';
+import ScheduledReportsView from './ScheduledReportsView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -388,6 +389,9 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
 
       {/* Company documents vault (Gate-5 G5-7) */}
       <CompanyDocumentsView canManage={true} />
+
+      {/* Scheduled reports (Gate-5 G5-9) */}
+      <ScheduledReportsView canManage={true} />
 
       {/* Team inbox (Gate-5 G5-3) */}
       <InboxView />

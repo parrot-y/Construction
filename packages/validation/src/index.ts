@@ -2052,3 +2052,60 @@ export const UpdateCompanyDocumentSchema = z.object({
   status: z.enum(['ACTIVE', 'ARCHIVED']).optional(),
   notes: z.string().max(5000).optional().nullable(),
 }).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-8: Correspondence log
+// -----------------------------------------------------------------------------
+
+export const CorrespondenceTypeEnum = z.enum(['LETTER', 'SUBMITTAL', 'TRANSMITTAL', 'NOTICE']);
+export const CorrespondenceDirectionEnum = z.enum(['OUTGOING', 'INCOMING']);
+export const CorrespondenceStatusEnum = z.enum(['DRAFT', 'SENT', 'RECEIVED', 'RESPONDED', 'FILED']);
+
+export const CreateCorrespondenceSchema = z.object({
+  type: CorrespondenceTypeEnum,
+  direction: CorrespondenceDirectionEnum.default('OUTGOING'),
+  subject: z.string().min(3).max(500),
+  fromName: z.string().min(2).max(255),
+  toName: z.string().min(2).max(255),
+  reference: z.string().max(100).optional().nullable(),
+  letterDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  body: z.string().max(20000).optional().nullable(),
+  attachmentName: z.string().max(255).optional().nullable(),
+});
+export type CreateCorrespondence = z.infer<typeof CreateCorrespondenceSchema>;
+
+export const UpdateCorrespondenceSchema = z.object({
+  status: CorrespondenceStatusEnum.optional(),
+  subject: z.string().min(3).max(500).optional(),
+  reference: z.string().max(100).optional().nullable(),
+  body: z.string().max(20000).optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-9: Scheduled reports
+// -----------------------------------------------------------------------------
+
+export const ScheduledReportTypeEnum = z.enum(['FINANCIAL', 'OPERATIONAL', 'BY_PROJECT', 'BY_REGION', 'CUSTOM']);
+export const ReportFrequencyEnum = z.enum(['DAILY', 'WEEKLY', 'MONTHLY']);
+
+export const CreateScheduledReportSchema = z.object({
+  name: z.string().min(3).max(255),
+  reportType: ScheduledReportTypeEnum,
+  frequency: ReportFrequencyEnum,
+  dayOfWeek: z.number().int().min(0).max(6).optional().nullable(),
+  dayOfMonth: z.number().int().min(1).max(31).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  recipients: z.array(z.string().min(1).max(255)).min(1).max(20),
+  format: z.enum(['PDF', 'EXCEL', 'JSON']).default('PDF'),
+});
+export type CreateScheduledReport = z.infer<typeof CreateScheduledReportSchema>;
+
+export const UpdateScheduledReportSchema = z.object({
+  name: z.string().min(3).max(255).optional(),
+  status: z.enum(['ACTIVE', 'PAUSED']).optional(),
+  frequency: ReportFrequencyEnum.optional(),
+  dayOfWeek: z.number().int().min(0).max(6).optional().nullable(),
+  dayOfMonth: z.number().int().min(1).max(31).optional().nullable(),
+  recipients: z.array(z.string().min(1).max(255)).min(1).max(20).optional(),
+  format: z.enum(['PDF', 'EXCEL', 'JSON']).optional(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
