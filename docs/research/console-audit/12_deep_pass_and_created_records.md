@@ -157,13 +157,44 @@ Statuses: Open · In Progress · Ready for Review · Resolved · Closed · Rejec
 
 **Quirk observed:** due date rendered as `61120-02-02` for input 2026-11-20 — likely a date-parsing bug on their side [OBSERVED anomaly; do not replicate].
 
+## 5h. Remaining modules — page + form captures [OBSERVED]
+
+Every sidebar module was opened; create-form interiors captured for ~25 flows. Summary per module:
+
+| Module | Page model | Form highlights |
+|---|---|---|
+| **Inspections** (Quality & safety) | "Template-driven QA/QC inspections with consultant approval workflow." Statuses: Draft→Pending Consultant→In Review→Approved/Rejected/**Rework Required**→Closed. Types incl. civil works (Road Surface, Subgrade, Drainage/Culvert, Bridge, Asphalt Compaction, Traffic Control). Request form: type, date, inspector, **assign to consultant (multi)**, **checklist template (required)**, notes, readiness photos (0/10), evidence photo/video (0/10, 0/3) |
+| **Safety incidents** | "Report and track safety incidents, near-misses, and corrective actions." Statuses open/investigating/closed. Form: date, type (Injury, Near Miss, Environmental, Property Damage, Struck by Equipment, Rollover, Cave-in, Traffic, Asphalt Burn), severity minor→fatality, reporter, description, witnesses, corrective action |
+| **Observations** | "Quality and safety issues… and the actions that fix them." Two tabs: Observations + **Corrective actions**. Types Quality/Safety/Environmental/Commissioning; priorities; project + assignees |
+| **Checklists** | Templates / Assignments by trade / My checklists. **Upload PDF/Word/Excel/CSV/Image → auto-extract checklist** + **Form Builder**: question types Text, Number, Date, Yes/No, Pass/Fail, Dropdown, Checkbox, Photo, Signature + required + sub-questions. Trade taxonomy (36), categories safety/quality/pre-handover/custom, Global flag |
+| **Punch list** | See §5g — richest form (manager + final approver, distribution, impact scales, Private flag) |
+| **Inventory** | Materials + Equipment tabs. Material form: name, SKU, category, unit (bags/tonnes/m/m²/m³/kg/pcs/rolls/litres/boxes), project/company-wide, location, opening stock, min/reorder/max levels, **acceptable waste %** (with plain-language explainer), reorder qty, supplier + contact + **delivery lead time days**, unit cost (KES), notes — a real stock ledger, not a list |
+| **Schedule** | "Project programme: activities, phases and milestones against the calendar." Gantt/List/Milestones views, Weeks/Days scale, statuses Not started/In progress/Done/Blocked, **AI schedule** generator, Add activity |
+| **Plans & drawings** | Drawing filters by discipline (Architectural/Mechanical/Structural/Electrical/Civil), **AI Concept / AI Design "SOON"** badges, Upload |
+| **Team** | Invite member: name/email/**role dropdown listing all 14 roles per row**; members POWELL, brendah, abel, watson, LISA — client (brendah) also appears as team member with assignable roles (dual-path: client portal invite AND team role) |
+| **Attendance** | Today/History/Team history/**Access log** tabs; "Mark team attendance"; metrics: people working, on site, late, on leave; per-member check-in/out/break/location — geo check-in |
+| **Directory** | Contacts & companies; categories Client/Consultant/Subcontractor/Supplier/Authority |
+| **Subcontractors** | "Subcontractor & supplier database" — $ committed/paid/to-pay rollups; **"Subcontracts awarded through Bidding or created in Commitments attach automatically by company name"** (reveals a Bidding module not exposed in this workspace's nav) |
+| **Crews** | Name*, trade (36-taxonomy + "Other (type it)"), foreman, project*, shift Day/Night, usual work area |
+| **Coordination issues** | "RFIs, clashes and design questions." Types RFI/Clash/Design Question; priorities; statuses Open/Answered/Closed |
+| **Correspondence** | Letters, submittals, transmittals, notices; types + project; "Save Draft" |
+| **Company documents** | Policies/Templates/Certifications/Insurance/HR/Legal categories; upload |
+| **Reports** | Financial/Operational · By Project/By Region/Custom · **Scheduled sends** · Export PDF |
+| **Announcements** | Title/body, priority Low→Urgent, audience Everyone/By Project/By Role/**Hand-pick people**, attachments, **"Require acknowledgement"** read-receipt flag, live recipient count |
+| **Billing & plan** | Starter $23/mo (3 users then ~$700 KES/extra; unlimited projects; free client accounts) · Business $69/mo (10 users; +Financials/BOQ/certificates/inventory/subcontractors/reports/RBAC) · Business yearly $690. **KES pricing shown natively with USD toggle**; per-seat math shown for current team size |
+| **Settings** | Profile, Account & Security, Company (incl. sector multi-select: land sales, borehole, roads & civil, QS, etc. + "Save company profile") |
+| **Inbox** | Team chat: conversations, "New group", member/read state |
+| **Site checks** | [NOT REACHED] — nav click repeatedly renders Dashboard; likely project-scoped or stub. Flagged honestly. |
+
 ## 6. Coverage status vs "click everything"
 
 | Area | Status |
 |---|---|
 | All sidebar modules | ✅ visited; Money group children enumerated (Financials/Commitments/Quotes/Invoicing/Inventory/Billing & plan) |
 | All 13 project tabs | ✅ bodies extracted this pass |
-| Create flows exercised end-to-end | ✅ CO (full lifecycle), daily log, quote (draft→sent), invoice, payment application, punch item. Others (invoice, commitment, inspection, punch, observation, checklist, subcontractor, crew, RFI, incident, correspondence, contact) — forms captured read-only earlier; saved-state UI still [NOT REACHED] |
+| Every sidebar module + group | ✅ all visited; ~25 create-form interiors captured (§5h) |
+| Create flows exercised end-to-end | ✅ CO (full lifecycle), daily log, quote (draft→sent), invoice, payment application, punch item. Remaining modules: forms fully mapped; saved-state UI [NOT REACHED] for inspection/observation/checklist/crew/subcontractor/contact/incident/RFI/correspondence/announcement/inventory |
+| Site checks page | ⚠️ [NOT REACHED] — nav renders Dashboard (project-scoped or stub) |
 | Settings | ✅ Account Security + Company captured earlier (`settings-*.json` local) |
 | Role Manager matrix | ✅ extracted earlier for all 14 roles |
 | Role-scoped logins | ✅ QS, Architect, QA/QC probed; Client portal verified |
