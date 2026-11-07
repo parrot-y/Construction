@@ -65,6 +65,12 @@ export const Permissions = {
   QUOTE_VIEW: 'quote.view',
   QUOTE_EDIT: 'quote.edit',
   QUOTE_SEND: 'quote.send',
+
+  // Invoices (accounts receivable)
+  INVOICE_CREATE: 'invoice.create',
+  INVOICE_VIEW: 'invoice.view',
+  INVOICE_EDIT: 'invoice.edit',
+  INVOICE_SEND: 'invoice.send',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
@@ -101,6 +107,10 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.QUOTE_VIEW,
     Permissions.QUOTE_EDIT,
     Permissions.QUOTE_SEND,
+    Permissions.INVOICE_CREATE,
+    Permissions.INVOICE_VIEW,
+    Permissions.INVOICE_EDIT,
+    Permissions.INVOICE_SEND,
     Permissions.INSPECTION_REQUEST,
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,
@@ -136,6 +146,10 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.QUOTE_VIEW,
     Permissions.QUOTE_EDIT,
     Permissions.QUOTE_SEND,
+    Permissions.INVOICE_CREATE,
+    Permissions.INVOICE_VIEW,
+    Permissions.INVOICE_EDIT,
+    Permissions.INVOICE_SEND,
     Permissions.INSPECTION_REQUEST,
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,
@@ -166,6 +180,10 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.QUOTE_VIEW,
     Permissions.QUOTE_EDIT,
     Permissions.QUOTE_SEND,
+    Permissions.INVOICE_CREATE,
+    Permissions.INVOICE_VIEW,
+    Permissions.INVOICE_EDIT,
+    Permissions.INVOICE_SEND,
     Permissions.INSPECTION_REQUEST,
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,

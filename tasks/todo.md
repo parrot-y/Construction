@@ -20,7 +20,7 @@
   - `PublicQuoteView.tsx` — public share-link page (`?portal=quote&token=`)
   - Wired: PmQsDashboard '💼 Quotes & Cash' tab, CompanyAdminDashboard section, ClientDashboard section, App.tsx portal route
 - [x] verify-local.sh GREEN — 344/344 API tests, 113/113 web tests, typecheck/build clean (`docs/evidence/verify-fb3a036.log`)
-- [ ] Commit + push S1 frontend
+- [x] Commit + push S1 (`683ae24`) — backend `fb3a036` + frontend `683ae24`
 
 ## Prior: Gate 4 build plan (2026-11-07)
 

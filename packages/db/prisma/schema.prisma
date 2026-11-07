@@ -46,6 +46,7 @@ model Tenant {
   project_tenders           ProjectTender[]
   tender_bids               TenderBid[]
   quotes                    Quote[]
+  invoices                  Invoice[]
 
   @@map("tenants")
 }
@@ -174,6 +175,7 @@ model Project {
   project_tenders       ProjectTender[]
   tender_bids           TenderBid[]
   quotes                Quote[]
+  invoices              Invoice[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -2190,6 +2192,7 @@ model Quote {
   project         Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
   items           QuoteLineItem[]
   events          QuoteEvent[]
+  invoices        Invoice[]
 
   @@unique([tenant_id, quote_no])
   @@index([tenant_id, status])
@@ -2230,4 +2233,90 @@ model QuoteEvent {
 
   @@index([tenant_id, quote_id])
   @@map("quote_events")
+}
+
+// INVOICES — accounts receivable (Gate-4 slice S2)
+// Statuses stored: DRAFT, SENT, PART_PAID, PAID, VOID.
+// OVERDUE is derived at read time (SENT/PART_PAID past due_date) — no cron needed.
+model Invoice {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenant_id    String    @db.Uuid
+  invoice_no   Int
+  title        String    @db.VarChar(255)
+  project_id   String?   @db.Uuid
+  quote_id     String?   @db.Uuid
+  client_name  String    @db.VarChar(255)
+  client_email String?   @db.VarChar(255)
+  client_phone String?   @db.VarChar(50)
+  bill_to      String?   @db.Text
+  po_number    String?   @db.VarChar(100)
+  status       String    @default("DRAFT") @db.VarChar(20)
+  currency     String    @default("KES") @db.VarChar(3)
+  subtotal     Decimal   @default(0) @db.Decimal(15, 2)
+  tax_pct      Decimal   @default(0) @db.Decimal(5, 2)
+  tax_amount   Decimal   @default(0) @db.Decimal(15, 2)
+  total        Decimal   @default(0) @db.Decimal(15, 2)
+  amount_paid  Decimal   @default(0) @db.Decimal(15, 2)
+  balance_due  Decimal   @default(0) @db.Decimal(15, 2)
+  issue_date   DateTime  @db.Date
+  due_date     DateTime  @db.Date
+  terms        String?   @db.Text
+  notes        String?   @db.Text
+  paybill      String?   @db.VarChar(20) // M-Pesa Paybill/Till for client remittance
+  sent_at      DateTime? @db.Timestamptz
+  paid_at      DateTime? @db.Timestamptz
+  voided_at    DateTime? @db.Timestamptz
+  void_reason  String?   @db.VarChar(255)
+  created_by   String?   @db.Uuid
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+
+  tenant   Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  project  Project?          @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  quote    Quote?            @relation(fields: [quote_id], references: [id], onDelete: SetNull)
+  items    InvoiceLineItem[]
+  payments InvoicePayment[]
+
+  @@unique([tenant_id, invoice_no])
+  @@index([tenant_id, status])
+  @@index([tenant_id, project_id])
+  @@index([tenant_id, due_date])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenant_id    String   @db.Uuid
+  invoice_id   String   @db.Uuid
+  section      String?  @db.VarChar(120)
+  description  String   @db.Text
+  unit         String   @default("item") @db.VarChar(20)
+  quantity     Decimal  @default(1) @db.Decimal(12, 4)
+  unit_rate    Decimal  @default(0) @db.Decimal(15, 4)
+  total_amount Decimal  @default(0) @db.Decimal(15, 2)
+  sort_order   Int      @default(0)
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  invoice      Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, invoice_id])
+  @@map("invoice_line_items")
+}
+
+model InvoicePayment {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  invoice_id  String   @db.Uuid
+  amount      Decimal  @db.Decimal(15, 2)
+  method      String   @default("BANK") @db.VarChar(20) // "CASH","BANK","M_PESA","CHEQUE","CARD","OTHER"
+  reference   String?  @db.VarChar(100) // M-Pesa transaction code, cheque no, etc.
+  paid_at     DateTime @default(now()) @db.Timestamptz
+  note        String?  @db.Text
+  recorded_by String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  invoice     Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, invoice_id])
+  @@map("invoice_payments")
 }

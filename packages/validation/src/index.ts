@@ -1595,3 +1595,47 @@ export const ConvertQuoteSchema = z.object({
   createDepositInvoice: z.boolean().default(false),
 });
 export type ConvertQuote = z.infer<typeof ConvertQuoteSchema>;
+
+// -------------------------------------------------------------
+// INVOICES (accounts receivable, Gate-4 slice S2)
+// -------------------------------------------------------------
+
+export const InvoiceLineItemInputSchema = QuoteLineItemInputSchema;
+export type InvoiceLineItemInput = QuoteLineItemInput;
+
+export const CreateInvoiceSchema = z.object({
+  title: z.string().min(1).max(255),
+  clientName: z.string().min(1).max(255),
+  clientEmail: z.string().email().max(255).optional().nullable(),
+  clientPhone: z.string().max(50).optional().nullable(),
+  billTo: z.string().max(2000).optional().nullable(),
+  poNumber: z.string().max(100).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  quoteId: z.string().uuid().optional().nullable(),
+  currency: z.enum(['KES', 'USD']).default('KES'),
+  taxPct: z.number().min(0).max(100).default(0),
+  issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dueDays: z.number().int().min(0).max(365).default(30),
+  terms: z.string().max(5000).optional().nullable(),
+  notes: z.string().max(5000).optional().nullable(),
+  paybill: z.string().max(20).optional().nullable(),
+  items: z.array(InvoiceLineItemInputSchema).min(1),
+});
+export type CreateInvoice = z.infer<typeof CreateInvoiceSchema>;
+
+export const UpdateInvoiceSchema = CreateInvoiceSchema.partial();
+export type UpdateInvoice = z.infer<typeof UpdateInvoiceSchema>;
+
+export const RecordInvoicePaymentSchema = z.object({
+  amount: z.number().positive(),
+  method: z.enum(['CASH', 'BANK', 'M_PESA', 'CHEQUE', 'CARD', 'OTHER']).default('BANK'),
+  reference: z.string().max(100).optional().nullable(),
+  paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  note: z.string().max(2000).optional().nullable(),
+});
+export type RecordInvoicePayment = z.infer<typeof RecordInvoicePaymentSchema>;
+
+export const VoidInvoiceSchema = z.object({
+  reason: z.string().min(1).max(255),
+});
+export type VoidInvoice = z.infer<typeof VoidInvoiceSchema>;

@@ -15,6 +15,7 @@ import { RetentionAndBondsView } from './RetentionAndBondsView';
 import { SubscriptionBillingView } from './SubscriptionBillingView';
 import { MpesaDisbursementView } from './MpesaDisbursementView';
 import QuotesManagementView from './QuotesManagementView';
+import InvoicingView from './InvoicingView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -376,6 +377,9 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
 
       {/* Quotes-to-Cash: quotations, client acceptance, project conversion (Gate-4 S1) */}
       <QuotesManagementView />
+
+      {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
+      <InvoicingView />
 
       {/* Invite Member Modal */}
       {showInviteModal && (
