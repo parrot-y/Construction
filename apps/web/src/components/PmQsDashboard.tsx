@@ -10,6 +10,7 @@ import VariationManagementView from './VariationManagementView';
 import RfiManagementView from './RfiManagementView';
 import QualityControlView from './QualityControlView';
 import PracticalCompletionCard from './PracticalCompletionCard';
+import CertificatesCloseoutView from './CertificatesCloseoutView';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
 import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import SiteInventoryManagementView from './SiteInventoryManagementView';
@@ -358,6 +359,11 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           projectName="Riverside Commercial Plaza"
           canApprove={true}
         />
+      )}
+
+      {/* Interim Payment Certificates & Closeout Stage Machine (Gate-4 S4 / ADR-008) */}
+      {(activeTab === 'all' || activeTab === 'closeout') && (
+        <CertificatesCloseoutView projectId="project-rcp-2026" canManage={true} />
       )}
 
       {/* Practical Completion & Retention Release Card */}

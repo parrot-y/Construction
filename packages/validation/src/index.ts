@@ -1670,3 +1670,35 @@ export const VoidInvoiceSchema = z.object({
   reason: z.string().min(1).max(255),
 });
 export type VoidInvoice = z.infer<typeof VoidInvoiceSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-4 S4: Payment Certificates & Closeout (ADR-008)
+// -----------------------------------------------------------------------------
+
+export const CreatePaymentCertificateSchema = z.object({
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart must be YYYY-MM-DD'),
+  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd must be YYYY-MM-DD'),
+  thisPeriodAmount: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  retentionPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  retentionReleased: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  advanceRecovery: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  amountDuePrevious: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreatePaymentCertificate = z.infer<typeof CreatePaymentCertificateSchema>;
+
+export const PaymentCertificateActionSchema = z.object({
+  action: z.enum(['SUBMIT', 'REVIEW', 'CERTIFY', 'REJECT', 'MARK_PAID']),
+  comments: z.string().max(2000).optional(),
+  paidReference: z.string().max(100).optional().nullable(),
+}).refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
+  message: 'A rejection reason (comments) is required',
+  path: ['comments'],
+});
+export type PaymentCertificateAction = z.infer<typeof PaymentCertificateActionSchema>;
+
+export const CloseoutTransitionSchema = z.object({
+  stage: z.enum(['HANDED_OVER', 'DEFECTS_LIABILITY', 'DEFECTS_EXPIRED', 'CLOSED']),
+  notes: z.string().max(2000).optional(),
+});
+export type CloseoutTransition = z.infer<typeof CloseoutTransitionSchema>;

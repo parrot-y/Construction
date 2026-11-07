@@ -271,6 +271,29 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             list: pendingVariationsList,
           };
 
+          // 10b. Certified / Paid Payment Certificates (ADR-008): client-visible
+          // once the QS/PM has certified them — drafts and submissions stay internal.
+          const paymentCertsRaw = await tx.paymentCertificate.findMany({
+            where: {
+              project_id: projectId,
+              status: { in: ['CERTIFIED', 'PAID'] },
+            },
+            orderBy: { certificate_no: 'asc' },
+          });
+          const payment_certificates = paymentCertsRaw.map((c) => ({
+            id: c.id,
+            certificate_no: c.certificate_no,
+            period_start: c.period_start.toISOString().split('T')[0],
+            period_end: c.period_end.toISOString().split('T')[0],
+            this_period_amount: toCurrencyString(c.this_period_amount.toString()),
+            cumulative_certified: toCurrencyString(c.cumulative_certified.toString()),
+            retention_held: toCurrencyString(c.retention_held.toString()),
+            net_payable: toCurrencyString(c.net_payable.toString()),
+            status: c.status,
+            certified_at: c.certified_at ? c.certified_at.toISOString() : null,
+            paid_at: c.paid_at ? c.paid_at.toISOString() : null,
+          }));
+
           // 11. Kenyan Standard Retention Terms
           const maxCapAmountDec = originalBudgetDec.times(0.05);
           const retention_terms = {
@@ -320,6 +343,7 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             photo_evidence: photoEvidence,
             timeline,
             pending_variations,
+            payment_certificates,
             retention_terms,
           };
         });

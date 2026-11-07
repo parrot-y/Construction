@@ -121,6 +121,9 @@ model Project {
   status               String          @default("ACTIVE") @db.VarChar(50) // "PLANNING", "ACTIVE", "COMPLETED", "ON_HOLD"
   original_contract_sum Decimal        @default(0.00) @db.Decimal(15, 2)
   current_approved_budget Decimal      @default(0.00) @db.Decimal(15, 2)
+  // ADR-008 closeout stage machine: IN_PROGRESS -> HANDED_OVER -> DEFECTS_LIABILITY -> DEFECTS_EXPIRED -> CLOSED
+  closeout_stage       String          @default("IN_PROGRESS") @db.VarChar(30)
+  practical_completion_date DateTime?  @db.Date
   start_date           DateTime?       @db.Date
   target_end_date      DateTime?       @db.Date
   created_at           DateTime        @default(now()) @db.Timestamptz
@@ -180,6 +183,7 @@ model Project {
   tender_bids           TenderBid[]
   quotes                Quote[]
   invoices              Invoice[]
+  payment_certificates  PaymentCertificate[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -2362,4 +2366,46 @@ model InvoicePayment {
 
   @@index([tenant_id, invoice_id])
   @@map("invoice_payments")
+}
+
+// -------------------------------------------------------------
+// PAYMENT CERTIFICATES & CLOSEOUT (ADR-008, Gate-4 S4)
+// Unified interim payment certificate / payment application record.
+// Status machine: DRAFT -> SUBMITTED -> UNDER_REVIEW -> CERTIFIED -> PAID
+//                                    \-> REJECTED (from SUBMITTED/UNDER_REVIEW)
+// -------------------------------------------------------------
+
+model PaymentCertificate {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenant_id            String    @db.Uuid
+  project_id           String    @db.Uuid
+  certificate_no       Int       // Sequential per project (IPC-<project>-NN)
+  period_start         DateTime  @db.Date
+  period_end           DateTime  @db.Date
+  this_period_amount   Decimal   @db.Decimal(15, 2) // Gross amount certified this period
+  previous_certified   Decimal   @db.Decimal(15, 2) // Certified total before this certificate
+  cumulative_certified Decimal   @db.Decimal(15, 2) // previous + this period
+  retention_pct        Decimal   @default(5.00) @db.Decimal(5, 2)
+  retention_deduction  Decimal   @db.Decimal(15, 2) // Retention withheld this period
+  retention_held       Decimal   @db.Decimal(15, 2) // Cumulative retention held after this cert
+  retention_released   Decimal   @default(0) @db.Decimal(15, 2) // Moiety/defects release added back to payable
+  advance_recovery     Decimal   @default(0) @db.Decimal(15, 2)
+  amount_due_previous  Decimal   @default(0) @db.Decimal(15, 2)
+  net_payable          Decimal   @db.Decimal(15, 2)
+  status               String    @default("DRAFT") @db.VarChar(30)
+  submitted_at         DateTime? @db.Timestamptz
+  certified_at         DateTime? @db.Timestamptz
+  paid_at              DateTime? @db.Timestamptz
+  paid_reference       String?   @db.VarChar(100) // M-Pesa code / EFT ref / cheque no
+  submitted_by_id      String?   @db.Uuid
+  certified_by_id      String?   @db.Uuid
+  notes                String?   @db.Text
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+
+  project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, certificate_no])
+  @@index([tenant_id, project_id, status])
+  @@map("payment_certificates")
 }
