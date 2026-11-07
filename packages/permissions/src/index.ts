@@ -59,6 +59,12 @@ export const Permissions = {
   INSPECTION_SUBMIT: 'inspection.submit',
   INSPECTION_VIEW: 'inspection.view',
   INSPECTION_REVIEW: 'inspection.review',
+
+  // Quotes (quotes-to-cash)
+  QUOTE_CREATE: 'quote.create',
+  QUOTE_VIEW: 'quote.view',
+  QUOTE_EDIT: 'quote.edit',
+  QUOTE_SEND: 'quote.send',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
@@ -91,6 +97,10 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.TENDER_BID,
     Permissions.TENDER_EVALUATE,
     Permissions.TENDER_AWARD,
+    Permissions.QUOTE_CREATE,
+    Permissions.QUOTE_VIEW,
+    Permissions.QUOTE_EDIT,
+    Permissions.QUOTE_SEND,
     Permissions.INSPECTION_REQUEST,
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,
@@ -122,6 +132,10 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.TENDER_BID,
     Permissions.TENDER_EVALUATE,
     Permissions.TENDER_AWARD,
+    Permissions.QUOTE_CREATE,
+    Permissions.QUOTE_VIEW,
+    Permissions.QUOTE_EDIT,
+    Permissions.QUOTE_SEND,
     Permissions.INSPECTION_REQUEST,
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,
@@ -148,6 +162,10 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.TENDER_VIEW,
     Permissions.TENDER_EVALUATE,
     Permissions.TENDER_AWARD,
+    Permissions.QUOTE_CREATE,
+    Permissions.QUOTE_VIEW,
+    Permissions.QUOTE_EDIT,
+    Permissions.QUOTE_SEND,
     Permissions.INSPECTION_REQUEST,
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,

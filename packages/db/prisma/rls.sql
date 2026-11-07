@@ -228,6 +228,26 @@ $$;
 REVOKE ALL ON FUNCTION lookup_portal_link_by_hash(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_portal_link_by_hash(TEXT) TO db_app;
 
+-- Narrow SECURITY DEFINER lookup for public quote share links (ADR-007)
+-- Resolves tenant_id from a SHA-256 share-token hash without an auth context,
+-- then all quote reads/writes proceed inside withTenantTx under RLS.
+DROP FUNCTION IF EXISTS lookup_quote_by_share_hash(TEXT);
+CREATE OR REPLACE FUNCTION lookup_quote_by_share_hash(p_token_hash TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id
+  FROM public.quotes
+  WHERE share_token_hash = p_token_hash
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_quote_by_share_hash(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_quote_by_share_hash(TEXT) TO db_app;
+
 -- Narrow SECURITY DEFINER lookup function for Inbound M-Pesa STK Callback (C1, 2b)
 DROP FUNCTION IF EXISTS lookup_mpesa_stk_transaction(TEXT);
 CREATE OR REPLACE FUNCTION lookup_mpesa_stk_transaction(p_checkout_request_id TEXT)

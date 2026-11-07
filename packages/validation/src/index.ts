@@ -1543,3 +1543,55 @@ export type AwardTenderBid = z.infer<typeof AwardTenderBidSchema>;
 
 
 
+
+// -------------------------------------------------------------
+// QUOTES (quotes-to-cash, ADR-007)
+// -------------------------------------------------------------
+
+export const QuoteLineItemInputSchema = z.object({
+  section: z.string().max(120).optional().nullable(),
+  description: z.string().min(1).max(2000),
+  unit: z.enum(['item', 'sum', 'm', 'm2', 'm3', 'no', 'kg', 'day', 'hr', 'lot']).default('item'),
+  quantity: z.number().positive(),
+  unitRate: z.number().min(0),
+});
+export type QuoteLineItemInput = z.infer<typeof QuoteLineItemInputSchema>;
+
+export const CreateQuoteSchema = z.object({
+  title: z.string().min(1).max(255),
+  clientName: z.string().min(1).max(255),
+  clientEmail: z.string().email().max(255).optional().nullable(),
+  clientPhone: z.string().max(50).optional().nullable(),
+  siteLocation: z.string().max(255).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  currency: z.enum(['KES', 'USD']).default('KES'),
+  taxPct: z.number().min(0).max(100).default(0),
+  depositPct: z.number().min(0).max(100).default(0),
+  terms: z.string().max(5000).optional().nullable(),
+  scopeNotes: z.string().max(5000).optional().nullable(),
+  validDays: z.number().int().min(1).max(365).optional(),
+  items: z.array(QuoteLineItemInputSchema).min(1),
+});
+export type CreateQuote = z.infer<typeof CreateQuoteSchema>;
+
+export const UpdateQuoteSchema = CreateQuoteSchema.partial();
+export type UpdateQuote = z.infer<typeof UpdateQuoteSchema>;
+
+export const SendQuoteSchema = z.object({
+  channel: z.enum(['link', 'whatsapp', 'email']).default('link'),
+});
+export type SendQuote = z.infer<typeof SendQuoteSchema>;
+
+export const PublicQuoteRespondSchema = z.object({
+  action: z.enum(['accept', 'decline', 'comment']),
+  typedName: z.string().min(2).max(255).optional(),
+  note: z.string().max(2000).optional().nullable(),
+});
+export type PublicQuoteRespond = z.infer<typeof PublicQuoteRespondSchema>;
+
+export const ConvertQuoteSchema = z.object({
+  projectName: z.string().min(1).max(255).optional(),
+  projectCode: z.string().max(50).optional().nullable(),
+  createDepositInvoice: z.boolean().default(false),
+});
+export type ConvertQuote = z.infer<typeof ConvertQuoteSchema>;

@@ -24,6 +24,7 @@ import { commercialOperationsRoutes } from './routes/commercialOperations';
 import { siteOperationsRoutes } from './routes/siteOperations';
 import { enterpriseOperationsRoutes } from './routes/enterpriseOperations';
 import { platformServicesRoutes } from './routes/platformServices';
+import { quotesRoutes } from './routes/quotes';
 import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
@@ -122,6 +123,7 @@ export function buildServer(): FastifyInstance {
   server.register(siteOperationsRoutes);
   server.register(enterpriseOperationsRoutes);
   server.register(platformServicesRoutes);
+  server.register(quotesRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

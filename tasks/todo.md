@@ -1,10 +1,25 @@
 # tasks/todo.md — active plan
 
-## Current: Gate 4 build plan (2026-11-07)
+## Current: Gate 4 — Slice S1 Quotes→cash (2026-11-07)
+
+- [x] Prisma schema: `Quote`, `QuoteLineItem`, `QuoteEvent` models + relations
+- [x] Permissions: `QUOTE_CREATE/VIEW/EDIT/SEND` in `@construction/permissions`
+- [x] Validation schemas: create/update/send/public-respond/convert in `@construction/validation`
+- [x] `apps/api/src/routes/quotes.ts` — full lifecycle:
+  - Contractor: list, detail, create (computed totals), edit-draft-only, send, convert→project
+  - Client portal: `GET /api/v1/client/quotes` (email-matched inbox)
+  - Public: `GET /api/public/quotes/:token`, `POST .../respond` (typed-name accept/decline/comment)
+- [x] Security: share token stored as SHA-256 hash only; `lookup_quote_by_share_hash` SECURITY DEFINER fn in rls.sql (same pattern as portal links); token rotates on re-send; all public reads/writes inside `withTenantTx` under RLS
+- [x] Tests: `apps/api/src/quotes.test.ts` — 15 tests (RBAC, totals, send, public view/respond, client inbox, tenant isolation, convert, event trail)
+- [x] verify-local.sh GREEN — 343/343 tests, typecheck/lint/build clean (evidence: docs/evidence/verify-7ff5992.log)
+- [ ] Frontend: contractor quotes UI + public quote page + client portal quotes tab
+- [ ] Commit + push S1
+
+## Prior: Gate 4 build plan (2026-11-07)
 
 - [x] Research/cleanup phase complete — all reachable console coverage done
 - [x] GATE4_BUILD_PLAN.md written — 8 contractor-hub slices (S1 quotes→cash first)
-- [ ] Owner approves slice order → start S1 (Quotes→cash)
+- [x] Owner approved slice order → S1 started and backend-verified
 
 ## Prior: competitor-console cleanup + remaining coverage (2026-11-07)
 

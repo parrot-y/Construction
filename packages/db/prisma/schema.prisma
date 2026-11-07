@@ -45,6 +45,7 @@ model Tenant {
   independent_inspection_photos IndependentInspectionPhoto[]
   project_tenders           ProjectTender[]
   tender_bids               TenderBid[]
+  quotes                    Quote[]
 
   @@map("tenants")
 }
@@ -172,6 +173,7 @@ model Project {
   independent_inspection_photos IndependentInspectionPhoto[]
   project_tenders       ProjectTender[]
   tender_bids           TenderBid[]
+  quotes                Quote[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -2149,3 +2151,83 @@ model TenderBid {
 
 
 
+
+// -------------------------------------------------------------
+// QUOTES — quotes-to-cash (ADR-007, Gate-4 slice S1)
+// -------------------------------------------------------------
+
+model Quote {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  quote_no        Int
+  title           String    @db.VarChar(255)
+  client_name     String    @db.VarChar(255)
+  client_email    String?   @db.VarChar(255)
+  client_phone    String?   @db.VarChar(50)
+  site_location   String?   @db.VarChar(255)
+  project_id      String?   @db.Uuid
+  currency        String    @default("KES") @db.VarChar(3)
+  status          String    @default("DRAFT") @db.VarChar(20) // "DRAFT","SENT","ACCEPTED","DECLINED","EXPIRED","CONVERTED"
+  subtotal        Decimal   @default(0) @db.Decimal(15, 2)
+  tax_pct         Decimal   @default(0) @db.Decimal(5, 2)
+  tax_amount      Decimal   @default(0) @db.Decimal(15, 2)
+  total           Decimal   @default(0) @db.Decimal(15, 2)
+  deposit_pct     Decimal   @default(0) @db.Decimal(5, 2)
+  deposit_amount  Decimal   @default(0) @db.Decimal(15, 2)
+  terms           String?   @db.Text
+  scope_notes     String?   @db.Text
+  valid_until     DateTime? @db.Date
+  share_token_hash String?  @unique @db.VarChar(64) // SHA-256 hex of the public share token; raw token shown once at send
+  responded_at    DateTime? @db.Timestamptz
+  responded_by    String?   @db.VarChar(255) // typed-name e-signature
+  response_note   String?   @db.Text
+  converted_project_id String? @db.Uuid
+  created_by      String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  tenant          Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  items           QuoteLineItem[]
+  events          QuoteEvent[]
+
+  @@unique([tenant_id, quote_no])
+  @@index([tenant_id, status])
+  @@index([tenant_id, client_email])
+  @@map("quotes")
+}
+
+model QuoteLineItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String   @db.Uuid
+  quote_id       String   @db.Uuid
+  section        String?  @db.VarChar(120)
+  description    String   @db.Text
+  unit           String   @default("item") @db.VarChar(20) // item,sum,m,m2,m3,no,kg,day,hr,lot
+  quantity       Decimal  @default(1) @db.Decimal(12, 4)
+  unit_rate      Decimal  @default(0) @db.Decimal(15, 4)
+  total_amount   Decimal  @default(0) @db.Decimal(15, 2)
+  sort_order     Int      @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  quote          Quote    @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, quote_id])
+  @@map("quote_line_items")
+}
+
+model QuoteEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  quote_id    String   @db.Uuid
+  actor_type  String   @db.VarChar(20) // "STAFF","CLIENT","SYSTEM"
+  actor_name  String?  @db.VarChar(255)
+  event       String   @db.VarChar(40) // CREATED,SENT,VIEWED,ACCEPTED,DECLINED,COMMENT,CONVERTED,EXPIRED
+  note        String?  @db.Text
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  quote       Quote    @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, quote_id])
+  @@map("quote_events")
+}
