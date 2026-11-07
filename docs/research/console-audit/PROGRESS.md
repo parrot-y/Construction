@@ -65,3 +65,9 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 - **Certificate/payment-application unification found:** #ZZ-APP-01 appears in Certificates history with status action buttons — applications and certificates share one record model.
 - Certificate create form re-captured live (live THIS PERIOD/RETENTION/NET PAYABLE computation, 5 statuses, scan attach); save still not exercised — inputs ambiguous, cancelled cleanly.
 - All findings → `12_deep_pass_and_created_records.md` §5/§6b/§6c; cleanup rows added to CREATED_RECORDS.md (contract sum reset, quote now Accepted — do not click Start project).
+
+## 2026-11-07 — Cleanup pass + new findings
+- **Cleanup executed:** CO-4990 → Rejected; PL-2419 → Rejected; #ZZ-APP-01 → Rejected (Reject modal w/ comments); daily-log Friday entry neutralized (crew "Site crew", work text generic — no delete exists, edit-only); contract sum reset $1,000,000 → 0 via project "More project actions" → "Contract value & dates".
+- **Could NOT clean:** invoice ZZ-RESEARCH-INV-001 (draft, no delete/edit affordance) and quote Q-0001 (Accepted by real client; no decline/delete path; "Start project" must not be clicked). Both remain ZZ-marked; trial expiry will wipe the workspace.
+- **New findings:** "More project actions" menu = Refresh · Contract value & dates · View-only portal link. "Edit project" modal fully mapped (contract value $/KSh, location+map pin, progress %, money-at-risk, status lifecycle Planning→On Track→At Risk→Closing→Archived, PM/Architect/QS assignment, images, documents). Sidebar groups are collapsible toggles (clicking 'Projects' collapses children). Payment-application Reject requires modal comments + confirm. No hard-delete exists for any record type observed — statuses are the cleanup mechanism (audit-trail preserved by design).
+- Repo hygiene: added `AGENTS.md` (orchestration rules), `tasks/todo.md`, `tasks/lessons.md` per owner directive.
