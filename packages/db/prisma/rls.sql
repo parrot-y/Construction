@@ -248,6 +248,37 @@ $$;
 REVOKE ALL ON FUNCTION lookup_quote_by_share_hash(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_quote_by_share_hash(TEXT) TO db_app;
 
+-- Quote expiry job (ADR-007): flips SENT quotes past valid_until to EXPIRED
+-- across all tenants. SECURITY DEFINER because the job has no tenant context;
+-- it writes the same EXPIRED event trail the respond endpoints produce.
+DROP FUNCTION IF EXISTS expire_quotes_batch();
+CREATE OR REPLACE FUNCTION expire_quotes_batch()
+RETURNS INTEGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql AS $$
+DECLARE
+  r RECORD;
+  n INTEGER := 0;
+BEGIN
+  FOR r IN
+    SELECT id, tenant_id, quote_no FROM public.quotes
+    WHERE status = 'SENT'
+      AND valid_until IS NOT NULL
+      AND valid_until < now()
+  LOOP
+    UPDATE public.quotes SET status = 'EXPIRED', updated_at = now() WHERE id = r.id;
+    INSERT INTO public.quote_events (id, tenant_id, quote_id, actor_type, actor_name, event, note)
+    VALUES (gen_random_uuid(), r.tenant_id, r.id, 'SYSTEM', 'expiry-job', 'EXPIRED',
+            'Quote validity period elapsed (Q-' || lpad(r.quote_no::text, 4, '0') || ')');
+    n := n + 1;
+  END LOOP;
+  RETURN n;
+END;
+$$;
+REVOKE ALL ON FUNCTION expire_quotes_batch() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION expire_quotes_batch() TO db_app;
+
 -- Narrow SECURITY DEFINER lookup function for Inbound M-Pesa STK Callback (C1, 2b)
 DROP FUNCTION IF EXISTS lookup_mpesa_stk_transaction(TEXT);
 CREATE OR REPLACE FUNCTION lookup_mpesa_stk_transaction(p_checkout_request_id TEXT)

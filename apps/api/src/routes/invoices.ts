@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import React from 'react';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
-import { toCurrencyString, toDecimal } from '@construction/money';
+import { toCurrencyString, toDecimal, Decimal, calculateLineTotal, DecimalValue } from '@construction/money';
 import {
   CreateInvoiceSchema,
   UpdateInvoiceSchema,
@@ -17,10 +17,22 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 const MONEY = (v: any) => (v == null ? '0' : v.toString());
 
-function computeTotals(subtotal: number, taxPct: number) {
-  const taxAmount = Math.round(subtotal * (taxPct / 100) * 100) / 100;
-  const total = Math.round((subtotal + taxAmount) * 100) / 100;
-  return { subtotal, taxAmount, total };
+/**
+ * ADR-005 / C-03: invoice money math uses decimal.js; line totals rounded
+ * HALF_UP to cents, subtotal == sum of line totals.
+ */
+function computeInvoiceTotals(
+  items: { quantity: DecimalValue; unitRate: DecimalValue }[],
+  taxPct: DecimalValue,
+) {
+  const lineTotals = items.map((it) => calculateLineTotal(it.quantity, it.unitRate));
+  const subtotal = lineTotals.reduce((s, t) => s.plus(t), new Decimal(0));
+  const taxAmount = subtotal
+    .times(toDecimal(taxPct))
+    .dividedBy(100)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const total = subtotal.plus(taxAmount);
+  return { subtotal, taxAmount, total, lineTotals };
 }
 
 /** OVERDUE is derived, never stored: unpaid invoice past its due date. */
@@ -77,7 +89,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
       const statusFilter = status?.toUpperCase();
       if (statusFilter === 'OVERDUE') {
         where.status = { in: ['SENT', 'PART_PAID'] };
-        where.due_date = { lt: new Date() };
+        // due_date is @db.Date: lte keeps parity with effectiveStatus(), which
+        // treats an invoice due today (stored as midnight) as overdue.
+        where.due_date = { lte: new Date() };
       } else if (statusFilter) {
         where.status = statusFilter;
       }
@@ -135,8 +149,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           });
           const invoiceNo = (maxNo._max.invoice_no ?? 0) + 1;
 
-          const subtotal = data.items.reduce((sum, it) => sum + it.quantity * it.unitRate, 0);
-          const totals = computeTotals(subtotal, data.taxPct);
+          const totals = computeInvoiceTotals(data.items, data.taxPct);
           const issueDate = data.issueDate ? new Date(`${data.issueDate}T00:00:00Z`) : new Date();
           const dueDate = new Date(issueDate.getTime() + data.dueDays * 86400000);
 
@@ -173,7 +186,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
                   unit: it.unit,
                   quantity: it.quantity,
                   unit_rate: it.unitRate,
-                  total_amount: Math.round(it.quantity * it.unitRate * 100) / 100,
+                  total_amount: totals.lineTotals[idx],
                   sort_order: idx,
                 })),
               },
@@ -268,13 +281,12 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
                 section: i.section,
                 description: i.description,
                 unit: i.unit as any,
-                quantity: Number(i.quantity),
-                unitRate: Number(i.unit_rate),
+                quantity: i.quantity.toString(),
+                unitRate: i.unit_rate.toString(),
               }))
             : itemSource;
-          const subtotal = keptItems.reduce((sum, it) => sum + it.quantity * it.unitRate, 0);
           const taxPct = data.taxPct ?? Number(existing.tax_pct);
-          const totals = computeTotals(subtotal, taxPct);
+          const totals = computeInvoiceTotals(keptItems, taxPct);
           const issueDate = data.issueDate
             ? new Date(`${data.issueDate}T00:00:00Z`)
             : existing.issue_date;
@@ -303,7 +315,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
               tax_pct: taxPct,
               tax_amount: totals.taxAmount,
               total: totals.total,
-              balance_due: Math.round((totals.total - Number(existing.amount_paid ?? 0)) * 100) / 100,
+              balance_due: totals.total.minus(toDecimal(existing.amount_paid?.toString() ?? '0')),
               ...(data.items
                 ? {
                     items: {
@@ -314,7 +326,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
                         unit: it.unit,
                         quantity: it.quantity,
                         unit_rate: it.unitRate,
-                        total_amount: Math.round(it.quantity * it.unitRate * 100) / 100,
+                        total_amount: totals.lineTotals[idx],
                         sort_order: idx,
                       })),
                     },

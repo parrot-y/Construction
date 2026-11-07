@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { randomBytes, createHash } from 'node:crypto';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
-import { toCurrencyString } from '@construction/money';
+import { toCurrencyString, toDecimal, Decimal, calculateLineTotal, DecimalValue } from '@construction/money';
 import {
   CreateQuoteSchema,
   UpdateQuoteSchema,
@@ -14,11 +14,67 @@ import { requirePermission } from '../plugins/rbac';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function computeTotals(subtotal: number, taxPct: number, depositPct: number) {
-  const taxAmount = Math.round(subtotal * (taxPct / 100) * 100) / 100;
-  const total = Math.round((subtotal + taxAmount) * 100) / 100;
-  const depositAmount = Math.round(total * (depositPct / 100) * 100) / 100;
-  return { subtotal, taxAmount, total, depositAmount };
+/**
+ * ADR-005 / C-03: all quote money math uses decimal.js via @construction/money.
+ * Line totals are rounded HALF_UP to cents individually; subtotal is the exact
+ * sum of those line totals (line sum == subtotal invariant).
+ */
+function computeQuoteTotals(
+  items: { quantity: DecimalValue; unitRate: DecimalValue }[],
+  taxPct: DecimalValue,
+  depositPct: DecimalValue,
+) {
+  const lineTotals = items.map((it) => calculateLineTotal(it.quantity, it.unitRate));
+  const subtotal = lineTotals.reduce((s, t) => s.plus(t), new Decimal(0));
+  const taxAmount = subtotal
+    .times(toDecimal(taxPct))
+    .dividedBy(100)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const total = subtotal.plus(taxAmount);
+  const depositAmount = total
+    .times(toDecimal(depositPct))
+    .dividedBy(100)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  return { subtotal, taxAmount, total, depositAmount, lineTotals };
+}
+
+/** A SENT quote whose valid_until has passed is treated as expired. */
+function quoteIsExpired(quote: any): boolean {
+  return (
+    quote.status === 'SENT' &&
+    quote.valid_until != null &&
+    new Date(quote.valid_until).getTime() < Date.now()
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Public-route rate limiting (OWASP A07): in-memory sliding window per IP.
+// ---------------------------------------------------------------------------
+const PUBLIC_RATE_LIMIT_MAX = 30;
+const PUBLIC_RATE_LIMIT_WINDOW_MS = 60_000;
+const publicHits = new Map<string, number[]>();
+
+async function publicRateLimit(request: any, reply: any) {
+  const ip = request.ip || 'unknown';
+  const now = Date.now();
+  const hits = (publicHits.get(ip) ?? []).filter((t) => now - t < PUBLIC_RATE_LIMIT_WINDOW_MS);
+  if (hits.length >= PUBLIC_RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil((PUBLIC_RATE_LIMIT_WINDOW_MS - (now - (hits[0] ?? now))) / 1000);
+    reply.header('Retry-After', Math.max(1, retryAfter));
+    return reply.status(429).send({
+      statusCode: 429,
+      error: 'Too Many Requests',
+      message: 'Too many requests. Please try again later.',
+    });
+  }
+  hits.push(now);
+  publicHits.set(ip, hits);
+  // opportunistic cleanup
+  if (publicHits.size > 5000) {
+    for (const [k, v] of publicHits) {
+      if (v.every((t) => now - t >= PUBLIC_RATE_LIMIT_WINDOW_MS)) publicHits.delete(k);
+    }
+  }
 }
 
 function formatQuote(q: any) {
@@ -125,83 +181,97 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
       }
 
       try {
-        const quote = await withTenantTx(prisma, tenantId, async (tx) => {
-          if (data.projectId) {
-            const project = await tx.project.findFirst({ where: { id: data.projectId } });
-            if (!project) throw { status: 404, message: 'Project not found' };
-          }
+        // Retry on quote_no unique collision (P2002) — concurrent creates can
+        // compute the same next number inside separate transactions.
+        let quote: any = null;
+        let lastErr: any = null;
+      for (let attempt = 0; attempt < 3 && !quote; attempt++) {
+        try {
+          quote = await withTenantTx(prisma, tenantId, async (tx) => {
+            if (data.projectId) {
+              const project = await tx.project.findFirst({ where: { id: data.projectId } });
+              if (!project) throw { status: 404, message: 'Project not found' };
+            }
 
-          const maxNo = await tx.quote.aggregate({
-            where: { tenant_id: tenantId },
-            _max: { quote_no: true },
-          });
-          const quoteNo = (maxNo._max.quote_no ?? 0) + 1;
+            const maxNo = await tx.quote.aggregate({
+              where: { tenant_id: tenantId },
+              _max: { quote_no: true },
+            });
+            const quoteNo = (maxNo._max.quote_no ?? 0) + 1;
 
-          const subtotal = data.items.reduce((sum, it) => sum + it.quantity * it.unitRate, 0);
-          const totals = computeTotals(subtotal, data.taxPct, data.depositPct);
-          const validUntil = data.validDays
-            ? new Date(Date.now() + data.validDays * 86400000)
-            : null;
+            const totals = computeQuoteTotals(data.items, data.taxPct, data.depositPct);
+            const validUntil = data.validDays
+              ? new Date(Date.now() + data.validDays * 86400000)
+              : null;
 
-          const created = await tx.quote.create({
-            data: {
-              tenant_id: tenantId,
-              quote_no: quoteNo,
-              title: data.title,
-              client_name: data.clientName,
-              client_email: data.clientEmail ?? null,
-              client_phone: data.clientPhone ?? null,
-              site_location: data.siteLocation ?? null,
-              project_id: data.projectId ?? null,
-              currency: data.currency,
-              status: 'DRAFT',
-              subtotal: totals.subtotal,
-              tax_pct: data.taxPct,
-              tax_amount: totals.taxAmount,
-              total: totals.total,
-              deposit_pct: data.depositPct,
-              deposit_amount: totals.depositAmount,
-              terms: data.terms ?? null,
-              scope_notes: data.scopeNotes ?? null,
-              valid_until: validUntil,
-              created_by: sub,
-              items: {
-                create: data.items.map((it, idx) => ({
-                  tenant_id: tenantId,
-                  section: it.section ?? null,
-                  description: it.description,
-                  unit: it.unit,
-                  quantity: it.quantity,
-                  unit_rate: it.unitRate,
-                  total_amount: Math.round(it.quantity * it.unitRate * 100) / 100,
-                  sort_order: idx,
-                })),
+            const created = await tx.quote.create({
+              data: {
+                tenant_id: tenantId,
+                quote_no: quoteNo,
+                title: data.title,
+                client_name: data.clientName,
+                client_email: data.clientEmail ?? null,
+                client_phone: data.clientPhone ?? null,
+                site_location: data.siteLocation ?? null,
+                project_id: data.projectId ?? null,
+                currency: data.currency,
+                status: 'DRAFT',
+                subtotal: totals.subtotal,
+                tax_pct: data.taxPct,
+                tax_amount: totals.taxAmount,
+                total: totals.total,
+                deposit_pct: data.depositPct,
+                deposit_amount: totals.depositAmount,
+                terms: data.terms ?? null,
+                scope_notes: data.scopeNotes ?? null,
+                valid_until: validUntil,
+                created_by: sub,
+                items: {
+                  create: data.items.map((it, idx) => ({
+                    tenant_id: tenantId,
+                    section: it.section ?? null,
+                    description: it.description,
+                    unit: it.unit,
+                    quantity: it.quantity,
+                    unit_rate: it.unitRate,
+                    total_amount: totals.lineTotals[idx],
+                    sort_order: idx,
+                  })),
+                },
               },
-            },
-            include: { items: true },
+              include: { items: true },
+            });
+
+            await addQuoteEvent(tx, tenantId, created.id, 'STAFF', 'CREATED', sub, `Quote Q-${String(quoteNo).padStart(4, '0')} created`);
+            await recordAuditLog(tx, {
+              tenantId,
+              projectId: data.projectId ?? null,
+              actorId: sub,
+              action: 'QUOTE_CREATED',
+              entityType: 'Quote',
+              entityId: created.id,
+              changes: { quoteNo, title: data.title, total: totals.total.toString() },
+              ipAddress: request.ip,
+              userAgent: (request.headers['user-agent'] as string) || null,
+            });
+
+            return created;
           });
-
-          await addQuoteEvent(tx, tenantId, created.id, 'STAFF', 'CREATED', sub, `Quote Q-${String(quoteNo).padStart(4, '0')} created`);
-          await recordAuditLog(tx, {
-            tenantId,
-            projectId: data.projectId ?? null,
-            actorId: sub,
-            action: 'QUOTE_CREATED',
-            entityType: 'Quote',
-            entityId: created.id,
-            changes: { quoteNo, title: data.title, total: totals.total },
-            ipAddress: request.ip,
-            userAgent: (request.headers['user-agent'] as string) || null,
-          });
-
-          return created;
-        });
-
-        return reply.status(201).send({ quote: formatQuote(quote) });
-      } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
-        throw err;
+        } catch (err: any) {
+          if (err?.code === 'P2002') {
+            lastErr = err;
+            continue;
+          }
+          throw err;
+        }
       }
+      if (!quote) throw lastErr ?? new Error('Failed to allocate quote number');
+
+      return reply.status(201).send({ quote: formatQuote(quote) });
+    } catch (err: any) {
+      if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+      throw err;
+    }
     },
   );
 
@@ -269,13 +339,12 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
                 section: i.section,
                 description: i.description,
                 unit: i.unit as any,
-                quantity: Number(i.quantity),
-                unitRate: Number(i.unit_rate),
+                quantity: i.quantity.toString(),
+                unitRate: i.unit_rate.toString(),
               }));
-          const subtotal = itemSource.reduce((sum, it) => sum + it.quantity * it.unitRate, 0);
           const taxPct = data.taxPct ?? Number(existing.tax_pct);
           const depositPct = data.depositPct ?? Number(existing.deposit_pct);
-          const totals = computeTotals(subtotal, taxPct, depositPct);
+          const totals = computeQuoteTotals(itemSource, taxPct, depositPct);
 
           const updated = await tx.quote.update({
             where: { id },
@@ -308,7 +377,7 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
                         unit: it.unit,
                         quantity: it.quantity,
                         unit_rate: it.unitRate,
-                        total_amount: Math.round(it.quantity * it.unitRate * 100) / 100,
+                        total_amount: totals.lineTotals[idx],
                         sort_order: idx,
                       })),
                     },
@@ -457,6 +526,75 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
             include: { items: true },
           });
 
+          // ADR-007: when requested, auto-draft the deposit invoice promised on
+          // the quote ("a deposit invoice for this amount is drafted for you").
+          let depositInvoice: any = null;
+          if (data.createDepositInvoice) {
+            const depositPctNum = Number(quote.deposit_pct ?? 0);
+            const depositAmt = toDecimal(quote.deposit_amount?.toString() ?? '0');
+            if (depositPctNum > 0 && depositAmt.gt(0)) {
+              const invAgg = await tx.invoice.aggregate({
+                where: { tenant_id: tenantId },
+                _max: { invoice_no: true },
+              });
+              const invNo = (invAgg._max.invoice_no ?? 0) + 1;
+              const issueDate = new Date();
+              const dueDate = new Date(issueDate.getTime() + 7 * 86400000);
+              depositInvoice = await tx.invoice.create({
+                data: {
+                  tenant_id: tenantId,
+                  invoice_no: invNo,
+                  title: `Deposit ${depositPctNum}% — ${quote.title}`,
+                  client_name: quote.client_name,
+                  client_email: quote.client_email,
+                  client_phone: quote.client_phone,
+                  project_id: project.id,
+                  quote_id: quote.id,
+                  currency: quote.currency,
+                  status: 'DRAFT',
+                  subtotal: depositAmt,
+                  tax_pct: 0,
+                  tax_amount: 0,
+                  total: depositAmt,
+                  balance_due: depositAmt,
+                  issue_date: issueDate,
+                  due_date: dueDate,
+                  terms: `Deposit invoice auto-drafted from accepted quote Q-${String(quote.quote_no).padStart(4, '0')} (${depositPctNum}% to start works).`,
+                  created_by: sub,
+                  items: {
+                    create: [
+                      {
+                        tenant_id: tenantId,
+                        description: `Mobilization deposit (${depositPctNum}% of contract sum) — ${quote.title}`,
+                        unit: 'sum',
+                        quantity: 1,
+                        unit_rate: depositAmt,
+                        total_amount: depositAmt,
+                        sort_order: 0,
+                      },
+                    ],
+                  },
+                },
+              });
+              await recordAuditLog(tx, {
+                tenantId,
+                projectId: project.id,
+                actorId: sub,
+                action: 'INVOICE_CREATED',
+                entityType: 'Invoice',
+                entityId: depositInvoice.id,
+                changes: {
+                  invoiceNo: invNo,
+                  autoDraftedFromQuote: quote.id,
+                  depositPct: depositPctNum,
+                  total: depositAmt.toString(),
+                },
+                ipAddress: request.ip,
+                userAgent: (request.headers['user-agent'] as string) || null,
+              });
+            }
+          }
+
           await addQuoteEvent(tx, tenantId, id, 'STAFF', 'CONVERTED', sub, `Converted to project ${project.code}`);
           await recordAuditLog(tx, {
             tenantId,
@@ -470,12 +608,20 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
             userAgent: (request.headers['user-agent'] as string) || null,
           });
 
-          return { project, quote: convertedQuote };
+          return { project, quote: convertedQuote, depositInvoice };
         });
 
         return reply.status(201).send({
           project: { id: result.project.id, name: result.project.name, code: result.project.code },
           quote: formatQuote(result.quote),
+          depositInvoice: result.depositInvoice
+            ? {
+                id: result.depositInvoice.id,
+                invoice_no: result.depositInvoice.invoice_no,
+                total: toCurrencyString(result.depositInvoice.total.toString()),
+                status: result.depositInvoice.status,
+              }
+            : null,
         });
       } catch (err: any) {
         if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
@@ -559,6 +705,13 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
           if (!quote) {
             throw { status: 404, message: 'Quote not found' };
           }
+          if (quoteIsExpired(quote)) {
+            // Commit the EXPIRED flip + event, then signal expiry to the caller
+            // (throwing here would roll the transition back).
+            await tx.quote.update({ where: { id: quote.id }, data: { status: 'EXPIRED' } });
+            await addQuoteEvent(tx, tenantId, quote.id, 'SYSTEM', 'EXPIRED', null, 'Validity period elapsed');
+            return { expired: true };
+          }
           if (quote.status !== 'SENT') {
             throw { status: 409, message: `Quote already ${quote.status.toLowerCase()}` };
           }
@@ -580,14 +733,21 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
             responseNote = data.note ?? null;
           }
 
-          const result = await tx.quote.update({
-            where: { id: quote.id },
+          // Atomic transition: only one concurrent responder can leave SENT.
+          const guard = await tx.quote.updateMany({
+            where: { id: quote.id, status: 'SENT' },
             data: {
               status: newStatus,
               responded_at: newStatus !== 'SENT' ? new Date() : quote.responded_at,
               responded_by: respondedBy ?? quote.responded_by,
               response_note: responseNote ?? quote.response_note,
             },
+          });
+          if (guard.count === 0) {
+            throw { status: 409, message: 'Quote was already responded to' };
+          }
+          const result = await tx.quote.findUniqueOrThrow({
+            where: { id: quote.id },
             include: { items: true },
           });
 
@@ -607,6 +767,9 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
           return result;
         });
 
+        if ((updated as any)?.expired) {
+          return reply.status(409).send({ statusCode: 409, error: 'Conflict', message: 'Quote has expired' });
+        }
         return reply.send({ quote: formatQuote(updated) });
       } catch (err: any) {
         if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
@@ -618,15 +781,15 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
   // -------------------------------------------------------------------------
   // PUBLIC: GET /api/public/quotes/:token - View shared quote
   // -------------------------------------------------------------------------
-  server.get('/api/public/quotes/:token', async (request, reply) => {
+  server.get('/api/public/quotes/:token', { preHandler: publicRateLimit }, async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolveQuoteLink(token);
     if (!link) {
       return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Quote link is invalid or expired' });
     }
 
-    const quote = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      return tx.quote.findFirst({
+    const result = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+      const quote = await tx.quote.findFirst({
         where: { id: link.id },
         include: {
           items: { orderBy: { sort_order: 'asc' } },
@@ -635,27 +798,37 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
           tenant: { select: { name: true, currency: true } },
         },
       });
+      if (!quote) return null;
+
+      // Dedupe VIEWED events: at most one per hour per quote.
+      try {
+        const recentView = await tx.quoteEvent.findFirst({
+          where: {
+            quote_id: quote.id,
+            event: 'VIEWED',
+            created_at: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+          },
+        });
+        if (!recentView) {
+          await addQuoteEvent(tx, quote.tenant_id, quote.id, 'CLIENT', 'VIEWED', null, 'Opened shared link');
+        }
+      } catch {
+        // viewing must never fail the read
+      }
+      return quote;
     });
-    if (!quote) {
+
+    if (!result) {
       return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Quote link is invalid or expired' });
     }
 
-    // mark viewed (fire-and-forget inside tenant tx)
-    try {
-      await withTenantTx(prisma, quote.tenant_id, async (tx) => {
-        await addQuoteEvent(tx, quote.tenant_id, quote.id, 'CLIENT', 'VIEWED', null, 'Opened shared link');
-      });
-    } catch {
-      // viewing must never fail the read
-    }
-
-    return reply.send({ quote: formatQuote(quote), contractor: { name: quote.tenant.name } });
+    return reply.send({ quote: formatQuote(result), contractor: { name: result.tenant.name } });
   });
 
   // -------------------------------------------------------------------------
   // PUBLIC: POST /api/public/quotes/:token/respond - Accept / decline / comment
   // -------------------------------------------------------------------------
-  server.post('/api/public/quotes/:token/respond', async (request, reply) => {
+  server.post('/api/public/quotes/:token/respond', { preHandler: publicRateLimit }, async (request, reply) => {
     const { token } = request.params as { token: string };
     const parsed = PublicQuoteRespondSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -673,6 +846,13 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
         const quote = await tx.quote.findFirst({ where: { id: link.id } });
         if (!quote) {
           throw { status: 404, message: 'Quote link is invalid or expired' };
+        }
+        if (quoteIsExpired(quote)) {
+          // Commit the EXPIRED flip + event, then signal expiry to the caller
+          // (throwing here would roll the transition back).
+          await tx.quote.update({ where: { id: quote.id }, data: { status: 'EXPIRED' } });
+          await addQuoteEvent(tx, link.tenant_id, quote.id, 'SYSTEM', 'EXPIRED', null, 'Validity period elapsed');
+          return { expired: true };
         }
         if (quote.status !== 'SENT') {
           throw { status: 409, message: `Quote already ${quote.status.toLowerCase()}` };
@@ -695,14 +875,21 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
           responseNote = data.note ?? null;
         }
 
-        const result = await tx.quote.update({
-          where: { id: quote.id },
+        // Atomic transition: only one concurrent responder can leave SENT.
+        const guard = await tx.quote.updateMany({
+          where: { id: quote.id, status: 'SENT' },
           data: {
             status: newStatus,
             responded_at: newStatus !== 'SENT' ? new Date() : quote.responded_at,
             responded_by: respondedBy ?? quote.responded_by,
             response_note: responseNote ?? quote.response_note,
           },
+        });
+        if (guard.count === 0) {
+          throw { status: 409, message: 'Quote was already responded to' };
+        }
+        const result = await tx.quote.findUniqueOrThrow({
+          where: { id: quote.id },
           include: { items: true },
         });
 
@@ -722,10 +909,27 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
         return result;
       });
 
+      if ((updated as any)?.expired) {
+        return reply.status(409).send({ statusCode: 409, error: 'Conflict', message: 'Quote has expired' });
+      }
       return reply.send({ quote: formatQuote(updated) });
     } catch (err: any) {
       if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
       throw err;
     }
   });
+
+  // -------------------------------------------------------------------------
+  // Quote expiry job (ADR-007): SENT quotes past valid_until -> EXPIRED.
+  // Runs every 15 minutes via the SECURITY DEFINER expire_quotes_batch()
+  // function; respond endpoints also enforce valid_until lazily.
+  // -------------------------------------------------------------------------
+  const expiryTimer = setInterval(async () => {
+    try {
+      await prisma.$queryRaw`SELECT expire_quotes_batch()`;
+    } catch (err) {
+      server.log.warn({ err }, 'quote expiry job failed');
+    }
+  }, 15 * 60 * 1000);
+  expiryTimer.unref();
 };

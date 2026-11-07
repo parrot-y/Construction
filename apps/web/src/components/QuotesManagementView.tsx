@@ -212,11 +212,15 @@ export default function QuotesManagementView(): React.JSX.Element {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ createDepositInvoice: true }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || 'Failed to convert quote');
-      setNotice(`Quote converted to project ${body.project.code} (${body.project.name})`);
+      setNotice(
+        body.depositInvoice
+          ? `Quote converted to project ${body.project.code} — deposit invoice INV-${String(body.depositInvoice.invoice_no).padStart(5, '0')} drafted`
+          : `Quote converted to project ${body.project.code} (${body.project.name})`,
+      );
       load();
     } catch (err: any) {
       setError(err.message);

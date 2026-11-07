@@ -272,6 +272,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
       url: '/api/v1/invoices?status=OVERDUE',
       headers: { cookie: adminCookie },
     });
+    expect(list.statusCode).toBe(200);
     const listBody = JSON.parse(list.body);
     expect(listBody.invoices.some((i: any) => i.id === oid)).toBe(true);
   });

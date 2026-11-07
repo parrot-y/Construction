@@ -1,26 +1,41 @@
 # tasks/todo.md — active plan
 
-## Current: Gate 4 — Slice S1 Quotes→cash (2026-11-07)
+## Current: Claude re-audit remediation + Gate-4 S1 completion + S2 invoicing (2026-11-07)
 
-- [x] Prisma schema: `Quote`, `QuoteLineItem`, `QuoteEvent` models + relations
-- [x] Permissions: `QUOTE_CREATE/VIEW/EDIT/SEND` in `@construction/permissions`
-- [x] Validation schemas: create/update/send/public-respond/convert in `@construction/validation`
-- [x] `apps/api/src/routes/quotes.ts` — full lifecycle:
-  - Contractor: list, detail, create (computed totals), edit-draft-only, send, convert→project
-  - Client portal: `GET /api/v1/client/quotes` (email-matched inbox)
-  - Public: `GET /api/public/quotes/:token`, `POST .../respond` (typed-name accept/decline/comment)
-- [x] Security: share token stored as SHA-256 hash only; `lookup_quote_by_share_hash` SECURITY DEFINER fn in rls.sql (same pattern as portal links); token rotates on re-send; all public reads/writes inside `withTenantTx` under RLS
-- [x] Tests: `apps/api/src/quotes.test.ts` — 15 tests (RBAC, totals, send, public view/respond, client inbox, tenant isolation, convert, event trail)
-- [x] verify-local.sh GREEN — 343/343 tests, typecheck/lint/build clean (evidence: docs/evidence/verify-7ff5992.log)
-- [x] Backend committed + pushed (`fb3a036`)
-- [x] `POST /api/v1/client/quotes/:id/respond` — authenticated client accept/decline (email-matched, typed-name)
-- [x] Frontend:
-  - `QuotesManagementView.tsx` — contractor quotes module (create form w/ line items, live totals, send→share link, detail+events, convert)
-  - `ClientQuotesView.tsx` — client portal quotes inbox w/ inline typed-name accept/decline
-  - `PublicQuoteView.tsx` — public share-link page (`?portal=quote&token=`)
-  - Wired: PmQsDashboard '💼 Quotes & Cash' tab, CompanyAdminDashboard section, ClientDashboard section, App.tsx portal route
-- [x] verify-local.sh GREEN — 344/344 API tests, 113/113 web tests, typecheck/build clean (`docs/evidence/verify-fb3a036.log`)
-- [x] Commit + push S1 (`683ae24`) — backend `fb3a036` + frontend `683ae24`
+### Security remediation (Claude items 1-2)
+- [x] Purge `docs/research/console-audit/screenshots/` from ALL git history (filter-repo); dir absent from tree
+- [x] Redact POWELL/JUMUIA/MAKUNDI/client+role names & emails across all .md files
+- [x] CREATED_RECORDS.md credential-exposure correction noted
+- [x] Force-pushed rewritten branch; created private repo `parrot-y/construction-platform` and pushed branch
+
+### C-01 / C-03 (Claude items 3-4)
+- [x] `apps/api/src/route-guard.test.ts` — CI guard: every route needs `server.authenticate` or explicit allowlist entry (16 allowlisted: login, HMAC webhooks, token portals, M-Pesa callbacks, public quotes)
+- [x] Decimal money math (ADR-005) in quotes + invoices: `calculateLineTotal`/`toDecimal`, line sum == subtotal, HALF_UP cents
+
+### S1 hardening (Claude item 4)
+- [x] `valid_until` enforced on BOTH respond endpoints (lazy EXPIRED flip committed via sentinel return, not tx rollback)
+- [x] `expire_quotes_batch()` SECURITY DEFINER job in rls.sql + 15-min interval in quotesRoutes
+- [x] Atomic accept/decline via `updateMany({status:'SENT'})` count guard (TOCTOU-safe)
+- [x] `quote_no` P2002 retry loop (3 attempts)
+- [x] Public-route rate limit: 30 req/min/IP in-memory sliding window on `/api/public/quotes/*`
+- [x] VIEWED event dedupe: max 1 per hour per quote
+- [x] Deposit invoice auto-draft on convert (`createDepositInvoice` → Invoice DRAFT linked to project+quote)
+
+### S2 invoicing (was in-flight, completed)
+- [x] Schema: Invoice/InvoiceLineItem/InvoicePayment (RLS auto-covered)
+- [x] Routes: CRUD, send, payments (Decimal, overpay guard), void, derived OVERDUE, PDF
+- [x] `InvoicePdf.tsx` + InvoicingView.tsx wired into PM/QS + CompanyAdmin
+- [x] `invoices.test.ts` — 15 tests
+
+### Tests added (Claude item 5)
+- [x] quotes.test.ts: +8 tests — Decimal rounding, lazy expiry, batch expiry job, client-side expiry, atomic double-respond, VIEWED dedupe, rate limit 429, deposit invoice
+- [x] App.test.tsx: +4 Gate-4 UI tests (quotes/invoicing shells + dashboard embeds)
+
+### Pending
+- [x] verify-local.sh green: 571/571 tests (372 API, 117 web, 63 money, 15 db, 4 permissions); evidence `docs/evidence/verify-6678fcd.log`
+- [x] PROJECT_STATUS.md updated (security remediation, private repo, C-01/C-03, S1 hardening, S2 invoicing)
+- [ ] Commit + push final head to `parrot-y/construction-platform`
+- [ ] Consolidated remaining-work plan delivered to owner (S3→S8 per GATE4_BUILD_PLAN.md)
 
 ## Prior: Gate 4 build plan (2026-11-07)
 

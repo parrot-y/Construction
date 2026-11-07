@@ -61,6 +61,8 @@ import IndependentSiteReportView from './components/IndependentSiteReportView';
 import ContractorTenderBoardView from './components/ContractorTenderBoardView';
 import LandingPortalHub from './components/LandingPortalHub';
 import { AuthSession } from './types/auth';
+import QuotesManagementView from './components/QuotesManagementView';
+import InvoicingView from './components/InvoicingView';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
   it('renders the login screen by default with demo accounts and title', () => {
@@ -2527,6 +2529,56 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('NCWSC/CONN/PERMIT/2025/8920');
       expect(html).toContain('Statutory Legal Guard Active');
       expect(html).toContain('view-statutory-certificate-btn');
+    });
+  });
+
+  describe('Gate-4 S1/S2: Quotes-to-cash & Invoicing UI', () => {
+    const gate4Session = (role: string): AuthSession => ({
+      user: {
+        id: `user-${role.toLowerCase()}`,
+        email: `${role.toLowerCase()}@apexbuilders.co.ke`,
+        fullName: `Test ${role}`,
+        role,
+        tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+      },
+      permissions: ['project.view'],
+      token: 'mock-token',
+    });
+
+    it('renders QuotesManagementView shell with quote lifecycle affordances', () => {
+      const html = renderToString(<QuotesManagementView />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Quotes-to-Cash');
+      expect(html).toContain('Quotations &amp; Proposals');
+      expect(html).toContain('New Quote');
+      expect(html).toContain('Loading quotes');
+    });
+
+    it('renders InvoicingView shell with AR status filters and payment affordances', () => {
+      const html = renderToString(<InvoicingView />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Accounts Receivable');
+      expect(html).toContain('Invoicing &amp; Payments');
+      expect(html).toContain('New Invoice');
+      expect(html).toContain('OVERDUE');
+      expect(html).toContain('PART PAID');
+      expect(html).toContain('Loading invoices');
+    });
+
+    it('embeds quotes and invoicing views into PmQsDashboard tabs', () => {
+      const html = renderToString(
+        <PmQsDashboard session={gate4Session('PM_QS')} />
+      ).replace(/<!-- -->/g, '');
+      expect(html).toContain('Quotes &amp; Cash');
+      expect(html).toContain('Invoicing');
+      expect(html).toContain('Accounts Receivable');
+      expect(html).toContain('Quotes-to-Cash');
+    });
+
+    it('embeds quotes and invoicing into the Company Admin dashboard', () => {
+      const html = renderToString(
+        <Dashboard session={gate4Session('COMPANY_ADMIN')} onLogout={() => {}} />
+      ).replace(/<!-- -->/g, '');
+      expect(html).toContain('Quotations &amp; Proposals');
+      expect(html).toContain('Invoicing &amp; Payments');
     });
   });
 });

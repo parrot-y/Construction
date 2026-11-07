@@ -16,3 +16,12 @@
 9. **Store token hashes, not tokens**: `share_token_hash` = SHA-256 hex; raw token returned once at send; rotate on re-send. Never put the hash in API responses (`formatQuote` strips it).
 10. **`throw { status }` needs a local try/catch**: the global error handler only maps `error.statusCode`, not `.status` — unhandled `{status:409}` throws surface as 500. Every tx block that throws status objects must be wrapped.
 11. **Return the post-update row**: `tx.quote.update(...)` result must be returned, not the pre-update `findFirst` object, or the API reports stale status.
+
+## 2026-11-07 — Claude re-audit remediation lessons
+
+12. **History purge requires filter-repo, not rm**: deleting files in a new commit leaves them in history. `git filter-repo --path <dir> --invert-paths --force` rewrites all refs; re-add `origin` remote afterwards (filter-repo removes it) and force-push.
+13. **Throwing inside withTenantTx rolls back sibling writes**: to "expire then reject", return a sentinel (`{expired:true}`) from the tx callback and map it to the HTTP error AFTER commit — a `throw {status}` inside the tx undoes the status flip you wanted to persist.
+14. **Atomic state transitions**: `findFirst` + `update` has a TOCTOU race on public endpoints. Use `updateMany({where:{id, status:'SENT'}})` and check `.count` — exactly one concurrent responder wins.
+15. **ADR-005 money rule applies to NEW code too**: never `Math.round(x*100)/100` or `+`/`*` on money — use `calculateLineTotal`/`toDecimal` from `@construction/money`, ROUND_HALF_UP to cents at line level, subtotal = exact sum of line totals.
+16. **Route auth needs a CI guard, not vigilance**: static-scan `server.METHOD('path', {preHandler…})` registrations; anything without `authenticate` must be in an explicit allowlist (C-01 test enforces both directions).
+17. **git push 403 on large packs**: set `git config http.postBuffer 524288000` before pushing rewritten history.
