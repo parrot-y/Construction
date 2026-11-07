@@ -1910,3 +1910,33 @@ export const AssignProjectMemberSchema = z.object({
   role: z.string().min(1).max(50).default('MEMBER'),
 });
 export type AssignProjectMember = z.infer<typeof AssignProjectMemberSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-1: Announcements
+// -----------------------------------------------------------------------------
+
+export const AnnouncementAudienceEnum = z.enum(['ALL', 'INTERNAL', 'CLIENTS', 'FIELD_TEAM']);
+export const AnnouncementPriorityEnum = z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
+
+export const CreateAnnouncementSchema = z.object({
+  title: z.string().min(3).max(255),
+  body: z.string().min(3).max(10000),
+  priority: AnnouncementPriorityEnum.default('NORMAL'),
+  audience: AnnouncementAudienceEnum.default('ALL'),
+  targetRoles: z.array(z.string().min(1).max(50)).max(20).optional(),
+  projectId: z.string().uuid().optional().nullable(),
+  status: z.enum(['DRAFT', 'PUBLISHED']).default('PUBLISHED'),
+  expiresAt: z.string().datetime().optional().nullable(),
+});
+export type CreateAnnouncement = z.infer<typeof CreateAnnouncementSchema>;
+
+export const UpdateAnnouncementSchema = z.object({
+  title: z.string().min(3).max(255).optional(),
+  body: z.string().min(3).max(10000).optional(),
+  priority: AnnouncementPriorityEnum.optional(),
+  audience: AnnouncementAudienceEnum.optional(),
+  targetRoles: z.array(z.string().min(1).max(50)).max(20).optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
+  expiresAt: z.string().datetime().optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+export type UpdateAnnouncement = z.infer<typeof UpdateAnnouncementSchema>;

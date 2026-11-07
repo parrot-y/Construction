@@ -16,6 +16,7 @@ import { SubscriptionBillingView } from './SubscriptionBillingView';
 import { MpesaDisbursementView } from './MpesaDisbursementView';
 import QuotesManagementView from './QuotesManagementView';
 import InvoicingView from './InvoicingView';
+import AnnouncementsView from './AnnouncementsView';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -380,6 +381,8 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
 
       {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
       <InvoicingView />
+
+      <AnnouncementsView canManage={true} />
 
       {/* Invite Member Modal */}
       {showInviteModal && (

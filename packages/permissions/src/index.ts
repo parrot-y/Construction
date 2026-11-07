@@ -30,6 +30,7 @@ export const Permissions = {
 
   // Payment Certificates & Closeout (ADR-008)
   CERTIFICATE_MANAGE: 'certificate.manage',
+  ANNOUNCEMENT_MANAGE: 'announcement.manage',
 
   // Site Diary & Progress
   SITE_DIARY_CREATE: 'site.diary_create',
@@ -91,6 +92,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
     Permissions.SITE_DIARY_VIEW,
     Permissions.PROGRESS_RECORD,
@@ -131,6 +133,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
     Permissions.SITE_DIARY_VIEW,
     Permissions.PROGRESS_RECORD,
@@ -170,6 +173,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
     Permissions.SITE_DIARY_VIEW,
     Permissions.PROGRESS_RECORD,

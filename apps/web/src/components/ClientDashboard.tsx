@@ -11,6 +11,7 @@ import SnaggingListView from './SnaggingListView';
 import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
 import ClientQuotesView from './ClientQuotesView';
+import AnnouncementsView from './AnnouncementsView';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -581,6 +582,8 @@ export default function ClientDashboard({
 
       {/* Quotes & Proposals addressed to this client (Gate-4 S1) */}
       <ClientQuotesView />
+
+      <AnnouncementsView canManage={false} />
     </div>
   );
 }

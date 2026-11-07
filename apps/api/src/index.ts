@@ -28,6 +28,7 @@ import { quotesRoutes } from './routes/quotes';
 import { invoicesRoutes } from './routes/invoices';
 import { certificatesRoutes } from './routes/certificates';
 import { commitmentsRoutes } from './routes/commitments';
+import { announcementsRoutes } from './routes/announcements';
 import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
@@ -130,6 +131,7 @@ export function buildServer(): FastifyInstance {
   server.register(invoicesRoutes);
   server.register(certificatesRoutes);
   server.register(commitmentsRoutes);
+  server.register(announcementsRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

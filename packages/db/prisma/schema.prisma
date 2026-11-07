@@ -190,6 +190,7 @@ model Project {
   payment_certificates  PaymentCertificate[]
   commitments           Commitment[]
   payment_applications  PaymentApplication[]
+  announcements         Announcement[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -2534,4 +2535,46 @@ model SnagDistribution {
 
   @@index([tenant_id, snag_item_id])
   @@map("snag_distributions")
+}
+
+// -------------------------------------------------------------
+// ANNOUNCEMENTS (Gate-5 G5-1): audience-targeted broadcasts with
+// read acknowledgement receipts.
+// -------------------------------------------------------------
+
+model Announcement {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String?   @db.Uuid // optional project scoping
+  title           String    @db.VarChar(255)
+  body            String    @db.Text
+  priority        String    @default("NORMAL") @db.VarChar(10) // "LOW","NORMAL","HIGH","URGENT"
+  audience        String    @default("ALL") @db.VarChar(20) // "ALL","INTERNAL","CLIENTS","FIELD_TEAM"
+  target_roles    String[]  @default([]) // role-scoped targeting (tenant roles)
+  status          String    @default("PUBLISHED") @db.VarChar(15) // "DRAFT","PUBLISHED","ARCHIVED"
+  published_at    DateTime? @db.Timestamptz
+  expires_at      DateTime? @db.Timestamptz
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  reads           AnnouncementRead[]
+
+  @@index([tenant_id, status, published_at])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenant_id       String   @db.Uuid
+  announcement_id String   @db.Uuid
+  user_id         String   @db.Uuid
+  read_at         DateTime @default(now()) @db.Timestamptz
+
+  announcement    Announcement @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+
+  @@unique([announcement_id, user_id])
+  @@index([tenant_id, announcement_id])
+  @@map("announcement_reads")
 }
