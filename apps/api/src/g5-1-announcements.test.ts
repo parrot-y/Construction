@@ -1,6 +1,5 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
-import { prisma, withTenantTx } from '@construction/db';
 
 /**
  * Gate-5 G5-1: Announcements — audience targeting, read receipts,
@@ -12,9 +11,7 @@ describe('Gate-5 G5-1: Announcements', () => {
   let adminCookie: string;
   let qsCookie: string;
   let supervisorCookie: string;
-  let tenantAId: string;
   let allAnnId: string;
-  let clientAnnId: string;
   let draftAnnId: string;
 
   async function list(cookie: string) {
@@ -31,7 +28,6 @@ describe('Gate-5 G5-1: Announcements', () => {
     };
     const admin = await login('admin@apexbuilders.co.ke');
     adminCookie = admin.cookie;
-    tenantAId = admin.body.user.tenant.id;
     qsCookie = (await login('qs@apexbuilders.co.ke')).cookie;
     supervisorCookie = (await login('supervisor@apexbuilders.co.ke')).cookie;
   });
@@ -50,7 +46,7 @@ describe('Gate-5 G5-1: Announcements', () => {
       payload: { title: 'Progress update for clients', body: 'Superstructure works proceeding on schedule.', audience: 'CLIENTS' },
     });
     expect(clients.statusCode).toBe(201);
-    clientAnnId = JSON.parse(clients.body).data.id;
+    expect(JSON.parse(clients.body).data.id).toBeTruthy();
 
     const draft = await server.inject({
       method: 'POST', url: '/api/v1/announcements', headers: { cookie: qsCookie },
