@@ -4,6 +4,8 @@ import CompanyAdminDashboard from './CompanyAdminDashboard';
 import PmQsDashboard from './PmQsDashboard';
 import SupervisorDashboard from './SupervisorDashboard';
 import ClientDashboard from './ClientDashboard';
+import ExecutiveDashboard from './ExecutiveDashboard';
+import FieldDashboard from './FieldDashboard';
 import ConsultantPortalView from './portals/ConsultantPortalView';
 import SubcontractorPortalView from './portals/SubcontractorPortalView';
 import SupplierPortalView from './portals/SupplierPortalView';
@@ -103,16 +105,17 @@ export default function Dashboard({ session, onLogout }: DashboardProps): React.
       case 'PM_QS':
         return <PmQsDashboard session={session} onPreviewPortal={handlePreview} />;
       case 'SITE_SUPERVISOR':
+        return <SupervisorDashboard session={session} />;
       case 'SITE_ENGINEER':
       case 'TRADE_LEAD':
       case 'FOREMAN':
       case 'WORKER':
-      case 'VIEWER':
-        return <SupervisorDashboard session={session} />;
-      case 'EXECUTIVE':
-        return <CompanyAdminDashboard session={session} onPreviewPortal={handlePreview} />;
       case 'SUPERINTENDENT':
-        return <PmQsDashboard session={session} onPreviewPortal={handlePreview} />;
+        return <FieldDashboard session={session} />;
+      case 'VIEWER':
+        return <FieldDashboard session={session} readOnly />;
+      case 'EXECUTIVE':
+        return <ExecutiveDashboard session={session} />;
       case 'CLIENT':
         return <ClientDashboard session={session} />;
       default:

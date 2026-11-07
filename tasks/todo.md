@@ -72,3 +72,35 @@
 - [x] Tests: m8-variations updated to new lifecycle; s3-change-orders.test.ts (12 tests: limits, boundary, escalation, owner path, reject reason, void, events, token portal, cross-project isolation)
 - [x] verify-local green on head 653f6fc: 583/583 tests; evidence docs/evidence/verify-653f6fc.log
 - [x] PROJECT_STATUS.md updated; committed 653f6fc
+
+## Current: Gate-5 deferred platform modules (2026-11-08 overnight run)
+
+### Completed this run
+- [x] G5-1 Announcements — audience targeting + read acknowledgement (earlier)
+- [x] G5-2 Role ladder & permission sets — EXECUTIVE/PM/SITE_ENGINEER/SUPERINTENDENT/TRADE_LEAD/FOREMAN/WORKER/VIEWER (commit 9a00958)
+- [x] G5-3 Team inbox — threads, audience targeting (7c6195d + 2c62041)
+- [x] G5-4a Observations & corrective actions (2c62041)
+- [x] G5-4b Consultant approval chain on inspections — PENDING_CONSULTANT_REVIEW gate (5efaa83)
+- [x] G5-5 Crews, members, project assignment (0d5d5ca)
+- [x] G5-6 Checklist templates & trade assignments — 16 trades, question builder, global flag, ASSIGNED→…→APPROVED lifecycle (71dcf48)
+- [x] G5-7 Company documents vault — categories, unfiled queue, expiry (d78b571)
+- [x] G5-8 Correspondence log — COR-nnn, LETTER/SUBMITTAL/TRANSMITTAL/NOTICE (25b051a)
+- [x] G5-9 Scheduled reports — freq/recipients/next_run/run snapshots (25b051a)
+- [x] G5-10 Daily attendance — check-in/out, leave/off-day, history (e000b36)
+
+### Verification
+- [x] verify-local GREEN on 71dcf48 — API 471, web 117, money 63, db 15, permissions 9 (docs/evidence/verify-HEAD.log)
+
+### Remaining Gate-5 / role-portal work
+- [ ] Assignments detail: "Assignments by trade" matrix view polish
+- [ ] Plans & drawings discipline viewer (Architectural/Mechanical/Structural/Electrical/Civil) — ProjectDocument extension
+- [ ] Coordination unified issues view (RFI + issues) — RFI module exists, unified surface pending
+- [ ] Punch/snag CSV + PDF export (observed buttons)
+- [ ] Field view — mobile-first daily ops surface (worker/foreman)
+- [ ] Dedicated workspace dashboards per new role (executive/PM/site-engineer/superintendent/trade-lead/foreman/worker/viewer) wired to supplied test logins — IN PROGRESS via dashboard role switch; dedicated nav polish pending
+- [ ] Cross-portal workflow simulation tests (observation→corrective action→PM escalation→executive visibility)
+- [ ] Bidding/tender depth, schedule Gantt, drawings viewer, upload pipeline — deferred LATER items
+
+## Review
+- Two verify runs were contaminated by editing files mid-run (lint/build failures on in-flight code). Rule: FREEZE repo edits while verify-local runs; batch commits before launching.
+- Test-DB schema drift caused a false 20-test failure when schema edits landed after verify's db push step — always re-verify after schema changes.
