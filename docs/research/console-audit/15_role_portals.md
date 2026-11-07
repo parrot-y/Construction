@@ -60,3 +60,14 @@ Reports · Company documents · Unfiled documents · Filters · Export PDF · re
 - **Assignments**: "Assignments by trade" + "Assign a form" — checklist/form assignment with statuses Draft/Assigned/In Progress/Submitted/Approved/Rejected, trade+project filters.
 - **Coordination**: "Coordination issues" unified RFIs & issues search (our RFI module covers base; unified view pending).
 - **Checklists > New Template**: title, 15 trade categories (General/Masonry/Concrete/Steel Fixing/Carpentry/Electrical/Plumbing/Painting/Tiling & Flooring/Roofing/Structural Steel/Welding & Fabrication/Glazing & Aluminium/Waterproofing/Scaffolding), kind (safety/quality/pre-handover/custom), **Global template flag**, question builder: Text/Number/Date/Yes-No/Pass-Fail/Dropdown/Checkbox/Photo/Signature + required + options.
+# Pending doc updates (write AFTER verify completes)
+
+## 15_role_portals.md additions:
+- Safety: "Safety incidents" register + Report (covered by SafetyIncidentLogView)
+- Inspections: "New Request" flow
+- Punch list: CSV + PDF export buttons, Create Punch Item
+- Assignments: "Assignments by trade" + "Assign a form" — statuses Draft/Assigned/In Progress/Submitted/Approved/Rejected → IMPLEMENTED G5-6
+- Coordination: "Coordination issues" unified RFIs & issues search
+- Checklists > New Template: 15 trades, kind safety/quality/pre-handover/custom, Global flag, question types Text/Number/Date/Yes-No/Pass-Fail/Dropdown/Checkbox/Photo/Signature → IMPLEMENTED G5-6
+- Plans & drawings: discipline filters Architectural/Mechanical/Structural/Electrical/Civil + AI Design SOON + AI Concept + Upload drawings
+- Money/People tab navigation didn't respond to probe clicks for PM (section headers collapsed differently) — NOT REACHED this pass
