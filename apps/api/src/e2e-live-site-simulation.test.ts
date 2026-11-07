@@ -306,6 +306,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
           {
             storageKey: 'evidence/rcp-2026/delivery_bamburi_cement_01.jpg',
             caption: 'Delivery and physical stack verification of 200 bags Bamburi Cement on site',
+            clientVisible: true,
             gpsLatitude: -1.286389,
             gpsLongitude: 36.817223,
           },
