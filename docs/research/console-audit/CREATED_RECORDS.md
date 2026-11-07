@@ -14,3 +14,6 @@ Notes:
 - The CO was advanced Drafted → PM Review → Approved during lifecycle testing. It is a dummy $100/+2d record on the test project.
 - The daily log is text-only (no photos/video attached), so nothing was exposed to the client portal beyond what the written-notes rule already hides.
 - Credentials were never written to any file, screenshot, or log.
+| 2026-11-06 | Invoice | **ZZ-RESEARCH-INV-001** — "ZZ-RESEARCH Client", draft status, balance shown (MAKUNDI APARTMENTS) | Delete in Invoicing list |
+| 2026-11-06 | Commitment | Attempted "ZZ-RESEARCH Subcontractor" — POST fired but validation rejected; **no record created** | None needed |
+| 2026-11-06 | Certificate | Form opened but save blocked — contract sum prerequisite not set; **no record created** | None needed |

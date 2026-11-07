@@ -107,6 +107,31 @@ Client portal interior (verified with owner-supplied login): Home · My sites ·
 
 ---
 
+## 5b. Created record #4 — Invoice ZZ-RESEARCH-INV-001 [OBSERVED]
+
+`POST /api/projects/{id}/invoices` succeeded. List columns: INVOICE # · CLIENT · AMOUNT · STATUS · DUE · PAID · BALANCE · ACTIONS. Row actions: **PDF · Record payment**. Statuses: draft · sent · paid · overdue. Project filter + status filter.
+
+**Form:** invoice no (auto-capable), selects for project + status + payment terms (Due on receipt / Net 7 / Net 14 / Net 30 / Net 60), bill-to client name/address/site, issue + due dates, PO reference, line items (description, qty, rate), tax % (16 default observed), notes, payment-terms textarea whose placeholder literally suggests *"Payment due within 14 days by M-Pesa or bank transfer"* — M-Pesa is a first-class payment-terms concept even though no M-Pesa integration was observed in-product [OBSERVED placeholder text; INFERRED they expect manual M-Pesa settlement].
+
+## 5c. Commitments — form schema + model [OBSERVED form; create attempt failed validation]
+
+Page: "Subcontracts, purchase orders and what is owed on them." Explicit 3-step mental model: **1) Add the contract → 2) Certify their claims → 3) See what's owed** (paid / held back / still to pay always up to date).
+
+Fields: Vendor · Scope · Contract value · Retention % · Advance/mobilisation (optional) · Advance paid (USD) · **Recover % of each claim** · Status (active/completed/overdue/on hold) · Cost code (optional). This is the commitment→claim→payment chain our money model needs; retention + advance-recovery are built into the commitment itself.
+
+Create attempt: `POST /api/projects/{id}/commitments` fired but record did not appear — likely validation (vendor may need to exist in Directory/Subcontractors first) [INFERRED]. Saved-state UI still [NOT REACHED].
+
+## 5d. Certificates — form schema + prerequisite chain [OBSERVED form; create blocked]
+
+Project → Certificates tab → "Record a payment certificate" (IPC model):
+- Previously certified total shown; fields: Certificate no. (e.g. IPC-04), Period (e.g. Aug 2026), Valuation date
+- "The certificate states": Amount for this period, Gross valuation to date, Amount (USD), **Retention %**, **Advance recovered (USD)**
+- Live computed totals: THIS PERIOD / RETENTION / **NET PAYABLE**
+- Status: Submitted · Under review · Certified · Paid · Rejected
+- Optional scanned-certificate PDF/photo attach
+
+**Prerequisite finding [OBSERVED]:** certificates, analytics %, cost control and budget all show "—" / "Set a contract sum" until a contract sum exists — contract sum (set via Variations tab or project setup) is the root financial input that unlocks the whole money chain. Our schema should treat contract sum as a first-class project field set at inception, not an afterthought.
+
 ## 6. Coverage status vs "click everything"
 
 | Area | Status |

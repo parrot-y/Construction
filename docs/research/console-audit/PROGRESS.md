@@ -39,7 +39,10 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
   - CO-4990: created via UI, walked Drafted → PM Review → Approved; per-status action buttons + actor activity log captured.
   - Daily log (Fri 6 Nov): created; week dashboard counters; **per-media client-visibility checkbox — written notes never shown to client**.
   - Q-0001 quote: created, Draft → Sent; send panel exposes Copy/WhatsApp/Email/PDF + client-portal "Quotes & proposals" inbox with comment/request-changes loop.
-- Remaining "not reached": saved-state UI for invoice/commitment/inspection/punch/checklist/subcontractor/crew/RFI/incident/correspondence/contact; "Viewing as" mechanics; Ask AI/Shemmy; upload pipeline; bidding.
+- Invoice ZZ-RESEARCH-INV-001 created (draft; PDF + Record payment actions; Net-7/14/30/60 terms; M-Pesa named in terms placeholder).
+- Commitments form fully mapped (vendor/scope/value/retention%/advance/recover%/cost code; 3-step contract→claim→owed model); create POST fired but validation-rejected — likely needs existing vendor record.
+- Certificate (IPC) form fully mapped (period valuation, gross-to-date, retention %, advance recovery, live NET PAYABLE, Submitted→…→Paid statuses, scan attach); save blocked until contract sum is set — contract sum is the root input unlocking analytics/cost-control/certificates.
+- Remaining "not reached": saved-state UI for commitment/inspection/punch/checklist/subcontractor/crew/RFI/incident/correspondence/contact; contract-sum setup flow itself; "Viewing as" mechanics; Ask AI/Shemmy; upload pipeline; bidding.
 
 ## Blockers / flags
 - **Trial expiry ~2026-11-10** — if it lapses, remaining items become "Not reachable" permanently.
