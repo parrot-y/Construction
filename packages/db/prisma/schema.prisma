@@ -771,9 +771,11 @@ enum SnagSeverity {
 enum SnagStatus {
   OPEN
   IN_PROGRESS
+  READY_FOR_REVIEW
   RECTIFIED_BY_CONTRACTOR
   VERIFIED_CLOSED
   CONTESTED
+  REJECTED
 }
 
 model SnagItem {
@@ -788,6 +790,16 @@ model SnagItem {
   description         String       @db.Text
   severity            SnagSeverity @default(COSMETIC)
   status              SnagStatus   @default(OPEN)
+  // Gate-4 S6 punch-list depth (observed 36-trade taxonomy form)
+  priority            String       @default("MEDIUM") @db.VarChar(10) // "LOW","MEDIUM","HIGH","CRITICAL"
+  item_type           String?      @db.VarChar(30) // "ARCHITECTURAL","MEP","FINISHES","STRUCTURAL","CIVIL","OTHER"
+  is_private          Boolean      @default(false) // Private flag: hidden from external stakeholder portals
+  manager_name        String?      @db.VarChar(255) // Punch item manager (accountability)
+  final_approver_name String?      @db.VarChar(255) // Final approver (separate accountability)
+  cost_impact_kes     Decimal?     @db.Decimal(15, 2)
+  schedule_impact_days Int?
+  cost_code           String?      @db.VarChar(50)
+  reference_doc       String?      @db.VarChar(255) // Drawing/specification reference
   assigned_trade_firm String?      @db.VarChar(255) // Subcontractor or internal crew
   due_date            DateTime?    @db.Date
   identified_by_name  String       @db.VarChar(255) // Architect / Client / QS / PM
@@ -798,6 +810,8 @@ model SnagItem {
 
   project             Project      @relation(fields: [project_id], references: [id], onDelete: Cascade)
   photos              SnagPhoto[]
+  comments            SnagComment[]
+  distributions       SnagDistribution[]
 
   @@unique([project_id, snag_number])
   @@index([tenant_id, project_id, status])
@@ -2485,4 +2499,33 @@ model PaymentApplication {
   @@unique([commitment_id, application_no])
   @@index([tenant_id, project_id, status])
   @@map("payment_applications")
+}
+
+model SnagComment {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenant_id     String   @db.Uuid
+  snag_item_id  String   @db.Uuid
+  author_name   String   @db.VarChar(255)
+  body          String   @db.Text
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  snag_item     SnagItem @relation(fields: [snag_item_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, snag_item_id])
+  @@map("snag_comments")
+}
+
+model SnagDistribution {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenant_id         String   @db.Uuid
+  snag_item_id      String   @db.Uuid
+  recipient_name    String   @db.VarChar(255)
+  recipient_contact String?  @db.VarChar(255) // email / phone / role
+  channel           String?  @db.VarChar(30)  // "EMAIL","SMS","WHATSAPP","IN_APP"
+  created_at        DateTime @default(now()) @db.Timestamptz
+
+  snag_item         SnagItem @relation(fields: [snag_item_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, snag_item_id])
+  @@map("snag_distributions")
 }

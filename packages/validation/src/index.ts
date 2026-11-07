@@ -394,11 +394,57 @@ export type SnagSeverity = z.infer<typeof SnagSeverityEnum>;
 export const SnagStatusEnum = z.enum([
   'OPEN',
   'IN_PROGRESS',
+  'READY_FOR_REVIEW',
   'RECTIFIED_BY_CONTRACTOR',
   'VERIFIED_CLOSED',
   'CONTESTED',
+  'REJECTED',
 ]);
 export type SnagStatus = z.infer<typeof SnagStatusEnum>;
+
+/** Gate-4 S6: 36-trade punch-list taxonomy (observed form dropdown). */
+export const SNAG_TRADE_CATEGORIES = [
+  'Masonry & Blockwork',
+  'Carpentry & Joinery',
+  'Roofing & Waterproofing',
+  'Plumbing & Drainage',
+  'Electrical & ELV',
+  'HVAC & Mechanical',
+  'Plastering & Rendering',
+  'Tiling & Flooring',
+  'Painting & Decorating',
+  'Glazing & Aluminum',
+  'Structural Steel',
+  'Reinforcement & Concrete',
+  'Formwork & Falsework',
+  'Scaffolding & Access',
+  'Excavation & Earthworks',
+  'Piling & Foundations',
+  'Road Works & Paving',
+  'Drainage & Sewerage',
+  'Water Reticulation',
+  'Boundary Wall & Fencing',
+  'Gates & Ironmongery',
+  'Doors & Windows',
+  'Ceilings & Bulkheads',
+  'Sanitary Fixtures',
+  'Fire Protection',
+  'Lightning Protection',
+  'Solar & Energy',
+  'CCTV & Security',
+  'Data & Communications',
+  'Generators & UPS',
+  'Landscaping & Gardens',
+  'External Works',
+  'Bridge Works',
+  'Traffic Control',
+  'Surveying & Setting Out',
+  'Cleaning & Handover',
+] as const;
+export type SnagTradeCategory = (typeof SNAG_TRADE_CATEGORIES)[number];
+
+export const SnagPriorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+export const SnagItemTypeEnum = z.enum(['ARCHITECTURAL', 'MEP', 'FINISHES', 'STRUCTURAL', 'CIVIL', 'OTHER']);
 
 export const SnagPhotoInputSchema = z.object({
   photoType: z.enum(['DEFECT', 'RECTIFIED']).default('DEFECT'),
@@ -416,10 +462,25 @@ export const CreateSnagItemSchema = z.object({
   tradeCategory: z.string().min(1).max(100),
   description: z.string().min(3),
   severity: SnagSeverityEnum.default('COSMETIC'),
+  // Gate-4 S6 punch depth
+  priority: SnagPriorityEnum.default('MEDIUM'),
+  itemType: SnagItemTypeEnum.optional().nullable(),
+  isPrivate: z.boolean().default(false),
+  managerName: z.string().max(255).optional().nullable(),
+  finalApproverName: z.string().max(255).optional().nullable(),
+  costImpactKes: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  scheduleImpactDays: z.number().int().min(0).max(3650).optional().nullable(),
+  costCode: z.string().max(50).optional().nullable(),
+  referenceDoc: z.string().max(255).optional().nullable(),
   assignedTradeFirm: z.string().max(255).optional().nullable(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
   identifiedByName: z.string().min(2).max(255),
   photos: z.array(SnagPhotoInputSchema).optional(),
+  distributions: z.array(z.object({
+    recipientName: z.string().min(1).max(255),
+    recipientContact: z.string().max(255).optional().nullable(),
+    channel: z.enum(['EMAIL', 'SMS', 'WHATSAPP', 'IN_APP']).optional().nullable(),
+  })).optional(),
 });
 export type CreateSnagItem = z.infer<typeof CreateSnagItemSchema>;
 
@@ -429,6 +490,19 @@ export const UpdateSnagStatusSchema = z.object({
   photos: z.array(SnagPhotoInputSchema).optional(),
 });
 export type UpdateSnagStatus = z.infer<typeof UpdateSnagStatusSchema>;
+
+export const CreateSnagCommentSchema = z.object({
+  body: z.string().min(1).max(5000),
+  authorName: z.string().max(255).optional().nullable(),
+});
+export type CreateSnagComment = z.infer<typeof CreateSnagCommentSchema>;
+
+export const CreateSnagDistributionSchema = z.object({
+  recipientName: z.string().min(1).max(255),
+  recipientContact: z.string().max(255).optional().nullable(),
+  channel: z.enum(['EMAIL', 'SMS', 'WHATSAPP', 'IN_APP']).optional().nullable(),
+});
+export type CreateSnagDistribution = z.infer<typeof CreateSnagDistributionSchema>;
 
 // Domain 5: Defects Liability Certificates
 export const CertificateTypeEnum = z.enum([

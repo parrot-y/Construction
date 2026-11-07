@@ -419,6 +419,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         tx.snagItem.findMany({
           where: {
             project_id: link.project_id,
+            // Gate-4 S6: private punch items are hidden from external portals
+            is_private: false,
             // Filter by trade firm or category if specified on stakeholder_role
             ...(link.stakeholder_role
               ? {

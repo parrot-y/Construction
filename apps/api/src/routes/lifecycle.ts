@@ -10,6 +10,8 @@ import {
   RecordCubeBreakSchema,
   CreateSnagItemSchema,
   UpdateSnagStatusSchema,
+  CreateSnagCommentSchema,
+  CreateSnagDistributionSchema,
   CreateDefectsCertificateSchema,
 } from '@construction/validation';
 
@@ -1032,6 +1034,16 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               description: data.description,
               severity: data.severity,
               status: 'OPEN',
+              // Gate-4 S6 punch-list depth
+              priority: data.priority ?? 'MEDIUM',
+              item_type: data.itemType ?? null,
+              is_private: data.isPrivate ?? false,
+              manager_name: data.managerName ?? null,
+              final_approver_name: data.finalApproverName ?? null,
+              cost_impact_kes: data.costImpactKes ? toDecimal(data.costImpactKes).toFixed(2) : null,
+              schedule_impact_days: data.scheduleImpactDays ?? null,
+              cost_code: data.costCode ?? null,
+              reference_doc: data.referenceDoc ?? null,
               assigned_trade_firm: data.assignedTradeFirm,
               due_date: data.dueDate ? new Date(`${data.dueDate}T00:00:00.000Z`) : null,
               identified_by_name: data.identifiedByName,
@@ -1053,9 +1065,20 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
                     })),
                   }
                 : undefined,
+              distributions: data.distributions?.length
+                ? {
+                    create: data.distributions.map((d) => ({
+                      tenant_id: tenantId,
+                      recipient_name: d.recipientName,
+                      recipient_contact: d.recipientContact ?? null,
+                      channel: d.channel ?? null,
+                    })),
+                  }
+                : undefined,
             },
             include: {
               photos: true,
+              distributions: true,
             },
           });
 
@@ -1139,6 +1162,25 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             throw { status: 404, message: 'Snag item not found' };
           }
 
+          // Gate-4 S6: legal status transitions (Open -> In Progress ->
+          // Ready for Review -> Resolved(rectified) -> Closed | Rejected)
+          const SNAG_TRANSITIONS: Record<string, string[]> = {
+            OPEN: ['IN_PROGRESS', 'RECTIFIED_BY_CONTRACTOR', 'REJECTED'],
+            IN_PROGRESS: ['READY_FOR_REVIEW', 'RECTIFIED_BY_CONTRACTOR', 'REJECTED'],
+            READY_FOR_REVIEW: ['VERIFIED_CLOSED', 'IN_PROGRESS', 'REJECTED'],
+            RECTIFIED_BY_CONTRACTOR: ['VERIFIED_CLOSED', 'READY_FOR_REVIEW', 'IN_PROGRESS', 'CONTESTED'],
+            CONTESTED: ['IN_PROGRESS', 'READY_FOR_REVIEW', 'REJECTED'],
+            VERIFIED_CLOSED: [],
+            REJECTED: [],
+          };
+          const allowed = SNAG_TRANSITIONS[snag.status] ?? [];
+          if (snag.status !== data.status && !allowed.includes(data.status)) {
+            throw {
+              status: 400,
+              message: `Illegal snag transition: ${snag.status} -> ${data.status}`,
+            };
+          }
+
           const now = new Date();
           let rectifiedAt = snag.rectified_at;
           let verifiedAt = snag.verified_at;
@@ -1212,6 +1254,213 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(200).send(updated);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Error',
+            message: err.message,
+          });
+        }
+        request.log.error(err);
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    },
+  );
+
+  // 4.4 GET /api/v1/projects/:projectId/snags/:snagId - Snag detail (comments + distributions)
+  server.get(
+    '/api/v1/projects/:projectId/snags/:snagId',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, snagId } = request.params as { projectId: string; snagId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(snagId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project or snag not found',
+        });
+      }
+
+      try {
+        const snag = await withTenantTx(prisma, tenantId, async (tx) => {
+          const record = await tx.snagItem.findFirst({
+            where: { id: snagId, project_id: projectId },
+            include: {
+              photos: { orderBy: { captured_at: 'asc' } },
+              comments: { orderBy: { created_at: 'asc' } },
+              distributions: { orderBy: { created_at: 'asc' } },
+            },
+          });
+          if (!record) throw { status: 404, message: 'Snag item not found' };
+          return {
+            ...record,
+            cost_impact_kes: record.cost_impact_kes ? record.cost_impact_kes.toString() : null,
+            photos: record.photos.map((p) => ({
+              ...p,
+              gps_latitude: p.gps_latitude ? p.gps_latitude.toString() : null,
+              gps_longitude: p.gps_longitude ? p.gps_longitude.toString() : null,
+            })),
+          };
+        });
+        return reply.status(200).send(snag);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Error',
+            message: err.message,
+          });
+        }
+        request.log.error(err);
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    },
+  );
+
+  // 4.5 POST /api/v1/projects/:projectId/snags/:snagId/comments
+  server.post(
+    '/api/v1/projects/:projectId/snags/:snagId/comments',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, fullName } = request.user;
+      const { projectId, snagId } = request.params as { projectId: string; snagId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(snagId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project or snag not found',
+        });
+      }
+
+      const parseResult = CreateSnagCommentSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid comment payload',
+          details: parseResult.error.errors,
+        });
+      }
+      const data = parseResult.data;
+
+      try {
+        const comment = await withTenantTx(prisma, tenantId, async (tx) => {
+          const snag = await tx.snagItem.findFirst({
+            where: { id: snagId, project_id: projectId },
+            select: { id: true },
+          });
+          if (!snag) throw { status: 404, message: 'Snag item not found' };
+
+          const created = await tx.snagComment.create({
+            data: {
+              tenant_id: tenantId,
+              snag_item_id: snagId,
+              author_name: data.authorName || fullName || 'Team Member',
+              body: data.body,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'SNAG_COMMENT_ADDED',
+            entityType: 'SnagItem',
+            entityId: snagId,
+            changes: { commentId: created.id },
+          });
+
+          return created;
+        });
+        return reply.status(201).send(comment);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Error',
+            message: err.message,
+          });
+        }
+        request.log.error(err);
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    },
+  );
+
+  // 4.6 POST /api/v1/projects/:projectId/snags/:snagId/distributions
+  server.post(
+    '/api/v1/projects/:projectId/snags/:snagId/distributions',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, snagId } = request.params as { projectId: string; snagId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(snagId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project or snag not found',
+        });
+      }
+
+      const parseResult = CreateSnagDistributionSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid distribution payload',
+          details: parseResult.error.errors,
+        });
+      }
+      const data = parseResult.data;
+
+      try {
+        const distribution = await withTenantTx(prisma, tenantId, async (tx) => {
+          const snag = await tx.snagItem.findFirst({
+            where: { id: snagId, project_id: projectId },
+            select: { id: true },
+          });
+          if (!snag) throw { status: 404, message: 'Snag item not found' };
+
+          const created = await tx.snagDistribution.create({
+            data: {
+              tenant_id: tenantId,
+              snag_item_id: snagId,
+              recipient_name: data.recipientName,
+              recipient_contact: data.recipientContact ?? null,
+              channel: data.channel ?? null,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'SNAG_DISTRIBUTION_ADDED',
+            entityType: 'SnagItem',
+            entityId: snagId,
+            changes: { distributionId: created.id, recipient: data.recipientName },
+          });
+
+          return created;
+        });
+        return reply.status(201).send(distribution);
       } catch (err: any) {
         if (err.status) {
           return reply.status(err.status).send({

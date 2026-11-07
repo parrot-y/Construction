@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
+import { SNAG_TRADE_CATEGORIES } from '@construction/validation';
 
 export type SnagSeverity = 'COSMETIC' | 'FUNCTIONAL' | 'CRITICAL_SAFETY';
-export type TradeCategory =
-  | 'Tiling'
-  | 'Plumbing'
-  | 'Painting'
-  | 'Electrical'
-  | 'Joinery'
-  | 'Glazing'
-  | 'Masonry'
-  | 'External Works';
+export type SnagPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type SnagItemType = 'ARCHITECTURAL' | 'MEP' | 'FINISHES' | 'STRUCTURAL' | 'CIVIL' | 'OTHER';
+export type TradeCategory = string;
 
 export interface CreateSnagModalProps {
   isOpen: boolean;
@@ -29,8 +24,20 @@ export default function CreateSnagModal({
   const [block, setBlock] = useState('Block A');
   const [floor, setFloor] = useState('2nd Floor');
   const [room, setRoom] = useState('');
-  const [tradeCategory, setTradeCategory] = useState<TradeCategory>('Tiling');
+  const [tradeCategory, setTradeCategory] = useState<TradeCategory>('Tiling & Flooring');
+  const [customTrade, setCustomTrade] = useState('');
   const [severity, setSeverity] = useState<SnagSeverity>('FUNCTIONAL');
+  const [priority, setPriority] = useState<SnagPriority>('MEDIUM');
+  const [itemType, setItemType] = useState<SnagItemType>('FINISHES');
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [managerName, setManagerName] = useState('');
+  const [finalApproverName, setFinalApproverName] = useState('');
+  const [costImpactKes, setCostImpactKes] = useState('');
+  const [scheduleImpactDays, setScheduleImpactDays] = useState('');
+  const [costCode, setCostCode] = useState('');
+  const [referenceDoc, setReferenceDoc] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [distributionText, setDistributionText] = useState('');
   const [description, setDescription] = useState('');
   const [latitude, setLatitude] = useState('-1.2683');
   const [longitude, setLongitude] = useState('36.8044');
@@ -40,7 +47,9 @@ export default function CreateSnagModal({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const effectiveTrade = tradeCategory === '__OTHER__' ? customTrade.trim() : tradeCategory;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!room.trim()) {
       setError('Room or Zone location is required (e.g. Room 204 Master Ensuite)');
@@ -50,42 +59,66 @@ export default function CreateSnagModal({
       setError('Defect description is required');
       return;
     }
+    if (!effectiveTrade) {
+      setError('Please select or type a trade category');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
 
-    const newSnag = {
-      id: `snag-${Date.now()}`,
-      projectId,
-      snagNo: `SNG-00${Math.floor(Math.random() * 90) + 10}`,
-      block,
-      floor,
-      room: room.trim(),
-      tradeCategory,
-      severity,
-      status: 'OPEN' as const,
-      description: description.trim(),
-      beforePhotoUrl:
-        photoUrl.trim() ||
-        'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=400&q=80',
-      geotag: {
-        lat: parseFloat(latitude) || -1.2683,
-        lng: parseFloat(longitude) || 36.8044,
-        label: `${block}, ${floor}, ${room.trim()}`,
-      },
-      raisedBy: 'Faith Achieng (Lead QS / Inspector)',
-      raisedAt: new Date().toISOString(),
-    };
+    // Gate-4 S6: real API submission — server assigns snag_number & status.
+    try {
+      const distributions = distributionText
+        .split(',')
+        .map((d) => d.trim())
+        .filter(Boolean)
+        .map((name) => ({ recipientName: name }));
 
-    if (onSnagCreated) {
-      onSnagCreated(newSnag);
+      const res = await fetch(`/api/v1/projects/${projectId}/snags`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationBlock: block,
+          locationFloor: floor,
+          locationRoom: room.trim(),
+          tradeCategory: effectiveTrade,
+          description: description.trim(),
+          severity,
+          priority,
+          itemType,
+          isPrivate,
+          managerName: managerName || undefined,
+          finalApproverName: finalApproverName || undefined,
+          costImpactKes: costImpactKes || undefined,
+          scheduleImpactDays: scheduleImpactDays ? parseInt(scheduleImpactDays, 10) : undefined,
+          costCode: costCode || undefined,
+          referenceDoc: referenceDoc || undefined,
+          dueDate: dueDate || undefined,
+          identifiedByName: 'Site Team',
+          photos: photoUrl.trim()
+            ? [{ photoType: 'DEFECT', storageKey: photoUrl.trim(), caption: 'Before evidence', gpsLatitude: parseFloat(latitude) || null, gpsLongitude: parseFloat(longitude) || null }]
+            : undefined,
+          distributions: distributions.length ? distributions : undefined,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || `Failed to log snag (${res.status})`);
+
+      if (onSnagCreated) {
+        onSnagCreated(body);
+      }
+
+      setRoom('');
+      setDescription('');
+      setPhotoUrl('');
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to log snag item');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
-    setRoom('');
-    setDescription('');
-    setPhotoUrl('');
-    onClose();
   };
 
   return (
@@ -177,25 +210,30 @@ export default function CreateSnagModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Trade Category <span className="text-rose-500">*</span>
               </label>
               <select
                 value={tradeCategory}
-                onChange={(e) => setTradeCategory(e.target.value as TradeCategory)}
+                onChange={(e) => setTradeCategory(e.target.value)}
                 className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 bg-white"
               >
-                <option value="Tiling">Tiling & Flooring</option>
-                <option value="Plumbing">Plumbing & Sanitaryware</option>
-                <option value="Painting">Painting & Wall Finishes</option>
-                <option value="Electrical">Electrical & Lighting</option>
-                <option value="Joinery">Joinery & Cabinetry</option>
-                <option value="Glazing">Glazing & Windows</option>
-                <option value="Masonry">Masonry & Plastering</option>
-                <option value="External Works">External Works & Paving</option>
+                {SNAG_TRADE_CATEGORIES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+                <option value="__OTHER__">Other (type it)</option>
               </select>
+              {tradeCategory === '__OTHER__' && (
+                <input
+                  type="text"
+                  value={customTrade}
+                  onChange={(e) => setCustomTrade(e.target.value)}
+                  placeholder="Type trade…"
+                  className="w-full text-xs px-3 py-1.5 mt-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              )}
             </div>
 
             <div>
@@ -212,7 +250,81 @@ export default function CreateSnagModal({
                 <option value="CRITICAL_SAFETY">CRITICAL_SAFETY (Exposed wiring, structural hazard)</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Priority
+              </label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as SnagPriority)}
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 bg-white"
+              >
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+            </div>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Item Type</label>
+              <select
+                value={itemType}
+                onChange={(e) => setItemType(e.target.value as SnagItemType)}
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 bg-white"
+              >
+                {(['ARCHITECTURAL', 'MEP', 'FINISHES', 'STRUCTURAL', 'CIVIL', 'OTHER'] as const).map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Punch Item Manager</label>
+              <input type="text" value={managerName} onChange={(e) => setManagerName(e.target.value)} placeholder="e.g. Site Foreman" className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Final Approver</label>
+              <input type="text" value={finalApproverName} onChange={(e) => setFinalApproverName(e.target.value)} placeholder="e.g. Consulting Architect" className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Cost Impact (KES)</label>
+              <input type="number" min="0" step="0.01" value={costImpactKes} onChange={(e) => setCostImpactKes(e.target.value)} className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Schedule Impact (days)</label>
+              <input type="number" min="0" step="1" value={scheduleImpactDays} onChange={(e) => setScheduleImpactDays(e.target.value)} className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Cost Code</label>
+              <input type="text" value={costCode} onChange={(e) => setCostCode(e.target.value)} placeholder="e.g. FIN-02" className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Due Date</label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Reference (drawing/spec)</label>
+              <input type="text" value={referenceDoc} onChange={(e) => setReferenceDoc(e.target.value)} placeholder="e.g. A-204 Rev C" className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Distribution List (comma-separated)</label>
+              <input type="text" value={distributionText} onChange={(e) => setDistributionText(e.target.value)} placeholder="e.g. Architect, QS, Client Rep" className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500" />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+            <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} className="rounded border-slate-300" />
+            Private — restrict visibility from external stakeholder portals
+          </label>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
