@@ -337,6 +337,7 @@ export const InspectionItemInputSchema = z.object({
 export type InspectionItemInput = z.infer<typeof InspectionItemInputSchema>;
 
 export const CreateInspectionChecklistSchema = z.object({
+  requiresConsultantReview: z.boolean().optional(),
   checklistType: ChecklistTypeEnum,
   title: z.string().min(3).max(255),
   location: z.string().min(2).max(255),
@@ -2109,3 +2110,15 @@ export const UpdateScheduledReportSchema = z.object({
   recipients: z.array(z.string().min(1).max(255)).min(1).max(20).optional(),
   format: z.enum(['PDF', 'EXCEL', 'JSON']).optional(),
 }).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-4b: Consultant review on inspections
+// -----------------------------------------------------------------------------
+
+export const ConsultantReviewDecisionEnum = z.enum(['APPROVE', 'REJECT']);
+
+export const ConsultantReviewSchema = z.object({
+  decision: ConsultantReviewDecisionEnum,
+  notes: z.string().max(5000).optional().nullable(),
+});
+export type ConsultantReview = z.infer<typeof ConsultantReviewSchema>;

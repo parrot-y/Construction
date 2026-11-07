@@ -247,6 +247,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.TENDER_VIEW,
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,
+    Permissions.INSPECTION_REVIEW,
   ],
   [Roles.SUBCONTRACTOR]: [
     Permissions.PROJECT_VIEW,

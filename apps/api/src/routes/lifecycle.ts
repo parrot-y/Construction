@@ -13,11 +13,84 @@ import {
   CreateSnagCommentSchema,
   CreateSnagDistributionSchema,
   CreateDefectsCertificateSchema,
+  ConsultantReviewSchema,
 } from '@construction/validation';
+import { Permissions } from '@construction/permissions';
+import { requirePermission } from '../plugins/rbac';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // 2.4 POST /api/v1/projects/:projectId/inspections/:id/consultant-review
+  // Gate-5 G5-4: consultant approval chain — reviewer approves (restores the
+  // computed approval status) or rejects (returns checklist to IN_PROGRESS).
+  server.post(
+    '/api/v1/projects/:projectId/inspections/:id/consultant-review',
+    { preHandler: [server.authenticate, requirePermission(Permissions.INSPECTION_REVIEW)] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, id } = request.params as { projectId: string; id: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(id)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Inspection not found' });
+      }
+      const parsed = ConsultantReviewSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid review', details: parsed.error.errors });
+      }
+      const { decision, notes } = parsed.data;
+      const reviewerName = (request.user as any).full_name || (request.user as any).email || 'Reviewer';
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const checklist = await tx.inspectionChecklist.findFirst({
+            where: { id, project_id: projectId },
+            include: { items: true },
+          });
+          if (!checklist) throw { status: 404, message: 'Inspection not found' };
+          if (!checklist.requires_consultant_review) {
+            throw { status: 400, message: 'This inspection does not require consultant review' };
+          }
+          if (checklist.status !== 'PENDING_CONSULTANT_REVIEW') {
+            throw { status: 400, message: `Checklist is ${checklist.status}, not awaiting consultant review` };
+          }
+
+          const allItems = checklist.items;
+          const hasConditions = allItems.some((i) => !i.is_mandatory && i.result !== 'PASS');
+          const approvedStatus = hasConditions ? 'APPROVED_WITH_CONDITIONS' : 'APPROVED_WITHOUT_COMMENTS';
+
+          const updated = await tx.inspectionChecklist.update({
+            where: { id },
+            data: {
+              consultant_review_status: decision === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+              consultant_reviewed_by_id: sub,
+              consultant_reviewed_by_name: reviewerName,
+              consultant_reviewed_at: new Date(),
+              consultant_review_notes: notes ?? null,
+              ...(decision === 'APPROVE'
+                ? { status: approvedStatus, inspected_at: new Date(), signed_off_by_id: sub }
+                : { status: 'IN_PROGRESS' }),
+            },
+            include: { items: { orderBy: { order_idx: 'asc' } } },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId, projectId, actorId: sub,
+            action: 'INSPECTION_CONSULTANT_REVIEW', entityType: 'InspectionChecklist', entityId: id,
+            changes: { decision, notes: notes ?? null, resultingStatus: updated.status },
+          });
+          return updated;
+        });
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        }
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err.message });
+      }
+    },
+  );
+
   // ===========================================================================
   // DOMAIN 1: RFIs & TECHNICAL QUERIES
   // ===========================================================================
@@ -423,6 +496,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               inspector_name: data.inspectorName,
               inspector_role: data.inspectorRole,
               summary_notes: data.summaryNotes,
+              requires_consultant_review: data.requiresConsultantReview ?? false,
+              consultant_review_status: data.requiresConsultantReview ? 'PENDING' : 'NOT_REQUIRED',
               items: data.items?.length
                 ? {
                     create: data.items.map((item) => ({
@@ -557,11 +632,17 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             newChecklistStatus = 'IN_PROGRESS';
           } else if (allMandatoryPassed) {
             const hasConditions = allItems.some((i) => !i.is_mandatory && i.result !== 'PASS');
-            newChecklistStatus = hasConditions
+            const wouldApprove = hasConditions
               ? 'APPROVED_WITH_CONDITIONS'
               : 'APPROVED_WITHOUT_COMMENTS';
-            inspectedAt = new Date();
-            signedOffById = sub;
+            // Gate-5 G5-4: consultant approval chain — pause for review
+            if (checklist.requires_consultant_review && checklist.consultant_review_status !== 'APPROVED') {
+              newChecklistStatus = 'PENDING_CONSULTANT_REVIEW';
+            } else {
+              newChecklistStatus = wouldApprove;
+              inspectedAt = new Date();
+              signedOffById = sub;
+            }
           }
 
           const updatedChecklist = await tx.inspectionChecklist.update({

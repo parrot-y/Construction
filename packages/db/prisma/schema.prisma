@@ -668,6 +668,7 @@ enum ChecklistType {
 enum InspectionStatus {
   PENDING
   IN_PROGRESS
+  PENDING_CONSULTANT_REVIEW
   APPROVED_WITHOUT_COMMENTS
   APPROVED_WITH_CONDITIONS
   REJECTED
@@ -687,6 +688,15 @@ model InspectionChecklist {
   inspector_role  String?           @db.VarChar(100)
   signed_off_by_id String?          @db.Uuid
   summary_notes   String?           @db.Text
+  // Gate-5 G5-4: consultant approval chain — when requires_consultant_review
+  // is set, auto-completion pauses at PENDING_CONSULTANT_REVIEW until a
+  // reviewer (INSPECTION_REVIEW) approves or rejects.
+  requires_consultant_review Boolean @default(false)
+  consultant_review_status   String  @default("NOT_REQUIRED") @db.VarChar(15) // "NOT_REQUIRED","PENDING","APPROVED","REJECTED"
+  consultant_reviewed_by_id  String? @db.Uuid
+  consultant_reviewed_by_name String? @db.VarChar(255)
+  consultant_reviewed_at     DateTime? @db.Timestamptz
+  consultant_review_notes    String?  @db.Text
   created_at      DateTime          @default(now()) @db.Timestamptz
   updated_at      DateTime          @updatedAt @db.Timestamptz
 
