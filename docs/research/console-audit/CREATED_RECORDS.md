@@ -17,3 +17,5 @@ Notes:
 | 2026-11-06 | Invoice | **ZZ-RESEARCH-INV-001** — "ZZ-RESEARCH Client", draft status, balance shown (MAKUNDI APARTMENTS) | Delete in Invoicing list |
 | 2026-11-06 | Commitment | Attempted "ZZ-RESEARCH Subcontractor" — POST fired but validation rejected; **no record created** | None needed |
 | 2026-11-06 | Certificate | Form opened but save blocked — contract sum prerequisite not set; **no record created** | None needed |
+| 2026-11-06 | Payment application | **#ZZ-APP-01** — Nov 2026, Draft, $0 amounts (number fields partially filled), MAKUNDI APARTMENTS | Delete in Financials → Applications |
+| 2026-11-06 | Punch item | **PL-2419** — "ZZ-RESEARCH-DO NOT ACT: cracked tile", ZZ-RESEARCH Zone Level 1, Open | Delete in Punch list |

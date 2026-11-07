@@ -132,13 +132,38 @@ Project → Certificates tab → "Record a payment certificate" (IPC model):
 
 **Prerequisite finding [OBSERVED]:** certificates, analytics %, cost control and budget all show "—" / "Set a contract sum" until a contract sum exists — contract sum (set via Variations tab or project setup) is the root financial input that unlocks the whole money chain. Our schema should treat contract sum as a first-class project field set at inception, not an afterthought.
 
+## 5e. Financials page — all 7 tabs extracted [OBSERVED]
+
+Tabs: Overview · Ledger · Bill of quantities · Commitments · Applications · Retention · Budget (+ Export Excel/PDF). "Financial tracker — Money in and out, budget against actual, exports."
+
+- **Ledger/Budget:** cost categories with Add; "Variance: $0 — Positive = under budget. Negative = over budget."
+- **BOQ tab:** same BOQ editor; "The total becomes this project's budget" — BOQ pricing feeds budget directly.
+- **Applications:** "Create a payment application, submit it for review, then approve and pay." Columns: NUMBER · PERIOD · COMMITMENT/VENDOR · REQUESTED · RETENTION · NET PAYABLE · STATUS · WORKFLOW.
+- **Retention:** "appears here once commitments hold retention or applications certify amounts" — retention is derived, not entered.
+
+## 5f. Created record #5 — Payment application #ZZ-APP-01 [OBSERVED]
+
+`POST /api/projects/{id}/payment-applications` succeeded. Row: #ZZ-APP-01 · Nov 2026 · — commitment · $0 requested · $0 retention · $0 net payable · **Draft** · actions **Submit · Mark paid**.
+
+Form: Number · Period · **Commitment select** (links application to a subcontract/PO — "— none —" when no commitments) · Work completed this period · Previously certified · Requested amount · Retention % → live Retention amount + Net payable. This is the subcontractor-side claim; combined with the Certificates tab (client-side IPC) the full valuation chain is: commitment → application → certificate → invoice → retention release.
+
+## 5g. Created record #6 — Punch item PL-2419 [OBSERVED]
+
+`POST /api/punch` succeeded (verified on reload — earlier list render was stale).
+
+**Form richness:** TITLE* · DESCRIPTION · PROJECT · LOCATION (Bldg/Level/Room) · TYPE/CATEGORY (architectural·mep·finishes·structural·civil·other) · **TRADE — 36-value taxonomy** (Masonry…Solar & Energy…Traffic Control…Cleaning & Handover) · PRIORITY (H/M/L) · DUE DATE · ASSIGNEES multi · **PUNCH ITEM MANAGER** + **FINAL APPROVER** (separate accountability roles) · DISTRIBUTION LIST · COST IMPACT + SCHEDULE IMPACT (Yes/Yes-unknown/No/TBD/N/A) · COST CODE · REFERENCE (drawing) · **Private (restrict visibility)** checkbox.
+
+Statuses: Open · In Progress · Ready for Review · Resolved · Closed · Rejected. Table: CODE·TITLE·LOCATION·TRADE·ASSIGNEES·PRIORITY·STATUS·DUE·IMPACT + CSV/PDF export.
+
+**Quirk observed:** due date rendered as `61120-02-02` for input 2026-11-20 — likely a date-parsing bug on their side [OBSERVED anomaly; do not replicate].
+
 ## 6. Coverage status vs "click everything"
 
 | Area | Status |
 |---|---|
 | All sidebar modules | ✅ visited; Money group children enumerated (Financials/Commitments/Quotes/Invoicing/Inventory/Billing & plan) |
 | All 13 project tabs | ✅ bodies extracted this pass |
-| Create flows exercised end-to-end | ✅ CO (full lifecycle), daily log, quote (draft→sent). Others (invoice, commitment, inspection, punch, observation, checklist, subcontractor, crew, RFI, incident, correspondence, contact) — forms captured read-only earlier; saved-state UI still [NOT REACHED] |
+| Create flows exercised end-to-end | ✅ CO (full lifecycle), daily log, quote (draft→sent), invoice, payment application, punch item. Others (invoice, commitment, inspection, punch, observation, checklist, subcontractor, crew, RFI, incident, correspondence, contact) — forms captured read-only earlier; saved-state UI still [NOT REACHED] |
 | Settings | ✅ Account Security + Company captured earlier (`settings-*.json` local) |
 | Role Manager matrix | ✅ extracted earlier for all 14 roles |
 | Role-scoped logins | ✅ QS, Architect, QA/QC probed; Client portal verified |

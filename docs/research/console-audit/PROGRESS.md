@@ -42,7 +42,9 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 - Invoice ZZ-RESEARCH-INV-001 created (draft; PDF + Record payment actions; Net-7/14/30/60 terms; M-Pesa named in terms placeholder).
 - Commitments form fully mapped (vendor/scope/value/retention%/advance/recover%/cost code; 3-step contract→claim→owed model); create POST fired but validation-rejected — likely needs existing vendor record.
 - Certificate (IPC) form fully mapped (period valuation, gross-to-date, retention %, advance recovery, live NET PAYABLE, Submitted→…→Paid statuses, scan attach); save blocked until contract sum is set — contract sum is the root input unlocking analytics/cost-control/certificates.
-- Remaining "not reached": saved-state UI for commitment/inspection/punch/checklist/subcontractor/crew/RFI/incident/correspondence/contact; contract-sum setup flow itself; "Viewing as" mechanics; Ask AI/Shemmy; upload pipeline; bidding.
+- Payment application #ZZ-APP-01 created (Draft; Submit/Mark paid workflow; commitment-linked). Financials all 7 tabs extracted (Ledger/Budget variance categories, BOQ→budget link, Retention derived).
+- Punch item PL-2419 created (36-trade taxonomy, manager+final-approver roles, distribution list, cost/schedule impact scales, Private visibility flag). Due-date render anomaly noted.
+- Remaining "not reached": saved-state UI for commitment/inspection/checklist/subcontractor/crew/RFI/incident/correspondence/contact/inventory; contract-sum setup flow itself; "Viewing as" mechanics; Ask AI/Shemmy; upload pipeline; bidding.
 
 ## Blockers / flags
 - **Trial expiry ~2026-11-10** — if it lapses, remaining items become "Not reachable" permanently.
