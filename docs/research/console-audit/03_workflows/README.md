@@ -13,7 +13,7 @@ List columns: NUMBER · TITLE · PROJECT · TRIGGER · COST · SCHEDULE · ASSIG
 |---|---|---|---|
 | Title | text | * | |
 | Description | textarea | | |
-| Project | select | | MAKUNDI APARTMENTS |
+| Project | select | | GRAND TOWERS |
 | Number | text | auto if blank | sequence |
 | Area / location | text | | |
 | Trigger | select | | Design clarification, Owner request, Unforeseen condition, Code compliance, Structural review, Weather/delays, Other |
@@ -30,7 +30,7 @@ Approval model [INFERRED from role matrix]: PM approves within Approval Limit �
 
 Statuses: `Draft → Sent → Accepted | Declined | Expired`. Actions: share (WhatsApp link `/public/quotes/:id`), client-comments, respond, convert (`/convert`), status.
 
-**Form fields:** Job title*, Valid until, Client name*/phone (WhatsApp — "we use this to send the quote on WhatsApp")/email, Job site/address + GPS ("Use my location"/"Pick on map"), company logo/branding (shows "JUMUIA CONTRACTORS"), line items from templates (Kitchen remodel, Bathroom remodel, Tiling works, Painting & decor, Electrical works — more likely), units: m, m², m³, no, kg, day, hr, lot; Scope notes/inclusions/exclusions; Terms; Subtotal; Discount (KES); VAT %; Total; **Deposit to start %** → "When the quote becomes a project, a deposit invoice for this amount is drafted for you."
+**Form fields:** Job title*, Valid until, Client name*/phone (WhatsApp — "we use this to send the quote on WhatsApp")/email, Job site/address + GPS ("Use my location"/"Pick on map"), company logo/branding (shows "CLIENTCO CONTRACTORS"), line items from templates (Kitchen remodel, Bathroom remodel, Tiling works, Painting & decor, Electrical works — more likely), units: m, m², m³, no, kg, day, hr, lot; Scope notes/inclusions/exclusions; Terms; Subtotal; Discount (KES); VAT %; Total; **Deposit to start %** → "When the quote becomes a project, a deposit invoice for this amount is drafted for you."
 
 ## 3.3 Invoicing (accounts receivable)
 
@@ -107,7 +107,7 @@ Views: Gantt / List / Milestones. Scale: Weeks/Days. Activity statuses: Not star
 - **Inbox**: team conversations, "New group", per-conversation members/read state (`/conversations`).
 - **Announcements**: pinned/urgent flags, audience filters (Everyone/Project/Role/People).
 
-## 3.17 Project detail (MAKUNDI APARTMENTS, P-UTR3)
+## 3.17 Project detail (GRAND TOWERS, P-UTR3)
 
 Header: code P-UTR3, status Active, location Nairobi, created date, client "not assigned yet — Invite client", Edit project, "Set location" (weather pinning for build-day decisions), project photos.
 

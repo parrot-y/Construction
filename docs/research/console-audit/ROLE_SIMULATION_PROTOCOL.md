@@ -9,14 +9,14 @@ Priority order — Contractor admin view is done; these are the gaps:
 | # | Account/role to obtain | Why | Access needed |
 |---|---|---|---|
 | 1 | **PM / Quantity Surveyor** | Money workflows: BOQ, commitments, claims, payment applications, certificates, CO approvals | Team invite into existing workspace OR own company account |
-| 2 | **Client / property owner** | Client portal: photos, approvals, invoices, messages, selections | Client tab invite on MAKUNDI APARTMENTS (creates record — needs approval) OR "Create your free client account" + link a project |
+| 2 | **Client / property owner** | Client portal: photos, approvals, invoices, messages, selections | Client tab invite on GRAND TOWERS (creates record — needs approval) OR "Create your free client account" + link a project |
 | 3 | **Site Engineer / Superintendent** | Field workflows: daily log, checklists, punch, inspections, attendance | Team invite |
 | 4 | **Trade Lead / Foreman / Worker** | Mobile-first field view: tasks, mark-done, photo upload | Team invite |
 | 5 | **QA/QC Officer** | Inspection creation/fill/approve chain | Team invite |
 | 6 | **Architect** | Plans/drawings review, clarifications (RFIs) | Team invite |
 | 7 | **Owner / Executive / Viewer** | Approval-limit behaviour, read-only views | Team invite |
 
-Note: roles 3–7 can likely be covered by inviting dummy users into ONE workspace (POWELL's) — each signs in and sees their role-scoped UI. That requires owner approval before sending invites (per safe-use rules). Dummy names/emails only, e.g. `zz-research-pm@example.com`.
+Note: roles 3–7 can likely be covered by inviting dummy users into ONE workspace (CONTRACTOR-CO's) — each signs in and sees their role-scoped UI. That requires owner approval before sending invites (per safe-use rules). Dummy names/emails only, e.g. `zz-research-pm@example.com`.
 
 ## Per-role capture checklist (run for each account)
 1. Login → landing view: what does this role see first? (dashboard, tasks, field app?)

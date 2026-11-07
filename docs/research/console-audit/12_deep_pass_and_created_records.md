@@ -1,6 +1,6 @@
 # 12 — Deep pass: project tabs, created records & live workflows
 
-**Date:** 2026-11-06 · **Account:** Contractor workspace (POWELL, USD, trial) · **Method:** Puppeteer + system Chrome, env-var credentials only.
+**Date:** 2026-11-06 · **Account:** Contractor workspace (CONTRACTOR-CO, USD, trial) · **Method:** Puppeteer + system Chrome, env-var credentials only.
 **Evidence tags:** [OBSERVED] seen live · [INFERRED] reasoned · all created records prefixed `ZZ-RESEARCH-` and logged in `CREATED_RECORDS.md`.
 
 This pass went beyond navigation: every project-detail tab body was extracted, and three record types were created and driven through real state changes to observe saved-state UI, validation, and workflows.
@@ -9,7 +9,7 @@ This pass went beyond navigation: every project-detail tab body was extracted, a
 
 ## 1. Project detail tabs — full content map [OBSERVED]
 
-Project: MAKUNDI APARTMENTS (P-UTR3). 13 top-level tabs; each is a module hub, not just a view.
+Project: GRAND TOWERS (P-UTR3). 13 top-level tabs; each is a module hub, not just a view.
 
 | Tab | What it contains (observed) |
 |---|---|
@@ -35,7 +35,7 @@ Project: MAKUNDI APARTMENTS (P-UTR3). 13 top-level tabs; each is a module hub, n
 
 **Create form** (`POST /api/change-orders`):
 - TITLE* (required), DESCRIPTION
-- PROJECT (prefilled to MAKUNDI APARTMENTS)
+- PROJECT (prefilled to GRAND TOWERS)
 - NUMBER (auto if blank → assigned CO-4990)
 - AREA / LOCATION
 - TRIGGER select: Design clarification · Owner request · Unforeseen condition · Code compliance · Structural review · Weather/delays · Other
@@ -43,7 +43,7 @@ Project: MAKUNDI APARTMENTS (P-UTR3). 13 top-level tabs; each is a module hub, n
 - STATUS select: Drafted · PM Review · Owner Approval · Approved · Rejected · Void
 - COST IMPACT (USD), SCHEDULE IMPACT (DAYS)
 - REQUESTED BY (free text, e.g. client name)
-- ASSIGNEES (multi-select of workspace members: POWELL/Contractor, brendah/Owner, abel/Architect, watson/QS, LISA/QA-QC — confirms all 5 role accounts live in one workspace)
+- ASSIGNEES (multi-select of workspace members: CONTRACTOR-CO/Contractor, CLIENTUSER/Owner, abel/Architect, watson/QS, QA-USER/QA-QC — confirms all 5 role accounts live in one workspace)
 
 **Detail panel actions by status** (walked live):
 
@@ -53,7 +53,7 @@ Project: MAKUNDI APARTMENTS (P-UTR3). 13 top-level tabs; each is a module hub, n
 | PM Review | Edit · **Send for owner approval** · Approve · Reject |
 | Approved | Edit · Reject |
 
-- Activity log records every transition with actor: "POWELL · Contractor created this change order", "moved it to PM Review", "moved it to Approved".
+- Activity log records every transition with actor: "CONTRACTOR-CO · Contractor created this change order", "moved it to PM Review", "moved it to Approved".
 - "Approve" from PM Review jumped straight to **Approved** — contractor can self-approve; "Send for owner approval" is the client-in-loop path. Approval limits per role exist in Role Manager (see `02_roles_permissions.md`) — enforcement point to replicate.
 - List footer aggregates: "N change orders · net cost $X · schedule +Xd · N pending approval"; status filter + project filter + CSV export.
 
@@ -103,9 +103,9 @@ Project → **Client tab** (project-specific, NOT under People/Team):
 - Fallbacks: **Copy invite link** · **Send invite on WhatsApp** · **view-only link** for non-signup viewing
 - Daily logs shared by default (media opt-in per entry); internal notes private; inspections shared individually
 
-Client portal interior [OBSERVED live 2026-11-06 with owner-supplied client login]: sidebar = Home · My sites · Messages · Quotes & proposals · Site reporting · Request a project · Account. Home shows site cards (MAKUNDI APARTMENTS, "JUMUIA CONTRACTORS · Nairobi · 0% complete"), a "Neutral site reporting" upsell (independent Buildsasa inspection service), and "Request a project" (client-initiated tender: "Need fencing, solar, CCTV or a gate?"). Onboarding modal "Karibu, brenda!" frames value props: real progress photos, approve-and-pay from Home, chat with team, independent eyes.
+Client portal interior [OBSERVED live 2026-11-06 with owner-supplied client login]: sidebar = Home · My sites · Messages · Quotes & proposals · Site reporting · Request a project · Account. Home shows site cards (GRAND TOWERS, "CLIENTCO CONTRACTORS · Nairobi · 0% complete"), a "Neutral site reporting" upsell (independent Buildsasa inspection service), and "Request a project" (client-initiated tender: "Need fencing, solar, CCTV or a gate?"). Onboarding modal "Karibu, client!" frames value props: real progress photos, approve-and-pay from Home, chat with team, independent eyes.
 
-Client quote acceptance E2E [OBSERVED]: quote appeared under Quotes & proposals once the client email matched ("Waiting for you"). Detail renders the quotation document: line items ("110 item × KES 5,000 → KES 550,000"), Subtotal/Total, Deposit to start 50% (KES 275,000), terms, validity. **Accept flow = typed-name e-signature**: "Accept quote" → panel "Accept KES 550,000 … Typing your name confirms you accept" → type full name → "Confirm acceptance" → `POST /api/public/quotes/{token}/respond` → "Quote accepted by Brenda Kosgei on 7 Nov 2026". Decline + "Comment or ask for a change" thread also present. Contractor list immediately shows **Accepted | by Brenda Kosgei** and unlocks **Start project** action — closing the quote→accept→project chain.
+Client quote acceptance E2E [OBSERVED]: quote appeared under Quotes & proposals once the client email matched ("Waiting for you"). Detail renders the quotation document: line items ("110 item × KES 5,000 → KES 550,000"), Subtotal/Total, Deposit to start 50% (KES 275,000), terms, validity. **Accept flow = typed-name e-signature**: "Accept quote" → panel "Accept KES 550,000 … Typing your name confirms you accept" → type full name → "Confirm acceptance" → `POST /api/public/quotes/{token}/respond` → "Quote accepted by CLIENT USER on 7 Nov 2026". Decline + "Comment or ask for a change" thread also present. Contractor list immediately shows **Accepted | by CLIENT USER** and unlocks **Start project** action — closing the quote→accept→project chain.
 
 ---
 
@@ -173,7 +173,7 @@ Every sidebar module was opened; create-form interiors captured for ~25 flows. S
 | **Inventory** | Materials + Equipment tabs. Material form: name, SKU, category, unit (bags/tonnes/m/m²/m³/kg/pcs/rolls/litres/boxes), project/company-wide, location, opening stock, min/reorder/max levels, **acceptable waste %** (with plain-language explainer), reorder qty, supplier + contact + **delivery lead time days**, unit cost (KES), notes — a real stock ledger, not a list |
 | **Schedule** | "Project programme: activities, phases and milestones against the calendar." Gantt/List/Milestones views, Weeks/Days scale, statuses Not started/In progress/Done/Blocked, **AI schedule** generator, Add activity |
 | **Plans & drawings** | Drawing filters by discipline (Architectural/Mechanical/Structural/Electrical/Civil), **AI Concept / AI Design "SOON"** badges, Upload |
-| **Team** | Invite member: name/email/**role dropdown listing all 14 roles per row**; members POWELL, brendah, abel, watson, LISA — client (brendah) also appears as team member with assignable roles (dual-path: client portal invite AND team role) |
+| **Team** | Invite member: name/email/**role dropdown listing all 14 roles per row**; members CONTRACTOR-CO, CLIENTUSER, abel, watson, QA-USER — client (CLIENTUSER) also appears as team member with assignable roles (dual-path: client portal invite AND team role) |
 | **Attendance** | Today/History/Team history/**Access log** tabs; "Mark team attendance"; metrics: people working, on site, late, on leave; per-member check-in/out/break/location — geo check-in |
 | **Directory** | Contacts & companies; categories Client/Consultant/Subcontractor/Supplier/Authority |
 | **Subcontractors** | "Subcontractor & supplier database" — $ committed/paid/to-pay rollups; **"Subcontracts awarded through Bidding or created in Commitments attach automatically by company name"** (reveals a Bidding module not exposed in this workspace's nav) |
@@ -200,14 +200,14 @@ Every sidebar module was opened; create-form interiors captured for ~25 flows. S
 | Settings | ✅ Account Security + Company captured earlier (`settings-*.json` local) |
 | Role Manager matrix | ✅ extracted earlier for all 14 roles |
 | Role-scoped logins | ✅ QS, Architect, QA/QC probed; **Client portal verified end-to-end** (§5, §6c) |
-| Quote → client accept → contractor status | ✅ **full loop OBSERVED** — client typed-name acceptance synced back as "Accepted by Brenda Kosgei" + Start project action |
+| Quote → client accept → contractor status | ✅ **full loop OBSERVED** — client typed-name acceptance synced back as "Accepted by CLIENT USER" + Start project action |
 | Contract sum → variation rollup → certificates | ✅ OBSERVED (§6b); certificate save-state still NOT REACHED |
 
 **Remaining gaps (honest):** saved-state detail for invoice/commitment/inspection/punch/checklist; "Viewing as" switcher mechanics; Ask AI / Shemmy chat; upload pipeline end-to-end; bidding flow (no bid packages in workspace); certificate create save; remaining field-module creates (crew/subcontractor/contact/incident/RFI/correspondence/announcement/inventory).
 
 ## 6b. Contract sum setup + certificates live state [OBSERVED]
 
-- Variations tab → "Set contract sum" opens editor: contract sum (numeric, currency follows top-bar toggle — USD shown, hint says switch to KES to enter KES), start date, finish date → `PUT /api/projects/{id}/contract`. Saved dummy **$1,000,000** on MAKUNDI APARTMENTS (cleanup: reset/zero it).
+- Variations tab → "Set contract sum" opens editor: contract sum (numeric, currency follows top-bar toggle — USD shown, hint says switch to KES to enter KES), start date, finish date → `PUT /api/projects/{id}/contract`. Saved dummy **$1,000,000** on GRAND TOWERS (cleanup: reset/zero it).
 - After save, Analytics/Cost control/Categories unblocked: Original contract sum $1,000,000 · Approved variations +$100.10 (CO-4990) · **Revised contract sum $1,000,100.10** — variations roll up automatically.
 - Certificates tab with contract sum set: Certified to date $0 (0%), Paid $0, Retention held $0, **Still to certify $1,000,100.10**, "Cumulative valuation against contract 0%".
 - **Architecture finding:** certificate history already lists **#ZZ-APP-01** (the payment application) as its single row with per-status action buttons (Submitted/Under review/Certified/Paid/Rejected) + Attach — payment applications and payment certificates share one underlying record model [OBSERVED]. The client-side IPC form (period valuation, retention %, advance recovery, live NET PAYABLE) computes live but a save attempt was abandoned when inputs were ambiguous — saved-state certificate still [NOT REACHED].
@@ -215,9 +215,9 @@ Every sidebar module was opened; create-form interiors captured for ~25 flows. S
 ## 6c. Client invite → registration → dashboard flow [OBSERVED end-to-end]
 
 Owner supplied working client credentials (previous failure was wrong password). Verified chain:
-1. Contractor invites client on the **project's Client tab** (project-scoped, separate from People/Team invites — Team also lists brendah as a member with assignable roles: dual-path identity).
+1. Contractor invites client on the **project's Client tab** (project-scoped, separate from People/Team invites — Team also lists CLIENTUSER as a member with assignable roles: dual-path identity).
 2. Client registers/logs in at the **separate client path** ("I'm a client" on login) — contractor creds rejected there.
-3. Client lands on client dashboard (Home/My sites/Messages/Quotes & proposals/Site reporting/Request a project/Account); MAKUNDI APARTMENTS appears under "Your sites" as "JUMUIA CONTRACTORS · Nairobi · 0% complete".
+3. Client lands on client dashboard (Home/My sites/Messages/Quotes & proposals/Site reporting/Request a project/Account); GRAND TOWERS appears under "Your sites" as "CLIENTCO CONTRACTORS · Nairobi · 0% complete".
 4. Quote sent to the client's email surfaces in **Quotes & proposals** (see §4 + acceptance E2E above) — proving contractor→client record sync is keyed on **email match**, not invite token alone.
 
 ## 7. What this means for our build [INFERRED]

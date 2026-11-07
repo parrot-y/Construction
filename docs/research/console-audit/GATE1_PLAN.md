@@ -5,7 +5,7 @@
 
 ## What we already have (done)
 
-- Full nav/module tree captured (page dumps were in `pages-dom/` — purged 2026-11-06 per audit remediation; screenshots in `screenshots/` retained)
+- Full nav/module tree captured (page dumps were in `pages-dom/` — purged 2026-11-06 per audit remediation; screenshots purged from repo history 2026-11-07 per re-audit (account-identifying captures removed))
 - All 14 roles identified in Role manager with descriptions
 - Pricing/plans/billing captured (Starter $23/mo 3 seats, Business $69/mo 10 seats, Paystack M-Pesa/card/bank, self-hosted option)
 - 77 API endpoints mapped; tech fingerprint complete
@@ -29,7 +29,7 @@ Global: Ctrl+K search · New menu · currency switch (KES/USD) · notifications 
 1. **Role × permission matrix**: open Role manager, select each of the 14 roles, capture which modules/actions each can see/do. Also test the "Viewing as" switcher to see role-scoped UIs.
 2. **Invite flow**: Team → Invite member — capture role options, fields, message (no actual invite sent).
 3. **Client path**: try "I'm a client" switch — determine if same account reaches client view; else mark Not reachable and infer from `/api/client/*` endpoints + marketing pages.
-4. **Project detail**: open MAKUNDI APARTMENTS — capture tabs (Client tab mentioned in tour), members, settings, statuses (Active/At Risk/Planning/Closing/Archived).
+4. **Project detail**: open GRAND TOWERS — capture tabs (Client tab mentioned in tour), members, settings, statuses (Active/At Risk/Planning/Closing/Archived).
 
 ### Phase B — Workflows & forms (how things connect)
 5. **Create forms, read-only**: open (never save) — New change order, New Quote, New Invoice, New daily log, New Observation, New Issue (RFI), safety Report, New Correspondence, New inspection Request, Add commitment, Add subcontractor, Add contact, New Crew, New Template/Form Builder, AI schedule.

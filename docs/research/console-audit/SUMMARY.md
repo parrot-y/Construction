@@ -2,7 +2,7 @@
 
 **Evidence basis:** all ✅/field claims below are **[OBSERVED]** in the authorised contractor console on 2026-11-06 (read-only; no records created). Anything not seen is marked **not observed** — it may exist behind roles, saved records, or the native app we could not reach; it is NOT proven absent. "Our wedge" rows mean *candidate differentiators, not observed in the audited surfaces* — unverified until role-by-role accounts (`ROLE_SIMULATION_PROTOCOL.md`) or customer validation.
 
-**Account:** Contractor workspace (JUMUIA CONTRACTORS / POWELL), USD display, trial ~4 days left at 2026-11-06.
+**Account:** Contractor workspace (CLIENTCO CONTRACTORS / CONTRACTOR-CO), USD display, trial ~4 days left at 2026-11-06.
 **Coverage:** all sidebar modules visited, ~20 create/edit forms captured read-only, 14-role permission matrix extracted, 250 API endpoints mapped, client path tested (separate account system).
 **Not reachable:** client dashboard (needs client invite), other workspaces/tenants, saved-record workflows (no records created — see CREATED_RECORDS.md), native mobile app.
 

@@ -33,7 +33,7 @@ Vite + React SPA (`/assets/index-*.js`, 3.0 MB bundle), theme key `constructai-t
 2. Contractor path → sign-in: work email + password, "Forgot?", "Enter Workspace", "Continue with Google" (OAuth via `api.buildsasa.com/api/auth/google`), link "New company? Create your company account", "Are you a client? Switch".
 
 **Login succeeded** with owner-provided account `[OBSERVED]`:
-- Workspace name shown as "POWELL", role "Contractor", currency USD.
+- Workspace name shown as "CONTRACTOR-CO", role "Contractor", currency USD.
 - Banner: "4 days left on your free trial. Everything is unlocked until then."
 - Dashboard is mostly empty (0 change orders, $0 approved CO value) — fresh/trial workspace.
 

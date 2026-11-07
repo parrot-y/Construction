@@ -8,12 +8,12 @@ Resumable progress tracker. Update after every session.
 ## Environment notes
 - Automation: `puppeteer-core` + system `/usr/bin/google-chrome` (headless). Scripts in `/tmp/sasa-audit/` (ephemeral — recreate if wiped).
 - Credentials passed via env vars `SASA_EMAIL` / `SASA_PASSWORD` at runtime only — never stored.
-- Screenshots: `screenshots/` (retained). Page DOM dumps (`pages-dom/`) and `api-endpoints-full.txt` were purged from the repo 2026-11-06 per Claude audit remediation — findings preserved in the numbered docs; raw captures must NOT be recommitted.
+- Screenshots: `screenshots/` (purged from history 2026-11-07 — account-identifying captures removed). Page DOM dumps (`pages-dom/`) and `api-endpoints-full.txt` were purged from the repo 2026-11-06 per Claude audit remediation — findings preserved in the numbered docs; raw captures must NOT be recommitted.
 
 ## Done — Gate 1 coverage
 - [x] All sidebar modules visited and dumped (~35 pages)
 - [x] ~20 create/edit forms captured read-only (CO, quote, invoice, commitment, daily log, observation, RFI, incident, correspondence, inspection, contact, crew, invite, subcontractor, checklist template, AI schedule)
-- [x] Project detail page (MAKUNDI APARTMENTS): 13 tabs + health signals captured
+- [x] Project detail page (GRAND TOWERS): 13 tabs + health signals captured
 - [x] 14-role catalogue + 18-permission matrix extracted for ALL roles (`rolematrix2-*.json`)
 - [x] Module access catalogue (36 modules)
 - [x] Client path tested: separate account system; contractor creds rejected on client login
@@ -21,7 +21,7 @@ Resumable progress tracker. Update after every session.
 - [x] Deliverables: 01_overview … 10_opportunities, SUMMARY.md, 03_workflows/README.md, 04_journeys, 05_data_model (ERD), 06_integrations, 07_sitemap, 08_pricing
 
 ## Owner plan (2026-11-06)
-Owner will create additional trial accounts (14-day) for other roles while Claude audits PR #1. Protocol ready: `ROLE_SIMULATION_PROTOCOL.md` — 7 role accounts needed, per-role capture checklist, 7 end-to-end simulation scenarios (S1–S7). Team invites into POWELL workspace preferred for staff roles; client needs Client-tab invite (record creation — will ask before sending).
+Owner will create additional trial accounts (14-day) for other roles while Claude audits PR #1. Protocol ready: `ROLE_SIMULATION_PROTOCOL.md` — 7 role accounts needed, per-role capture checklist, 7 end-to-end simulation scenarios (S1–S7). Team invites into CONTRACTOR-CO workspace preferred for staff roles; client needs Client-tab invite (record creation — will ask before sending).
 
 ## Not done / Not reachable
 - [ ] Client dashboard interior — needs client invite (requires creating data; ask owner)
@@ -60,7 +60,7 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 
 ## 2026-11-06 (later) — Client portal verified + quote loop closed + money chain
 - **Client login fixed** (correct password supplied): full client dashboard captured — Home/My sites/Messages/Quotes & proposals/Site reporting/Request a project/Account. Client invite→register→dashboard chain confirmed project-scoped via Client tab.
-- **Quote E2E loop OBSERVED:** edited Q-0001 client email → share panel confirmed email-match sync → client Quotes & proposals showed it "Waiting for you" → quotation document (line items, KES 550,000, 50% deposit KES 275,000) → **typed-name e-signature acceptance** (`POST /api/public/quotes/{token}/respond`) → contractor list shows "Accepted | by Brenda Kosgei" + **Start project** action. Full quotes-to-cash chain proven live.
+- **Quote E2E loop OBSERVED:** edited Q-0001 client email → share panel confirmed email-match sync → client Quotes & proposals showed it "Waiting for you" → quotation document (line items, KES 550,000, 50% deposit KES 275,000) → **typed-name e-signature acceptance** (`POST /api/public/quotes/{token}/respond`) → contractor list shows "Accepted | by CLIENT USER" + **Start project** action. Full quotes-to-cash chain proven live.
 - **Contract sum set** ($1,000,000 dummy via PUT /contract): unlocked revised contract sum $1,000,100.10 (CO-4990 rolls up), certificates "still to certify" balance, analytics.
 - **Certificate/payment-application unification found:** #ZZ-APP-01 appears in Certificates history with status action buttons — applications and certificates share one record model.
 - Certificate create form re-captured live (live THIS PERIOD/RETENTION/NET PAYABLE computation, 5 statuses, scan attach); save still not exercised — inputs ambiguous, cancelled cleanly.
@@ -76,7 +76,7 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 - **Viewing as:** sidebar label present but click did not open a menu in headless run [PARTIAL].
 - **Shemmy/Ask AI:** "Open Shemmy support" opens a support chatbot ("Hi, I'm Shemmy 👋 your Buildsasa support assistant… Talk to a human: WhatsApp · Email") — support assistant, not a work AI. Separate "Ask Buildsasa AI…" input exists inside schedule/checklist forms (AI generation, metered).
 - **Site checks:** confirmed dead nav — renders Dashboard every time [NOT REACHED, likely stub].
-- **Profile menu:** POWELL button opens Settings · Help & support · Sign out.
+- **Profile menu:** CONTRACTOR-CO button opens Settings · Help & support · Sign out.
 - **Created & verified:** crew (POST /api/crews), 2× inventory items (POST /api/inventory), announcement (POST /api/announcements — published workspace-wide).
 - **Attempted, not created:** subcontractor (validation), contact (save click no POST), observation (save regex hit wrong button), safety incident/inspection/checklist/RFI/correspondence/inventory-extra — automation form-filling proved unreliable for React floating-label forms; forms fully mapped earlier, saved-state UI remains [NOT REACHED] for these.
 - **Cleanup final state:** all voidable/rejectable records rejected; daily log neutralized; contract sum $0; invoice draft + accepted quote have no delete path (documented). New ZZ records (crew, 2 inventory, announcement) logged in CREATED_RECORDS.md — announcement is workspace-visible, owner should remove.

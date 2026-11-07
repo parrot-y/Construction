@@ -1,6 +1,6 @@
 # 01 — Product overview: Buildsasa (console.buildsasa.com)
 
-All findings `[OBSERVED]` in our own Contractor trial account unless tagged otherwise. Account: workspace company "JUMUIA CONTRACTORS", user "POWELL", role Contractor, display currency USD, ~4 days trial remaining at audit date (2026-11-06).
+All findings `[OBSERVED]` in our own Contractor trial account unless tagged otherwise. Account: workspace company "CLIENTCO CONTRACTORS", user "CONTRACTOR-CO", role Contractor, display currency USD, ~4 days trial remaining at audit date (2026-11-06).
 
 ## Positioning
 "AI-powered construction, simplified." All-in-one construction management for contractors AND property owners (diaspora-friendly). Tagline claims: SOC 2 Type II, ISO 27001 (marketing claim, unverified). Built in Nairobi (Westlands); cloud or self-hosted.
