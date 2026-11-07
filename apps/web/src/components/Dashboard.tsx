@@ -103,7 +103,16 @@ export default function Dashboard({ session, onLogout }: DashboardProps): React.
       case 'PM_QS':
         return <PmQsDashboard session={session} onPreviewPortal={handlePreview} />;
       case 'SITE_SUPERVISOR':
+      case 'SITE_ENGINEER':
+      case 'TRADE_LEAD':
+      case 'FOREMAN':
+      case 'WORKER':
+      case 'VIEWER':
         return <SupervisorDashboard session={session} />;
+      case 'EXECUTIVE':
+        return <CompanyAdminDashboard session={session} onPreviewPortal={handlePreview} />;
+      case 'SUPERINTENDENT':
+        return <PmQsDashboard session={session} onPreviewPortal={handlePreview} />;
       case 'CLIENT':
         return <ClientDashboard session={session} />;
       default:

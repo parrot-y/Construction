@@ -8,6 +8,14 @@ export const Roles = {
   SUBCONTRACTOR: 'SUBCONTRACTOR',
   SUPPLIER: 'SUPPLIER',
   COMPLIANCE: 'COMPLIANCE',
+  // Gate-5 role ladder (observed Buildsasa team roles, doc 15)
+  EXECUTIVE: 'EXECUTIVE',
+  SUPERINTENDENT: 'SUPERINTENDENT',
+  SITE_ENGINEER: 'SITE_ENGINEER',
+  TRADE_LEAD: 'TRADE_LEAD',
+  FOREMAN: 'FOREMAN',
+  WORKER: 'WORKER',
+  VIEWER: 'VIEWER',
 } as const;
 
 export type Role = (typeof Roles)[keyof typeof Roles];
@@ -250,6 +258,112 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.PROJECT_VIEW,
     Permissions.REPORT_VIEW,
     Permissions.INSPECTION_VIEW,
+  ],
+  // ---- Gate-5 observed role ladder (doc 15_role_portals.md) ----
+  // EXECUTIVE: owner-side oversight — mirrors COMPANY_ADMIN minus billing
+  // admin; keeps invite + manage for team growth.
+  [Roles.EXECUTIVE]: [
+    Permissions.PROJECT_CREATE,
+    Permissions.PROJECT_VIEW,
+    Permissions.PROJECT_EDIT,
+    Permissions.BOQ_VIEW,
+    Permissions.COST_VIEW,
+    Permissions.COST_APPROVE,
+    Permissions.CERTIFICATE_MANAGE,
+    Permissions.ANNOUNCEMENT_MANAGE,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_VIEW,
+    Permissions.VARIATION_REVIEW,
+    Permissions.VARIATION_APPROVE,
+    Permissions.REPORT_GENERATE,
+    Permissions.REPORT_VIEW,
+    Permissions.COMPANY_INVITE,
+    Permissions.TENDER_VIEW,
+    Permissions.INSPECTION_VIEW,
+    Permissions.INSPECTION_REVIEW,
+    Permissions.QUOTE_VIEW,
+    Permissions.INVOICE_VIEW,
+  ],
+  // SUPERINTENDENT: senior field commander — full financial tracker view,
+  // CO visibility, crew management; no billing admin.
+  [Roles.SUPERINTENDENT]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.PROJECT_EDIT,
+    Permissions.BOQ_VIEW,
+    Permissions.COST_CREATE,
+    Permissions.COST_VIEW,
+    Permissions.COST_APPROVE,
+    Permissions.CERTIFICATE_MANAGE,
+    Permissions.SITE_DIARY_CREATE,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_RECORD,
+    Permissions.PROGRESS_VIEW,
+    Permissions.VARIATION_REQUEST,
+    Permissions.VARIATION_REVIEW,
+    Permissions.REPORT_VIEW,
+    Permissions.TENDER_VIEW,
+    Permissions.INSPECTION_VIEW,
+    Permissions.INSPECTION_REVIEW,
+    Permissions.QUOTE_VIEW,
+    Permissions.INVOICE_VIEW,
+    Permissions.INVOICE_CREATE,
+    Permissions.INVOICE_SEND,
+  ],
+  // SITE_ENGINEER: field delivery — diary, progress, inventory, crews;
+  // money section scoped to inventory (no financial tracker).
+  [Roles.SITE_ENGINEER]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.BOQ_VIEW,
+    Permissions.SITE_DIARY_CREATE,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_RECORD,
+    Permissions.PROGRESS_VIEW,
+    Permissions.REPORT_VIEW,
+    Permissions.TENDER_VIEW,
+    Permissions.INSPECTION_VIEW,
+  ],
+  // TRADE_LEAD: trade contractor lead — field ops + own invoicing view.
+  [Roles.TRADE_LEAD]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.BOQ_VIEW,
+    Permissions.SITE_DIARY_CREATE,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_RECORD,
+    Permissions.PROGRESS_VIEW,
+    Permissions.REPORT_VIEW,
+    Permissions.TENDER_VIEW,
+    Permissions.TENDER_BID,
+    Permissions.INSPECTION_VIEW,
+    Permissions.INVOICE_VIEW,
+  ],
+  // FOREMAN: crew-level field ops.
+  [Roles.FOREMAN]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.SITE_DIARY_CREATE,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_RECORD,
+    Permissions.PROGRESS_VIEW,
+    Permissions.INSPECTION_VIEW,
+  ],
+  // WORKER: minimal field — diary log + progress + plans view.
+  [Roles.WORKER]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.SITE_DIARY_CREATE,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_VIEW,
+    Permissions.INSPECTION_VIEW,
+  ],
+  // VIEWER: strict read-only across the workspace.
+  [Roles.VIEWER]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.BOQ_VIEW,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_VIEW,
+    Permissions.REPORT_VIEW,
+    Permissions.TENDER_VIEW,
+    Permissions.INSPECTION_VIEW,
+    Permissions.QUOTE_VIEW,
+    Permissions.INVOICE_VIEW,
   ],
 };
 
