@@ -15,6 +15,7 @@ import CommitmentsView from './CommitmentsView';
 import ProjectOnboardingView from './ProjectOnboardingView';
 import AnnouncementsView from './AnnouncementsView';
 import InboxView from './InboxView';
+import ObservationsView from './ObservationsView';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
 import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import SiteInventoryManagementView from './SiteInventoryManagementView';
@@ -59,7 +60,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox' | 'observations'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
@@ -175,6 +176,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           { id: 'project', label: '🏗️ Project' },
           { id: 'announcements', label: '📣 Announcements' },
           { id: 'inbox', label: '✉️ Inbox' },
+          { id: 'observations', label: '🔍 Observations' },
           { id: 'inspections', label: '🕵️ Site Inspections' },
           { id: 'tenders', label: '📑 Tender Board' },
           { id: 'closeout', label: '🏆 Closeout & Retention' },
@@ -642,6 +644,9 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
 
       {/* Announcements (Gate-5 G5-1) */}
       {(activeTab === 'all' || activeTab === 'announcements') && <AnnouncementsView canManage={true} />}
+
+      {/* Observations & corrective actions (Gate-5 G5-4) */}
+      {(activeTab === 'all' || activeTab === 'observations') && <ObservationsView projectId="project-rcp-2026" canManage={true} />}
 
       {/* Team inbox (Gate-5 G5-3) */}
       {(activeTab === 'all' || activeTab === 'inbox') && <InboxView currentUserId={user?.id} />}

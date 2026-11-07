@@ -33,3 +33,4 @@
 20. **Prisma Decimal `.toString()` drops trailing zeros**: `Decimal('10000.00').toString()` → `'10000'`. API money fields must use `.toFixed(2)` when a stable 2dp string contract is expected (approval limits, budgets).
 21. **Include-then-write staleness**: `tx.model.create({include})` returns rows fetched BEFORE subsequent writes in the same tx — re-`findUniqueOrThrow` after `recordCoEvent`/audit writes if the response must contain them.
 22. **Legacy status normalization**: keep `normalizeCoStatus` at read boundaries; guarded `updateMany({where:{status: <raw stored>}})` claims transitions AND migrates legacy rows in one write.
+- 2026-11-08: verify-local lint (tsc) catches unused vars that vitest tolerates — ALWAYS run 'pnpm --filter @construction/api exec tsc --noEmit' (and web) before committing test files; vitest passing is not sufficient.

@@ -25,6 +25,7 @@ import { AsphaltPavementView } from './AsphaltPavementView';
 import { TopographicSurveyView } from './TopographicSurveyView';
 import InboxView from './InboxView';
 import AnnouncementsView from './AnnouncementsView';
+import ObservationsView from './ObservationsView';
 
 interface SupervisorDashboardProps {
   session: AuthSession;
@@ -319,6 +320,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}
       {/* Team inbox + announcements (Gate-5 G5-1/G5-3) */}
       <InboxView currentUserId={session?.user?.id} />
+      <ObservationsView projectId="project-rcp-2026" canManage={true} />
       <AnnouncementsView canManage={false} />
 
       <QualityControlView

@@ -192,6 +192,8 @@ model Project {
   payment_applications  PaymentApplication[]
   announcements         Announcement[]
   inbox_messages        InboxMessage[]
+  site_observations     SiteObservation[]
+  corrective_actions    CorrectiveAction[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -2617,4 +2619,59 @@ model InboxMessageRead {
   @@unique([message_id, user_id])
   @@index([tenant_id, message_id])
   @@map("inbox_message_reads")
+}
+
+// -------------------------------------------------------------
+// OBSERVATIONS & CORRECTIVE ACTIONS (Gate-5 G5-4): observed Site >
+// Observations / Action plans. Observation raised during walks/
+// inspections; corrective actions link back via source ref.
+// -------------------------------------------------------------
+
+model SiteObservation {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  obs_number      Int       // Sequential per project (OBS-001…)
+  title           String    @db.VarChar(255)
+  type            String    @default("QUALITY") @db.VarChar(20) // "QUALITY","SAFETY","ENVIRONMENTAL","COMMISSIONING"
+  priority        String    @default("MEDIUM") @db.VarChar(10) // "LOW","MEDIUM","HIGH"
+  location        String?   @db.VarChar(255) // e.g. "Level 2 — Grid C4"
+  description     String    @db.Text
+  status          String    @default("OPEN") @db.VarChar(15) // "OPEN","IN_REVIEW","CLOSED"
+  raised_by_id    String?   @db.Uuid
+  raised_by_name  String    @db.VarChar(255)
+  closed_at       DateTime? @db.Timestamptz
+  closed_by_name  String?   @db.VarChar(255)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  corrective_actions CorrectiveAction[]
+
+  @@unique([project_id, obs_number])
+  @@index([tenant_id, project_id, status])
+  @@map("site_observations")
+}
+
+model CorrectiveAction {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  observation_id  String?   @db.Uuid
+  title           String    @db.VarChar(255)
+  owner_name      String    @db.VarChar(255)
+  due_date        DateTime? @db.Date
+  source_ref      String?   @db.VarChar(50) // e.g. "OBS-003" or external ref
+  steps           String[]  @default([]) // ordered action steps
+  status          String    @default("ACTIVE") @db.VarChar(15) // "ACTIVE","COMPLETED"
+  completed_at    DateTime? @db.Timestamptz
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  observation     SiteObservation? @relation(fields: [observation_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, project_id, status])
+  @@map("corrective_actions")
 }

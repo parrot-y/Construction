@@ -89,7 +89,7 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     '/api/v1/inbox',
     { preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)] },
     async (request, reply) => {
-      const { tenantId, sub, role } = request.user;
+      const { tenantId, sub } = request.user;
       const parsed = SendInboxMessageSchema.safeParse(request.body);
       if (!parsed.success) {
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid message', details: parsed.error.errors });

@@ -1955,3 +1955,42 @@ export const SendInboxMessageSchema = z.object({
   parentId: z.string().uuid().optional().nullable(),
 });
 export type SendInboxMessage = z.infer<typeof SendInboxMessageSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-4: Site observations & corrective actions
+// -----------------------------------------------------------------------------
+
+export const ObservationTypeEnum = z.enum(['QUALITY', 'SAFETY', 'ENVIRONMENTAL', 'COMMISSIONING']);
+export const ObservationPriorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH']);
+export const ObservationStatusEnum = z.enum(['OPEN', 'IN_REVIEW', 'CLOSED']);
+
+export const CreateObservationSchema = z.object({
+  title: z.string().min(3).max(255),
+  type: ObservationTypeEnum.default('QUALITY'),
+  priority: ObservationPriorityEnum.default('MEDIUM'),
+  location: z.string().max(255).optional().nullable(),
+  description: z.string().min(3).max(10000),
+});
+export type CreateObservation = z.infer<typeof CreateObservationSchema>;
+
+export const UpdateObservationStatusSchema = z.object({
+  status: ObservationStatusEnum,
+  note: z.string().max(2000).optional(),
+});
+
+export const CreateCorrectiveActionSchema = z.object({
+  title: z.string().min(3).max(255),
+  ownerName: z.string().min(2).max(255),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  observationId: z.string().uuid().optional().nullable(),
+  sourceRef: z.string().max(50).optional().nullable(),
+  steps: z.array(z.string().min(1).max(500)).max(20).default([]),
+});
+export type CreateCorrectiveAction = z.infer<typeof CreateCorrectiveActionSchema>;
+
+export const UpdateCorrectiveActionSchema = z.object({
+  status: z.enum(['ACTIVE', 'COMPLETED']).optional(),
+  steps: z.array(z.string().min(1).max(500)).max(20).optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  ownerName: z.string().min(2).max(255).optional(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });

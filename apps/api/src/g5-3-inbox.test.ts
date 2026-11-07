@@ -13,7 +13,6 @@ describe('Gate-5 G5-3: Team inbox', () => {
   let supervisorCookie: string;
   let tenantAId: string;
   let projectId: string;
-  let memberUserId: string;
 
   async function list(cookie: string, qs = '') {
     const res = await server.inject({ method: 'GET', url: `/api/v1/inbox${qs}`, headers: { cookie } });
@@ -37,10 +36,7 @@ describe('Gate-5 G5-3: Team inbox', () => {
       tx.project.findFirst({ where: { tenant_id: tenantAId }, include: { members: true } }),
     );
     projectId = proj!.id;
-    const nonMember = await withTenantTx(prisma, tenantAId, async (tx) =>
-      tx.user.findFirst({ where: { email: 'client@apexbuilders.co.ke' } }),
-    );
-    memberUserId = nonMember!.id;
+    // (non-member lookup removed — visibility covered by role/audience tests)
   });
 
   it('sends PROJECT_TEAM message visible to project members + admin, hidden from non-members', async () => {
@@ -55,8 +51,6 @@ describe('Gate-5 G5-3: Team inbox', () => {
     const pmList = await list(pmCookie);
     expect(pmList.body.data.some((m: any) => m.id === msg.id)).toBe(true);
 
-    // supervisor is a project member in seed? check via list — if member, sees it
-    const supList = await list(supervisorCookie);
     // admin sees all tenant messages
     const adminList = await list(adminCookie);
     expect(adminList.body.data.some((m: any) => m.id === msg.id)).toBe(true);
