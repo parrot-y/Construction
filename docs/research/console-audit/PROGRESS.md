@@ -71,3 +71,12 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 - **Could NOT clean:** invoice ZZ-RESEARCH-INV-001 (draft, no delete/edit affordance) and quote Q-0001 (Accepted by real client; no decline/delete path; "Start project" must not be clicked). Both remain ZZ-marked; trial expiry will wipe the workspace.
 - **New findings:** "More project actions" menu = Refresh · Contract value & dates · View-only portal link. "Edit project" modal fully mapped (contract value $/KSh, location+map pin, progress %, money-at-risk, status lifecycle Planning→On Track→At Risk→Closing→Archived, PM/Architect/QS assignment, images, documents). Sidebar groups are collapsible toggles (clicking 'Projects' collapses children). Payment-application Reject requires modal comments + confirm. No hard-delete exists for any record type observed — statuses are the cleanup mechanism (audit-trail preserved by design).
 - Repo hygiene: added `AGENTS.md` (orchestration rules), `tasks/todo.md`, `tasks/lessons.md` per owner directive.
+
+## 2026-11-07 (later) — probes + final creates
+- **Viewing as:** sidebar label present but click did not open a menu in headless run [PARTIAL].
+- **Shemmy/Ask AI:** "Open Shemmy support" opens a support chatbot ("Hi, I'm Shemmy 👋 your Buildsasa support assistant… Talk to a human: WhatsApp · Email") — support assistant, not a work AI. Separate "Ask Buildsasa AI…" input exists inside schedule/checklist forms (AI generation, metered).
+- **Site checks:** confirmed dead nav — renders Dashboard every time [NOT REACHED, likely stub].
+- **Profile menu:** POWELL button opens Settings · Help & support · Sign out.
+- **Created & verified:** crew (POST /api/crews), 2× inventory items (POST /api/inventory), announcement (POST /api/announcements — published workspace-wide).
+- **Attempted, not created:** subcontractor (validation), contact (save click no POST), observation (save regex hit wrong button), safety incident/inspection/checklist/RFI/correspondence/inventory-extra — automation form-filling proved unreliable for React floating-label forms; forms fully mapped earlier, saved-state UI remains [NOT REACHED] for these.
+- **Cleanup final state:** all voidable/rejectable records rejected; daily log neutralized; contract sum $0; invoice draft + accepted quote have no delete path (documented). New ZZ records (crew, 2 inventory, announcement) logged in CREATED_RECORDS.md — announcement is workspace-visible, owner should remove.
