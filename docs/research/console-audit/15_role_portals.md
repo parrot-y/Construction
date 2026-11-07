@@ -51,3 +51,12 @@ Reports · Company documents · Unfiled documents · Filters · Export PDF · re
 - **Company documents** (Files): categories Policies / Templates / Certifications / Insurance / HR / Legal + **expiry tracking** ("which documents expire soon?") + Upload. "Unfiled documents" triage.
 - **Reports**: Financial / Operational / By Project / By Region / Custom / **Scheduled** + Export PDF/Excel.
 - Every list has an "Ask Buildsasa AI" inline prompt scoped to that module.
+
+## Second deep-dive pass (PM account)
+
+- **Safety**: "Safety incidents" register + Report button (maps to our SafetyIncidentLogView).
+- **Inspections**: "New Request" flow.
+- **Punch list**: CSV + PDF export, Create Punch Item (covered by snag module; export pending).
+- **Assignments**: "Assignments by trade" + "Assign a form" — checklist/form assignment with statuses Draft/Assigned/In Progress/Submitted/Approved/Rejected, trade+project filters.
+- **Coordination**: "Coordination issues" unified RFIs & issues search (our RFI module covers base; unified view pending).
+- **Checklists > New Template**: title, 15 trade categories (General/Masonry/Concrete/Steel Fixing/Carpentry/Electrical/Plumbing/Painting/Tiling & Flooring/Roofing/Structural Steel/Welding & Fabrication/Glazing & Aluminium/Waterproofing/Scaffolding), kind (safety/quality/pre-handover/custom), **Global template flag**, question builder: Text/Number/Date/Yes-No/Pass-Fail/Dropdown/Checkbox/Photo/Signature + required + options.

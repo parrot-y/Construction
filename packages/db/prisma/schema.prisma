@@ -197,6 +197,7 @@ model Project {
   crews                 Crew[]
   correspondence_items  CorrespondenceItem[]
   daily_attendances     DailyAttendance[]
+  checklist_assignments ChecklistAssignment[]
   scheduled_reports     ScheduledReport[]
 
   @@unique([tenant_id, code])
@@ -2876,4 +2877,54 @@ model DailyAttendance {
   @@unique([tenant_id, project_id, laborer_id, work_date])
   @@index([tenant_id, project_id, work_date])
   @@map("daily_attendances")
+}
+
+// -------------------------------------------------------------
+// CHECKLIST TEMPLATES & ASSIGNMENTS (Gate-5 G5-6): observed Site >
+// Checklists (New Template form builder) + Assignments (Assign a
+// form, statuses Draft→Assigned→In Progress→Submitted→
+// Approved/Rejected). Templates are reusable across projects
+// (is_global) or project-scoped via assignments.
+// -------------------------------------------------------------
+
+model ChecklistTemplate {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  title           String    @db.VarChar(255)
+  trade_category  String    @db.VarChar(50) // 15 observed trades + GENERAL/CUSTOM
+  kind            String    @default("CUSTOM") @db.VarChar(15) // "SAFETY","QUALITY","PRE_HANDOVER","CUSTOM"
+  is_global       Boolean   @default(false) // available to all projects
+  questions       Json      @default("[]") // [{text,type,options?,required}]
+  status          String    @default("ACTIVE") @db.VarChar(10) // "ACTIVE","ARCHIVED"
+  created_by_id   String?   @db.Uuid
+  created_by_name String?   @db.VarChar(255)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  @@index([tenant_id, trade_category, status])
+  @@map("checklist_templates")
+}
+
+model ChecklistAssignment {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  template_id     String?   @db.Uuid
+  title           String    @db.VarChar(255) // snapshot of template title or custom
+  trade           String    @db.VarChar(100) // assigned trade label
+  assigned_to_name String?  @db.VarChar(255)
+  due_date        DateTime? @db.Date
+  status          String    @default("DRAFT") @db.VarChar(15) // "DRAFT","ASSIGNED","IN_PROGRESS","SUBMITTED","APPROVED","REJECTED"
+  responses       Json?     // [{questionIdx, answer, notes?}]
+  submitted_at    DateTime? @db.Timestamptz
+  reviewed_by_name String?  @db.VarChar(255)
+  review_notes    String?   @db.Text
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, status])
+  @@map("checklist_assignments")
 }

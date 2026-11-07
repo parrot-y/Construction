@@ -2143,3 +2143,56 @@ export const CheckInOutSchema = z.object({
   workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   notes: z.string().max(2000).optional().nullable(),
 });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-6: Checklist templates & assignments
+// -----------------------------------------------------------------------------
+
+export const ChecklistQuestionTypeEnum = z.enum(['TEXT', 'NUMBER', 'DATE', 'YES_NO', 'PASS_FAIL', 'DROPDOWN', 'CHECKBOX', 'PHOTO', 'SIGNATURE']);
+
+export const ChecklistQuestionSchema = z.object({
+  text: z.string().min(2).max(500),
+  type: ChecklistQuestionTypeEnum.default('TEXT'),
+  options: z.array(z.string().min(1).max(100)).max(20).optional(),
+  required: z.boolean().default(false),
+});
+export type ChecklistQuestion = z.infer<typeof ChecklistQuestionSchema>;
+
+export const ChecklistTradeEnum = z.enum([
+  'GENERAL', 'MASONRY', 'CONCRETE', 'STEEL_FIXING', 'CARPENTRY', 'ELECTRICAL',
+  'PLUMBING', 'PAINTING', 'TILING_FLOORING', 'ROOFING', 'STRUCTURAL_STEEL',
+  'WELDING_FABRICATION', 'GLAZING_ALUMINIUM', 'WATERPROOFING', 'SCAFFOLDING', 'CUSTOM',
+]);
+
+export const CreateChecklistTemplateSchema = z.object({
+  title: z.string().min(3).max(255),
+  tradeCategory: ChecklistTradeEnum.default('GENERAL'),
+  kind: z.enum(['SAFETY', 'QUALITY', 'PRE_HANDOVER', 'CUSTOM']).default('CUSTOM'),
+  isGlobal: z.boolean().default(false),
+  questions: z.array(ChecklistQuestionSchema).min(1).max(100),
+});
+export type CreateChecklistTemplate = z.infer<typeof CreateChecklistTemplateSchema>;
+
+export const CreateChecklistAssignmentSchema = z.object({
+  templateId: z.string().uuid().optional().nullable(),
+  title: z.string().min(3).max(255),
+  trade: z.string().min(2).max(100),
+  assignedToName: z.string().max(255).optional().nullable(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+export type CreateChecklistAssignment = z.infer<typeof CreateChecklistAssignmentSchema>;
+
+export const SubmitChecklistResponseSchema = z.object({
+  responses: z.array(z.object({
+    questionIdx: z.number().int().min(0),
+    answer: z.union([z.string().max(5000), z.boolean(), z.number()]),
+    notes: z.string().max(2000).optional(),
+  })).min(1).max(200),
+});
+export type SubmitChecklistResponse = z.infer<typeof SubmitChecklistResponseSchema>;
+
+export const ReviewChecklistAssignmentSchema = z.object({
+  decision: z.enum(['APPROVE', 'REJECT']),
+  notes: z.string().max(5000).optional().nullable(),
+});
+export type ReviewChecklistAssignment = z.infer<typeof ReviewChecklistAssignmentSchema>;
