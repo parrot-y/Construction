@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import MilestoneTimeline, { TimelineItem } from './MilestoneTimeline';
@@ -42,35 +42,97 @@ interface ClientDashboardProps {
   timeline?: TimelineItem[];
 }
 
+const DEFAULT_PROJECT = {
+  id: 'project-rcp-2026',
+  name: 'Riverside Commercial Plaza',
+  code: 'RCP-2026',
+  location: 'Riverside Drive, Nairobi',
+  ncaRegistration: 'NCA-PRJ-2026-0891',
+  startDate: '2026-01-15',
+  expectedCompletionDate: '2026-12-15',
+};
+const DEFAULT_FINANCIALS = {
+  originalAgreedBudget: '45000000.00',
+  approvedVariationsTotal: '900000.00',
+  currentApprovedBudget: '45900000.00',
+  totalSpentToDate: '4500000.00',
+  remainingBalance: '41400000.00',
+  budgetUsedPercentage: 9.8,
+};
+const DEFAULT_PROGRESS = {
+  physicalProgressPercentage: 12.0,
+  varianceDelta: -2.2,
+  healthStatus: 'ON_TRACK' as const,
+  healthNotice: 'Expenditure is aligned with recorded physical progress.',
+};
+
 export default function ClientDashboard({
   session,
-  projectData = {
-    id: 'project-rcp-2026',
-    name: 'Riverside Commercial Plaza',
-    code: 'RCP-2026',
-    location: 'Riverside Drive, Nairobi',
-    ncaRegistration: 'NCA-PRJ-2026-0891',
-    startDate: '2026-01-15',
-    expectedCompletionDate: '2026-12-15',
-  },
-  financials = {
-    originalAgreedBudget: '45000000.00',
-    approvedVariationsTotal: '900000.00',
-    currentApprovedBudget: '45900000.00',
-    totalSpentToDate: '4500000.00',
-    remainingBalance: '41400000.00',
-    budgetUsedPercentage: 9.8,
-  },
-  progress = {
-    physicalProgressPercentage: 12.0,
-    varianceDelta: -2.2,
-    healthStatus: 'ON_TRACK',
-    healthNotice: 'Expenditure is aligned with recorded physical progress.',
-  },
-  photos,
-  timeline,
+  projectData: projectDataProp,
+  financials: financialsProp,
+  progress: progressProp,
+  photos: photosProp,
+  timeline: timelineProp,
 }: ClientDashboardProps): React.JSX.Element {
   const { user } = session;
+
+  const [projectData, setProjectData] = useState(projectDataProp ?? DEFAULT_PROJECT);
+  const [financials, setFinancials] = useState(financialsProp ?? DEFAULT_FINANCIALS);
+  const [progress, setProgress] = useState(progressProp ?? DEFAULT_PROGRESS);
+  const [photos, setPhotos] = useState(photosProp);
+  const [timeline, setTimeline] = useState(timelineProp);
+
+  // Hydrate from the live client-portal endpoint (real project data).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const plist = await fetch('/api/v1/projects', { credentials: 'include' });
+        if (!plist.ok) return;
+        const pj = await plist.json();
+        const first = (pj.data || [])[0];
+        if (!first?.id) return;
+        const res = await fetch(`/api/v1/projects/${first.id}/client-portal`, { credentials: 'include' });
+        if (!res.ok) return;
+        const json = await res.json();
+        const d = json.data || json;
+        if (cancelled || !d?.project) return;
+        setProjectData({
+          id: d.project.id,
+          name: d.project.name,
+          code: d.project.code,
+          location: d.project.location || '',
+          ncaRegistration: d.project.nca_registration_no || '',
+          startDate: d.project.start_date || '',
+          expectedCompletionDate: d.project.expected_completion_date || '',
+        });
+        if (d.financials) setFinancials({
+          originalAgreedBudget: d.financials.original_agreed_budget,
+          approvedVariationsTotal: d.financials.approved_variations_total,
+          currentApprovedBudget: d.financials.current_approved_budget,
+          totalSpentToDate: d.financials.total_spent_to_date,
+          remainingBalance: d.financials.remaining_balance,
+          budgetUsedPercentage: d.financials.budget_used_percentage,
+        });
+        if (d.progress) setProgress({
+          physicalProgressPercentage: d.progress.physical_progress_percentage,
+          varianceDelta: d.progress.variance_delta,
+          healthStatus: d.progress.health_status,
+          healthNotice: d.progress.health_notice,
+        });
+        if (d.photo_evidence) setPhotos(d.photo_evidence.map((p: any) => ({
+          id: p.id, url: p.url || p.storage_key, caption: p.caption,
+          takenAt: p.taken_at || p.captured_at, location: p.location,
+        })));
+        if (d.timeline) setTimeline(d.timeline.map((t: any) => ({
+          id: t.id, percentage: t.percentage, notes: t.notes,
+          recordedAt: t.recorded_at, itemDescription: t.item_description,
+          sectionCode: t.section_code,
+        })));
+      } catch { /* keep demo defaults */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   type CurrencyCode = 'KES' | 'USD' | 'GBP' | 'EUR' | 'AED';
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('KES');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthSession } from '../types/auth';
 import CostCaptureModal from './CostCaptureModal';
 import SiteDiaryModal from './SiteDiaryModal';
@@ -43,6 +43,18 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
   const [showCostModal, setShowCostModal] = useState(false);
   const [costSuccess, setCostSuccess] = useState<string | null>(null);
   const [todayHeadcount, setTodayHeadcount] = useState<number>(17);
+  const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [pid, setPid] = useState('project-rcp-2026');
+  useEffect(() => {
+    fetch('/api/v1/projects', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((j) => {
+        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code }));
+        setProjects(list);
+        if (list.length) setPid(list[0].id);
+      })
+      .catch(() => setProjects([]));
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -58,8 +70,14 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {projects.length > 1 && (
+            <select value={pid} onChange={(e) => setPid(e.target.value)}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs max-w-[200px]">
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+            </select>
+          )}
           <a
-            href="/api/v1/projects/project-rcp-2026/reports/site-diary/latest"
+            href={`/api/v1/projects/${pid}/reports/site-diary/latest`}
             download
             data-testid="download-site-diary-btn"
             className="px-3.5 py-2 text-xs font-semibold bg-amber-700 hover:bg-amber-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
@@ -71,7 +89,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
             <span>Daily Diary (PDF)</span>
           </a>
           <a
-            href="/api/v1/projects/project-rcp-2026/reports/summary"
+            href={`/api/v1/projects/${pid}/reports/summary`}
             download
             data-testid="download-summary-btn"
             className="px-3.5 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
@@ -214,123 +232,123 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
 
       {/* Interactive Project Schedule & Gantt View */}
       <ProjectScheduleGanttView
-        projectId="project-rcp-2026"
+        projectId={pid}
         canEdit={true}
       />
 
       {/* Site Store Materials & Inventory View */}
       <SiteInventoryManagementView
-        projectId="project-rcp-2026"
+        projectId={pid}
         canManage={true}
       />
 
       {/* Safety & HSE Incident Register (OSHA 2007) */}
       <SafetyIncidentLogView
-        projectId="project-rcp-2026"
+        projectId={pid}
         canLog={true}
         canInvestigate={true}
       />
 
       {/* Project Drawing & Regulatory Document Vault */}
       <ProjectDocumentVaultView
-        projectId="project-rcp-2026"
+        projectId={pid}
         canUpload={true}
       />
 
       {/* Site Store Material Purchase Requisitions */}
       <MaterialRequisitionView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="SITE_SUPERVISOR"
       />
 
       {/* Material Wastage & Theoretical Loss Engine */}
       <MaterialWastageVarianceCard
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* Plant, Machinery & Fuel Siphoning Audit (Milestone M16) */}
       <PlantEquipmentView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="SITE_SUPERVISOR"
       />
 
       {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
       <LaborMusterRollView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="SITE_SUPERVISOR"
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
       <SafetyAuditScorecardView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="SITE_SUPERVISOR"
       />
 
       {/* WhatsApp & SMS Site Webhook Feed (Milestone M20) */}
       <WhatsAppSiteWebhookView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="SITE_SUPERVISOR"
       />
 
       {/* Project Geofencing & Biometric Mobile Clock-In (Milestone M23) */}
       <GeofencedClockInView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
       <PlantTelematicsView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* BS 8666 / KS 02-598 Rebar Cutting Lists & Steel-Fixing Schedules (Milestone M25) */}
       <BarBendingScheduleView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* BS EN 206 / KS 02-598 Ready-Mix Concrete Transit Slump Tracker (Milestone M27) */}
       <RmcTransitTrackerView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* Geotechnical Soil Compaction QA Engine (Milestone M29) */}
       <GeotechnicalSoilView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* Asphalt Pavement Quality & Thermal Tracker (Milestone M30) */}
       <AsphaltPavementView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* Survey & Topographic Cut/Fill Earthworks Engine (Milestone M31) */}
       <TopographicSurveyView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}
       {/* Team inbox + announcements (Gate-5 G5-1/G5-3) */}
       <InboxView currentUserId={session?.user?.id} />
-      <ObservationsView projectId="project-rcp-2026" canManage={true} />
+      <ObservationsView projectId={pid} canManage={true} />
       <CrewsView canManage={true} />
       <AttendanceView canManage={true} />
       <ChecklistsView canManage={true} />
       <AnnouncementsView canManage={false} />
 
       <QualityControlView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         canApprove={true}
         defaultTab="checklists"
@@ -338,7 +356,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
 
       {/* Practical Completion Snagging & Punch List Register */}
       <SnaggingListView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         canAdd={true}
         canRectify={true}
@@ -349,7 +367,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       <SiteDiaryModal
         isOpen={showDiaryModal}
         onClose={() => setShowDiaryModal(false)}
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         onDiarySubmitted={(diary) => {
           const totalCount = diary.laborHeadcounts?.reduce((acc: number, c: any) => acc + (c.headcount || 0), 0) || 17;
@@ -362,7 +380,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       <PhysicalProgressModal
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         onProgressRecorded={(prog) => {
           const pct = prog.overallProgress ? (parseFloat(prog.overallProgress) * 100).toFixed(1) : '15.0';
@@ -374,7 +392,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
       <CostCaptureModal
         isOpen={showCostModal}
         onClose={() => setShowCostModal(false)}
-        projectId="project-rcp-2026"
+        projectId={pid}
         onCostCreated={(cost) => {
           setCostSuccess(`Site expense logged: KES ${cost.amount} (${cost.cost_category}) in PENDING status`);
         }}

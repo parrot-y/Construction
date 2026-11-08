@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
@@ -32,6 +32,18 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [projectSuccess, setProjectSuccess] = useState<string | null>(null);
+  const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [pid, setPid] = useState('project-rcp-2026');
+  useEffect(() => {
+    fetch('/api/v1/projects', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((j) => {
+        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code }));
+        setProjects(list);
+        if (list.length) setPid(list[0].id);
+      })
+      .catch(() => setProjects([]));
+  }, []);
 
   // Invite Form State
   const [inviteEmail, setInviteEmail] = useState('');
@@ -78,6 +90,12 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {projects.length > 1 && (
+            <select value={pid} onChange={(e) => setPid(e.target.value)}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs max-w-[200px] self-center">
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+            </select>
+          )}
           <button
             onClick={() => setShowProjectModal(true)}
             className="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition"
@@ -294,72 +312,72 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
 
       {/* External Stakeholder Portals Manager (Zero Seat Tax) */}
       <PortalAccessLinkManager
-        projectId="project-rcp-2026"
+        projectId={pid}
         onPreviewPortal={onPreviewPortal}
       />
 
       {/* Subcontractor Work Packages & Directory */}
       <SubcontractorManagementView
-        projectId="project-rcp-2026"
+        projectId={pid}
         canAward={true}
       />
 
       {/* Project Drawing & Regulatory Document Vault */}
       <ProjectDocumentVaultView
-        projectId="project-rcp-2026"
+        projectId={pid}
         canUpload={true}
       />
 
       {/* KRA Statutory Withholding Tax (Cap 470) & WHVAT Certificates */}
       <StatutoryTaxManagementView
-        projectId="project-rcp-2026"
+        projectId={pid}
         canIssue={true}
       />
 
       {/* Portfolio Cash Flow Forecasting & S-Curve */}
       <ProjectSCurveCashFlowCard
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* Subcontractor Valuations & Back-to-Back Retention Ledger */}
       <SubcontractorValuationView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="ADMIN"
       />
 
       {/* Heavy Machinery & Fuel Siphoning Audit (Milestone M16) */}
       <PlantEquipmentView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="COMPANY_ADMIN"
       />
 
       {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
       <LaborMusterRollView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="COMPANY_ADMIN"
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
       <SafetyAuditScorecardView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="COMPANY_ADMIN"
       />
 
       {/* KRA e-TIMS Tax Compliance Engine (Milestone M19) */}
       <ETimsTaxComplianceView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="COMPANY_ADMIN"
       />
 
       {/* Retention Releases & Contractor Performance Bonds (Milestone M21) */}
       <RetentionAndBondsView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         userRole="COMPANY_ADMIN"
       />
@@ -375,7 +393,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
 
       {/* Safaricom Daraja B2C Bulk Wages & Subcontractor Retention Disbursements (Milestone M26) */}
       <MpesaDisbursementView
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
