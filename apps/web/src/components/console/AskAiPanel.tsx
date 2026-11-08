@@ -32,10 +32,59 @@ const INTENTS: { pattern: RegExp; section: string; tab: string; answer: string }
   { pattern: /hello|hi|help|what can you/i, section: 'home', tab: '', answer: 'I can take you to any workspace section \u2014 try \u201cdaily log\u201d, \u201cinvoices\u201d, \u201cpunch list\u201d or \u201cteam\u201d.' },
 ];
 
-const SUGGESTIONS = ['Log today\u2019s site work', 'Show me invoices', 'Open punch list', 'Team directory'];
+const SUGGESTIONS = ['How many open snags?', 'Show me invoices', 'Open punch list', 'What\u2019s the budget status?'];
+
+/** Live-data intents — answer with real numbers from the API (honest, no LLM). */
+const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<string> }[] = [
+  {
+    pattern: /how many|count|number of|status of|open/i,
+    run: async (projectId: string) => {
+      if (!projectId) return '';
+      const get = (u: string) => fetch(u, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const [snags, variations, attendance] = await Promise.all([
+        get(`/api/v1/projects/${projectId}/snags`),
+        get(`/api/v1/projects/${projectId}/variations`),
+        get(`/api/v1/projects/${projectId}/attendance?days=1`),
+      ]);
+      const snagRows = (snags?.data || snags || []) as any[];
+      const openSnags = snagRows.filter((x) => !['CLOSED', 'RESOLVED', 'VERIFIED'].includes(String(x.status))).length;
+      const coRows = (variations?.data || variations || []) as any[];
+      const pendingCOs = coRows.filter((v) => ['DRAFT', 'PM_REVIEW', 'OWNER_REVIEW', 'SUBMITTED'].includes(String(v.status))).length;
+      const att = attendance?.data || attendance || {};
+      const todayCount = att.today_count ?? att.summary?.present ?? att.present_today ?? null;
+      const parts: string[] = [];
+      if (snagRows.length) parts.push(`${openSnags} open snag${openSnags === 1 ? '' : 's'} of ${snagRows.length}`);
+      if (coRows.length) parts.push(`${pendingCOs} change order${pendingCOs === 1 ? '' : 's'} awaiting action`);
+      if (todayCount !== null) parts.push(`${todayCount} labourers checked in today`);
+      return parts.length ? `Live project status: ${parts.join(' · ')}.` : '';
+    },
+  },
+  {
+    pattern: /overdue|unpaid|outstanding/i,
+    run: async (projectId: string) => {
+      if (!projectId) return '';
+      const j = await fetch(`/api/v1/invoices?projectId=${projectId}`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const rows = (j?.data || j || []) as any[];
+      if (!rows.length) return '';
+      const outstanding = rows.filter((i) => !['PAID', 'VOID'].includes(String(i.status)));
+      const total = outstanding.reduce((a, i) => a + Number(i.amount_due ?? i.total ?? i.amount ?? 0), 0);
+      return `${outstanding.length} unpaid invoice${outstanding.length === 1 ? '' : 's'} — KES ${total.toLocaleString('en-KE', { maximumFractionDigits: 0 })} outstanding.`;
+    },
+  },
+  {
+    pattern: /attendance|muster|who.*site|labou?r.*today/i,
+    run: async (projectId: string) => {
+      if (!projectId) return '';
+      const j = await fetch(`/api/v1/projects/${projectId}/attendance?days=1`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const d = j?.data || j || {};
+      const n = d.today_count ?? d.summary?.present ?? d.present_today;
+      return typeof n === 'number' ? `${n} labourer${n === 1 ? '' : 's'} are checked in today.` : '';
+    },
+  },
+];
 
 export default function AskAiPanel(): React.JSX.Element {
-  const { aiOpen, setAiOpen, setSection, setTab, nav } = useConsole();
+  const { aiOpen, setAiOpen, setSection, setTab, nav, projectId } = useConsole();
   const [msgs, setMsgs] = useState<Msg[]>([
     { role: 'bot', text: 'Hi — I\u2019m the Site Safi assistant. Tell me what you need and I\u2019ll take you to the right workspace section.' },
   ]);
@@ -54,6 +103,20 @@ export default function AskAiPanel(): React.JSX.Element {
     if (!q) return;
     setMsgs((m) => [...m, { role: 'user', text: q }]);
     setInput('');
+    const isQuestion = /how many|how much|status|count|open|overdue|today|many|much/i.test(q);
+    if (isQuestion) {
+      const din = DATA_INTENTS.find((d) => d.pattern.test(q));
+      if (din) {
+        din.run(projectId).then((answer) => {
+          if (answer) {
+            setMsgs((m) => [...m, { role: 'bot', text: answer }]);
+          } else {
+            setMsgs((m) => [...m, { role: 'bot', text: 'I couldn\u2019t pull live numbers for that — try asking about snags, change orders, invoices or attendance.' }]);
+          }
+        });
+        return;
+      }
+    }
     const hit = INTENTS.find((i) => i.pattern.test(q));
     if (hit) {
       const tabs = allowedTabs(hit.section);
