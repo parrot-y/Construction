@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { buildServer } from './index';
 import { enrollAllTenantUsers } from './test-members';
 
+async function loginToken(server: any, email: string): Promise<string> {
+  const res = await server.inject({
+    method: 'POST', url: '/api/v1/auth/login',
+    payload: { email, password: 'Password123!' },
+  });
+  return JSON.parse(res.payload).token;
+}
+
 describe('Security Penetration & Vulnerability Verification Suite (ADR-001 / Milestones M31-M32)', () => {
   it('SEC-01 & SEC-02: RBAC Intra-Tenant Role Guard Audit - CLIENT Role Mutation Rejection (403 Forbidden)', async () => {
     const server = buildServer();
@@ -18,6 +26,7 @@ describe('Security Penetration & Vulnerability Verification Suite (ADR-001 / Mil
     expect(loginRes.statusCode).toBe(200);
     const { token, user } = JSON.parse(loginRes.payload);
     const tenantId = user.tenant.id;
+    void tenantId;
 
     // 2. Create Project
     const projectRes = await server.inject({
@@ -119,13 +128,7 @@ describe('Security Penetration & Vulnerability Verification Suite (ADR-001 / Mil
     const batchId = JSON.parse(batchRes.payload).id;
 
     // 3. Mint JWT token with CLIENT role
-    const clientToken = server.jwt.sign({
-      sub: 'client-auditor-user',
-      email: 'client@auditor.co.ke',
-      fullName: 'Client Representative',
-      tenantId,
-      role: 'CLIENT',
-    });
+    const clientToken = await loginToken(server, 'client@apexbuilders.co.ke');
 
     // -------------------------------------------------------------------------
     // A. Geotechnical soil tests (POST /soil-tests) -> MUST RETURN 403

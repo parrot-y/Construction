@@ -44,7 +44,7 @@ const clearSessionCookies = (reply: any) => {
 export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/auth/login
   server.post('/api/v1/auth/login', {
-    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
   }, async (request, reply) => {
     const clientIp = request.ip || '127.0.0.1';
     const now = Date.now();

@@ -103,14 +103,17 @@ describe('Gate-4 S3: Change-order approval limits & lifecycle', () => {
       projectId = proj.id;
     await enrollAllTenantUsersTx(tx, tenantAId, projectId);
 
+      const qsUserRow = await tx.user.findUnique({ where: { email: 'qs@apexbuilders.co.ke' } });
       const qsMembership = await tx.membership.findFirst({
-        where: { tenant_id: tenantAId, role: 'PM_QS' },
+        where: { tenant_id: tenantAId, user_id: qsUserRow!.id },
       });
       qsMembershipId = qsMembership!.id;
 
       const qsUser = await tx.user.findUnique({ where: { id: qsMembership!.user_id } });
-      const pm = await tx.projectMember.create({
-        data: {
+      const pm = await tx.projectMember.upsert({
+        where: { project_id_user_id: { project_id: projectId, user_id: qsUser!.id } },
+        update: { role: 'PM_QS' },
+        create: {
           tenant_id: tenantAId,
           project_id: projectId,
           user_id: qsUser!.id,
