@@ -47,36 +47,6 @@ function quoteIsExpired(quote: any): boolean {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Public-route rate limiting (OWASP A07): in-memory sliding window per IP.
-// ---------------------------------------------------------------------------
-const PUBLIC_RATE_LIMIT_MAX = 30;
-const PUBLIC_RATE_LIMIT_WINDOW_MS = 60_000;
-const publicHits = new Map<string, number[]>();
-
-async function publicRateLimit(request: any, reply: any) {
-  const ip = request.ip || 'unknown';
-  const now = Date.now();
-  const hits = (publicHits.get(ip) ?? []).filter((t) => now - t < PUBLIC_RATE_LIMIT_WINDOW_MS);
-  if (hits.length >= PUBLIC_RATE_LIMIT_MAX) {
-    const retryAfter = Math.ceil((PUBLIC_RATE_LIMIT_WINDOW_MS - (now - (hits[0] ?? now))) / 1000);
-    reply.header('Retry-After', Math.max(1, retryAfter));
-    return reply.status(429).send({
-      statusCode: 429,
-      error: 'Too Many Requests',
-      message: 'Too many requests. Please try again later.',
-    });
-  }
-  hits.push(now);
-  publicHits.set(ip, hits);
-  // opportunistic cleanup
-  if (publicHits.size > 5000) {
-    for (const [k, v] of publicHits) {
-      if (v.every((t) => now - t >= PUBLIC_RATE_LIMIT_WINDOW_MS)) publicHits.delete(k);
-    }
-  }
-}
-
 function formatQuote(q: any) {
   if (!q) return null;
   const { share_token_hash: _shareTokenHash, ...rest } = q;
@@ -781,7 +751,9 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
   // -------------------------------------------------------------------------
   // PUBLIC: GET /api/public/quotes/:token - View shared quote
   // -------------------------------------------------------------------------
-  server.get('/api/public/quotes/:token', { preHandler: publicRateLimit }, async (request, reply) => {
+  server.get('/api/public/quotes/:token', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolveQuoteLink(token);
     if (!link) {
@@ -828,7 +800,9 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
   // -------------------------------------------------------------------------
   // PUBLIC: POST /api/public/quotes/:token/respond - Accept / decline / comment
   // -------------------------------------------------------------------------
-  server.post('/api/public/quotes/:token/respond', { preHandler: publicRateLimit }, async (request, reply) => {
+  server.post('/api/public/quotes/:token/respond', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
     const { token } = request.params as { token: string };
     const parsed = PublicQuoteRespondSchema.safeParse(request.body);
     if (!parsed.success) {

@@ -6,6 +6,8 @@ export interface TokenPayload {
   fullName: string;
   tenantId: string;
   role: string;
+  /** 'access' tokens may call APIs; 'refresh' tokens only /auth/refresh. */
+  typ?: 'access' | 'refresh';
 }
 
 declare module '@fastify/jwt' {

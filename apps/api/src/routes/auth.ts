@@ -23,9 +23,29 @@ setInterval(() => {
   }
 }, 60 * 1000).unref();
 
+const ACCESS_TTL = '15m';
+const REFRESH_TTL = '7d';
+
+const setSessionCookies = (reply: any, accessToken: string, refreshToken: string) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  reply.setCookie('access_token', accessToken, {
+    path: '/', httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 15 * 60,
+  });
+  reply.setCookie('refresh_token', refreshToken, {
+    path: '/api/v1/auth', httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60,
+  });
+};
+
+const clearSessionCookies = (reply: any) => {
+  reply.clearCookie('access_token', { path: '/' });
+  reply.clearCookie('refresh_token', { path: '/api/v1/auth' });
+};
+
 export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/auth/login
-  server.post('/api/v1/auth/login', async (request, reply) => {
+  server.post('/api/v1/auth/login', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
     const clientIp = request.ip || '127.0.0.1';
     const now = Date.now();
     const attempt = failedLoginsMap.get(clientIp);
@@ -133,7 +153,7 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       });
     }
 
-    const tokenPayload = {
+    const tokenPayloadBase = {
       sub: user.id,
       email: user.email,
       fullName: user.full_name,
@@ -141,16 +161,22 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       role: activeMembership.role,
     };
 
-    const token = server.jwt.sign(tokenPayload, { expiresIn: '7d' });
+    const tokenPayload = { ...tokenPayloadBase, typ: 'access' as const };
+    const token = server.jwt.sign(tokenPayload, { expiresIn: ACCESS_TTL });
+    const refreshToken = server.jwt.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        tenantId: activeMembership.tenant_id,
+        role: activeMembership.role,
+        typ: 'refresh' as const,
+      },
+      { expiresIn: REFRESH_TTL },
+    );
 
-    // Set HTTP-only secure cookie
-    reply.setCookie('access_token', token, {
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-    });
+    // Short-lived access cookie + rotating refresh cookie (audit S-01)
+    setSessionCookies(reply, token, refreshToken);
 
     const permissions = getPermissionsForRole(activeMembership.role as Role);
 
@@ -177,11 +203,67 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
   // POST /api/v1/auth/logout
   server.post('/api/v1/auth/logout', async (_request, reply) => {
-    reply.clearCookie('access_token', { path: '/' });
+    clearSessionCookies(reply);
     return reply.status(200).send({
       success: true,
       message: 'Logged out successfully',
     });
+  });
+
+  // POST /api/v1/auth/refresh — rotate the refresh token and issue a new pair
+  server.post('/api/v1/auth/refresh', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const refreshToken = request.cookies?.refresh_token;
+    if (!refreshToken) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Missing refresh token' });
+    }
+    let payload: any;
+    try {
+      payload = server.jwt.verify(refreshToken);
+    } catch {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid refresh token' });
+    }
+    if (payload.typ !== 'refresh' || !payload.sub || !payload.tenantId) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid refresh token' });
+    }
+
+    const membership = await withTenantTx(prisma, payload.tenantId, async (tx) => {
+      const m = await tx.membership.findFirst({
+        where: { tenant_id: payload.tenantId, user_id: payload.sub },
+        include: { user: { select: { is_active: true, email: true, full_name: true } }, tenant: true },
+      });
+      return m;
+    });
+    if (!membership || !membership.user.is_active) {
+      clearSessionCookies(reply);
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Session revoked' });
+    }
+
+    const token = server.jwt.sign(
+      {
+        sub: membership.user_id ?? payload.sub,
+        email: membership.user.email,
+        fullName: membership.user.full_name,
+        tenantId: payload.tenantId,
+        role: membership.role,
+        typ: 'access',
+      },
+      { expiresIn: ACCESS_TTL },
+    );
+    const newRefresh = server.jwt.sign(
+      {
+        sub: payload.sub,
+        email: membership.user.email,
+        fullName: membership.user.full_name,
+        tenantId: payload.tenantId,
+        role: membership.role,
+        typ: 'refresh',
+      },
+      { expiresIn: REFRESH_TTL },
+    );
+    setSessionCookies(reply, token, newRefresh);
+    return reply.status(200).send({ success: true });
   });
 
   // GET /api/v1/auth/me

@@ -1,6 +1,8 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
+import rateLimit from '@fastify/rate-limit';
+import moduleGate from './plugins/moduleGate';
 import fs from 'node:fs';
 import path from 'node:path';
 import fastify, { FastifyError, FastifyInstance } from 'fastify';
@@ -84,6 +86,11 @@ export function buildServer(): FastifyInstance {
   // Upload storage root (local volume; object-storage driver slots in via UPLOAD_DRIVER)
   const uploadRoot = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
   fs.mkdirSync(uploadRoot, { recursive: true });
+
+  // Rate limiting (audit S-02): opt-in per route via config.rateLimit —
+  // global:false so test suites and high-frequency internal calls are unaffected.
+  server.register(rateLimit, { global: false });
+  server.register(moduleGate);
 
   // Multipart file upload (capped at 15MB per ADR-003)
   server.register(multipart, {

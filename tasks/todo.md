@@ -120,10 +120,10 @@
   - B1: SubcontractorManagementView + MaterialRequisitionView + MaterialWastageVarianceCard
   - B2: StatutoryTaxManagementView + ETimsTaxComplianceView + RetentionAndBondsView + WeatherDelayClaimsView + WhatsAppSiteWebhookView
   - B3: QualityControlView (inspections tab only — cube tests have no internal API, document) + PhotoEvidenceGallery + remaining stragglers
-- [ ] Seed accounts per role (DONE in seed.ts) + the reference platform portal comparison doc
+- [x] Seed accounts per role (DONE in seed.ts); parity-map doc removed per audit — parity goal dropped
 - [ ] Final verify-local + PROJECT_STATUS update
 - [x] Wave A+B subagent wiring complete — 20+ views live (see commit 80143d1)
-- [x] PORTAL_PARITY_MAP.md — the reference platform↔ours role/feature matrix + seed accounts
+- [x] ~~PORTAL_PARITY_MAP.md~~ removed — parity goal dropped per audit; seed accounts remain in seed.ts
 - [x] PATCH subcontractor package status endpoint + UI persistence
 - [ ] Known backend gaps (documented, not built): GET equipment-logs, GET telematics-devices list, GET SiteWebhookLog, subcontractor valuations PATCH?, Excel export, AI features, WhatsApp/SMS/eTIMS live providers, scheduled-report delivery
 - [x] Final verify-local GREEN on 80143d1 — 687/687
@@ -173,3 +173,14 @@ Captured every create form on contractor portal: CO, RFI, correspondence, safety
 - Shell now matches captured IA 1:1 at section+subtab level; inner views are our live implementations (not copies).
 - Honest gaps remaining: real AI backend (Ask AI is labelled rule-based nav assistant), AI Design SOON, drawing markup viewer, live eTIMS/WhatsApp provider creds, client-portal "Request a project" flow, deeper subtab internals beyond first-crawl depth.
 - Probe scripts contained reference credentials -> removed from HEAD; history still contains them (pre-scrub commits) — offer history rewrite if user wants.
+
+## Security audit remediation (post-parity, ordered)
+- [x] 1. Authorization: central route permission map + project-membership guard + guarded route test
+- [x] 2. Uploads: magic-byte verification, mime-derived ext, authenticated tenant-scoped serving, storage driver seam
+- [x] 3. M-Pesa honesty: simulated flags in API+UI, maker-checker B2C payouts
+- [x] 4. Real Prisma migrations (baseline + RLS) + deploy-step rls.sql re-enforcement; users/tenants RLS exception documented
+- [x] 5. Sessions: 15m access + 7d refresh rotation, per-request is_active/membership check, @fastify/rate-limit on login/refresh/public
+- [x] 6. Peripheral modules (plant/survey/tender/steel/asphalt/geofence) quarantinable via DISABLED_MODULES
+- [x] 7. PORTAL_PARITY_MAP.md removed; parity goal dropped
+- [ ] 8. PROJECT_STATUS.md update + seed production guard
+- [ ] Final verify-local green + evidence

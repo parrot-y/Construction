@@ -187,7 +187,6 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
 // Every entry MUST justify itself — the guard test enforces honesty.
 // ---------------------------------------------------------------------------
 export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
-  'POST /api/v1/auth/logout': 'Ends the caller\u2019s own session',
   'GET /api/v1/auth/me': 'Returns the caller\u2019s own profile',
   'PATCH /api/v1/auth/me': 'Self-service profile update (name/phone/country)',
   'POST /api/v1/announcements/:id/read': 'Per-user read acknowledgement',
@@ -220,6 +219,7 @@ export const IN_HANDLER_GUARDED: Record<string, string> = {
   'PATCH /api/v1/projects/:projectId/independent-inspections/:inspectionId/submit': 'Handler role-gates + inspection.submit permission',
   'POST /api/v1/projects/:projectId/tenders': 'Handler role-gates tender creation',
   'PATCH /api/v1/projects/:projectId/tenders/:tenderId/bids/:bidId/award': 'Handler role-gates tender award',
+  'GET /uploads/*': 'Handler enforces tenant match + project membership per storage key',
 };
 
 // Roles that see every project in the tenant without a ProjectMember row.

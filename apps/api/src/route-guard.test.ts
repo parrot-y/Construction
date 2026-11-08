@@ -21,6 +21,8 @@ const ROUTES_DIR = join(__dirname, 'routes');
  */
 const UNAUTHENTICATED_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/auth/login': 'Credential exchange — issues the session',
+  'POST /api/v1/auth/refresh': 'Refresh-token rotation via refresh cookie',
+  'POST /api/v1/auth/logout': 'Clears session cookies — safe unauthenticated',
   'POST /api/v1/webhooks/site-ops': 'HMAC-signed site-ops webhook (verified in-handler)',
   'GET /api/v1/portals/validate/:token': 'Token-scoped external portal validation',
   'GET /api/v1/portals/consultant/:token': 'Token-scoped consultant portal',
