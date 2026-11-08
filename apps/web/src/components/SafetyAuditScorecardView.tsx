@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface SafetyAuditItem {
   id: string;
@@ -36,13 +36,15 @@ interface SafetyAuditScorecardViewProps {
 }
 
 export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Current Project',
   audits: initialAudits,
   summary: initialSummary,
   userRole: _userRole = 'SITE_SUPERVISOR',
   onCreateAudit,
 }) => {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
   const [auditsList, setAuditsList] = useState<SafetyAuditItem[]>(
     initialAudits || [
       {
@@ -90,6 +92,25 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
   // Form states
   const [auditNo, setAuditNo] = useState(`SAF-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
   const [auditDate, setAuditDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/safety-audits`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.audits || json.data || []) as any[];
+      setAuditsList(list.map((a) => ({
+        ...a,
+        ppeComplianceScore: a.ppeComplianceScore?.toString?.() ?? String(a.ppeComplianceScore ?? 0),
+        overallComplianceScore: a.overallComplianceScore?.toString?.() ?? String(a.overallComplianceScore ?? 0),
+      })));
+    } catch { setAuditsList([]); }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
   const [auditorName, setAuditorName] = useState('HSE Officer Wanjiku Kariuki');
   const [auditorType, setAuditorType] = useState<'INTERNAL_SAFETY_OFFICER' | 'NCA_INSPECTOR' | 'DOSHS_OFFICER' | 'LEAD_CONSULTANT'>('INTERNAL_SAFETY_OFFICER');
   const [ppeScore, setPpeScore] = useState('90.00');
@@ -149,6 +170,15 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
       reinspectionDueDate: reinspectionDueDate || null,
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/safety-audits`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) { await reload(); return; }
+      } catch { /* fall through */ }
+    }
     if (onCreateAudit) {
       await onCreateAudit(payload);
     }
@@ -188,6 +218,10 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
           ).toFixed(1)
         : '100.0',
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading safety audits...</div>;
+  }
 
   return (
     <div className="space-y-6">

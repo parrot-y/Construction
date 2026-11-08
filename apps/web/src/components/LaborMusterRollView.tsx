@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface SiteLaborerItem {
   id: string;
@@ -49,7 +49,7 @@ interface LaborMusterRollViewProps {
 }
 
 export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Current Project',
   laborers: initialLaborers,
   musterRolls: initialMusterRolls,
@@ -135,6 +135,47 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
     ]
   );
 
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const [labRes, rollRes] = await Promise.all([
+        fetch(`/api/v1/projects/${projectId}/laborers`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/muster-rolls`, { credentials: 'include' }),
+      ]);
+      if (labRes.ok) {
+        const lj = await labRes.json();
+        const labs = (lj.laborers || lj.data || []) as any[];
+        setLaborerList(labs.map((l) => ({
+          id: l.id, workerCode: l.workerCode, fullName: l.fullName,
+          nationalIdNo: l.nationalIdNo, phoneNumber: l.phoneNumber,
+          tradeCategory: l.tradeCategory, skillLevel: l.skillLevel,
+          dailyRateKes: l.dailyRateKes?.toString?.() ?? String(l.dailyRateKes ?? 0),
+          isActive: l.isActive ?? true, createdAt: l.createdAt ?? '',
+        })));
+      }
+      if (rollRes.ok) {
+        const rj = await rollRes.json();
+        const rolls = (rj.musterRolls || rj.data || []) as any[];
+        setMusterRollsList(rolls.map((r) => ({
+          id: r.id, payrollNo: r.payrollNo, weekEndingDate: r.weekEndingDate,
+          totalWorkers: r.totalWorkers, totalManDays: r.totalManDays?.toString?.() ?? String(r.totalManDays ?? 0),
+          grossWagesKes: r.grossWagesKes?.toString?.() ?? String(r.grossWagesKes ?? 0),
+          statutoryDeductionsKes: r.statutoryDeductionsKes?.toString?.() ?? String(r.statutoryDeductionsKes ?? 0),
+          netWagesPayableKes: r.netWagesPayableKes?.toString?.() ?? String(r.netWagesPayableKes ?? 0),
+          status: r.status, disbursementReference: r.disbursementReference ?? null,
+          disbursedAt: r.disbursedAt ?? null, approvedBy: r.approvedBy ?? null,
+          createdAt: r.createdAt ?? '',
+        })));
+      }
+    } catch { /* keep demo */ }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
   const [activeTab, setActiveTab] = useState<'MUSTER_ROLLS' | 'WORKERS_ROSTER'>('MUSTER_ROLLS');
   const [showAddWorkerModal, setShowAddWorkerModal] = useState(false);
   const [showCreateRollModal, setShowCreateRollModal] = useState(false);
@@ -175,6 +216,15 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
       dailyRateKes,
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/laborers`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) { await reload(); setShowAddWorkerModal(false); setWorkerCode(''); setFullName(''); setNationalIdNo(''); return; }
+      } catch { /* fall through to local */ }
+    }
     if (onCreateLaborer) {
       await onCreateLaborer(payload);
     }
@@ -233,6 +283,15 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
       attendances,
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/muster-rolls`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) { await reload(); return; }
+      } catch { /* fall through */ }
+    }
     if (onCreateMusterRoll) {
       await onCreateMusterRoll(payload);
     }
@@ -261,6 +320,15 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
     e.preventDefault();
     if (!selectedRollForReview) return;
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/muster-rolls/${selectedRollForReview.id}`, {
+          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: reviewStatus, disbursementReference: disbursementRef }),
+        });
+        if (res.ok) await reload();
+      } catch { /* ignore */ }
+    }
     if (onReviewMusterRoll) {
       await onReviewMusterRoll(selectedRollForReview.id, reviewStatus, disbursementRef);
     }
@@ -292,6 +360,10 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
   const totalDisbursedKes = musterRollsList
     .filter((r) => r.status === 'DISBURSED')
     .reduce((sum, r) => sum + parseFloat(r.netWagesPayableKes), 0);
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading labor muster…</div>;
+  }
 
   return (
     <div className="space-y-6">

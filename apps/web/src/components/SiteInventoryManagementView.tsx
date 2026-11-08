@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 
 export interface InventoryItem {
@@ -108,8 +108,38 @@ export default function SiteInventoryManagementView({
   onMovementRecorded,
   onItemCreated,
 }: SiteInventoryManagementViewProps) {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [items, setItems] = useState<InventoryItem[]>(initialItems);
   const [movements, setMovements] = useState<InventoryMovementRecord[]>(initialMovements);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/inventory`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.items || []) as any[];
+      setItems(list.map((i) => ({
+        ...i,
+        current_stock: i.current_stock?.toString?.() ?? String(i.current_stock ?? 0),
+        minimum_reorder_level: i.minimum_reorder_level?.toString?.() ?? String(i.minimum_reorder_level ?? 0),
+        unit_cost_estimate: i.unit_cost_estimate?.toString?.() ?? i.unit_cost_estimate ?? null,
+      })));
+      setMovements(list.flatMap((i) => (i.movements || []).map((m: any) => ({
+        ...m,
+        movement_type: m.movement_type === 'WASTAGE_DAMAGE' ? 'WASTAGE' : m.movement_type,
+        quantity: m.quantity?.toString?.() ?? String(m.quantity ?? 0),
+        recorded_by: m.recorded_by_name ? { full_name: m.recorded_by_name } : m.recorded_by || null,
+      }))).sort((a: any, b: any) => String(b.recorded_at).localeCompare(String(a.recorded_at))));
+    } catch {
+      setItems([]); setMovements([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [alertFilter, setAlertFilter] = useState<'ALL' | 'LOW_ONLY'>('ALL');
 
@@ -167,6 +197,25 @@ export default function SiteInventoryManagementView({
       last_restocked_at: new Date().toISOString(),
     };
 
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/inventory/items`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              materialName: created.material_name, category: created.category, unit: created.unit,
+              openingBalance: String(created.current_stock),
+              minimumReorderLevel: String(created.minimum_reorder_level),
+              unitCostEstimate: created.unit_cost_estimate != null ? String(created.unit_cost_estimate) : null,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowItemModal(false);
+      setNewItemName('');
+      return;
+    }
     setItems([...items, created]);
     if (onItemCreated) onItemCreated(created);
     setShowItemModal(false);
@@ -199,6 +248,28 @@ export default function SiteInventoryManagementView({
       recorded_by: { full_name: 'Site Storekeeper' },
     };
 
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/inventory/movements`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              inventoryItemId: selectedItemId,
+              movementType,
+              quantity: String(movQty),
+              movementDate: new Date().toISOString().slice(0, 10),
+              referenceNo: movementType === 'DELIVERY_IN' ? movDeliveryNote.trim() || null : null,
+              notes: [movSupplier.trim(), movPurpose.trim()].filter(Boolean).join(' — ') || null,
+              recordedByName: 'Site Storekeeper',
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowMovementModal(false);
+      setMovQty(10); setMovDeliveryNote(''); setMovSupplier(''); setMovPurpose('');
+      return;
+    }
     setMovements([record, ...movements]);
     if (onMovementRecorded) onMovementRecorded(record);
     setShowMovementModal(false);
@@ -207,6 +278,10 @@ export default function SiteInventoryManagementView({
     setMovSupplier('');
     setMovPurpose('');
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading inventory...</div>;
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" data-testid="site-inventory-management-view" data-project-id={projectId}>
