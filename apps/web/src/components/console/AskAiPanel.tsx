@@ -50,8 +50,7 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
       const openSnags = snagRows.filter((x) => !['CLOSED', 'RESOLVED', 'VERIFIED'].includes(String(x.status))).length;
       const coRows = (variations?.data || variations || []) as any[];
       const pendingCOs = coRows.filter((v) => ['DRAFT', 'PM_REVIEW', 'OWNER_REVIEW', 'SUBMITTED'].includes(String(v.status))).length;
-      const att = attendance?.data || attendance || {};
-      const todayCount = att.today_count ?? att.summary?.present ?? att.present_today ?? null;
+      const todayCount = attendance?.summary?.present ?? attendance?.count ?? null;
       const parts: string[] = [];
       if (snagRows.length) parts.push(`${openSnags} open snag${openSnags === 1 ? '' : 's'} of ${snagRows.length}`);
       if (coRows.length) parts.push(`${pendingCOs} change order${pendingCOs === 1 ? '' : 's'} awaiting action`);
@@ -64,10 +63,10 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
     run: async (projectId: string) => {
       if (!projectId) return '';
       const j = await fetch(`/api/v1/invoices?projectId=${projectId}`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-      const rows = (j?.data || j || []) as any[];
+      const rows = (j?.invoices || j?.data || []) as any[];
       if (!rows.length) return '';
-      const outstanding = rows.filter((i) => !['PAID', 'VOID'].includes(String(i.status)));
-      const total = outstanding.reduce((a, i) => a + Number(i.amount_due ?? i.total ?? i.amount ?? 0), 0);
+      const outstanding = rows.filter((i) => Number(i.balance_due_num ?? i.balance_due ?? 0) > 0);
+      const total = outstanding.reduce((a, i) => a + Number(i.balance_due_num ?? i.balance_due ?? 0), 0);
       return `${outstanding.length} unpaid invoice${outstanding.length === 1 ? '' : 's'} — KES ${total.toLocaleString('en-KE', { maximumFractionDigits: 0 })} outstanding.`;
     },
   },
@@ -75,10 +74,9 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
     pattern: /attendance|muster|who.*site|labou?r.*today/i,
     run: async (projectId: string) => {
       if (!projectId) return '';
-      const j = await fetch(`/api/v1/projects/${projectId}/attendance?days=1`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-      const d = j?.data || j || {};
-      const n = d.today_count ?? d.summary?.present ?? d.present_today;
-      return typeof n === 'number' ? `${n} labourer${n === 1 ? '' : 's'} are checked in today.` : '';
+      const j = await fetch(`/api/v1/projects/${projectId}/attendance`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const n = j?.summary?.present ?? j?.count;
+      return typeof n === 'number' ? `${n} labourer${n === 1 ? '' : 's'} recorded present today.` : '';
     },
   },
 ];
