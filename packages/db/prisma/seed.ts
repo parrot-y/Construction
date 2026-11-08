@@ -10,6 +10,13 @@ const prisma = new PrismaClient({
 });
 
 export async function seed() {
+  // Audit A-08: demo seed data must NEVER run against production.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Refusing to seed: NODE_ENV=production. Demo seed data is for development/test only. ' +
+      'Provision real tenants/users through the application onboarding flow instead.',
+    );
+  }
   console.log('Seeding initial Kenyan construction tenant and V1 users...');
 
   // 1. Create or upsert Tenant
