@@ -8,7 +8,7 @@ interface Crew {
   members: CrewMember[]; member_count: number; daily_cost_kes: string;
 }
 
-const TRADES = ['General', 'Masonry', 'Concrete', 'Steel Fixing', 'Carpentry', 'Electrical', 'Plumbing', 'Painting', 'Tiling & Flooring', 'Roofing', 'Structural Steel', 'Welding & Fabrication', 'Glazing & Aluminium', 'Waterproofing', 'Scaffolding', 'Demolition', 'HVAC', 'Fire & Security Systems', 'Plastering', 'Excavation', 'Finishes', 'MEP', 'Other'];
+const TRADES = ['General', 'Masonry', 'Concrete', 'Steel Fixing', 'Carpentry', 'Electrical', 'Plumbing', 'Painting', 'Tiling & Flooring', 'Roofing', 'Structural Steel', 'Welding & Fabrication', 'Glazing & Aluminium', 'Waterproofing', 'Scaffolding', 'Demolition', 'HVAC', 'Fire & Security Systems', 'Plastering', 'Excavation', 'Finishes', 'MEP', 'Interior Design & Decor', 'Other'];
 
 export default function CrewsView({ canManage = true }: { canManage?: boolean }): React.JSX.Element {
   const [crews, setCrews] = useState<Crew[]>([]);

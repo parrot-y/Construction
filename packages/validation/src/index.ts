@@ -454,6 +454,7 @@ export const SNAG_TRADE_CATEGORIES = [
   'Traffic Control',
   'Surveying & Setting Out',
   'Cleaning & Handover',
+  'Interior Design & Decor',
 ] as const;
 export type SnagTradeCategory = (typeof SNAG_TRADE_CATEGORIES)[number];
 
