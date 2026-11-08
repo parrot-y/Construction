@@ -1045,9 +1045,28 @@ model ProjectDocument {
   created_at           DateTime  @default(now()) @db.Timestamptz
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  annotations          DrawingAnnotation[]
 
   @@index([tenant_id, project_id, category])
   @@map("project_documents")
+}
+
+model DrawingAnnotation {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String   @db.Uuid
+  project_id     String   @db.Uuid
+  document_id    String   @db.Uuid
+  x_pct          Decimal  @db.Decimal(6, 3) // 0-100 horizontal position on the sheet
+  y_pct          Decimal  @db.Decimal(6, 3) // 0-100 vertical position on the sheet
+  note           String   @db.Text
+  author_name    String   @db.VarChar(255)
+  resolved       Boolean  @default(false)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  document       ProjectDocument @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, document_id])
+  @@map("drawing_annotations")
 }
 
 // =============================================================

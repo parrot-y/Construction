@@ -41,6 +41,9 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
   const [form, setForm] = useState({ title: '', category: 'ARCHITECTURAL_DRAWING', drawingReference: '', revisionCode: 'Rev 0', storageKey: '', notes: '' });
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<Drawing | null>(null);
+  const [annotations, setAnnotations] = useState<any[]>([]);
+  const [markupMode, setMarkupMode] = useState(false);
+  const [pendingPin, setPendingPin] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (projectId) return;
@@ -69,6 +72,36 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
       setLoading(false);
     }
   }, [pid]);
+
+  const loadAnnotations = async (docId: string) => {
+    if (!pid) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${pid}/documents/${docId}/annotations`, { credentials: 'include' });
+      const j = await res.json();
+      setAnnotations(j.data || []);
+    } catch { setAnnotations([]); }
+  };
+
+  const addAnnotation = async () => {
+    if (!preview || !pendingPin) return;
+    const note = window.prompt('Annotation note');
+    if (!note || note.trim().length < 2) { setPendingPin(null); return; }
+    const res = await fetch(`/api/v1/projects/${pid}/documents/${preview.id}/annotations`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ xPct: pendingPin.x, yPct: pendingPin.y, note: note.trim() }),
+    });
+    setPendingPin(null);
+    if (res.ok) await loadAnnotations(preview.id);
+  };
+
+  const toggleResolved = async (ann: any) => {
+    if (!preview) return;
+    await fetch(`/api/v1/projects/${pid}/documents/${preview.id}/annotations/${ann.id}`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolved: !ann.resolved }),
+    });
+    await loadAnnotations(preview.id);
+  };
 
   useEffect(() => { void load(); }, [load]);
 
@@ -194,7 +227,7 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((d) => (
-            <div key={d.id} onClick={() => setPreview(d)}
+            <div key={d.id} onClick={() => { setPreview(d); setMarkupMode(false); setPendingPin(null); loadAnnotations(d.id); }}
               className="border border-slate-200 rounded-xl p-3.5 hover:border-indigo-200 hover:shadow-sm transition cursor-pointer">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -227,13 +260,42 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
                 <p className="text-[11px] text-slate-400 font-mono">{preview.drawing_reference || '—'} · {preview.revision_code} · {preview.category.replace(/_/g, ' ')}</p>
               </div>
               <div className="flex items-center gap-2">
+                {canManage && /\.(png|jpe?g|webp)$/i.test(preview.storage_key || '') && (
+                  <button onClick={() => setMarkupMode(!markupMode)}
+                    className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border ${markupMode ? 'bg-orange-600 text-white border-orange-600' : 'text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
+                    {markupMode ? 'Done marking' : 'Markup'}
+                  </button>
+                )}
                 <a href={`/uploads/${preview.storage_key || ''}`} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg">Open file</a>
                 <button onClick={() => setPreview(null)} className="text-slate-400 hover:text-slate-600 text-lg leading-none px-1">×</button>
               </div>
             </div>
             <div className="flex-1 min-h-0 bg-slate-100 dark:bg-slate-950">
               {/\.(png|jpe?g|webp)$/i.test(preview.storage_key || '') ? (
-                <img src={`/uploads/${preview.storage_key || ''}`} alt={preview.title} className="w-full h-full object-contain" />
+                <div className="relative w-full h-full overflow-auto" onClick={(e) => {
+                  if (!markupMode) return;
+                  const img = (e.currentTarget as HTMLDivElement).querySelector('img');
+                  if (!img) return;
+                  const ir = img.getBoundingClientRect();
+                  const x = ((e.clientX - ir.left) / ir.width) * 100;
+                  const y = ((e.clientY - ir.top) / ir.height) * 100;
+                  if (x >= 0 && x <= 100 && y >= 0 && y <= 100) setPendingPin({ x, y });
+                }}>
+                  <img src={`/uploads/${preview.storage_key || ''}`} alt={preview.title} className={`w-full h-full object-contain ${markupMode ? 'cursor-crosshair' : ''}`} />
+                  {annotations.map((a) => (
+                    <button key={a.id} onClick={(e) => { e.stopPropagation(); toggleResolved(a); }}
+                      title={`${a.note} — ${a.author_name}${a.resolved ? ' (resolved)' : ''}`}
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow ${a.resolved ? 'bg-emerald-500' : 'bg-orange-500'}`}
+                      style={{ left: `${Number(a.x_pct)}%`, top: `${Number(a.y_pct)}%` }}>
+                      {a.resolved ? '✓' : '+'}
+                    </button>
+                  ))}
+                  {pendingPin && (
+                    <button onClick={(e) => { e.stopPropagation(); addAnnotation(); }}
+                      className="absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-sky-500 text-white text-xs font-bold shadow animate-ping-once"
+                      style={{ left: `${pendingPin.x}%`, top: `${pendingPin.y}%` }}>?</button>
+                  )}
+                </div>
               ) : /\.pdf$/i.test(preview.storage_key || '') ? (
                 <iframe src={`/uploads/${preview.storage_key || ''}`} title={preview.title} className="w-full h-full min-h-[60vh]" />
               ) : (
