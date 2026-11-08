@@ -274,6 +274,13 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
         </div>
       )}
 
+      {tab === 'assignments' && assignments.length > 0 && (
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-semibold text-slate-500">
+          <span>{assignments.length} assignment{assignments.length === 1 ? '' : 's'} in view</span>
+          <span className="text-amber-600">{assignments.filter((a) => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status)).length} out with the team</span>
+          <span className="text-orange-600">{assignments.filter((a) => a.status === 'SUBMITTED').length} waiting on your review</span>
+        </div>
+      )}
       {tab === 'assignments' ? (
         assignments.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-6">No assignments{pid ? ' on this project' : ''}.</p>
