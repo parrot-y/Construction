@@ -57,7 +57,7 @@ function FinancialsView({ projectId, projectName }: { projectId: string; project
         </div>
         <div className="flex gap-2">
           <a href={`/api/v1/projects/${projectId}/reports/ipc`} download className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Export PDF</a>
-          <a href={`/api/v1/projects/${projectId}/boq/export`} download className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white">Export Excel</a>
+          <a href={`/api/v1/projects/${projectId}/reports/financials.xlsx`} download className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white">Export Excel</a>
         </div>
       </div>
       <div className="flex gap-1.5 overflow-x-auto">

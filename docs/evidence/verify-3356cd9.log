@@ -1,0 +1,266 @@
+================================================================================
+PLATFORM LOCAL CI VERIFICATION REPLICA
+Commit:   3356cd9
+Log file: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/evidence/verify-3356cd9.log
+Started:  2026-11-08T16:07:42Z
+================================================================================
+Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
+psql (PostgreSQL) 17.6 (Debian 17.6-1)
+
+=== Step 1: Initializing Fresh Ephemeral PostgreSQL Cluster ===
+Data Directory:   /tmp/verify-local-db-EcZSPX
+Socket Directory: /tmp/verify-local-sock-yRBhV8
+Port:             59089
+Starting PostgreSQL daemon...
+Waiting for PostgreSQL to accept connections...
+PostgreSQL is ready.
+
+=== Step 2: Creating Database & Roles (db_migrator & db_app) ===
+CREATE DATABASE
+DO
+GRANT
+GRANT
+
+=== Step 3: Running prisma db push as db_migrator (Owner) ===
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "construction_test", schema "public" at "localhost:59089"
+
+🚀  Your database is now in sync with your Prisma schema. Done in 963ms
+
+
+=== Step 4: Granting Schema Permissions to db_app AFTER Tables Exist (C5) ===
+GRANT
+GRANT
+GRANT
+ALTER DEFAULT PRIVILEGES
+ALTER DEFAULT PRIVILEGES
+
+=== Step 5: Applying rls.sql (Row-Level Security, Immutability & Security Definer Functions) ===
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "memberships" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "invitations" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "projects" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "project_members" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "boqs" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "boq_sections" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "boq_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "site_diaries" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "site_photos" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "labor_headcounts" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "material_deliveries" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "progress_records" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "progress_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "cost_entries" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "cost_receipts" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "cost_approvals" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "variation_orders" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "variation_assignees" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "variation_events" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "variation_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "audit_logs" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "idempotency_keys" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "rfis" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "rfi_responses" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "rfi_attachments" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "inspection_checklists" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "inspection_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "concrete_cube_tests" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "cube_break_results" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "snag_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "snag_photos" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "defects_liability_certificates" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "portal_access_links" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "project_schedule_tasks" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "site_inventory_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "inventory_movements" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "safety_incidents" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "project_documents" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "subcontractor_packages" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "project_delay_events" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "statutory_tax_certificates" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "material_requisitions" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "material_wastage_reconciliations" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "project_cash_flow_forecasts" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "subcontractor_valuations" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "plant_equipment" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "plant_equipment_daily_logs" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "site_laborers" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "labor_muster_rolls" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "labor_daily_attendances" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "safety_audit_records" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "etims_invoices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "subcontractor_tax_compliances" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "site_webhook_logs" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "site_alert_notifications" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "subcontractor_retention_releases" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "contractor_bond_trackers" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "subscription_plans" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "mpesa_subscription_transactions" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "project_geofences" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "worker_clock_events" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "plant_telematics_devices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "plant_telematics_pings" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "plant_maintenance_alerts" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "bar_bending_schedules" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "bar_bending_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "mpesa_disbursement_transactions" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "rmc_batch_deliveries" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "rmc_slump_tests" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "structural_steel_takeoffs" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "structural_steel_members" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "geotechnical_soil_tests" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "asphalt_pavement_batches" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "topographic_surveys" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "cross_section_stations" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "independent_site_inspections" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "independent_inspection_photos" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "project_tenders" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "tender_bids" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "quotes" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "quote_line_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "quote_events" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "invoices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "invoice_line_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "invoice_payments" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "payment_certificates" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "commitments" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "payment_applications" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "snag_comments" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "snag_distributions" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "announcements" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "client_project_requests" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "announcement_reads" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "inbox_messages" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "inbox_message_reads" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "site_observations" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "corrective_actions" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "crews" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "crew_members" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "company_documents" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "correspondence_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "scheduled_reports" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "scheduled_report_runs" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "daily_attendances" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "checklist_templates" does not exist, skipping
+psql:packages/db/prisma/rls.sql:39: NOTICE:  policy "tenant_isolation_policy" for relation "checklist_assignments" does not exist, skipping
+DO
+DO
+CREATE FUNCTION
+psql:packages/db/prisma/rls.sql:91: NOTICE:  trigger "trg_cost_entry_immutability" for relation "cost_entries" does not exist, skipping
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+psql:packages/db/prisma/rls.sql:125: NOTICE:  trigger "trg_variation_order_immutability" for relation "variation_orders" does not exist, skipping
+DROP TRIGGER
+CREATE TRIGGER
+psql:packages/db/prisma/rls.sql:132: NOTICE:  function lookup_telematics_device(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:158: NOTICE:  function lookup_user_memberships_for_login(uuid) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:183: NOTICE:  function lookup_invitation_by_token(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:207: NOTICE:  function lookup_portal_link_by_hash(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:234: NOTICE:  function lookup_quote_by_share_hash(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:254: NOTICE:  function expire_quotes_batch() does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:283: NOTICE:  function lookup_mpesa_stk_transaction(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:304: NOTICE:  function lookup_mpesa_b2c_transaction(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+
+=== Step 6: Seeding Database as db_migrator ===
+$ tsx prisma/seed.ts
+Seeding initial Kenyan construction tenant and V1 users...
+Database seeded successfully! Tenant: Apex Builders Kenya Ltd (42182675-41f4-4846-8f20-a4294a0e5dc7), Project: Riverside Commercial Plaza
+
+=== Step 7: Secret Scanning ===
+Secret scanning passed: No secrets detected.
+
+=== Step 8: Running Linter (pnpm run lint) ===
+$ turbo run lint
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running lint in 6 packages
+   • Remote caching disabled
+
+@construction/web:lint: cache miss, executing 7adee9c9855eaa0b
+@construction/validation:lint: cache miss, executing e35cf88c7b1a6b1b
+@construction/money:lint: cache hit, replaying logs 514421fca7ebcfca
+@construction/db:lint: cache hit, replaying logs 716b786fb61910d2
+@construction/money:lint: $ tsc --noEmit
+@construction/db:lint: $ tsc --noEmit
+@construction/permissions:lint: cache hit, replaying logs ce26c23b9851825f
+@construction/permissions:lint: $ tsc --noEmit
+@construction/api:lint: cache hit, replaying logs 1f4a83c361edcd21
+@construction/api:lint: $ tsc --noEmit
+@construction/web:lint: $ tsc --noEmit
+@construction/validation:lint: $ tsc --noEmit
+
+ Tasks:    6 successful, 6 total
+Cached:    4 cached, 6 total
+  Time:    47.388s 
+
+
+=== Step 9: Running Typecheck (pnpm run typecheck) ===
+$ turbo run typecheck
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running typecheck in 6 packages
+   • Remote caching disabled
+
+@construction/validation:typecheck: cache miss, executing 0114b1d9048dcabd
+@construction/money:typecheck: cache hit, replaying logs 40911748e64af47b
+@construction/permissions:typecheck: cache hit, replaying logs 11ebc034d0aa9ee6
+@construction/money:typecheck: $ tsc --noEmit
+@construction/web:typecheck: cache miss, executing 72bc8aae9e16158e
+@construction/permissions:typecheck: $ tsc --noEmit
+@construction/db:typecheck: cache hit, replaying logs e17069bf22acb297
+@construction/db:typecheck: $ tsc --noEmit
+@construction/db:build: cache hit, replaying logs 39b4f1d1d7a9808b
+@construction/db:build: $ tsc
+@construction/api:typecheck: cache miss, executing 69c6e39466b46cdf
+@construction/validation:typecheck: $ tsc --noEmit
+@construction/web:typecheck: $ tsc --noEmit
+@construction/api:typecheck: $ tsc --noEmit
+@construction/api:typecheck: src/routes/reports.ts(839,14): error TS2339: Property 'cost' does not exist on type 'TransactionClient'.
+@construction/api:typecheck: [ELIFECYCLE] Command failed with exit code 2.
+@construction/api#typecheck:  ERROR  command (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/apps/api) /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/.bin/pnpm run typecheck exited (2)
+
+ Tasks:    6 successful, 7 total
+Cached:    4 cached, 7 total
+  Time:    2m20.199s 
+Failed:    @construction/api#typecheck
+
+ ERROR  run failed: command  exited (2)
+[ELIFECYCLE] Command failed with exit code 2.
+
+=== Cleaning up local PostgreSQL verification cluster ===
+PostgreSQL cluster stopped.
+Cleaned up temporary directories.
