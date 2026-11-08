@@ -35,6 +35,16 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
   const [projectSuccess, setProjectSuccess] = useState<string | null>(null);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
   const [pid, setPid] = useState('project-rcp-2026');
+  const [activeTab, setActiveTab] = useState<'overview' | 'money' | 'field' | 'compliance' | 'people'>('overview');
+  const panelCls = (t: string) => (activeTab === t ? 'space-y-6' : 'hidden');
+  const TABS = [
+    { id: 'overview' as const, label: 'Overview' },
+    { id: 'money' as const, label: 'Money & Commercial' },
+    { id: 'field' as const, label: 'Field Operations' },
+    { id: 'compliance' as const, label: 'Compliance & Documents' },
+    { id: 'people' as const, label: 'People & Access' },
+  ];
+  const selectedProjectName = projects.find((p) => p.id === pid)?.name || 'Riverside Commercial Plaza';
   useEffect(() => {
     fetch('/api/v1/projects', { credentials: 'include' })
       .then((r) => r.json())
@@ -112,6 +122,24 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
         </div>
       </div>
 
+      {/* Section tabs */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`px-3.5 py-2 text-xs font-semibold rounded-lg whitespace-nowrap transition border ${
+              activeTab === t.id
+                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={panelCls('overview')}>
       {inviteSuccess && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
           <span>✓ {inviteSuccess}</span>
@@ -311,6 +339,8 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
         </div>
       </div>
 
+      </div>
+      <div className={panelCls('people')}>
       {/* External Stakeholder Portals Manager (Zero Seat Tax) */}
       <PortalAccessLinkManager
         projectId={pid}
@@ -323,6 +353,8 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
         canAward={true}
       />
 
+      </div>
+      <div className={panelCls('compliance')}>
       {/* Project Drawing & Regulatory Document Vault */}
       <ProjectDocumentVaultView
         projectId={pid}
@@ -335,54 +367,62 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
         canIssue={true}
       />
 
+      </div>
+      <div className={panelCls('money')}>
       {/* Portfolio Cash Flow Forecasting & S-Curve */}
       <ProjectSCurveCashFlowCard
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={selectedProjectName}
       />
 
       {/* Subcontractor Valuations & Back-to-Back Retention Ledger */}
       <SubcontractorValuationView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={selectedProjectName}
         userRole="ADMIN"
       />
 
+      </div>
+      <div className={panelCls('field')}>
       {/* Heavy Machinery & Fuel Siphoning Audit (Milestone M16) */}
       <PlantEquipmentView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
 
       {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
       <LaborMusterRollView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
       <SafetyAuditScorecardView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
 
+      </div>
+      <div className={panelCls('compliance')}>
       {/* KRA e-TIMS Tax Compliance Engine (Milestone M19) */}
       <ETimsTaxComplianceView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
 
       {/* Retention Releases & Contractor Performance Bonds (Milestone M21) */}
       <RetentionAndBondsView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
 
+      </div>
+      <div className={panelCls('money')}>
       {/* Safaricom Daraja M-Pesa Subscription Billing (Milestone M22 / ADR-006) */}
       <SubscriptionBillingView
         tenantName={session.user.tenant?.name || 'Apex Builders Kenya Ltd'}
@@ -395,15 +435,19 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
       {/* Safaricom Daraja B2C Bulk Wages & Subcontractor Retention Disbursements (Milestone M26) */}
       <MpesaDisbursementView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={selectedProjectName}
       />
 
+      </div>
+      <div className={panelCls('money')}>
       {/* Quotes-to-Cash: quotations, client acceptance, project conversion (Gate-4 S1) */}
       <QuotesManagementView />
 
       {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
       <InvoicingView />
 
+      </div>
+      <div className={panelCls('people')}>
       <AnnouncementsView canManage={true} />
 
       {/* Company documents vault (Gate-5 G5-7) */}
@@ -418,6 +462,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
       {/* Outbound integrations — providers, env config, test send (Phase 1) */}
       <IntegrationsView />
 
+      </div>
       {/* Invite Member Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">

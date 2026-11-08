@@ -78,11 +78,63 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       })
       .catch(() => setProjects([]));
   }, []);
+  const [tabGroup, setTabGroup] = useState<'all' | 'core' | 'field' | 'money' | 'collab'>('core');
   const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox' | 'observations' | 'crews' | 'documents' | 'correspondence' | 'scheduled' | 'attendance' | 'checklists'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
   };
+
+  const MODULE_TABS: { id: string; label: string; group: 'all' | 'core' | 'field' | 'money' | 'collab' }[] = [
+    { id: 'all', label: 'All Modules', group: 'all' },
+    { id: 'schedule', label: '📅 Schedule & Gantt', group: 'core' },
+    { id: 'store', label: '📦 Site Inventory', group: 'core' },
+    { id: 'subcontractors', label: '🤝 Subcontractors', group: 'core' },
+    { id: 'drawings', label: '📐 Drawings Vault', group: 'core' },
+    { id: 'safety', label: '🦺 HSE & Safety', group: 'core' },
+    { id: 'cost', label: '💰 Costs & BOQ', group: 'core' },
+    { id: 'variations', label: '📑 Variations', group: 'core' },
+    { id: 'rfis', label: '📋 RFI Register', group: 'core' },
+    { id: 'quality', label: '🧪 Quality & Cubes', group: 'core' },
+    { id: 'delays', label: '🌧️ Weather & EOT', group: 'core' },
+    { id: 'closeout', label: '🏆 Closeout & Retention', group: 'core' },
+    { id: 'project', label: '🏗️ Project', group: 'core' },
+    { id: 'portals', label: '🌐 Stakeholder Portals', group: 'core' },
+    { id: 'tenders', label: '📑 Tender Board', group: 'core' },
+    { id: 'equipment', label: '🚜 Plant & Machinery', group: 'field' },
+    { id: 'muster', label: '👷 Labor Muster Roll', group: 'field' },
+    { id: 'safetyaudit', label: '🦺 Field Safety Scorecard', group: 'field' },
+    { id: 'whatsapp', label: '💬 WhatsApp Site Bot', group: 'field' },
+    { id: 'geofence', label: '📍 Site Geofencing', group: 'field' },
+    { id: 'telematics', label: '🛰️ Plant Telematics', group: 'field' },
+    { id: 'rebar', label: '🏗️ Rebar BBS Takeoff', group: 'field' },
+    { id: 'rmc', label: '🚛 RMC Transit & Slump', group: 'field' },
+    { id: 'steel', label: '⚙️ Structural Steel Takeoff', group: 'field' },
+    { id: 'soil', label: '⛰️ Geotechnical Soil QA', group: 'field' },
+    { id: 'asphalt', label: '🛣️ Asphalt Pavement QA', group: 'field' },
+    { id: 'survey', label: '📐 Topographic Survey & Earthworks', group: 'field' },
+    { id: 'inspections', label: '🕵️ Site Inspections', group: 'field' },
+    { id: 'attendance', label: '🕐 Attendance', group: 'field' },
+    { id: 'checklists', label: '☑️ Checklists', group: 'field' },
+    { id: 'crews', label: '👷 Crews', group: 'field' },
+    { id: 'observations', label: '🔍 Observations', group: 'field' },
+    { id: 'taxes', label: '🏛️ KRA WHT / WHVAT', group: 'money' },
+    { id: 'requisitions', label: '📦 Material Requisitions', group: 'money' },
+    { id: 'wastage', label: '⚖️ Wastage Variance', group: 'money' },
+    { id: 'cashflow', label: '📈 Cash Flow & S-Curve', group: 'money' },
+    { id: 'subvaluations', label: '📑 Subcontractor Valuations', group: 'money' },
+    { id: 'disbursements', label: '💸 M-Pesa B2C Payouts', group: 'money' },
+    { id: 'etims', label: '🧾 KRA e-TIMS Invoices', group: 'money' },
+    { id: 'retentionbonds', label: '🏦 Retention & Bonds', group: 'money' },
+    { id: 'quotes', label: '💼 Quotes & Cash', group: 'money' },
+    { id: 'invoices', label: '🧾 Invoicing', group: 'money' },
+    { id: 'commitments', label: '🤝 Commitments', group: 'money' },
+    { id: 'announcements', label: '📣 Announcements', group: 'collab' },
+    { id: 'inbox', label: '✉️ Inbox', group: 'collab' },
+    { id: 'documents', label: '📁 Documents', group: 'collab' },
+    { id: 'correspondence', label: '✉️ Correspondence', group: 'collab' },
+    { id: 'scheduled', label: '📅 Scheduled Reports', group: 'collab' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -161,69 +213,43 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       )}
 
       {/* Navigation Module Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
-        {[
-          { id: 'all', label: 'All Modules' },
-          { id: 'schedule', label: '📅 Schedule & Gantt' },
-          { id: 'store', label: '📦 Site Inventory' },
-          { id: 'subcontractors', label: '🤝 Subcontractors' },
-          { id: 'drawings', label: '📐 Drawings Vault' },
-          { id: 'safety', label: '🦺 HSE & Safety' },
-          { id: 'cost', label: '💰 Costs & BOQ' },
-          { id: 'variations', label: '📑 Variations' },
-          { id: 'rfis', label: '📋 RFI Register' },
-          { id: 'quality', label: '🧪 Quality & Cubes' },
-          { id: 'delays', label: '🌧️ Weather & EOT' },
-          { id: 'taxes', label: '🏛️ KRA WHT / WHVAT' },
-          { id: 'requisitions', label: '📦 Material Requisitions' },
-          { id: 'wastage', label: '⚖️ Wastage Variance' },
-          { id: 'cashflow', label: '📈 Cash Flow & S-Curve' },
-          { id: 'subvaluations', label: '📑 Subcontractor Valuations' },
-          { id: 'equipment', label: '🚜 Plant & Machinery' },
-          { id: 'muster', label: '👷 Labor Muster Roll' },
-          { id: 'safetyaudit', label: '🦺 Field Safety Scorecard' },
-          { id: 'etims', label: '🧾 KRA e-TIMS Invoices' },
-          { id: 'whatsapp', label: '💬 WhatsApp Site Bot' },
-          { id: 'retentionbonds', label: '🏦 Retention & Bonds' },
-          { id: 'geofence', label: '📍 Site Geofencing' },
-          { id: 'telematics', label: '🛰️ Plant Telematics' },
-          { id: 'rebar', label: '🏗️ Rebar BBS Takeoff' },
-          { id: 'disbursements', label: '💸 M-Pesa B2C Payouts' },
-          { id: 'rmc', label: '🚛 RMC Transit & Slump' },
-          { id: 'steel', label: '⚙️ Structural Steel Takeoff' },
-          { id: 'soil', label: '⛰️ Geotechnical Soil QA' },
-          { id: 'asphalt', label: '🛣️ Asphalt Pavement QA' },
-          { id: 'survey', label: '📐 Topographic Survey & Earthworks' },
-          { id: 'quotes', label: '💼 Quotes & Cash' },
-          { id: 'invoices', label: '🧾 Invoicing' },
-          { id: 'commitments', label: '🤝 Commitments' },
-          { id: 'project', label: '🏗️ Project' },
-          { id: 'announcements', label: '📣 Announcements' },
-          { id: 'inbox', label: '✉️ Inbox' },
-          { id: 'observations', label: '🔍 Observations' },
-          { id: 'crews', label: '👷 Crews' },
-          { id: 'documents', label: '📁 Documents' },
-          { id: 'correspondence', label: '✉️ Correspondence' },
-          { id: 'scheduled', label: '📅 Scheduled' },
-          { id: 'attendance', label: '🕐 Attendance' },
-          { id: 'checklists', label: '☑️ Checklists' },
-          { id: 'inspections', label: '🕵️ Site Inspections' },
-          { id: 'tenders', label: '📑 Tender Board' },
-          { id: 'closeout', label: '🏆 Closeout & Retention' },
-          { id: 'portals', label: '🌐 Stakeholder Portals' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              activeTab === tab.id
-                ? 'bg-purple-700 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="space-y-2">
+        <div className="flex gap-1.5 overflow-x-auto bg-white p-1 rounded-xl border border-slate-200 shadow-xs w-fit max-w-full">
+          {([
+            { id: 'all', label: 'All Modules' },
+            { id: 'core', label: 'Projects & Delivery' },
+            { id: 'field', label: 'Site & Field' },
+            { id: 'money', label: 'Money & Tax' },
+            { id: 'collab', label: 'Collaboration' },
+          ] as const).map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setTabGroup(g.id)}
+              className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition text-xs font-semibold ${
+                tabGroup === g.id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
+          {MODULE_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id as any); if (tab.group !== 'all') setTabGroup(tab.group); }}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                tabGroup !== 'all' && tab.id !== 'all' && tab.group !== tabGroup ? 'hidden' : ''
+              } ${
+                activeTab === tab.id
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Metrics Row */}
