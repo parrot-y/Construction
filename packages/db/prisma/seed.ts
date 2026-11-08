@@ -114,6 +114,12 @@ export async function seed() {
       phone_number: '+254744345678',
       role: 'QA_QC',
     },
+    {
+      email: 'owner@apexbuilders.co.ke',
+      full_name: 'Grace Muthoni',
+      phone_number: '+254755345678',
+      role: 'OWNER',
+    },
   ];
 
   await withTenantTx(prisma, tenant.id, async (tx) => {

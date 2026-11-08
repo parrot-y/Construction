@@ -5,12 +5,13 @@ import CrewsView from '../../CrewsView';
 import SubcontractorManagementView from '../../SubcontractorManagementView';
 import { IconPlus } from '../icons';
 
-const ASSIGN_ROLES = ['ADMIN','COMPANY_ADMIN','EXECUTIVE','PM_QS','SITE_SUPERVISOR','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CLIENT','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE'];
+const ASSIGN_ROLES = ['COMPANY_ADMIN','CLIENT','ARCHITECT','PM_QS','QA_QC','OWNER','EXECUTIVE','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE','ADMIN','SITE_SUPERVISOR'];
 const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Admin', COMPANY_ADMIN: 'Company Admin', EXECUTIVE: 'Executive', PM_QS: 'Project Manager',
+  ADMIN: 'Admin', COMPANY_ADMIN: 'Contractor', EXECUTIVE: 'Executive', PM_QS: 'Project Manager / QS',
   SITE_SUPERVISOR: 'Site Supervisor', SUPERINTENDENT: 'Superintendent', SITE_ENGINEER: 'Site Engineer',
   TRADE_LEAD: 'Trade Lead', FOREMAN: 'Foreman', WORKER: 'Worker', VIEWER: 'Viewer',
   CLIENT: 'Client', CONSULTANT: 'Consultant', SUBCONTRACTOR: 'Subcontractor', SUPPLIER: 'Supplier', COMPLIANCE: 'Compliance',
+  ARCHITECT: 'Architect', QA_QC: 'QA/QC Officer', OWNER: 'Owner',
 };
 
 /** Team — members table with live role editing + invite + revoke. */
@@ -221,6 +222,7 @@ const MATRIX_ROLES: { key: string; label: string }[] = [
   { key: 'PM_QS', label: 'Project Manager / QS' },
   { key: 'ARCHITECT', label: 'Architect' },
   { key: 'QA_QC', label: 'QA/QC Officer' },
+  { key: 'OWNER', label: 'Owner' },
   { key: 'SUPERINTENDENT', label: 'Superintendent' },
   { key: 'SITE_ENGINEER', label: 'Site Engineer' },
   { key: 'TRADE_LEAD', label: 'Trade Lead' },

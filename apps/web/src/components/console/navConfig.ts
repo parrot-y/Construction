@@ -140,6 +140,16 @@ export const ROLE_NAV: Record<string, RoleNav> = {
     S('files', 'Files & reports', DOCS_ONLY_FILES_TABS),
   ]),
 
+  // Owner — exec dashboard; full project/site visibility for approvals;
+  // money minus billing; directory-level people; full files/reports.
+  OWNER: nav('exec', [
+    S('projects', 'Projects', ALL_PROJECT_TABS),
+    S('site', 'Site', ALL_SITE_TABS),
+    S('money', 'Money', NO_BILLING_MONEY_TABS),
+    S('people', 'People', VIEWER_PEOPLE_TABS),
+    S('files', 'Files & reports', ALL_FILES_TABS),
+  ], ['dashboard', 'inbox', 'announcements']),
+
   // Architect — exec-style dashboard; full site/projects; money minus
   // billing; people minus crews (observed live).
   ARCHITECT: nav('pm', [

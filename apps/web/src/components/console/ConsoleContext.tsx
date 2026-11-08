@@ -36,7 +36,7 @@ export const useConsole = () => {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  COMPANY_ADMIN: 'Contractor', ADMIN: 'Admin', EXECUTIVE: 'Executive',
+  COMPANY_ADMIN: 'Contractor', OWNER: 'Owner', ADMIN: 'Admin', EXECUTIVE: 'Executive',
   PM_QS: 'Project Manager', SUPERINTENDENT: 'Superintendent',
   SITE_SUPERVISOR: 'Site Supervisor', SITE_ENGINEER: 'Site Engineer',
   TRADE_LEAD: 'Trade Lead', FOREMAN: 'Foreman', WORKER: 'Worker',

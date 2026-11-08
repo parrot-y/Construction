@@ -19,6 +19,9 @@ export const Roles = {
   // Reference-observed design/quality roles (architect + QA/QC officer)
   ARCHITECT: 'ARCHITECT',
   QA_QC: 'QA_QC',
+  // Project owner/developer — approves COs & certificates, reads reports;
+  // read-only on most operational surfaces (observed reference role).
+  OWNER: 'OWNER',
 } as const;
 
 export type Role = (typeof Roles)[keyof typeof Roles];
@@ -281,6 +284,21 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,
     Permissions.INSPECTION_REVIEW,
+  ],
+  [Roles.OWNER]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.BOQ_VIEW,
+    Permissions.COST_VIEW,
+    Permissions.CERTIFICATE_MANAGE,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_VIEW,
+    Permissions.VARIATION_REVIEW,
+    Permissions.VARIATION_APPROVE,
+    Permissions.REPORT_VIEW,
+    Permissions.TENDER_VIEW,
+    Permissions.INSPECTION_VIEW,
+    Permissions.QUOTE_VIEW,
+    Permissions.INVOICE_VIEW,
   ],
   // QA/QC Officer: quality gatekeeper — inspections, checklists, site
   // records, inventory; no financial tracker, no team admin.
