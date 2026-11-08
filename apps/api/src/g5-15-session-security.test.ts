@@ -61,6 +61,31 @@ describe('Session security', () => {
     expect(refreshed.cookies.find((c) => c.name === 'refresh_token')).toBeTruthy();
   });
 
+  it('detects refresh-token reuse and revokes the family', async () => {
+    const res = await login();
+    const refresh = res.cookies.find((c) => c.name === 'refresh_token');
+    const first = await server.inject({
+      method: 'POST', url: '/api/v1/auth/refresh',
+      headers: { cookie: `refresh_token=${refresh!.value}` },
+    });
+    expect(first.statusCode).toBe(200);
+
+    // Replaying the consumed refresh token must fail and revoke the family.
+    const replay = await server.inject({
+      method: 'POST', url: '/api/v1/auth/refresh',
+      headers: { cookie: `refresh_token=${refresh!.value}` },
+    });
+    expect(replay.statusCode).toBe(401);
+
+    // The rotated refresh token issued by `first` is also dead now.
+    const rotated = first.cookies.find((c) => c.name === 'refresh_token');
+    const reuseRotated = await server.inject({
+      method: 'POST', url: '/api/v1/auth/refresh',
+      headers: { cookie: `refresh_token=${rotated!.value}` },
+    });
+    expect(reuseRotated.statusCode).toBe(401);
+  });
+
   it('rejects refresh tokens used as access tokens', async () => {
     const res = await login();
     const refresh = res.cookies.find((c) => c.name === 'refresh_token');

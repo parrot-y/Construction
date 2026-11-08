@@ -2973,3 +2973,17 @@ model ChecklistAssignment {
   @@index([tenant_id, project_id, status])
   @@map("checklist_assignments")
 }
+
+// Server-side refresh-token rotation tracking (audit S-01).
+// One row per issued refresh token (keyed by JWT jti). On refresh the row is
+// consumed; presenting an already-consumed or unknown jti revokes the family.
+model RefreshToken {
+  jti        String   @id @db.VarChar(64)
+  tenant_id  String   @db.Uuid
+  user_id    String   @db.Uuid
+  expires_at DateTime @db.Timestamptz
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  @@index([tenant_id, user_id])
+  @@map("refresh_tokens")
+}

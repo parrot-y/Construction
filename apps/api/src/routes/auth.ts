@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { prisma, verifyPassword, withTenantTx } from '@construction/db';
 import { getPermissionsForRole, Role } from '@construction/permissions';
 import { AuthUserResponse, LoginRequestSchema } from '@construction/validation';
@@ -163,6 +164,7 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     const tokenPayload = { ...tokenPayloadBase, typ: 'access' as const };
     const token = server.jwt.sign(tokenPayload, { expiresIn: ACCESS_TTL });
+    const refreshJti = crypto.randomUUID();
     const refreshToken = server.jwt.sign(
       {
         sub: user.id,
@@ -171,8 +173,21 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         tenantId: activeMembership.tenant_id,
         role: activeMembership.role,
         typ: 'refresh' as const,
+        jti: refreshJti,
       },
       { expiresIn: REFRESH_TTL },
+    );
+
+    // Track the refresh token server-side for rotation + reuse detection.
+    await withTenantTx(prisma, activeMembership.tenant_id, (tx) =>
+      tx.refreshToken.create({
+        data: {
+          jti: refreshJti,
+          tenant_id: activeMembership.tenant_id,
+          user_id: user.id,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      }),
     );
 
     // Short-lived access cookie + rotating refresh cookie (audit S-01)
@@ -202,7 +217,19 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   });
 
   // POST /api/v1/auth/logout
-  server.post('/api/v1/auth/logout', async (_request, reply) => {
+  server.post('/api/v1/auth/logout', async (request, reply) => {
+    // Revoke refresh tokens when we can identify the session (best-effort).
+    const access = request.cookies?.access_token;
+    if (access) {
+      try {
+        const p = server.jwt.verify(access) as any;
+        if (p?.sub && p?.tenantId) {
+          await withTenantTx(prisma, p.tenantId, (tx) =>
+            tx.refreshToken.deleteMany({ where: { user_id: p.sub, tenant_id: p.tenantId } }),
+          );
+        }
+      } catch { /* expired/invalid token — cookies still cleared */ }
+    }
     clearSessionCookies(reply);
     return reply.status(200).send({
       success: true,
@@ -224,9 +251,31 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     } catch {
       return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid refresh token' });
     }
-    if (payload.typ !== 'refresh' || !payload.sub || !payload.tenantId) {
+    if (payload.typ !== 'refresh' || !payload.sub || !payload.tenantId || !payload.jti) {
       return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid refresh token' });
     }
+
+    // Rotation + reuse detection: the presented jti must exist unconsumed.
+    // A missing row means the token was already rotated (theft/replay) or never
+    // issued — revoke the whole family and force re-login.
+    const consumed = await withTenantTx(prisma, payload.tenantId, (tx) =>
+      tx.refreshToken.deleteMany({
+        where: { jti: payload.jti, user_id: payload.sub, tenant_id: payload.tenantId },
+      }),
+    );
+    if (consumed.count === 0) {
+      await withTenantTx(prisma, payload.tenantId, (tx) =>
+        tx.refreshToken.deleteMany({ where: { user_id: payload.sub, tenant_id: payload.tenantId } }),
+      );
+      clearSessionCookies(reply);
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Refresh token already used or revoked' });
+    }
+    // Opportunistic cleanup of expired rows for this user.
+    await withTenantTx(prisma, payload.tenantId, (tx) =>
+      tx.refreshToken.deleteMany({
+        where: { user_id: payload.sub, tenant_id: payload.tenantId, expires_at: { lt: new Date() } },
+      }),
+    );
 
     const membership = await withTenantTx(prisma, payload.tenantId, async (tx) => {
       const m = await tx.membership.findFirst({
@@ -251,6 +300,7 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       },
       { expiresIn: ACCESS_TTL },
     );
+    const newJti = crypto.randomUUID();
     const newRefresh = server.jwt.sign(
       {
         sub: payload.sub,
@@ -259,8 +309,19 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         tenantId: payload.tenantId,
         role: membership.role,
         typ: 'refresh',
+        jti: newJti,
       },
       { expiresIn: REFRESH_TTL },
+    );
+    await withTenantTx(prisma, payload.tenantId, (tx) =>
+      tx.refreshToken.create({
+        data: {
+          jti: newJti,
+          tenant_id: payload.tenantId,
+          user_id: payload.sub,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      }),
     );
     setSessionCookies(reply, token, newRefresh);
     return reply.status(200).send({ success: true });
