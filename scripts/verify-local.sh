@@ -8,7 +8,7 @@ set -eo pipefail
 # 2. Creates db_migrator (owner) and db_app (non-owner, no BYPASSRLS).
 # 3. Runs prisma db push as db_migrator to create tables.
 # 4. Grants schema permissions to db_app AFTER tables exist (remediating C5).
-# 5. Applies packages/db/prisma/rls.sql (RLS, Ledger Immutability, Security Definer functions).
+# 5. Applies packages/db/prisma/rls.sql after prisma migrate deploy (RLS re-enforced every deploy).
 # 6. Seeds the database as db_migrator.
 # 7. Runs secret scanning.
 # 8. Runs pnpm run lint.
@@ -132,8 +132,8 @@ export PG_DB="construction_test"
 export PG_SUPERUSER="postgres"
 
 echo ""
-echo "=== Step 3: Running prisma db push as db_migrator (Owner) ==="
-DATABASE_URL="${MIGRATOR_URL}" pnpm --filter @construction/db prisma db push --skip-generate
+echo "=== Step 3: Applying Prisma migrations as db_migrator (baseline + RLS policies) ==="
+DATABASE_URL="${MIGRATOR_URL}" pnpm --filter @construction/db prisma migrate deploy
 
 echo ""
 echo "=== Step 4: Granting Schema Permissions to db_app AFTER Tables Exist (C5) ==="
@@ -146,7 +146,7 @@ echo "=== Step 4: Granting Schema Permissions to db_app AFTER Tables Exist (C5) 
 "
 
 echo ""
-echo "=== Step 5: Applying rls.sql (Row-Level Security, Immutability & Security Definer Functions) ==="
+echo "=== Step 5: Re-applying rls.sql (idempotent re-enforcement on every deploy) ==="
 "${PG_BIN_DIR}/psql" -h "${PGSOCK}" -p "${PGPORT}" -U postgres -d construction_test -f packages/db/prisma/rls.sql
 
 echo ""

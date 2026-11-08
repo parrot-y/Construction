@@ -1,4 +1,16 @@
 -- ==============================================================================
+-- DOCUMENTED EXCEPTION — users & tenants are intentionally NOT under RLS:
+--   * `users` is a global identity table (no tenant_id): a user may hold
+--     Memberships in several tenants, and the login flow must resolve the user
+--     BEFORE any tenant context (app.current_tenant_id) exists. Fail-closed
+--     RLS here would make authentication impossible.
+--   * `tenants` is the root tenancy row resolved during login/tenant-slug
+--     lookup, again before tenant context is established.
+--   All tenant-owned data — including `memberships`, which carries tenant_id
+--   and IS covered by the loop below — is isolated. Access to users/tenants
+--   is further restricted at the application layer (never exposed cross-tenant
+--   via API; password hashes never serialized).
+-- ==============================================================================
 -- POSTGRESQL ROW-LEVEL SECURITY & LEDGER IMMUTABILITY ENFORCEMENT SCRIPT
 -- (ADR-001, C4, H4, R-014, R-024)
 -- Enables and FORCE-enforces RLS on all tables carrying a tenant_id column.

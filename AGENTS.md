@@ -34,3 +34,4 @@
 - Status doc: `docs/PROJECT_STATUS.md`. Scope: `docs/MVP_SCOPE.md` + `docs/PRD.md`.
 - Competitor research: `docs/research/console-audit/` (numbered findings docs; raw captures stay LOCAL only — never recommit).
 - Verification: `scripts/verify-local.sh` (turbo lint/typecheck/test/build — evidence pinned in `docs/evidence/`).
+- Database: real Prisma migrations in `packages/db/prisma/migrations/` (0001 baseline, 0002 RLS policies). Deploy = `prisma migrate deploy` as `db_migrator`, then `psql -f packages/db/prisma/rls.sql` (idempotent re-enforcement). Never `db push` against shared/prod DBs. `users`/`tenants` are documented RLS exceptions (identity resolution precedes tenant context — see rls.sql header).
