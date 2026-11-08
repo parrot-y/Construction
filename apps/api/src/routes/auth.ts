@@ -218,8 +218,9 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
   // POST /api/v1/auth/logout
   // List the caller's active refresh sessions (audit S-01 self-service).
-  server.get('/api/v1/auth/sessions', async (request, reply) => {
-    const access = request.cookies?.access_token;
+  server.get('/api/v1/auth/sessions', { preHandler: [server.authenticate] }, async (request, reply) => {
+    const access = request.cookies?.access_token
+      ?? request.headers.authorization?.replace(/^Bearer /, '');
     if (!access) {
       return reply.status(401).send({ error: 'Unauthorized', message: 'No session' });
     }
@@ -250,9 +251,10 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   });
 
   // Revoke one session by jti prefix, or all others via ?all=others.
-  server.delete('/api/v1/auth/sessions/:id', async (request, reply) => {
+  server.delete('/api/v1/auth/sessions/:id', { preHandler: [server.authenticate] }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const access = request.cookies?.access_token;
+    const access = request.cookies?.access_token
+      ?? request.headers.authorization?.replace(/^Bearer /, '');
     if (!access) {
       return reply.status(401).send({ error: 'Unauthorized', message: 'No session' });
     }
