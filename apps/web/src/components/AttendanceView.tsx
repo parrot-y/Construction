@@ -18,6 +18,8 @@ const STATUS_STYLE: Record<string, string> = {
   ABSENT: 'bg-rose-50 text-rose-700',
 };
 const MARK_STATUSES = ['PRESENT', 'HALF_DAY', 'LEAVE', 'OFF_DAY', 'ABSENT'];
+const TRADES = ['MASON', 'CARPENTER', 'STEEL_FIXER', 'PLUMBER', 'ELECTRICIAN', 'PAINTER', 'TILER', 'CASUAL_LABORER', 'SCAFFOLDER', 'FOREMAN'];
+const SKILLS = ['CASUAL_MTU_WA_MKONO', 'SEMI_SKILLED', 'ARTISAN_FUNDI', 'CHARGEHAND_FOREMAN'];
 
 export default function AttendanceView({ projectId, canManage = true }: { projectId?: string; canManage?: boolean }): React.JSX.Element {
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
@@ -28,6 +30,9 @@ export default function AttendanceView({ projectId, canManage = true }: { projec
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showLaborerForm, setShowLaborerForm] = useState(false);
+  const [labForm, setLabForm] = useState({ workerCode: '', fullName: '', nationalIdNo: '', phoneNumber: '', tradeCategory: 'CASUAL_LABORER', skillLevel: 'SEMI_SKILLED', dailyRateKes: '800' });
+  const [labSaving, setLabSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -106,6 +111,76 @@ export default function AttendanceView({ projectId, canManage = true }: { projec
       </div>
 
       {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium rounded-lg">{error}</div>}
+
+      {canManage && (
+        <div className="flex justify-end">
+          <button onClick={() => setShowLaborerForm((v) => !v)} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800">
+            {showLaborerForm ? '− Cancel' : '+ Register laborer'}
+          </button>
+        </div>
+      )}
+
+      {showLaborerForm && canManage && (
+        <div className="border border-indigo-200 bg-indigo-50/40 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {([
+            ['workerCode', 'Worker code *', 'e.g. WK-014'],
+            ['fullName', 'Full name *', 'e.g. Joseph Otieno'],
+            ['nationalIdNo', 'National ID *', 'e.g. 12345678'],
+            ['phoneNumber', 'Phone (07…/254…) *', 'e.g. 0712345678'],
+          ] as const).map(([k, ph, hint]) => (
+            <label key={k} className="space-y-1">
+              <span className="block text-[10px] font-semibold text-slate-500">{ph}</span>
+              <input value={labForm[k]} onChange={(e) => setLabForm({ ...labForm, [k]: e.target.value })} placeholder={hint}
+                className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs" />
+            </label>
+          ))}
+          <label className="space-y-1">
+            <span className="block text-[10px] font-semibold text-slate-500">Trade</span>
+            <select value={labForm.tradeCategory} onChange={(e) => setLabForm({ ...labForm, tradeCategory: e.target.value })}
+              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs">
+              {TRADES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="block text-[10px] font-semibold text-slate-500">Skill level</span>
+            <select value={labForm.skillLevel} onChange={(e) => setLabForm({ ...labForm, skillLevel: e.target.value })}
+              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs">
+              {SKILLS.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="block text-[10px] font-semibold text-slate-500">Daily rate (KES)</span>
+            <input value={labForm.dailyRateKes} onChange={(e) => setLabForm({ ...labForm, dailyRateKes: e.target.value })}
+              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs" />
+          </label>
+          <div className="col-span-2 sm:col-span-3 flex justify-end">
+            <button
+              disabled={labSaving || !labForm.workerCode || !labForm.fullName || !labForm.nationalIdNo || !labForm.phoneNumber}
+              onClick={async () => {
+                setLabSaving(true); setError(null);
+                try {
+                  const res = await fetch(`/api/v1/projects/${pid}/laborers`, {
+                    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(labForm),
+                  });
+                  const json = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+                  setShowLaborerForm(false);
+                  setLabForm({ workerCode: '', fullName: '', nationalIdNo: '', phoneNumber: '', tradeCategory: 'CASUAL_LABORER', skillLevel: 'SEMI_SKILLED', dailyRateKes: '800' });
+                  await load();
+                } catch (err: any) {
+                  setError(err?.message || 'Registration failed');
+                } finally {
+                  setLabSaving(false);
+                }
+              }}
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
+            >
+              {labSaving ? 'Saving…' : 'Save laborer'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {summary && (
         <div className="grid grid-cols-3 gap-2 text-center">
