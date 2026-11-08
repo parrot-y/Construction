@@ -38,3 +38,8 @@
 24. **verify-local's db push is a point-in-time snapshot**: schema changes made after Step 3 leave the test DB stale → mass failures in unrelated suites (inspection enum). Re-run verify after ANY schema change before claiming green.
 25. **Test helpers return parsed bodies, not strings**: `login()` helpers that return `{cookie, body: JSON.parse(res.body)}` — don't JSON.parse(body) again (SyntaxError "[object Object]").
 26. **SiteLaborer requires phone_number + unique national_id**: direct prisma seeding in tests needs both; use timestamped IDs to survive re-runs.
+
+27. **Live-capture before rebuilding UI**: never infer a competitor's IA from notes — log in with supplied creds, screenshot+DOM-dump every role/section, encode the matrix in config, THEN build. (User correction 2026-11-08: "I gave you logins, open it portal by portal.")
+28. **Probe scripts are repo litter**: playwright capture scripts with credentials must live in /tmp, never the repo — `git add -A` swept 10 of them into history once. Keep research tooling outside the worktree.
+29. **Double chrome**: when introducing a new app shell, early-return it BEFORE legacy header/layout wrappers — nested sticky headers/permission bars render twice.
+30. **Component tests ≠ routing tests**: Dashboard-level "embeds X" tests should render the view component directly once routing moves to a config-driven shell; update deliberately, don't delete coverage.

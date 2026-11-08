@@ -137,13 +137,26 @@
 ## Reference-console parity rebuild (live-captured 2026-11-08)
 Captures: /tmp/refstudy/crawl/<role>/<section>.{txt,png} — 8 roles x 6 sections.
 
-- [ ] AppShell: icon rail (Ask AI, Home, Projects, Site, Money, People, Files & reports) + topbar (workspace label, search, currency toggle, New, notifications, avatar, dark-mode ready)
-- [ ] navConfig: role -> visible sections/subtabs per captured matrix
-- [ ] Home per role group: exec/pm/viewer dashboard (CO KPIs, AI insight, status chart) ; field roles team inbox + announcements + AI panel
-- [ ] Projects section: All projects (cards+filters+recent CO activity), Schedule, Drawings, Change orders, Coordination(RFI), Correspondence
-- [ ] Site section: Daily log, Checklists, Assignments, Punch list, Inspections, Observations, Action plans, Safety, Attendance (+Field view for field roles)
-- [ ] Money section: Financials, Commitments, Quotes, Invoices, Inventory, Billing&plan (role-gated)
-- [ ] People section: Team, Crews, Subcontractors, Directory, Roles (role-gated)
-- [ ] Files section: Reports, Company documents, Unfiled documents
-- [ ] Ask AI panel: honest assistant UI (module deep-links + guidance; no fake AI claims)
-- [ ] Role gating verified per captured matrix (worker: no People/Files; viewer: read-only subset)
+- [x] AppShell: icon rail (Ask AI, Home, Projects, Site, Money, People, Files & reports) + topbar (workspace label, search, currency toggle, New, notifications, avatar, dark-mode ready)
+- [x] navConfig: role -> visible sections/subtabs per captured matrix
+- [x] Home per role group: exec/pm/viewer dashboard (CO KPIs, AI insight, status chart) ; field roles team inbox + announcements + AI panel
+- [x] Projects section: All projects (cards+filters+recent CO activity), Schedule, Drawings, Change orders, Coordination(RFI), Correspondence
+- [x] Site section: Daily log, Checklists, Assignments, Punch list, Inspections, Observations, Action plans, Safety, Attendance (+Field view for field roles)
+- [x] Money section: Financials, Commitments, Quotes, Invoices, Inventory, Billing&plan (role-gated)
+- [x] People section: Team, Crews, Subcontractors, Directory, Roles (role-gated)
+- [x] Files section: Reports, Company documents, Unfiled documents
+- [x] Ask AI panel: honest assistant UI (module deep-links + guidance; no fake AI claims)
+- [x] Role gating verified per captured matrix (worker: no People/Files; viewer: read-only subset)
+- [x] Mobile bottom tab bar (<640px) + desktop icon rail
+- [x] External portal previews inside shell (context-driven)
+- [x] Daily log 14-day strip, per-day Add log (initialDate)
+- [x] Financials tracker sub-tabs + BoqWorkbookView + exports
+- [x] DrawingsView Electrical discipline + AI Design SOON
+- [x] Photo upload wired to /uploads in SiteDiaryModal
+- [x] All 10 seed logins verified live via Playwright DOM probe
+- [x] Probe/refstudy scripts removed from repo (never commit research tooling)
+
+## Review
+- Shell now matches captured IA 1:1 at section+subtab level; inner views are our live implementations (not copies).
+- Honest gaps remaining: real AI backend (Ask AI is labelled rule-based nav assistant), AI Design SOON, drawing markup viewer, live eTIMS/WhatsApp provider creds, client-portal "Request a project" flow, deeper subtab internals beyond first-crawl depth.
+- Probe scripts contained reference credentials -> removed from HEAD; history still contains them (pre-scrub commits) — offer history rewrite if user wants.
