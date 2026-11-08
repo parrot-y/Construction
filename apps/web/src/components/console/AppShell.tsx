@@ -3,6 +3,7 @@ import { ConsoleProvider, useConsole } from './ConsoleContext';
 import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection } from './navConfig';
 import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSun, IconMoon } from './icons';
 import AskAiPanel from './AskAiPanel';
+import SessionsModal from './SessionsModal';
 import HomeSection from './sections/HomeSection';
 import ProjectsSection from './sections/ProjectsSection';
 import SiteSection from './sections/SiteSection';
@@ -22,6 +23,7 @@ function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
   const [members, setMembers] = useState<any[]>([]);
   const [q, setQ] = useState('');
   const [userMenu, setUserMenu] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/v1/company/members', { credentials: 'include' })
@@ -193,6 +195,10 @@ function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
                   <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user.fullName || user.email}</p>
                   <p className="text-[10px] text-slate-400">{user.email} · {roleLabel}</p>
                 </div>
+                <button onClick={() => { setUserMenu(false); setSessionsOpen(true); }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  Active sessions
+                </button>
                 {onLogout && (
                   <button onClick={onLogout} className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
                     Sign out
@@ -203,6 +209,7 @@ function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
           )}
         </div>
       </div>
+      {sessionsOpen && <SessionsModal onClose={() => setSessionsOpen(false)} />}
     </header>
   );
 }

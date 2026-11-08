@@ -6,9 +6,10 @@ import ScheduledReportsView from '../../ScheduledReportsView';
 const PERIODS = ['7D', '30D', 'QTD', 'YTD'];
 
 const REPORT_LINKS = [
-  { label: 'Interim Payment Certificate (IPC)', path: (pid: string) => `/api/v1/projects/${pid}/reports/ipc`, desc: 'Certified valuation for the current period' },
-  { label: 'Project Summary', path: (pid: string) => `/api/v1/projects/${pid}/reports/summary`, desc: 'Budget, spend and progress snapshot' },
-  { label: 'Cost Report', path: (pid: string) => `/api/v1/projects/${pid}/reports/cost`, desc: 'Cost ledger by category' },
+  { label: 'Interim Payment Certificate (IPC)', path: (pid: string) => `/api/v1/projects/${pid}/reports/ipc`, desc: 'Certified valuation for the current period', fmt: 'PDF' },
+  { label: 'Project Summary', path: (pid: string) => `/api/v1/projects/${pid}/reports/summary`, desc: 'Budget, spend and progress snapshot', fmt: 'PDF' },
+  { label: 'Cost Report', path: (pid: string) => `/api/v1/projects/${pid}/reports/cost.xlsx`, desc: 'Cost ledger by category (Excel)', fmt: 'XLSX' },
+  { label: 'Financial workbook', path: (pid: string) => `/api/v1/projects/${pid}/reports/financials.xlsx`, desc: 'Cash flow, change orders, commitments', fmt: 'XLSX' },
 ];
 
 /** Reports — period selector + export cards (reference "Reports" tab). */
@@ -118,7 +119,7 @@ function ReportsView(): React.JSX.Element {
             {livePid ? (
               <a href={r.path(livePid)} download
                 className="mt-4 inline-flex items-center justify-center px-3.5 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg hover:opacity-90">
-                Export PDF
+                Export {r.fmt}
               </a>
             ) : (
               <span className="mt-4 text-[11px] text-slate-400">Select a project</span>

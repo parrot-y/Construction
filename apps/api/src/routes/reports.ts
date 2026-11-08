@@ -903,5 +903,78 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       reply.header('Content-Disposition', `attachment; filename="${filename}"`);
       return reply.send(await wb.xlsx.writeBuffer());
     },
+  );  server.get(
+    // 5. GET /api/v1/projects/:projectId/reports/cost.xlsx - Cost ledger by category
+    '/api/v1/projects/:projectId/reports/cost.xlsx',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.REPORT_VIEW),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      const data = await withTenantTx(prisma, tenantId, async (tx) => {
+        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true } });
+        const costs = await tx.costEntry.findMany({
+          where: { project_id: projectId },
+          orderBy: { created_at: 'desc' },
+          take: 2000,
+        });
+        return { project, costs };
+      });
+
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Site Safi';
+      const money = (v: any) => Number(v ?? 0);
+
+      const ws = wb.addWorksheet('Costs');
+      ws.columns = [
+        { header: 'Date', key: 'date', width: 12 },
+        { header: 'Description', key: 'desc', width: 55 },
+        { header: 'Category', key: 'cat', width: 22 },
+        { header: 'Vendor', key: 'vendor', width: 30 },
+        { header: 'Amount (KES)', key: 'amt', width: 16 },
+        { header: 'Status', key: 'status', width: 14 },
+      ];
+      ws.getRow(1).font = { bold: true };
+      const byCat = new Map<string, number>();
+      for (const c of data.costs as any[]) {
+        const amt = money(c.amount);
+        const cat = c.cost_category ?? 'Other';
+        ws.addRow({
+          date: c.created_at,
+          desc: c.description ?? '',
+          cat,
+          vendor: c.vendor_name ?? c.supplier_name ?? '',
+          amt,
+          status: c.status ?? '',
+        });
+        byCat.set(cat, (byCat.get(cat) ?? 0) + amt);
+      }
+      ws.addRow({});
+      ws.addRow({ desc: 'TOTAL', amt: [...byCat.values()].reduce((a, b) => a + b, 0) }).font = { bold: true };
+
+      const summary = wb.addWorksheet('By category');
+      summary.columns = [
+        { header: 'Category', key: 'cat', width: 30 },
+        { header: 'Total (KES)', key: 'amt', width: 18 },
+      ];
+      summary.getRow(1).font = { bold: true };
+      for (const [cat, amt] of [...byCat.entries()].sort((a, b) => b[1] - a[1])) {
+        summary.addRow({ cat, amt });
+      }
+
+      const filename = `cost-report-${(data.project?.code || projectId).replace(/[^a-z0-9-]/gi, '')}.xlsx`;
+      reply.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      reply.header('Content-Disposition', `attachment; filename="${filename}"`);
+      return reply.send(await wb.xlsx.writeBuffer());
+    },
   );
 };
+

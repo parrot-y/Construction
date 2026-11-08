@@ -217,6 +217,78 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   });
 
   // POST /api/v1/auth/logout
+  // List the caller's active refresh sessions (audit S-01 self-service).
+  server.get('/api/v1/auth/sessions', async (request, reply) => {
+    const access = request.cookies?.access_token;
+    if (!access) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'No session' });
+    }
+    let payload: any;
+    try { payload = server.jwt.verify(access); } catch {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Session expired' });
+    }
+    const refresh = request.cookies?.refresh_token;
+    let currentJti: string | null = null;
+    if (refresh) {
+      try { currentJti = (server.jwt.verify(refresh) as any)?.jti ?? null; } catch { /* ignore */ }
+    }
+    const rows = await withTenantTx(prisma, payload.tenantId, (tx) =>
+      tx.refreshToken.findMany({
+        where: { user_id: payload.sub, tenant_id: payload.tenantId, expires_at: { gt: new Date() } },
+        orderBy: { created_at: 'desc' },
+        select: { jti: true, created_at: true, expires_at: true },
+      }),
+    );
+    return reply.send({
+      data: rows.map((r) => ({
+        id: r.jti.slice(0, 8),
+        createdAt: r.created_at,
+        expiresAt: r.expires_at,
+        current: r.jti === currentJti,
+      })),
+    });
+  });
+
+  // Revoke one session by jti prefix, or all others via ?all=others.
+  server.delete('/api/v1/auth/sessions/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const access = request.cookies?.access_token;
+    if (!access) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'No session' });
+    }
+    let payload: any;
+    try { payload = server.jwt.verify(access); } catch {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Session expired' });
+    }
+    const refresh = request.cookies?.refresh_token;
+    let currentJti: string | null = null;
+    if (refresh) {
+      try { currentJti = (server.jwt.verify(refresh) as any)?.jti ?? null; } catch { /* ignore */ }
+    }
+    const result = await withTenantTx(prisma, payload.tenantId, async (tx) => {
+      if (id === 'others') {
+        return tx.refreshToken.deleteMany({
+          where: {
+            user_id: payload.sub, tenant_id: payload.tenantId,
+            ...(currentJti ? { jti: { not: currentJti } } : {}),
+          },
+        });
+      }
+      // jti prefix match (ids are exposed truncated)
+      const rows = await tx.refreshToken.findMany({
+        where: { user_id: payload.sub, tenant_id: payload.tenantId },
+        select: { jti: true },
+      });
+      const match = rows.find((r) => r.jti.startsWith(id));
+      if (!match) return { count: 0 };
+      if (match.jti === currentJti) {
+        throw { status: 400, message: 'Cannot revoke your current session — use sign out' };
+      }
+      return tx.refreshToken.delete({ where: { jti: match.jti } });
+    });
+    return reply.send({ data: { revoked: (result as any).count ?? 1 } });
+  });
+
   server.post('/api/v1/auth/logout', async (request, reply) => {
     // Revoke refresh tokens when we can identify the session (best-effort).
     const access = request.cookies?.access_token;
