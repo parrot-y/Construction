@@ -15,7 +15,7 @@ const REPORT_LINKS = [
 function ReportsView(): React.JSX.Element {
   const { projectId, projects } = useConsole();
   const [period, setPeriod] = useState('30D');
-  const [coMetrics, setCoMetrics] = useState<{ total: number; approvalRate: number | null; medianCycle: number | null; reworkRate: number | null } | null>(null);
+  const [coMetrics, setCoMetrics] = useState<{ total: number; approvalRate: number | null; medianCycle: number | null; reworkRate: number | null; byStatus?: Record<string, number> } | null>(null);
   const livePid = projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
   const pname = projects.find((p) => p.id === projectId)?.name;
 
@@ -35,11 +35,14 @@ function ReportsView(): React.JSX.Element {
           .filter((d) => d >= 0)
           .sort((a, b) => a - b);
         const median = cycles.length ? (cycles[Math.floor(cycles.length / 2)] ?? null) : null;
+        const byStatus: Record<string, number> = {};
+        for (const v of rows) { const k = String(v.status || 'UNKNOWN'); byStatus[k] = (byStatus[k] || 0) + 1; }
         setCoMetrics({
           total,
           approvalRate: Math.round((approved / rows.length) * 100),
           medianCycle: median === null ? null : Math.round(median * 10) / 10,
           reworkRate: Math.round((rejected / rows.length) * 100),
+          byStatus,
         });
       })
       .catch(() => setCoMetrics(null));
@@ -79,6 +82,31 @@ function ReportsView(): React.JSX.Element {
               <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {coMetrics?.byStatus && Object.keys(coMetrics.byStatus).length > 0 && (
+        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">CO Volume by Status</h4>
+            <span className="text-[10px] text-slate-400">Number of change orders</span>
+          </div>
+          <div className="space-y-2">
+            {Object.entries(coMetrics.byStatus).sort((a, b) => b[1] - a[1]).map(([st, n]) => {
+              const max = Math.max(...Object.values(coMetrics.byStatus!));
+              const pct = max ? Math.round((n / max) * 100) : 0;
+              const colors: Record<string, string> = { APPROVED: 'bg-emerald-500', REJECTED: 'bg-rose-500', DRAFT: 'bg-slate-400', PM_REVIEW: 'bg-amber-500', OWNER_REVIEW: 'bg-violet-500', SUBMITTED: 'bg-sky-500' };
+              return (
+                <div key={st} className="flex items-center gap-3">
+                  <span className="w-28 text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">{st.replace(/_/g, ' ')}</span>
+                  <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${colors[st] || 'bg-slate-500'}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-8 text-right text-xs font-bold font-mono text-slate-700 dark:text-slate-200">{n}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
