@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import BoqWorkbookView from './BoqWorkbookView';
 import { useConsole } from '../ConsoleContext';
 import CostManagementView from '../../CostManagementView';
@@ -25,6 +25,29 @@ const FIN_TABS = ['overview', 'ledger', 'boq', 'applications', 'retention', 'bud
 /** Financial tracker — money in/out, budget vs actual, exports (reference "Financials"). */
 function FinancialsView({ projectId, projectName }: { projectId: string; projectName?: string }): React.JSX.Element {
   const [ft, setFt] = useState<(typeof FIN_TABS)[number]>('overview');
+  const [kpis, setKpis] = useState<{ cashIn: number; deposits: number; cashOut: number; net: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const money = (v: any) => Number(v ?? 0);
+    Promise.all([
+      fetch(`/api/v1/invoices?projectId=${projectId}`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { data: [] })),
+      fetch(`/api/v1/projects/${projectId}/costs`, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { data: [] })),
+    ]).then(([invJ, costJ]) => {
+      if (cancelled) return;
+      const invoices = invJ.data || invJ || [];
+      const costs = costJ.data || costJ || [];
+      const cashIn = invoices.reduce((a: number, i: any) => a + money(i.amount_paid), 0);
+      const deposits = invoices
+        .filter((i: any) => /deposit|advance|mobilization/i.test(i.title || ''))
+        .reduce((a: number, i: any) => a + money(i.amount_paid), 0);
+      const cashOut = costs
+        .filter((c: any) => ['APPROVED', 'POSTED', 'PAID'].includes(c.status) || !c.status)
+        .reduce((a: number, c: any) => a + money(c.amount ?? c.total_amount ?? c.value), 0);
+      setKpis({ cashIn, deposits, cashOut, net: cashIn - cashOut });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [projectId]);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -48,10 +71,10 @@ function FinancialsView({ projectId, projectName }: { projectId: string; project
       {ft === 'overview' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[['Cash in', '—'], ['Deposits & advances', '—'], ['Cash out', '—'], ['Net', '—']].map(([l, v]) => (
+            {([['Cash in', kpis?.cashIn], ['Deposits & advances', kpis?.deposits], ['Cash out', kpis?.cashOut], ['Net', kpis?.net]] as [string, number | undefined][]).map(([l, v]) => (
               <div key={l} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{l}</p>
-                <p className="text-lg font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">{v}</p>
+                <p className="text-lg font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">{v === undefined ? '—' : `KES ${v.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
               </div>
             ))}
           </div>
