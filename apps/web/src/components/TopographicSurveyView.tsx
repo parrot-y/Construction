@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface CrossSectionStationRecord {
   id?: string;
@@ -214,7 +214,7 @@ const DEFAULT_SURVEYS: TopographicSurveyRecord[] = [
 ];
 
 export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Highway Alignment Section',
   initialSurveys = DEFAULT_SURVEYS,
   onRegisterSurvey,
@@ -238,6 +238,76 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
   const [freehaulDistanceMeters, setFreehaulDistanceMeters] = useState<string>('500.00');
   const [overhaulUnitRateKes, setOverhaulUnitRateKes] = useState<string>('85.00');
   const [borrowUnitRateKes, setBorrowUnitRateKes] = useState<string>('350.00');
+
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/topographic-surveys`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const list = (await res.json()) as any[];
+      const mapped = await Promise.all(list.map(async (s) => {
+        const base: TopographicSurveyRecord = {
+          id: s.id,
+          surveyCode: s.surveyCode,
+          title: s.title,
+          surveyDate: s.surveyDate,
+          surveyorName: s.surveyorName,
+          instrumentType: s.instrumentType,
+          calculationMethod: s.calculationMethod,
+          bulkingFactor: s.bulkingFactor,
+          shrinkageFactor: s.shrinkageFactor,
+          freehaulDistanceMeters: s.freehaulDistanceMeters,
+          overhaulUnitRateKes: s.overhaulUnitRateKes,
+          borrowUnitRateKes: s.borrowUnitRateKes,
+          totalCutVolumeM3: s.totalCutVolumeM3,
+          totalFillVolumeM3: s.totalFillVolumeM3,
+          netBalanceVolumeM3: s.netBalanceVolumeM3,
+          totalOverhaulCostKes: s.totalOverhaulCostKes,
+          economicHaulLimitMeters: s.economicHaulLimitMeters,
+          status: s.status,
+          stationCount: s.stationCount,
+          createdAt: s.createdAt,
+        };
+        try {
+          const dres = await fetch(`/api/v1/projects/${projectId}/topographic-surveys/${s.id}`, { credentials: 'include' });
+          if (dres.ok) {
+            const detail = await dres.json();
+            base.stations = ((detail.stations || []) as any[]).map((st) => ({
+              id: st.id,
+              stationIndex: st.stationIndex,
+              chainageMeters: st.chainageMeters,
+              chainageLabel: st.chainageLabel,
+              existingGroundLevelM: st.existingGroundLevelM,
+              proposedFormationLevelM: st.proposedFormationLevelM,
+              depthCutOrFillM: st.depthCutOrFillM,
+              cutAreaM2: st.cutAreaM2,
+              fillAreaM2: st.fillAreaM2,
+              midCutAreaM2: st.midCutAreaM2 ?? null,
+              midFillAreaM2: st.midFillAreaM2 ?? null,
+              intervalDistanceM: st.intervalDistanceM,
+              intervalCutVolumeM3: st.intervalCutVolumeM3,
+              intervalFillVolumeM3: st.intervalFillVolumeM3,
+              intervalAdjustedFillM3: st.intervalAdjustedFillM3,
+              intervalNetVolumeM3: st.intervalNetVolumeM3,
+              cumulativeMassOrdinateM3: st.cumulativeMassOrdinateM3,
+            }));
+          }
+        } catch { /* keep survey without stations */ }
+        return base;
+      }));
+      setSurveys(mapped);
+      setSelectedSurveyId((prev) => (mapped.some((m) => m.id === prev) ? prev : (mapped[0]?.id ?? '')));
+    } catch {
+      setSurveys([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   // Modal Dynamic Stations State
   const [formStations, setFormStations] = useState<Array<{
@@ -337,6 +407,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
       const payload = {
         surveyCode,
         title,
+        surveyDate: new Date().toISOString(),
         surveyorName,
         instrumentType,
         calculationMethod,
@@ -357,6 +428,22 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           midFillAreaM2: st.midFillAreaM2 ? parseFloat(st.midFillAreaM2) : null,
         })),
       };
+
+      if (isLive) {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/topographic-surveys`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            const created = await res.json().catch(() => null);
+            await reload();
+            if (created?.id) setSelectedSurveyId(created.id);
+            setShowModal(false);
+            return;
+          }
+        } catch { /* fall through to local */ }
+      }
 
       if (onRegisterSurvey) {
         await onRegisterSurvey(payload);
@@ -653,6 +740,10 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 
   const netBalanceNum = Number(activeSurvey?.netBalanceVolumeM3 ?? 0);
   const isCutSurplus = netBalanceNum >= 0;
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading topographic surveys...</div>;
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">

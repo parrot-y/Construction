@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import CreateSnagModal, { SnagSeverity, TradeCategory } from './CreateSnagModal';
 
-export type SnagStatus = 'OPEN' | 'RECTIFIED_BY_CONTRACTOR' | 'VERIFIED_CLOSED';
+export type SnagStatus = 'OPEN' | 'IN_PROGRESS' | 'READY_FOR_REVIEW' | 'RECTIFIED_BY_CONTRACTOR' | 'VERIFIED_CLOSED' | 'CONTESTED' | 'REJECTED';
 
 export interface SnagItemData {
   id: string;
@@ -26,6 +26,16 @@ export interface SnagItemData {
   rectifiedAt?: string;
   verifiedBy?: string;
   verifiedAt?: string;
+  // Gate-4 S6 punch depth
+  priority?: string;
+  isPrivate?: boolean;
+  dueDate?: string | null;
+  costImpactKes?: string | null;
+  scheduleImpactDays?: number | null;
+  managerName?: string | null;
+  finalApproverName?: string | null;
+  costCode?: string | null;
+  referenceDoc?: string | null;
 }
 
 interface SnaggingListViewProps {
@@ -149,11 +159,102 @@ export default function SnaggingListView({
   const [tradeFilter, setTradeFilter] = useState<'ALL' | TradeCategory>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Gate-4 S6: load real snag items when the API is reachable; fall back to
+  // the seeded demo register otherwise (keeps dashboards demo-safe).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/snags`, { credentials: 'include' });
+        if (!res.ok) return;
+        const rows = await res.json();
+        if (!Array.isArray(rows) || rows.length === 0 || cancelled) return;
+        setSnags(rows.map((s: any): SnagItemData => {
+          const defectPhoto = (s.photos || []).find((p: any) => p.photo_type === 'DEFECT') || s.photos?.[0];
+          const rectPhoto = (s.photos || []).find((p: any) => p.photo_type === 'RECTIFIED');
+          return {
+            id: s.id,
+            snagNo: `SNG-${String(s.snag_number).padStart(3, '0')}`,
+            block: s.location_block || 'Site',
+            floor: s.location_floor || '',
+            room: s.location_room || '',
+            tradeCategory: s.trade_category || 'Other',
+            description: s.description || '',
+            severity: s.severity || 'COSMETIC',
+            status: s.status || 'OPEN',
+            beforePhotoUrl: defectPhoto?.storage_key || undefined,
+            afterPhotoUrl: rectPhoto?.storage_key || undefined,
+            geotag: {
+              lat: defectPhoto?.gps_latitude ? parseFloat(defectPhoto.gps_latitude) : 0,
+              lng: defectPhoto?.gps_longitude ? parseFloat(defectPhoto.gps_longitude) : 0,
+              label: `${s.location_block || ''} ${s.location_floor || ''} ${s.location_room || ''}`.trim(),
+            },
+            raisedBy: s.identified_by_name || 'Site Team',
+            raisedAt: s.identified_at || new Date().toISOString(),
+            rectifiedBy: s.rectified_by_name || undefined,
+            rectifiedAt: s.rectified_at || undefined,
+            verifiedBy: s.verified_by_name || undefined,
+            verifiedAt: s.verified_at || undefined,
+            priority: s.priority,
+            isPrivate: s.is_private,
+            dueDate: s.due_date,
+            costImpactKes: s.cost_impact_kes,
+            scheduleImpactDays: s.schedule_impact_days,
+            managerName: s.manager_name,
+            finalApproverName: s.final_approver_name,
+            costCode: s.cost_code,
+            referenceDoc: s.reference_doc,
+          };
+        }));
+      } catch {
+        // API unreachable — keep demo register
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  const putStatus = async (id: string, status: string) => {
+    try {
+      await fetch(`/api/v1/projects/${projectId}/snags/${id}/status`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+    } catch {
+      // best-effort; local state still updates for demo mode
+    }
+  };
+
   const handleSnagCreated = (newSnag: any) => {
+    if (newSnag?.id) {
+      // Real API record — map into view shape and prepend
+      const defectPhoto = (newSnag.photos || []).find((p: any) => p.photo_type === 'DEFECT') || newSnag.photos?.[0];
+      setSnags((prev) => [{
+        id: newSnag.id,
+        snagNo: `SNG-${String(newSnag.snag_number).padStart(3, '0')}`,
+        block: newSnag.location_block || 'Site',
+        floor: newSnag.location_floor || '',
+        room: newSnag.location_room || '',
+        tradeCategory: newSnag.trade_category || 'Other',
+        description: newSnag.description || '',
+        severity: newSnag.severity || 'COSMETIC',
+        status: newSnag.status || 'OPEN',
+        beforePhotoUrl: defectPhoto?.storage_key || undefined,
+        geotag: { lat: 0, lng: 0, label: '' },
+        raisedBy: newSnag.identified_by_name || 'Site Team',
+        raisedAt: newSnag.identified_at || new Date().toISOString(),
+        priority: newSnag.priority,
+        isPrivate: newSnag.is_private,
+        dueDate: newSnag.due_date,
+      }, ...prev]);
+      return;
+    }
     setSnags((prev) => [newSnag, ...prev]);
   };
 
   const handleMarkRectified = (id: string) => {
+    void putStatus(id, 'RECTIFIED_BY_CONTRACTOR');
     setSnags((prev) =>
       prev.map((snag) => {
         if (snag.id !== id) return snag;
@@ -171,6 +272,7 @@ export default function SnaggingListView({
   };
 
   const handleVerifyClose = (id: string) => {
+    void putStatus(id, 'VERIFIED_CLOSED');
     setSnags((prev) =>
       prev.map((snag) => {
         if (snag.id !== id) return snag;
@@ -211,10 +313,18 @@ export default function SnaggingListView({
     switch (status) {
       case 'OPEN':
         return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'IN_PROGRESS':
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'READY_FOR_REVIEW':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'RECTIFIED_BY_CONTRACTOR':
         return 'bg-blue-50 text-blue-700 border-blue-200 font-semibold';
       case 'VERIFIED_CLOSED':
         return 'bg-emerald-50 text-emerald-800 border-emerald-200 font-bold';
+      case 'CONTESTED':
+        return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'REJECTED':
+        return 'bg-slate-100 text-slate-500 border-slate-200';
     }
   };
 
@@ -222,10 +332,18 @@ export default function SnaggingListView({
     switch (status) {
       case 'OPEN':
         return 'OPEN';
+      case 'IN_PROGRESS':
+        return 'IN PROGRESS';
+      case 'READY_FOR_REVIEW':
+        return 'READY FOR REVIEW';
       case 'RECTIFIED_BY_CONTRACTOR':
         return 'RECTIFIED BY CONTRACTOR';
       case 'VERIFIED_CLOSED':
         return 'VERIFIED & CLOSED';
+      case 'CONTESTED':
+        return 'CONTESTED';
+      case 'REJECTED':
+        return 'REJECTED';
     }
   };
 
@@ -247,6 +365,21 @@ export default function SnaggingListView({
             Spatial defect capture (Block → Floor → Room), before/after photographic proof, and joint sign-offs
           </p>
         </div>
+
+        <button
+          onClick={() => { window.open(`/api/v1/projects/${projectId}/snags/export?format=csv`, '_blank'); }}
+          className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg transition"
+          title="Export snag register as CSV"
+        >
+          CSV
+        </button>
+        <button
+          onClick={() => { window.open(`/api/v1/projects/${projectId}/snags/export?format=pdf`, '_blank'); }}
+          className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg transition"
+          title="Export snag register as PDF"
+        >
+          PDF
+        </button>
 
         {canAdd && (
           <button

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma, withTenantTx } from '@construction/db';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestone M12: Weather Delays (JBC Clause 25/32 EOT) & KRA Statutory Tax Certificates', () => {
   const server = buildServer();
@@ -55,6 +56,7 @@ describe('Milestone M12: Weather Delays (JBC Clause 25/32 EOT) & KRA Statutory T
     });
     expect(projectRes.statusCode).toBe(201);
     projectId = JSON.parse(projectRes.body).data.id;
+      await enrollAllTenantUsers(projectId);
   });
 
   afterAll(async () => {

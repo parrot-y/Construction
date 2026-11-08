@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface PlantEquipmentItem {
   id: string;
@@ -28,7 +28,7 @@ export interface EquipmentDailyLogItem {
   fuelCostPerLiterKes: string;
   totalFuelCostKes: string;
   fuelBurnLitersPerHour: string;
-  fuelEfficiencyStatus: 'NORMAL' | 'ELEVATED_BURN' | 'SUSPECTED_SIPHONING';
+  fuelEfficiencyStatus: 'NORMAL' | 'ELEVATED_BURN' | 'SUSPECTED_DISCREPANCY' | 'SUSPECTED_SIPHONING';
   activitiesPerformed?: string | null;
   verifiedBySupervisor: string;
 }
@@ -51,7 +51,7 @@ interface PlantEquipmentViewProps {
 }
 
 export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Current Project',
   equipment: initialEquipment,
   logs: initialLogs,
@@ -139,12 +139,38 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
         fuelCostPerLiterKes: '185.00',
         totalFuelCostKes: '16650.00',
         fuelBurnLitersPerHour: '45.00',
-        fuelEfficiencyStatus: 'SUSPECTED_SIPHONING',
+        fuelEfficiencyStatus: 'SUSPECTED_DISCREPANCY',
         activitiesPerformed: 'Idle standby with light soil shifting',
         verifiedBySupervisor: 'Eng. John Mwangi',
       },
     ]
   );
+
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/equipment`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.equipment || []) as any[];
+      setEquipmentList(list.map((e) => ({
+        ...e,
+        ratePerUnitKes: e.ratePerUnitKes?.toString?.() ?? String(e.ratePerUnitKes ?? 0),
+        currentHoursMeter: e.currentHoursMeter?.toString?.() ?? String(e.currentHoursMeter ?? 0),
+      })));
+      // No GET endpoint exists for daily logs; keep caller-provided logs, else clear demo rows.
+      setLogsList(initialLogs || []);
+    } catch {
+      setEquipmentList([]); setLogsList(initialLogs || []);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId, initialLogs]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   const [activeTab, setActiveTab] = useState<'MACHINERY' | 'FUEL_AUDIT'>('MACHINERY');
   const [showAddMachineModal, setShowAddMachineModal] = useState(false);
@@ -197,6 +223,22 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
       currentHoursMeter,
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/equipment`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          await reload();
+          setShowAddMachineModal(false);
+          setEquipmentCode('');
+          setName('');
+          return;
+        }
+      } catch { /* fall through to local */ }
+    }
+
     if (onCreateEquipment) {
       await onCreateEquipment(payload);
     }
@@ -238,6 +280,20 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
       verifiedBySupervisor: supervisorName,
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/equipment-logs`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          await reload();
+          setShowAddLogModal(false);
+          return;
+        }
+      } catch { /* fall through to local */ }
+    }
+
     if (onRecordLog) {
       await onRecordLog(payload);
     }
@@ -246,9 +302,9 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
     const fLiters = parseFloat(fuelLiters) || 0;
     const fPrice = parseFloat(fuelCostPerLiter) || 185;
     const burn = oHours > 0 ? fLiters / oHours : 0;
-    let status: 'NORMAL' | 'ELEVATED_BURN' | 'SUSPECTED_SIPHONING' = 'NORMAL';
+    let status: 'NORMAL' | 'ELEVATED_BURN' | 'SUSPECTED_DISCREPANCY' | 'SUSPECTED_SIPHONING' = 'NORMAL';
     if ((oHours === 0 && fLiters > 0) || burn > 25.0) {
-      status = 'SUSPECTED_SIPHONING';
+      status = 'SUSPECTED_DISCREPANCY';
     } else if (burn > 18.0) {
       status = 'ELEVATED_BURN';
     }
@@ -275,7 +331,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
     setShowAddLogModal(false);
   };
 
-  const summary = initialSummary || {
+  const summary = (initialSummary && !isLive) ? initialSummary : {
     totalEquipment: equipmentList.length,
     operationalCount: equipmentList.filter((e) => e.status === 'OPERATIONAL').length,
     totalHoursLogged: equipmentList
@@ -283,9 +339,13 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
       .toFixed(2),
   };
 
-  const siphoningAlertCount = logsList.filter(
-    (l) => l.fuelEfficiencyStatus === 'SUSPECTED_SIPHONING'
+  const fuelDiscrepancyAlertCount = logsList.filter(
+    (l) => l.fuelEfficiencyStatus === 'SUSPECTED_DISCREPANCY' || l.fuelEfficiencyStatus === 'SUSPECTED_SIPHONING'
   ).length;
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading plant equipment...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -296,7 +356,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
             Plant & Heavy Equipment Manager
           </h2>
           <p className="text-sm text-gray-500">
-            {projectName} • Machinery registry, daily hours meter, and automated diesel fuel siphoning audit
+            {projectName} • Machinery registry, daily hours meter, and automated fuel reconciliation audit
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -353,20 +413,20 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 
         <div
           className={`p-4 rounded-xl border shadow-sm ${
-            siphoningAlertCount > 0
+            fuelDiscrepancyAlertCount > 0
               ? 'bg-red-50 border-red-200'
               : 'bg-white border-gray-200'
           }`}
         >
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Fuel Siphoning Risk Flags
+            Fuel Discrepancy Risk Flags
           </span>
           <p
             className={`text-2xl font-bold mt-1 ${
-              siphoningAlertCount > 0 ? 'text-red-700' : 'text-gray-900'
+              fuelDiscrepancyAlertCount > 0 ? 'text-red-700' : 'text-gray-900'
             }`}
           >
-            {siphoningAlertCount} Suspected
+            {fuelDiscrepancyAlertCount} Suspected
           </p>
           <span className="text-xs text-red-600 font-medium">
             Burn rate &gt; 25 L/hr or fuel without hours
@@ -465,14 +525,14 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                   <th className="px-4 py-3">Operating / Idle Hrs</th>
                   <th className="px-4 py-3">Fuel Issued</th>
                   <th className="px-4 py-3">Burn Rate (L/hr)</th>
-                  <th className="px-4 py-3">Efficiency / Siphoning Audit</th>
+                  <th className="px-4 py-3">Efficiency / Variance Audit</th>
                   <th className="px-4 py-3">Supervisor</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {logsList.map((log) => {
                   const machine = equipmentList.find((e) => e.id === log.equipmentId);
-                  const isSiphon = log.fuelEfficiencyStatus === 'SUSPECTED_SIPHONING';
+                  const isSiphon = log.fuelEfficiencyStatus === 'SUSPECTED_DISCREPANCY' || log.fuelEfficiencyStatus === 'SUSPECTED_SIPHONING';
                   const isElevated = log.fuelEfficiencyStatus === 'ELEVATED_BURN';
 
                   return (
@@ -528,7 +588,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                       <td className="px-4 py-3">
                         {isSiphon ? (
                           <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-200 text-red-900 border border-red-300">
-                            ⚠️ SUSPECTED SIPHONING
+                            ⚠️ SUSPECTED DISCREPANCY
                           </div>
                         ) : isElevated ? (
                           <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-200 text-amber-900">

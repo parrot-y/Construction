@@ -622,41 +622,41 @@ describe('packages/money financial precision suite', () => {
     });
   });
 
-  describe('Milestone M32: Mobile Plant CAN-bus IoT & Deep Fuel Siphoning Anomaly Detector', () => {
-    it('detects RAPID_THEFT_SIPHON when fuel drops >= 8L while engine is STOPPED', () => {
+  describe('Milestone M32: Mobile Plant CAN-bus IoT & Neutral Fuel Discrepancy Detector', () => {
+    it('detects RAPID_UNLOGGED_DROP when fuel drops >= 8L while engine is STOPPED', () => {
       const now = new Date();
       const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
       // Tank dropped from 220L to 195L (25L loss) in 10 minutes while STOPPED
       const res = evaluateFuelSiphoningAnomaly('220.00', '195.00', tenMinutesAgo, now, 'STOPPED', '35.00');
 
       expect(res.isSiphoning).toBe(true);
-      expect(res.anomalyType).toBe('RAPID_THEFT_SIPHON');
+      expect(res.anomalyType).toBe('RAPID_UNLOGGED_DROP');
       expect(res.severity).toBe('CRITICAL');
       expect(res.dropLiters.toString()).toBe('25');
       expect(res.message).toContain('CRITICAL FUEL LEVEL VARIANCE');
     });
 
-    it('detects ACTIVE_SIPHON_IDLE when fuel burn rate exceeds 12 L/h while idling', () => {
+    it('detects ELEVATED_IDLE_CONSUMPTION when fuel burn rate exceeds 12 L/h while idling', () => {
       const now = new Date();
       const halfHourAgo = new Date(now.getTime() - 30 * 60 * 1000);
       // In 30 min (0.5 h), dropped 10L -> 20 L/h rate (normal idle is ~2.5 L/h)
       const res = evaluateFuelSiphoningAnomaly('150.00', '140.00', halfHourAgo, now, 'IDLE', '35.00');
 
       expect(res.isSiphoning).toBe(true);
-      expect(res.anomalyType).toBe('ACTIVE_SIPHON_IDLE');
+      expect(res.anomalyType).toBe('ELEVATED_IDLE_CONSUMPTION');
       expect(res.severity).toBe('CRITICAL');
       expect(res.dropRateLitersPerHour.toString()).toBe('20');
       expect(res.message).toContain('ABNORMAL FUEL CONSUMPTION AT IDLE');
     });
 
-    it('detects EXCESSIVE_BURN_THEFT when fuel consumption exceeds 1.25x engine max burn rate', () => {
+    it('detects EXCESSIVE_BURN_RATE when fuel consumption exceeds 1.25x engine max burn rate', () => {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
       // Max burn is 35 L/h. Dropped 55L in 1 hour -> 55 L/h > 43.75 L/h limit
       const res = evaluateFuelSiphoningAnomaly('280.00', '225.00', oneHourAgo, now, 'RUNNING', '35.00');
 
       expect(res.isSiphoning).toBe(true);
-      expect(res.anomalyType).toBe('EXCESSIVE_BURN_THEFT');
+      expect(res.anomalyType).toBe('EXCESSIVE_BURN_RATE');
       expect(res.severity).toBe('HIGH');
       expect(res.message).toContain('ABNORMAL FUEL LOSS');
     });

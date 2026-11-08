@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface RmcSlumpTestRecord {
   id: string;
@@ -125,14 +125,57 @@ const DEFAULT_DELIVERIES: RmcDeliveryRecord[] = [
 ];
 
 export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Kilimani Commercial Complex',
   initialDeliveries = DEFAULT_DELIVERIES,
   onRegisterDelivery,
   onRecordSlumpTest,
   onUpdateDischarge,
 }) => {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [deliveries, setDeliveries] = useState<RmcDeliveryRecord[]>(initialDeliveries);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/rmc-deliveries`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.deliveries || []) as any[];
+      setDeliveries(list.map((d) => ({
+        id: d.id,
+        deliveryTicketNo: d.deliveryTicketNo,
+        supplierName: d.supplierName,
+        truckRegistrationNo: d.truckRegistrationNo,
+        driverName: d.driverName ?? null,
+        driverPhone: d.driverPhone ?? null,
+        concreteClass: d.concreteClass,
+        orderedVolumeM3: d.orderedVolumeM3?.toString?.() ?? String(d.orderedVolumeM3 ?? '0'),
+        pourLocationElement: d.pourLocationElement,
+        slumpSpecifiedMm: d.latestSlumpMm ?? 0,
+        waterAddedAtPlantLiters: null,
+        dispatchedAt: d.dispatchedAt,
+        arrivedAt: d.arrivedAt ?? null,
+        dischargeStartedAt: null,
+        dischargeCompletedAt: null,
+        waterAddedOnSiteLiters: d.waterAddedOnSiteLiters?.toString?.() ?? '0.00',
+        rejectionReason: null,
+        transitDurationMinutes: d.transitDurationMinutes ?? null,
+        status: d.status as RmcDeliveryRecord['status'],
+        slumpTestsCount: d.slumpTestsCount ?? 0,
+        latestSlumpMm: d.latestSlumpMm ?? null,
+        latestSlumpVerdict: d.latestSlumpVerdict ?? null,
+        slumpTests: [],
+      })));
+    } catch {
+      setDeliveries([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -222,6 +265,35 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
 
   const handleCreateDelivery = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isLive) {
+      try {
+        const dispatchedAt = new Date(Date.now() - minutesAgo * 60000).toISOString();
+        const res = await fetch(`/api/v1/projects/${projectId}/rmc-deliveries`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deliveryTicketNo: ticketNo,
+            supplierName,
+            truckRegistrationNo: truckReg,
+            driverName: driverName || null,
+            driverPhone: driverPhone || null,
+            concreteClass,
+            orderedVolumeM3: parseFloat(orderedVolume),
+            dispatchedAt,
+            pourLocationElement: pourLocation,
+          }),
+        });
+        if (res.ok) {
+          await reload();
+          setShowAddModal(false);
+          setTicketNo('');
+          setTruckReg('');
+          setPourLocation('');
+        }
+      } catch { /* keep modal open on failure */ }
+      return;
+    }
+
     const dispatchedAt = new Date(Date.now() - minutesAgo * 60000).toISOString();
     const newRecord: RmcDeliveryRecord = {
       id: `rmc-${Date.now()}`,
@@ -255,6 +327,28 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
   const handleRecordSlump = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDelivery) return;
+
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/rmc-deliveries/${selectedDelivery.id}/slump-tests`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            specifiedSlumpMm: Math.min(250, Math.max(20, selectedDelivery.slumpSpecifiedMm || measuredSlump)),
+            measuredSlumpMm: measuredSlump,
+            slumpType: 'TRUE_SLUMP',
+            concreteTemperatureC: parseFloat(concreteTemp) || 25,
+            ambientTemperatureC: null,
+            testedByInspector: inspectorName,
+            cubesCastBatchNo: null,
+          }),
+        });
+        if (res.ok) {
+          await reload();
+          setShowSlumpModal(false);
+        }
+      } catch { /* keep modal open on failure */ }
+      return;
+    }
 
     const deviation = measuredSlump - selectedDelivery.slumpSpecifiedMm;
     const isWithinTol = Math.abs(deviation) <= 25;
@@ -302,6 +396,28 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
     e.preventDefault();
     if (!selectedDelivery) return;
 
+    if (isLive) {
+      try {
+        const nowIso = new Date().toISOString();
+        const res = await fetch(`/api/v1/projects/${projectId}/rmc-deliveries/${selectedDelivery.id}/discharge`, {
+          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            arrivedAt: nowIso,
+            ...(dischargeStatus === 'POURING' ? { dischargeStartedAt: nowIso } : {}),
+            ...(dischargeStatus === 'COMPLETED' ? { dischargeCompletedAt: nowIso } : {}),
+            waterAddedOnSiteLiters: parseFloat(waterTamperLiters) || 0,
+            rejectionReason: rejectionNotes || null,
+            status: dischargeStatus,
+          }),
+        });
+        if (res.ok) {
+          await reload();
+          setShowDischargeModal(false);
+        }
+      } catch { /* keep modal open on failure */ }
+      return;
+    }
+
     if (onUpdateDischarge) {
       await onUpdateDischarge(selectedDelivery.id, {
         waterAddedOnSiteLiters: waterTamperLiters,
@@ -326,6 +442,10 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
     );
     setShowDischargeModal(false);
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">Loading RMC deliveries...</div>;
+  }
 
   return (
     <div className="space-y-6">

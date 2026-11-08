@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PhotoLightboxModal, { PhotoEvidenceItem } from './PhotoLightboxModal';
 
 interface PhotoEvidenceGalleryProps {
   photos?: PhotoEvidenceItem[];
+  projectId?: string;
 }
 
 const DEFAULT_PHOTOS: PhotoEvidenceItem[] = [
@@ -29,10 +30,53 @@ const DEFAULT_PHOTOS: PhotoEvidenceItem[] = [
 ];
 
 export default function PhotoEvidenceGallery({
-  photos = DEFAULT_PHOTOS,
+  photos,
+  projectId = '',
 }: PhotoEvidenceGalleryProps): React.JSX.Element {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [livePhotos, setLivePhotos] = useState<PhotoEvidenceItem[] | null>(null);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoEvidenceItem | null>(null);
-  const displayPhotos = photos.length > 0 ? photos : DEFAULT_PHOTOS;
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const diaries = (json.data || []) as any[];
+      const mapped: PhotoEvidenceItem[] = diaries
+        .flatMap((d) => (d.photos || []).map((p: any) => ({
+          id: p.id,
+          caption: p.caption || 'Site photo evidence',
+          photo_url: p.storage_key?.startsWith('http') || p.storage_key?.startsWith('/')
+            ? p.storage_key
+            : `/uploads/${p.storage_key || ''}`,
+          latitude: p.gps_latitude != null ? parseFloat(String(p.gps_latitude)) : null,
+          longitude: p.gps_longitude != null ? parseFloat(String(p.gps_longitude)) : null,
+          captured_at: p.taken_at || p.created_at || '',
+          weather: d.weather || undefined,
+          recorded_by_name: undefined,
+        })))
+        .sort((a, b) => String(b.captured_at).localeCompare(String(a.captured_at)));
+      setLivePhotos(mapped);
+    } catch {
+      setLivePhotos([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  const resolvedPhotos = isLive
+    ? (livePhotos ?? [])
+    : (photos && photos.length > 0 ? photos : DEFAULT_PHOTOS);
+  const displayPhotos = resolvedPhotos.length > 0 ? resolvedPhotos : (isLive ? [] : DEFAULT_PHOTOS);
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading photo evidence…</div>;
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">

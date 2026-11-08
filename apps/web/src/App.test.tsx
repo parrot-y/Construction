@@ -57,16 +57,20 @@ import { GeotechnicalSoilView } from './components/GeotechnicalSoilView';
 import { AsphaltPavementView } from './components/AsphaltPavementView';
 import { TopographicSurveyView } from './components/TopographicSurveyView';
 import PmQsDashboard from './components/PmQsDashboard';
+import CompanyAdminDashboard from './components/CompanyAdminDashboard';
+import SupervisorDashboard from './components/SupervisorDashboard';
 import IndependentSiteReportView from './components/IndependentSiteReportView';
 import ContractorTenderBoardView from './components/ContractorTenderBoardView';
 import LandingPortalHub from './components/LandingPortalHub';
 import { AuthSession } from './types/auth';
+import QuotesManagementView from './components/QuotesManagementView';
+import InvoicingView from './components/InvoicingView';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
   it('renders the login screen by default with demo accounts and title', () => {
     const html = renderToString(<LoginForm onLoginSuccess={() => {}} />);
     expect(html).toContain('Apex Builders Kenya');
-    expect(html).toContain('Milestone M1 • Walking Skeleton');
+    expect(html).toContain('Site Safi');
     expect(html).toContain('admin@apexbuilders.co.ke');
     expect(html).toContain('COMPANY_ADMIN');
     expect(html).toContain('PM_QS');
@@ -98,7 +102,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       token: 'mock-jwt-token-admin',
     };
 
-    const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />);
+    const html = renderToString(<CompanyAdminDashboard session={adminSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
     expect(html).toContain('David Kimani');
     expect(html).toContain('COMPANY_ADMIN');
@@ -133,7 +137,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       token: 'mock-jwt-token-qs',
     };
 
-    const html = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
+    const html = renderToString(<PmQsDashboard session={qsSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
     expect(html).toContain('Faith Achieng');
     expect(html).toContain('PM_QS');
@@ -166,10 +170,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       token: 'mock-jwt-token-supervisor',
     };
 
-    const html = renderToString(<Dashboard session={supervisorSession} onLogout={() => {}} />);
+    const html = renderToString(<SupervisorDashboard session={supervisorSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
-    expect(html).toContain('John Mwangi');
-    expect(html).toContain('SITE_SUPERVISOR');
+    expect(html).toContain('Site Supervisor Workspace');
     expect(html).toContain('Site Operations &amp; Daily Diary');
     expect(html).toContain('+ Record Daily Site Diary');
     expect(html).toContain('IndexedDB Offline Queue Active');
@@ -446,7 +449,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'mock-jwt-token-client',
       };
 
-      const qsHtml = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
+      const qsHtml = renderToString(<PmQsDashboard session={qsSession} />);
       expect(qsHtml).toContain('Variance Monitor &amp; Health Guard');
       expect(qsHtml).toContain('BOQ Section-by-Section Spend Breakdown');
 
@@ -473,7 +476,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Riverside Commercial Plaza');
 
       // Form inputs
-      expect(html).toContain('Variation Title *');
+      expect(html).toContain('Change Order Title *');
       expect(html).toContain('Time Extension (Days)');
       expect(html).toContain('Reason / Technical Justification *');
 
@@ -491,7 +494,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Submit Variation Order');
     });
 
-    it('renders VariationManagementView with status badges, formatted KES net amount, time extension days, and action buttons', () => {
+    it('renders VariationManagementView with ADR-010 status badges, formatted KES net amount, and action buttons', () => {
       const html = renderToString(
         <VariationManagementView
           projectId="test-proj-id"
@@ -499,18 +502,65 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
           canRequest={true}
           canReview={true}
           canApprove={true}
+          initialVariations={[
+            {
+              id: 'vo-1',
+              variation_no: 1,
+              title: 'CO-1: Foundation Deepening',
+              reason: 'Geotechnical report detected loose subsoil.',
+              status: 'APPROVED',
+              net_amount: '900000.00',
+              time_extension_days: 14,
+              created_at: new Date().toISOString(),
+              items: [],
+            },
+            {
+              id: 'vo-2',
+              variation_no: 2,
+              title: 'CO-2: Membrane Upgrade',
+              reason: 'High water table requires upgrade.',
+              status: 'PM_REVIEW',
+              trigger_type: 'UNFORESEEN_CONDITION',
+              net_amount: '450000.00',
+              time_extension_days: 5,
+              created_at: new Date().toISOString(),
+              items: [],
+            },
+            {
+              id: 'vo-3',
+              variation_no: 3,
+              title: 'CO-3: Canopy Omission',
+              reason: 'Value engineering omission.',
+              status: 'OWNER_REVIEW',
+              net_amount: '-280000.00',
+              time_extension_days: 0,
+              created_at: new Date().toISOString(),
+              items: [],
+            },
+            {
+              id: 'vo-4',
+              variation_no: 4,
+              title: 'CO-4: Draft Drainage',
+              reason: 'Draft pending submission.',
+              status: 'DRAFT',
+              net_amount: '50000.00',
+              time_extension_days: 0,
+              created_at: new Date().toISOString(),
+              items: [],
+            },
+          ]}
         />,
       );
 
-      // Header & Request button
-      expect(html).toContain('Variation Orders &amp; Scope Adjustments');
-      expect(html).toContain('Milestone M8');
-      expect(html).toContain('+ Request Variation');
+      // Header & request button
+      expect(html).toContain('Change Orders');
+      expect(html).toContain('+ New Change Order');
 
-      // Status badges
-      expect(html).toContain('SUBMITTED');
-      expect(html).toContain('QS_EVALUATED');
+      // ADR-010 status badges + trigger label
+      expect(html).toContain('PM REVIEW');
+      expect(html).toContain('OWNER REVIEW');
       expect(html).toContain('APPROVED');
+      expect(html).toContain('Unforeseen condition');
 
       // Formatted KES amounts and time extensions
       expect(html).toContain('900000.00');
@@ -520,8 +570,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       // Action buttons
       expect(html).toContain('Evaluate');
-      expect(html).toContain('Approve');
+      expect(html).toContain('Owner Approve');
       expect(html).toContain('Reject');
+      expect(html).toContain('Submit for PM review');
     });
 
     it('renders VariationManagementView embedded inside PM_QS and CLIENT dashboards', () => {
@@ -559,15 +610,15 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'mock-jwt-token-client',
       };
 
-      const qsHtml = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
-      expect(qsHtml).toContain('Variation Orders &amp; Scope Adjustments');
-      expect(qsHtml).toContain('+ Request Variation');
-      expect(qsHtml).toContain('Evaluate');
+      const qsHtml = renderToString(<PmQsDashboard session={qsSession} />);
+      expect(qsHtml).toContain('Change Orders');
+      expect(qsHtml).toContain('+ New Change Order');
+      expect(qsHtml).toContain('PM REVIEW');
 
       const clientHtml = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
-      expect(clientHtml).toContain('Variation Orders &amp; Scope Adjustments');
-      expect(clientHtml).toContain('Approve');
-      expect(clientHtml).not.toContain('+ Request Variation');
+      expect(clientHtml).toContain('Change Orders');
+      expect(clientHtml).toContain('OWNER REVIEW');
+      expect(clientHtml).not.toContain('+ New Change Order');
     });
   });
 
@@ -717,12 +768,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<ClientDashboard session={clientSession} />);
 
       // Variation management view is embedded with approval capabilities
-      expect(html).toContain('Variation Orders &amp; Scope Adjustments');
-      expect(html).toContain('Approve');
-      expect(html).toContain('Reject');
+      expect(html).toContain('Change Orders');
+      expect(html).toContain('OWNER REVIEW');
 
-      // Requesting variations is restricted to contractors/QS
-      expect(html).not.toContain('+ Request Variation');
+      // Requesting change orders is restricted to contractors/QS
+      expect(html).not.toContain('+ New Change Order');
     });
 
     it('displays neutral project health guard card with factual notice and variance metrics', () => {
@@ -777,7 +827,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
 
     it('renders PDF report download buttons in PmQsDashboard', () => {
-      const html = renderToString(<Dashboard session={mockSession('PM_QS')} onLogout={() => {}} />);
+      const html = renderToString(<PmQsDashboard session={mockSession('PM_QS')} />);
       expect(html).toContain('Download IPC (PDF)');
       expect(html).toContain('Project Summary (PDF)');
       expect(html).toContain('data-testid="download-ipc-btn"');
@@ -787,7 +837,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
 
     it('renders PDF report download buttons in SupervisorDashboard', () => {
-      const html = renderToString(<Dashboard session={mockSession('SITE_SUPERVISOR')} onLogout={() => {}} />);
+      const html = renderToString(<SupervisorDashboard session={mockSession('SITE_SUPERVISOR')} />);
       expect(html).toContain('Daily Diary (PDF)');
       expect(html).toContain('Site Summary (PDF)');
       expect(html).toContain('data-testid="download-site-diary-btn"');
@@ -1056,7 +1106,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
 
     it('embeds RfiManagementView, QualityControlView, and PracticalCompletionCard into PmQsDashboard', () => {
-      const html = renderToString(<Dashboard session={mockSessionForRole('PM_QS')} onLogout={() => {}} />);
+      const html = renderToString(<PmQsDashboard session={mockSessionForRole('PM_QS')} />);
 
       expect(html).toContain('Request for Information (RFI) Register');
       expect(html).toContain('Pre-Pour Hold Points &amp; Concrete Cube Crushing');
@@ -1064,14 +1114,14 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
 
     it('embeds QualityControlView and SnaggingListView into SupervisorDashboard', () => {
-      const html = renderToString(<Dashboard session={mockSessionForRole('SITE_SUPERVISOR')} onLogout={() => {}} />);
+      const html = renderToString(<SupervisorDashboard session={mockSessionForRole('SITE_SUPERVISOR')} />);
 
       expect(html).toContain('Pre-Pour Hold Points &amp; Concrete Cube Crushing');
       expect(html).toContain('Defects Snagging Punch List Register');
     });
 
     it('embeds PracticalCompletionCard and SnaggingListView into ClientDashboard with verification capability', () => {
-      const html = renderToString(<Dashboard session={mockSessionForRole('CLIENT')} onLogout={() => {}} />);
+      const html = renderToString(<ClientDashboard session={mockSessionForRole('CLIENT')} />);
 
       expect(html).toContain('Practical Completion &amp; Retention Release Card');
       expect(html).toContain('Defects Snagging Punch List Register');
@@ -1229,19 +1279,19 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const pmHtml = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const pmHtml = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(pmHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
       expect(pmHtml).toContain('🌐 Stakeholder Portals');
 
-      const adminHtml = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const adminHtml = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(adminHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
     });
   });
 
   // ---------------------------------------------------------------------------
-  // MILESTONE M11: OPERATIONS SUITE FRONTEND COMPONENTS (BUILDSASA PARITY)
+  // MILESTONE M11: OPERATIONS SUITE FRONTEND COMPONENTS 
   // ---------------------------------------------------------------------------
-  describe('Milestone M11: Operations Suite Frontend Components (Buildsasa Parity)', () => {
+  describe('Milestone M11: Operations Suite Frontend Components ', () => {
     it('renders ProjectScheduleGanttView with WBS phases, tasks, and progress indicators', () => {
       const html = renderToString(
         <ProjectScheduleGanttView projectId="test-proj-1" />
@@ -1325,7 +1375,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('📅 Schedule &amp; Gantt');
       expect(html).toContain('📦 Site Inventory');
       expect(html).toContain('🤝 Subcontractors');
@@ -1383,7 +1433,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Statutory Tax &amp; Withholding Certificates');
       expect(html).toContain('KRA CAP 470 (WHT &amp; WHVAT)');
     });
@@ -1463,7 +1513,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('📦 Material Requisitions');
       expect(html).toContain('⚖️ Wastage Variance');
       expect(html).toContain('📈 Cash Flow &amp; S-Curve');
@@ -1487,7 +1537,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Project Cash Flow &amp; S-Curve Forecasting');
       expect(html).toContain('Subcontractor Valuations &amp; Retention Ledger');
     });
@@ -1505,7 +1555,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Site Material Requisitions &amp; Orders');
       expect(html).toContain('Material Wastage &amp; Shrinkage Engine');
     });
@@ -1523,7 +1573,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Plant &amp; Heavy Equipment Manager');
       expect(html).toContain('Total Machinery Fleet');
       expect(html).toContain('Cumulative Operating Hours');
-      expect(html).toContain('Fuel Siphoning Risk Flags');
+      expect(html).toContain('Fuel Discrepancy Risk Flags');
       expect(html).toContain('CAT 320D Hydraulic Excavator');
       expect(html).toContain('Excavators, Mixers, Cranes, Gensets');
       expect(html).toContain('+ Register Plant Machine');
@@ -1576,7 +1626,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('🚜 Plant &amp; Machinery');
       expect(html).toContain('👷 Labor Muster Roll');
       expect(html).toContain('🦺 Field Safety Scorecard');
@@ -1598,7 +1648,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Plant &amp; Heavy Equipment Manager');
       expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
       expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
@@ -1617,7 +1667,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Plant &amp; Heavy Equipment Manager');
       expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
       expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
@@ -1695,7 +1745,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('🧾 KRA e-TIMS Invoices');
       expect(html).toContain('💬 WhatsApp Site Bot');
       expect(html).toContain('🏦 Retention &amp; Bonds');
@@ -1717,7 +1767,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('WhatsApp Site Ops Bot &amp; Webhook Engine');
       expect(html).toContain('Field WhatsApp Bot &amp; Incident Dispatch');
     });
@@ -1735,7 +1785,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('KRA e-TIMS Tax Compliance Engine');
       expect(html).toContain('Subcontractor Retention &amp; Bank Bonds Engine');
     });
@@ -1796,9 +1846,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
       expect(html).toContain('IOT ACTIVE');
       expect(html).toContain('Register Telematics Hardware');
-      expect(html).toContain('Critical Fuel Theft Anomaly Flagged');
-      expect(html).toContain('Simulate 40L Diesel Siphoning Drop');
-      expect(html).toContain('DIESEL SIPHONING FLAG');
+      expect(html).toContain('Critical Fuel Discrepancy Flagged');
+      expect(html).toContain('Simulate 40L Rapid Fuel Drop');
+      expect(html).toContain('DIESEL DISCREPANCY FLAG');
       expect(html).toContain('NORMAL BURN');
       expect(html).toContain('Machinery IoT Telemetry Feed &amp; Fuel Flow Log');
     });
@@ -1816,7 +1866,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Safaricom Daraja M-Pesa Subscription Billing');
       expect(html).toContain('Pay / Upgrade with M-Pesa');
     });
@@ -1834,7 +1884,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
       expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
     });
@@ -1852,7 +1902,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('📍 Site Geofencing');
       expect(html).toContain('🛰️ Plant Telematics');
       expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
@@ -1903,7 +1953,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('🏗️ Rebar BBS Takeoff');
       expect(html).toContain('💸 M-Pesa B2C Payouts');
       expect(html).toContain('Rebar Takeoff &amp; BS 8666 Bar Bending Schedule (BBS)');
@@ -1923,7 +1973,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Rebar Takeoff &amp; BS 8666 Bar Bending Schedule (BBS)');
       expect(html).toContain('KS 02-598 Certified');
     });
@@ -1941,7 +1991,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Safaricom Daraja B2C Bulk Wages &amp; Retention Disbursements');
       expect(html).toContain('Live B2C Gateway');
     });
@@ -1995,7 +2045,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('🚛 RMC Transit &amp; Slump');
       expect(html).toContain('⚙️ Structural Steel Takeoff');
       expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
@@ -2015,7 +2065,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
       expect(html).toContain('Bamburi Special Products Ltd');
       expect(html).toContain('KDH 482B');
@@ -2072,7 +2122,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('⛰️ Geotechnical Soil QA');
       expect(html).toContain('🛣️ Asphalt Pavement QA');
       expect(html).toContain('Geotechnical Soil Compaction QA Engine');
@@ -2092,7 +2142,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Geotechnical Soil Compaction QA Engine');
       expect(html).toContain('Asphalt Pavement Quality &amp; Thermal Tracker');
     });
@@ -2134,7 +2184,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('📐 Topographic Survey &amp; Earthworks');
       expect(html).toContain('Survey &amp; Topographic Cut/Fill Earthworks Engine');
       expect(html).toContain('Mass Haul Diagram (MHD)');
@@ -2153,7 +2203,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Survey &amp; Topographic Cut/Fill Earthworks Engine');
       expect(html).toContain('Mass Haul Diagram (MHD)');
     });
@@ -2188,12 +2238,12 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         />
       ).replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Diesel Siphoning Anomaly Incident Feed');
-      expect(html).toContain('Deep telemetry fuel drain rate analysis and instant theft detection');
+      expect(html).toContain('Fuel Discrepancy Anomaly Incident Feed');
+      expect(html).toContain('Deep telemetry fuel drain rate analysis and anomaly variance detection');
       expect(html).toContain('CRITICAL');
       expect(html).toContain('-40.00 Liters');
       expect(html).toContain('480.00 L/h');
-      expect(html).toContain('Rapid Diesel Theft / Siphon Event');
+      expect(html).toContain('Rapid Fuel Level Drop Event');
       expect(html).toContain('STOPPED');
     });
 
@@ -2208,7 +2258,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       // Alerts feed assertions
       expect(html).toContain('Plant Maintenance &amp; Predictive Alerts Feed');
-      expect(html).toContain('ALT-SIPHON-001');
+      expect(html).toContain('ALT-FUEL-DISC-001');
       expect(html).toContain('ALT-DIAG-002');
       expect(html).toContain('Acknowledge Alert');
 
@@ -2226,7 +2276,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
   });
 
-  describe('Milestone M33: Buildsasa Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite', () => {
+  describe('Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite', () => {
     const mockSession = (role: string): AuthSession => ({
       user: {
         id: `user-${role.toLowerCase()}`,
@@ -2254,7 +2304,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Header and badge assertions
-      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
+      expect(html).toContain('Site Safi Independent Site Inspection Reports');
       expect(html).toContain('Diaspora Shield • Neutral Site Verification');
       expect(html).toContain('NCA Registered Clerk of Works');
       expect(html).toContain('Book Unannounced Inspection');
@@ -2326,13 +2376,13 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Header assertions
-      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Site Safi Contractor Tender Board &amp; Bidding Studio');
       expect(html).toContain('Technical 70% • Financial 30% Evaluation');
       expect(html).toContain('+ Post New Tender');
       expect(html).toContain('Submit Contractor Bid');
 
       // Active tenders
-      expect(html).toContain('BDS-TND-2026-STR-01');
+      expect(html).toContain('SSF-TND-2026-STR-01');
       expect(html).toContain('Reinforced Concrete Framing &amp; Suspended Slabs Package');
       expect(html).toContain('18500000.00');
       expect(html).toContain('UNDER_REVIEW');
@@ -2356,7 +2406,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Preliminaries &amp; Overheads:');
     });
 
-    it('renders LandingPortalHub with Buildsasa hero banner, 4 key value cards, and 8-role interactive preview switcher', () => {
+    it('renders LandingPortalHub with Platform hero banner, 4 key value cards, and 8-role interactive preview switcher', () => {
       const html = renderToString(
         <LandingPortalHub
           onSelectRolePreview={() => {}}
@@ -2365,7 +2415,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Branding & Hero Banner
-      expect(html).toContain('Buildsasa Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
+      expect(html).toContain('Site Safi — Kenya Construction Operating System &amp; Diaspora Property Owner Portal');
       expect(html).toContain('Apex Builders Kenya Ltd');
       expect(html).toContain('Sign in to access your project workspace');
       expect(html).toContain('Diaspora Client Portal Preview');
@@ -2402,7 +2452,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<App />).replace(/<!-- -->/g, '');
 
       // LandingPortalHub is loaded unauthenticated
-      expect(html).toContain('Buildsasa Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
+      expect(html).toContain('Site Safi — Kenya Construction Operating System &amp; Diaspora Property Owner Portal');
       expect(html).toContain('Apex Builders Kenya');
       expect(html).toContain('Sign in to access your project workspace');
       expect(html).toContain('open-login-btn');
@@ -2414,8 +2464,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Embedded M33 components in ClientDashboard
-      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
-      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Site Safi Independent Site Inspection Reports');
+      expect(html).toContain('Site Safi Contractor Tender Board &amp; Bidding Studio');
 
       // Certified IPCs, Payments, and Monetary Variance Schedule
       expect(html).toContain('Certified Valuations Ledger');
@@ -2445,8 +2495,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('📑 Tender Board');
 
       // Embedded M33 components in PmQsDashboard
-      expect(html).toContain('Buildsasa Independent Site Inspection Reports');
-      expect(html).toContain('Buildsasa Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Site Safi Independent Site Inspection Reports');
+      expect(html).toContain('Site Safi Contractor Tender Board &amp; Bidding Studio');
       expect(html).toContain('Technical 70% • Financial 30% Evaluation');
       expect(html).toContain('Progress Variance Analysis');
     });
@@ -2474,7 +2524,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('whatsapp-alert-btn');
     });
 
-    it('renders Buildsasa Instant Building Construction Cost & Feasibility Estimator with 5 currencies and 6-stage drawdown', () => {
+    it('renders Site Safi Instant Building Construction Cost & Feasibility Estimator with 5 currencies and 6-stage drawdown', () => {
       const html = renderToString(
         <LandingPortalHub
           onSelectRolePreview={() => {}}
@@ -2483,7 +2533,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Cost & Feasibility Estimator section
-      expect(html).toContain('Buildsasa Instant Construction Cost &amp; Feasibility Estimator');
+      expect(html).toContain('Site Safi Instant Construction Cost &amp; Feasibility Estimator');
       expect(html).toContain('BORAQS &amp; JBC 2026 Baseline');
       expect(html).toContain('calc-typology-select');
       expect(html).toContain('calc-area-input');
@@ -2527,6 +2577,56 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('NCWSC/CONN/PERMIT/2025/8920');
       expect(html).toContain('Statutory Legal Guard Active');
       expect(html).toContain('view-statutory-certificate-btn');
+    });
+  });
+
+  describe('Gate-4 S1/S2: Quotes-to-cash & Invoicing UI', () => {
+    const gate4Session = (role: string): AuthSession => ({
+      user: {
+        id: `user-${role.toLowerCase()}`,
+        email: `${role.toLowerCase()}@apexbuilders.co.ke`,
+        fullName: `Test ${role}`,
+        role,
+        tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
+      },
+      permissions: ['project.view'],
+      token: 'mock-token',
+    });
+
+    it('renders QuotesManagementView shell with quote lifecycle affordances', () => {
+      const html = renderToString(<QuotesManagementView />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Quotes-to-Cash');
+      expect(html).toContain('Quotations &amp; Proposals');
+      expect(html).toContain('New Quote');
+      expect(html).toContain('Loading quotes');
+    });
+
+    it('renders InvoicingView shell with AR status filters and payment affordances', () => {
+      const html = renderToString(<InvoicingView />).replace(/<!-- -->/g, '');
+      expect(html).toContain('Accounts Receivable');
+      expect(html).toContain('Invoicing &amp; Payments');
+      expect(html).toContain('New Invoice');
+      expect(html).toContain('OVERDUE');
+      expect(html).toContain('PART PAID');
+      expect(html).toContain('Loading invoices');
+    });
+
+    it('embeds quotes and invoicing views into PmQsDashboard tabs', () => {
+      const html = renderToString(
+        <PmQsDashboard session={gate4Session('PM_QS')} />
+      ).replace(/<!-- -->/g, '');
+      expect(html).toContain('Quotes &amp; Cash');
+      expect(html).toContain('Invoicing');
+      expect(html).toContain('Accounts Receivable');
+      expect(html).toContain('Quotes-to-Cash');
+    });
+
+    it('embeds quotes and invoicing into the Company Admin dashboard', () => {
+      const html = renderToString(
+        <CompanyAdminDashboard session={gate4Session('COMPANY_ADMIN')} />
+      ).replace(/<!-- -->/g, '');
+      expect(html).toContain('Quotations &amp; Proposals');
+      expect(html).toContain('Invoicing &amp; Payments');
     });
   });
 });

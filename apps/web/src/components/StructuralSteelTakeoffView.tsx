@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface StructuralSteelMemberItem {
   id: string;
@@ -130,14 +130,55 @@ const DEFAULT_TAKEOFFS: StructuralSteelTakeoffRecord[] = [
 ];
 
 export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Kilimani Commercial Complex',
   initialTakeoffs = DEFAULT_TAKEOFFS,
   onCreateTakeoff,
   onUpdateStatus,
 }) => {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [takeoffs, setTakeoffs] = useState<StructuralSteelTakeoffRecord[]>(initialTakeoffs);
   const [selectedTakeoff, setSelectedTakeoff] = useState<StructuralSteelTakeoffRecord | null>(initialTakeoffs[0] || null);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/structural-steel-takeoffs`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.takeoffs || []) as any[];
+      const mapped = list.map((t) => ({
+        ...t,
+        steelGrade: t.steelGrade as StructuralSteelTakeoffRecord['steelGrade'],
+        status: t.status as StructuralSteelTakeoffRecord['status'],
+        members: undefined,
+      })) as StructuralSteelTakeoffRecord[];
+      setTakeoffs(mapped);
+      setSelectedTakeoff(mapped[0] ?? null);
+    } catch {
+      setTakeoffs([]);
+      setSelectedTakeoff(null);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  const handleSelectTakeoff = async (takeoff: StructuralSteelTakeoffRecord) => {
+    if (isLive && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(takeoff.id)) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/structural-steel-takeoffs/${takeoff.id}`, { credentials: 'include' });
+        if (res.ok) {
+          const detail = await res.json();
+          setSelectedTakeoff({ ...takeoff, ...detail, members: detail.members ?? [] });
+          return;
+        }
+      } catch { /* fall through to local selection */ }
+    }
+    setSelectedTakeoff(takeoff);
+  };
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -226,6 +267,41 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 
   const handleCreateTakeoff = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/structural-steel-takeoffs`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            takeoffNo,
+            structureTitle,
+            drawingReference: drawingRef || null,
+            steelGrade,
+            members: memberRows.map((m) => {
+              const sec = STEEL_SECTIONS_LIB[m.sectionDesignation] || { type: 'UB', unitWeightKgPerM: '0', paintAreaM2PerM: '0' };
+              return {
+                memberMark: m.memberMark,
+                sectionType: sec.type,
+                sectionDesignation: m.sectionDesignation,
+                unitWeightKgPerM: sec.unitWeightKgPerM,
+                paintAreaM2PerM: sec.paintAreaM2PerM,
+                lengthMeters: m.lengthMeters,
+                quantity: m.quantity,
+                connectionBoltsCount: m.connectionBoltsCount,
+              };
+            }),
+          }),
+        });
+        if (res.ok) {
+          await reload();
+          setShowAddModal(false);
+          setStructureTitle('');
+          setDrawingRef('');
+        }
+      } catch { /* keep modal open on failure */ }
+      return;
+    }
+
     const createdMembers: StructuralSteelMemberItem[] = memberRows.map((m, idx) => {
       const sec = STEEL_SECTIONS_LIB[m.sectionDesignation] || {
         type: 'UB',
@@ -296,6 +372,19 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
   };
 
   const handleStatusChange = async (takeoffId: string, newStatus: any) => {
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/structural-steel-takeoffs/${takeoffId}/status`, {
+          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        if (res.ok) {
+          await reload();
+          setSelectedTakeoff((prev) => (prev && prev.id === takeoffId ? { ...prev, status: newStatus } : prev));
+        }
+      } catch { /* keep current state on failure */ }
+      return;
+    }
     if (onUpdateStatus) {
       await onUpdateStatus(takeoffId, newStatus);
     }
@@ -307,7 +396,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
     }
   };
 
-  const getStatusBadge = (status: StructuralSteelTakeoffRecord['status']) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'DRAFT':
         return <span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-gray-100 text-gray-700">Draft Takeoff</span>;
@@ -316,9 +405,12 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
       case 'ORDERED':
         return <span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800">Mill Ordered 📦</span>;
       case 'FABRICATED':
+      case 'FABRICATION_RELEASED':
         return <span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-indigo-100 text-indigo-800">Fabricated ⚙️</span>;
       case 'ERECTED':
         return <span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800">Site Erected 🏗️</span>;
+      default:
+        return <span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-gray-100 text-gray-700">{status}</span>;
     }
   };
 
@@ -333,6 +425,10 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 
   const totalTonnageSum = takeoffs.reduce((acc, t) => acc + parseFloat(t.totalTonnage || '0'), 0);
   const totalPaintAreaSum = takeoffs.reduce((acc, t) => acc + parseFloat(t.totalPaintAreaM2 || '0'), 0);
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">Loading steel takeoffs...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -411,7 +507,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
               filteredTakeoffs.map((takeoff) => (
                 <div
                   key={takeoff.id}
-                  onClick={() => setSelectedTakeoff(takeoff)}
+                  onClick={() => void handleSelectTakeoff(takeoff)}
                   className={`p-4 cursor-pointer hover:bg-gray-50 transition ${
                     selectedTakeoff?.id === takeoff.id ? 'bg-indigo-50 border-l-4 border-indigo-600' : ''
                   }`}

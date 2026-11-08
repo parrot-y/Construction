@@ -772,4 +772,126 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
       }
     },
   );
+
+  // 3.3 Update Subcontractor Package Status
+  server.patch(
+    '/api/v1/projects/:projectId/subcontractors/:packageId',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, packageId } = request.params as { projectId: string; packageId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(packageId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Package not found' });
+      }
+      const { status } = (request.body || {}) as { status?: string };
+      const allowed = ['AWARDED', 'ACTIVE', 'COMPLETED', 'TERMINATED', 'SUSPENDED'];
+      if (!status || !allowed.includes(status)) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: `status must be one of ${allowed.join(', ')}` });
+      }
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const pkg = await tx.subcontractorPackage.findFirst({ where: { id: packageId, project_id: projectId } });
+          if (!pkg) throw { status: 404, message: 'Subcontractor package not found' };
+          const result = await tx.subcontractorPackage.update({ where: { id: packageId }, data: { status } });
+          await recordAuditLog(tx, {
+            tenantId, actorId: sub, projectId,
+            action: 'SUBCONTRACTOR_PACKAGE_STATUS', entityType: 'SubcontractorPackage', entityId: packageId,
+            changes: { from: pkg.status, to: status },
+          });
+          return result;
+        });
+        return reply.status(200).send(updated);
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update package' });
+      }
+    },
+  );
+
+  // 4.3 Drawing markups — pins/annotations on a drawing sheet
+  server.get(
+    '/api/v1/projects/:projectId/documents/:documentId/annotations',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, documentId } = request.params as { projectId: string; documentId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(documentId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Not found' });
+      }
+      const annotations = await withTenantTx(prisma, tenantId, async (tx) =>
+        tx.drawingAnnotation.findMany({
+          where: { project_id: projectId, document_id: documentId },
+          orderBy: { created_at: 'asc' },
+        }),
+      );
+      return reply.status(200).send({ data: annotations });
+    },
+  );
+
+  server.post(
+    '/api/v1/projects/:projectId/documents/:documentId/annotations',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, documentId } = request.params as { projectId: string; documentId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(documentId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Not found' });
+      }
+      const body = request.body as { xPct?: number; yPct?: number; note?: string };
+      const x = Number(body.xPct); const y = Number(body.yPct);
+      const note = String(body.note || '').trim();
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 100 || y < 0 || y > 100 || note.length < 2 || note.length > 2000) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'xPct/yPct must be 0-100 and note 2-2000 chars' });
+      }
+      try {
+        const created = await withTenantTx(prisma, tenantId, async (tx) => {
+          const doc = await tx.projectDocument.findFirst({ where: { id: documentId, project_id: projectId } });
+          if (!doc) throw { status: 404, message: 'Document not found' };
+          const me = await tx.user.findUnique({ where: { id: sub }, select: { full_name: true, email: true } });
+          const ann = await tx.drawingAnnotation.create({
+            data: {
+              tenant_id: tenantId, project_id: projectId, document_id: documentId,
+              x_pct: x, y_pct: y, note, author_name: me?.full_name || me?.email || 'Team member',
+            },
+          });
+          await recordAuditLog(tx, {
+            tenantId, actorId: sub, projectId,
+            action: 'DRAWING_ANNOTATION_ADDED', entityType: 'DrawingAnnotation', entityId: ann.id,
+          });
+          return ann;
+        });
+        return reply.status(201).send(created);
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to add annotation' });
+      }
+    },
+  );
+
+  server.patch(
+    '/api/v1/projects/:projectId/documents/:documentId/annotations/:annotationId',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, annotationId } = request.params as { projectId: string; annotationId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(annotationId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Not found' });
+      }
+      const { resolved, note } = (request.body || {}) as { resolved?: boolean; note?: string };
+      const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+        const ann = await tx.drawingAnnotation.findFirst({ where: { id: annotationId, project_id: projectId } });
+        if (!ann) throw { status: 404, message: 'Annotation not found' };
+        return tx.drawingAnnotation.update({
+          where: { id: annotationId },
+          data: {
+            ...(typeof resolved === 'boolean' ? { resolved } : {}),
+            ...(typeof note === 'string' && note.trim().length >= 2 ? { note: note.trim().slice(0, 2000) } : {}),
+          },
+        });
+      });
+      return reply.status(200).send(updated);
+    },
+  );
 };

@@ -1,6 +1,6 @@
 # Milestone M7 Completion Report: Variance Flags & Project Dashboard
 
-**Project:** MjengoLedger (Kenya-First Construction Management SaaS)  
+**Project:** Platform (Kenya-First Construction Management SaaS)  
 **Date:** 2026-11-03  
 **Status:** Complete & Fully Verified (All 110/110 Monorepo Tests Passing)  
 **Git Head Commit:** [`beeb1b9`](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction)  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary & Core Deliverables
 
-Milestone **M7** delivers the commercial control and variance analytics engine of MjengoLedger, protecting the core loop:
+Milestone **M7** delivers the commercial control and variance analytics engine of Platform, protecting the core loop:
 $$\text{BOQ} \rightarrow \text{Budget} \rightarrow \text{Progress} \rightarrow \text{Cost} \rightarrow \text{Evidence} \rightarrow \text{Approval} \rightarrow \mathbf{Client\ Visibility\ \&\ Variance\ Guard} \rightarrow \text{Progress}$$
 
 In strict accordance with the **PRD & Architecture Plan** ([`docs/Construction SaaS — PRD & Architecture Plan.pdf`](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/Construction%20SaaS%20%E2%80%94%20PRD%20%26%20Architecture%20Plan.pdf)), **[ADR-001](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/SYSTEM_DESIGN.md#adr-001-multi-tenancy-via-postgresql-rls--withtenanttx)**, **[ADR-005](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/SYSTEM_DESIGN.md#adr-005-financial-math-decimal-precision--rounding)**, and Section 6.3 of the System Design, Milestone M7 implements:

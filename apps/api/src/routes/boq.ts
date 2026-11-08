@@ -4,6 +4,7 @@ import { Permissions } from '@construction/permissions';
 import { toCurrencyString, Decimal } from '@construction/money';
 import { requirePermission } from '../plugins/rbac';
 import { parseBOQWorkbook, ParsedBOQSection } from '../services/boq-parser';
+import ExcelJS from 'exceljs';
 
 export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/projects/:projectId/boq/preview - Staged Excel BOQ Parser & Validator
@@ -262,6 +263,90 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       }
 
       return reply.status(200).send({ data: boq });
+    },
+  );
+
+  // GET /api/v1/projects/:projectId/boq/export - Excel export of active BOQ
+  server.get(
+    '/api/v1/projects/:projectId/boq/export',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_VIEW),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      const boq = await withTenantTx(prisma, tenantId, async (tx) => {
+        return tx.bOQ.findFirst({
+          where: { project_id: projectId, tenant_id: tenantId, status: 'ACTIVE' },
+          include: {
+            sections: {
+              include: { items: { orderBy: { created_at: 'asc' } } },
+              orderBy: { order_idx: 'asc' },
+            },
+            project: { select: { name: true, code: true } },
+          },
+        });
+      });
+
+      if (!boq) {
+        return reply.status(404).send({ error: 'No active BOQ found for this project' });
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Site Safi';
+      const sheet = workbook.addWorksheet('BOQ');
+
+      sheet.columns = [
+        { header: 'Item Code', key: 'code', width: 14 },
+        { header: 'Description', key: 'desc', width: 60 },
+        { header: 'Unit', key: 'unit', width: 10 },
+        { header: 'Quantity', key: 'qty', width: 12 },
+        { header: 'Unit Rate (KES)', key: 'rate', width: 16 },
+        { header: 'Amount (KES)', key: 'amount', width: 18 },
+      ];
+      sheet.getRow(1).font = { bold: true };
+      sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+      for (const section of boq.sections) {
+        const sectionRow = sheet.addRow([section.title, '', '', '', '', '']);
+        sectionRow.font = { bold: true };
+        sectionRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        for (const item of section.items) {
+          sheet.addRow([
+            item.item_code,
+            item.description,
+            item.unit,
+            Number(item.quantity),
+            Number(item.unit_rate),
+            Number(item.total_amount),
+          ]);
+        }
+        const subRow = sheet.addRow(['', 'Section subtotal', '', '', '', Number(section.total_amount)]);
+        subRow.font = { bold: true, italic: true };
+      }
+
+      const totalRow = sheet.addRow(['', 'GRAND TOTAL', '', '', '', Number(boq.total_amount)]);
+      totalRow.font = { bold: true, size: 12 };
+      totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+
+      for (let r = 2; r <= sheet.rowCount; r++) {
+        for (let c = 4; c <= 6; c++) {
+          const cell = sheet.getRow(r).getCell(c);
+          if (typeof cell.value === 'number') cell.numFmt = '#,##0.00';
+        }
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const filename = `BOQ-${boq.project?.code || projectId}-v${boq.version}.xlsx`;
+      return reply
+        .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .send(Buffer.from(buffer));
     },
   );
 

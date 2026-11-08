@@ -1,5 +1,6 @@
 import cookie from '@fastify/cookie';
 import jwt from '@fastify/jwt';
+import { prisma, withTenantTx } from '@construction/db';
 import { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 import '../types/auth';
@@ -43,6 +44,36 @@ const authPluginAsync: FastifyPluginAsync = async (server: FastifyInstance) => {
       return reply.status(401).send({
         error: 'Unauthorized',
         message: 'Invalid or missing authentication token',
+      });
+    }
+
+    // Session revocation check (audit S-01): reject non-access tokens and
+    // verify the user is still active with a live membership on EVERY request.
+    const payload = request.user as { sub?: string; tenantId?: string; typ?: string } | undefined;
+    if (!payload?.sub || !payload.tenantId || payload.typ !== 'access') {
+      return reply.status(401).send({
+        error: 'Unauthorized',
+        message: 'Invalid or missing authentication token',
+      });
+    }
+    try {
+      const membership = await withTenantTx(prisma, payload.tenantId, (tx) =>
+        tx.membership.findFirst({
+          where: { tenant_id: payload.tenantId, user_id: payload.sub },
+          select: { user: { select: { is_active: true } } },
+        }),
+      );
+      if (!membership?.user.is_active) {
+        return reply.status(401).send({
+          error: 'Unauthorized',
+          message: 'User session is inactive or revoked',
+        });
+      }
+    } catch (err) {
+      server.log.error({ err }, 'Session validation failed');
+      return reply.status(401).send({
+        error: 'Unauthorized',
+        message: 'Session validation failed',
       });
     }
   });

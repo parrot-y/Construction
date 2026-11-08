@@ -1,4 +1,4 @@
-# MjengoLedger — Comprehensive CTO Benchmark & Architectural System Health Audit
+# Platform — Comprehensive CTO Benchmark & Architectural System Health Audit
 
 **Document Reference:** `DOC-AUDIT-2026-CTO-001`  
 **Classification:** Executive Technology Audit & Regional Competitive Benchmark  
@@ -11,23 +11,23 @@
 
 ## 1. Executive Assessment & Architectural Scorecard
 
-An exhaustive, multi-dimensional audit of **MjengoLedger** was executed to evaluate its technological superiority, statutory fidelity, and operational resilience against all established Kenyan and East African market incumbents:
-- **Buildsasa** (`buildsasa.com` / `console.buildsasa.com`)
+An exhaustive, multi-dimensional audit of **Platform** was executed to evaluate its technological superiority, statutory fidelity, and operational resilience against all established Kenyan and East African market incumbents:
+- **the reference platform** (`reference-platform.example` / `console.reference-platform.example`)
 - **Goldberry Investments** (`goldberry.co.ke` — Cost Master & JengaLex)
 - **Jengo** (`jengo.co.ke`)
 - **Aqiq Solutions** (ERPNext / Frappe implementation partner)
 - **Zinen Technologies** (Bespoke Agency CMS)
 
 ### The Architectural Verdict:
-**MjengoLedger represents an undisputed, generational leap in construction technology for the East African building and civil engineering sector.** 
+**Platform represents an undisputed, generational leap in construction technology for the East African building and civil engineering sector.** 
 
-While regional incumbents remain trapped in either **diaspora-only photo oversight** (Buildsasa, Jengo), **pre-construction estimation bots** (Goldberry / Cost Master), or **prohibitively expensive, brittle desktop ERPs** (Aqiq / ERPNext), MjengoLedger provides an **end-to-end, field-to-boardroom operating system**. It uniquely encodes Kenyan statutory laws (NCA Cap 499A, BORAQS Cap 525, JBC 1999 Standard Form of Building Contract, KRA e-TIMS Cap 470) alongside advanced structural, geotechnical, and civil earthworks engineering standards.
+While regional incumbents remain trapped in either **diaspora-only photo oversight** (the reference platform, Jengo), **pre-construction estimation bots** (Goldberry / Cost Master), or **prohibitively expensive, brittle desktop ERPs** (Aqiq / ERPNext), Platform provides an **end-to-end, field-to-boardroom operating system**. It uniquely encodes Kenyan statutory laws (NCA Cap 499A, BORAQS Cap 525, JBC 1999 Standard Form of Building Contract, KRA e-TIMS Cap 470) alongside advanced structural, geotechnical, and civil earthworks engineering standards.
 
 ```
 +-------------------------------------------------------------------------------------------------------+
-|                                    MJENGOLEDGER SYSTEM HEALTH MATRIX                                   |
+|                                    PLATFORM SYSTEM HEALTH MATRIX                                   |
 +------------------------------------+--------------------------+-----------------------+---------------+
-| Evaluation Dimension               | Incumbent Market State   | MjengoLedger State    | Grade         |
+| Evaluation Dimension               | Incumbent Market State   | Platform State    | Grade         |
 +------------------------------------+--------------------------+-----------------------+---------------+
 | 1. Civil Earthworks & Topography   | 0% (Manual Excel / None) | Simpson 1/3 + Prismoid| A+ (Superior) |
 | 2. Rebar BBS Takeoff (BS 8666)     | 0% (Manual Bar Schedules)| Exact Unit Wts & Stock| A+ (Superior) |
@@ -47,19 +47,19 @@ While regional incumbents remain trapped in either **diaspora-only photo oversig
 
 ## 2. In-Depth Incumbent Competitive Audit
 
-### 2.1 Buildsasa (`buildsasa.com` / `console.buildsasa.com`)
+### 2.1 the reference platform (`reference-platform.example` / `console.reference-platform.example`)
 * **Primary Model:** Hybrid human agency + homeowner milestone tracker. Dispatches human "site inspectors" to photograph residential buildings for diaspora clients; takes a margin on transactions and contractor referrals.
 * **Architectural Critique:**
-  1. **Not a Contractor Commercial Operating System:** Buildsasa is built for remote homeowners, not building contractors. It completely lacks an EASMM 2008 6-stage BOQ import engine, has no concept of an append-only subcontractor cost ledger, and cannot generate a contractually enforceable JBC 1999 Interim Payment Certificate (IPC).
+  1. **Not a Contractor Commercial Operating System:** the reference platform is built for remote homeowners, not building contractors. It completely lacks an EASMM 2008 6-stage BOQ import engine, has no concept of an append-only subcontractor cost ledger, and cannot generate a contractually enforceable JBC 1999 Interim Payment Certificate (IPC).
   2. **Human Agency Scalability Bottleneck:** Relying on human inspectors visiting physical sites introduces severe human-resource overhead, scheduling delays, and geographic limitations (concentrated around Nairobi suburbs like Karen, Runda, Kitengela, while failing on upcountry projects in Lodwar, Isiolo, or Kisii).
-  3. **No Field Offline Resilience:** Buildsasa's client portal assumes stable cellular broadband. On deep excavation sites or remote rift valley corridors, the web console cannot function offline.
+  3. **No Field Offline Resilience:** the reference platform's client portal assumes stable cellular broadband. On deep excavation sites or remote rift valley corridors, the web console cannot function offline.
   4. **Per-Seat / Transaction Tax:** Extracts percentage rakes and restricts collaborator seats, punishing contractors who want their entire site hierarchy (supervisors, storekeepers, plant operators) on the platform.
 
 ### 2.2 Goldberry Investments (`goldberry.co.ke` — Cost Master & JengaLex)
 * **Primary Model:** Pre-construction AI estimation (Cost Master) and legal reference query bot (JengaLex).
 * **Architectural Critique:**
   1. **Execution Void:** Cost Master and JengaLex are strictly pre-construction, desktop-bound intelligence tools. Once the contract is signed and the contractor breaks ground, Goldberry provides zero operational tools: no daily site diaries, no labor headcount tracking, no concrete cube break registers, and no delivery note reconciliation.
-  2. **Regulatory Risk with BORAQS (Cap 525):** By marketing "AI Quantity Surveying", Goldberry risks active regulatory friction with BORAQS, which legally restricts the preparation of Bills of Quantities and Final Accounts to registered Quantity Surveyors. In contrast, MjengoLedger respects the professional monopoly by acting strictly as the contractor's internal commercial execution engine.
+  2. **Regulatory Risk with BORAQS (Cap 525):** By marketing "AI Quantity Surveying", Goldberry risks active regulatory friction with BORAQS, which legally restricts the preparation of Bills of Quantities and Final Accounts to registered Quantity Surveyors. In contrast, Platform respects the professional monopoly by acting strictly as the contractor's internal commercial execution engine.
   3. **No Financial Ledger or Database Tenancy:** Operates as stateless API query endpoints rather than an isolated, tenant-partitioned system of record.
 
 ### 2.3 Jengo (`jengo.co.ke`)
@@ -80,7 +80,7 @@ While regional incumbents remain trapped in either **diaspora-only photo oversig
 
 ## 3. Engineering & Operational Dimensions Audit
 
-MjengoLedger has implemented dedicated, mathematically rigorous domain engines across all specialized engineering operations. Below is the audited breakdown of each domain:
+Platform has implemented dedicated, mathematically rigorous domain engines across all specialized engineering operations. Below is the audited breakdown of each domain:
 
 ### 3.1 Civil Earthworks & Topographic Engine (Milestone M31)
 * **Simpson's 1/3 Rule with Parity Fallback:**
@@ -175,9 +175,9 @@ MjengoLedger has implemented dedicated, mathematically rigorous domain engines a
 
 ---
 
-## 4. Business Model & Unit Economics: Zero-Seat-Tax vs Buildsasa
+## 4. Business Model & Unit Economics: Zero-Seat-Tax vs the reference platform
 
-| Commercial Metric | Buildsasa | Global SaaS (Procore / ACC) | Regional ERPs (Aqiq) | **MjengoLedger** |
+| Commercial Metric | the reference platform | Global SaaS (Procore / ACC) | Regional ERPs (Aqiq) | **Platform** |
 |---|---|---|---|---|
 | **Pricing Structure** | % transaction rake + inspection fee | $8,000–$30,000 / yr | KES 400k setup + KES 60k/mo | **Flat KES 7,500/project/mo or KES 25k portfolio** |
 | **User Seat Policy** | Restrictive user tiers | Per-seat or Construction Volume | Per-license / Per-named-user | **UNLIMITED SEATS (Zero Seat Tax)** |
@@ -198,7 +198,7 @@ In Kenyan construction, a mid-sized commercial contractor (NCA 3 to NCA 6) emplo
 
 Under per-seat models (Strukchad, Procore, ERPNext), onboarding all 23 stakeholders costs between **KES 46,000 and KES 115,000 per month in seat taxes alone**. As a result, contractors purchase only 2 or 3 licenses for back-office accountants. **The field foremen and site storekeepers are locked out.**
 
-**MjengoLedger's Zero Seat Tax flips the economic model:**
+**Platform's Zero Seat Tax flips the economic model:**
 For a flat **KES 7,500 per month**, every supervisor, storekeeper, subcontractor, and client is onboarded. Data is captured directly at the point of origin (the pour site, the gate, the materials store), eliminating the "WhatsApp photo to back-office Excel" delay.
 
 ---
@@ -207,7 +207,7 @@ For a flat **KES 7,500 per month**, every supervisor, storekeeper, subcontractor
 
 Remote Kenyan construction projects—such as infrastructure along the LAPSSET corridor (Isiolo, Marsabit, Lodwar), geothermal plants in the Rift Valley (Olkaria, Menengai), or road works across dry secondary counties—face frequent 3G/4G network dropouts.
 
-MjengoLedger's frontend architecture is engineered explicitly to survive these harsh realities:
+Platform's frontend architecture is engineered explicitly to survive these harsh realities:
 1. **Service Worker & Workbox Pre-Caching:**
    - Pre-caches all essential static assets, HTML shell, and JavaScript bundles ($<1.0\text{MB}$ gzipped).
    - Instant load time ($<800\text{ms}$) even in airplane mode.
@@ -248,7 +248,7 @@ MjengoLedger's frontend architecture is engineered explicitly to survive these h
     }
     ```
 * **Session Parameter Isolation (`withTenantTx`):**
-  - In MjengoLedger, tenant isolation does not rely on developer discipline adding `WHERE tenant_id = x`.
+  - In Platform, tenant isolation does not rely on developer discipline adding `WHERE tenant_id = x`.
   - Every tenant operation is wrapped in `withTenantTx(prisma, tenantId, callback)`:
     ```sql
     SELECT set_config('app.current_tenant_id', $tenantId, TRUE);
@@ -329,8 +329,8 @@ During the initial phase of this audit, three items were identified and surgical
 
 ## 9. Strategic Summary for Executive Leadership
 
-MjengoLedger has achieved complete functional and technological dominance over regional incumbents:
-1. **Versus Buildsasa:** Replaced expensive, unscalable human inspectors with automated, tamper-proof Nairobi GPS-geotagged site diaries, native EASMM BOQ parsing, and a Zero Seat Tax pricing model.
+Platform has achieved complete functional and technological dominance over regional incumbents:
+1. **Versus the reference platform:** Replaced expensive, unscalable human inspectors with automated, tamper-proof Nairobi GPS-geotagged site diaries, native EASMM BOQ parsing, and a Zero Seat Tax pricing model.
 2. **Versus Goldberry:** Extended beyond pre-construction AI estimating into full on-site commercial execution, quality verification, and retention fund accounting.
 3. **Versus Jengo:** Upgraded shallow WhatsApp-style milestone photos into contractually binding JBC 1999 variation chains and interim payment certificates.
 4. **Versus Aqiq & ERPNext:** Delivered deep construction-native capabilities (BS 8666 rebar, BS EN 206 concrete, BS 1377 soil, BS 594987 asphalt, CAN-bus telematics) at 10x lower TCO on an offline-first PWA that site foremen can master in minutes.

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { prisma, verifyPassword, withTenantTx } from '@construction/db';
 import { getPermissionsForRole, Role } from '@construction/permissions';
 import { AuthUserResponse, LoginRequestSchema } from '@construction/validation';
@@ -23,9 +24,29 @@ setInterval(() => {
   }
 }, 60 * 1000).unref();
 
+const ACCESS_TTL = '15m';
+const REFRESH_TTL = '7d';
+
+const setSessionCookies = (reply: any, accessToken: string, refreshToken: string) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  reply.setCookie('access_token', accessToken, {
+    path: '/', httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 15 * 60,
+  });
+  reply.setCookie('refresh_token', refreshToken, {
+    path: '/api/v1/auth', httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60,
+  });
+};
+
+const clearSessionCookies = (reply: any) => {
+  reply.clearCookie('access_token', { path: '/' });
+  reply.clearCookie('refresh_token', { path: '/api/v1/auth' });
+};
+
 export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/auth/login
-  server.post('/api/v1/auth/login', async (request, reply) => {
+  server.post('/api/v1/auth/login', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
     const clientIp = request.ip || '127.0.0.1';
     const now = Date.now();
     const attempt = failedLoginsMap.get(clientIp);
@@ -64,19 +85,9 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     const { email, password, tenantId } = parseResult.data;
 
-    // Retrieve user and their tenant memberships inside scoped auth transaction
-    const user = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.auth_context', 'login', TRUE)`;
-      return tx.user.findUnique({
-        where: { email: email.toLowerCase() },
-        include: {
-          memberships: {
-            include: {
-              tenant: true,
-            },
-          },
-        },
-      });
+    // Retrieve user directly from public schema without auth_context bypasses (2c)
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
     });
 
     if (!user || !user.is_active) {
@@ -107,7 +118,24 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     // Reset failed login counter on successful authentication
     failedLoginsMap.delete(clientIp);
 
-    if (user.memberships.length === 0) {
+    // Retrieve tenant memberships via narrow SECURITY DEFINER lookup function without auth_context bypasses (2c)
+    const membershipRows = await prisma.$queryRaw<any[]>`
+      SELECT * FROM lookup_user_memberships_for_login(${user.id}::uuid);
+    `;
+
+    const memberships = membershipRows.map((m) => ({
+      id: m.id,
+      tenant_id: m.tenant_id,
+      role: m.role,
+      tenant: {
+        id: m.tenant_id,
+        name: m.tenant_name,
+        slug: m.tenant_slug,
+        currency: m.tenant_currency || 'KES',
+      },
+    }));
+
+    if (memberships.length === 0) {
       return reply.status(403).send({
         error: 'Forbidden',
         message: 'User does not belong to any active company tenant',
@@ -116,8 +144,8 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     // Select target membership
     const activeMembership = tenantId
-      ? user.memberships.find((m) => m.tenant_id === tenantId)
-      : user.memberships[0];
+      ? memberships.find((m) => m.tenant_id === tenantId)
+      : memberships[0];
 
     if (!activeMembership) {
       return reply.status(403).send({
@@ -126,7 +154,7 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       });
     }
 
-    const tokenPayload = {
+    const tokenPayloadBase = {
       sub: user.id,
       email: user.email,
       fullName: user.full_name,
@@ -134,16 +162,36 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       role: activeMembership.role,
     };
 
-    const token = server.jwt.sign(tokenPayload, { expiresIn: '7d' });
+    const tokenPayload = { ...tokenPayloadBase, typ: 'access' as const };
+    const token = server.jwt.sign(tokenPayload, { expiresIn: ACCESS_TTL });
+    const refreshJti = crypto.randomUUID();
+    const refreshToken = server.jwt.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        tenantId: activeMembership.tenant_id,
+        role: activeMembership.role,
+        typ: 'refresh' as const,
+        jti: refreshJti,
+      },
+      { expiresIn: REFRESH_TTL },
+    );
 
-    // Set HTTP-only secure cookie
-    reply.setCookie('access_token', token, {
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-    });
+    // Track the refresh token server-side for rotation + reuse detection.
+    await withTenantTx(prisma, activeMembership.tenant_id, (tx) =>
+      tx.refreshToken.create({
+        data: {
+          jti: refreshJti,
+          tenant_id: activeMembership.tenant_id,
+          user_id: user.id,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      }),
+    );
+
+    // Short-lived access cookie + rotating refresh cookie (audit S-01)
+    setSessionCookies(reply, token, refreshToken);
 
     const permissions = getPermissionsForRole(activeMembership.role as Role);
 
@@ -169,12 +217,188 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   });
 
   // POST /api/v1/auth/logout
-  server.post('/api/v1/auth/logout', async (_request, reply) => {
-    reply.clearCookie('access_token', { path: '/' });
+  // List the caller's active refresh sessions (audit S-01 self-service).
+  server.get('/api/v1/auth/sessions', { preHandler: [server.authenticate] }, async (request, reply) => {
+    const access = request.cookies?.access_token
+      ?? request.headers.authorization?.replace(/^Bearer /, '');
+    if (!access) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'No session' });
+    }
+    let payload: any;
+    try { payload = server.jwt.verify(access); } catch {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Session expired' });
+    }
+    const refresh = request.cookies?.refresh_token;
+    let currentJti: string | null = null;
+    if (refresh) {
+      try { currentJti = (server.jwt.verify(refresh) as any)?.jti ?? null; } catch { /* ignore */ }
+    }
+    const rows = await withTenantTx(prisma, payload.tenantId, (tx) =>
+      tx.refreshToken.findMany({
+        where: { user_id: payload.sub, tenant_id: payload.tenantId, expires_at: { gt: new Date() } },
+        orderBy: { created_at: 'desc' },
+        select: { jti: true, created_at: true, expires_at: true },
+      }),
+    );
+    return reply.send({
+      data: rows.map((r) => ({
+        id: r.jti.slice(0, 8),
+        createdAt: r.created_at,
+        expiresAt: r.expires_at,
+        current: r.jti === currentJti,
+      })),
+    });
+  });
+
+  // Revoke one session by jti prefix, or all others via ?all=others.
+  server.delete('/api/v1/auth/sessions/:id', { preHandler: [server.authenticate] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const access = request.cookies?.access_token
+      ?? request.headers.authorization?.replace(/^Bearer /, '');
+    if (!access) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'No session' });
+    }
+    let payload: any;
+    try { payload = server.jwt.verify(access); } catch {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Session expired' });
+    }
+    const refresh = request.cookies?.refresh_token;
+    let currentJti: string | null = null;
+    if (refresh) {
+      try { currentJti = (server.jwt.verify(refresh) as any)?.jti ?? null; } catch { /* ignore */ }
+    }
+    const result = await withTenantTx(prisma, payload.tenantId, async (tx) => {
+      if (id === 'others') {
+        return tx.refreshToken.deleteMany({
+          where: {
+            user_id: payload.sub, tenant_id: payload.tenantId,
+            ...(currentJti ? { jti: { not: currentJti } } : {}),
+          },
+        });
+      }
+      // jti prefix match (ids are exposed truncated)
+      const rows = await tx.refreshToken.findMany({
+        where: { user_id: payload.sub, tenant_id: payload.tenantId },
+        select: { jti: true },
+      });
+      const match = rows.find((r) => r.jti.startsWith(id));
+      if (!match) return { count: 0 };
+      if (match.jti === currentJti) {
+        throw { status: 400, message: 'Cannot revoke your current session — use sign out' };
+      }
+      return tx.refreshToken.delete({ where: { jti: match.jti } });
+    });
+    return reply.send({ data: { revoked: (result as any).count ?? 1 } });
+  });
+
+  server.post('/api/v1/auth/logout', async (request, reply) => {
+    // Revoke refresh tokens when we can identify the session (best-effort).
+    const access = request.cookies?.access_token;
+    if (access) {
+      try {
+        const p = server.jwt.verify(access) as any;
+        if (p?.sub && p?.tenantId) {
+          await withTenantTx(prisma, p.tenantId, (tx) =>
+            tx.refreshToken.deleteMany({ where: { user_id: p.sub, tenant_id: p.tenantId } }),
+          );
+        }
+      } catch { /* expired/invalid token — cookies still cleared */ }
+    }
+    clearSessionCookies(reply);
     return reply.status(200).send({
       success: true,
       message: 'Logged out successfully',
     });
+  });
+
+  // POST /api/v1/auth/refresh — rotate the refresh token and issue a new pair
+  server.post('/api/v1/auth/refresh', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const refreshToken = request.cookies?.refresh_token;
+    if (!refreshToken) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Missing refresh token' });
+    }
+    let payload: any;
+    try {
+      payload = server.jwt.verify(refreshToken);
+    } catch {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid refresh token' });
+    }
+    if (payload.typ !== 'refresh' || !payload.sub || !payload.tenantId || !payload.jti) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid refresh token' });
+    }
+
+    // Rotation + reuse detection: the presented jti must exist unconsumed.
+    // A missing row means the token was already rotated (theft/replay) or never
+    // issued — revoke the whole family and force re-login.
+    const consumed = await withTenantTx(prisma, payload.tenantId, (tx) =>
+      tx.refreshToken.deleteMany({
+        where: { jti: payload.jti, user_id: payload.sub, tenant_id: payload.tenantId },
+      }),
+    );
+    if (consumed.count === 0) {
+      await withTenantTx(prisma, payload.tenantId, (tx) =>
+        tx.refreshToken.deleteMany({ where: { user_id: payload.sub, tenant_id: payload.tenantId } }),
+      );
+      clearSessionCookies(reply);
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Refresh token already used or revoked' });
+    }
+    // Opportunistic cleanup of expired rows for this user.
+    await withTenantTx(prisma, payload.tenantId, (tx) =>
+      tx.refreshToken.deleteMany({
+        where: { user_id: payload.sub, tenant_id: payload.tenantId, expires_at: { lt: new Date() } },
+      }),
+    );
+
+    const membership = await withTenantTx(prisma, payload.tenantId, async (tx) => {
+      const m = await tx.membership.findFirst({
+        where: { tenant_id: payload.tenantId, user_id: payload.sub },
+        include: { user: { select: { is_active: true, email: true, full_name: true } }, tenant: true },
+      });
+      return m;
+    });
+    if (!membership || !membership.user.is_active) {
+      clearSessionCookies(reply);
+      return reply.status(401).send({ error: 'Unauthorized', message: 'Session revoked' });
+    }
+
+    const token = server.jwt.sign(
+      {
+        sub: membership.user_id ?? payload.sub,
+        email: membership.user.email,
+        fullName: membership.user.full_name,
+        tenantId: payload.tenantId,
+        role: membership.role,
+        typ: 'access',
+      },
+      { expiresIn: ACCESS_TTL },
+    );
+    const newJti = crypto.randomUUID();
+    const newRefresh = server.jwt.sign(
+      {
+        sub: payload.sub,
+        email: membership.user.email,
+        fullName: membership.user.full_name,
+        tenantId: payload.tenantId,
+        role: membership.role,
+        typ: 'refresh',
+        jti: newJti,
+      },
+      { expiresIn: REFRESH_TTL },
+    );
+    await withTenantTx(prisma, payload.tenantId, (tx) =>
+      tx.refreshToken.create({
+        data: {
+          jti: newJti,
+          tenant_id: payload.tenantId,
+          user_id: payload.sub,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      }),
+    );
+    setSessionCookies(reply, token, newRefresh);
+    return reply.status(200).send({ success: true });
   });
 
   // GET /api/v1/auth/me
@@ -227,6 +451,32 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       };
 
       return reply.status(200).send(response);
+    },
+  );
+
+  // PATCH /api/v1/auth/me — profile self-service (name, phone, country)
+  server.patch(
+    '/api/v1/auth/me',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const body = (request.body || {}) as { fullName?: string; phoneNumber?: string | null; country?: string | null };
+      const data: Record<string, unknown> = {};
+      if (typeof body.fullName === 'string' && body.fullName.trim()) data.full_name = body.fullName.trim().slice(0, 255);
+      if (body.phoneNumber !== undefined) data.phone_number = body.phoneNumber ? String(body.phoneNumber).slice(0, 30) : null;
+      if (body.country !== undefined) data.country = body.country ? String(body.country).slice(0, 60) : null;
+      if (Object.keys(data).length === 0) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No updatable fields provided' });
+      }
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) =>
+          tx.user.update({ where: { id: sub }, data }),
+        );
+        return reply.status(200).send({ data: { id: updated.id, fullName: updated.full_name, phoneNumber: updated.phone_number, country: updated.country } });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update profile' });
+      }
     },
   );
 };

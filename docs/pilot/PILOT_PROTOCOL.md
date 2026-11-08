@@ -1,4 +1,4 @@
-# MjengoLedger — 30-Day Live Site Pilot Protocol
+# Platform — 30-Day Live Site Pilot Protocol
 
 **Target Audience:** Kenyan Main Contractors (NCA Categories 3–6 Building Contractors)  
 **Pilot Cohort:** 1–3 Active Construction Sites in Nairobi / Kiambu / Machakos  
@@ -39,7 +39,7 @@
   - Arithmetic anomaly detection validates line item totals ($Qty \times Rate = Amount$).
   - Admin/QS confirms preview and locks `original_agreed_budget` into PostgreSQL RLS.
 - **Day 4–5: Field PWA Setup**
-  - Site Supervisor installs MjengoLedger PWA on smartphone (`Add to Home Screen`).
+  - Site Supervisor installs Platform PWA on smartphone (`Add to Home Screen`).
   - Supervisor verifies offline capability: turns off mobile data, logs dummy test diary entry, reconnects data, and verifies automatic sync.
 
 ---

@@ -6,12 +6,13 @@ import ConsultantPortalView from './components/portals/ConsultantPortalView';
 import SubcontractorPortalView from './components/portals/SubcontractorPortalView';
 import SupplierPortalView from './components/portals/SupplierPortalView';
 import CompliancePortalView from './components/portals/CompliancePortalView';
-import ClientDashboard from './components/ClientDashboard';
+import ClientPortalView from './components/portals/ClientPortalView';
+import PublicQuoteView from './components/PublicQuoteView';
 import { AuthSession } from './types/auth';
 
 interface AppProps {
   initialPortal?: {
-    type: 'consultant' | 'subcontractor' | 'supplier' | 'compliance' | 'client';
+    type: 'consultant' | 'subcontractor' | 'supplier' | 'compliance' | 'client' | 'quote';
     token: string;
   };
 }
@@ -157,22 +158,16 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
             <CompliancePortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
           </main>
         );
+      case 'quote':
+        return (
+          <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+            <PublicQuoteView token={externalPortal.token} onBack={handleExitPortal} />
+          </main>
+        );
       case 'client':
         return (
           <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-            <ClientDashboard
-              session={{
-                user: {
-                  id: 'client-guest',
-                  email: 'client@stakeholder.co.ke',
-                  fullName: 'Project Client / Developer',
-                  role: 'CLIENT',
-                  tenant: { id: 'tenant-1', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
-                },
-                permissions: ['project.view'],
-                token: externalPortal.token,
-              }}
-            />
+            <ClientPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
           </main>
         );
       default:
@@ -200,7 +195,7 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
             className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition"
           >
             <span>←</span>
-            <span>Back to Buildsasa Kenya Landing Portal Hub</span>
+            <span>Back to Site Safi Landing Portal Hub</span>
           </button>
         </div>
         <LoginForm onLoginSuccess={(newSession) => setSession(newSession)} />
@@ -208,7 +203,7 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
     );
   }
 
-  // 4. Default Buildsasa Landing Portal Experience Hub
+  // 4. Default Platform Landing Portal Experience Hub
   return (
     <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
       <LandingPortalHub

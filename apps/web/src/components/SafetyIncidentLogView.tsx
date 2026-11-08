@@ -4,7 +4,7 @@ export interface SafetyIncident {
   id: string;
   incident_date: string;
   location_on_site: string;
-  incident_type: 'NEAR_MISS' | 'FIRST_AID' | 'MEDICAL_TREATMENT' | 'LOST_TIME_INJURY' | 'FATALITY' | 'PROPERTY_DAMAGE';
+  incident_type: 'NEAR_MISS' | 'FIRST_AID' | 'MEDICAL_TREATMENT' | 'LOST_TIME_INJURY' | 'FATALITY' | 'PROPERTY_DAMAGE' | 'PPE_VIOLATION' | 'STRUCK_BY_EQUIPMENT' | 'EQUIPMENT_ROLLOVER' | 'CAVE_IN_TRENCH' | 'TRAFFIC_INCIDENT' | 'ASPHALT_HOT_MATERIAL' | 'ENVIRONMENTAL_RELEASE';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   description: string;
   affected_person?: string | null;
@@ -232,6 +232,13 @@ export default function SafetyIncidentLogView({
             <option value="LOST_TIME_INJURY">Lost Time Injury (LTI)</option>
             <option value="FATALITY">Fatality</option>
             <option value="PROPERTY_DAMAGE">Equipment / Plant Damage</option>
+            <option value="PPE_VIOLATION">PPE Violation</option>
+            <option value="STRUCK_BY_EQUIPMENT">Struck by Equipment</option>
+            <option value="EQUIPMENT_ROLLOVER">Equipment Rollover</option>
+            <option value="CAVE_IN_TRENCH">Cave-in / Trench Collapse</option>
+            <option value="TRAFFIC_INCIDENT">Traffic Incident</option>
+            <option value="ASPHALT_HOT_MATERIAL">Asphalt Burn / Hot Material</option>
+            <option value="ENVIRONMENTAL_RELEASE">Environmental Release</option>
           </select>
         </div>
 
@@ -386,6 +393,13 @@ export default function SafetyIncidentLogView({
                     <option value="LOST_TIME_INJURY">Lost Time Injury</option>
                     <option value="FATALITY">Fatality</option>
                     <option value="PROPERTY_DAMAGE">Property / Machinery Damage</option>
+                    <option value="PPE_VIOLATION">PPE Violation</option>
+                    <option value="STRUCK_BY_EQUIPMENT">Struck by Equipment</option>
+                    <option value="EQUIPMENT_ROLLOVER">Equipment Rollover</option>
+                    <option value="CAVE_IN_TRENCH">Cave-in / Trench Collapse</option>
+                    <option value="TRAFFIC_INCIDENT">Traffic Incident</option>
+                    <option value="ASPHALT_HOT_MATERIAL">Asphalt Burn / Hot Material</option>
+                    <option value="ENVIRONMENTAL_RELEASE">Environmental Release</option>
                   </select>
                 </div>
                 <div>

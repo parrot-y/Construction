@@ -3,12 +3,12 @@ import { execSync } from 'node:child_process';
 import { createPrismaClient } from '@construction/db';
 
 describe('Milestone M10: Hardening & Backup-Restore Verification Suite', () => {
-  const PG_BIN = process.env.PG_BIN || '/usr/lib/postgresql/18/bin';
-  const PG_SOCKET = '/tmp';
-  const PG_PORT = '54329';
-  const SOURCE_DB = 'construction_test';
+  const PG_BIN = process.env.PG_BIN || (process.env.CI ? '/usr/bin' : '/usr/lib/postgresql/18/bin');
+  const PG_SOCKET = process.env.PG_SOCKET || '/tmp';
+  const PG_PORT = process.env.PG_PORT || '54329';
+  const SOURCE_DB = process.env.PG_DB || 'construction_test';
   const RESTORE_DB = 'construction_restore_test';
-  const SUPERUSER = 'maskgod';
+  const SUPERUSER = process.env.PG_SUPERUSER || 'postgres';
 
   const runPsql = (db: string, sql: string, user = SUPERUSER): string => {
     return execSync(`${PG_BIN}/psql -h ${PG_SOCKET} -p ${PG_PORT} -U ${user} -d ${db} -t -A -c "${sql.replace(/"/g, '\\"')}"`, {

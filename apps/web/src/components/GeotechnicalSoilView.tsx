@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface SoilTestRecord {
   id: string;
@@ -90,7 +90,7 @@ const DEFAULT_SOIL_TESTS: SoilTestRecord[] = [
 ];
 
 export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Kilimani Commercial Complex',
   initialTests = DEFAULT_SOIL_TESTS,
   onRecordTest,
@@ -114,6 +114,45 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
   const [requiredCompaction, setRequiredCompaction] = useState('95.00');
   const [dcpBlows, setDcpBlows] = useState<number | undefined>(18);
   const [inspectorName, setInspectorName] = useState('Site QA Engineer');
+
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/soil-tests`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.tests || []) as any[];
+      setTests(list.map((t) => ({
+        id: t.id,
+        testNumber: t.testNumber,
+        testDate: t.testDate,
+        locationElement: t.locationElement,
+        layerType: t.layerType,
+        testMethod: t.testMethod,
+        laboratoryMddGCm3: t.laboratoryMddGCm3 ?? '0.000',
+        laboratoryOmcPercent: t.laboratoryOmcPercent ?? '0.00',
+        fieldWetDensityGCm3: t.fieldWetDensityGCm3 ?? '0.000',
+        fieldMoisturePercent: t.fieldMoisturePercent ?? '0.00',
+        fieldDryDensityGCm3: t.fieldDryDensityGCm3 ?? '0.000',
+        relativeCompactionPercent: t.relativeCompactionPercent,
+        requiredCompactionPercent: t.requiredCompactionPercent,
+        dcpBlowsPer100mm: t.dcpBlowsPer100mm ?? null,
+        estimatedCbrPercent: t.estimatedCbrPercent ?? null,
+        qaVerdict: t.qaVerdict,
+        status: t.status,
+        inspectedBy: t.inspectedBy,
+      })));
+    } catch {
+      setTests([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   // Live form calculation
   const calculateFormMetrics = () => {
@@ -168,6 +207,34 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
         inspectedBy: inspectorName,
       };
 
+      if (isLive) {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/soil-tests`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              testNumber: newRecord.testNumber,
+              testDate: newRecord.testDate,
+              locationElement: newRecord.locationElement,
+              layerType: newRecord.layerType,
+              testMethod: newRecord.testMethod,
+              laboratoryMddGCm3: newRecord.laboratoryMddGCm3,
+              laboratoryOmcPercent: newRecord.laboratoryOmcPercent,
+              fieldWetDensityGCm3: newRecord.fieldWetDensityGCm3,
+              fieldMoisturePercent: newRecord.fieldMoisturePercent,
+              requiredCompactionPercent: newRecord.requiredCompactionPercent,
+              dcpBlowsPer100mm: newRecord.dcpBlowsPer100mm,
+              inspectedBy: newRecord.inspectedBy,
+            }),
+          });
+          if (res.ok) {
+            await reload();
+            setShowAddModal(false);
+            setLocationElement('');
+            return;
+          }
+        } catch { /* fall through to local */ }
+      }
+
       if (onRecordTest) {
         await onRecordTest(newRecord);
       }
@@ -207,6 +274,10 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
   const totalTests = tests.length;
   const passedTests = tests.filter((t) => t.qaVerdict === 'PASS').length;
   const passRate = totalTests > 0 ? ((passedTests / totalTests) * 100).toFixed(1) : '100.0';
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">Loading soil tests...</div>;
+  }
 
   return (
     <div className="space-y-6">

@@ -1,35 +1,46 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
-import { CreatePortalLinkSchema } from '@construction/validation';
-import { randomBytes } from 'node:crypto';
+import { CreatePortalLinkSchema, ClientVariationRespondSchema } from '@construction/validation';
+import { randomBytes, createHash } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
 import { toDecimal } from '@construction/money';
+import {
+  applyCoBudgetRollup,
+  claimCoTransition,
+  normalizeCoStatus,
+  recordCoEvent,
+} from '../services/variationWorkflow';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Resolves a portal access link by token with Fail-Closed security.
- * Uses auth_context = 'portal' to look up the link without leaking tenant data.
+ * Uses narrow SECURITY DEFINER lookup_portal_link_by_hash with SHA-256 without auth_context bypasses (2c, 2d).
  */
 async function resolvePortalLink(token: string, expectedType?: string) {
   if (!token || typeof token !== 'string' || token.trim().length === 0) {
     return null;
   }
 
-  const link = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT set_config('app.auth_context', 'portal', TRUE)`;
-    return tx.portalAccessLink.findUnique({
-      where: { token: token.trim() },
-    });
-  });
+  const tokenHash = createHash('sha256').update(token.trim()).digest('hex');
+
+  const rows = await prisma.$queryRaw<any[]>`
+    SELECT * FROM lookup_portal_link_by_hash(${tokenHash}::text);
+  `;
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const link = rows[0];
 
   if (!link || !link.is_active) {
     return null;
   }
 
   // Check expiration
-  if (new Date() > link.expires_at) {
+  if (new Date() > new Date(link.expires_at)) {
     return null;
   }
 
@@ -85,7 +96,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       }
 
       const { portalType, stakeholderName, stakeholderRole, expiresInDays } = parseResult.data;
-      const token = randomBytes(32).toString('hex');
+      const rawToken = randomBytes(32).toString('hex');
+      const tokenHash = createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
 
       try {
@@ -105,7 +117,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
               portal_type: portalType,
               stakeholder_name: stakeholderName,
               stakeholder_role: stakeholderRole,
-              token,
+              token_hash: tokenHash,
               is_active: true,
               expires_at: expiresAt,
             },
@@ -129,6 +141,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           return created;
         });
 
+        // Show the raw token only once at creation (2d, H5)
         return reply.status(201).send({
           statusCode: 201,
           data: {
@@ -136,8 +149,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             portalType: link.portal_type,
             stakeholderName: link.stakeholder_name,
             stakeholderRole: link.stakeholder_role,
-            token: link.token,
-            linkUrl: `/portal/${link.portal_type.toLowerCase()}/${link.token}`,
+            token: rawToken,
+            linkUrl: `/portal/${link.portal_type.toLowerCase()}/${rawToken}`,
             expiresAt: link.expires_at.toISOString(),
             createdAt: link.created_at.toISOString(),
           },
@@ -190,8 +203,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           portalType: l.portal_type,
           stakeholderName: l.stakeholder_name,
           stakeholderRole: l.stakeholder_role,
-          token: l.token,
-          linkUrl: `/portal/${l.portal_type.toLowerCase()}/${l.token}`,
+          token: null, // Tokens stored as SHA-256 hashes; never exposed in listings (2d, H5)
+          linkUrl: null,
           isActive: l.is_active && new Date() < l.expires_at,
           expiresAt: l.expires_at.toISOString(),
           createdAt: l.created_at.toISOString(),
@@ -406,6 +419,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         tx.snagItem.findMany({
           where: {
             project_id: link.project_id,
+            // Gate-4 S6: private punch items are hidden from external portals
+            is_private: false,
             // Filter by trade firm or category if specified on stakeholder_role
             ...(link.stakeholder_role
               ? {
@@ -653,5 +668,184 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       statusCode: 200,
       data: payload,
     });
+  });
+
+  // ===========================================================================
+  // 7. PROJECT CLIENT / DEVELOPER PORTAL — CHANGE ORDER APPROVAL (ADR-010)
+  // ===========================================================================
+
+  // GET /api/v1/portals/client/:token/change-orders
+  server.get('/api/v1/portals/client/:token/change-orders', async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'CLIENT');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired client access token',
+      });
+    }
+
+    const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+      const [project, changeOrders] = await Promise.all([
+        tx.project.findFirst({ where: { id: link.project_id } }),
+        tx.variationOrder.findMany({
+          where: { project_id: link.project_id },
+          include: {
+            items: { orderBy: { id: 'asc' } },
+            events: { orderBy: { created_at: 'asc' } },
+          },
+          orderBy: { variation_no: 'asc' },
+        }),
+      ]);
+
+      return {
+        stakeholder: {
+          name: link.stakeholder_name,
+          role: link.stakeholder_role || 'Project Client / Developer',
+        },
+        project: project
+          ? { id: project.id, name: project.name, code: project.code, status: project.status }
+          : null,
+        changeOrders: changeOrders.map((co) => ({
+          ...co,
+          status: normalizeCoStatus(co.status),
+        })),
+      };
+    });
+
+    return reply.status(200).send({ statusCode: 200, data: payload });
+  });
+
+  // POST /api/v1/portals/client/:token/change-orders/:coId/respond
+  server.post('/api/v1/portals/client/:token/change-orders/:coId/respond', async (request, reply) => {
+    const { token, coId } = request.params as { token: string; coId: string };
+    const link = await resolvePortalLink(token, 'CLIENT');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired client access token',
+      });
+    }
+
+    if (!UUID_REGEX.test(coId)) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Change order not found',
+      });
+    }
+
+    const parsed = ClientVariationRespondSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid response payload',
+        details: parsed.error.errors,
+      });
+    }
+    const { action, signedName, comments } = parsed.data;
+
+    try {
+      const result = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const project = await tx.project.findFirst({ where: { id: link.project_id } });
+        if (!project) {
+          throw { status: 404, message: 'Project not found' };
+        }
+
+        const variation = await tx.variationOrder.findFirst({
+          where: { id: coId, project_id: link.project_id },
+        });
+        if (!variation) {
+          throw { status: 404, message: 'Change order not found on this project' };
+        }
+
+        const currentStatus = normalizeCoStatus(variation.status);
+        if (currentStatus !== 'OWNER_REVIEW') {
+          throw {
+            status: 400,
+            message: `This change order is not awaiting owner approval (status: ${currentStatus})`,
+          };
+        }
+
+        const actorName = signedName || link.stakeholder_name;
+        const newStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+        let newBudget = project.current_approved_budget.toString();
+
+        // Atomic claim on OWNER_REVIEW — prevents double decisions via
+        // concurrent portal submissions or a parallel contractor review.
+        const claimed = await claimCoTransition(
+          tx,
+          coId,
+          variation.status,
+          newStatus,
+          newStatus === 'APPROVED' ? new Date() : null,
+        );
+        if (!claimed) {
+          throw { status: 409, message: 'Change order was already decided — please refresh' };
+        }
+
+        if (newStatus === 'APPROVED') {
+          newBudget = await applyCoBudgetRollup(tx, project, variation.net_amount);
+        }
+
+        const updated = await tx.variationOrder.findUniqueOrThrow({ where: { id: coId } });
+
+        await recordCoEvent(
+          tx,
+          link.tenant_id,
+          coId,
+          'CLIENT_PORTAL',
+          actorName,
+          newStatus === 'APPROVED' ? 'APPROVED' : 'REJECTED',
+          comments || `Responded via client portal link`,
+        );
+
+        await recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          actorId: link.id,
+          action: `CO_${action}_VIA_CLIENT_PORTAL`,
+          entityType: 'VariationOrder',
+          entityId: coId,
+          changes: {
+            stakeholder: link.stakeholder_name,
+            signedName: actorName,
+            previousStatus: currentStatus,
+            newStatus,
+            previousBudget: project.current_approved_budget.toString(),
+            newBudget,
+          },
+          ipAddress: request.ip,
+          userAgent: (request.headers['user-agent'] as string) || null,
+        });
+
+        return { ...updated, status: normalizeCoStatus(updated.status) };
+      });
+
+      return reply.status(200).send({
+        statusCode: 200,
+        message: `Change order ${action === 'APPROVE' ? 'approved' : 'rejected'} successfully`,
+        data: result,
+      });
+    } catch (err: any) {
+      if (err.status) {
+        return reply.status(err.status).send({
+          statusCode: err.status,
+          error: err.status === 404 ? 'Not Found' : 'Bad Request',
+          message: err.message,
+        });
+      }
+      server.log.error(err, 'Failed to process client portal change-order response');
+      return reply.status(500).send({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Failed to process change-order response',
+      });
+    }
   });
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 
 export interface SubcontractorPackage {
@@ -75,6 +75,32 @@ export default function SubcontractorManagementView({
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [showModal, setShowModal] = useState<boolean>(false);
 
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.packages || []) as any[];
+      setPackages(list.map((p) => ({
+        ...p,
+        subcontract_sum: p.subcontract_sum?.toString?.() ?? String(p.subcontract_sum ?? 0),
+        retention_rate_pct: p.retention_rate_pct?.toString?.() ?? String(p.retention_rate_pct ?? 0),
+        awarded_date: p.awarded_date ?? null,
+        status: (p.status === 'AWARDED' ? 'PENDING' : p.status) as SubcontractorPackage['status'],
+      })));
+    } catch {
+      setPackages([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
   // Form State
   const [newFirmName, setNewFirmName] = useState<string>('');
   const [newTradeCategory, setNewTradeCategory] = useState<string>('PLUMBING');
@@ -114,6 +140,34 @@ export default function SubcontractorManagementView({
       created_at: new Date().toISOString(),
     };
 
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/subcontractors`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tradeCategory: created.trade_category,
+              firmName: created.firm_name,
+              contactPerson: created.contact_person,
+              phoneNumber: created.phone_number,
+              subcontractSum: String(created.subcontract_sum),
+              retentionRatePct: String(created.retention_rate_pct),
+              status: 'ACTIVE',
+              scopeDescription: created.scope_description,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowModal(false);
+      setNewFirmName('');
+      setNewContactPerson('');
+      setNewPhone('');
+      setNewSum('1500000.00');
+      setNewScope('');
+      return;
+    }
+
     setPackages([...packages, created]);
     if (onPackageAwarded) onPackageAwarded(created);
     setShowModal(false);
@@ -125,11 +179,27 @@ export default function SubcontractorManagementView({
   };
 
   const handleStatusUpdate = (packageId: string, status: SubcontractorPackage['status']) => {
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/subcontractors/${packageId}`, {
+            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: status === 'PENDING' ? 'AWARDED' : status }),
+          });
+          if (res.ok) await reload();
+        } catch { /* ignore */ }
+      })();
+      return;
+    }
     setPackages(
       packages.map((p) => (p.id === packageId ? { ...p, status } : p))
     );
     if (onStatusChanged) onStatusChanged(packageId, status);
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading subcontractor packages...</div>;
+  }
 
   const getStatusBadge = (status: SubcontractorPackage['status']) => {
     switch (status) {
@@ -364,10 +434,18 @@ export default function SubcontractorManagementView({
                     <option value="STEEL_FABRICATION">Steel Fabrication</option>
                     <option value="ROOFING">Roofing</option>
                     <option value="PAINTING">Painting</option>
-                    <option value="TILING">Tiling</option>
+                    <option value="TILING">Tiling &amp; Flooring</option>
                     <option value="MASONRY">Masonry</option>
                     <option value="CARPENTRY">Carpentry</option>
-                    <option value="GLAZING">Glazing</option>
+                    <option value="GLAZING">Glazing &amp; Aluminium</option>
+                    <option value="CONCRETE">Concrete Works</option>
+                    <option value="STRUCTURAL_STEEL">Structural Steel</option>
+                    <option value="WATERPROOFING">Waterproofing</option>
+                    <option value="SCAFFOLDING">Scaffolding</option>
+                    <option value="DEMOLITION">Demolition</option>
+                    <option value="WELDING">Welding &amp; Fabrication</option>
+                    <option value="FIRE_SECURITY">Fire &amp; Security Systems</option>
+                    <option value="EARTHWORKS">Earthworks &amp; Excavation</option>
                     <option value="OTHER">Other Trade</option>
                   </select>
                 </div>

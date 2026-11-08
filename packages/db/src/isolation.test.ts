@@ -303,7 +303,7 @@ describe('PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001
     // Create test user and cost entry
     const user = await prisma.user.create({
       data: {
-        email: `tester-${Date.now()}@mjengoledger.com`,
+        email: `tester-${Date.now()}@example.com`,
         password_hash: 'mock-hash',
         full_name: 'Immutability Tester',
       },
@@ -380,7 +380,7 @@ describe('PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001
           data: { net_amount: 50000.0 },
         });
       })
-    ).rejects.toThrow(/Financial immutability violation: approved or rejected variation net_amount cannot be modified/i);
+    ).rejects.toThrow(/Financial immutability violation: decided variation net_amount cannot be modified/i);
 
     // Attempting to delete a variation order throws trigger exception
     await expect(

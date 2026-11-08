@@ -1,19 +1,19 @@
-# Competitive Benchmark: Kenyan ConTech Landscape & MjengoLedger Advantage
+# Competitive Benchmark: Kenyan ConTech Landscape & Platform Advantage
 
 **Date:** 2026-11-03  
 **Audience:** Executive Team & Product Engineering  
-**Scope:** In-depth benchmark of 5 active Kenyan construction software platforms to identify market gaps, operational workflows, and strategic advantages for **MjengoLedger**.
+**Scope:** In-depth benchmark of 5 active Kenyan construction software platforms to identify market gaps, operational workflows, and strategic advantages for **Platform**.
 
 ---
 
 ## 1. Executive Summary
 
 The Kenyan construction software landscape is bifurcated between:
-1. **Diaspora/Client Oversight Tools (Buildsasa, Jengo):** Strong on visual proof for overseas homeowners, but lack depth in contractor financial management, EASMM measurement standards, and formal JBC contract administration.
+1. **Diaspora/Client Oversight Tools (the reference platform, Jengo):** Strong on visual proof for overseas homeowners, but lack depth in contractor financial management, EASMM measurement standards, and formal JBC contract administration.
 2. **Pre-Construction AI & Legal Tools (Goldberry / Cost Master / JengaLex):** Strong on estimating and building code lookup, but lack field execution, offline daily site logs, delivery verification, and variation approval workflows.
 3. **Heavy Bespoke Enterprise ERPs (Aqiq Solutions, Zinen Technologies):** ERPNext/Odoo customization or bespoke agency builds that cost hundreds of thousands of shillings, take 3–6 months to deploy, and are too complex for mobile foremen on dusty sites.
 
-**MjengoLedger’s Strategic Moat:** The only **Kenya-First, multi-tenant contractor project operating system** combining:
+**Platform’s Strategic Moat:** The only **Kenya-First, multi-tenant contractor project operating system** combining:
 - **EASMM 2008 BOQ import engine** with automated arithmetic anomaly detection.
 - **Append-only financial ledger** with arbitrary-precision `Decimal` math.
 - **Offline-first mobile PWA** with client-side Canvas photo compression (5MB $\rightarrow$ ~150KB) and Nairobi GPS geotagging.
@@ -25,8 +25,8 @@ The Kenyan construction software landscape is bifurcated between:
 
 ## 2. In-Depth Competitor Analysis
 
-### 2.1 Buildsasa (`https://www.buildsasa.com/about`)
-- **HQ:** Westlands, Nairobi, Kenya (hello@buildsasa.com, +254 782 223 749).
+### 2.1 the reference platform (`https://www.reference-platform.example/about`)
+- **HQ:** Westlands, Nairobi, Kenya (hello@reference-platform.example, +254 782 223 749).
 - **Primary Business Model:** Hybrid construction management software + human site inspection service + vetted contractor marketplace.
 - **Target Audience:** Remote property owners (especially Kenyan diaspora in the US, UK, and Gulf) building residential homes, apartments, and commercial spaces.
 - **Key Features:**
@@ -108,7 +108,7 @@ The Kenyan construction software landscape is bifurcated between:
 
 ## 3. Feature-by-Feature Competitor Benchmark Matrix
 
-| Feature / Domain | Buildsasa | Goldberry (Cost Master) | Jengo | Aqiq Solutions (ERPNext) | Zinen Technologies | **MjengoLedger** |
+| Feature / Domain | the reference platform | Goldberry (Cost Master) | Jengo | Aqiq Solutions (ERPNext) | Zinen Technologies | **Platform** |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Pricing Model** | Custom / Percentage | Subscription | Subscription | Expensive Consulting Setup | Bespoke Project Fee | **Flat KES 7,500/mo or KES 25k portfolio** |
 | **User Seat Policy** | Limited | Per User | Per User | Per User | Per License | **UNLIMITED USERS (Zero seat tax)** |
@@ -125,20 +125,20 @@ The Kenyan construction software landscape is bifurcated between:
 
 ---
 
-## 4. How MjengoLedger Capitalizes on Competitor Vulnerabilities
+## 4. How Platform Capitalizes on Competitor Vulnerabilities
 
 ### Strategic Move 1: Win the Site Foremen via the Offline PWA
 - Competitors like Aqiq, Zinen, and Jengo require continuous high-speed 4G data. In Ruiru, Athi River, or Kitengela building sites, connections drop constantly.
-- **MjengoLedger’s Advantage:** The PWA loads instantly (<15MB), works 100% offline via IndexedDB, and compresses heavy 5MB camera photos down to ~150KB right on the phone. Foremen never lose a delivery receipt or site diary entry.
+- **Platform’s Advantage:** The PWA loads instantly (<15MB), works 100% offline via IndexedDB, and compresses heavy 5MB camera photos down to ~150KB right on the phone. Foremen never lose a delivery receipt or site diary entry.
 
 ### Strategic Move 2: Protect the Contractor's Wallet with Zero Seat Taxes
 - Competitors like Strukchad charge KES 2,000–5,000 per user per month. A contractor with 10 site supervisors, 4 PMs, 2 storekeepers, and 5 subcontractors faces astronomical bills.
-- **MjengoLedger’s Advantage:** A predictable flat fee (KES 7,500/project/mo or KES 25,000/mo portfolio) with **unlimited seats**. Contractors can onboard their entire site team, subcontractors, and clients without financial penalty.
+- **Platform’s Advantage:** A predictable flat fee (KES 7,500/project/mo or KES 25,000/mo portfolio) with **unlimited seats**. Contractors can onboard their entire site team, subcontractors, and clients without financial penalty.
 
 ### Strategic Move 3: Cement Trust with Consulting Quantity Surveyors (BORAQS)
 - Goldberry and JengaLex risk alienating consulting Quantity Surveyors by marketing "AI Quantity Surveying". Section 3 of BORAQS Cap 525 legally reserves the preparation of bills and final accounts to registered professionals.
-- **MjengoLedger’s Advantage:** We position strictly as the **Contractor's Commercial Operating System**. Consulting QSs love MjengoLedger because it formats BOQs per EASMM 2008, tracks variations with contractual clarity, and generates print-ready Interim Payment Certificates adhering to JBC 1999 Clause 34.
+- **Platform’s Advantage:** We position strictly as the **Contractor's Commercial Operating System**. Consulting QSs love Platform because it formats BOQs per EASMM 2008, tracks variations with contractual clarity, and generates print-ready Interim Payment Certificates adhering to JBC 1999 Clause 34.
 
-### Strategic Move 4: Satisfy the Diaspora Client Need Better Than Buildsasa
-- Buildsasa charges heavy fees to dispatch human site inspectors to take photos.
-- **MjengoLedger’s Advantage:** The Client Portal provides real-time, tamper-proof, Nairobi GPS-geotagged visual proof directly from the contractor's daily site diary at zero extra inspection cost, complete with 5 plain-language financial numbers and neutral health alerts.
+### Strategic Move 4: Satisfy the Diaspora Client Need Better Than the reference platform
+- the reference platform charges heavy fees to dispatch human site inspectors to take photos.
+- **Platform’s Advantage:** The Client Portal provides real-time, tamper-proof, Nairobi GPS-geotagged visual proof directly from the contractor's daily site diary at zero extra inspection cost, complete with 5 plain-language financial numbers and neutral health alerts.

@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for MjengoLedger API (@construction/api)
+# Multi-stage Dockerfile for Platform API (@construction/api)
 FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@12.16.1 --activate
 WORKDIR /app

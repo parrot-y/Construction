@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 
 export interface ProjectDelayEvent {
@@ -75,6 +75,33 @@ export default function WeatherDelayClaimsView({
   onClaimReviewed,
 }: WeatherDelayClaimsViewProps) {
   const [events, setEvents] = useState<ProjectDelayEvent[]>(initialEvents);
+
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/delay-events`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.delayEvents || []) as any[];
+      setEvents(list.map((e) => ({
+        ...e,
+        start_date: String(e.start_date || '').slice(0, 10),
+        end_date: String(e.end_date || '').slice(0, 10),
+        daily_lad_rate_kes: e.daily_lad_rate_kes?.toString?.() ?? String(e.daily_lad_rate_kes ?? 0),
+        lad_financial_relief_kes: e.lad_financial_relief_kes?.toString?.() ?? e.lad_financial_relief_kes ?? null,
+      })));
+    } catch {
+      setEvents([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -124,6 +151,35 @@ export default function WeatherDelayClaimsView({
       created_at: new Date().toISOString(),
     };
 
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/delay-events`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              delayType: created.delay_type,
+              title: created.title,
+              startDate: created.start_date,
+              endDate: created.end_date,
+              daysClaimed: created.days_claimed,
+              criticalPathImpact: created.critical_path_impact,
+              dailyLadRateKes: created.daily_lad_rate_kes,
+              siteDiaryReference: created.site_diary_reference,
+              meteorologicalProof: created.meteorological_proof,
+              notes: created.notes,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowModal(false);
+      setNewTitle('');
+      setNewMetProof('');
+      setNewDiaryRef('');
+      setNewNotes('');
+      return;
+    }
+
     setEvents([created, ...events]);
     if (onClaimSubmitted) onClaimSubmitted(created);
     setShowModal(false);
@@ -147,9 +203,30 @@ export default function WeatherDelayClaimsView({
       certifying_authority: 'Lead Project Architect (BORAQS)',
     };
 
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/delay-events/${id}/review`, {
+            method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'APPROVED_BY_ARCHITECT',
+              approvedDays,
+              certifyingAuthority: updates.certifying_authority,
+              notes: target.notes || null,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+    }
+
     setEvents(events.map((e) => (e.id === id ? { ...e, ...updates } : e)));
     if (onClaimReviewed) onClaimReviewed(id, updates);
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading delay claims...</div>;
+  }
 
   const getStatusBadge = (status: ProjectDelayEvent['status']) => {
     switch (status) {

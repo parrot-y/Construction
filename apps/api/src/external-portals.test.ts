@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('External Stakeholder Portals Suite: Token-Based Zero Seat Tax Access', () => {
   const server = buildServer();
@@ -97,6 +98,7 @@ describe('External Stakeholder Portals Suite: Token-Based Zero Seat Tax Access',
     });
     const projBody = JSON.parse(projRes.body);
     projectAId = projBody.data[0].id;
+      await enrollAllTenantUsers(projectAId);
 
     // 5. Seed an RFI, Snag, and Cube Test on Tenant A project via API
     const rfiRes = await server.inject({

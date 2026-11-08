@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface BarBendingItem {
   id: string;
@@ -99,12 +99,35 @@ const DEFAULT_SCHEDULES: BarBendingScheduleItem[] = [
 ];
 
 export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
+  projectId,
   projectName = 'Apex Site',
   initialSchedules = DEFAULT_SCHEDULES,
   onCreateSchedule,
   onUpdateStatus,
 }) => {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [schedules, setSchedules] = useState<BarBendingScheduleItem[]>(initialSchedules);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.schedules || []) as any[];
+      setSchedules(list.map((s) => ({
+        ...s,
+        status: s.status as BarBendingScheduleItem['status'],
+      })));
+    } catch {
+      setSchedules([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
   const [selectedSchedule, setSelectedSchedule] = useState<BarBendingScheduleItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -146,10 +169,61 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
     .reduce((sum, s) => sum + parseFloat(s.totalTonnage || '0'), 0)
     .toFixed(3);
 
+  const handleViewSchedule = async (schedule: BarBendingScheduleItem) => {
+    if (isLive && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(schedule.id)) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules/${schedule.id}`, { credentials: 'include' });
+        if (res.ok) {
+          const detail = await res.json();
+          setSelectedSchedule({ ...schedule, ...detail, items: detail.items ?? [] });
+          return;
+        }
+      } catch { /* fall through to local view */ }
+    }
+    setSelectedSchedule(schedule);
+  };
+
   const handleCreateSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!elementName.trim()) {
       setFeedback('Error: Element name is required');
+      return;
+    }
+
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scheduleNumber,
+            elementName,
+            drawingRef: drawingRef || null,
+            steelGrade,
+            items: [
+              {
+                memberTag,
+                barMark,
+                barType,
+                numberOfMembers,
+                barsPerMember,
+                shapeCode,
+                dimensionAMm: dimA,
+                dimensionBMm: shapeCode !== '00' ? dimB : null,
+              },
+            ],
+          }),
+        });
+        if (res.ok) {
+          await reload();
+          setIsModalOpen(false);
+          setFeedback(`✓ Created Bar Bending Schedule ${scheduleNumber}`);
+        } else {
+          const errJson = await res.json().catch(() => null);
+          setFeedback(`Error: ${errJson?.message || `Request failed (${res.status})`}`);
+        }
+      } catch {
+        setFeedback('Error: Network request failed');
+      }
       return;
     }
 
@@ -215,6 +289,24 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
   };
 
   const handleStatusChange = async (scheduleId: string, newStatus: string) => {
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules/${scheduleId}/status`, {
+          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        if (res.ok) {
+          await reload();
+          setFeedback(`✓ Schedule status updated to ${newStatus}`);
+        } else {
+          const errJson = await res.json().catch(() => null);
+          setFeedback(`Error: ${errJson?.message || `Request failed (${res.status})`}`);
+        }
+      } catch {
+        setFeedback('Error: Network request failed');
+      }
+      return;
+    }
     try {
       if (onUpdateStatus) {
         await onUpdateStatus(scheduleId, newStatus);
@@ -227,6 +319,10 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
       setFeedback(`Error: ${err.message}`);
     }
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-sm text-gray-500">Loading bar bending schedules...</div>;
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
@@ -321,7 +417,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
                 </td>
                 <td className="px-4 py-3 text-right space-x-2">
                   <button
-                    onClick={() => setSelectedSchedule(schedule)}
+                    onClick={() => void handleViewSchedule(schedule)}
                     className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded"
                   >
                     View Cutting List

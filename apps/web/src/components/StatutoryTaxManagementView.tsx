@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 
 export interface StatutoryTaxCertificate {
@@ -70,6 +70,35 @@ export default function StatutoryTaxManagementView({
   onRemitted,
 }: StatutoryTaxManagementViewProps) {
   const [certs, setCerts] = useState<StatutoryTaxCertificate[]>(initialCertificates);
+
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/tax-certificates`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.certificates || []) as any[];
+      setCerts(list.map((c) => ({
+        ...c,
+        gross_amount: c.gross_amount?.toString?.() ?? String(c.gross_amount ?? 0),
+        wht_rate_pct: c.wht_rate_pct?.toString?.() ?? String(c.wht_rate_pct ?? 0),
+        wht_deducted: c.wht_deducted?.toString?.() ?? String(c.wht_deducted ?? 0),
+        whvat_rate_pct: c.whvat_rate_pct?.toString?.() ?? String(c.whvat_rate_pct ?? 0),
+        whvat_deducted: c.whvat_deducted?.toString?.() ?? String(c.whvat_deducted ?? 0),
+        net_payable: c.net_payable?.toString?.() ?? String(c.net_payable ?? 0),
+      })));
+    } catch {
+      setCerts([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [showModal, setShowModal] = useState<boolean>(false);
   const [remitModalId, setRemitModalId] = useState<string | null>(null);
@@ -120,6 +149,30 @@ export default function StatutoryTaxManagementView({
       created_at: new Date().toISOString(),
     };
 
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/tax-certificates`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              payeeType: created.payee_type,
+              payeeName: created.payee_name,
+              payeeKraPin: created.payee_kra_pin,
+              invoiceOrIpcRef: created.invoice_or_ipc_ref,
+              grossAmount: created.gross_amount,
+              whtRatePct: created.wht_rate_pct,
+              whvatRatePct: created.whvat_rate_pct,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowModal(false);
+      setPayeeName('');
+      setInvoiceRef('');
+      return;
+    }
+
     setCerts([created, ...certs]);
     if (onCertificateIssued) onCertificateIssued(created);
     setShowModal(false);
@@ -130,6 +183,21 @@ export default function StatutoryTaxManagementView({
   const handleRemit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!remitModalId || !receiptInput.trim()) return;
+
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/tax-certificates/${remitModalId}/remit`, {
+            method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'ACKNOWLEDGED', itaxAcknowledgementReceipt: receiptInput.trim() }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setRemitModalId(null);
+      setReceiptInput('');
+      return;
+    }
 
     setCerts(
       certs.map((c) =>
@@ -142,6 +210,10 @@ export default function StatutoryTaxManagementView({
     setRemitModalId(null);
     setReceiptInput('');
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading tax certificates...</div>;
+  }
 
   const getStatusBadge = (status: StatutoryTaxCertificate['status']) => {
     switch (status) {

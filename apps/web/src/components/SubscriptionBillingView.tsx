@@ -33,11 +33,11 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
   transactions: initialTransactions,
   onInitiateStkPush,
 }) => {
-  const [subscriptionState, setSubscriptionState] = useState(initialSubState);
-  const [activePlan, setActivePlan] = useState(initialActivePlan);
-  const [monthlyFee, setMonthlyFee] = useState(initialFee);
-  const [daysRemaining, setDaysRemaining] = useState(initialDays);
-  const [lastPaymentRef, setLastPaymentRef] = useState(initialReceipt);
+  const [subscriptionState] = useState(initialSubState);
+  const [activePlan] = useState(initialActivePlan);
+  const [monthlyFee] = useState(initialFee);
+  const [daysRemaining] = useState(initialDays);
+  const [lastPaymentRef] = useState(initialReceipt);
 
   const [transactions, setTransactions] = useState<SubscriptionTransactionItem[]>(
     initialTransactions || [
@@ -88,28 +88,34 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
         await onInitiateStkPush({ phoneNumber: formattedPhone, planCode: selectedPlan, amount });
       }
 
-      // Simulate instantaneous Daraja STK Push dispatch & callback
-      const receiptNo = `QA${Date.now().toString().slice(-8)}`;
+      // Real API call — server records an INITIATED transaction and reports
+      // SIMULATED until live Daraja credentials are configured.
+      const res = await fetch('/api/v1/billing/mpesa-express', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: formattedPhone, planCode: selectedPlan, amount }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.message || `STK push failed (${res.status})`);
+      }
+      const created = await res.json();
+
       const newTx: SubscriptionTransactionItem = {
-        id: `tx-${Date.now()}`,
+        id: created.transactionId ?? `tx-${Date.now()}`,
         phoneNumber: formattedPhone,
         amount,
         planCode: selectedPlan,
-        mpesaReceiptNumber: receiptNo,
-        transactionStatus: 'SUCCESS',
+        mpesaReceiptNumber: null,
+        transactionStatus: 'INITIATED',
         subscriptionPeriodStart: new Date().toISOString(),
         subscriptionPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
         createdAt: new Date().toISOString(),
       };
 
       setTransactions([newTx, ...transactions]);
-      setActivePlan(selectedPlan);
-      setSubscriptionState('ACTIVE');
-      setMonthlyFee(amount);
-      setDaysRemaining(30);
-      setLastPaymentRef(receiptNo);
-
-      setStkFeedback(`STK Push dispatched to ${formattedPhone}. Authorized KES ${amount}. Receipt: ${receiptNo}`);
+      setStkFeedback(created.customerMessage || `SIMULATED STK push to ${formattedPhone} — awaiting callback`);
       setTimeout(() => {
         setShowStkModal(false);
         setStkFeedback(null);
@@ -226,7 +232,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
         <div className={`p-6 rounded-xl border ${activePlan === 'PORTFOLIO_TIER' ? 'border-emerald-500 ring-2 ring-emerald-100 bg-white' : 'border-slate-200 bg-slate-50'}`}>
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Enterprise Parity</span>
+              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Enterprise</span>
               <h3 className="text-lg font-bold text-slate-800 mt-1">Portfolio Tier</h3>
               <p className="text-2xl font-bold text-slate-900 mt-2">KES 25,000 <span className="text-xs font-normal text-slate-500">/ month</span></p>
             </div>

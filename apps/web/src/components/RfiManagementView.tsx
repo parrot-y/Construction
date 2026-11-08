@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import CreateRfiModal, { RfiPriority, ConsultantRole } from './CreateRfiModal';
 
 export type RfiStatus = 'SUBMITTED' | 'ANSWERED' | 'CLOSED';
@@ -141,13 +141,62 @@ const DEFAULT_RFIS: RfiItemData[] = [
   },
 ];
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const CONSULTANT_MAP: Record<string, ConsultantRole> = {
+  ARCHITECT: 'Architect', STRUCTURAL_ENG: 'Structural Eng', SERVICES_ENG: 'Services Eng', QS: 'QS',
+};
+
+function mapApiRfi(r: any): RfiItemData {
+  const status: RfiStatus = r.status === 'ANSWERED' ? 'ANSWERED' : r.status === 'CLOSED' ? 'CLOSED' : 'SUBMITTED';
+  const created = r.created_at ? new Date(r.created_at) : new Date();
+  return {
+    id: r.id,
+    rfiNo: `RFI-${String(r.rfi_number).padStart(3, '0')}`,
+    title: r.title,
+    query: r.question,
+    priority: (r.priority as RfiPriority) || 'MEDIUM',
+    status,
+    assignedConsultant: CONSULTANT_MAP[r.assigned_to_role] || 'QS',
+    drawingRef: r.drawing_reference || undefined,
+    submittedBy: r.created_by?.full_name || r.created_by?.email || 'Site team',
+    submittedAt: created.toISOString(),
+    daysElapsed: Math.max(0, Math.floor((Date.now() - created.getTime()) / 86400000)),
+    responses: (r.responses || []).map((resp: any) => ({
+      id: resp.id,
+      respondentName: resp.responder?.full_name || resp.responder?.email || 'Consultant',
+      respondentRole: 'Consultant',
+      respondedAt: resp.created_at,
+      content: resp.official_answer,
+    })),
+  };
+}
+
 export default function RfiManagementView({
   projectId = 'project-rcp-2026',
   projectName = 'Riverside Commercial Plaza',
   initialRfis = DEFAULT_RFIS,
   canCreate = true,
 }: RfiManagementViewProps): React.JSX.Element {
+  const isLive = UUID_RE.test(projectId);
   const [rfis, setRfis] = useState<RfiItemData[]>(initialRfis);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/rfis`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const data = await res.json();
+      setRfis((data || []).map(mapApiRfi));
+      setLiveLoaded(true);
+    } catch {
+      setLiveLoaded(true); // surface empty rather than stale demo
+      setRfis([]);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedRfiId, setExpandedRfiId] = useState<string | null>('rfi-001');
   const [statusFilter, setStatusFilter] = useState<'ALL' | RfiStatus>('ALL');
@@ -157,6 +206,24 @@ export default function RfiManagementView({
   const [replyText, setReplyText] = useState<{ [rfiId: string]: string }>({});
 
   const handleCreateRfi = (newRfi: any) => {
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/rfis`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: newRfi.title,
+              question: newRfi.query,
+              drawingReference: newRfi.drawingRef || null,
+              priority: newRfi.priority,
+              assignedToRole: Object.entries(CONSULTANT_MAP).find(([, v]) => v === newRfi.assignedConsultant)?.[0] || 'QS',
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      return;
+    }
     setRfis((prev) => [newRfi, ...prev]);
     setExpandedRfiId(newRfi.id);
   };
@@ -166,6 +233,15 @@ export default function RfiManagementView({
   };
 
   const handleCloseRfi = (id: string) => {
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/rfis/${id}/close`, { method: 'POST', credentials: 'include' });
+          if (res.ok) await reload();
+        } catch { /* ignore */ }
+      })();
+      return;
+    }
     setRfis((prev) =>
       prev.map((rfi) => (rfi.id === id ? { ...rfi, status: 'CLOSED' as const } : rfi))
     );
@@ -174,6 +250,19 @@ export default function RfiManagementView({
   const handleAddResponse = (rfiId: string) => {
     const text = replyText[rfiId]?.trim();
     if (!text) return;
+
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/rfis/${rfiId}/responses`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ officialAnswer: text, isAccepted: true }),
+          });
+          if (res.ok) { setReplyText((prev) => ({ ...prev, [rfiId]: '' })); await reload(); }
+        } catch { /* ignore */ }
+      })();
+      return;
+    }
 
     setRfis((prev) =>
       prev.map((rfi) => {
@@ -231,6 +320,10 @@ export default function RfiManagementView({
         return 'bg-slate-100 text-slate-600 border-slate-200';
     }
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading RFIs…</div>;
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-0">

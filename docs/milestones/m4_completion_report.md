@@ -83,7 +83,7 @@ All 60 tests across the monorepo are green, TypeScript emits 0 errors, and the p
 ## 4. Remediation Plan Status Updates
 - **R-002 (Primary Buyer Decision):** `Closed (verified)`. Main Contractor (NCA 3–6) selected; documented in `docs/research/DISCOVERY_GATE_SYNTHESIS.md`.
 - **R-012 (Messy BOQ Spreadsheets & Mis-read Money):** `Fixed (awaiting review)`. Resilient 6-stage parser with merged-cell support, EASMM classification, subtotal exclusion, arithmetic check, and staged preview table before atomic commit.
-- **R-013 (Product Name & Focus):** `Closed (verified)`. Product named **MjengoLedger**.
+- **R-013 (Product Name & Focus):** `Closed (verified)`. Product named **Platform**.
 
 ---
 

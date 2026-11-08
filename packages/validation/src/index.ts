@@ -111,6 +111,9 @@ export const WeatherConditionEnum = z.enum([
   'HEAVY_RAIN',
   'RAIN_DELAY',
   'DUST_STORM',
+  'HIGH_WIND',
+  'HIGH_TEMPERATURE',
+  'LOW_TEMPERATURE',
 ]);
 export type WeatherCondition = z.infer<typeof WeatherConditionEnum>;
 
@@ -139,10 +142,16 @@ export type MaterialDelivery = z.infer<typeof MaterialDeliverySchema>;
 export const SitePhotoInputSchema = z.object({
   storageKey: z.string().max(500),
   caption: z.string().max(255).optional().nullable(),
+  clientVisible: z.boolean().optional(),
   takenAt: z.string().datetime().optional(),
   gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
   gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
 });
+
+export const UpdateSitePhotoVisibilitySchema = z.object({
+  clientVisible: z.boolean(),
+});
+export type UpdateSitePhotoVisibility = z.infer<typeof UpdateSitePhotoVisibilitySchema>;
 export type SitePhotoInput = z.infer<typeof SitePhotoInputSchema>;
 
 export const CreateSiteDiarySchema = z.object({
@@ -151,6 +160,7 @@ export const CreateSiteDiarySchema = z.object({
   weather: WeatherConditionEnum,
   siteStatus: SiteStatusEnum,
   generalNotes: z.string().max(4000).optional().nullable(),
+  isNonWorkDay: z.boolean().optional(),
   laborHeadcounts: z.array(TradeHeadcountSchema).optional(),
   deliveries: z.array(MaterialDeliverySchema).optional(),
   photos: z.array(SitePhotoInputSchema).optional(),
@@ -196,19 +206,50 @@ export const VariationItemInputSchema = z.object({
 });
 export type VariationItemInput = z.infer<typeof VariationItemInputSchema>;
 
+export const VariationTriggerTypeSchema = z.enum([
+  'DESIGN_CLARIFICATION',
+  'OWNER_REQUEST',
+  'UNFORESEEN_CONDITION',
+  'CODE_COMPLIANCE',
+  'STRUCTURAL_REVIEW',
+  'WEATHER_DELAY',
+  'OTHER',
+]);
+export type VariationTriggerType = z.infer<typeof VariationTriggerTypeSchema>;
+
 export const CreateVariationOrderSchema = z.object({
   title: z.string().min(3).max(255),
   reason: z.string().min(5).max(4000),
+  triggerType: VariationTriggerTypeSchema.optional().nullable(),
+  linkedRfiId: z.string().uuid().optional().nullable(),
+  assigneeIds: z.array(z.string().uuid()).max(20).optional().default([]),
   timeExtensionDays: z.number().int().min(0).max(3650).default(0),
   items: z.array(VariationItemInputSchema).min(1, { message: 'At least one variation item is required' }),
 });
 export type CreateVariationOrder = z.infer<typeof CreateVariationOrderSchema>;
 
-export const ReviewVariationOrderSchema = z.object({
-  action: z.enum(['EVALUATE', 'APPROVE', 'REJECT']),
-  comments: z.string().max(2000).optional(),
-});
+export const ReviewVariationOrderSchema = z
+  .object({
+    action: z.enum(['EVALUATE', 'APPROVE', 'REJECT', 'VOID']),
+    comments: z.string().max(2000).optional(),
+  })
+  .refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
+    message: 'A rejection reason (comments) is required',
+    path: ['comments'],
+  });
 export type ReviewVariationOrder = z.infer<typeof ReviewVariationOrderSchema>;
+
+export const ClientVariationRespondSchema = z
+  .object({
+    action: z.enum(['APPROVE', 'REJECT']),
+    signedName: z.string().min(2).max(255),
+    comments: z.string().max(2000).optional(),
+  })
+  .refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
+    message: 'A rejection reason (comments) is required',
+    path: ['comments'],
+  });
+export type ClientVariationRespond = z.infer<typeof ClientVariationRespondSchema>;
 
 export const AcceptInvitationSchema = z.object({
   token: z.string().min(16, { message: 'Invalid invitation token' }).max(128),
@@ -249,6 +290,7 @@ export const RFIAttachmentInputSchema = z.object({
 export type RFIAttachmentInput = z.infer<typeof RFIAttachmentInputSchema>;
 
 export const CreateRfiSchema = z.object({
+  issueType: z.enum(['RFI', 'CLASH', 'DESIGN_QUESTION']).optional().nullable(),
   title: z.string().min(3).max(255),
   question: z.string().min(5),
   suggestedSolution: z.string().optional().nullable(),
@@ -299,6 +341,9 @@ export const InspectionItemInputSchema = z.object({
 export type InspectionItemInput = z.infer<typeof InspectionItemInputSchema>;
 
 export const CreateInspectionChecklistSchema = z.object({
+  requiresConsultantReview: z.boolean().optional(),
+  inspectionType: z.string().max(60).optional().nullable(),
+  assignedConsultant: z.string().max(255).optional().nullable(),
   checklistType: ChecklistTypeEnum,
   title: z.string().min(3).max(255),
   location: z.string().min(2).max(255),
@@ -363,11 +408,58 @@ export type SnagSeverity = z.infer<typeof SnagSeverityEnum>;
 export const SnagStatusEnum = z.enum([
   'OPEN',
   'IN_PROGRESS',
+  'READY_FOR_REVIEW',
   'RECTIFIED_BY_CONTRACTOR',
   'VERIFIED_CLOSED',
   'CONTESTED',
+  'REJECTED',
 ]);
 export type SnagStatus = z.infer<typeof SnagStatusEnum>;
+
+/** Gate-4 S6: 36-trade punch-list taxonomy (observed form dropdown). */
+export const SNAG_TRADE_CATEGORIES = [
+  'Masonry & Blockwork',
+  'Carpentry & Joinery',
+  'Roofing & Waterproofing',
+  'Plumbing & Drainage',
+  'Electrical & ELV',
+  'HVAC & Mechanical',
+  'Plastering & Rendering',
+  'Tiling & Flooring',
+  'Painting & Decorating',
+  'Glazing & Aluminum',
+  'Structural Steel',
+  'Reinforcement & Concrete',
+  'Formwork & Falsework',
+  'Scaffolding & Access',
+  'Excavation & Earthworks',
+  'Piling & Foundations',
+  'Road Works & Paving',
+  'Drainage & Sewerage',
+  'Water Reticulation',
+  'Boundary Wall & Fencing',
+  'Gates & Ironmongery',
+  'Doors & Windows',
+  'Ceilings & Bulkheads',
+  'Sanitary Fixtures',
+  'Fire Protection',
+  'Lightning Protection',
+  'Solar & Energy',
+  'CCTV & Security',
+  'Data & Communications',
+  'Generators & UPS',
+  'Landscaping & Gardens',
+  'External Works',
+  'Bridge Works',
+  'Traffic Control',
+  'Surveying & Setting Out',
+  'Cleaning & Handover',
+  'Interior Design & Decor',
+] as const;
+export type SnagTradeCategory = (typeof SNAG_TRADE_CATEGORIES)[number];
+
+export const SnagPriorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+export const SnagItemTypeEnum = z.enum(['ARCHITECTURAL', 'MEP', 'FINISHES', 'STRUCTURAL', 'CIVIL', 'OTHER']);
 
 export const SnagPhotoInputSchema = z.object({
   photoType: z.enum(['DEFECT', 'RECTIFIED']).default('DEFECT'),
@@ -385,10 +477,25 @@ export const CreateSnagItemSchema = z.object({
   tradeCategory: z.string().min(1).max(100),
   description: z.string().min(3),
   severity: SnagSeverityEnum.default('COSMETIC'),
+  // Gate-4 S6 punch depth
+  priority: SnagPriorityEnum.default('MEDIUM'),
+  itemType: SnagItemTypeEnum.optional().nullable(),
+  isPrivate: z.boolean().default(false),
+  managerName: z.string().max(255).optional().nullable(),
+  finalApproverName: z.string().max(255).optional().nullable(),
+  costImpactKes: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  scheduleImpactDays: z.number().int().min(0).max(3650).optional().nullable(),
+  costCode: z.string().max(50).optional().nullable(),
+  referenceDoc: z.string().max(255).optional().nullable(),
   assignedTradeFirm: z.string().max(255).optional().nullable(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
   identifiedByName: z.string().min(2).max(255),
   photos: z.array(SnagPhotoInputSchema).optional(),
+  distributions: z.array(z.object({
+    recipientName: z.string().min(1).max(255),
+    recipientContact: z.string().max(255).optional().nullable(),
+    channel: z.enum(['EMAIL', 'SMS', 'WHATSAPP', 'IN_APP']).optional().nullable(),
+  })).optional(),
 });
 export type CreateSnagItem = z.infer<typeof CreateSnagItemSchema>;
 
@@ -398,6 +505,19 @@ export const UpdateSnagStatusSchema = z.object({
   photos: z.array(SnagPhotoInputSchema).optional(),
 });
 export type UpdateSnagStatus = z.infer<typeof UpdateSnagStatusSchema>;
+
+export const CreateSnagCommentSchema = z.object({
+  body: z.string().min(1).max(5000),
+  authorName: z.string().max(255).optional().nullable(),
+});
+export type CreateSnagComment = z.infer<typeof CreateSnagCommentSchema>;
+
+export const CreateSnagDistributionSchema = z.object({
+  recipientName: z.string().min(1).max(255),
+  recipientContact: z.string().max(255).optional().nullable(),
+  channel: z.enum(['EMAIL', 'SMS', 'WHATSAPP', 'IN_APP']).optional().nullable(),
+});
+export type CreateSnagDistribution = z.infer<typeof CreateSnagDistributionSchema>;
 
 // Domain 5: Defects Liability Certificates
 export const CertificateTypeEnum = z.enum([
@@ -517,8 +637,16 @@ export const IncidentTypeEnum = z.enum([
   'FIRST_AID',
   'MEDICAL_TREATMENT',
   'LOST_TIME_INJURY',
+  'FATALITY',
   'PROPERTY_DAMAGE',
   'PPE_VIOLATION',
+  // Reference-observed site-hazard taxonomy (kept alongside OSHA types)
+  'STRUCK_BY_EQUIPMENT',
+  'EQUIPMENT_ROLLOVER',
+  'CAVE_IN_TRENCH',
+  'TRAFFIC_INCIDENT',
+  'ASPHALT_HOT_MATERIAL',
+  'ENVIRONMENTAL_RELEASE',
 ]);
 export type IncidentType = z.infer<typeof IncidentTypeEnum>;
 
@@ -548,6 +676,8 @@ export const DocumentCategoryEnum = z.enum([
   'ARCHITECTURAL_DRAWING',
   'STRUCTURAL_DRAWING',
   'MEP_DRAWING',
+  'CIVIL_DRAWING',
+  'ELECTRICAL_DRAWING',
   'COUNTY_APPROVAL_STAMP',
   'NEMA_LICENSE',
   'CONTRACT_AGREEMENT',
@@ -985,6 +1115,7 @@ export type AlertRecipientRole = z.infer<typeof AlertRecipientRoleEnum>;
 
 export const AlertTypeEnum = z.enum([
   'CRITICAL_SAFETY_STOP_WORK',
+  'DIESEL_DISCREPANCY_FLAG',
   'DIESEL_SIPHONING_FLAG',
   'STRUCTURAL_CONCRETE_FAIL',
   'BUDGET_OVERRUN',
@@ -1424,7 +1555,7 @@ export const AcknowledgeMaintenanceAlertSchema = z.object({
 export type AcknowledgeMaintenanceAlert = z.infer<typeof AcknowledgeMaintenanceAlertSchema>;
 
 // -------------------------------------------------------------
-// INDEPENDENT SITE INSPECTION & CONTRACTOR TENDERING (MILESTONE M33 / BUILDSASA PARITY)
+// INDEPENDENT SITE INSPECTION & CONTRACTOR TENDERING (MILESTONE M33 )
 // -------------------------------------------------------------
 
 export const InspectionPhotoInputSchema = z.object({
@@ -1542,3 +1673,543 @@ export type AwardTenderBid = z.infer<typeof AwardTenderBidSchema>;
 
 
 
+
+// -------------------------------------------------------------
+// QUOTES (quotes-to-cash, ADR-007)
+// -------------------------------------------------------------
+
+export const QuoteLineItemInputSchema = z.object({
+  section: z.string().max(120).optional().nullable(),
+  description: z.string().min(1).max(2000),
+  unit: z.enum(['item', 'sum', 'm', 'm2', 'm3', 'no', 'kg', 'day', 'hr', 'lot']).default('item'),
+  quantity: z.number().positive(),
+  unitRate: z.number().min(0),
+});
+export type QuoteLineItemInput = z.infer<typeof QuoteLineItemInputSchema>;
+
+export const CreateQuoteSchema = z.object({
+  title: z.string().min(1).max(255),
+  clientName: z.string().min(1).max(255),
+  clientEmail: z.string().email().max(255).optional().nullable(),
+  clientPhone: z.string().max(50).optional().nullable(),
+  siteLocation: z.string().max(255).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  currency: z.enum(['KES', 'USD']).default('KES'),
+  taxPct: z.number().min(0).max(100).default(0),
+  depositPct: z.number().min(0).max(100).default(0),
+  terms: z.string().max(5000).optional().nullable(),
+  scopeNotes: z.string().max(5000).optional().nullable(),
+  validDays: z.number().int().min(1).max(365).optional(),
+  items: z.array(QuoteLineItemInputSchema).min(1),
+});
+export type CreateQuote = z.infer<typeof CreateQuoteSchema>;
+
+export const UpdateQuoteSchema = CreateQuoteSchema.partial();
+export type UpdateQuote = z.infer<typeof UpdateQuoteSchema>;
+
+export const SendQuoteSchema = z.object({
+  channel: z.enum(['link', 'whatsapp', 'email']).default('link'),
+});
+export type SendQuote = z.infer<typeof SendQuoteSchema>;
+
+export const PublicQuoteRespondSchema = z.object({
+  action: z.enum(['accept', 'decline', 'comment']),
+  typedName: z.string().min(2).max(255).optional(),
+  note: z.string().max(2000).optional().nullable(),
+});
+export type PublicQuoteRespond = z.infer<typeof PublicQuoteRespondSchema>;
+
+export const ConvertQuoteSchema = z.object({
+  projectName: z.string().min(1).max(255).optional(),
+  projectCode: z.string().max(50).optional().nullable(),
+  createDepositInvoice: z.boolean().default(false),
+});
+export type ConvertQuote = z.infer<typeof ConvertQuoteSchema>;
+
+// -------------------------------------------------------------
+// INVOICES (accounts receivable, Gate-4 slice S2)
+// -------------------------------------------------------------
+
+export const InvoiceLineItemInputSchema = QuoteLineItemInputSchema;
+export type InvoiceLineItemInput = QuoteLineItemInput;
+
+export const CreateInvoiceSchema = z.object({
+  title: z.string().min(1).max(255),
+  clientName: z.string().min(1).max(255),
+  clientEmail: z.string().email().max(255).optional().nullable(),
+  clientPhone: z.string().max(50).optional().nullable(),
+  billTo: z.string().max(2000).optional().nullable(),
+  poNumber: z.string().max(100).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  quoteId: z.string().uuid().optional().nullable(),
+  currency: z.enum(['KES', 'USD']).default('KES'),
+  taxPct: z.number().min(0).max(100).default(0),
+  issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dueDays: z.number().int().min(0).max(365).default(30),
+  terms: z.string().max(5000).optional().nullable(),
+  notes: z.string().max(5000).optional().nullable(),
+  paybill: z.string().max(20).optional().nullable(),
+  items: z.array(InvoiceLineItemInputSchema).min(1),
+});
+export type CreateInvoice = z.infer<typeof CreateInvoiceSchema>;
+
+export const UpdateInvoiceSchema = CreateInvoiceSchema.partial();
+export type UpdateInvoice = z.infer<typeof UpdateInvoiceSchema>;
+
+export const RecordInvoicePaymentSchema = z.object({
+  amount: z.number().positive(),
+  method: z.enum(['CASH', 'BANK', 'M_PESA', 'CHEQUE', 'CARD', 'OTHER']).default('BANK'),
+  reference: z.string().max(100).optional().nullable(),
+  paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  note: z.string().max(2000).optional().nullable(),
+});
+export type RecordInvoicePayment = z.infer<typeof RecordInvoicePaymentSchema>;
+
+export const VoidInvoiceSchema = z.object({
+  reason: z.string().min(1).max(255),
+});
+export type VoidInvoice = z.infer<typeof VoidInvoiceSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-4 S4: Payment Certificates & Closeout (ADR-008)
+// -----------------------------------------------------------------------------
+
+export const CreatePaymentCertificateSchema = z.object({
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart must be YYYY-MM-DD'),
+  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd must be YYYY-MM-DD'),
+  thisPeriodAmount: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  retentionPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  retentionReleased: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  advanceRecovery: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  amountDuePrevious: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreatePaymentCertificate = z.infer<typeof CreatePaymentCertificateSchema>;
+
+export const PaymentCertificateActionSchema = z.object({
+  action: z.enum(['SUBMIT', 'REVIEW', 'CERTIFY', 'REJECT', 'MARK_PAID']),
+  comments: z.string().max(2000).optional(),
+  paidReference: z.string().max(100).optional().nullable(),
+}).refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
+  message: 'A rejection reason (comments) is required',
+  path: ['comments'],
+});
+export type PaymentCertificateAction = z.infer<typeof PaymentCertificateActionSchema>;
+
+export const CloseoutTransitionSchema = z.object({
+  stage: z.enum(['HANDED_OVER', 'DEFECTS_LIABILITY', 'DEFECTS_EXPIRED', 'CLOSED']),
+  notes: z.string().max(2000).optional(),
+});
+export type CloseoutTransition = z.infer<typeof CloseoutTransitionSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-4 S5: Commitments -> Claims -> Payment Applications
+// -----------------------------------------------------------------------------
+
+export const CreateCommitmentSchema = z.object({
+  vendorName: z.string().min(2).max(255),
+  vendorType: z.enum(['SUBCONTRACTOR', 'SUPPLIER', 'CONSULTANT', 'OTHER']).default('SUBCONTRACTOR'),
+  scopeDescription: z.string().max(5000).optional().nullable(),
+  contractValue: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount'),
+  currency: z.string().length(3).default('KES'),
+  retentionPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  retentionCapPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  advanceAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  advancePaid: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  advanceRecoverPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  costCode: z.string().max(50).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateCommitment = z.infer<typeof CreateCommitmentSchema>;
+
+export const UpdateCommitmentSchema = z.object({
+  vendorName: z.string().min(2).max(255).optional(),
+  scopeDescription: z.string().max(5000).optional().nullable(),
+  status: z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'TERMINATED']).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type UpdateCommitment = z.infer<typeof UpdateCommitmentSchema>;
+
+export const CreatePaymentApplicationSchema = z.object({
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart must be YYYY-MM-DD'),
+  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd must be YYYY-MM-DD'),
+  grossClaimed: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount'),
+  whtPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  previousBalance: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreatePaymentApplication = z.infer<typeof CreatePaymentApplicationSchema>;
+
+export const PaymentApplicationActionSchema = z.object({
+  action: z.enum(['SUBMIT', 'APPROVE', 'REJECT', 'MARK_PAID']),
+  comments: z.string().max(2000).optional(),
+  paidReference: z.string().max(100).optional().nullable(),
+}).refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
+  message: 'A rejection reason (comments) is required',
+  path: ['comments'],
+});
+export type PaymentApplicationAction = z.infer<typeof PaymentApplicationActionSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-4 S8: Project onboarding & edit (observed Edit-project modal parity)
+// -----------------------------------------------------------------------------
+
+export const ProjectHealthStatusEnum = z.enum([
+  'PLANNING',
+  'ON_TRACK',
+  'AT_RISK',
+  'CLOSING',
+  'ARCHIVED',
+  // Legacy/internal values kept for backward compatibility
+  'ACTIVE',
+  'COMPLETED',
+  'ON_HOLD',
+]);
+export type ProjectHealthStatus = z.infer<typeof ProjectHealthStatusEnum>;
+
+export const ProjectMemberRoleEnum = z.enum([
+  'PROJECT_LEAD',
+  'PM',
+  'ARCHITECT',
+  'QS',
+  'SITE_MANAGER',
+  'CLIENT',
+  'MEMBER',
+]);
+export type ProjectMemberRole = z.infer<typeof ProjectMemberRoleEnum>;
+
+const MoneyAmount = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount');
+const Coord = z.string().regex(/^-?\d+(\.\d{1,6})?$/, 'Must be a valid coordinate');
+const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
+
+export const CreateProjectDetailsSchema = z.object({
+  name: z.string().min(2).max(255),
+  code: z.string().min(1).max(50),
+  // Legacy aliases accepted for backward compatibility
+  budget: z.union([z.number(), z.string()]).optional().nullable(),
+  originalContractSum: z.union([z.number(), z.string()]).optional().nullable(),
+  currentApprovedBudget: z.union([z.number(), z.string()]).optional().nullable(),
+  description: z.string().max(5000).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+  mapLatitude: Coord.optional().nullable(),
+  mapLongitude: Coord.optional().nullable(),
+  contractValue: MoneyAmount.optional().nullable(),
+  contractCurrency: z.string().length(3).optional().nullable(),
+  ncaProjectNo: z.string().max(100).optional().nullable(),
+  moneyAtRiskKes: MoneyAmount.optional().nullable(),
+  status: ProjectHealthStatusEnum.optional().nullable(),
+  startDate: IsoDate.optional().nullable(),
+  targetEndDate: IsoDate.optional().nullable(),
+});
+export type CreateProjectDetails = z.infer<typeof CreateProjectDetailsSchema>;
+
+export const UpdateProjectDetailsSchema = z.object({
+  name: z.string().min(2).max(255).optional(),
+  code: z.string().min(1).max(50).optional(),
+  description: z.string().max(5000).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+  mapLatitude: Coord.optional().nullable(),
+  mapLongitude: Coord.optional().nullable(),
+  contractValue: MoneyAmount.optional().nullable(),
+  contractCurrency: z.string().length(3).optional().nullable(),
+  ncaProjectNo: z.string().max(100).optional().nullable(),
+  moneyAtRiskKes: MoneyAmount.optional().nullable(),
+  status: ProjectHealthStatusEnum.optional().nullable(),
+  startDate: IsoDate.optional().nullable(),
+  targetEndDate: IsoDate.optional().nullable(),
+  progressPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field must be provided' });
+export type UpdateProjectDetails = z.infer<typeof UpdateProjectDetailsSchema>;
+
+export const AssignProjectMemberSchema = z.object({
+  userId: z.string().uuid(),
+  // Free-form project-scoped role label (legacy roles like PROJECT_QS,
+  // PM_QS, SITE_SUPERVISOR are valid); observed modal offers PM/Architect/QS.
+  role: z.string().min(1).max(50).default('MEMBER'),
+});
+export type AssignProjectMember = z.infer<typeof AssignProjectMemberSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-1: Announcements
+// -----------------------------------------------------------------------------
+
+export const AnnouncementAudienceEnum = z.enum(['ALL', 'INTERNAL', 'CLIENTS', 'FIELD_TEAM']);
+export const AnnouncementPriorityEnum = z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
+
+export const CreateAnnouncementSchema = z.object({
+  title: z.string().min(3).max(255),
+  body: z.string().min(3).max(10000),
+  priority: AnnouncementPriorityEnum.default('NORMAL'),
+  audience: AnnouncementAudienceEnum.default('ALL'),
+  targetRoles: z.array(z.string().min(1).max(50)).max(20).optional(),
+  projectId: z.string().uuid().optional().nullable(),
+  status: z.enum(['DRAFT', 'PUBLISHED']).default('PUBLISHED'),
+  expiresAt: z.string().datetime().optional().nullable(),
+});
+export type CreateAnnouncement = z.infer<typeof CreateAnnouncementSchema>;
+
+export const UpdateAnnouncementSchema = z.object({
+  title: z.string().min(3).max(255).optional(),
+  body: z.string().min(3).max(10000).optional(),
+  priority: AnnouncementPriorityEnum.optional(),
+  audience: AnnouncementAudienceEnum.optional(),
+  targetRoles: z.array(z.string().min(1).max(50)).max(20).optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
+  expiresAt: z.string().datetime().optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+export type UpdateAnnouncement = z.infer<typeof UpdateAnnouncementSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-3: Inbox messages
+// -----------------------------------------------------------------------------
+
+export const InboxAudienceEnum = z.enum(['ALL_MEMBERS', 'PROJECT_TEAM', 'ROLE']);
+
+export const SendInboxMessageSchema = z.object({
+  body: z.string().min(1).max(5000),
+  projectId: z.string().uuid().optional().nullable(),
+  audience: InboxAudienceEnum.default('PROJECT_TEAM'),
+  targetRoles: z.array(z.string().min(1).max(50)).max(20).optional(),
+  parentId: z.string().uuid().optional().nullable(),
+});
+export type SendInboxMessage = z.infer<typeof SendInboxMessageSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-4: Site observations & corrective actions
+// -----------------------------------------------------------------------------
+
+export const ObservationTypeEnum = z.enum(['QUALITY', 'SAFETY', 'ENVIRONMENTAL', 'COMMISSIONING']);
+export const ObservationPriorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH']);
+export const ObservationStatusEnum = z.enum(['OPEN', 'IN_REVIEW', 'CLOSED']);
+
+export const CreateObservationSchema = z.object({
+  title: z.string().min(3).max(255),
+  type: ObservationTypeEnum.default('QUALITY'),
+  priority: ObservationPriorityEnum.default('MEDIUM'),
+  location: z.string().max(255).optional().nullable(),
+  description: z.string().min(3).max(10000),
+});
+export type CreateObservation = z.infer<typeof CreateObservationSchema>;
+
+export const UpdateObservationStatusSchema = z.object({
+  status: ObservationStatusEnum,
+  note: z.string().max(2000).optional(),
+});
+
+export const CreateCorrectiveActionSchema = z.object({
+  title: z.string().min(3).max(255),
+  ownerName: z.string().min(2).max(255),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  observationId: z.string().uuid().optional().nullable(),
+  sourceRef: z.string().max(50).optional().nullable(),
+  steps: z.array(z.string().min(1).max(500)).max(20).default([]),
+});
+export type CreateCorrectiveAction = z.infer<typeof CreateCorrectiveActionSchema>;
+
+export const UpdateCorrectiveActionSchema = z.object({
+  status: z.enum(['ACTIVE', 'COMPLETED']).optional(),
+  steps: z.array(z.string().min(1).max(500)).max(20).optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  ownerName: z.string().min(2).max(255).optional(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-5: Crews
+// -----------------------------------------------------------------------------
+
+export const CreateCrewSchema = z.object({
+  name: z.string().min(2).max(255),
+  trade: z.string().min(2).max(100),
+  foremanName: z.string().max(255).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateCrew = z.infer<typeof CreateCrewSchema>;
+
+export const UpdateCrewSchema = z.object({
+  name: z.string().min(2).max(255).optional(),
+  trade: z.string().min(2).max(100).optional(),
+  foremanName: z.string().max(255).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+export const AddCrewMemberSchema = z.object({
+  name: z.string().min(2).max(255),
+  trade: z.string().max(100).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  dailyRateKes: z.string().regex(/^\d+(\.\d{1,2})?$/).optional().nullable(),
+});
+export type AddCrewMember = z.infer<typeof AddCrewMemberSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-7: Company documents vault
+// -----------------------------------------------------------------------------
+
+export const CompanyDocCategoryEnum = z.enum(['POLICY', 'TEMPLATE', 'CERTIFICATION', 'INSURANCE', 'HR', 'LEGAL', 'OTHER']);
+
+export const CreateCompanyDocumentSchema = z.object({
+  title: z.string().min(2).max(255),
+  category: CompanyDocCategoryEnum.optional().nullable(), // omit → lands in Unfiled
+  referenceNo: z.string().max(100).optional().nullable(),
+  fileName: z.string().max(255).optional().nullable(),
+  mimeType: z.string().max(100).optional().nullable(),
+  fileSize: z.number().int().positive().optional().nullable(),
+  storageKey: z.string().max(500).optional().nullable(),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  notes: z.string().max(5000).optional().nullable(),
+});
+export type CreateCompanyDocument = z.infer<typeof CreateCompanyDocumentSchema>;
+
+export const UpdateCompanyDocumentSchema = z.object({
+  title: z.string().min(2).max(255).optional(),
+  category: CompanyDocCategoryEnum.optional().nullable(),
+  referenceNo: z.string().max(100).optional().nullable(),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  status: z.enum(['ACTIVE', 'ARCHIVED']).optional(),
+  notes: z.string().max(5000).optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-8: Correspondence log
+// -----------------------------------------------------------------------------
+
+export const CorrespondenceTypeEnum = z.enum(['LETTER', 'SUBMITTAL', 'TRANSMITTAL', 'NOTICE']);
+export const CorrespondenceDirectionEnum = z.enum(['OUTGOING', 'INCOMING']);
+export const CorrespondenceStatusEnum = z.enum(['DRAFT', 'SENT', 'RECEIVED', 'RESPONDED', 'FILED']);
+
+export const CreateCorrespondenceSchema = z.object({
+  type: CorrespondenceTypeEnum,
+  direction: CorrespondenceDirectionEnum.default('OUTGOING'),
+  subject: z.string().min(3).max(500),
+  fromName: z.string().min(2).max(255),
+  toName: z.string().min(2).max(255),
+  reference: z.string().max(100).optional().nullable(),
+  letterDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  body: z.string().max(20000).optional().nullable(),
+  attachmentName: z.string().max(255).optional().nullable(),
+});
+export type CreateCorrespondence = z.infer<typeof CreateCorrespondenceSchema>;
+
+export const UpdateCorrespondenceSchema = z.object({
+  status: CorrespondenceStatusEnum.optional(),
+  subject: z.string().min(3).max(500).optional(),
+  reference: z.string().max(100).optional().nullable(),
+  body: z.string().max(20000).optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-9: Scheduled reports
+// -----------------------------------------------------------------------------
+
+export const ScheduledReportTypeEnum = z.enum(['FINANCIAL', 'OPERATIONAL', 'BY_PROJECT', 'BY_REGION', 'CUSTOM']);
+export const ReportFrequencyEnum = z.enum(['DAILY', 'WEEKLY', 'MONTHLY']);
+
+export const CreateScheduledReportSchema = z.object({
+  name: z.string().min(3).max(255),
+  reportType: ScheduledReportTypeEnum,
+  frequency: ReportFrequencyEnum,
+  dayOfWeek: z.number().int().min(0).max(6).optional().nullable(),
+  dayOfMonth: z.number().int().min(1).max(31).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
+  recipients: z.array(z.string().min(1).max(255)).min(1).max(20),
+  format: z.enum(['PDF', 'EXCEL', 'JSON']).default('PDF'),
+});
+export type CreateScheduledReport = z.infer<typeof CreateScheduledReportSchema>;
+
+export const UpdateScheduledReportSchema = z.object({
+  name: z.string().min(3).max(255).optional(),
+  status: z.enum(['ACTIVE', 'PAUSED']).optional(),
+  frequency: ReportFrequencyEnum.optional(),
+  dayOfWeek: z.number().int().min(0).max(6).optional().nullable(),
+  dayOfMonth: z.number().int().min(1).max(31).optional().nullable(),
+  recipients: z.array(z.string().min(1).max(255)).min(1).max(20).optional(),
+  format: z.enum(['PDF', 'EXCEL', 'JSON']).optional(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-4b: Consultant review on inspections
+// -----------------------------------------------------------------------------
+
+export const ConsultantReviewDecisionEnum = z.enum(['APPROVE', 'REJECT']);
+
+export const ConsultantReviewSchema = z.object({
+  decision: ConsultantReviewDecisionEnum,
+  notes: z.string().max(5000).optional().nullable(),
+});
+export type ConsultantReview = z.infer<typeof ConsultantReviewSchema>;
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-10: Daily attendance
+// -----------------------------------------------------------------------------
+
+export const AttendanceStatusEnum = z.enum(['PRESENT', 'HALF_DAY', 'LEAVE', 'OFF_DAY', 'ABSENT']);
+
+export const RecordAttendanceSchema = z.object({
+  laborerId: z.string().uuid(),
+  workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // default today
+  status: AttendanceStatusEnum.default('PRESENT'),
+  notes: z.string().max(2000).optional().nullable(),
+  crewId: z.string().uuid().optional().nullable(),
+});
+export type RecordAttendance = z.infer<typeof RecordAttendanceSchema>;
+
+export const CheckInOutSchema = z.object({
+  laborerId: z.string().uuid(),
+  workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+
+// -----------------------------------------------------------------------------
+// Gate-5 G5-6: Checklist templates & assignments
+// -----------------------------------------------------------------------------
+
+export const ChecklistQuestionTypeEnum = z.enum(['TEXT', 'NUMBER', 'DATE', 'YES_NO', 'PASS_FAIL', 'DROPDOWN', 'CHECKBOX', 'PHOTO', 'SIGNATURE']);
+
+export const ChecklistQuestionSchema = z.object({
+  text: z.string().min(2).max(500),
+  type: ChecklistQuestionTypeEnum.default('TEXT'),
+  options: z.array(z.string().min(1).max(100)).max(20).optional(),
+  required: z.boolean().default(false),
+});
+export type ChecklistQuestion = z.infer<typeof ChecklistQuestionSchema>;
+
+export const ChecklistTradeEnum = z.enum([
+  'GENERAL', 'MASONRY', 'CONCRETE', 'STEEL_FIXING', 'CARPENTRY', 'ELECTRICAL',
+  'PLUMBING', 'PAINTING', 'TILING_FLOORING', 'ROOFING', 'STRUCTURAL_STEEL',
+  'WELDING_FABRICATION', 'GLAZING_ALUMINIUM', 'WATERPROOFING', 'SCAFFOLDING', 'CUSTOM',
+]);
+
+export const CreateChecklistTemplateSchema = z.object({
+  title: z.string().min(3).max(255),
+  tradeCategory: ChecklistTradeEnum.default('GENERAL'),
+  kind: z.enum(['SAFETY', 'QUALITY', 'PRE_HANDOVER', 'CUSTOM']).default('CUSTOM'),
+  isGlobal: z.boolean().default(false),
+  questions: z.array(ChecklistQuestionSchema).min(1).max(100),
+});
+export type CreateChecklistTemplate = z.infer<typeof CreateChecklistTemplateSchema>;
+
+export const CreateChecklistAssignmentSchema = z.object({
+  templateId: z.string().uuid().optional().nullable(),
+  title: z.string().min(3).max(255),
+  trade: z.string().min(2).max(100),
+  assignedToName: z.string().max(255).optional().nullable(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+export type CreateChecklistAssignment = z.infer<typeof CreateChecklistAssignmentSchema>;
+
+export const SubmitChecklistResponseSchema = z.object({
+  responses: z.array(z.object({
+    questionIdx: z.number().int().min(0),
+    answer: z.union([z.string().max(5000), z.boolean(), z.number()]),
+    notes: z.string().max(2000).optional(),
+  })).min(1).max(200),
+});
+export type SubmitChecklistResponse = z.infer<typeof SubmitChecklistResponseSchema>;
+
+export const ReviewChecklistAssignmentSchema = z.object({
+  decision: z.enum(['APPROVE', 'REJECT']),
+  notes: z.string().max(5000).optional().nullable(),
+});
+export type ReviewChecklistAssignment = z.infer<typeof ReviewChecklistAssignmentSchema>;

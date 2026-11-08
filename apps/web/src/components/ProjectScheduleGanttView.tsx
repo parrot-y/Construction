@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface ScheduleTask {
   id: string;
@@ -87,7 +87,33 @@ export default function ProjectScheduleGanttView({
   onTaskCreated,
   onTaskUpdated,
 }: ProjectScheduleGanttViewProps) {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [tasks, setTasks] = useState<ScheduleTask[]>(initialTasks);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/tasks`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.tasks || json.data || []) as any[];
+      setTasks(list.map((t) => ({
+        ...t,
+        planned_start_date: t.planned_start_date?.slice?.(0, 10) ?? t.planned_start_date,
+        planned_end_date: t.planned_end_date?.slice?.(0, 10) ?? t.planned_end_date,
+        actual_start_date: t.actual_start_date?.slice?.(0, 10) ?? t.actual_start_date ?? null,
+        actual_end_date: t.actual_end_date?.slice?.(0, 10) ?? t.actual_end_date ?? null,
+        progress_percentage: t.progress_percentage?.toString?.() ?? String(t.progress_percentage ?? 0),
+      })));
+    } catch {
+      setTasks([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
   const [phaseFilter, setPhaseFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -133,8 +159,27 @@ export default function ProjectScheduleGanttView({
       order_index: tasks.length + 1,
     };
 
-    setTasks([...tasks, newTask]);
-    if (onTaskCreated) onTaskCreated(newTask);
+    if (isLive) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/tasks`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              wbsPhase: newPhase, taskName: newTaskName.trim(),
+              description: newDesc.trim() || null,
+              plannedStartDate: newStartDate, plannedEndDate: newEndDate,
+              durationDays: newDuration,
+              assignedTrade: newTrade.trim() || null,
+              orderIndex: tasks.length + 1,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* ignore */ }
+      })();
+    } else {
+      setTasks([...tasks, newTask]);
+      if (onTaskCreated) onTaskCreated(newTask);
+    }
     setShowModal(false);
     setNewTaskName('');
     setNewDesc('');
@@ -142,6 +187,18 @@ export default function ProjectScheduleGanttView({
 
   const handleUpdateProgress = (taskId: string, newProgress: number) => {
     const nextStatus = newProgress === 100 ? 'COMPLETED' : newProgress > 0 ? 'IN_PROGRESS' : 'PLANNED';
+    if (isLive) {
+      void (async () => {
+        try {
+          await fetch(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
+            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ progressPercentage: String(newProgress), status: nextStatus }),
+          });
+          await reload();
+        } catch { /* ignore */ }
+      })();
+      return;
+    }
     setTasks(
       tasks.map((t) =>
         t.id === taskId
@@ -168,6 +225,10 @@ export default function ProjectScheduleGanttView({
         return <span className="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">Planned</span>;
     }
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading schedule…</div>;
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" data-testid="project-schedule-gantt-view" data-project-id={projectId}>

@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
+import { timingSafeCompare } from '../services/securityConfig';
 import {
   toDecimal,
   getRebarUnitWeight,
@@ -50,6 +51,7 @@ import {
   AwardTenderBidSchema,
 } from '@construction/validation';
 import * as crypto from 'crypto';
+import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -245,7 +247,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             checkoutRequestId: checkoutReqId,
             responseCode: '0',
             responseDescription: 'Success. Request accepted for processing',
-            customerMessage: `STK push dispatched to ${formattedPhone}. Enter M-Pesa PIN on handset to authorize KES ${amount}.`,
+            customerMessage: `SIMULATED STK push to ${formattedPhone} — no live Daraja call configured. Enter M-Pesa PIN on handset to authorize KES ${amount}.`,
+            simulated: true,
+            mode: 'SIMULATED',
           };
         });
 
@@ -264,12 +268,12 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
   server.post(
     '/api/v1/billing/mpesa-callback',
     async (request, reply) => {
-      // 1. Mandatory Webhook Secret Authentication (C1)
+      // 1. Mandatory Webhook Secret Authentication with Constant-Time Comparison (C1 & 2a)
       const authHeader =
         (request.headers['x-mpesa-webhook-token'] as string) ||
         (request.headers['authorization'] as string)?.replace(/^Bearer\s+/i, '');
-      const expectedSecret = process.env.MPESA_WEBHOOK_SECRET || 'mjengo-daraja-webhook-secret-production';
-      if (!authHeader || authHeader !== expectedSecret) {
+      const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
+      if (!authHeader || !timingSafeCompare(authHeader, expectedSecret)) {
         return reply.status(401).send({
           statusCode: 401,
           error: 'Unauthorized',
@@ -277,7 +281,26 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
         });
       }
 
-      const parseResult = ProcessMpesaCallbackSchema.safeParse(request.body);
+      // Normalize Safaricom Daraja nested callback format if present
+      let rawPayload: any = request.body;
+      if (rawPayload?.Body?.stkCallback) {
+        const stk = rawPayload.Body.stkCallback;
+        const items = stk.CallbackMetadata?.Item || [];
+        const receiptItem = items.find((i: any) => i.Name === 'MpesaReceiptNumber');
+        const phoneItem = items.find((i: any) => i.Name === 'PhoneNumber');
+        const dateItem = items.find((i: any) => i.Name === 'TransactionDate');
+        rawPayload = {
+          MerchantRequestID: stk.MerchantRequestID,
+          CheckoutRequestID: stk.CheckoutRequestID,
+          ResultCode: stk.ResultCode,
+          ResultDesc: stk.ResultDesc,
+          MpesaReceiptNumber: receiptItem ? String(receiptItem.Value) : undefined,
+          PhoneNumber: phoneItem ? String(phoneItem.Value) : undefined,
+          TransactionDate: dateItem ? String(dateItem.Value) : undefined,
+        };
+      }
+
+      const parseResult = ProcessMpesaCallbackSchema.safeParse(rawPayload);
       if (!parseResult.success) {
         return reply.status(400).send({
           statusCode: 400,
@@ -289,31 +312,25 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
       const { CheckoutRequestID, ResultCode, ResultDesc, MpesaReceiptNumber } = parseResult.data;
 
-      // 2. Explicit Tenant Context Resolution (no unauthenticated multi-tenant scans) (C1)
-      const tenantId = (request.query as any)?.tenantId || (request.headers['x-tenant-id'] as string);
-      if (!tenantId || !UUID_REGEX.test(tenantId)) {
-        return reply.status(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Explicit valid tenantId is required in callback parameters',
+      // 2. Cryptographic / Database Bound Tenant Context Resolution (C1 & 2b)
+      // Do NOT trust tenantId from header or query. Resolve tenant from transaction record via SECURITY DEFINER function.
+      const matchedRows = await prisma.$queryRaw<any[]>`
+        SELECT * FROM lookup_mpesa_stk_transaction(${CheckoutRequestID}::text);
+      `;
+
+      if (matchedRows.length === 0) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: `CheckoutRequestID ${CheckoutRequestID} not found in database`,
         });
       }
 
+      const existingTx = matchedRows[0];
+      // Bind tenantId strictly from the database record; ignore any untrusted client-supplied header or query parameter (C1 & 2b)
+      const tenantId = existingTx.tenant_id;
+
       try {
-        const existingTx = await withTenantTx(prisma, tenantId, (tx) =>
-          tx.mpesaSubscriptionTransaction.findUnique({
-            where: { checkout_request_id: CheckoutRequestID },
-          })
-        );
-
-        if (!existingTx) {
-          return reply.status(404).send({
-            statusCode: 404,
-            error: 'Not Found',
-            message: `CheckoutRequestID ${CheckoutRequestID} not found in specified tenant`,
-          });
-        }
-
         const isSuccess = ResultCode === 0;
         if (isSuccess && !MpesaReceiptNumber) {
           return reply.status(400).send({
@@ -346,6 +363,8 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           result: 'Callback processed successfully',
           status: updated.transaction_status,
           receiptNumber: updated.mpesa_receipt_number,
+          mpesaReceiptNumber: updated.mpesa_receipt_number,
+          tenantId,
         });
       } catch (err: any) {
         return reply.status(err.status || 500).send({
@@ -706,6 +725,45 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
   // MODULE 3: DIRECT PLANT GPS TELEMATICS & FUEL FLOW METERS (M24)
   // ===========================================================================
 
+  // 3.0 List Telematics Devices (fleet registry)
+  server.get(
+    '/api/v1/projects/:projectId/telematics-devices',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const devices = await tx.plantTelematicsDevice.findMany({
+            where: { project_id: projectId },
+            include: { equipment: { select: { id: true, equipment_code: true, name: true } } },
+            orderBy: { created_at: 'desc' },
+          });
+          return {
+            devices: devices.map((d) => ({
+              id: d.id,
+              equipmentId: d.equipment_id,
+              equipmentCode: d.equipment.equipment_code,
+              equipmentName: d.equipment.name,
+              deviceImei: d.device_imei,
+              protocol: d.protocol,
+              tankCapacityLiters: toDecimal(d.calibration_tank_capacity_liters.toString()).toFixed(2),
+              status: d.status,
+              lastHeartbeatAt: d.last_heartbeat_at?.toISOString() || null,
+            })),
+          };
+        });
+        return reply.send(result);
+      } catch (err: any) {
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list telematics devices' });
+      }
+    },
+  );
+
   // 3.1 Register Telematics Device to Machinery
   server.post(
     '/api/v1/projects/:projectId/telematics-devices',
@@ -822,16 +880,6 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
         });
       }
 
-      // 2. Explicit Tenant Context Resolution (C3)
-      const tenantId = (request.query as any)?.tenantId || (request.headers['x-tenant-id'] as string);
-      if (!tenantId || !UUID_REGEX.test(tenantId)) {
-        return reply.status(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Explicit valid tenantId is required in headers or query parameters',
-        });
-      }
-
       const parseResult = IngestTelematicsPingSchema.safeParse(request.body);
       if (!parseResult.success) {
         return reply.status(400).send({
@@ -846,26 +894,45 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
         parseResult.data;
 
       try {
-        const device = await withTenantTx(prisma, tenantId, (tx) =>
-          tx.plantTelematicsDevice.findUnique({
-            where: { device_imei: deviceImei },
-          })
-        );
+        // 2. Cryptographic / Database Bound Device Resolution via SECURITY DEFINER function (C3 & 2b)
+        const matchedRows = await prisma.$queryRaw<any[]>`
+          SELECT * FROM lookup_telematics_device(${deviceImei}::text);
+        `;
 
-        if (!device) {
+        if (matchedRows.length === 0) {
           return reply.status(404).send({
             statusCode: 404,
             error: 'Not Found',
-            message: `Telematics device with IMEI ${deviceImei} not found in this tenant`,
+            message: `Telematics device with IMEI ${deviceImei} not found`,
           });
         }
 
-        // Verify device token
-        if (!device.device_token || device.device_token !== deviceToken) {
+        const device = matchedRows[0];
+        if (device.status === 'DEACTIVATED') {
+          return reply.status(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: `Telematics device with IMEI ${deviceImei} is deactivated`,
+          });
+        }
+
+        // Verify device token using timing-safe constant-time comparison
+        if (!device.device_token || !timingSafeCompare(deviceToken, device.device_token)) {
           return reply.status(401).send({
             statusCode: 401,
             error: 'Unauthorized',
             message: 'Invalid device authentication token',
+          });
+        }
+
+        const tenantId = device.tenant_id;
+        // Verify no header spoofing if client passed tenantId
+        const suppliedTenantId = (request.query as any)?.tenantId || (request.headers['x-tenant-id'] as string);
+        if (suppliedTenantId && UUID_REGEX.test(suppliedTenantId) && suppliedTenantId !== tenantId) {
+          return reply.status(401).send({
+            statusCode: 401,
+            error: 'Unauthorized',
+            message: 'Tenant header mismatch: cannot override device tenant',
           });
         }
 
@@ -881,7 +948,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           const equipmentName = equipment?.name || 'Equipment';
           const equipmentCode = equipment?.equipment_code || 'N/A';
 
-          // Check for sudden diesel siphoning anomaly inside tenant transaction
+          // Check for sudden fuel discrepancy anomaly inside tenant transaction
           const lastPing = await tx.plantTelematicsPing.findFirst({
             where: { device_id: device.id },
             orderBy: { ping_timestamp: 'desc' },
@@ -891,7 +958,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           if (lastPing) {
             const prevLiters = parseFloat(lastPing.calculated_fuel_liters.toString());
             const dropLiters = prevLiters - fuelLiters;
-            // If drop is >= 30 liters with engine stopped or idle, trigger siphoning flag!
+            // If drop is >= 30 liters with engine stopped or idle, trigger fuel discrepancy flag
             if (dropLiters >= 30 && (engineStatus === 'STOPPED' || engineStatus === 'IDLE')) {
               isSiphoning = true;
             }
@@ -919,7 +986,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             data: { last_heartbeat_at: new Date() },
           });
 
-          // If siphoning anomaly detected, automatically dispatch an emergency SiteAlertNotification
+          // If fuel discrepancy anomaly detected, automatically dispatch a SiteAlertNotification
           const alertProjectId = projectId || device.project_id || equipment?.project_id;
           if (isSiphoning && alertProjectId) {
             await tx.siteAlertNotification.create({
@@ -927,9 +994,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
                 tenant_id: device.tenant_id,
                 project_id: alertProjectId,
                 recipient_phone: '+254700000000',
-                recipient_name: 'Fleet Manager / Security',
+                recipient_name: 'Fleet Manager / Plant Engineer',
                 recipient_role: 'SITE_SUPERVISOR',
-                alert_type: 'DIESEL_SIPHONING_FLAG',
+                alert_type: 'DIESEL_DISCREPANCY_FLAG',
                 message_body: `TELEMATICS ALERT: Rapid fuel level drop of ${((lastPing ? parseFloat(lastPing.calculated_fuel_liters.toString()) : 0) - fuelLiters).toFixed(1)}L detected on ${equipmentName} (${equipmentCode}) while engine ${engineStatus}. Unreconciled fuel variance not matched to a logged issue.`,
                 delivery_channel: 'WHATSAPP',
                 delivery_status: 'SENT',
@@ -1189,7 +1256,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           const authHeader = request.headers['authorization'];
           const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
           const tokenProvided = data.deviceToken || bearerToken || (request.headers['x-device-token'] as string);
-          if (!tokenProvided || tokenProvided !== device.device_token) {
+          if (!tokenProvided || !timingSafeCompare(tokenProvided, device.device_token)) {
             return reply.status(401).send({
               statusCode: 401,
               error: 'Unauthorized',
@@ -1288,7 +1355,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
 
           // If sudden fuel drop anomaly detected, automatically create a PlantMaintenanceAlert!
           if (siphoningEval.isSiphoning) {
-            const alertCode = `ALT-SIPHON-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+            const alertCode = `ALT-FUEL-DISC-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
             const siphAlert = await tx.plantMaintenanceAlert.create({
               data: {
                 tenant_id: device.tenant_id,
@@ -1296,11 +1363,11 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
                 equipment_id: device.equipment_id,
                 device_id: device.id,
                 alert_code: alertCode,
-                alert_type: 'SIPHONING_THEFT',
+                alert_type: 'FUEL_DISCREPANCY',
                 severity: siphoningEval.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING',
                 title: `Rapid Fuel Drop / Discrepancy Flag: ${equipment.name}`,
                 description: siphoningEval.message,
-                recommended_action: 'Inspect fuel tank cap, drain valve, and immediate physical fuel level. Review site CCTV security logs.',
+                recommended_action: 'Inspect fuel tank cap, drain valve, and immediate physical fuel level. Reconcile with site fuel log.',
                 hours_meter_at_alert: hoursMeter,
                 status: 'ACTIVE',
               },
@@ -1314,9 +1381,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
                   tenant_id: device.tenant_id,
                   project_id: projectId,
                   recipient_phone: '+254700000000',
-                  recipient_name: 'Fleet Manager / Security',
+                  recipient_name: 'Fleet Manager / Plant Engineer',
                   recipient_role: 'SITE_SUPERVISOR',
-                  alert_type: 'DIESEL_SIPHONING_FLAG',
+                  alert_type: 'DIESEL_DISCREPANCY_FLAG',
                   message_body: `TELEMATICS ALERT: ${siphoningEval.message} on ${equipment.name} (${equipment.equipment_code}).`,
                   delivery_channel: 'WHATSAPP',
                   delivery_status: 'SENT',
@@ -1989,7 +2056,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           const originatorConversationId = `AGY-B2C-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
           const conversationId = `CONV-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
-          // Create B2C transaction record in PENDING status (C1 Hardened: no auto-completion)
+          // Maker-checker payout (audit C-02): record stays PENDING_APPROVAL
+          // until a DIFFERENT authorized user approves. No live Daraja call is
+          // made — dispatch is simulated until credentials exist.
           const disbursement = await tx.mpesaDisbursementTransaction.create({
             data: {
               tenant_id: tenantId,
@@ -2003,34 +2072,14 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               conversation_id: conversationId,
               originator_conversation_id: originatorConversationId,
               mpesa_transaction_id: null,
-              transaction_status: 'PENDING',
+              transaction_status: 'PENDING_APPROVAL',
               result_code: null,
-              result_desc: 'Disbursement initiated, awaiting Safaricom B2C callback.',
+              result_desc: 'Awaiting checker approval. Simulated dispatch — no live Daraja call configured.',
               transaction_completed_at: null,
               idempotency_key: idempotencyKey,
+              initiated_by: sub,
             },
           });
-
-          // Mark referenced business documents as PENDING_DISBURSEMENT
-          if (referenceId) {
-            if (disbursementType === 'CASUAL_LABOR_WAGE') {
-              await tx.laborMusterRoll.updateMany({
-                where: { id: referenceId, project_id: projectId },
-                data: {
-                  status: 'PENDING_DISBURSEMENT',
-                  disbursement_reference: conversationId,
-                },
-              });
-            } else if (disbursementType === 'SUBCONTRACTOR_RETENTION') {
-              await tx.subcontractorRetentionRelease.updateMany({
-                where: { id: referenceId, project_id: projectId },
-                data: {
-                  status: 'PENDING_DISBURSEMENT',
-                  disbursement_ref: conversationId,
-                },
-              });
-            }
-          }
 
           await recordAuditLog(tx, {
             tenantId,
@@ -2061,6 +2110,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             amount: toDecimal(amount).toFixed(2),
             completedAt: null,
             isIdempotentReplay: false,
+            simulated: true,
+            requiresApproval: true,
+            initiatedBy: sub,
           };
         });
 
@@ -2075,16 +2127,103 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
     }
   );
 
+  // 5.1b Maker-checker approval for B2C payouts (audit C-02)
+  const disbursementAction = async (
+    request: any,
+    reply: any,
+    action: 'APPROVE' | 'REJECT',
+  ) => {
+    const { tenantId, sub } = request.user;
+    const { projectId, id } = request.params as { projectId: string; id: string };
+    if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(id)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Disbursement not found' });
+    }
+    try {
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const d = await tx.mpesaDisbursementTransaction.findFirst({
+          where: { id, project_id: projectId },
+        });
+        if (!d) throw { status: 404, message: 'Disbursement not found' };
+        if (d.transaction_status !== 'PENDING_APPROVAL') {
+          throw { status: 409, message: `Disbursement is ${d.transaction_status}; only PENDING_APPROVAL can be ${action.toLowerCase()}d` };
+        }
+        if (d.initiated_by === sub) {
+          throw { status: 403, message: 'Maker-checker violation: the initiator cannot approve their own payout' };
+        }
+
+        const nextStatus = action === 'APPROVE' ? 'PENDING' : 'REJECTED';
+        const updated = await tx.mpesaDisbursementTransaction.update({
+          where: { id: d.id },
+          data: {
+            transaction_status: nextStatus,
+            approved_by: sub,
+            approved_at: new Date(),
+            result_desc:
+              action === 'APPROVE'
+                ? 'Approved by checker. Simulated dispatch — no live Daraja call configured; awaiting callback.'
+                : 'Rejected by checker.',
+          },
+        });
+
+        // On approval, mark referenced business documents as PENDING_DISBURSEMENT
+        if (action === 'APPROVE' && d.reference_id) {
+          if (d.disbursement_type === 'CASUAL_LABOR_WAGE') {
+            await tx.laborMusterRoll.updateMany({
+              where: { id: d.reference_id, project_id: projectId },
+              data: { status: 'PENDING_DISBURSEMENT', disbursement_reference: d.conversation_id },
+            });
+          } else if (d.disbursement_type === 'SUBCONTRACTOR_RETENTION') {
+            await tx.subcontractorRetentionRelease.updateMany({
+              where: { id: d.reference_id, project_id: projectId },
+              data: { status: 'PENDING_DISBURSEMENT', disbursement_ref: d.conversation_id },
+            });
+          }
+        }
+
+        await recordAuditLog(tx, {
+          tenantId,
+          projectId,
+          actorId: sub,
+          action: action === 'APPROVE' ? 'B2C_DISBURSEMENT_APPROVED' : 'B2C_DISBURSEMENT_REJECTED',
+          entityType: 'MpesaDisbursementTransaction',
+          entityId: d.id,
+          changes: { from: 'PENDING_APPROVAL', to: nextStatus, initiatedBy: d.initiated_by },
+        });
+
+        return { id: updated.id, status: updated.transaction_status, approvedBy: sub, simulated: true };
+      });
+      return reply.status(200).send({ data: result });
+    } catch (err: any) {
+      return reply.status(err.status || 500).send({
+        statusCode: err.status || 500,
+        error: err.status === 404 ? 'Not Found' : err.status === 409 ? 'Conflict' : 'Internal Server Error',
+        message: err.message,
+      });
+    }
+  };
+
+  server.post(
+    '/api/v1/projects/:projectId/b2c-disbursements/:id/approve',
+    { preHandler: [server.authenticate] },
+    (request, reply) => disbursementAction(request, reply, 'APPROVE'),
+  );
+
+  server.post(
+    '/api/v1/projects/:projectId/b2c-disbursements/:id/reject',
+    { preHandler: [server.authenticate] },
+    (request, reply) => disbursementAction(request, reply, 'REJECT'),
+  );
+
   // 5.2 Inbound Daraja B2C Callback Webhook (C1 Hardened)
   server.post(
     '/api/v1/billing/mpesa-b2c-callback',
     async (request, reply) => {
-      // 1. Mandatory Webhook Secret Authentication (C1)
+      // 1. Mandatory Webhook Secret Authentication with Constant-Time Comparison (C1 & 2a)
       const authHeader =
         (request.headers['x-mpesa-webhook-token'] as string) ||
         (request.headers['authorization'] as string)?.replace(/^Bearer\s+/i, '');
-      const expectedSecret = process.env.MPESA_WEBHOOK_SECRET || 'mjengo-daraja-webhook-secret-production';
-      if (!authHeader || authHeader !== expectedSecret) {
+      const expectedSecret = process.env.MPESA_WEBHOOK_SECRET;
+      if (!authHeader || !timingSafeCompare(authHeader, expectedSecret)) {
         return reply.status(401).send({
           statusCode: 401,
           error: 'Unauthorized',
@@ -2105,15 +2244,23 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
       const { ConversationID, OriginatorConversationID, ResultCode, ResultDesc, TransactionID } =
         parseResult.data;
 
-      // 2. Explicit Tenant Context Resolution (no unauthenticated multi-tenant scans) (C1)
-      const tenantId = (request.query as any)?.tenantId || (request.headers['x-tenant-id'] as string);
-      if (!tenantId || !UUID_REGEX.test(tenantId)) {
-        return reply.status(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Explicit valid tenantId is required in callback parameters',
+      // 2. Cryptographic / Database Bound Tenant Context Resolution (C1 & 2b)
+      const searchId = ConversationID || OriginatorConversationID;
+      const matchedRows = await prisma.$queryRaw<any[]>`
+        SELECT * FROM lookup_mpesa_b2c_transaction(${searchId}::text);
+      `;
+
+      if (matchedRows.length === 0) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: `Disbursement transaction ${searchId} not found in database`,
         });
       }
+
+      const existingTx = matchedRows[0];
+      // Bind tenantId strictly from the database record; ignore any untrusted client-supplied header or query parameter (C1 & 2b)
+      const tenantId = existingTx.tenant_id;
 
       try {
         const isSuccess = ResultCode === 0;
@@ -2125,22 +2272,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           });
         }
 
-        const match = await withTenantTx(prisma, tenantId, async (tx) => {
-          const txRecord = await tx.mpesaDisbursementTransaction.findFirst({
-            where: {
-              OR: [
-                { conversation_id: ConversationID },
-                { originator_conversation_id: OriginatorConversationID },
-              ],
-            },
-          });
-
-          if (!txRecord) {
-            return false;
-          }
-
+        await withTenantTx(prisma, tenantId, async (tx) => {
           await tx.mpesaDisbursementTransaction.update({
-            where: { id: txRecord.id },
+            where: { id: existingTx.id },
             data: {
               transaction_status: isSuccess ? 'COMPLETED' : 'FAILED',
               result_code: ResultCode,
@@ -2151,7 +2285,11 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           });
 
           // Cascade verified status to linked business records
-          if (txRecord.reference_id) {
+          const txRecord = await tx.mpesaDisbursementTransaction.findUnique({
+            where: { id: existingTx.id },
+          });
+
+          if (txRecord && txRecord.reference_id) {
             if (txRecord.disbursement_type === 'CASUAL_LABOR_WAGE') {
               await tx.laborMusterRoll.updateMany({
                 where: { id: txRecord.reference_id, project_id: txRecord.project_id },
@@ -2172,19 +2310,16 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               });
             }
           }
-
-          return true;
         });
 
-        if (!match) {
-          return reply.status(404).send({
-            statusCode: 404,
-            error: 'Not Found',
-            message: 'No matching B2C disbursement found for provided conversation ID in this tenant',
-          });
-        }
-
-        return reply.status(200).send({ ResultCode: 0, ResultDesc: 'Accepted' });
+        return reply.status(200).send({
+          ResultCode: 0,
+          ResultDesc: 'Accepted',
+          result: 'B2C callback processed successfully',
+          status: isSuccess ? 'COMPLETED' : 'FAILED',
+          transactionId: TransactionID,
+          tenantId,
+        });
       } catch (err: any) {
         return reply.status(500).send({
           statusCode: 500,
@@ -2230,6 +2365,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               totalDisbursements: disbursements.length,
               completedCount: disbursements.filter((d) => d.transaction_status === 'COMPLETED').length,
               failedCount: disbursements.filter((d) => d.transaction_status === 'FAILED').length,
+              pendingApprovalCount: disbursements.filter((d) => d.transaction_status === 'PENDING_APPROVAL').length,
               totalDisbursedKes: totalDisbursedKes.toFixed(2),
             },
             disbursements: disbursements.map((d) => ({
@@ -2241,6 +2377,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               amount: toDecimal(d.amount.toString()).toFixed(2),
               status: d.transaction_status,
               mpesaTransactionId: d.mpesa_transaction_id,
+              initiatedBy: d.initiated_by,
+              approvedBy: d.approved_by,
+              approvedAt: d.approved_at?.toISOString() ?? null,
               completedAt: d.transaction_completed_at?.toISOString(),
               createdAt: d.created_at.toISOString(),
             })),
@@ -4281,8 +4420,8 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             recipientPhone: updated.requested_by,
             alertType: varianceEval.alertRequired ? 'CRITICAL_INFLATION_ALERT' : 'VERIFIED_PROGRESS_DIGEST',
             messageBody: varianceEval.alertRequired
-              ? `MjengoLedger/Buildsasa URGENT ALERT: Ukaguzi ${updated.inspection_code} umegundua tofauti ya maendeleo (Claimed: ${reportedNum.toFixed(1)}%, Verified: ${verifiedNum.toFixed(1)}%, Variance: ${varianceEval.variancePct}%). Malipo yamesitishwa hadi ukaguzi urudiwe.`
-              : `MjengoLedger/Buildsasa UPDATE: Ukaguzi ${updated.inspection_code} umekamilika (Verified: ${verifiedNum.toFixed(1)}%). Hakuna hitilafu iliyopatikana.`,
+              ? `Platform URGENT ALERT: Ukaguzi ${updated.inspection_code} umegundua tofauti ya maendeleo (Claimed: ${reportedNum.toFixed(1)}%, Verified: ${verifiedNum.toFixed(1)}%, Variance: ${varianceEval.variancePct}%). Malipo yamesitishwa hadi ukaguzi urudiwe.`
+              : `Platform UPDATE: Ukaguzi ${updated.inspection_code} umekamilika (Verified: ${verifiedNum.toFixed(1)}%). Hakuna hitilafu iliyopatikana.`,
             pdfReportUrl: `/api/v1/projects/${projectId}/reports/independent-inspections/${updated.id}`,
             dispatchedAt: new Date().toISOString(),
           };
@@ -4348,8 +4487,8 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           const isCritical = variance <= -10.0;
 
           const digestMessage = isCritical
-            ? `MjengoLedger BDS-ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
-            : `MjengoLedger BDS-UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
+            ? `Site Safi ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
+            : `Site Safi UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
 
           await recordAuditLog(tx, {
             tenantId,
@@ -4373,14 +4512,20 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             inspectionCode: inspection.inspection_code,
             channel,
             recipientPhone: recipient,
-            deliveryStatus: 'DELIVERED',
             message: digestMessage,
             pdfReportUrl: `/api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`,
-            timestamp: new Date().toISOString(),
           };
         });
 
-        return reply.status(200).send(result);
+        // Dispatch via configured provider; SIMULATED when unconfigured.
+        const sendResult = await dispatchNotification({
+          channel: channel === 'SMS' ? 'SMS' : 'WHATSAPP',
+          to: normalizeKePhone(result.recipientPhone || ''),
+          body: result.message,
+        });
+        const deliveryStatus = sendResult.simulated ? 'SIMULATED' : sendResult.ok ? 'DELIVERED' : 'FAILED';
+
+        return reply.status(200).send({ ...result, deliveryStatus, provider: sendResult.provider, timestamp: new Date().toISOString() });
       } catch (err: any) {
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,

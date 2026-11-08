@@ -6,6 +6,10 @@ export interface TokenPayload {
   fullName: string;
   tenantId: string;
   role: string;
+  /** 'access' tokens may call APIs; 'refresh' tokens only /auth/refresh. */
+  typ?: 'access' | 'refresh';
+  /** Refresh-token id — tracked server-side for rotation/reuse detection. */
+  jti?: string;
 }
 
 declare module '@fastify/jwt' {

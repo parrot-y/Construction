@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface WebhookLogItem {
   id: string;
@@ -18,7 +18,7 @@ export interface SiteAlertItem {
   recipientPhone: string;
   recipientName: string;
   recipientRole: string;
-  alertType: 'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN';
+  alertType: 'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_DISCREPANCY_FLAG' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN';
   messageBody: string;
   deliveryChannel: 'WHATSAPP' | 'SMS' | 'IN_APP';
   deliveryStatus: 'QUEUED' | 'SENT' | 'DELIVERED' | 'FAILED';
@@ -37,6 +37,7 @@ interface WhatsAppSiteWebhookViewProps {
 }
 
 export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = ({
+  projectId,
   projectName = 'Riverside Commercial Plaza',
   webhookLogs: initialLogs,
   siteAlerts: initialAlerts,
@@ -57,8 +58,46 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
   const [recipientName, setRecipientName] = useState('Eng. David Mwangi');
   const [recipientPhone, setRecipientPhone] = useState('+254722889900');
   const [recipientRole, setRecipientRole] = useState('PROJECT_MANAGER');
-  const [alertType, setAlertType] = useState<'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN'>('CRITICAL_SAFETY_STOP_WORK');
+  const [alertType, setAlertType] = useState<
+    'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_DISCREPANCY_FLAG' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN'
+  >('CRITICAL_SAFETY_STOP_WORK');
   const [alertMessage, setAlertMessage] = useState('URGENT: Scaffold edge protection failure observed on North Elevation. Stop work ordered.');
+
+  const isLive = !!projectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive || !projectId) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/site-alerts`, { credentials: 'include' });
+      if (res.ok) {
+        const aj = await res.json();
+        setAlerts((aj.alerts || []) as SiteAlertItem[]);
+      }
+    } catch { /* keep demo */ }
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/site-webhook-logs`, { credentials: 'include' });
+      if (res.ok) {
+        const lj = await res.json();
+        setLogs(((lj.logs || []) as any[]).map((l) => ({
+          id: l.id,
+          senderPhone: l.senderPhone || '***',
+          senderName: l.senderName || 'Unknown',
+          channel: l.channel === 'SMS' ? 'SMS' : 'WHATSAPP',
+          rawMessage: l.rawMessage || '',
+          detectedCommand: l.detectedCommand || 'UNKNOWN',
+          processedStatus: l.processedStatus || 'PROCESSED',
+          replyMessage: l.replyMessage || '',
+          createdAt: l.createdAt || '',
+        })));
+      } else {
+        setLogs([]);
+      }
+    } catch { setLogs([]); }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   // Default logs state
   const [logs, setLogs] = useState<WebhookLogItem[]>(
@@ -72,7 +111,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         detectedCommand: 'DIARY',
         processedStatus: 'PROCESSED',
         extractedData: { masons: 14, casuals: 22 },
-        replyMessage: 'MjengoLedger: Asante Foreman Kiprono. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo. (Masons: 14, Casuals: 22).',
+        replyMessage: 'Platform: Asante Foreman Kiprono. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo. (Masons: 14, Casuals: 22).',
         createdAt: '2026-11-04T07:45:00Z',
       },
       {
@@ -84,7 +123,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         detectedCommand: 'DELIVERY',
         processedStatus: 'PROCESSED',
         extractedData: { quantity: '200', summary: '200 bags Bamburi Nguvu 42.5R' },
-        replyMessage: 'MjengoLedger: Delivery note imethibitishwa: "200 bags Bamburi Nguvu 42.5R". Storekeeper ataangalia mzigo kabla ya kutoa GRN.',
+        replyMessage: 'Platform: Delivery note imethibitishwa: "200 bags Bamburi Nguvu 42.5R". Storekeeper ataangalia mzigo kabla ya kutoa GRN.',
         createdAt: '2026-11-04T08:30:00Z',
       },
       {
@@ -96,7 +135,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         detectedCommand: 'INCIDENT',
         processedStatus: 'PROCESSED',
         extractedData: { isSafetyCritical: true },
-        replyMessage: 'MjengoLedger SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: CRITICAL STOP-WORK.',
+        replyMessage: 'Platform SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: CRITICAL STOP-WORK.',
         createdAt: '2026-11-04T09:15:00Z',
       },
     ]
@@ -134,22 +173,25 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 
   const handleSimulateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Live webhook ingest requires an HMAC-signed site-ops token only the API
+    // backend can mint — simulation is demo-mode only.
+    if (isLive) return;
     const upper = rawMessage.toUpperCase();
     let cmd: any = 'UNKNOWN';
-    let reply = 'MjengoLedger: Message processed.';
+    let reply = 'Platform: Message processed.';
 
     if (upper.includes('#DIARY')) {
       cmd = 'DIARY';
-      reply = `MjengoLedger: Asante ${senderName}. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo.`;
+      reply = `Platform: Asante ${senderName}. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo.`;
     } else if (upper.includes('#DELIVERY')) {
       cmd = 'DELIVERY';
-      reply = 'MjengoLedger: Delivery note imethibitishwa na kuhifadhiwa.';
+      reply = 'Platform: Delivery note imethibitishwa na kuhifadhiwa.';
     } else if (upper.includes('#INCIDENT')) {
       cmd = 'INCIDENT';
-      reply = 'MjengoLedger SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer mara moja!';
+      reply = 'Platform SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer mara moja!';
     } else if (upper.includes('#FUEL')) {
       cmd = 'PLANT_FUEL';
-      reply = 'MjengoLedger Fuel Audit: Mafuta yamenakiliwa kwa mfumo.';
+      reply = 'Platform Fuel Audit: Mafuta yamenakiliwa kwa mfumo.';
     }
 
     const newLog: WebhookLogItem = {
@@ -186,12 +228,37 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
       createdAt: new Date().toISOString(),
     };
 
+    if (isLive && projectId) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/site-alerts`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipientPhone,
+              recipientName,
+              recipientRole,
+              alertType,
+              messageBody: alertMessage,
+              deliveryChannel: 'WHATSAPP',
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowAlertModal(false);
+      return;
+    }
+
     if (onDispatchAlert) {
       await onDispatchAlert(newAlert);
     }
     setAlerts([newAlert, ...alerts]);
     setShowAlertModal(false);
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 text-center text-sm text-slate-500">Loading WhatsApp ops data...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -212,7 +279,9 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowSimModal(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
+              disabled={isLive}
+              title={isLive ? 'Inbound webhook simulation requires a signed site-ops token (demo mode only)' : undefined}
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
             >
               <span>📲</span>
               <span>Simulate Inbound WhatsApp</span>
@@ -536,7 +605,8 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                   >
                     <option value="CRITICAL_SAFETY_STOP_WORK">CRITICAL STOP-WORK</option>
                     <option value="STRUCTURAL_CONCRETE_FAIL">CONCRETE CUBE FAILURE</option>
-                    <option value="DIESEL_SIPHONING_FLAG">DIESEL SIPHONING ALERT</option>
+                    <option value="DIESEL_DISCREPANCY_FLAG">DIESEL DISCREPANCY ALERT</option>
+                    <option value="DIESEL_SIPHONING_FLAG">DIESEL DISCREPANCY (LEGACY FLAG)</option>
                     <option value="BUDGET_OVERRUN">BUDGET OVERRUN ALERT</option>
                   </select>
                 </div>

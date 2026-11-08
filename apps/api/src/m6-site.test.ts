@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', () => {
   const server = buildServer();
@@ -120,6 +121,7 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
       throw new Error('Project A not found in test seed');
     }
     projectAId = projA.id;
+      await enrollAllTenantUsers(projectAId);
 
     // Retrieve or seed BOQ item
     const existingItem = await withTenantTx(prisma, tenantAId, async (tx) => {

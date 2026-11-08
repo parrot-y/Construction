@@ -2,14 +2,14 @@
 
 **Status:** Completed & Self-Verified  
 **Date:** 2026-11-03  
-**Product:** MjengoLedger  
+**Product:** Platform  
 **Test Suite Status:** 162/162 passing tests across monorepo (100% green builds, 0 type errors)
 
 ---
 
 ## 1. Executive Summary
 
-Milestone M10 delivers the production report generation pipeline, security & tenancy hardening, and automated disaster recovery verification for MjengoLedger:
+Milestone M10 delivers the production report generation pipeline, security & tenancy hardening, and automated disaster recovery verification for Platform:
 
 1. **Server-Side PDF Report Generation Engine (ADR-002)**:
    - Built on `@react-pdf/renderer` in a pure Node.js flexbox layout pipeline.

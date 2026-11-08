@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Lifecycle Extensions Suite: 5 Domains & Strict RLS Isolation', () => {
   const server = buildServer();
@@ -131,7 +132,9 @@ describe('Lifecycle Extensions Suite: 5 Domains & Strict RLS Isolation', () => {
         },
       });
       projectAId = proj.id;
+
     });
+        await enrollAllTenantUsers(projectAId);
   });
 
   // ===========================================================================

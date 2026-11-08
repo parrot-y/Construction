@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import MilestoneTimeline, { TimelineItem } from './MilestoneTimeline';
@@ -10,6 +10,11 @@ import PracticalCompletionCard from './PracticalCompletionCard';
 import SnaggingListView from './SnaggingListView';
 import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
+import ClientQuotesView from './ClientQuotesView';
+import AnnouncementsView from './AnnouncementsView';
+import InboxView from './InboxView';
+import ClientRequestView from './ClientRequestView';
+import ClientAccountView from './ClientAccountView';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -40,35 +45,113 @@ interface ClientDashboardProps {
   timeline?: TimelineItem[];
 }
 
+const DEFAULT_PROJECT = {
+  id: 'project-rcp-2026',
+  name: 'Riverside Commercial Plaza',
+  code: 'RCP-2026',
+  location: 'Riverside Drive, Nairobi',
+  ncaRegistration: 'NCA-PRJ-2026-0891',
+  startDate: '2026-01-15',
+  expectedCompletionDate: '2026-12-15',
+};
+const DEFAULT_FINANCIALS = {
+  originalAgreedBudget: '45000000.00',
+  approvedVariationsTotal: '900000.00',
+  currentApprovedBudget: '45900000.00',
+  totalSpentToDate: '4500000.00',
+  remainingBalance: '41400000.00',
+  budgetUsedPercentage: 9.8,
+};
+const DEFAULT_PROGRESS = {
+  physicalProgressPercentage: 12.0,
+  varianceDelta: -2.2,
+  healthStatus: 'ON_TRACK' as const,
+  healthNotice: 'Expenditure is aligned with recorded physical progress.',
+};
+
 export default function ClientDashboard({
   session,
-  projectData = {
-    id: 'project-rcp-2026',
-    name: 'Riverside Commercial Plaza',
-    code: 'RCP-2026',
-    location: 'Riverside Drive, Nairobi',
-    ncaRegistration: 'NCA-PRJ-2026-0891',
-    startDate: '2026-01-15',
-    expectedCompletionDate: '2026-12-15',
-  },
-  financials = {
-    originalAgreedBudget: '45000000.00',
-    approvedVariationsTotal: '900000.00',
-    currentApprovedBudget: '45900000.00',
-    totalSpentToDate: '4500000.00',
-    remainingBalance: '41400000.00',
-    budgetUsedPercentage: 9.8,
-  },
-  progress = {
-    physicalProgressPercentage: 12.0,
-    varianceDelta: -2.2,
-    healthStatus: 'ON_TRACK',
-    healthNotice: 'Expenditure is aligned with recorded physical progress.',
-  },
-  photos,
-  timeline,
+  projectData: projectDataProp,
+  financials: financialsProp,
+  progress: progressProp,
+  photos: photosProp,
+  timeline: timelineProp,
 }: ClientDashboardProps): React.JSX.Element {
   const { user } = session;
+
+  const [projectData, setProjectData] = useState(projectDataProp ?? DEFAULT_PROJECT);
+  const [view, setView] = useState<'overview' | 'sites' | 'messages' | 'quotes' | 'reporting' | 'request' | 'account'>('overview');
+  const [sites, setSites] = useState<{ id: string; name: string; code?: string; status?: string; location?: string }[]>([]);
+  const [financials, setFinancials] = useState(financialsProp ?? DEFAULT_FINANCIALS);
+  const [progress, setProgress] = useState(progressProp ?? DEFAULT_PROGRESS);
+  const [photos, setPhotos] = useState(photosProp);
+  const [timeline, setTimeline] = useState(timelineProp);
+
+  // Hydrate from the live client-portal endpoint (real project data).
+  const loadProject = async (pid: string) => {
+      try {
+        const res = await fetch(`/api/v1/projects/${pid}/client-portal`, { credentials: 'include' });
+        if (!res.ok) return;
+        const json = await res.json();
+        const d = json.data || json;
+        if (!d?.project) return;
+        setProjectData({
+          id: d.project.id,
+          name: d.project.name,
+          code: d.project.code,
+          location: d.project.location || '',
+          ncaRegistration: d.project.nca_registration_no || '',
+          startDate: d.project.start_date || '',
+          expectedCompletionDate: d.project.expected_completion_date || '',
+        });
+        if (d.financials) setFinancials({
+          originalAgreedBudget: d.financials.original_agreed_budget,
+          approvedVariationsTotal: d.financials.approved_variations_total,
+          currentApprovedBudget: d.financials.current_approved_budget,
+          totalSpentToDate: d.financials.total_spent_to_date,
+          remainingBalance: d.financials.remaining_balance,
+          budgetUsedPercentage: d.financials.budget_used_percentage,
+        });
+        if (d.progress) setProgress({
+          physicalProgressPercentage: d.progress.physical_progress_percentage,
+          varianceDelta: d.progress.variance_delta,
+          healthStatus: d.progress.health_status,
+          healthNotice: d.progress.health_notice,
+        });
+        if (d.photo_evidence) setPhotos(d.photo_evidence.map((p: any) => ({
+          id: p.id,
+          caption: p.caption || 'Site photo evidence',
+          photo_url: p.photo_url || (p.storage_key ? `/uploads/${p.storage_key}` : ''),
+          latitude: p.latitude ?? null,
+          longitude: p.longitude ?? null,
+          captured_at: p.captured_at || p.taken_at || '',
+          weather: p.weather,
+          recorded_by_name: p.recorded_by_name,
+        })));
+        if (d.timeline) setTimeline(d.timeline.map((t: any) => ({
+          id: t.id, percentage: t.percentage, notes: t.notes,
+          recordedAt: t.recorded_at, itemDescription: t.item_description,
+          sectionCode: t.section_code,
+        })));
+      } catch { /* keep demo defaults */ }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const plist = await fetch('/api/v1/projects', { credentials: 'include' });
+        if (!plist.ok) return;
+        const pj = await plist.json();
+        const list = pj.data || [];
+        if (!cancelled) setSites(list.map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status, location: p.location })));
+        const first = list[0];
+        if (!first?.id || cancelled) return;
+        await loadProject(first.id);
+      } catch { /* keep demo defaults */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   type CurrencyCode = 'KES' | 'USD' | 'GBP' | 'EUR' | 'AED';
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('KES');
@@ -132,6 +215,45 @@ export default function ClientDashboard({
     : `${progress.varianceDelta.toFixed(1)}%`;
 
   return (
+    <div className="space-y-4">
+      <nav className="flex gap-1.5 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 w-fit" aria-label="Client portal sections">
+        {([['overview', 'Home'], ['sites', 'My sites'], ['messages', 'Messages'], ['quotes', 'Quotes & proposals'], ['reporting', 'Site reporting'], ['request', 'Request a project'], ['account', 'Account']] as const).map(([v, label]) => (
+          <button key={v} onClick={() => setView(v)}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition ${view === v ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
+            {label}
+          </button>
+        ))}
+      </nav>
+      {view === 'sites' ? (
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">My sites</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Projects shared with you — progress, photos and reports.</p>
+          </div>
+          {sites.length === 0 && <p className="text-xs text-slate-400">No sites shared with you yet.</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {sites.map((st) => (
+              <button key={st.id}
+                onClick={() => { void loadProject(st.id); setView('overview'); }}
+                className={`text-left p-4 rounded-xl border transition ${projectData.id === st.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-emerald-400'}`}>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{st.name}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{st.code}{st.location ? ` · ${st.location}` : ''}</p>
+                {st.status && <span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{st.status}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : view === 'messages' ? (
+        <InboxView currentUserId={user.id} />
+      ) : view === 'quotes' ? (
+        <ClientQuotesView />
+      ) : view === 'reporting' ? (
+        <IndependentSiteReportView projectId={projectData.id} projectName={projectData.name} userRole="CLIENT" />
+      ) : view === 'request' ? (
+        <ClientRequestView />
+      ) : view === 'account' ? (
+        <ClientAccountView session={session} />
+      ) : (
     <div className="space-y-6">
       {/* Header Banner */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -564,19 +686,26 @@ export default function ClientDashboard({
         canVerify={true}
       />
 
-      {/* Buildsasa Diaspora Independent Site Inspection Reports (Milestone M33) */}
+      {/* Platform Diaspora Independent Site Inspection Reports (Milestone M33) */}
       <IndependentSiteReportView
         projectId={projectData.id}
         projectName={projectData.name}
         userRole="CLIENT"
       />
 
-      {/* Buildsasa Contractor Tender Board & Bidding Interface (Milestone M33) */}
+      {/* Platform Contractor Tender Board & Bidding Interface (Milestone M33) */}
       <ContractorTenderBoardView
         projectId={projectData.id}
         projectName={projectData.name}
         userRole="CLIENT"
       />
+
+      {/* Quotes & Proposals addressed to this client (Gate-4 S1) */}
+      <ClientQuotesView />
+
+      <AnnouncementsView canManage={false} />
+    </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toCurrencyString } from '@construction/money';
 import { AuthSession } from '../types/auth';
 import BoqImportModal from './BoqImportModal';
@@ -10,6 +10,18 @@ import VariationManagementView from './VariationManagementView';
 import RfiManagementView from './RfiManagementView';
 import QualityControlView from './QualityControlView';
 import PracticalCompletionCard from './PracticalCompletionCard';
+import CertificatesCloseoutView from './CertificatesCloseoutView';
+import CommitmentsView from './CommitmentsView';
+import ProjectOnboardingView from './ProjectOnboardingView';
+import AnnouncementsView from './AnnouncementsView';
+import InboxView from './InboxView';
+import ObservationsView from './ObservationsView';
+import CrewsView from './CrewsView';
+import CompanyDocumentsView from './CompanyDocumentsView';
+import CorrespondenceView from './CorrespondenceView';
+import ScheduledReportsView from './ScheduledReportsView';
+import AttendanceView from './AttendanceView';
+import ChecklistsView from './ChecklistsView';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
 import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import SiteInventoryManagementView from './SiteInventoryManagementView';
@@ -39,6 +51,8 @@ import { AsphaltPavementView } from './AsphaltPavementView';
 import { TopographicSurveyView } from './TopographicSurveyView';
 import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
+import QuotesManagementView from './QuotesManagementView';
+import InvoicingView from './InvoicingView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -52,11 +66,75 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders'>('all');
+  const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [pid, setPid] = useState('project-rcp-2026');
+  useEffect(() => {
+    fetch('/api/v1/projects', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((j) => {
+        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code }));
+        setProjects(list);
+        if (list.length) setPid(list[0].id);
+      })
+      .catch(() => setProjects([]));
+  }, []);
+  const [tabGroup, setTabGroup] = useState<'all' | 'core' | 'field' | 'money' | 'collab'>('core');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox' | 'observations' | 'crews' | 'documents' | 'correspondence' | 'scheduled' | 'attendance' | 'checklists'>('all');
 
   const handleImportSuccess = (boq: any) => {
     setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
   };
+
+  const MODULE_TABS: { id: string; label: string; group: 'all' | 'core' | 'field' | 'money' | 'collab' }[] = [
+    { id: 'all', label: 'All Modules', group: 'all' },
+    { id: 'schedule', label: '📅 Schedule & Gantt', group: 'core' },
+    { id: 'store', label: '📦 Site Inventory', group: 'core' },
+    { id: 'subcontractors', label: '🤝 Subcontractors', group: 'core' },
+    { id: 'drawings', label: '📐 Drawings Vault', group: 'core' },
+    { id: 'safety', label: '🦺 HSE & Safety', group: 'core' },
+    { id: 'cost', label: '💰 Costs & BOQ', group: 'core' },
+    { id: 'variations', label: '📑 Variations', group: 'core' },
+    { id: 'rfis', label: '📋 RFI Register', group: 'core' },
+    { id: 'quality', label: '🧪 Quality & Cubes', group: 'core' },
+    { id: 'delays', label: '🌧️ Weather & EOT', group: 'core' },
+    { id: 'closeout', label: '🏆 Closeout & Retention', group: 'core' },
+    { id: 'project', label: '🏗️ Project', group: 'core' },
+    { id: 'portals', label: '🌐 Stakeholder Portals', group: 'core' },
+    { id: 'tenders', label: '📑 Tender Board', group: 'core' },
+    { id: 'equipment', label: '🚜 Plant & Machinery', group: 'field' },
+    { id: 'muster', label: '👷 Labor Muster Roll', group: 'field' },
+    { id: 'safetyaudit', label: '🦺 Field Safety Scorecard', group: 'field' },
+    { id: 'whatsapp', label: '💬 WhatsApp Site Bot', group: 'field' },
+    { id: 'geofence', label: '📍 Site Geofencing', group: 'field' },
+    { id: 'telematics', label: '🛰️ Plant Telematics', group: 'field' },
+    { id: 'rebar', label: '🏗️ Rebar BBS Takeoff', group: 'field' },
+    { id: 'rmc', label: '🚛 RMC Transit & Slump', group: 'field' },
+    { id: 'steel', label: '⚙️ Structural Steel Takeoff', group: 'field' },
+    { id: 'soil', label: '⛰️ Geotechnical Soil QA', group: 'field' },
+    { id: 'asphalt', label: '🛣️ Asphalt Pavement QA', group: 'field' },
+    { id: 'survey', label: '📐 Topographic Survey & Earthworks', group: 'field' },
+    { id: 'inspections', label: '🕵️ Site Inspections', group: 'field' },
+    { id: 'attendance', label: '🕐 Attendance', group: 'field' },
+    { id: 'checklists', label: '☑️ Checklists', group: 'field' },
+    { id: 'crews', label: '👷 Crews', group: 'field' },
+    { id: 'observations', label: '🔍 Observations', group: 'field' },
+    { id: 'taxes', label: '🏛️ KRA WHT / WHVAT', group: 'money' },
+    { id: 'requisitions', label: '📦 Material Requisitions', group: 'money' },
+    { id: 'wastage', label: '⚖️ Wastage Variance', group: 'money' },
+    { id: 'cashflow', label: '📈 Cash Flow & S-Curve', group: 'money' },
+    { id: 'subvaluations', label: '📑 Subcontractor Valuations', group: 'money' },
+    { id: 'disbursements', label: '💸 M-Pesa B2C Payouts', group: 'money' },
+    { id: 'etims', label: '🧾 KRA e-TIMS Invoices', group: 'money' },
+    { id: 'retentionbonds', label: '🏦 Retention & Bonds', group: 'money' },
+    { id: 'quotes', label: '💼 Quotes & Cash', group: 'money' },
+    { id: 'invoices', label: '🧾 Invoicing', group: 'money' },
+    { id: 'commitments', label: '🤝 Commitments', group: 'money' },
+    { id: 'announcements', label: '📣 Announcements', group: 'collab' },
+    { id: 'inbox', label: '✉️ Inbox', group: 'collab' },
+    { id: 'documents', label: '📁 Documents', group: 'collab' },
+    { id: 'correspondence', label: '✉️ Correspondence', group: 'collab' },
+    { id: 'scheduled', label: '📅 Scheduled Reports', group: 'collab' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -72,8 +150,14 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {projects.length > 1 && (
+            <select value={pid} onChange={(e) => setPid(e.target.value)}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs max-w-[200px]">
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+            </select>
+          )}
           <a
-            href="/api/v1/projects/project-rcp-2026/reports/ipc"
+            href={`/api/v1/projects/${pid}/reports/ipc`}
             download
             data-testid="download-ipc-btn"
             className="px-3.5 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
@@ -85,7 +169,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
             <span>Download IPC (PDF)</span>
           </a>
           <a
-            href="/api/v1/projects/project-rcp-2026/reports/summary"
+            href={`/api/v1/projects/${pid}/reports/summary`}
             download
             data-testid="download-summary-btn"
             className="px-3.5 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
@@ -108,6 +192,15 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           >
             📊 Import Excel BOQ
           </button>
+          <a
+            href={`/api/v1/projects/${pid}/boq/export`}
+            download
+            data-testid="export-boq-btn"
+            className="px-3.5 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg shadow-sm transition flex items-center gap-1.5"
+            title="Download active BOQ as Excel workbook"
+          >
+            ⬇ Export BOQ
+          </a>
           <span className="hidden sm:inline-block px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg">
             BORAQS / EASMM
           </span>
@@ -129,56 +222,43 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       )}
 
       {/* Navigation Module Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
-        {[
-          { id: 'all', label: 'All Modules' },
-          { id: 'schedule', label: '📅 Schedule & Gantt' },
-          { id: 'store', label: '📦 Site Inventory' },
-          { id: 'subcontractors', label: '🤝 Subcontractors' },
-          { id: 'drawings', label: '📐 Drawings Vault' },
-          { id: 'safety', label: '🦺 HSE & Safety' },
-          { id: 'cost', label: '💰 Costs & BOQ' },
-          { id: 'variations', label: '📑 Variations' },
-          { id: 'rfis', label: '📋 RFI Register' },
-          { id: 'quality', label: '🧪 Quality & Cubes' },
-          { id: 'delays', label: '🌧️ Weather & EOT' },
-          { id: 'taxes', label: '🏛️ KRA WHT / WHVAT' },
-          { id: 'requisitions', label: '📦 Material Requisitions' },
-          { id: 'wastage', label: '⚖️ Wastage Variance' },
-          { id: 'cashflow', label: '📈 Cash Flow & S-Curve' },
-          { id: 'subvaluations', label: '📑 Subcontractor Valuations' },
-          { id: 'equipment', label: '🚜 Plant & Machinery' },
-          { id: 'muster', label: '👷 Labor Muster Roll' },
-          { id: 'safetyaudit', label: '🦺 Field Safety Scorecard' },
-          { id: 'etims', label: '🧾 KRA e-TIMS Invoices' },
-          { id: 'whatsapp', label: '💬 WhatsApp Site Bot' },
-          { id: 'retentionbonds', label: '🏦 Retention & Bonds' },
-          { id: 'geofence', label: '📍 Site Geofencing' },
-          { id: 'telematics', label: '🛰️ Plant Telematics' },
-          { id: 'rebar', label: '🏗️ Rebar BBS Takeoff' },
-          { id: 'disbursements', label: '💸 M-Pesa B2C Payouts' },
-          { id: 'rmc', label: '🚛 RMC Transit & Slump' },
-          { id: 'steel', label: '⚙️ Structural Steel Takeoff' },
-          { id: 'soil', label: '⛰️ Geotechnical Soil QA' },
-          { id: 'asphalt', label: '🛣️ Asphalt Pavement QA' },
-          { id: 'survey', label: '📐 Topographic Survey & Earthworks' },
-          { id: 'inspections', label: '🕵️ Site Inspections' },
-          { id: 'tenders', label: '📑 Tender Board' },
-          { id: 'closeout', label: '🏆 Closeout & Retention' },
-          { id: 'portals', label: '🌐 Stakeholder Portals' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              activeTab === tab.id
-                ? 'bg-purple-700 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="space-y-2">
+        <div className="flex gap-1.5 overflow-x-auto bg-white p-1 rounded-xl border border-slate-200 shadow-xs w-fit max-w-full">
+          {([
+            { id: 'all', label: 'All Modules' },
+            { id: 'core', label: 'Projects & Delivery' },
+            { id: 'field', label: 'Site & Field' },
+            { id: 'money', label: 'Money & Tax' },
+            { id: 'collab', label: 'Collaboration' },
+          ] as const).map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setTabGroup(g.id)}
+              className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition text-xs font-semibold ${
+                tabGroup === g.id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
+          {MODULE_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id as any); if (tab.group !== 'all') setTabGroup(tab.group); }}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                tabGroup !== 'all' && tab.id !== 'all' && tab.group !== tabGroup ? 'hidden' : ''
+              } ${
+                activeTab === tab.id
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Metrics Row */}
@@ -322,7 +402,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
 
       {/* Append-Only Costs & Approvals Ledger */}
       <CostManagementView
-        projectId="project-rcp-2026"
+        projectId={pid}
         canApprove={true}
         canCreate={true}
       />
@@ -330,18 +410,18 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Variations & Scope Adjustments Workflow (Milestone M8) */}
       {(activeTab === 'all' || activeTab === 'variations') && (
         <VariationManagementView
-          projectId="project-rcp-2026"
+          projectId={pid}
           userRole="PM_QS"
           canRequest={true}
           canReview={true}
-          canApprove={false}
+          canApprove={true}
         />
       )}
 
       {/* RFI Technical Clarifications Register */}
       {(activeTab === 'all' || activeTab === 'rfis') && (
         <RfiManagementView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           canCreate={true}
         />
@@ -350,10 +430,15 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Pre-Pour Quality Hold Points & Concrete Cube Tests */}
       {(activeTab === 'all' || activeTab === 'quality') && (
         <QualityControlView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           canApprove={true}
         />
+      )}
+
+      {/* Interim Payment Certificates & Closeout Stage Machine (Gate-4 S4 / ADR-008) */}
+      {(activeTab === 'all' || activeTab === 'closeout') && (
+        <CertificatesCloseoutView projectId={pid} canManage={true} />
       )}
 
       {/* Practical Completion & Retention Release Card */}
@@ -367,7 +452,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* External Stakeholder Portals Manager (Zero Seat Tax) */}
       {(activeTab === 'all' || activeTab === 'portals') && (
         <PortalAccessLinkManager
-          projectId="project-rcp-2026"
+          projectId={pid}
           onPreviewPortal={onPreviewPortal}
         />
       )}
@@ -375,7 +460,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Interactive Project Schedule & Gantt View */}
       {(activeTab === 'all' || activeTab === 'schedule') && (
         <ProjectScheduleGanttView
-          projectId="project-rcp-2026"
+          projectId={pid}
           canEdit={true}
         />
       )}
@@ -383,7 +468,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Site Store Materials & Inventory View */}
       {(activeTab === 'all' || activeTab === 'store') && (
         <SiteInventoryManagementView
-          projectId="project-rcp-2026"
+          projectId={pid}
           canManage={true}
         />
       )}
@@ -391,7 +476,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Subcontractor Work Packages & Directory */}
       {(activeTab === 'all' || activeTab === 'subcontractors') && (
         <SubcontractorManagementView
-          projectId="project-rcp-2026"
+          projectId={pid}
           canAward={true}
         />
       )}
@@ -399,7 +484,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Project Drawing & Regulatory Document Vault */}
       {(activeTab === 'all' || activeTab === 'drawings') && (
         <ProjectDocumentVaultView
-          projectId="project-rcp-2026"
+          projectId={pid}
           canUpload={true}
         />
       )}
@@ -407,7 +492,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Safety & HSE Incident Register (OSHA 2007) */}
       {(activeTab === 'all' || activeTab === 'safety') && (
         <SafetyIncidentLogView
-          projectId="project-rcp-2026"
+          projectId={pid}
           canLog={true}
           canInvestigate={true}
         />
@@ -416,7 +501,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Weather Delays & Extension of Time (JBC Clause 25/32) */}
       {(activeTab === 'all' || activeTab === 'delays') && (
         <WeatherDelayClaimsView
-          projectId="project-rcp-2026"
+          projectId={pid}
           canClaim={true}
           canReview={true}
         />
@@ -425,15 +510,15 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* KRA Statutory Withholding Tax (Cap 470) & WHVAT Certificates */}
       {(activeTab === 'all' || activeTab === 'taxes') && (
         <StatutoryTaxManagementView
-          projectId="project-rcp-2026"
+          projectId={pid}
           canIssue={true}
         />
       )}
 
-      {/* Material Purchase Requisitions & Orders (Buildsasa Benchmark) */}
+      {/* Material Purchase Requisitions & Orders (Platform Benchmark) */}
       {(activeTab === 'all' || activeTab === 'requisitions') && (
         <MaterialRequisitionView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
@@ -442,7 +527,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Material Wastage & Theoretical Loss Engine */}
       {(activeTab === 'all' || activeTab === 'wastage') && (
         <MaterialWastageVarianceCard
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -450,7 +535,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Cash Flow Forecasting & S-Curve */}
       {(activeTab === 'all' || activeTab === 'cashflow') && (
         <ProjectSCurveCashFlowCard
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -458,7 +543,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Subcontractor Valuations & Back-to-Back Retention Ledger */}
       {(activeTab === 'all' || activeTab === 'subvaluations') && (
         <SubcontractorValuationView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
@@ -467,7 +552,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Plant, Machinery & Fuel Siphoning Audit (Milestone M16) */}
       {(activeTab === 'all' || activeTab === 'equipment') && (
         <PlantEquipmentView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
@@ -476,7 +561,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
       {(activeTab === 'all' || activeTab === 'muster') && (
         <LaborMusterRollView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
@@ -485,7 +570,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
       {(activeTab === 'all' || activeTab === 'safetyaudit') && (
         <SafetyAuditScorecardView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
@@ -494,7 +579,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* KRA e-TIMS Electronic Tax Invoices & TCC Compliance (Milestone M19) */}
       {(activeTab === 'all' || activeTab === 'etims') && (
         <ETimsTaxComplianceView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
@@ -503,7 +588,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* WhatsApp & SMS Two-Way Site Ops Webhook Stream (Milestone M20) */}
       {(activeTab === 'all' || activeTab === 'whatsapp') && (
         <WhatsAppSiteWebhookView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
@@ -512,7 +597,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Subcontractor Dual-Moiety Retention & Contractor Performance Bonds (Milestone M21) */}
       {(activeTab === 'all' || activeTab === 'retentionbonds') && (
         <RetentionAndBondsView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
@@ -521,7 +606,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Project Geofencing & Biometric Mobile Clock-In (Milestone M23) */}
       {(activeTab === 'all' || activeTab === 'geofence') && (
         <GeofencedClockInView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -529,7 +614,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
       {(activeTab === 'all' || activeTab === 'telematics') && (
         <PlantTelematicsView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -537,7 +622,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* BS 8666 / KS 02-598 Rebar Takeoff & Bar Bending Schedules (Milestone M25) */}
       {(activeTab === 'all' || activeTab === 'rebar') && (
         <BarBendingScheduleView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -545,7 +630,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Safaricom Daraja B2C Bulk Wages & Retention Disbursements (Milestone M26) */}
       {(activeTab === 'all' || activeTab === 'disbursements') && (
         <MpesaDisbursementView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -553,7 +638,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Ready-Mix Concrete (RMC) Batching & Transit Slump Tracker (Milestone M27) */}
       {(activeTab === 'all' || activeTab === 'rmc') && (
         <RmcTransitTrackerView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -561,7 +646,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Structural Steel Framing & Fabrication Takeoff Engine (Milestone M28) */}
       {(activeTab === 'all' || activeTab === 'steel') && (
         <StructuralSteelTakeoffView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -569,7 +654,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Geotechnical Soil Compaction QA Engine (Milestone M29) */}
       {(activeTab === 'all' || activeTab === 'soil') && (
         <GeotechnicalSoilView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -577,7 +662,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Asphalt Pavement Quality & Thermal Tracker (Milestone M30) */}
       {(activeTab === 'all' || activeTab === 'asphalt') && (
         <AsphaltPavementView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
@@ -585,35 +670,76 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       {/* Topographic Survey & Earthworks Engine (Milestone M31) */}
       {(activeTab === 'all' || activeTab === 'survey') && (
         <TopographicSurveyView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
       )}
 
-      {/* Buildsasa Diaspora Independent Site Inspection Reports (Milestone M33) */}
+      {/* Platform Diaspora Independent Site Inspection Reports (Milestone M33) */}
       {(activeTab === 'all' || activeTab === 'inspections') && (
         <IndependentSiteReportView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
       )}
 
-      {/* Buildsasa Contractor Tender Board & Bidding Studio (Milestone M33) */}
+      {/* Platform Contractor Tender Board & Bidding Studio (Milestone M33) */}
       {(activeTab === 'all' || activeTab === 'tenders') && (
         <ContractorTenderBoardView
-          projectId="project-rcp-2026"
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
       )}
+
+      {/* Quotes-to-Cash: quotations, client acceptance, project conversion (Gate-4 S1) */}
+      {(activeTab === 'all' || activeTab === 'quotes') && <QuotesManagementView />}
+
+      {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
+      {(activeTab === 'all' || activeTab === 'invoices') && <InvoicingView />}
+
+      {/* Commitments -> Claims -> Payment Applications (Gate-4 S5) */}
+      {(activeTab === 'all' || activeTab === 'commitments') && (
+        <CommitmentsView projectId={pid} canManage={true} />
+      )}
+
+      {/* Project onboarding & edit (Gate-4 S8) */}
+      {(activeTab === 'all' || activeTab === 'project') && <ProjectOnboardingView />}
+
+      {/* Announcements (Gate-5 G5-1) */}
+      {(activeTab === 'all' || activeTab === 'announcements') && <AnnouncementsView canManage={true} />}
+
+      {/* Checklist templates & assignments (Gate-5 G5-6) */}
+      {(activeTab === 'all' || activeTab === 'checklists') && <ChecklistsView canManage={true} />}
+
+      {/* Daily attendance (Gate-5 G5-10) */}
+      {(activeTab === 'all' || activeTab === 'attendance') && <AttendanceView canManage={true} />}
+
+      {/* Scheduled reports (Gate-5 G5-9) */}
+      {(activeTab === 'all' || activeTab === 'scheduled') && <ScheduledReportsView canManage={true} />}
+
+      {/* Correspondence log (Gate-5 G5-8) */}
+      {(activeTab === 'all' || activeTab === 'correspondence') && <CorrespondenceView canManage={true} />}
+
+      {/* Company documents vault (Gate-5 G5-7) */}
+      {(activeTab === 'all' || activeTab === 'documents') && <CompanyDocumentsView canManage={true} />}
+
+      {/* Crews (Gate-5 G5-5) */}
+      {(activeTab === 'all' || activeTab === 'crews') && <CrewsView canManage={true} />}
+
+      {/* Observations & corrective actions (Gate-5 G5-4) */}
+      {(activeTab === 'all' || activeTab === 'observations') && <ObservationsView projectId={pid} canManage={true} />}
+
+      {/* Team inbox (Gate-5 G5-3) */}
+      {(activeTab === 'all' || activeTab === 'inbox') && <InboxView currentUserId={user?.id} />}
 
       {/* BOQ Import Modal */}
       <BoqImportModal
         isOpen={showBoqModal}
         onClose={() => setShowBoqModal(false)}
         onImportSuccess={handleImportSuccess}
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
@@ -621,7 +747,7 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
       <PhysicalProgressModal
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         onProgressRecorded={(prog) => {
           const pct = prog.overallProgress ? (parseFloat(prog.overallProgress) * 100).toFixed(1) : '15.0';

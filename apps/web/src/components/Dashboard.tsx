@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { AuthSession } from '../types/auth';
-import CompanyAdminDashboard from './CompanyAdminDashboard';
-import PmQsDashboard from './PmQsDashboard';
-import SupervisorDashboard from './SupervisorDashboard';
 import ClientDashboard from './ClientDashboard';
+import AppShell from './console/AppShell';
 import ConsultantPortalView from './portals/ConsultantPortalView';
 import SubcontractorPortalView from './portals/SubcontractorPortalView';
 import SupplierPortalView from './portals/SupplierPortalView';
@@ -37,10 +35,6 @@ export default function Dashboard({ session, onLogout }: DashboardProps): React.
       default:
         return 'bg-slate-100 text-slate-800 border-slate-200';
     }
-  };
-
-  const handlePreview = (type: string, token: string, name: string, role?: string) => {
-    setPreviewPortal({ type, token, name, role });
   };
 
   const renderRoleDashboard = () => {
@@ -96,80 +90,85 @@ export default function Dashboard({ session, onLogout }: DashboardProps): React.
       }
     }
 
-    switch (user.role) {
-      case 'COMPANY_ADMIN':
-      case 'ADMIN':
-        return <CompanyAdminDashboard session={session} onPreviewPortal={handlePreview} />;
-      case 'PM_QS':
-        return <PmQsDashboard session={session} onPreviewPortal={handlePreview} />;
-      case 'SITE_SUPERVISOR':
-        return <SupervisorDashboard session={session} />;
-      case 'CLIENT':
-        return <ClientDashboard session={session} />;
-      default:
-        return (
-          <div className="bg-white p-6 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
-            Role {user.role} workspace view not configured. Contact your company administrator.
-          </div>
-        );
+    if (user.role === 'CLIENT') {
+      return <ClientDashboard session={session} />;
     }
+    // All internal workspace roles render inside the console shell
+    // (icon rail + section router per role nav matrix).
+    return <AppShell session={session} onLogout={onLogout} />;
   };
 
-  return (
-    <div className="w-full max-w-5xl mx-auto space-y-6">
-      {/* Top Navigation Bar */}
-      <nav className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-            Active Tenant
-          </span>
-          <h1 className="text-xl font-bold text-slate-900 mt-1">
-            {user.tenant.name}
-          </h1>
-          <p className="text-xs text-slate-500">
-            KRA PIN: P051234567X • NCA Category: NCA 4 • Currency: {user.tenant.currency}
-          </p>
-        </div>
+  // Internal workspace roles use the console shell (own chrome).
+  // CLIENT keeps the legacy dashboard layout below.
+  if (user.role !== 'CLIENT' && !previewPortal) {
+    return <AppShell session={session} onLogout={onLogout} />;
+  }
 
-        <div className="flex items-center gap-3 self-end sm:self-auto">
-          <div className="text-right">
-            <p className="text-sm font-semibold text-slate-800">{user.fullName}</p>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border inline-block ${getRoleBadgeStyle(user.role)}`}>
+  const initials = user.fullName
+    .split(' ')
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <div className="w-full max-w-6xl mx-auto space-y-5 pb-10">
+      {/* Sticky top bar */}
+      <header className="sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-white/85 backdrop-blur-md border-b border-slate-200/80">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center text-white text-sm font-black shadow-sm shrink-0">
+              S
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                  {user.tenant.name}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                  {user.tenant.currency} • NCA 4
+                </span>
+              </div>
+              <h1 className="text-base font-bold text-slate-900 truncate mt-0.5">
+                {user.fullName}
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border hidden md:inline-block ${getRoleBadgeStyle(user.role)}`}>
               {user.role}
             </span>
-          </div>
-          <button
-            onClick={onLogout}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-red-700 hover:bg-red-50 border border-slate-200 rounded-lg transition"
-          >
-            Sign Out
-          </button>
-        </div>
-      </nav>
-
-      {/* Permissions Accordion / Security Context Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-slate-600">Permissions ({permissions.length}):</span>
-          <div className="flex flex-wrap gap-1">
-            {permissions.slice(0, 6).map((p) => (
-              <span
-                key={p}
-                className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200"
-              >
-                {p}
-              </span>
-            ))}
-            {permissions.length > 6 && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-50 text-slate-400 rounded">
-                +{permissions.length - 6} more
-              </span>
-            )}
+            <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold" aria-hidden="true">
+              {initials}
+            </div>
+            <button
+              onClick={onLogout}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-700 hover:bg-red-50 border border-slate-200 rounded-lg transition"
+            >
+              Sign out
+            </button>
           </div>
         </div>
+      </header>
 
-        <div className="text-[11px] text-slate-400 font-mono shrink-0">
-          RLS Context: <span className="text-slate-600">{user.tenant.id}</span>
+      {/* Permissions context bar */}
+      <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 flex items-center gap-2 text-[11px] overflow-x-auto">
+        <span className="font-semibold text-slate-500 shrink-0">{permissions.length} permissions</span>
+        <span className="text-slate-300 shrink-0">•</span>
+        <div className="flex gap-1">
+          {permissions.slice(0, 8).map((p) => (
+            <span
+              key={p}
+              className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded border border-slate-100 whitespace-nowrap"
+            >
+              {p}
+            </span>
+          ))}
+          {permissions.length > 8 && (
+            <span className="text-[10px] text-slate-400 px-1 py-0.5">+{permissions.length - 8}</span>
+          )}
         </div>
       </div>
 

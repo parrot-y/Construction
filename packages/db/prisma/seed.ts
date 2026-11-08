@@ -10,6 +10,13 @@ const prisma = new PrismaClient({
 });
 
 export async function seed() {
+  // Audit A-08: demo seed data must NEVER run against production.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Refusing to seed: NODE_ENV=production. Demo seed data is for development/test only. ' +
+      'Provision real tenants/users through the application onboarding flow instead.',
+    );
+  }
   console.log('Seeding initial Kenyan construction tenant and V1 users...');
 
   // 1. Create or upsert Tenant
@@ -53,9 +60,77 @@ export async function seed() {
       phone_number: '+254744345678',
       role: 'CLIENT',
     },
+    // Gate-5 role ladder — one login per observed portal role
+    {
+      email: 'executive@apexbuilders.co.ke',
+      full_name: 'Esther Wanjiru',
+      phone_number: '+254755345678',
+      role: 'EXECUTIVE',
+    },
+    {
+      email: 'pm@apexbuilders.co.ke',
+      full_name: 'Mary Wangari',
+      phone_number: '+254766345678',
+      role: 'PM_QS',
+    },
+    {
+      email: 'engineer@apexbuilders.co.ke',
+      full_name: 'Kevin Barasa',
+      phone_number: '+254777345678',
+      role: 'SITE_ENGINEER',
+    },
+    {
+      email: 'superintendent@apexbuilders.co.ke',
+      full_name: 'Grace Muthoni',
+      phone_number: '+254788345678',
+      role: 'SUPERINTENDENT',
+    },
+    {
+      email: 'tradelead@apexbuilders.co.ke',
+      full_name: 'Peter Kamau',
+      phone_number: '+254799345678',
+      role: 'TRADE_LEAD',
+    },
+    {
+      email: 'foreman@apexbuilders.co.ke',
+      full_name: 'Samuel Njoroge',
+      phone_number: '+254700345678',
+      role: 'FOREMAN',
+    },
+    {
+      email: 'worker@apexbuilders.co.ke',
+      full_name: 'Joseph Otieno',
+      phone_number: '+254711345678',
+      role: 'WORKER',
+    },
+    {
+      email: 'viewer@apexbuilders.co.ke',
+      full_name: 'Lydia Auma',
+      phone_number: '+254722345678',
+      role: 'VIEWER',
+    },
+    {
+      email: 'architect@apexbuilders.co.ke',
+      full_name: 'Peter Njoroge',
+      phone_number: '+254733345678',
+      role: 'ARCHITECT',
+    },
+    {
+      email: 'qaqc@apexbuilders.co.ke',
+      full_name: 'Susan Wanjiru',
+      phone_number: '+254744345678',
+      role: 'QA_QC',
+    },
+    {
+      email: 'owner@apexbuilders.co.ke',
+      full_name: 'Grace Muthoni',
+      phone_number: '+254755345678',
+      role: 'OWNER',
+    },
   ];
 
   await withTenantTx(prisma, tenant.id, async (tx) => {
+    const seededUsers: { id: string; role: string }[] = [];
     for (const u of usersData) {
       const user = await tx.user.upsert({
         where: { email: u.email },
@@ -88,6 +163,7 @@ export async function seed() {
           role: u.role,
         },
       });
+      seededUsers.push({ id: user.id, role: u.role });
     }
 
     // 3. Create active demo Project
@@ -111,6 +187,16 @@ export async function seed() {
         current_approved_budget: 45000000.0,
       },
     });
+
+    // Project memberships — required by the central authorization layer so
+    // every seeded role can reach the demo project (tenant-wide roles exempt).
+    for (const u of seededUsers) {
+      await tx.projectMember.upsert({
+        where: { project_id_user_id: { project_id: project.id, user_id: u.id } },
+        update: { role: u.role },
+        create: { tenant_id: tenant.id, project_id: project.id, user_id: u.id, role: u.role },
+      });
+    }
 
     console.log(`Database seeded successfully! Tenant: ${tenant.name} (${tenant.id}), Project: ${project.name}`);
   });

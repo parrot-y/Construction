@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestone M5: Budget, Append-Only Costs & Approvals Suite', () => {
   const server = buildServer();
@@ -125,6 +126,7 @@ describe('Milestone M5: Budget, Append-Only Costs & Approvals Suite', () => {
       throw new Error('Project A (RCP-2026) not found in seed');
     }
     projectAId = projA.id;
+      await enrollAllTenantUsers(projectAId);
 
     // Retrieve or seed a sample BOQ item for project A
     const existingItem = await withTenantTx(prisma, tenantAId, async (tx) => {
