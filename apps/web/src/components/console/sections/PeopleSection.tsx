@@ -136,10 +136,13 @@ function TeamView({ canInvite }: { canInvite: boolean }): React.JSX.Element {
 }
 
 /** Directory — combined read-only listing of members + subcontractors + suppliers. */
+const DIR_CATS = ['All', 'Team', 'Subcontractor', 'Supplier'] as const;
+
 function DirectoryView(): React.JSX.Element {
   const { projectId } = useConsole();
   const [members, setMembers] = useState<any[]>([]);
   const [subs, setSubs] = useState<any[]>([]);
+  const [cat, setCat] = useState<(typeof DIR_CATS)[number]>('All');
   useEffect(() => {
     fetch('/api/v1/company/members', { credentials: 'include' }).then((r) => r.ok ? r.json() : { data: [] }).then((j) => setMembers(j.data || [])).catch(() => {});
     if (projectId && /^[0-9a-f-]{36}$/i.test(projectId)) {
@@ -150,22 +153,49 @@ function DirectoryView(): React.JSX.Element {
   }, [projectId]);
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Directory</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Everyone you can reach — team, subcontractors and suppliers.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Directory</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Contacts and companies you work with.</p>
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {DIR_CATS.map((c) => (
+            <button key={c} onClick={() => setCat(c)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition ${cat === c ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
+              {c}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-          <p className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">Team ({members.length})</p>
-          <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
-            {members.map((m: any) => (
-              <div key={m.membershipId} className="px-5 py-2.5 flex justify-between text-xs">
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{m.user?.full_name || m.user?.email}</span>
-                <span className="text-slate-400">{m.user?.email}</span>
-              </div>
-            ))}
+        {(cat === 'All' || cat === 'Team') && (
+          <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <p className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">Team ({members.length})</p>
+            <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
+              {members.map((m: any) => (
+                <div key={m.membershipId} className="px-5 py-2.5 flex justify-between text-xs">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{m.user?.full_name || m.user?.email}</span>
+                  <span className="text-slate-400">{m.user?.email}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+        {(cat === 'All' || cat === 'Subcontractor' || cat === 'Supplier') && (
+          <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <p className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
+            <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
+              {subs.map((s: any) => (
+                <div key={s.id} className="px-5 py-2.5 flex justify-between text-xs">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{s.company_name || s.name}</span>
+                  <span className="text-slate-400">{s.trade || s.category || s.type || ''}</span>
+                </div>
+              ))}
+              {subs.length === 0 && <p className="px-5 py-6 text-xs text-slate-400 text-center">No subcontractors yet.</p>}
+            </div>
+          </div>
+        )}
+        {(cat === 'All' || cat === 'Subcontractor' || cat === 'Supplier') && (
         <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
           <p className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
           <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
@@ -178,6 +208,7 @@ function DirectoryView(): React.JSX.Element {
             {subs.length === 0 && <p className="px-5 py-6 text-xs text-slate-400 text-center">No subcontractors yet.</p>}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
@@ -199,12 +230,40 @@ const MATRIX_ROLES: { key: string; label: string }[] = [
 ];
 const MATRIX_SECTIONS = ['projects', 'site', 'money', 'people', 'files'] as const;
 
+const ROLE_DESCRIPTIONS: { label: string; desc: string }[] = [
+  { label: 'Contractor', desc: 'Workspace owner. Full control over projects, finances, team and permissions.' },
+  { label: 'Client', desc: 'Project client — read access to progress, reports and approvals.' },
+  { label: 'Architect', desc: 'Design lead. Reviews plans, drawings and field clarifications.' },
+  { label: 'Quantity Surveyor', desc: 'Cost control — BOQs, quantities, budget variance.' },
+  { label: 'QA/QC Officer', desc: 'Quality assurance — inspections, checklists, compliance.' },
+  { label: 'Owner', desc: 'Client/developer paying for the project. Approves budget and change orders.' },
+  { label: 'Executive', desc: 'Oversight — approvals and reporting across the portfolio.' },
+  { label: 'Project Manager', desc: 'Day-to-day operations. Approves change orders within a configured limit.' },
+  { label: 'Site Engineer', desc: 'On-site technical lead — inspections, tasks, quality readiness.' },
+  { label: 'Superintendent', desc: 'Jobsite lead — assigns daily tasks to crews and trade leads.' },
+  { label: 'Trade Lead', desc: 'Head of a sub-crew. Accepts tasks, manages crew, uploads progress.' },
+  { label: 'Foreman', desc: 'Crew foreman — oversees workers on site.' },
+  { label: 'Worker', desc: 'Tradesperson — mobile-first tasks, checklists, photo uploads.' },
+  { label: 'Viewer', desc: 'Read-only stakeholder — inspector, lender, consultant.' },
+];
+
 function RolesView(): React.JSX.Element {
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Roles</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400">What each workspace role can see and do.</p>
+      </div>
+      <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Role hierarchy &amp; responsibilities · {ROLE_DESCRIPTIONS.length} roles defined</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {ROLE_DESCRIPTIONS.map((r) => (
+            <div key={r.label} className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900/60">
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{r.label}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{r.desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
         <table className="w-full text-xs">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useConsole } from '../ConsoleContext';
 import CompanyDocumentsView from '../../CompanyDocumentsView';
 import ScheduledReportsView from '../../ScheduledReportsView';
@@ -15,8 +15,35 @@ const REPORT_LINKS = [
 function ReportsView(): React.JSX.Element {
   const { projectId, projects } = useConsole();
   const [period, setPeriod] = useState('30D');
+  const [coMetrics, setCoMetrics] = useState<{ total: number; approvalRate: number | null; medianCycle: number | null; reworkRate: number | null } | null>(null);
   const livePid = projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
   const pname = projects.find((p) => p.id === projectId)?.name;
+
+  useEffect(() => {
+    if (!livePid) { setCoMetrics(null); return; }
+    fetch(`/api/v1/projects/${livePid}/variations`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => {
+        const rows = (j.data || j || []) as any[];
+        if (!rows.length) { setCoMetrics(null); return; }
+        const total = rows.reduce((a, v) => a + Number(v.amount_approved ?? v.amount ?? v.value ?? 0), 0);
+        const approved = rows.filter((v) => v.status === 'APPROVED').length;
+        const rejected = rows.filter((v) => ['REJECTED', 'REWORK_REQUIRED'].includes(v.status)).length;
+        const cycles = rows
+          .filter((v) => v.status === 'APPROVED' && v.created_at && v.updated_at)
+          .map((v) => (new Date(v.updated_at).getTime() - new Date(v.created_at).getTime()) / 86400000)
+          .filter((d) => d >= 0)
+          .sort((a, b) => a - b);
+        const median = cycles.length ? (cycles[Math.floor(cycles.length / 2)] ?? null) : null;
+        setCoMetrics({
+          total,
+          approvalRate: Math.round((approved / rows.length) * 100),
+          medianCycle: median === null ? null : Math.round(median * 10) / 10,
+          reworkRate: Math.round((rejected / rows.length) * 100),
+        });
+      })
+      .catch(() => setCoMetrics(null));
+  }, [livePid]);
 
   return (
     <div className="space-y-5">
@@ -37,6 +64,23 @@ function ReportsView(): React.JSX.Element {
           </div>
         </div>
       </div>
+
+      {coMetrics && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            ['Total CO Value', `KES ${coMetrics.total.toLocaleString()}`, 'all change orders'],
+            ['Approval Rate', coMetrics.approvalRate === null ? '—' : `${coMetrics.approvalRate}%`, 'of submitted COs'],
+            ['Median Cycle', coMetrics.medianCycle === null ? '—' : `${coMetrics.medianCycle}d`, 'submit → decision'],
+            ['Rework Rate', `${coMetrics.reworkRate}%`, 'rejected or rework'],
+          ].map(([label, value, sub]) => (
+            <div key={label as string} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+              <p className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">{value}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {REPORT_LINKS.map((r) => (

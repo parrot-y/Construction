@@ -36,12 +36,10 @@ function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
   const initials = (user.fullName || user.email || '?').split(/\s+/).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
   const quickActions = [
+    { label: 'Change order', go: () => { setSection('projects'); setTab('changeorders'); } },
+    { label: 'Project', go: () => { setSection('projects'); setTab('all'); } },
     { label: 'Daily log', go: () => { setSection('site'); setTab('dailylog'); } },
-    { label: 'New snag / punch item', go: () => { setSection('site'); setTab('punch'); } },
-    { label: 'RFI / coordination', go: () => { setSection('projects'); setTab('coordination'); } },
-    { label: 'Invoice', go: () => { setSection('money'); setTab('invoices'); } },
-    { label: 'Checklists & assignments', go: () => { setSection('site'); setTab('checklists'); } },
-    { label: 'Upload document', go: () => { setSection('files'); setTab('companydocs'); } },
+    { label: 'Schedule activity', go: () => { setSection('projects'); setTab('schedule'); } },
   ];
 
   return (
