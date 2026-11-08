@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
+import { enrollAllTenantUsersTx } from './test-members';
 
 describe('Milestone M7: Variance Flags, Section Breakdown & Project Dashboard Suite', () => {
   const server = buildServer();
@@ -125,6 +126,7 @@ describe('Milestone M7: Variance Flags, Section Breakdown & Project Dashboard Su
         },
       });
       projectAId = proj.id;
+      await enrollAllTenantUsersTx(tx, tenantAId, projectAId);
 
       // Create Active BOQ with 3 Sections
       const boq = await tx.bOQ.create({

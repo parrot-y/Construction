@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-5 cross-portal workflow simulation — a realistic Kenyan
@@ -36,6 +37,7 @@ describe('Gate-5 cross-portal: day-in-the-life workflow simulation', () => {
     clientCookie = (await login('client@apexbuilders.co.ke')).cookie;
     const list = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie: pmCookie } });
     projectId = JSON.parse(list.body).data[0].id;
+    await enrollAllTenantUsers(projectId);
     tenantId = (await login('admin@apexbuilders.co.ke')).body.user.tenant.id;
 
     // seed a laborer for attendance

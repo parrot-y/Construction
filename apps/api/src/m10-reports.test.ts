@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
 import { benchmarkPdfRender } from './reports/renderPdf';
+import { enrollAllTenantUsersTx } from './test-members';
 
 describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
   const server = buildServer();
@@ -126,6 +127,7 @@ describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
         },
       });
       projectAId = proj.id;
+      await enrollAllTenantUsersTx(tx, tenantAId, projectAId);
 
       // BOQ
       const boq = await tx.bOQ.create({

@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 /** Gate-5: punch-list CSV export (observed Punch list > CSV button). */
 describe('Gate-5 G5-11: Snag register CSV export', () => {
@@ -14,6 +15,7 @@ describe('Gate-5 G5-11: Snag register CSV export', () => {
     adminCookie = login.headers['set-cookie'] as string;
     const list = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie: adminCookie } });
     projectId = JSON.parse(list.body).data[0].id;
+      await enrollAllTenantUsers(projectId);
   });
 
   it('exports CSV with header + snag rows', async () => {

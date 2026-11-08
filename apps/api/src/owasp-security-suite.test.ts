@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
 import * as crypto from 'crypto';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
   let app: FastifyInstance;
@@ -51,6 +52,7 @@ describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
     });
     expect(projARes.statusCode).toBe(201);
     projectAId = JSON.parse(projARes.body).data.id;
+      await enrollAllTenantUsers(projectAId);
 
     // 2. Setup Tenant B (Simba Construction Ltd)
     let tenantB = await prisma.tenant.findFirst({

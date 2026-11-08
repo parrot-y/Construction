@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsersTx } from './test-members';
 
 /**
  * Gate-4 S4: Interim Payment Certificates (IPC) — JBC retention math,
@@ -81,6 +82,7 @@ describe('Gate-4 S4: Payment certificates & closeout', () => {
         },
       });
       projectId = proj.id;
+    await enrollAllTenantUsersTx(tx, tenantAId, projectId);
 
       const proj2 = await tx.project.create({
         data: {
@@ -93,6 +95,7 @@ describe('Gate-4 S4: Payment certificates & closeout', () => {
         },
       });
       otherProjectId = proj2.id;
+      await enrollAllTenantUsersTx(tx, tenantAId, otherProjectId);
     });
   });
 

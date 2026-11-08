@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-5 G5-4b: Consultant approval chain on inspections —
@@ -25,6 +26,7 @@ describe('Gate-5 G5-4b: Consultant approval chain on inspections', () => {
     qsCookie = (await login('qs@apexbuilders.co.ke')).cookie;
     const res = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie: adminCookie } });
     projectId = JSON.parse(res.body).data[0].id;
+      await enrollAllTenantUsers(projectId);
   });
 
   it('creates checklist requiring consultant review; items pause at PENDING_CONSULTANT_REVIEW', async () => {

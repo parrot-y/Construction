@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Security Penetration & Vulnerability Verification Suite (ADR-001 / Milestones M31-M32)', () => {
   it('SEC-01 & SEC-02: RBAC Intra-Tenant Role Guard Audit - CLIENT Role Mutation Rejection (403 Forbidden)', async () => {
@@ -33,6 +34,7 @@ describe('Security Penetration & Vulnerability Verification Suite (ADR-001 / Mil
     expect(projectRes.statusCode).toBe(201);
     const { data: projectData } = JSON.parse(projectRes.payload);
     const projectId = projectData.id;
+    await enrollAllTenantUsers(projectId);
 
     // Create equipment items for tests
     const equipRes = await server.inject({

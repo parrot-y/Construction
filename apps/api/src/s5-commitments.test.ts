@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-4 S5: Commitments -> Claims -> Payment Applications.
@@ -61,7 +62,9 @@ describe('Gate-4 S5: Commitments & payment applications', () => {
         },
       });
       projectId = proj.id;
+
     });
+        await enrollAllTenantUsers(projectId);
 
     // Commitment: KES 10M subcontract, 10% retention capped at 5% of contract,
     // KES 1M advance paid, recover 20% of each gross claim.

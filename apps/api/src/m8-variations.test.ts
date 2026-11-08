@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { enrollAllTenantUsersTx } from './test-members';
 
 describe('Milestone M8: Variations Workflow Suite', () => {
   const server = buildServer();
@@ -129,6 +130,7 @@ describe('Milestone M8: Variations Workflow Suite', () => {
         },
       });
       projectAId = proj.id;
+      await enrollAllTenantUsersTx(tx, tenantAId, projectAId);
 
       // Seed a dedicated BOQ item for this project
       const existingBoq = await tx.bOQ.findFirst({

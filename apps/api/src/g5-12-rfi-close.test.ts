@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 /** Gate-5: RFI close endpoint + live wiring support. */
 describe('Gate-5 G5-12: RFI close lifecycle', () => {
@@ -15,6 +16,7 @@ describe('Gate-5 G5-12: RFI close lifecycle', () => {
     cookie = login.headers['set-cookie'] as string;
     const list = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie } });
     projectId = JSON.parse(list.body).data[0].id;
+      await enrollAllTenantUsers(projectId);
   });
 
   it('create → respond (ANSWERED) → close → double-close rejected', async () => {

@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { enrollAllTenantUsersTx } from './test-members';
 
 describe('Milestone M9: Client / Developer Portal Integration Test Suite', () => {
   const server = buildServer();
@@ -129,6 +130,7 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
         },
       });
       projectAId = proj.id;
+      await enrollAllTenantUsersTx(tx, tenantAId, projectAId);
 
       // 5.2 BOQ Baseline
       const boq = await tx.bOQ.create({

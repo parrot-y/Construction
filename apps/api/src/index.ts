@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import fastify, { FastifyError, FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
+import { registerAuthorizationGuards } from './plugins/routeAuthorization';
 import { authPlugin } from './plugins/auth';
 import { securityGuardPlugin } from './plugins/security-guard';
 import { authRoutes } from './routes/auth';
@@ -127,6 +128,9 @@ export function buildServer(): FastifyInstance {
 
   // Authentication & Session Plugin
   server.register(authPlugin);
+
+  // Central route authorization (permission map + project membership)
+  registerAuthorizationGuards(server);
 
   // Application Routes
   server.register(authRoutes);

@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-4 S6: Punch/snag list depth — 36-trade taxonomy fields, priority,
@@ -59,7 +60,9 @@ describe('Gate-4 S6: Punch list depth', () => {
         },
       });
       projectId = proj.id;
+
     });
+        await enrollAllTenantUsers(projectId);
   });
 
   it('creates a full-depth snag with all S6 fields and distribution list', async () => {

@@ -5,6 +5,7 @@ import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
 import { generateSignedSiteOpsToken } from './services/securityConfig';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Project', () => {
   const server = buildServer();
@@ -154,6 +155,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(proj.location).toBe('Riverside Drive, Nairobi');
     expect(proj.nca_project_no).toBe('NCA-PRJ-2026-0891');
     projectId = proj.id;
+    await enrollAllTenantUsers(projectId);
 
     // 1.3 Assign team members to project (QS, Site Supervisor, Client)
     await server.inject({

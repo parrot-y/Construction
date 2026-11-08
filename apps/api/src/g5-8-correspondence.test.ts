@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-5 G5-8: Correspondence log — LETTER/SUBMITTAL/TRANSMITTAL/NOTICE,
@@ -23,6 +24,7 @@ describe('Gate-5 G5-8: Correspondence log', () => {
     supervisorCookie = (await login('supervisor@apexbuilders.co.ke')).cookie;
     const res = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie: adminCookie } });
     projectId = JSON.parse(res.body).data[0].id;
+      await enrollAllTenantUsers(projectId);
   });
 
   it('creates notice + letter with sequential COR refs', async () => {

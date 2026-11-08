@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-5 G5-10: Daily attendance — Today register, check-in/out,
@@ -27,6 +28,7 @@ describe('Gate-5 G5-10: Daily attendance', () => {
     clientCookie = (await login('client@apexbuilders.co.ke')).cookie;
     const res = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie: adminCookie } });
     projectId = JSON.parse(res.body).data[0].id;
+    await enrollAllTenantUsers(projectId);
     // seed laborers directly (unique national_id avoids rerun collisions)
     const loginBody = await server.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'admin@apexbuilders.co.ke', password: 'Password123!' } });
     const tenantId = JSON.parse(loginBody.body).user.tenant.id;

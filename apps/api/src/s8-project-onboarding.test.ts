@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-4 S8: Project onboarding & edit — observed Edit-project modal parity:
@@ -56,6 +57,7 @@ describe('Gate-4 S8: Project onboarding & edit', () => {
     expect(res.statusCode).toBe(201);
     const p = JSON.parse(res.body).data;
     projectId = p.id;
+    await enrollAllTenantUsers(projectId);
     expect(p.status).toBe('PLANNING');
     expect(p.original_contract_sum).toBe('48000000');
     expect(p.current_approved_budget).toBe('48000000');

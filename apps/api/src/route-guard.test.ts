@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ROUTE_PERMISSIONS, SELF_SERVICE_ALLOWLIST, IN_HANDLER_GUARDED } from './plugins/routeAuthorization';
 
 /**
  * C-01 (Claude audit): CI guard — every registered API route must either
@@ -44,6 +45,7 @@ interface RouteRegistration {
   path: string;
   file: string;
   hasAuthenticate: boolean;
+  hasPermissionGuard: boolean;
 }
 
 function scanRoutes(): RouteRegistration[] {
@@ -64,6 +66,9 @@ function scanRoutes(): RouteRegistration[] {
         path,
         file,
         hasAuthenticate: optionsSegment.includes('authenticate'),
+        hasPermissionGuard:
+          optionsSegment.includes('requirePermission') ||
+          optionsSegment.includes('requireProjectMembership'),
       });
     }
   }
@@ -97,5 +102,49 @@ describe('C-01: Route authentication guard coverage', () => {
       .filter((r) => r.hasAuthenticate && UNAUTHENTICATED_ALLOWLIST[`${r.method} ${r.path}`])
       .map((r) => `${r.method} ${r.path}`);
     expect(authenticatedAllowlisted).toEqual([]);
+  });
+});
+
+
+/**
+ * C-01b (Claude audit): permission coverage — every authenticated route must
+ * declare requirePermission inline, appear in ROUTE_PERMISSIONS (applied via
+ * the central onRoute guard), or be explicitly self-service allowlisted.
+ */
+describe('C-01b: Route permission coverage', () => {
+  const routes = scanRoutes();
+
+  it('every authenticated route has a permission guard, map entry, or self-service justification', () => {
+    const violations = routes
+      .filter((r) => {
+        if (!r.hasAuthenticate) return false; // covered by C-01 allowlist
+        const key = `${r.method} ${r.path}`;
+        return (
+          !r.hasPermissionGuard &&
+          !ROUTE_PERMISSIONS[key] &&
+          !SELF_SERVICE_ALLOWLIST[key] &&
+          !IN_HANDLER_GUARDED[key]
+        );
+      })
+      .map((r) => `${r.method} ${r.path} (${r.file})`);
+    expect(violations).toEqual([]);
+  });
+
+  it('ROUTE_PERMISSIONS contains no stale entries', () => {
+    const registered = new Set(routes.map((r) => `${r.method} ${r.path}`));
+    const stale = Object.keys(ROUTE_PERMISSIONS).filter((k) => !registered.has(k));
+    expect(stale).toEqual([]);
+  });
+
+  it('IN_HANDLER_GUARDED contains no stale entries', () => {
+    const registered = new Set(routes.map((r) => `${r.method} ${r.path}`));
+    const stale = Object.keys(IN_HANDLER_GUARDED).filter((k) => !registered.has(k));
+    expect(stale).toEqual([]);
+  });
+
+  it('SELF_SERVICE_ALLOWLIST contains no stale entries', () => {
+    const registered = new Set(routes.map((r) => `${r.method} ${r.path}`));
+    const stale = Object.keys(SELF_SERVICE_ALLOWLIST).filter((k) => !registered.has(k));
+    expect(stale).toEqual([]);
   });
 });

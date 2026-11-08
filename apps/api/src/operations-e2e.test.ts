@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 import {
   toDecimal,
   convertDiasporaCurrency,
@@ -164,6 +165,7 @@ describe('Operations E2E Integration Suite', () => {
     });
     expect(projectRes.statusCode).toBe(201);
     projectAId = JSON.parse(projectRes.body).data.id;
+      await enrollAllTenantUsers(projectAId);
   });
 
   afterAll(async () => {

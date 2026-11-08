@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-4 S7: Daily logs & field ops privacy.
@@ -45,7 +46,9 @@ describe('Gate-4 S7: Daily log privacy & field ops', () => {
         },
       });
       projectId = proj.id;
+
     });
+        await enrollAllTenantUsers(projectId);
   });
 
   it('records a non-work-day diary with mixed photo visibility', async () => {

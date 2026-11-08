@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma, withTenantTx } from '@construction/db';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations', () => {
   const server = buildServer();
@@ -56,6 +57,7 @@ describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-
     });
     expect(projectRes.statusCode).toBe(201);
     projectId = JSON.parse(projectRes.body).data.id;
+    await enrollAllTenantUsers(projectId);
 
     // 4. Create Subcontractor Work Package for Milestone M15
     const subRes = await server.inject({

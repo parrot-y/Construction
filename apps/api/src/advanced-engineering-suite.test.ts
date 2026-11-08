@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite', () => {
   it('Milestone M27: Ready-Mix Concrete (RMC) Delivery & Transit Slump Tracker', async () => {
@@ -33,6 +34,7 @@ describe('Milestones M27 & M28: Advanced Structural & Concrete Engineering Suite
     expect(projectRes.statusCode).toBe(201);
     const { data: projectData } = JSON.parse(projectRes.payload);
     const projectId = projectData.id;
+    await enrollAllTenantUsers(projectId);
 
     // 3. Register RMC Delivery Ticket (Dispatched 45 min ago - OPTIMAL)
     const dispatchTime = new Date(Date.now() - 45 * 60000).toISOString();

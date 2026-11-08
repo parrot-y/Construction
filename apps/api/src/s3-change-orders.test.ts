@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { enrollAllTenantUsersTx } from './test-members';
 
 /**
  * Gate-4 S3: ADR-010 change-order engine — triggers, assignees, approval
@@ -100,6 +101,7 @@ describe('Gate-4 S3: Change-order approval limits & lifecycle', () => {
         },
       });
       projectId = proj.id;
+    await enrollAllTenantUsersTx(tx, tenantAId, projectId);
 
       const qsMembership = await tx.membership.findFirst({
         where: { tenant_id: tenantAId, role: 'PM_QS' },

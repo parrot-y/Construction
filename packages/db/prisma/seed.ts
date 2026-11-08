@@ -123,6 +123,7 @@ export async function seed() {
   ];
 
   await withTenantTx(prisma, tenant.id, async (tx) => {
+    const seededUsers: { id: string; role: string }[] = [];
     for (const u of usersData) {
       const user = await tx.user.upsert({
         where: { email: u.email },
@@ -155,6 +156,7 @@ export async function seed() {
           role: u.role,
         },
       });
+      seededUsers.push({ id: user.id, role: u.role });
     }
 
     // 3. Create active demo Project
@@ -178,6 +180,16 @@ export async function seed() {
         current_approved_budget: 45000000.0,
       },
     });
+
+    // Project memberships — required by the central authorization layer so
+    // every seeded role can reach the demo project (tenant-wide roles exempt).
+    for (const u of seededUsers) {
+      await tx.projectMember.upsert({
+        where: { project_id_user_id: { project_id: project.id, user_id: u.id } },
+        update: { role: u.role },
+        create: { tenant_id: tenant.id, project_id: project.id, user_id: u.id, role: u.role },
+      });
+    }
 
     console.log(`Database seeded successfully! Tenant: ${tenant.name} (${tenant.id}), Project: ${project.name}`);
   });

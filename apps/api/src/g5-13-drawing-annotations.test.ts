@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Drawing markup annotations — pins on drawing sheets with resolve workflow.
@@ -20,6 +21,7 @@ describe('Drawing annotations (markup)', () => {
     adminCookie = await login('admin@apexbuilders.co.ke');
     const projects = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie: adminCookie } });
     projectId = JSON.parse(projects.body).data[0].id;
+      await enrollAllTenantUsers(projectId);
   });
 
   it('registers a drawing document', async () => {

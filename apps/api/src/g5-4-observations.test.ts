@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 /**
  * Gate-5 G5-4: Site observations & corrective actions (action plans).
@@ -37,6 +38,7 @@ describe('Gate-5 G5-4: Observations & corrective actions', () => {
       tx.project.findFirst({ where: { tenant_id: tenantAId } }),
     );
     projectId = proj!.id;
+    await enrollAllTenantUsers(projectId);
   });
 
   it('creates observation with sequential OBS-nnn ref and correct fields', async () => {
