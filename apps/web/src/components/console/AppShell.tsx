@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ConsoleProvider, useConsole } from './ConsoleContext';
-import { SECTION_LABELS, SUBTAB_LABELS } from './navConfig';
+import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection } from './navConfig';
 import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSun, IconMoon } from './icons';
 import AskAiPanel from './AskAiPanel';
 import HomeSection from './sections/HomeSection';
@@ -18,8 +18,17 @@ import { AuthSession } from '../../types/auth';
 function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
   const { session, roleLabel, projects, projectId, setProjectId, currency, setCurrency, setAiOpen, newMenuOpen, setNewMenuOpen, dark, toggleDark, setSection, setTab } = useConsole();
   const searchRef = useRef<HTMLInputElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
   const [q, setQ] = useState('');
   const [userMenu, setUserMenu] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/v1/company/members', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => setMembers(j.data || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -60,20 +69,61 @@ function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
         </select>
       )}
 
-      <div className="flex-1 max-w-md mx-auto">
+      <div className="flex-1 max-w-md mx-auto relative">
         <div className="relative">
           <IconSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             ref={searchRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && q.trim()) { setAiOpen(true); setQ(''); } }}
+            onFocus={() => setSearchOpen(true)}
             placeholder="Search projects, change orders and people"
             aria-label="Search workspace"
             className="w-full pl-9 pr-14 py-2 text-sm bg-slate-100 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-900 dark:text-slate-100"
           />
           <kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5">Ctrl K</kbd>
         </div>
+        {searchOpen && q.trim().length > 0 && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setSearchOpen(false)} />
+            <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto py-1.5">
+              {(() => {
+                const needle = q.trim().toLowerCase();
+                const projHits = projects.filter((p) => (p.name || '').toLowerCase().includes(needle) || (p.code || '').toLowerCase().includes(needle)).slice(0, 5);
+                const memberHits = members.filter((m: any) => ((m.user?.full_name || m.user?.email || '') as string).toLowerCase().includes(needle)).slice(0, 5);
+                const secHits = ['projects','site','money','people','files'].filter((s) => SECTION_LABELS[s as ConsoleSection].toLowerCase().includes(needle));
+                return (
+                  <>
+                    {projHits.map((p) => (
+                      <button key={p.id} onClick={() => { setProjectId(p.id); setQ(''); setSearchOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{p.name}</span>
+                        <span className="ml-2 text-[10px] text-slate-400 font-mono">{p.code} · project</span>
+                      </button>
+                    ))}
+                    {memberHits.map((m: any) => (
+                      <button key={m.membershipId || m.user?.email} onClick={() => { setSection('people'); setTab('team'); setQ(''); setSearchOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{m.user?.full_name || m.user?.email}</span>
+                        <span className="ml-2 text-[10px] text-slate-400">{m.role} · person</span>
+                      </button>
+                    ))}
+                    {secHits.map((sec) => (
+                      <button key={sec} onClick={() => { setSection(sec as ConsoleSection); setQ(''); setSearchOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">Go to {SECTION_LABELS[sec as ConsoleSection]}</span>
+                        <span className="ml-2 text-[10px] text-slate-400">section</span>
+                      </button>
+                    ))}
+                    {projHits.length === 0 && memberHits.length === 0 && secHits.length === 0 && (
+                      <p className="px-4 py-3 text-xs text-slate-400">No matches for “{q}”.</p>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-1.5">
