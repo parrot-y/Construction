@@ -9,6 +9,10 @@ import SiteSection from './sections/SiteSection';
 import MoneySection from './sections/MoneySection';
 import PeopleSection from './sections/PeopleSection';
 import FilesSection from './sections/FilesSection';
+import ConsultantPortalView from '../portals/ConsultantPortalView';
+import SubcontractorPortalView from '../portals/SubcontractorPortalView';
+import SupplierPortalView from '../portals/SupplierPortalView';
+import CompliancePortalView from '../portals/CompliancePortalView';
 import { AuthSession } from '../../types/auth';
 
 function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
@@ -151,58 +155,68 @@ function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
   );
 }
 
-function Rail(): React.JSX.Element {
+function RailItems({ mobile = false }: { mobile?: boolean }): React.JSX.Element {
   const { nav, section, setSection, setAiOpen, session, projects, projectId, setProjectId } = useConsole();
+  const cls = mobile
+    ? 'flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 text-[9px] font-bold'
+    : 'w-11 h-11 rounded-xl flex items-center justify-center';
+  const itemCls = (active: boolean) => mobile
+    ? `${cls} ${active ? 'text-orange-400' : 'text-slate-400'}`
+    : `${cls} transition ${active ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`;
   return (
-    <nav className="fixed inset-y-0 left-0 z-40 w-16 bg-slate-950 dark:bg-black flex flex-col items-center py-3 gap-1" aria-label="Workspace sections">
-      <button
-        onClick={() => setAiOpen(true)}
-        aria-label="Ask Site Safi AI"
-        className="w-11 h-11 rounded-xl flex items-center justify-center text-orange-400 hover:bg-slate-800 transition mb-2"
-      >
+    <>
+      <button onClick={() => setAiOpen(true)} aria-label="Ask Site Safi AI" className={itemCls(false)}>
         <IconSpark className="w-5 h-5" />
+        {mobile && <span>AI</span>}
       </button>
-
-      <button
-        onClick={() => setSection('home')}
-        aria-label="Home"
-        className={`w-11 h-11 rounded-xl flex items-center justify-center transition ${section === 'home' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-      >
+      <button onClick={() => setSection('home')} aria-label="Home" className={itemCls(section === 'home')}>
         {React.createElement(SECTION_ICONS.home, { className: 'w-5 h-5' })}
+        {mobile && <span>Home</span>}
       </button>
-
       {nav.sections.map((s) => {
         const Icon = iconFor(s.id);
         const active = section === s.id;
         return (
-          <button
-            key={s.id}
-            onClick={() => { setSection(s.id); }}
-            aria-label={s.label}
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition ${active ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-          >
+          <button key={s.id} onClick={() => setSection(s.id)} aria-label={s.label} className={itemCls(active)}>
             {React.createElement(Icon, { className: 'w-5 h-5' })}
+            {mobile && <span className="truncate">{s.label.split(' ')[0]}</span>}
           </button>
         );
       })}
-
-      <div className="mt-auto flex flex-col items-center gap-2 pb-1">
-        {projects.length > 0 && (
-          <select
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            aria-label="Active project"
-            className="w-11 h-11 rounded-xl bg-slate-800 text-orange-300 text-[10px] font-bold border-0 text-center appearance-none cursor-pointer"
-            title={projects.find((p) => p.id === projectId)?.name}
-          >
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}
-          </select>
-        )}
-        <div className="w-11 h-11 rounded-xl bg-orange-600/20 border border-orange-600/40 text-orange-300 text-xs font-bold flex items-center justify-center" title={session.user.tenant?.name || 'Workspace'}>
-          {(session.user.tenant?.name || 'S').slice(0, 1).toUpperCase()}
+      {!mobile && (
+        <div className="mt-auto flex flex-col items-center gap-2 pb-1">
+          {projects.length > 0 && (
+            <select
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              aria-label="Active project"
+              className="w-11 h-11 rounded-xl bg-slate-800 text-orange-300 text-[10px] font-bold border-0 text-center appearance-none cursor-pointer"
+              title={projects.find((p) => p.id === projectId)?.name}
+            >
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}
+            </select>
+          )}
+          <div className="w-11 h-11 rounded-xl bg-orange-600/20 border border-orange-600/40 text-orange-300 text-xs font-bold flex items-center justify-center" title={session.user.tenant?.name || 'Workspace'}>
+            {(session.user.tenant?.name || 'S').slice(0, 1).toUpperCase()}
+          </div>
         </div>
-      </div>
-    </nav>
+      )}
+    </>
+  );
+}
+
+function Rail(): React.JSX.Element {
+  return (
+    <>
+      {/* Desktop icon rail */}
+      <nav className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-16 bg-slate-950 dark:bg-black flex-col items-center py-3 gap-1" aria-label="Workspace sections">
+        <RailItems />
+      </nav>
+      {/* Mobile bottom bar */}
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950 dark:bg-black border-t border-slate-800 flex items-stretch px-1 pb-[env(safe-area-inset-bottom)]" aria-label="Workspace sections">
+        <RailItems mobile />
+      </nav>
+    </>
   );
 }
 
@@ -271,14 +285,39 @@ function SectionBody(): React.JSX.Element {
   }
 }
 
+function PortalPreview(): React.JSX.Element | null {
+  const { portalPreview, setPortalPreview } = useConsole();
+  if (!portalPreview) return null;
+  const back = () => setPortalPreview(null);
+  const common = { onBackToDashboard: back };
+  switch (portalPreview.type.toUpperCase()) {
+    case 'CONSULTANT':
+      return <ConsultantPortalView token={portalPreview.token} stakeholderName={portalPreview.name} stakeholderRole={portalPreview.role} {...common} />;
+    case 'SUBCONTRACTOR':
+      return <SubcontractorPortalView token={portalPreview.token} subcontractorName={portalPreview.name} subcontractorTrade={portalPreview.role} {...common} />;
+    case 'SUPPLIER':
+      return <SupplierPortalView token={portalPreview.token} supplierName={portalPreview.name} supplierCategory={portalPreview.role} {...common} />;
+    case 'COMPLIANCE':
+      return <CompliancePortalView token={portalPreview.token} auditorName={portalPreview.name} auditorAgency={portalPreview.role} {...common} />;
+    default:
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-10 text-center text-sm text-slate-500">
+          Portal preview for {portalPreview.type} is not available here.
+          <button onClick={back} className="ml-2 font-bold text-orange-600">Back to workspace</button>
+        </div>
+      );
+  }
+}
+
 function Shell({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
-  const { section } = useConsole();
+  const { section, portalPreview } = useConsole();
+  if (portalPreview) return <PortalPreview />;
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Rail />
-      <div className="pl-16 flex flex-col min-h-screen">
+      <div className="sm:pl-16 pb-20 sm:pb-0 flex flex-col min-h-screen">
         <TopBar onLogout={onLogout} />
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 max-w-[1400px] w-full mx-auto space-y-4">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 pb-24 sm:pb-5 max-w-[1400px] w-full mx-auto space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">{SECTION_LABELS[section as keyof typeof SECTION_LABELS] || 'Home'}</h1>
             <SectionPrompt />

@@ -6,6 +6,7 @@ interface SiteDiaryModalProps {
   onClose: () => void;
   projectId: string;
   projectName?: string;
+  initialDate?: string;
   onDiarySubmitted?: (diary: any) => void;
 }
 
@@ -14,9 +15,10 @@ export default function SiteDiaryModal({
   onClose,
   projectId,
   projectName = 'Riverside Commercial Plaza',
+  initialDate,
   onDiarySubmitted,
 }: SiteDiaryModalProps): React.JSX.Element | null {
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [entryDate, setEntryDate] = useState(initialDate || new Date().toISOString().split('T')[0]);
   const [weather, setWeather] = useState('SUNNY_CLEAR');
   const [siteStatus, setSiteStatus] = useState('OPERATIONAL');
   const [generalNotes, setGeneralNotes] = useState('');
@@ -77,6 +79,24 @@ export default function SiteDiaryModal({
     setError(null);
     setIsSubmitting(true);
 
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    // Upload the photo for real first — storage key comes from the server
+    let uploadedStorageKey: string | null = null;
+    if (photoFile && !isOffline) {
+      try {
+        const fd = new FormData();
+        fd.append('file', photoFile);
+        const up = await fetch(`/api/v1/projects/${projectId}/uploads`, {
+          method: 'POST', credentials: 'include', body: fd,
+        });
+        if (up.ok) {
+          const uj = await up.json();
+          uploadedStorageKey = uj?.data?.storageKey || null;
+        }
+      } catch { /* fall through to metadata-only */ }
+    }
+
     const equipmentLog = equipmentName.trim()
       ? `[PLANT LOG] ${equipmentName.trim()}: ${equipmentHours} hrs operated, ${fuelLitres}L fuel issued`
       : '';
@@ -108,7 +128,7 @@ export default function SiteDiaryModal({
       photos: photoFile
         ? [
             {
-              storageKey: `evidence/${projectId}/${Date.now()}-${photoFile.name}`,
+              storageKey: uploadedStorageKey || `evidence/${projectId}/${Date.now()}-${photoFile.name}`,
               caption: photoCaption.trim() || undefined,
               clientVisible: photoClientVisible,
               gpsLatitude: -1.286389, // Nairobi site coordinates
@@ -117,8 +137,6 @@ export default function SiteDiaryModal({
           ]
         : [],
     };
-
-    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
     if (isOffline) {
       try {

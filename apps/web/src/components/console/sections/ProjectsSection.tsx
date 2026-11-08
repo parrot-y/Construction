@@ -7,13 +7,16 @@ import VariationManagementView from '../../VariationManagementView';
 import RfiManagementView from '../../RfiManagementView';
 import CorrespondenceView from '../../CorrespondenceView';
 import { IconPlus } from '../icons';
+import PortalAccessLinkManager from '../../PortalAccessLinkManager';
 
 const FILTERS = ['All', 'Active', 'At Risk', 'Planning', 'Closing', 'Archived'];
 
 function ProjectsAll({ canEdit }: { canEdit: boolean }): React.JSX.Element {
-  const { projects, projectId, setProjectId } = useConsole();
+  const { projects, projectId, setProjectId, setPortalPreview } = useConsole();
+  const livePidCheck = /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
   const [filter, setFilter] = useState('All');
   const [recentCos, setRecentCos] = useState<any[]>([]);
+  const [coCounts, setCoCounts] = useState<Record<string, { count: number; value: number }>>({});
 
   useEffect(() => {
     // Latest change orders across projects for the activity strip
@@ -27,6 +30,14 @@ function ProjectsAll({ canEdit }: { canEdit: boolean }): React.JSX.Element {
     ).then((lists) => {
       const all = lists.flat().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 6);
       setRecentCos(all);
+      const counts: Record<string, { count: number; value: number }> = {};
+      for (const v of lists.flat()) {
+        const k = v.project_id || v.projectName;
+        counts[k] = counts[k] || { count: 0, value: 0 };
+        counts[k].count += 1;
+        counts[k].value += Number(v.net_amount ?? v.amount ?? 0) || 0;
+      }
+      setCoCounts(counts);
     });
   }, [projects]);
 
@@ -91,10 +102,27 @@ function ProjectsAll({ canEdit }: { canEdit: boolean }): React.JSX.Element {
                 </span>
               </div>
               {p.location && <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{p.location}</p>}
+              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                <span className="text-slate-500 dark:text-slate-400">
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{p.contract_currency || 'KES'} {Number(p.original_contract_sum || 0).toLocaleString()}</span> value
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{coCounts[p.id]?.count ?? 0}</span> COs
+                </span>
+                {(coCounts[p.id]?.value ?? 0) > 0 && (
+                  <span className="text-slate-500 dark:text-slate-400">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{coCounts[p.id]!.value.toLocaleString()}</span> CO value
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 mt-3">Open workspace →</p>
             </button>
           ))}
         </div>
+      )}
+
+      {livePidCheck && (
+        <PortalAccessLinkManager projectId={livePidCheck} onPreviewPortal={(t, token, name, role) => setPortalPreview({ type: t, token, name, role })} />
       )}
 
       {recentCos.length > 0 && (

@@ -15,10 +15,11 @@ const DISCIPLINES = [
   { key: 'STR', label: 'Structural', categories: ['STRUCTURAL_DRAWING'] },
   { key: 'MEP', label: 'MEP', categories: ['MEP_DRAWING'] },
   { key: 'CIVIL', label: 'Civil', categories: ['CIVIL_DRAWING'] },
+  { key: 'ELEC', label: 'Electrical', categories: ['ELECTRICAL_DRAWING'] },
 ];
 const CATEGORY_LABEL: Record<string, string> = {
   ARCHITECTURAL_DRAWING: 'Architectural', STRUCTURAL_DRAWING: 'Structural',
-  MEP_DRAWING: 'MEP', CIVIL_DRAWING: 'Civil',
+  MEP_DRAWING: 'MEP', CIVIL_DRAWING: 'Civil', ELECTRICAL_DRAWING: 'Electrical',
 };
 const STATUS_STYLE: Record<string, string> = {
   APPROVED_FOR_CONSTRUCTION: 'bg-emerald-50 text-emerald-700',
@@ -26,7 +27,7 @@ const STATUS_STYLE: Record<string, string> = {
   SUPERSEDED: 'bg-slate-100 text-slate-500',
   INFORMATION_ONLY: 'bg-sky-50 text-sky-700',
 };
-const DRAWING_CATS = ['ARCHITECTURAL_DRAWING', 'STRUCTURAL_DRAWING', 'MEP_DRAWING', 'CIVIL_DRAWING'];
+const DRAWING_CATS = ['ARCHITECTURAL_DRAWING', 'STRUCTURAL_DRAWING', 'MEP_DRAWING', 'CIVIL_DRAWING', 'ELECTRICAL_DRAWING'];
 
 export default function DrawingsView({ projectId, canManage = true }: { projectId?: string; canManage?: boolean }): React.JSX.Element {
   const [projects, setProjects] = useState<ProjectOpt[]>([]);
@@ -110,7 +111,7 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-base font-bold text-slate-900">Plans & Drawings</h3>
-          <p className="text-xs text-slate-500">Drawing register by discipline — architectural, structural, MEP, civil</p>
+          <p className="text-xs text-slate-500">Drawing register by discipline — architectural, structural, MEP, civil, electrical</p>
         </div>
         <div className="flex items-center gap-2">
           {!projectId && (
@@ -118,6 +119,7 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
               {projects.map((p) => <option key={p.id} value={p.id}>{p.code}</option>)}
             </select>
           )}
+          <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 border border-slate-200" title="AI-assisted design generation — coming soon">AI Design · SOON</span>
           {canManage && (
             <button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
               {showForm ? 'Cancel' : '+ Upload drawing'}

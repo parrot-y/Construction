@@ -98,6 +98,12 @@ export default function Dashboard({ session, onLogout }: DashboardProps): React.
     return <AppShell session={session} onLogout={onLogout} />;
   };
 
+  // Internal workspace roles use the console shell (own chrome).
+  // CLIENT keeps the legacy dashboard layout below.
+  if (user.role !== 'CLIENT' && !previewPortal) {
+    return <AppShell session={session} onLogout={onLogout} />;
+  }
+
   const initials = user.fullName
     .split(' ')
     .map((n) => n[0])

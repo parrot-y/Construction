@@ -23,6 +23,7 @@ function DailyLogsView({ projectId, projectName, canEdit }: { projectId: string;
   const [diaries, setDiaries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [logDate, setLogDate] = useState<string | undefined>(undefined);
 
   const load = () => {
     fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include' })
@@ -58,41 +59,66 @@ function DailyLogsView({ projectId, projectName, canEdit }: { projectId: string;
 
       {loading ? (
         <p className="text-xs text-slate-400">Loading…</p>
-      ) : days.length === 0 ? (
-        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">No logs yet</p>
-          <p className="text-xs text-slate-400 mt-1">Record today&apos;s site work while it&apos;s fresh.</p>
-        </div>
       ) : (
-        <div className="space-y-2">
-          {days.map((day) => {
-            const entries = byDate.get(day)!;
-            const photos = entries.reduce((n, d) => n + (d.photos?.length || 0), 0);
-            const labour = entries.reduce((n, d) => n + (d.labor_headcounts?.reduce((x: number, h: any) => x + (h.headcount || 0), 0) || 0), 0);
-            return (
-              <div key={day} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                    {new Date(day + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}
-                  </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    {entries.length} entr{entries.length === 1 ? 'y' : 'ies'} · {labour} labour-day{labour === 1 ? '' : 's'} · {photos} photo{photos === 1 ? '' : 's'}
-                    {entries[0]?.weather && ` · ${entries[0].weather}`}
-                  </p>
-                </div>
-                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900">Logged</span>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          {/* Week strip — last 14 days, logged vs not */}
+          <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                {days.length} of {Math.min(14, days.length + 14 - days.length)} recent days logged
+              </p>
+              <p className="text-[11px] text-slate-400">{days.length} day{days.length === 1 ? '' : 's'} with entries</p>
+            </div>
+            <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
+              {Array.from({ length: 14 }, (_, i) => {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const key = d.toISOString().slice(0, 10);
+                const entries = byDate.get(key) || [];
+                const isToday = i === 0;
+                const photos = entries.reduce((n, x) => n + (x.photos?.length || 0), 0);
+                const labour = entries.reduce((n, x) => n + (x.labor_headcounts?.reduce((a: number, h: any) => a + (h.headcount || 0), 0) || 0), 0);
+                const deliveries = entries.reduce((n, x) => n + (x.material_deliveries?.length || x.deliveries?.length || 0), 0);
+                return (
+                  <div key={key} className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
+                        {isToday && <span className="ml-2 text-[10px] font-bold text-orange-600 uppercase">Today</span>}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                        {entries.length > 0
+                          ? `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} · ${labour} labour-day${labour === 1 ? '' : 's'} · ${photos} photo${photos === 1 ? '' : 's'} · ${deliveries} deliver${deliveries === 1 ? 'y' : 'ies'}`
+                          : isToday ? 'No log for today yet — record it while the day is fresh.' : 'Not logged'}
+                      </p>
+                    </div>
+                    {entries.length === 0 && canEdit && !isToday && (
+                      <button onClick={() => { setLogDate(key); setModalOpen(true); }} className="text-[11px] font-bold text-orange-600 hover:underline shrink-0">Add log</button>
+                    )}
+                    {entries.length > 0 && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900 shrink-0">Logged</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Why log every day</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+              A dated record of who was on site, what got done and what held you up is what wins extension-of-time claims and settles payment disputes. Two minutes at the end of each day is enough.
+            </p>
+          </div>
+        </>
       )}
 
       <SiteDiaryModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setLogDate(undefined); }}
         projectId={projectId}
         projectName={projectName}
-        onDiarySubmitted={() => { setModalOpen(false); load(); }}
+        initialDate={logDate}
+        onDiarySubmitted={() => { setModalOpen(false); setLogDate(undefined); load(); }}
       />
     </div>
   );
