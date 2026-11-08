@@ -13,11 +13,19 @@ function ExecHome(): React.JSX.Element {
   const [coStats, setCoStats] = useState<Record<string, number>>({});
   const [openSnags, setOpenSnags] = useState(0);
   const [logToday, setLogToday] = useState<boolean | null>(null);
+  const [clientRequests, setClientRequests] = useState(0);
 
   useEffect(() => {
     fetch('/api/v1/dashboard', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => j?.data && setDash(j.data))
+      .catch(() => {});
+    fetch('/api/v1/client/project-requests', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => {
+        const list = j.data || [];
+        setClientRequests(list.filter((r: any) => r.status === 'NEW').length);
+      })
       .catch(() => {});
   }, []);
 
@@ -89,7 +97,7 @@ function ExecHome(): React.JSX.Element {
         </div>
       </div>
 
-      {(logToday === false || openSnags > 0) && (
+      {(logToday === false || openSnags > 0 || clientRequests > 0) && (
         <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-2xl p-4">
           <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2">Needs your attention today</p>
           <div className="space-y-1.5">
@@ -97,6 +105,11 @@ function ExecHome(): React.JSX.Element {
               <button onClick={() => { setSection('site'); setTab('dailylog'); }} className="w-full text-left flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-200 hover:underline">
                 <span>No site log today on {projects.find((p) => p.id === projectId)?.name || 'this project'}</span><span className="text-orange-600">Add log →</span>
               </button>
+            )}
+            {clientRequests > 0 && (
+              <div className="w-full flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-200">
+                <span>{clientRequests} new client project request{clientRequests === 1 ? '' : 's'}</span><span className="text-orange-600">Review →</span>
+              </div>
             )}
             {openSnags > 0 && (
               <button onClick={() => { setSection('site'); setTab('punch'); }} className="w-full text-left flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-200 hover:underline">
