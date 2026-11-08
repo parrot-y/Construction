@@ -5,13 +5,6 @@ import { prisma, withTenantTx } from '@construction/db';
 import * as crypto from 'crypto';
 import { enrollAllTenantUsers } from './test-members';
 
-async function loginToken(server: any, email: string): Promise<string> {
-  const res = await server.inject({
-    method: 'POST', url: '/api/v1/auth/login',
-    payload: { email, password: 'Password123!' },
-  });
-  return JSON.parse(res.payload).token;
-}
 
 describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
   let app: FastifyInstance;
