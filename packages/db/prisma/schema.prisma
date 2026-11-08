@@ -600,6 +600,7 @@ model RFI {
   suggested_solution  String?      @db.Text
   drawing_reference   String?      @db.VarChar(100) // e.g. "STR-04 Rev C"
   specification_clause String?     @db.VarChar(100) // e.g. "EASMM Sec 3.4"
+  issue_type          String?       @db.VarChar(30) // RFI | CLASH | DESIGN_QUESTION (observed coordination taxonomy)
   priority            RfiPriority  @default(MEDIUM)
   status              RfiStatus    @default(SUBMITTED)
   cost_impact         Boolean      @default(false)

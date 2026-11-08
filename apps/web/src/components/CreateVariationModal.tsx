@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { calculateLineTotal, toCurrencyString, Decimal } from '@construction/money';
 
 export interface VariationItemDraft {
@@ -46,6 +46,29 @@ export default function CreateVariationModal({
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [linkedRfiId, setLinkedRfiId] = useState('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [rfis, setRfis] = useState<{ id: string; subject?: string; reference_no?: string; status?: string }[]>([]);
+  const [members, setMembers] = useState<{ id: string; name: string; role?: string }[]>([]);
+
+  useEffect(() => {
+    if (!projectId || !/^[0-9a-f-]{36}$/i.test(projectId)) return;
+    fetch(`/api/v1/projects/${projectId}/rfis`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => setRfis(j.data || j || []))
+      .catch(() => {});
+    fetch(`/api/v1/projects/${projectId}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const p = j?.data || j;
+        setMembers((p?.members || []).map((m: any) => ({
+          id: m.id,
+          name: m.user?.full_name || m.user?.email || 'Member',
+          role: m.role,
+        })));
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   // Compute line total for each item and overall live net amount
   const itemCalculations = useMemo(() => {
@@ -152,6 +175,8 @@ export default function CreateVariationModal({
         reason: reason.trim(),
         triggerType,
         timeExtensionDays: parsedDays,
+        linkedRfiId: linkedRfiId || null,
+        assigneeIds,
         items: items.map((item) => {
           const qty = Math.abs(parseFloat(item.quantity));
           const signedQty = item.type === 'OMISSION' ? `-${qty.toFixed(4)}` : `${qty.toFixed(4)}`;
@@ -287,6 +312,25 @@ export default function CreateVariationModal({
                 <option value="WEATHER_DELAY">Weather / delay</option>
                 <option value="OTHER">Other</option>
               </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Linked RFI</label>
+              <select value={linkedRfiId} onChange={(e) => setLinkedRfiId(e.target.value)}
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white">
+                <option value="">None</option>
+                {rfis.map((r) => <option key={r.id} value={r.id}>{r.reference_no || r.subject || r.id.slice(0, 8)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Assignees (reviewers/approvers)</label>
+              <select multiple size={Math.min(4, Math.max(2, members.length))} value={assigneeIds}
+                onChange={(e) => setAssigneeIds(Array.from(e.target.selectedOptions).map((o) => o.value))}
+                className="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white">
+                {members.map((m) => <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ''}</option>)}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-0.5">Ctrl/Cmd-click to select multiple</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

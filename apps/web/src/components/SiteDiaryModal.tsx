@@ -247,6 +247,9 @@ export default function SiteDiaryModal({
                 <option value="HEAVY_RAIN">🌧️ Heavy Rain</option>
                 <option value="RAIN_DELAY">⚠️ Rain Delay (Site Stopped)</option>
                 <option value="DUST_STORM">🌪️ Dust / High Winds</option>
+                <option value="HIGH_WIND">💨 Windy</option>
+                <option value="HIGH_TEMPERATURE">🔥 Hot</option>
+                <option value="LOW_TEMPERATURE">🥶 Cold</option>
               </select>
             </div>
 

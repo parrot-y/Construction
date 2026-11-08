@@ -111,6 +111,9 @@ export const WeatherConditionEnum = z.enum([
   'HEAVY_RAIN',
   'RAIN_DELAY',
   'DUST_STORM',
+  'HIGH_WIND',
+  'HIGH_TEMPERATURE',
+  'LOW_TEMPERATURE',
 ]);
 export type WeatherCondition = z.infer<typeof WeatherConditionEnum>;
 
@@ -287,6 +290,7 @@ export const RFIAttachmentInputSchema = z.object({
 export type RFIAttachmentInput = z.infer<typeof RFIAttachmentInputSchema>;
 
 export const CreateRfiSchema = z.object({
+  issueType: z.enum(['RFI', 'CLASH', 'DESIGN_QUESTION']).optional().nullable(),
   title: z.string().min(3).max(255),
   question: z.string().min(5),
   suggestedSolution: z.string().optional().nullable(),
@@ -632,8 +636,16 @@ export const IncidentTypeEnum = z.enum([
   'FIRST_AID',
   'MEDICAL_TREATMENT',
   'LOST_TIME_INJURY',
+  'FATALITY',
   'PROPERTY_DAMAGE',
   'PPE_VIOLATION',
+  // Reference-observed site-hazard taxonomy (kept alongside OSHA types)
+  'STRUCK_BY_EQUIPMENT',
+  'EQUIPMENT_ROLLOVER',
+  'CAVE_IN_TRENCH',
+  'TRAFFIC_INCIDENT',
+  'ASPHALT_HOT_MATERIAL',
+  'ENVIRONMENTAL_RELEASE',
 ]);
 export type IncidentType = z.infer<typeof IncidentTypeEnum>;
 

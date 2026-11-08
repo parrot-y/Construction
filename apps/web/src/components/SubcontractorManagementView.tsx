@@ -434,10 +434,18 @@ export default function SubcontractorManagementView({
                     <option value="STEEL_FABRICATION">Steel Fabrication</option>
                     <option value="ROOFING">Roofing</option>
                     <option value="PAINTING">Painting</option>
-                    <option value="TILING">Tiling</option>
+                    <option value="TILING">Tiling &amp; Flooring</option>
                     <option value="MASONRY">Masonry</option>
                     <option value="CARPENTRY">Carpentry</option>
-                    <option value="GLAZING">Glazing</option>
+                    <option value="GLAZING">Glazing &amp; Aluminium</option>
+                    <option value="CONCRETE">Concrete Works</option>
+                    <option value="STRUCTURAL_STEEL">Structural Steel</option>
+                    <option value="WATERPROOFING">Waterproofing</option>
+                    <option value="SCAFFOLDING">Scaffolding</option>
+                    <option value="DEMOLITION">Demolition</option>
+                    <option value="WELDING">Welding &amp; Fabrication</option>
+                    <option value="FIRE_SECURITY">Fire &amp; Security Systems</option>
+                    <option value="EARTHWORKS">Earthworks &amp; Excavation</option>
                     <option value="OTHER">Other Trade</option>
                   </select>
                 </div>

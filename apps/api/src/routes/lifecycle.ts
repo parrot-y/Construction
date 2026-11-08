@@ -209,6 +209,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               tenant_id: tenantId,
               project_id: projectId,
               rfi_number: nextRfiNumber,
+              issue_type: data.issueType ?? 'RFI',
               title: data.title,
               question: data.question,
               suggested_solution: data.suggestedSolution,
