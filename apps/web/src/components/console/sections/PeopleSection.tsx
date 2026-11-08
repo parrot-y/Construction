@@ -1,0 +1,244 @@
+import React, { useEffect, useState } from 'react';
+import { useConsole } from '../ConsoleContext';
+import CrewsView from '../../CrewsView';
+import SubcontractorManagementView from '../../SubcontractorManagementView';
+import { IconPlus } from '../icons';
+
+const ASSIGN_ROLES = ['ADMIN','COMPANY_ADMIN','EXECUTIVE','PM_QS','SITE_SUPERVISOR','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CLIENT','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE'];
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Admin', COMPANY_ADMIN: 'Company Admin', EXECUTIVE: 'Executive', PM_QS: 'Project Manager',
+  SITE_SUPERVISOR: 'Site Supervisor', SUPERINTENDENT: 'Superintendent', SITE_ENGINEER: 'Site Engineer',
+  TRADE_LEAD: 'Trade Lead', FOREMAN: 'Foreman', WORKER: 'Worker', VIEWER: 'Viewer',
+  CLIENT: 'Client', CONSULTANT: 'Consultant', SUBCONTRACTOR: 'Subcontractor', SUPPLIER: 'Supplier', COMPLIANCE: 'Compliance',
+};
+
+/** Team — members table with live role editing + invite + revoke. */
+function TeamView({ canInvite }: { canInvite: boolean }): React.JSX.Element {
+  const { session } = useConsole();
+  const [members, setMembers] = useState<any[] | null>(null);
+  const [invite, setInvite] = useState({ email: '', role: 'SITE_ENGINEER', open: false });
+  const [msg, setMsg] = useState('');
+
+  const load = () => {
+    fetch('/api/v1/company/members', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => setMembers(j.data || []))
+      .catch(() => setMembers([]));
+  };
+  useEffect(load, []);
+
+  const changeRole = async (membershipId: string, role: string) => {
+    const r = await fetch(`/api/v1/company/members/${membershipId}/role`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    });
+    if (r.ok) setMembers((prev) => prev?.map((m) => (m.membershipId === membershipId ? { ...m, role } : m)) ?? prev);
+    else { const j = await r.json().catch(() => ({})); setMsg(j.message || 'Role change failed'); }
+  };
+
+  const revoke = async (membershipId: string) => {
+    if (!window.confirm('Revoke this member\u2019s access?')) return;
+    const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include' });
+    if (r.ok) setMembers((prev) => prev?.filter((m) => m.membershipId !== membershipId) ?? prev);
+  };
+
+  const sendInvite = async () => {
+    const r = await fetch('/api/v1/invitations', {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: invite.email, role: invite.role }),
+    });
+    const j = await r.json().catch(() => ({}));
+    setMsg(r.ok ? `Invitation sent to ${invite.email}` : (j.message || 'Invite failed'));
+    if (r.ok) { setInvite({ email: '', role: 'SITE_ENGINEER', open: false }); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Team</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Invite teammates and give each a role. They sign in with that role.</p>
+        </div>
+        {canInvite && (
+          <button onClick={() => setInvite({ ...invite, open: !invite.open })}
+            className="px-3.5 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1.5">
+            <IconPlus className="w-3.5 h-3.5" /> Invite member
+          </button>
+        )}
+      </div>
+
+      {msg && <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">{msg}</p>}
+
+      {invite.open && (
+        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-wrap items-end gap-3">
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+            Email
+            <input type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })}
+              className="mt-1 block border border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm w-64" placeholder="teammate@company.co.ke" />
+          </label>
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+            Role
+            <select value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}
+              className="mt-1 block border border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm">
+              {ASSIGN_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
+            </select>
+          </label>
+          <button onClick={sendInvite} className="px-4 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg">Send invite</button>
+        </div>
+      )}
+
+      <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                <th className="px-5 py-3 font-semibold">Name</th>
+                <th className="px-3 py-3 font-semibold">Email</th>
+                <th className="px-3 py-3 font-semibold">Role</th>
+                <th className="px-5 py-3 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
+              {(members || []).map((m: any) => {
+                const isSelf = m.user?.id === session.user.id;
+                return (
+                  <tr key={m.membershipId} className="text-slate-700 dark:text-slate-300">
+                    <td className="px-5 py-3 font-semibold">{m.user?.full_name || '—'}</td>
+                    <td className="px-3 py-3">{m.user?.email}</td>
+                    <td className="px-3 py-3">
+                      {canInvite && !isSelf ? (
+                        <select value={m.role} onChange={(e) => changeRole(m.membershipId, e.target.value)}
+                          className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 text-[11px] font-bold">
+                          {ASSIGN_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
+                        </select>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[10px] font-bold">{ROLE_LABELS[m.role] || m.role}</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {canInvite && !isSelf && (
+                        <button onClick={() => revoke(m.membershipId)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {members !== null && members.length === 0 && (
+                <tr><td colSpan={4} className="px-5 py-8 text-center text-slate-400">No members found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Directory — combined read-only listing of members + subcontractors + suppliers. */
+function DirectoryView(): React.JSX.Element {
+  const { projectId } = useConsole();
+  const [members, setMembers] = useState<any[]>([]);
+  const [subs, setSubs] = useState<any[]>([]);
+  useEffect(() => {
+    fetch('/api/v1/company/members', { credentials: 'include' }).then((r) => r.ok ? r.json() : { data: [] }).then((j) => setMembers(j.data || [])).catch(() => {});
+    if (projectId && /^[0-9a-f-]{36}$/i.test(projectId)) {
+      fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : { data: [] }))
+        .then((j) => setSubs(j.data || j || [])).catch(() => {});
+    }
+  }, [projectId]);
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Directory</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Everyone you can reach — team, subcontractors and suppliers.</p>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <p className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">Team ({members.length})</p>
+          <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
+            {members.map((m: any) => (
+              <div key={m.membershipId} className="px-5 py-2.5 flex justify-between text-xs">
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{m.user?.full_name || m.user?.email}</span>
+                <span className="text-slate-400">{m.user?.email}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <p className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
+          <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
+            {subs.map((s: any) => (
+              <div key={s.id} className="px-5 py-2.5 flex justify-between text-xs">
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{s.company_name || s.name}</span>
+                <span className="text-slate-400">{s.trade || s.category || s.type || ''}</span>
+              </div>
+            ))}
+            {subs.length === 0 && <p className="px-5 py-6 text-xs text-slate-400 text-center">No subcontractors yet.</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Roles — permission matrix by workspace role. */
+const ROLE_MATRIX: { role: string; can: string[] }[] = [
+  { role: 'Company Admin', can: ['Everything', 'Billing & plan', 'Role management', 'All reports'] },
+  { role: 'Executive', can: ['All projects', 'Financials', 'Reports', 'Team directory'] },
+  { role: 'Project Manager / QS', can: ['Costs & BOQ', 'Variations', 'Certificates', 'Site modules'] },
+  { role: 'Superintendent', can: ['Site operations', 'Financials', 'Crews & subcontractors'] },
+  { role: 'Site Engineer', can: ['Daily logs', 'Drawings', 'Inspections', 'Inventory'] },
+  { role: 'Trade Lead', can: ['Checklists', 'Punch list', 'Attendance', 'Invoices (view)'] },
+  { role: 'Foreman', can: ['Field capture', 'Attendance', 'Inventory'] },
+  { role: 'Worker', can: ['Daily log', 'Drawings', 'Checklists', 'Attendance'] },
+  { role: 'Viewer', can: ['Read-only access', 'No financial detail', 'No People/Files edits'] },
+];
+
+function RolesView(): React.JSX.Element {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Roles</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400">What each workspace role can see and do.</p>
+      </div>
+      <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-slate-400 border-b border-slate-100 dark:border-slate-800">
+              <th className="px-5 py-3 font-semibold">Role</th>
+              <th className="px-5 py-3 font-semibold">Access</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
+            {ROLE_MATRIX.map((r) => (
+              <tr key={r.role} className="text-slate-700 dark:text-slate-300">
+                <td className="px-5 py-3 font-bold whitespace-nowrap">{r.role}</td>
+                <td className="px-5 py-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.can.map((c) => <span key={c} className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[10px] font-semibold">{c}</span>)}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[11px] text-slate-400">Assign roles from Team. External stakeholders (client, consultant, subcontractor, supplier, compliance) use token portals, not seats.</p>
+    </div>
+  );
+}
+
+export default function PeopleSection(): React.JSX.Element {
+  const { tab, role, projectId } = useConsole();
+  const canInvite = ['COMPANY_ADMIN', 'ADMIN', 'EXECUTIVE'].includes(role);
+  const livePid = projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
+  switch (tab) {
+    case 'team': return <TeamView canInvite={canInvite} />;
+    case 'crews': return <CrewsView canManage={canInvite || ['PM_QS','SUPERINTENDENT','SITE_SUPERVISOR','SITE_ENGINEER'].includes(role)} />;
+    case 'subcontractors': return livePid ? <SubcontractorManagementView projectId={livePid} canAward={canInvite || ['PM_QS','SUPERINTENDENT'].includes(role)} /> : <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Select a project to view subcontractors.</div>;
+    case 'directory': return <DirectoryView />;
+    case 'roles': return <RolesView />;
+    default: return <TeamView canInvite={canInvite} />;
+  }
+}

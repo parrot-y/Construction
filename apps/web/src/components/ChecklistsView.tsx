@@ -21,16 +21,16 @@ const STATUS_STYLE: Record<string, string> = {
   APPROVED: 'bg-emerald-50 text-emerald-700', REJECTED: 'bg-rose-50 text-rose-700',
 };
 
-interface Props { projectId?: string; canManage?: boolean }
+interface Props { projectId?: string; canManage?: boolean; initialTab?: 'assignments' | 'templates' }
 
-export default function ChecklistsView({ projectId, canManage = true }: Props): React.JSX.Element {
+export default function ChecklistsView({ projectId, canManage = true, initialTab }: Props): React.JSX.Element {
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
   const [pid, setPid] = useState(projectId || '');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'assignments' | 'templates'>('assignments');
+  const [tab, setTab] = useState<'assignments' | 'templates'>(initialTab || 'assignments');
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);

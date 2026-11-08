@@ -17,9 +17,9 @@ const EXPIRY_STYLE: Record<string, string> = {
   VALID: 'bg-emerald-50 text-emerald-700',
 };
 
-export default function CompanyDocumentsView({ canManage = false }: { canManage?: boolean }): React.JSX.Element {
+export default function CompanyDocumentsView({ canManage = false, initialTab }: { canManage?: boolean; initialTab?: string }): React.JSX.Element {
   const [docs, setDocs] = useState<CompanyDoc[]>([]);
-  const [tab, setTab] = useState<string>('ALL'); // ALL | UNFILED | category
+  const [tab, setTab] = useState<string>(initialTab || 'ALL'); // ALL | UNFILED | category
   const [expiringOnly, setExpiringOnly] = useState(false);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);

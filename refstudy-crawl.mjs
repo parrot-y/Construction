@@ -16,6 +16,21 @@ const creds = [
 fs.mkdirSync('/tmp/refstudy/crawl',{recursive:true});
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true });
 
+async function dismissOnboarding(page){
+  for(let i=0;i<6;i++){
+    const clicked = await page.evaluate(()=>{
+      const pats=[/skip for now/i,/got it/i,/maybe later/i,/not now/i,/close/i,/start building/i,/done/i];
+      for(const p of pats){
+        const b=[...document.querySelectorAll('button,a')].find(e=>p.test(e.innerText||''));
+        if(b){b.click();return (b.innerText||'').slice(0,40);}
+      }
+      return null;
+    });
+    if(!clicked) break;
+    await page.waitForTimeout(2500);
+  }
+}
+
 for (const [role,email,pw] of creds) {
   const dir = `/tmp/refstudy/crawl/${role}`;
   fs.mkdirSync(dir,{recursive:true});
@@ -30,17 +45,18 @@ for (const [role,email,pw] of creds) {
     await page.fill('input[type="password"]',pw);
     await page.click('button:has-text("Enter Workspace")').catch(()=>{});
     await page.waitForTimeout(11000);
-    for(let i=0;i<3;i++){const s=await page.$('button:has-text("Skip for now")');if(s){await s.click();await page.waitForTimeout(4000);}else break;}
+    await dismissOnboarding(page);
     await page.waitForTimeout(4000);
-    // role/landing info
     fs.writeFileSync(`${dir}/_landing.txt`, await page.evaluate(()=>document.body.innerText.slice(0,3000)));
     await page.screenshot({path:`${dir}/_home.png`});
     for (const sec of SECTIONS) {
       try {
-        const btn = await page.$(`button[aria-label="${sec}"]`);
-        if (!btn) { console.log(role,sec,'NO BTN'); continue; }
-        await btn.click();
-        await page.waitForTimeout(4500);
+        const ok = await page.evaluate((label)=>{
+          const b=[...document.querySelectorAll('button')].find(e=>e.getAttribute('aria-label')===label);
+          if(b){b.click();return true;} return false;
+        }, sec);
+        if (!ok) { console.log(role,sec,'NO BTN'); continue; }
+        await page.waitForTimeout(6000);
         const safe=sec.replace(/[^a-z]/gi,'_').toLowerCase();
         fs.writeFileSync(`${dir}/${safe}.txt`, await page.evaluate(()=>document.body.innerText.slice(0,9000)));
         await page.screenshot({path:`${dir}/${safe}.png`});

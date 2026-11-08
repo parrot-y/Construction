@@ -57,6 +57,8 @@ import { GeotechnicalSoilView } from './components/GeotechnicalSoilView';
 import { AsphaltPavementView } from './components/AsphaltPavementView';
 import { TopographicSurveyView } from './components/TopographicSurveyView';
 import PmQsDashboard from './components/PmQsDashboard';
+import CompanyAdminDashboard from './components/CompanyAdminDashboard';
+import SupervisorDashboard from './components/SupervisorDashboard';
 import IndependentSiteReportView from './components/IndependentSiteReportView';
 import ContractorTenderBoardView from './components/ContractorTenderBoardView';
 import LandingPortalHub from './components/LandingPortalHub';
@@ -100,7 +102,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       token: 'mock-jwt-token-admin',
     };
 
-    const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />);
+    const html = renderToString(<CompanyAdminDashboard session={adminSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
     expect(html).toContain('David Kimani');
     expect(html).toContain('COMPANY_ADMIN');
@@ -135,7 +137,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       token: 'mock-jwt-token-qs',
     };
 
-    const html = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
+    const html = renderToString(<PmQsDashboard session={qsSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
     expect(html).toContain('Faith Achieng');
     expect(html).toContain('PM_QS');
@@ -168,10 +170,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       token: 'mock-jwt-token-supervisor',
     };
 
-    const html = renderToString(<Dashboard session={supervisorSession} onLogout={() => {}} />);
+    const html = renderToString(<SupervisorDashboard session={supervisorSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
-    expect(html).toContain('John Mwangi');
-    expect(html).toContain('SITE_SUPERVISOR');
+    expect(html).toContain('Site Supervisor Workspace');
     expect(html).toContain('Site Operations &amp; Daily Diary');
     expect(html).toContain('+ Record Daily Site Diary');
     expect(html).toContain('IndexedDB Offline Queue Active');
@@ -448,7 +449,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'mock-jwt-token-client',
       };
 
-      const qsHtml = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
+      const qsHtml = renderToString(<PmQsDashboard session={qsSession} />);
       expect(qsHtml).toContain('Variance Monitor &amp; Health Guard');
       expect(qsHtml).toContain('BOQ Section-by-Section Spend Breakdown');
 
@@ -609,7 +610,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'mock-jwt-token-client',
       };
 
-      const qsHtml = renderToString(<Dashboard session={qsSession} onLogout={() => {}} />);
+      const qsHtml = renderToString(<PmQsDashboard session={qsSession} />);
       expect(qsHtml).toContain('Change Orders');
       expect(qsHtml).toContain('+ New Change Order');
       expect(qsHtml).toContain('PM REVIEW');
@@ -826,7 +827,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
 
     it('renders PDF report download buttons in PmQsDashboard', () => {
-      const html = renderToString(<Dashboard session={mockSession('PM_QS')} onLogout={() => {}} />);
+      const html = renderToString(<PmQsDashboard session={mockSession('PM_QS')} />);
       expect(html).toContain('Download IPC (PDF)');
       expect(html).toContain('Project Summary (PDF)');
       expect(html).toContain('data-testid="download-ipc-btn"');
@@ -836,7 +837,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
 
     it('renders PDF report download buttons in SupervisorDashboard', () => {
-      const html = renderToString(<Dashboard session={mockSession('SITE_SUPERVISOR')} onLogout={() => {}} />);
+      const html = renderToString(<SupervisorDashboard session={mockSession('SITE_SUPERVISOR')} />);
       expect(html).toContain('Daily Diary (PDF)');
       expect(html).toContain('Site Summary (PDF)');
       expect(html).toContain('data-testid="download-site-diary-btn"');
@@ -1105,7 +1106,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
 
     it('embeds RfiManagementView, QualityControlView, and PracticalCompletionCard into PmQsDashboard', () => {
-      const html = renderToString(<Dashboard session={mockSessionForRole('PM_QS')} onLogout={() => {}} />);
+      const html = renderToString(<PmQsDashboard session={mockSessionForRole('PM_QS')} />);
 
       expect(html).toContain('Request for Information (RFI) Register');
       expect(html).toContain('Pre-Pour Hold Points &amp; Concrete Cube Crushing');
@@ -1113,14 +1114,14 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     });
 
     it('embeds QualityControlView and SnaggingListView into SupervisorDashboard', () => {
-      const html = renderToString(<Dashboard session={mockSessionForRole('SITE_SUPERVISOR')} onLogout={() => {}} />);
+      const html = renderToString(<SupervisorDashboard session={mockSessionForRole('SITE_SUPERVISOR')} />);
 
       expect(html).toContain('Pre-Pour Hold Points &amp; Concrete Cube Crushing');
       expect(html).toContain('Defects Snagging Punch List Register');
     });
 
     it('embeds PracticalCompletionCard and SnaggingListView into ClientDashboard with verification capability', () => {
-      const html = renderToString(<Dashboard session={mockSessionForRole('CLIENT')} onLogout={() => {}} />);
+      const html = renderToString(<ClientDashboard session={mockSessionForRole('CLIENT')} />);
 
       expect(html).toContain('Practical Completion &amp; Retention Release Card');
       expect(html).toContain('Defects Snagging Punch List Register');
@@ -1278,11 +1279,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const pmHtml = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const pmHtml = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(pmHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
       expect(pmHtml).toContain('🌐 Stakeholder Portals');
 
-      const adminHtml = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const adminHtml = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(adminHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
     });
   });
@@ -1374,7 +1375,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('📅 Schedule &amp; Gantt');
       expect(html).toContain('📦 Site Inventory');
       expect(html).toContain('🤝 Subcontractors');
@@ -1432,7 +1433,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Statutory Tax &amp; Withholding Certificates');
       expect(html).toContain('KRA CAP 470 (WHT &amp; WHVAT)');
     });
@@ -1512,7 +1513,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('📦 Material Requisitions');
       expect(html).toContain('⚖️ Wastage Variance');
       expect(html).toContain('📈 Cash Flow &amp; S-Curve');
@@ -1536,7 +1537,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Project Cash Flow &amp; S-Curve Forecasting');
       expect(html).toContain('Subcontractor Valuations &amp; Retention Ledger');
     });
@@ -1554,7 +1555,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Site Material Requisitions &amp; Orders');
       expect(html).toContain('Material Wastage &amp; Shrinkage Engine');
     });
@@ -1625,7 +1626,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('🚜 Plant &amp; Machinery');
       expect(html).toContain('👷 Labor Muster Roll');
       expect(html).toContain('🦺 Field Safety Scorecard');
@@ -1647,7 +1648,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Plant &amp; Heavy Equipment Manager');
       expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
       expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
@@ -1666,7 +1667,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Plant &amp; Heavy Equipment Manager');
       expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
       expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
@@ -1744,7 +1745,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('🧾 KRA e-TIMS Invoices');
       expect(html).toContain('💬 WhatsApp Site Bot');
       expect(html).toContain('🏦 Retention &amp; Bonds');
@@ -1766,7 +1767,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('WhatsApp Site Ops Bot &amp; Webhook Engine');
       expect(html).toContain('Field WhatsApp Bot &amp; Incident Dispatch');
     });
@@ -1784,7 +1785,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('KRA e-TIMS Tax Compliance Engine');
       expect(html).toContain('Subcontractor Retention &amp; Bank Bonds Engine');
     });
@@ -1865,7 +1866,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Safaricom Daraja M-Pesa Subscription Billing');
       expect(html).toContain('Pay / Upgrade with M-Pesa');
     });
@@ -1883,7 +1884,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
       expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
     });
@@ -1901,7 +1902,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('📍 Site Geofencing');
       expect(html).toContain('🛰️ Plant Telematics');
       expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
@@ -1952,7 +1953,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('🏗️ Rebar BBS Takeoff');
       expect(html).toContain('💸 M-Pesa B2C Payouts');
       expect(html).toContain('Rebar Takeoff &amp; BS 8666 Bar Bending Schedule (BBS)');
@@ -1972,7 +1973,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Rebar Takeoff &amp; BS 8666 Bar Bending Schedule (BBS)');
       expect(html).toContain('KS 02-598 Certified');
     });
@@ -1990,7 +1991,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={adminSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Safaricom Daraja B2C Bulk Wages &amp; Retention Disbursements');
       expect(html).toContain('Live B2C Gateway');
     });
@@ -2044,7 +2045,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('🚛 RMC Transit &amp; Slump');
       expect(html).toContain('⚙️ Structural Steel Takeoff');
       expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
@@ -2064,7 +2065,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
       expect(html).toContain('Bamburi Special Products Ltd');
       expect(html).toContain('KDH 482B');
@@ -2121,7 +2122,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('⛰️ Geotechnical Soil QA');
       expect(html).toContain('🛣️ Asphalt Pavement QA');
       expect(html).toContain('Geotechnical Soil Compaction QA Engine');
@@ -2141,7 +2142,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Geotechnical Soil Compaction QA Engine');
       expect(html).toContain('Asphalt Pavement Quality &amp; Thermal Tracker');
     });
@@ -2183,7 +2184,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={pmSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('📐 Topographic Survey &amp; Earthworks');
       expect(html).toContain('Survey &amp; Topographic Cut/Fill Earthworks Engine');
       expect(html).toContain('Mass Haul Diagram (MHD)');
@@ -2202,7 +2203,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         token: 'token',
       };
 
-      const html = renderToString(<Dashboard session={superSession} onLogout={() => {}} />).replace(/<!-- -->/g, '');
+      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
       expect(html).toContain('Survey &amp; Topographic Cut/Fill Earthworks Engine');
       expect(html).toContain('Mass Haul Diagram (MHD)');
     });
@@ -2622,7 +2623,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
     it('embeds quotes and invoicing into the Company Admin dashboard', () => {
       const html = renderToString(
-        <Dashboard session={gate4Session('COMPANY_ADMIN')} onLogout={() => {}} />
+        <CompanyAdminDashboard session={gate4Session('COMPANY_ADMIN')} />
       ).replace(/<!-- -->/g, '');
       expect(html).toContain('Quotations &amp; Proposals');
       expect(html).toContain('Invoicing &amp; Payments');

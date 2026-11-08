@@ -133,3 +133,17 @@
 - [x] Missing GETs added: telematics-devices, site-webhook-logs, equipment dailyLogs serialized
 - [x] integrations.test.ts (4 tests)
 - [x] Final verify-local GREEN — 691/691 on 6858172
+
+## Reference-console parity rebuild (live-captured 2026-11-08)
+Captures: /tmp/refstudy/crawl/<role>/<section>.{txt,png} — 8 roles x 6 sections.
+
+- [ ] AppShell: icon rail (Ask AI, Home, Projects, Site, Money, People, Files & reports) + topbar (workspace label, search, currency toggle, New, notifications, avatar, dark-mode ready)
+- [ ] navConfig: role -> visible sections/subtabs per captured matrix
+- [ ] Home per role group: exec/pm/viewer dashboard (CO KPIs, AI insight, status chart) ; field roles team inbox + announcements + AI panel
+- [ ] Projects section: All projects (cards+filters+recent CO activity), Schedule, Drawings, Change orders, Coordination(RFI), Correspondence
+- [ ] Site section: Daily log, Checklists, Assignments, Punch list, Inspections, Observations, Action plans, Safety, Attendance (+Field view for field roles)
+- [ ] Money section: Financials, Commitments, Quotes, Invoices, Inventory, Billing&plan (role-gated)
+- [ ] People section: Team, Crews, Subcontractors, Directory, Roles (role-gated)
+- [ ] Files section: Reports, Company documents, Unfiled documents
+- [ ] Ask AI panel: honest assistant UI (module deep-links + guidance; no fake AI claims)
+- [ ] Role gating verified per captured matrix (worker: no People/Files; viewer: read-only subset)

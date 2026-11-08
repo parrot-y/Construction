@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import { AuthSession } from '../types/auth';
-import CompanyAdminDashboard from './CompanyAdminDashboard';
-import PmQsDashboard from './PmQsDashboard';
-import SupervisorDashboard from './SupervisorDashboard';
 import ClientDashboard from './ClientDashboard';
-import ExecutiveDashboard from './ExecutiveDashboard';
-import FieldDashboard from './FieldDashboard';
+import AppShell from './console/AppShell';
 import ConsultantPortalView from './portals/ConsultantPortalView';
 import SubcontractorPortalView from './portals/SubcontractorPortalView';
 import SupplierPortalView from './portals/SupplierPortalView';
@@ -39,10 +35,6 @@ export default function Dashboard({ session, onLogout }: DashboardProps): React.
       default:
         return 'bg-slate-100 text-slate-800 border-slate-200';
     }
-  };
-
-  const handlePreview = (type: string, token: string, name: string, role?: string) => {
-    setPreviewPortal({ type, token, name, role });
   };
 
   const renderRoleDashboard = () => {
@@ -98,33 +90,12 @@ export default function Dashboard({ session, onLogout }: DashboardProps): React.
       }
     }
 
-    switch (user.role) {
-      case 'COMPANY_ADMIN':
-      case 'ADMIN':
-        return <CompanyAdminDashboard session={session} onPreviewPortal={handlePreview} />;
-      case 'PM_QS':
-        return <PmQsDashboard session={session} onPreviewPortal={handlePreview} />;
-      case 'SITE_SUPERVISOR':
-        return <SupervisorDashboard session={session} />;
-      case 'SITE_ENGINEER':
-      case 'TRADE_LEAD':
-      case 'FOREMAN':
-      case 'WORKER':
-      case 'SUPERINTENDENT':
-        return <FieldDashboard session={session} />;
-      case 'VIEWER':
-        return <FieldDashboard session={session} readOnly />;
-      case 'EXECUTIVE':
-        return <ExecutiveDashboard session={session} />;
-      case 'CLIENT':
-        return <ClientDashboard session={session} />;
-      default:
-        return (
-          <div className="bg-white p-6 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
-            Role {user.role} workspace view not configured. Contact your company administrator.
-          </div>
-        );
+    if (user.role === 'CLIENT') {
+      return <ClientDashboard session={session} />;
     }
+    // All internal workspace roles render inside the console shell
+    // (icon rail + section router per role nav matrix).
+    return <AppShell session={session} onLogout={onLogout} />;
   };
 
   const initials = user.fullName
