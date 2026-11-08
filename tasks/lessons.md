@@ -34,3 +34,7 @@
 21. **Include-then-write staleness**: `tx.model.create({include})` returns rows fetched BEFORE subsequent writes in the same tx — re-`findUniqueOrThrow` after `recordCoEvent`/audit writes if the response must contain them.
 22. **Legacy status normalization**: keep `normalizeCoStatus` at read boundaries; guarded `updateMany({where:{status: <raw stored>}})` claims transitions AND migrates legacy rows in one write.
 - 2026-11-08: verify-local lint (tsc) catches unused vars that vitest tolerates — ALWAYS run 'pnpm --filter @construction/api exec tsc --noEmit' (and web) before committing test files; vitest passing is not sufficient.
+23. **Never edit the repo while verify-local.sh runs**: turbo lint/typecheck/build/test read the working tree — in-flight edits cause spurious failures (hit twice: checklists.ts TS error mid-run; stale test DB after schema push). Freeze edits during the ~25min window; batch commits BEFORE launching verify.
+24. **verify-local's db push is a point-in-time snapshot**: schema changes made after Step 3 leave the test DB stale → mass failures in unrelated suites (inspection enum). Re-run verify after ANY schema change before claiming green.
+25. **Test helpers return parsed bodies, not strings**: `login()` helpers that return `{cookie, body: JSON.parse(res.body)}` — don't JSON.parse(body) again (SyntaxError "[object Object]").
+26. **SiteLaborer requires phone_number + unique national_id**: direct prisma seeding in tests needs both; use timestamped IDs to survive re-runs.
