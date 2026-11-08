@@ -132,4 +132,4 @@
 - [x] Mobile-first: bottom tab nav on FieldDashboard + SupervisorDashboard
 - [x] Missing GETs added: telematics-devices, site-webhook-logs, equipment dailyLogs serialized
 - [x] integrations.test.ts (4 tests)
-- [ ] Final verify-local — RUNNING NEXT
+- [x] Final verify-local GREEN — 691/691 on 6858172
