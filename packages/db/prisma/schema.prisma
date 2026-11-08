@@ -57,6 +57,7 @@ model User {
   password_hash  String       @db.VarChar(255)
   full_name      String       @db.VarChar(255)
   phone_number   String?      @db.VarChar(30)
+  country        String?      @db.VarChar(60)
   is_active      Boolean      @default(true)
   created_at     DateTime     @default(now()) @db.Timestamptz
   updated_at     DateTime     @updatedAt @db.Timestamptz
@@ -2582,6 +2583,25 @@ model Announcement {
 
   @@index([tenant_id, status, published_at])
   @@map("announcements")
+}
+
+// Client-initiated project requests ("Request a project" portal flow)
+model ClientProjectRequest {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenant_id       String   @db.Uuid
+  user_id         String   @db.Uuid
+  project_type    String   @db.VarChar(60)
+  location_text   String   @db.VarChar(255)
+  budget_range    String?  @db.VarChar(40)
+  start_timeframe String?  @db.VarChar(40)
+  description     String   @db.Text
+  contact_phone   String?  @db.VarChar(30)
+  status          String   @default("NEW") @db.VarChar(20) // NEW, REVIEWING, CONVERTED, CLOSED
+  created_at      DateTime @default(now()) @db.Timestamptz
+  updated_at      DateTime @updatedAt @db.Timestamptz
+
+  @@index([tenant_id, status, created_at])
+  @@map("client_project_requests")
 }
 
 model AnnouncementRead {

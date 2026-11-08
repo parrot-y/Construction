@@ -388,4 +388,93 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
       }
     },
   );
+
+
+  // ---------------------------------------------------------------------------
+  // Client-initiated project requests ("Request a project" portal flow)
+  // ---------------------------------------------------------------------------
+  const PROJECT_TYPES = [
+    'New house / bungalow', 'Maisonette or villa', 'Apartments / flats',
+    'Commercial building', 'Renovation / remodeling', 'Kitchen or bathroom remodel',
+    'Interior design & finishes', 'Fencing & gates', 'Borehole / water works',
+    'Solar / electrical installation', 'CCTV & security', 'Landscaping & gardening',
+    'Roads, drainage or civil works', 'Land clearing & surveying', 'Other',
+  ];
+  const BUDGET_RANGES = ['Below KES 1M', 'KES 1M - 5M', 'KES 5M - 20M', 'KES 20M - 50M', 'Above KES 50M', 'Not sure yet'];
+  const START_TFRAMES = ['As soon as possible', 'Within 3 months', 'In 3 - 6 months', 'In 6 - 12 months', 'Just planning for now'];
+
+  server.post(
+    '/api/v1/client/project-requests',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user as any;
+      if (role !== 'CLIENT') {
+        return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'Only client accounts can submit project requests' });
+      }
+      const body = (request.body || {}) as Record<string, unknown>;
+      const projectType = String(body.projectType || '').trim();
+      const locationText = String(body.locationText || '').trim();
+      const description = String(body.description || '').trim();
+      if (!PROJECT_TYPES.includes(projectType)) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid project type' });
+      }
+      if (!locationText || locationText.length > 255) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Site location is required (max 255 chars)' });
+      }
+      if (!description || description.length > 5000) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Work description is required (max 5000 chars)' });
+      }
+      const budgetRange = BUDGET_RANGES.includes(String(body.budgetRange)) ? String(body.budgetRange) : null;
+      const startTimeframe = START_TFRAMES.includes(String(body.startTimeframe)) ? String(body.startTimeframe) : null;
+      const contactPhone = body.contactPhone ? String(body.contactPhone).slice(0, 30) : null;
+      try {
+        const created = await withTenantTx(prisma, tenantId, async (tx) =>
+          tx.clientProjectRequest.create({
+            data: {
+              tenant_id: tenantId,
+              user_id: sub,
+              project_type: projectType,
+              location_text: locationText,
+              budget_range: budgetRange,
+              start_timeframe: startTimeframe,
+              description,
+              contact_phone: contactPhone,
+            },
+          }),
+        );
+        return reply.status(201).send({ data: created });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to submit request' });
+      }
+    },
+  );
+
+  server.get(
+    '/api/v1/client/project-requests',
+    { preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user as any;
+      try {
+        const rows = await withTenantTx(prisma, tenantId, async (tx) =>
+          tx.clientProjectRequest.findMany({
+            where: role === 'CLIENT' ? { user_id: sub } : {},
+            orderBy: { created_at: 'desc' },
+            take: 50,
+          }),
+        );
+        return reply.status(200).send({
+          data: rows.map((r) => ({
+            ...r,
+            created_at: r.created_at.toISOString(),
+            updated_at: r.updated_at.toISOString(),
+          })),
+        });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list project requests' });
+      }
+    },
+  );
 };
+

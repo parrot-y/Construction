@@ -236,4 +236,30 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       return reply.status(200).send(response);
     },
   );
+
+  // PATCH /api/v1/auth/me — profile self-service (name, phone, country)
+  server.patch(
+    '/api/v1/auth/me',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const body = (request.body || {}) as { fullName?: string; phoneNumber?: string | null; country?: string | null };
+      const data: Record<string, unknown> = {};
+      if (typeof body.fullName === 'string' && body.fullName.trim()) data.full_name = body.fullName.trim().slice(0, 255);
+      if (body.phoneNumber !== undefined) data.phone_number = body.phoneNumber ? String(body.phoneNumber).slice(0, 30) : null;
+      if (body.country !== undefined) data.country = body.country ? String(body.country).slice(0, 60) : null;
+      if (Object.keys(data).length === 0) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No updatable fields provided' });
+      }
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) =>
+          tx.user.update({ where: { id: sub }, data }),
+        );
+        return reply.status(200).send({ data: { id: updated.id, fullName: updated.full_name, phoneNumber: updated.phone_number, country: updated.country } });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update profile' });
+      }
+    },
+  );
 };

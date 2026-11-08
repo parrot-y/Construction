@@ -115,7 +115,11 @@ function TopBar({ onLogout }: { onLogout?: () => void }): React.JSX.Element {
           <IconSpark className="w-3.5 h-3.5" /> Ask AI
         </button>
 
-        <button aria-label="Notifications" className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 relative">
+        <button
+          onClick={() => { setSection('home'); setTab('inbox'); }}
+          aria-label="Notifications and inbox"
+          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 relative"
+        >
           <IconBell className="w-5 h-5" />
         </button>
         <button onClick={toggleDark} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
