@@ -12,6 +12,7 @@ import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
 import ClientQuotesView from './ClientQuotesView';
 import AnnouncementsView from './AnnouncementsView';
+import InboxView from './InboxView';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -77,6 +78,7 @@ export default function ClientDashboard({
   const { user } = session;
 
   const [projectData, setProjectData] = useState(projectDataProp ?? DEFAULT_PROJECT);
+  const [view, setView] = useState<'overview' | 'messages'>('overview');
   const [financials, setFinancials] = useState(financialsProp ?? DEFAULT_FINANCIALS);
   const [progress, setProgress] = useState(progressProp ?? DEFAULT_PROGRESS);
   const [photos, setPhotos] = useState(photosProp);
@@ -202,6 +204,18 @@ export default function ClientDashboard({
     : `${progress.varianceDelta.toFixed(1)}%`;
 
   return (
+    <div className="space-y-4">
+      <nav className="flex gap-1.5 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 w-fit" aria-label="Client portal sections">
+        {([['overview', 'Home'], ['messages', 'Messages']] as const).map(([v, label]) => (
+          <button key={v} onClick={() => setView(v)}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition ${view === v ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
+            {label}
+          </button>
+        ))}
+      </nav>
+      {view === 'messages' ? (
+        <InboxView currentUserId={user.id} />
+      ) : (
     <div className="space-y-6">
       {/* Header Banner */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -652,6 +666,8 @@ export default function ClientDashboard({
       <ClientQuotesView />
 
       <AnnouncementsView canManage={false} />
+    </div>
+      )}
     </div>
   );
 }
