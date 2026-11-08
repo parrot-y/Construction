@@ -156,6 +156,19 @@ Captures: /tmp/refstudy/crawl/<role>/<section>.{txt,png} — 8 roles x 6 section
 - [x] All 10 seed logins verified live via Playwright DOM probe
 - [x] Probe/refstudy scripts removed from repo (never commit research tooling)
 
+## Form-level parity sweep (live-captured 2026-11-08, second pass)
+Captured every create form on contractor portal: CO, RFI, correspondence, safety, observation, punch, crew, subcontractor, daily log, invoice, quote, commitment, financials subtabs, reports, company docs, unfiled, field view, mobile landing.
+
+- [x] CO modal: linked RFI + multi-assignee selects (backend already supported assigneeIds/linkedRfiId)
+- [x] RFI issue_type: RFI/CLASH/DESIGN_QUESTION (schema+validation+route+modal)
+- [x] Safety incident types extended to observed hazard taxonomy (struck-by, rollover, cave-in, traffic, asphalt burn, environmental) alongside OSHA types
+- [x] Daily-log weather: + Windy/Hot/Cold (HIGH_WIND/HIGH_TEMPERATURE/LOW_TEMPERATURE)
+- [x] Crew + subcontractor trade lists expanded to observed taxonomy; Interior Design & Decor added to snag categories
+- [x] Reports: CO volume-by-status bar chart (observed on reference reports page)
+- [x] Site > Field view tab: field hub — quick actions + my assigned checklists (observed)
+- [x] Verified already-matching: invoice (richer — KRA/paybill), quotes (convert-to-project + deposit invoice exceeds ref), commitments step explainer, correspondence types/direction, observation types, daily-log strip, money subtabs all live-backed
+- [x] verify-local GREEN 696/696 on 2b793ee
+
 ## Review
 - Shell now matches captured IA 1:1 at section+subtab level; inner views are our live implementations (not copies).
 - Honest gaps remaining: real AI backend (Ask AI is labelled rule-based nav assistant), AI Design SOON, drawing markup viewer, live eTIMS/WhatsApp provider creds, client-portal "Request a project" flow, deeper subtab internals beyond first-crawl depth.

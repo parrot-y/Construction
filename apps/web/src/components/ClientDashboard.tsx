@@ -80,27 +80,21 @@ export default function ClientDashboard({
   const { user } = session;
 
   const [projectData, setProjectData] = useState(projectDataProp ?? DEFAULT_PROJECT);
-  const [view, setView] = useState<'overview' | 'messages' | 'quotes' | 'reporting' | 'request' | 'account'>('overview');
+  const [view, setView] = useState<'overview' | 'sites' | 'messages' | 'quotes' | 'reporting' | 'request' | 'account'>('overview');
+  const [sites, setSites] = useState<{ id: string; name: string; code?: string; status?: string; location?: string }[]>([]);
   const [financials, setFinancials] = useState(financialsProp ?? DEFAULT_FINANCIALS);
   const [progress, setProgress] = useState(progressProp ?? DEFAULT_PROGRESS);
   const [photos, setPhotos] = useState(photosProp);
   const [timeline, setTimeline] = useState(timelineProp);
 
   // Hydrate from the live client-portal endpoint (real project data).
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
+  const loadProject = async (pid: string) => {
       try {
-        const plist = await fetch('/api/v1/projects', { credentials: 'include' });
-        if (!plist.ok) return;
-        const pj = await plist.json();
-        const first = (pj.data || [])[0];
-        if (!first?.id) return;
-        const res = await fetch(`/api/v1/projects/${first.id}/client-portal`, { credentials: 'include' });
+        const res = await fetch(`/api/v1/projects/${pid}/client-portal`, { credentials: 'include' });
         if (!res.ok) return;
         const json = await res.json();
         const d = json.data || json;
-        if (cancelled || !d?.project) return;
+        if (!d?.project) return;
         setProjectData({
           id: d.project.id,
           name: d.project.name,
@@ -139,6 +133,21 @@ export default function ClientDashboard({
           recordedAt: t.recorded_at, itemDescription: t.item_description,
           sectionCode: t.section_code,
         })));
+      } catch { /* keep demo defaults */ }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const plist = await fetch('/api/v1/projects', { credentials: 'include' });
+        if (!plist.ok) return;
+        const pj = await plist.json();
+        const list = pj.data || [];
+        if (!cancelled) setSites(list.map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status, location: p.location })));
+        const first = list[0];
+        if (!first?.id || cancelled) return;
+        await loadProject(first.id);
       } catch { /* keep demo defaults */ }
     })();
     return () => { cancelled = true; };
@@ -208,14 +217,33 @@ export default function ClientDashboard({
   return (
     <div className="space-y-4">
       <nav className="flex gap-1.5 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 w-fit" aria-label="Client portal sections">
-        {([['overview', 'Home'], ['messages', 'Messages'], ['quotes', 'Quotes & proposals'], ['reporting', 'Site reporting'], ['request', 'Request a project'], ['account', 'Account']] as const).map(([v, label]) => (
+        {([['overview', 'Home'], ['sites', 'My sites'], ['messages', 'Messages'], ['quotes', 'Quotes & proposals'], ['reporting', 'Site reporting'], ['request', 'Request a project'], ['account', 'Account']] as const).map(([v, label]) => (
           <button key={v} onClick={() => setView(v)}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition ${view === v ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
             {label}
           </button>
         ))}
       </nav>
-      {view === 'messages' ? (
+      {view === 'sites' ? (
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">My sites</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Projects shared with you — progress, photos and reports.</p>
+          </div>
+          {sites.length === 0 && <p className="text-xs text-slate-400">No sites shared with you yet.</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {sites.map((st) => (
+              <button key={st.id}
+                onClick={() => { void loadProject(st.id); setView('overview'); }}
+                className={`text-left p-4 rounded-xl border transition ${projectData.id === st.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-emerald-400'}`}>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{st.name}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{st.code}{st.location ? ` · ${st.location}` : ''}</p>
+                {st.status && <span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{st.status}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : view === 'messages' ? (
         <InboxView currentUserId={user.id} />
       ) : view === 'quotes' ? (
         <ClientQuotesView />
