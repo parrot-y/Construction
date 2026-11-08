@@ -11,10 +11,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Kenya Construction SaaS',
-        short_name: 'Construction',
-        description: 'Multi-tenant construction project operations platform',
-        theme_color: '#0f172a',
+        name: 'Site Safi',
+        short_name: 'Site Safi',
+        description: 'Kenya-first construction management — sites, crews, money, clients',
+        theme_color: '#EA580C',
         background_color: '#ffffff',
         display: 'standalone',
         icons: [

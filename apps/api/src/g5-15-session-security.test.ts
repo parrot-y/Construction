@@ -96,6 +96,31 @@ describe('Session security', () => {
     expect(me.statusCode).toBe(401);
   });
 
+  it('lists and revokes own sessions', async () => {
+    const res = await login();
+    const cookie = res.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+
+    const list = await server.inject({
+      method: 'GET', url: '/api/v1/auth/sessions', headers: { cookie },
+    });
+    expect(list.statusCode).toBe(200);
+    const sessions = JSON.parse(list.body).data;
+    expect(sessions.length).toBeGreaterThanOrEqual(1);
+    expect(sessions.some((x: any) => x.current)).toBe(true);
+
+    // Revoke all OTHER sessions (none besides current in this fresh login, but endpoint must work)
+    const revoke = await server.inject({
+      method: 'DELETE', url: '/api/v1/auth/sessions/others', headers: { cookie },
+    });
+    expect(revoke.statusCode).toBe(200);
+
+    // Current session must still work afterwards
+    const me = await server.inject({
+      method: 'GET', url: '/api/v1/auth/me', headers: { cookie },
+    });
+    expect(me.statusCode).toBe(200);
+  });
+
   it('revokes access immediately when the user is deactivated', async () => {
     const res = await login();
     const access = res.cookies.find((c) => c.name === 'access_token');
