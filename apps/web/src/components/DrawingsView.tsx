@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 interface Drawing {
   id: string; title: string; category: string; drawing_reference?: string | null;
-  revision_code: string; status: string; uploaded_by_name: string;
+  revision_code: string; status: string; uploaded_by_name: string; storage_key?: string | null;
   notes?: string | null; created_at: string;
 }
 interface ProjectOpt { id: string; name: string; code: string }
@@ -39,6 +39,8 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: '', category: 'ARCHITECTURAL_DRAWING', drawingReference: '', revisionCode: 'Rev 0', storageKey: '', notes: '' });
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<Drawing | null>(null);
 
   useEffect(() => {
     if (projectId) return;
@@ -151,14 +153,35 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
             <input value={form.drawingReference} onChange={(e) => setForm({ ...form, drawingReference: e.target.value })} placeholder="e.g. A-102, S-201" className={input} /></label>
           <label className="space-y-1"><span className={label}>Revision</span>
             <input value={form.revisionCode} onChange={(e) => setForm({ ...form, revisionCode: e.target.value })} placeholder="Rev 0 / Rev A" className={input} /></label>
-          <label className="space-y-1"><span className={label}>Storage key / file path *</span>
-            <input value={form.storageKey} onChange={(e) => setForm({ ...form, storageKey: e.target.value })} placeholder="drawings/block-a/foundation-rev-a.pdf" className={input} /></label>
+          <label className="space-y-1"><span className={label}>Drawing file *</span>
+            <input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.dwg,.dxf"
+              disabled={uploading}
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f || !pid) return;
+                setUploading(true); setError(null);
+                try {
+                  const fd = new FormData();
+                  fd.append('file', f);
+                  const up = await fetch(`/api/v1/projects/${pid}/uploads`, { method: 'POST', credentials: 'include', body: fd });
+                  const uj = await up.json().catch(() => null);
+                  if (!up.ok) throw new Error(uj?.message || 'Upload failed');
+                  setForm((prev) => ({ ...prev, storageKey: uj?.data?.storageKey || uj?.storageKey || '' }));
+                } catch (err: any) {
+                  setError(err?.message || 'Upload failed');
+                } finally {
+                  setUploading(false);
+                }
+              }}
+              className="block w-full text-[11px] text-slate-500 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-[11px] file:font-semibold hover:file:bg-indigo-700" />
+            {form.storageKey && <p className="text-[10px] text-emerald-600 font-semibold mt-1">✓ {form.storageKey.split('/').pop()}</p>}
+          </label>
           <label className="sm:col-span-2 space-y-1"><span className={label}>Notes</span>
             <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={input} /></label>
           <div className="sm:col-span-2 flex justify-end">
-            <button onClick={() => void register()} disabled={saving || form.title.length < 2 || form.storageKey.length < 3}
+            <button onClick={() => void register()} disabled={saving || uploading || form.title.length < 2 || form.storageKey.length < 3}
               className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
-              {saving ? 'Registering…' : 'Register drawing'}
+              {saving ? 'Registering…' : uploading ? 'Uploading…' : 'Register drawing'}
             </button>
           </div>
         </div>
@@ -171,7 +194,8 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((d) => (
-            <div key={d.id} className="border border-slate-200 rounded-xl p-3.5 hover:border-indigo-200 hover:shadow-sm transition">
+            <div key={d.id} onClick={() => setPreview(d)}
+              className="border border-slate-200 rounded-xl p-3.5 hover:border-indigo-200 hover:shadow-sm transition cursor-pointer">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-900 truncate">{d.title}</p>
@@ -191,6 +215,34 @@ export default function DrawingsView({ projectId, canManage = true }: { projectI
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {preview && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{preview.title}</p>
+                <p className="text-[11px] text-slate-400 font-mono">{preview.drawing_reference || '—'} · {preview.revision_code} · {preview.category.replace(/_/g, ' ')}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a href={`/uploads/${preview.storage_key || ''}`} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg">Open file</a>
+                <button onClick={() => setPreview(null)} className="text-slate-400 hover:text-slate-600 text-lg leading-none px-1">×</button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 bg-slate-100 dark:bg-slate-950">
+              {/\.(png|jpe?g|webp)$/i.test(preview.storage_key || '') ? (
+                <img src={`/uploads/${preview.storage_key || ''}`} alt={preview.title} className="w-full h-full object-contain" />
+              ) : /\.pdf$/i.test(preview.storage_key || '') ? (
+                <iframe src={`/uploads/${preview.storage_key || ''}`} title={preview.title} className="w-full h-full min-h-[60vh]" />
+              ) : (
+                <div className="h-full flex items-center justify-center text-sm text-slate-500">
+                  Preview not available for this file type — <a className="ml-1 text-indigo-600 font-bold" href={`/uploads/${preview.storage_key || ''}`} target="_blank" rel="noreferrer">download</a>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
