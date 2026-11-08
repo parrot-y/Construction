@@ -75,8 +75,25 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         setAlerts((aj.alerts || []) as SiteAlertItem[]);
       }
     } catch { /* keep demo */ }
-    // No API endpoint exists to list inbound webhook logs — clear demo feed in live mode.
-    setLogs([]);
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/site-webhook-logs`, { credentials: 'include' });
+      if (res.ok) {
+        const lj = await res.json();
+        setLogs(((lj.logs || []) as any[]).map((l) => ({
+          id: l.id,
+          senderPhone: l.senderPhone || '***',
+          senderName: l.senderName || 'Unknown',
+          channel: l.channel === 'SMS' ? 'SMS' : 'WHATSAPP',
+          rawMessage: l.rawMessage || '',
+          detectedCommand: l.detectedCommand || 'UNKNOWN',
+          processedStatus: l.processedStatus || 'PROCESSED',
+          replyMessage: l.replyMessage || '',
+          createdAt: l.createdAt || '',
+        })));
+      } else {
+        setLogs([]);
+      }
+    } catch { setLogs([]); }
     setLiveLoaded(true);
   }, [isLive, projectId]);
 

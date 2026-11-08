@@ -535,6 +535,45 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
     }
   );
 
+  // 2.1b List inbound WhatsApp/SMS site-ops webhook log
+  server.get(
+    '/api/v1/projects/:projectId/site-webhook-logs',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const logs = await tx.siteWebhookLog.findMany({
+            where: { project_id: projectId },
+            orderBy: { created_at: 'desc' },
+            take: 100,
+          });
+          return {
+            logs: logs.map((l) => ({
+              id: l.id,
+              senderPhone: l.sender_phone ? `***${l.sender_phone.slice(-4)}` : null,
+              senderName: l.sender_name,
+              channel: l.channel,
+              rawMessage: l.raw_message,
+              detectedCommand: l.detected_command,
+              processedStatus: l.processed_status,
+              replyMessage: l.reply_message,
+              createdAt: l.created_at.toISOString(),
+            })),
+          };
+        });
+        return reply.send(result);
+      } catch (err: any) {
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list webhook logs' });
+      }
+    },
+  );
+
   // 2.2 List Site Alerts for a Project
   server.get(
     '/api/v1/projects/:projectId/site-alerts',

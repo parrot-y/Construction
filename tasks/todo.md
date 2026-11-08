@@ -127,3 +127,9 @@
 - [x] PATCH subcontractor package status endpoint + UI persistence
 - [ ] Known backend gaps (documented, not built): GET equipment-logs, GET telematics-devices list, GET SiteWebhookLog, subcontractor valuations PATCH?, Excel export, AI features, WhatsApp/SMS/eTIMS live providers, scheduled-report delivery
 - [x] Final verify-local GREEN on 80143d1 — 687/687
+- [x] Integration provider layer (AT SMS / WhatsApp Cloud / Resend email), status+test endpoints, real dispatch on notify-client/site-alerts/scheduled-reports, IntegrationsView UI
+- [x] Site Safi brand applied everywhere; reference-platform name/URLs scrubbed from repo
+- [x] Mobile-first: bottom tab nav on FieldDashboard + SupervisorDashboard
+- [x] Missing GETs added: telematics-devices, site-webhook-logs, equipment dailyLogs serialized
+- [x] integrations.test.ts (4 tests)
+- [ ] Final verify-local — RUNNING NEXT

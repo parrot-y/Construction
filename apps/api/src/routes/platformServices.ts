@@ -723,6 +723,45 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
   // MODULE 3: DIRECT PLANT GPS TELEMATICS & FUEL FLOW METERS (M24)
   // ===========================================================================
 
+  // 3.0 List Telematics Devices (fleet registry)
+  server.get(
+    '/api/v1/projects/:projectId/telematics-devices',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const devices = await tx.plantTelematicsDevice.findMany({
+            where: { project_id: projectId },
+            include: { equipment: { select: { id: true, equipment_code: true, name: true } } },
+            orderBy: { created_at: 'desc' },
+          });
+          return {
+            devices: devices.map((d) => ({
+              id: d.id,
+              equipmentId: d.equipment_id,
+              equipmentCode: d.equipment.equipment_code,
+              equipmentName: d.equipment.name,
+              deviceImei: d.device_imei,
+              protocol: d.protocol,
+              tankCapacityLiters: toDecimal(d.calibration_tank_capacity_liters.toString()).toFixed(2),
+              status: d.status,
+              lastHeartbeatAt: d.last_heartbeat_at?.toISOString() || null,
+            })),
+          };
+        });
+        return reply.send(result);
+      } catch (err: any) {
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list telematics devices' });
+      }
+    },
+  );
+
   // 3.1 Register Telematics Device to Machinery
   server.post(
     '/api/v1/projects/:projectId/telematics-devices',
