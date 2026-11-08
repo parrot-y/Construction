@@ -5,3 +5,4 @@ export * from './SiteDiaryReportPdf';
 export * from './ProjectSummaryPdf';
 export * from './IndependentInspectionReportPdf';
 export * from './InvoicePdf';
+export * from './SnagRegisterPdf';

@@ -373,6 +373,13 @@ export default function SnaggingListView({
         >
           CSV
         </button>
+        <button
+          onClick={() => { window.open(`/api/v1/projects/${projectId}/snags/export?format=pdf`, '_blank'); }}
+          className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg transition"
+          title="Export snag register as PDF"
+        >
+          PDF
+        </button>
 
         {canAdd && (
           <button

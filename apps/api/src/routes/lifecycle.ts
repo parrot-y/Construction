@@ -1,3 +1,4 @@
+import React from 'react';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Decimal, toDecimal } from '@construction/money';
@@ -1106,18 +1107,19 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       }
-      if (format !== 'csv') {
-        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Only format=csv supported' });
+      if (!['csv', 'pdf'].includes(format)) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Supported formats: csv, pdf' });
       }
 
       try {
-        const rows = await withTenantTx(prisma, tenantId, async (tx) => {
+        const { rows, project } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({ where: { id: projectId }, select: { code: true, name: true } });
           if (!project) throw { status: 404, message: 'Project not found' };
-          return tx.snagItem.findMany({
+          const rows = await tx.snagItem.findMany({
             where: { project_id: projectId },
             orderBy: { snag_number: 'asc' },
           });
+          return { rows, project };
         });
 
         const esc = (v: unknown) => {
@@ -1134,6 +1136,44 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           s.due_date?.toISOString().slice(0, 10) ?? '', s.is_private ? 'YES' : 'NO',
           s.identified_at.toISOString().slice(0, 10),
         ].map(esc).join(','));
+
+        if (format === 'pdf') {
+          const { SnagRegisterPdf } = await import('../reports/SnagRegisterPdf');
+          const { renderPdfToBuffer } = await import('../reports/renderPdf');
+          // project already fetched inside tenant tx above
+          const openStatuses = ['OPEN', 'IN_PROGRESS', 'READY_FOR_REVIEW', 'CONTESTED'];
+          const docElement = React.createElement(SnagRegisterPdf, {
+            data: {
+              projectName: project.name,
+              projectCode: project.code,
+              generatedAt: new Date().toISOString().slice(0, 10),
+              totalCount: rows.length,
+              openCount: rows.filter((r: any) => openStatuses.includes(r.status)).length,
+              verifiedCount: rows.filter((r: any) => r.status === 'VERIFIED_CLOSED').length,
+              rows: rows.map((s) => ({
+                ref: `SNAG-${String(s.snag_number).padStart(4, '0')}`,
+                location: [s.location_block, s.location_floor, s.location_room].filter(Boolean).join(' / '),
+                trade: s.trade_category,
+                itemType: s.item_type,
+                description: s.description,
+                severity: s.severity,
+                priority: s.priority,
+                status: s.status,
+                managerName: s.manager_name,
+                finalApproverName: s.final_approver_name,
+                costImpactKes: s.cost_impact_kes?.toString() ?? null,
+                dueDate: s.due_date?.toISOString().slice(0, 10) ?? null,
+                isPrivate: s.is_private,
+              })),
+            },
+          });
+          const pdfBuffer = await renderPdfToBuffer(docElement);
+          return reply
+            .header('Content-Type', 'application/pdf')
+            .header('Content-Disposition', 'attachment; filename="snag-register.pdf"')
+            .status(200)
+            .send(pdfBuffer);
+        }
 
         const csv = [header.map(esc).join(','), ...lines].join('\n');
         return reply

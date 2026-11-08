@@ -39,6 +39,15 @@ describe('Gate-5 G5-11: Snag register CSV export', () => {
     expect(csv).toContain('Tiling');
   });
 
+  it('exports PDF register with %PDF payload', async () => {
+    const res = await server.inject({
+      method: 'GET', url: `/api/v1/projects/${projectId}/snags/export?format=pdf`, headers: { cookie: adminCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('application/pdf');
+    expect(res.rawPayload.slice(0, 5).toString()).toBe('%PDF-');
+  });
+
   it('rejects unsupported format + bad project id', async () => {
     const bad = await server.inject({
       method: 'GET', url: `/api/v1/projects/${projectId}/snags/export?format=xlsx`, headers: { cookie: adminCookie },
