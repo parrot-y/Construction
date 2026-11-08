@@ -7,6 +7,7 @@ import ChecklistsView from './ChecklistsView';
 import CorrespondenceView from './CorrespondenceView';
 import RfiManagementView from './RfiManagementView';
 import DrawingsView from './DrawingsView';
+import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import CrewsView from './CrewsView';
 import ObservationsView from './ObservationsView';
 
@@ -51,6 +52,7 @@ export default function FieldDashboard({ session, readOnly = false }: { session:
       <AttendanceView canManage={!readOnly} />
       <ChecklistsView canManage={!readOnly} />
       <CrewsView canManage={!readOnly} />
+      {projectId && <ProjectScheduleGanttView projectId={projectId} canEdit={!readOnly} />}
       {projectId && <DrawingsView projectId={projectId} canManage={!readOnly} />}
       {projectId && <RfiManagementView projectId={projectId} projectName={projects.find((p) => p.id === projectId)?.name || ''} canCreate={!readOnly} />}
       {projectId && <ObservationsView projectId={projectId} canManage={!readOnly} />}
