@@ -43,3 +43,6 @@
 28. **Probe scripts are repo litter**: playwright capture scripts with credentials must live in /tmp, never the repo — `git add -A` swept 10 of them into history once. Keep research tooling outside the worktree.
 29. **Double chrome**: when introducing a new app shell, early-return it BEFORE legacy header/layout wrappers — nested sticky headers/permission bars render twice.
 30. **Component tests ≠ routing tests**: Dashboard-level "embeds X" tests should render the view component directly once routing moves to a config-driven shell; update deliberately, don't delete coverage.
+
+## 2026-11-09 — dev demo DB drift
+The live dev API uses `construction_demo`, tests/verify use `construction_test` on the same PG cluster. Schema changes (db push / migrations) must be applied to BOTH or the running app 500s while tests stay green. Check `/proc/<api-pid>/environ` DATABASE_URL to confirm which DB the dev server uses.
