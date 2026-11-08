@@ -1059,6 +1059,64 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     },
   );
 
+  // 4.1b GET /api/v1/projects/:projectId/snags/export?format=csv
+  // Gate-5: observed Punch list CSV export — flat register of all snags.
+  server.get(
+    '/api/v1/projects/:projectId/snags/export',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      const { format = 'csv' } = request.query as { format?: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      if (format !== 'csv') {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Only format=csv supported' });
+      }
+
+      try {
+        const rows = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId }, select: { code: true, name: true } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+          return tx.snagItem.findMany({
+            where: { project_id: projectId },
+            orderBy: { snag_number: 'asc' },
+          });
+        });
+
+        const esc = (v: unknown) => {
+          const str = v === null || v === undefined ? '' : String(v);
+          return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+        };
+        const header = ['Ref', 'Location', 'Trade', 'Item type', 'Description', 'Severity', 'Priority', 'Status', 'Manager', 'Final approver', 'Cost impact (KES)', 'Schedule impact (days)', 'Due date', 'Private', 'Created'];
+        const lines = rows.map((s) => [
+          `SNAG-${String(s.snag_number).padStart(4, '0')}`,
+          [s.location_block, s.location_floor, s.location_room].filter(Boolean).join(' / '),
+          s.trade_category, s.item_type ?? '', s.description, s.severity, s.priority, s.status,
+          s.manager_name ?? '', s.final_approver_name ?? '',
+          s.cost_impact_kes?.toString() ?? '', s.schedule_impact_days ?? '',
+          s.due_date?.toISOString().slice(0, 10) ?? '', s.is_private ? 'YES' : 'NO',
+          s.identified_at.toISOString().slice(0, 10),
+        ].map(esc).join(','));
+
+        const csv = [header.map(esc).join(','), ...lines].join('\n');
+        return reply
+          .header('Content-Type', 'text/csv; charset=utf-8')
+          .header('Content-Disposition', `attachment; filename="snag-register.csv"`)
+          .status(200)
+          .send(csv);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        }
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err.message });
+      }
+    },
+  );
+
   // 4.2 POST /api/v1/projects/:projectId/snags - Create Snag Item
   server.post(
     '/api/v1/projects/:projectId/snags',
