@@ -36,12 +36,13 @@ export const useConsole = () => {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  COMPANY_ADMIN: 'Company Admin', ADMIN: 'Admin', EXECUTIVE: 'Executive',
+  COMPANY_ADMIN: 'Contractor', ADMIN: 'Admin', EXECUTIVE: 'Executive',
   PM_QS: 'Project Manager', SUPERINTENDENT: 'Superintendent',
   SITE_SUPERVISOR: 'Site Supervisor', SITE_ENGINEER: 'Site Engineer',
   TRADE_LEAD: 'Trade Lead', FOREMAN: 'Foreman', WORKER: 'Worker',
   VIEWER: 'Viewer', CLIENT: 'Client', CONSULTANT: 'Consultant',
   SUBCONTRACTOR: 'Subcontractor', SUPPLIER: 'Supplier', COMPLIANCE: 'Compliance',
+  ARCHITECT: 'Architect', QA_QC: 'QA/QC Officer',
 };
 
 export function ConsoleProvider({ session, children }: { session: AuthSession; children: React.ReactNode }) {

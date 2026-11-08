@@ -16,6 +16,9 @@ export const Roles = {
   FOREMAN: 'FOREMAN',
   WORKER: 'WORKER',
   VIEWER: 'VIEWER',
+  // Reference-observed design/quality roles (architect + QA/QC officer)
+  ARCHITECT: 'ARCHITECT',
+  QA_QC: 'QA_QC',
 } as const;
 
 export type Role = (typeof Roles)[keyof typeof Roles];
@@ -263,6 +266,34 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.PROJECT_VIEW,
     Permissions.REPORT_VIEW,
     Permissions.INSPECTION_VIEW,
+  ],
+  // ARCHITECT: design authority — drawings, inspections, site visibility;
+  // no money admin (financial tracker view-only via REPORT/COST_VIEW below).
+  [Roles.ARCHITECT]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.BOQ_VIEW,
+    Permissions.COST_VIEW,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_VIEW,
+    Permissions.REPORT_VIEW,
+    Permissions.TENDER_VIEW,
+    Permissions.DOCUMENT_MANAGE,
+    Permissions.INSPECTION_SUBMIT,
+    Permissions.INSPECTION_VIEW,
+    Permissions.INSPECTION_REVIEW,
+  ],
+  // QA/QC Officer: quality gatekeeper — inspections, checklists, site
+  // records, inventory; no financial tracker, no team admin.
+  [Roles.QA_QC]: [
+    Permissions.PROJECT_VIEW,
+    Permissions.BOQ_VIEW,
+    Permissions.SITE_DIARY_VIEW,
+    Permissions.PROGRESS_VIEW,
+    Permissions.REPORT_VIEW,
+    Permissions.TENDER_VIEW,
+    Permissions.INSPECTION_SUBMIT,
+    Permissions.INSPECTION_VIEW,
+    Permissions.INSPECTION_REVIEW,
   ],
   // ---- Gate-5 observed role ladder (doc 15_role_portals.md) ----
   // EXECUTIVE: owner-side oversight — mirrors COMPANY_ADMIN minus billing

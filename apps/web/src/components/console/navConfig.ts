@@ -37,6 +37,8 @@ const VIEWER_MONEY_TABS = ['commitments', 'invoices', 'inventory'];
 
 const ALL_PEOPLE_TABS = ['team', 'crews', 'subcontractors', 'directory', 'roles'];
 const NO_TEAM_PEOPLE_TABS = ['crews', 'subcontractors', 'directory', 'roles'];
+const NO_CREWS_PEOPLE_TABS = ['team', 'subcontractors', 'directory', 'roles'];
+const SUBS_DIRECTORY_PEOPLE_TABS = ['subcontractors', 'directory'];
 const CREWS_ONLY_PEOPLE_TABS = ['crews', 'subcontractors', 'directory'];
 const VIEWER_PEOPLE_TABS = ['subcontractors', 'directory', 'roles'];
 
@@ -61,21 +63,21 @@ export const ROLE_NAV: Record<string, RoleNav> = {
     S('money', 'Money', ALL_MONEY_TABS),
     S('people', 'People', ALL_PEOPLE_TABS),
     S('files', 'Files & reports', ALL_FILES_TABS),
-  ]),
+  ], ['dashboard', 'inbox', 'announcements']),
   ADMIN: nav('exec', [
     S('projects', 'Projects', ALL_PROJECT_TABS),
     S('site', 'Site', ALL_SITE_TABS),
     S('money', 'Money', ALL_MONEY_TABS),
     S('people', 'People', ALL_PEOPLE_TABS),
     S('files', 'Files & reports', ALL_FILES_TABS),
-  ]),
+  ], ['dashboard', 'inbox', 'announcements']),
   EXECUTIVE: nav('exec', [
     S('projects', 'Projects', ALL_PROJECT_TABS),
     S('site', 'Site', ALL_SITE_TABS),
     S('money', 'Money', ALL_MONEY_TABS),
     S('people', 'People', ALL_PEOPLE_TABS),
     S('files', 'Files & reports', ALL_FILES_TABS),
-  ]),
+  ], ['dashboard', 'inbox', 'announcements']),
 
   // PM/QS — full minus billing plan & invite-member
   PM_QS: nav('pm', [
@@ -135,6 +137,26 @@ export const ROLE_NAV: Record<string, RoleNav> = {
     S('site', 'Site', ALL_SITE_TABS),
     S('money', 'Money', NO_BILLING_MONEY_TABS),
     S('people', 'People', NO_TEAM_PEOPLE_TABS),
+    S('files', 'Files & reports', DOCS_ONLY_FILES_TABS),
+  ]),
+
+  // Architect — exec-style dashboard; full site/projects; money minus
+  // billing; people minus crews (observed live).
+  ARCHITECT: nav('pm', [
+    S('projects', 'Projects', ALL_PROJECT_TABS),
+    S('site', 'Site', ALL_SITE_TABS),
+    S('money', 'Money', NO_BILLING_MONEY_TABS),
+    S('people', 'People', NO_CREWS_PEOPLE_TABS),
+    S('files', 'Files & reports', ALL_FILES_TABS),
+  ], ['dashboard', 'inbox', 'announcements']),
+
+  // QA/QC Officer — field inbox home; no change orders; inventory-only
+  // money; subs+directory people; docs-only files (observed live).
+  QA_QC: nav('field', [
+    S('projects', 'Projects', NO_CO_PROJECT_TABS),
+    S('site', 'Site', ALL_SITE_TABS),
+    S('money', 'Money', INVENTORY_ONLY),
+    S('people', 'People', SUBS_DIRECTORY_PEOPLE_TABS),
     S('files', 'Files & reports', DOCS_ONLY_FILES_TABS),
   ]),
 

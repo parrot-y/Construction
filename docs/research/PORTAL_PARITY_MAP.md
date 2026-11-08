@@ -20,7 +20,9 @@ Legend: ✅ implemented+tested · 🟡 partial · ❌ gap · — n/a
 | FOREMAN | foreman@ | FieldDashboard | same, crew-level |
 | WORKER | worker@ | FieldDashboard | same, minimal perms (diary/progress/inspections view) |
 | VIEWER | viewer@ | FieldDashboard (readOnly) | read-only across all field views |
-| CLIENT | client@ | ClientDashboard | Live client-portal hydrate: project, financials, progress, photos (opt-in only), timeline, pending variations, payment certificates |
+| CLIENT | client@ | ClientDashboard + console-style tabs | Live client-portal hydrate: project, financials, progress, photos (opt-in only), timeline, pending variations, payment certificates, quotes, Messages tab |
+| ARCHITECT | architect@ | AppShell (console) | Reference-observed: exec dashboard home; all projects/site tabs; money minus billing; people minus crews; docs+reports files |
+| QA_QC | qaqc@ | AppShell (console) | Reference-observed: field inbox home; projects minus change orders; all site tabs; inventory-only money; subs+directory people; docs-only files |
 
 ## Feature parity vs observed reference (per module)
 
@@ -65,4 +67,4 @@ Legend: ✅ implemented+tested · 🟡 partial · ❌ gap · — n/a
 
 All on `*@apexbuilders.co.ke`, dev password `Password123!` (change before deploy):
 admin, qs, pm, supervisor, executive, superintendent, engineer, tradelead, foreman, worker, viewer, client.
-Run `pnpm --filter @construction/db db:seed` (or verify-local seed step) to materialize.
+14 role logins on `*@apexbuilders.co.ke` (added ARCHITECT + QA_QC 2026-11-08 after live capture of the reference architect/QA-QC portals). Run `pnpm --filter @construction/db db:seed` (or verify-local seed step) to materialize.

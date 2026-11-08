@@ -105,6 +105,32 @@ function ExecHome(): React.JSX.Element {
         </div>
       </div>
 
+      <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">Workspace modules</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {[
+            ['Projects & clients', 'projects', 'all'],
+            ['Quotes & estimates', 'money', 'quotes'],
+            ['Invoices & payments', 'money', 'invoices'],
+            ['Budgeting & cost control', 'money', 'financials'],
+            ['Site & daily logs', 'site', 'dailylog'],
+            ['Planning & schedule', 'projects', 'schedule'],
+            ['Quality & inspections', 'site', 'inspections'],
+            ['Health & safety', 'site', 'safety'],
+            ['Suppliers & subcontractors', 'people', 'subcontractors'],
+            ['Money & reports', 'files', 'reports'],
+            ['Letters & contracts', 'projects', 'correspondence'],
+            ['Drawings & architecture', 'projects', 'drawings'],
+          ].map(([label, sec, tab]) => (
+            <button key={label as string}
+              onClick={() => { setSection(sec as any); setTab(tab as any); }}
+              className="text-left px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition">
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {projects.length > 1 && (
         <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">Portfolio</h3>
@@ -132,11 +158,9 @@ function FieldHome(): React.JSX.Element {
 export default function HomeSection(): React.JSX.Element {
   const { nav, tab } = useConsole();
   if (nav.homeKind === 'field') return <FieldHome />;
-  if (nav.homeKind === 'pm') {
-    if (tab === 'inbox') return <PmInbox />;
-    if (tab === 'announcements') return <AnnouncementsView canManage={false} />;
-    return <ExecHome />;
-  }
+  if (tab === 'inbox') return <PmInbox />;
+  if (tab === 'announcements') return <AnnouncementsView canManage={false} />;
+  if (nav.homeKind === 'pm') return <ExecHome />;
   return <ExecHome />;
 }
 
