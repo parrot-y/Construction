@@ -153,7 +153,9 @@ function ExecHome(): React.JSX.Element {
             ['Quotes & estimates', 'money', 'quotes'],
             ['Invoices & payments', 'money', 'invoices'],
             ['Budgeting & cost control', 'money', 'financials'],
+            ['Materials & equipment', 'money', 'inventory'],
             ['Site & daily logs', 'site', 'dailylog'],
+            ['Team, roles & crews', 'people', 'team'],
             ['Planning & schedule', 'projects', 'schedule'],
             ['Quality & inspections', 'site', 'inspections'],
             ['Health & safety', 'site', 'safety'],
@@ -161,6 +163,7 @@ function ExecHome(): React.JSX.Element {
             ['Money & reports', 'files', 'reports'],
             ['Letters & contracts', 'projects', 'correspondence'],
             ['Drawings & architecture', 'projects', 'drawings'],
+            ['Interior design', 'projects', 'drawings'],
           ].map(([label, sec, tab]) => (
             <button key={label as string}
               onClick={() => { setSection(sec as any); setTab(tab as any); }}
