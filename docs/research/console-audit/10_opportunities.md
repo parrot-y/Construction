@@ -1,6 +1,6 @@
 # 10 — Opportunities for Platform
 
-Where we can beat Buildsasa for the Kenyan market `[INFERRED]` — validate in Gate 2/customer discovery.
+Where we can beat the reference platform for the Kenyan market `[INFERRED]` — validate in Gate 2/customer discovery.
 
 1. **KES-first, M-Pesa-native money**: they bill in USD via Paystack and show USD by default. We can default KES, price transparently in KES (their own page admits ~KES 2,990/8,970), and do M-Pesa STK for *project* payments (client paying contractor, subcontractor payments) — they only show Paystack for SaaS billing; project payment collection path unverified.
 2. **eTIMS/VSCU compliance**: no evidence they integrate KRA eTIMS. Statutory tax invoices are mandatory for B2B in Kenya — a real wedge if we integrate properly (sandbox-first per our kenya-integrations skill).

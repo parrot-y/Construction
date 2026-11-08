@@ -3,6 +3,7 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import { CreateScheduledReportSchema, UpdateScheduledReportSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -222,7 +223,7 @@ export const scheduledReportsRoutes: FastifyPluginAsync = async (server: Fastify
               action: 'SCHEDULED_REPORT_RUN', entityType: 'ScheduledReport', entityId: id,
               changes: { runId: run.id, reportType: report.report_type },
             });
-            return { run, summary };
+            return { run, summary, report };
           } catch (innerErr: any) {
             await tx.scheduledReportRun.create({
               data: { tenant_id: tenantId, report_id: id, status: 'FAILED', error: String(innerErr?.message ?? innerErr).slice(0, 2000) },
@@ -230,7 +231,37 @@ export const scheduledReportsRoutes: FastifyPluginAsync = async (server: Fastify
             throw innerErr;
           }
         });
-        return reply.status(200).send({ data: { run_id: result.run.id, ran_at: result.run.ran_at, summary: result.summary } });
+        // Deliver snapshot to recipients that resolve to a contact channel:
+        // emails → EMAIL, phone-like → SMS, role labels skipped (documented).
+        const deliveries: Array<{ to: string; channel: string; status: string; simulated?: boolean }> = [];
+        const recipients: string[] = Array.isArray(result.report.recipients) ? result.report.recipients : [];
+        const reportTitle = `${result.report.report_type} report — ${result.report.name || result.report.id}`;
+        for (const raw of recipients) {
+          const target = String(raw).trim();
+          if (!target) continue;
+          if (target.includes('@')) {
+            const r = await dispatchNotification({ channel: 'EMAIL', to: target, subject: reportTitle, body: `Scheduled report snapshot:
+
+${JSON.stringify(result.summary, null, 2).slice(0, 4000)}` });
+            deliveries.push({ to: target, channel: 'EMAIL', status: r.simulated ? 'SIMULATED' : r.ok ? 'DELIVERED' : 'FAILED' });
+          } else if (/^[+0-9][0-9\s-]{8,}$/.test(target)) {
+            const r = await dispatchNotification({ channel: 'SMS', to: normalizeKePhone(target), body: `${reportTitle}: report ready. View in app → Reports → Scheduled.` });
+            deliveries.push({ to: target, channel: 'SMS', status: r.simulated ? 'SIMULATED' : r.ok ? 'DELIVERED' : 'FAILED' });
+          } else {
+            deliveries.push({ to: target, channel: 'ROLE_LABEL', status: 'SKIPPED' });
+          }
+        }
+        if (deliveries.length) {
+          await withTenantTx(prisma, tenantId, async (tx) => {
+            const existing = (result.run.summary && typeof result.run.summary === 'object') ? result.run.summary as any : {};
+            await tx.scheduledReportRun.update({
+              where: { id: result.run.id },
+              data: { summary: { ...existing, deliveries } },
+            });
+          });
+        }
+
+        return reply.status(200).send({ data: { run_id: result.run.id, ran_at: result.run.ran_at, summary: result.summary, deliveries } });
       } catch (err: any) {
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);

@@ -44,6 +44,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
   const [costSuccess, setCostSuccess] = useState<string | null>(null);
   const [todayHeadcount, setTodayHeadcount] = useState<number>(17);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [section, setSection] = useState<'today' | 'messages' | 'site' | 'more'>('site');
   const [pid, setPid] = useState('project-rcp-2026');
   useEffect(() => {
     fetch('/api/v1/projects', { credentials: 'include' })
@@ -57,7 +58,7 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 sm:pb-6">
       {/* Header Banner */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -230,6 +231,18 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
         </div>
       </div>
 
+
+      {/* Section tabs — desktop pills */}
+      <div className="hidden sm:flex items-center gap-2 bg-white rounded-xl border border-slate-200 p-1.5 w-fit">
+        {([['today','Today'],['messages','Inbox'],['site','Site'],['more','More']] as const).map(([id,label]) => (
+          <button key={id} onClick={() => setSection(id)}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${section === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'site' && (<>
       {/* Interactive Project Schedule & Gantt View */}
       <ProjectScheduleGanttView
         projectId={pid}
@@ -340,13 +353,6 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
 
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}
       {/* Team inbox + announcements (Gate-5 G5-1/G5-3) */}
-      <InboxView currentUserId={session?.user?.id} />
-      <ObservationsView projectId={pid} canManage={true} />
-      <CrewsView canManage={true} />
-      <AttendanceView canManage={true} />
-      <ChecklistsView canManage={true} />
-      <AnnouncementsView canManage={false} />
-
       <QualityControlView
         projectId={pid}
         projectName="Riverside Commercial Plaza"
@@ -362,6 +368,24 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
         canRectify={true}
         canVerify={false}
       />
+
+      </>)}
+
+      {section === 'messages' && (<>
+      <InboxView currentUserId={session?.user?.id} />
+      <AnnouncementsView canManage={false} />
+
+      </>)}
+
+      {section === 'more' && (<>
+      <ObservationsView projectId={pid} canManage={true} />
+      <CrewsView canManage={true} />
+      </>)}
+
+      {section === 'today' && (<>
+      <AttendanceView canManage={true} />
+      <ChecklistsView canManage={true} />
+      </>)}
 
       {/* Site Diary Modal */}
       <SiteDiaryModal
@@ -397,6 +421,17 @@ export default function SupervisorDashboard({ session }: SupervisorDashboardProp
           setCostSuccess(`Site expense logged: KES ${cost.amount} (${cost.cost_category}) in PENDING status`);
         }}
       />
+
+      {/* Mobile bottom tab bar */}
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 flex z-40" data-testid="supervisor-bottom-nav">
+        {([['today','Today','📋'],['messages','Inbox','✉️'],['site','Site','🏗️'],['more','More','⋯']] as const).map(([id,label,icon]) => (
+          <button key={id} onClick={() => setSection(id)}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition ${section === id ? 'text-slate-900' : 'text-slate-400'}`}>
+            <span className="text-lg leading-none">{icon}</span>
+            {label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

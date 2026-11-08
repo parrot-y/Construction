@@ -51,6 +51,7 @@ import {
   AwardTenderBidSchema,
 } from '@construction/validation';
 import * as crypto from 'crypto';
+import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -4369,8 +4370,8 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           const isCritical = variance <= -10.0;
 
           const digestMessage = isCritical
-            ? `Platform BDS-ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
-            : `Platform BDS-UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
+            ? `Site Safi ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
+            : `Site Safi UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
 
           await recordAuditLog(tx, {
             tenantId,
@@ -4394,14 +4395,20 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             inspectionCode: inspection.inspection_code,
             channel,
             recipientPhone: recipient,
-            deliveryStatus: 'DELIVERED',
             message: digestMessage,
             pdfReportUrl: `/api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`,
-            timestamp: new Date().toISOString(),
           };
         });
 
-        return reply.status(200).send(result);
+        // Dispatch via configured provider; SIMULATED when unconfigured.
+        const sendResult = await dispatchNotification({
+          channel: channel === 'SMS' ? 'SMS' : 'WHATSAPP',
+          to: normalizeKePhone(result.recipientPhone || ''),
+          body: result.message,
+        });
+        const deliveryStatus = sendResult.simulated ? 'SIMULATED' : sendResult.ok ? 'DELIVERED' : 'FAILED';
+
+        return reply.status(200).send({ ...result, deliveryStatus, provider: sendResult.provider, timestamp: new Date().toISOString() });
       } catch (err: any) {
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,

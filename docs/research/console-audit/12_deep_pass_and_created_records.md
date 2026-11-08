@@ -87,7 +87,7 @@ Money group children confirmed: **Financials · Commitments · Quotes · Invoici
 - "Send Q-0001 to {client}" panel: *"The client opens this link on any phone to see the quote and accept or decline it. You'll see their answer here."*
 - Channels: **Copy link · WhatsApp · Email · Download PDF to attach**
 - Manual fallback buttons: **Accepted · Declined**
-- **"If {email} has a Buildsasa client account, this quote also appears in their Quotes & proposals, where they can comment and ask for changes."** — quotes surface inside the client portal with comment/request-changes loop.
+- **"If {email} has a the reference platform client account, this quote also appears in their Quotes & proposals, where they can comment and ask for changes."** — quotes surface inside the client portal with comment/request-changes loop.
 - Comments section on the quote.
 
 Tagline on page: *"Price a job, send it to the client to accept online, then turn it into a project"* — confirms quote→accept→project conversion is a first-class path (validates ADR-007 direction).
@@ -103,7 +103,7 @@ Project → **Client tab** (project-specific, NOT under People/Team):
 - Fallbacks: **Copy invite link** · **Send invite on WhatsApp** · **view-only link** for non-signup viewing
 - Daily logs shared by default (media opt-in per entry); internal notes private; inspections shared individually
 
-Client portal interior [OBSERVED live 2026-11-06 with owner-supplied client login]: sidebar = Home · My sites · Messages · Quotes & proposals · Site reporting · Request a project · Account. Home shows site cards (GRAND TOWERS, "CLIENTCO CONTRACTORS · Nairobi · 0% complete"), a "Neutral site reporting" upsell (independent Buildsasa inspection service), and "Request a project" (client-initiated tender: "Need fencing, solar, CCTV or a gate?"). Onboarding modal "Karibu, client!" frames value props: real progress photos, approve-and-pay from Home, chat with team, independent eyes.
+Client portal interior [OBSERVED live 2026-11-06 with owner-supplied client login]: sidebar = Home · My sites · Messages · Quotes & proposals · Site reporting · Request a project · Account. Home shows site cards (GRAND TOWERS, "CLIENTCO CONTRACTORS · Nairobi · 0% complete"), a "Neutral site reporting" upsell (independent the reference platform inspection service), and "Request a project" (client-initiated tender: "Need fencing, solar, CCTV or a gate?"). Onboarding modal "Karibu, client!" frames value props: real progress photos, approve-and-pay from Home, chat with team, independent eyes.
 
 Client quote acceptance E2E [OBSERVED]: quote appeared under Quotes & proposals once the client email matched ("Waiting for you"). Detail renders the quotation document: line items ("110 item × KES 5,000 → KES 550,000"), Subtotal/Total, Deposit to start 50% (KES 275,000), terms, validity. **Accept flow = typed-name e-signature**: "Accept quote" → panel "Accept KES 550,000 … Typing your name confirms you accept" → type full name → "Confirm acceptance" → `POST /api/public/quotes/{token}/respond` → "Quote accepted by CLIENT USER on 7 Nov 2026". Decline + "Comment or ask for a change" thread also present. Contractor list immediately shows **Accepted | by CLIENT USER** and unlocks **Start project** action — closing the quote→accept→project chain.
 

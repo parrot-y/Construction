@@ -1,7 +1,7 @@
 # GATE 3 — Design reconciliation: existing SYSTEM_DESIGN vs new MVP scope
 
 **Date:** 2026-11-06 · **Reviewer:** Devin (CTO) · **Status:** PENDING — Gate 3 NOT self-certified; awaiting owner + Claude audit. Independent critique in `docs/CRITIC_REVIEW_DESIGN.md` (verdict: CONDITIONAL).
-**Inputs:** `docs/MVP_SCOPE.md`, `docs/research/console-audit/` (Buildsasa study), existing `docs/SYSTEM_DESIGN.md` + ADR-001…006, current Prisma schema (70+ models).
+**Inputs:** `docs/MVP_SCOPE.md`, `docs/research/console-audit/` (the reference platform study), existing `docs/SYSTEM_DESIGN.md` + ADR-001…006, current Prisma schema (70+ models).
 
 ## Verdict
 The existing design already covers ~80% of the new MUST scope — the earlier M11–M30 build went deep (tenders, valuations, retention, eTIMS model, portals, telematics, materials testing). Gate 3 does NOT need a rewrite; it needs **delta ADRs** for 4 real gaps and a sequencing plan.

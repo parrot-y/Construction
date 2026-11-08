@@ -171,7 +171,7 @@ export default function LandingPortalHub({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-black text-slate-900 tracking-tight">
-                Platform Kenya
+                Site Safi
               </span>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase">
                 Construction OS
@@ -209,7 +209,7 @@ export default function LandingPortalHub({
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            Platform Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal
+            Site Safi — Kenya Construction Operating System &amp; Diaspora Property Owner Portal
           </h1>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
@@ -377,7 +377,7 @@ export default function LandingPortalHub({
               <span className="text-xs text-slate-400 font-mono">BORAQS &amp; JBC 2026 Baseline</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
-              Platform Instant Construction Cost &amp; Feasibility Estimator
+              Site Safi Instant Construction Cost &amp; Feasibility Estimator
             </h2>
             <p className="text-xs text-slate-400">
               Calculate preliminary budget, milestone cash flows, and diaspora exchange rates per Kenyan Joint Building Council standards.
@@ -562,7 +562,7 @@ export default function LandingPortalHub({
               Instant Stakeholder Interactive Preview Switcher
             </h2>
             <p className="text-xs text-slate-500">
-              Click any of the 8 stakeholder roles to instantly preview their dedicated, tailored Platform interface without typing credentials.
+              Click any of the 8 stakeholder roles to instantly preview their dedicated, tailored Site Safi interface without typing credentials.
             </p>
           </div>
         </div>
@@ -615,7 +615,7 @@ export default function LandingPortalHub({
       {/* Footer Branding */}
       <footer className="pt-6 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2">
         <p>
-          Platform Kenya • Enterprise Construction Operating System &amp; Diaspora Remote Property Owner Portal
+          Site Safi • Enterprise Construction Operating System &amp; Diaspora Remote Property Owner Portal
         </p>
         <p className="text-[11px] text-slate-400 font-mono">
           Compliant with BORAQS, NCA (National Construction Authority), EASMM 2008, KRA e-TIMS &amp; NEMA regulations.

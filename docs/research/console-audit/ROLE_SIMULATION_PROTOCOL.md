@@ -1,7 +1,7 @@
 # ROLE_SIMULATION_PROTOCOL.md — per-role account research plan
 
 **Status:** READY — waiting for owner to create the additional trial accounts (14-day trials).
-**Purpose:** Experience Buildsasa as EVERY role, not just Contractor, and simulate real-world workflows end-to-end with dummy data.
+**Purpose:** Experience the reference platform as EVERY role, not just Contractor, and simulate real-world workflows end-to-end with dummy data.
 
 ## Accounts needed (owner creates; we never self-register)
 Priority order — Contractor admin view is done; these are the gaps:

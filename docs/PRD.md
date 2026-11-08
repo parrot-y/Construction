@@ -21,7 +21,7 @@ Kenya-first construction management SaaS: the QS-grade financial spine (BOQ → 
 - As a client, I see stage photos (only what contractor shares), progress %, pending approvals, and can pay via M-Pesa.
 - As an admin, every shilling is traceable: budget → cost → certificate → invoice → payment → retention.
 
-## What we keep / simplify / drop vs Buildsasa (synthesis)
+## What we keep / simplify / drop vs the reference platform (synthesis)
 - **Keep:** change-order approval chain w/ limits; client portal + per-photo privacy; WhatsApp quote flow; daily-log-as-evidence; inspection→punch→close loop; crew/trade taxonomy; role-based permissions.
 - **Simplify:** 14 roles → 4 V1 roles + presets; 36 modules → phased; USD-default → KES-first; per-seat → per-project pricing hypothesis.
 - **Drop/defer:** self-hosted, AI-credit metering complexity, bidding marketplace, 30+ trade taxonomy breadth (start building trades, expand).

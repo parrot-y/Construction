@@ -4,7 +4,7 @@ Method: puppeteer login as each owner-provided account → dump sidebar nav (`.w
 
 ## Universal shell (all contractor-side roles)
 
-Left rail: **Ask Buildsasa AI · Home · Projects · Site · Money · People · Files & reports** (+ profile chip, USD/KES toggle, "New" quick-create, workspace switcher "Create new"). Home always has **Dashboard/Inbox/Announcements** tabs (executive/PM see Dashboard; field roles see Team inbox). AI home also shows prompt chips: Quotes & estimates / Site & daily logs / Money & reports / Checklists & quality / Planning & schedule.
+Left rail: **Ask the reference platform AI · Home · Projects · Site · Money · People · Files & reports** (+ profile chip, USD/KES toggle, "New" quick-create, workspace switcher "Create new"). Home always has **Dashboard/Inbox/Announcements** tabs (executive/PM see Dashboard; field roles see Team inbox). AI home also shows prompt chips: Quotes & estimates / Site & daily logs / Money & reports / Checklists & quality / Planning & schedule.
 
 ## Per-role matrix (OBSERVED)
 
@@ -50,7 +50,7 @@ Reports · Company documents · Unfiled documents · Filters · Export PDF · re
 - **Coordination** (Projects tab): "Coordination issues" — unified RFIs & issues view.
 - **Company documents** (Files): categories Policies / Templates / Certifications / Insurance / HR / Legal + **expiry tracking** ("which documents expire soon?") + Upload. "Unfiled documents" triage.
 - **Reports**: Financial / Operational / By Project / By Region / Custom / **Scheduled** + Export PDF/Excel.
-- Every list has an "Ask Buildsasa AI" inline prompt scoped to that module.
+- Every list has an "Ask the reference platform AI" inline prompt scoped to that module.
 
 ## Second deep-dive pass (PM account)
 

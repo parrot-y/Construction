@@ -19,6 +19,7 @@ import InvoicingView from './InvoicingView';
 import AnnouncementsView from './AnnouncementsView';
 import CompanyDocumentsView from './CompanyDocumentsView';
 import InboxView from './InboxView';
+import IntegrationsView from './IntegrationsView';
 import ScheduledReportsView from './ScheduledReportsView';
 
 interface CompanyAdminDashboardProps {
@@ -413,6 +414,9 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal }: Comp
 
       {/* Team inbox (Gate-5 G5-3) */}
       <InboxView />
+
+      {/* Outbound integrations — providers, env config, test send (Phase 1) */}
+      <IntegrationsView />
 
       {/* Invite Member Modal */}
       {showInviteModal && (

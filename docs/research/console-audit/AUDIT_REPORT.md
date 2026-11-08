@@ -1,4 +1,4 @@
-# AUDIT_REPORT.md — Gate 0: buildsasa.com audit-first report
+# AUDIT_REPORT.md — Gate 0: reference-platform.example audit-first report
 
 **Date:** 2026-11-06 · **Auditor:** Devin (CTO lead, taking over from Gemini) · **Scope:** public surface + console login surface + legal constraints. No in-app module walkthrough yet (that is Gate 1, pending approval).
 
@@ -8,7 +8,7 @@ Claim tags: `[OBSERVED]` seen directly · `[INFERRED]` deduced · `[ASSUMPTION]`
 
 ## a) Public surface
 
-Marketing site `buildsasa.com` / `www.buildsasa.com` — Next.js on Railway (`x-powered-by: Next.js`, `server: railway-hikari`). `[OBSERVED]`
+Marketing site `reference-platform.example` / `www.reference-platform.example` — Next.js on Railway (`x-powered-by: Next.js`, `server: railway-hikari`). `[OBSERVED]`
 
 Sitemap (19 URLs) `[OBSERVED]`:
 - Core: `/`, `/pricing`, `/service`, `/service-details`, `/about`, `/contact`, `/faq`, `/news`, `/privacy`, `/terms`
@@ -19,18 +19,18 @@ Pricing page `[OBSERVED]`:
 - Two plans: **Starter** (3 team members incl., unlimited projects, daily logs/photos/checklists/schedule, free client accounts, quotes/invoices/change orders, inspections/punch lists/safety) and **Business** (10 members, adds financials, BOQ & payment certificates, inventory/equipment/subcontractors, reports, onboarding & priority support).
 - Billing: monthly, or yearly "two months free". **7-day free trial**.
 - **Deployment: "In Our Cloud, or On Your Own Servers"** — self-hosted option with custom features/integrations `[OBSERVED]` — significant: they sell on-prem too.
-- Contact: +254 782 223 749, hello@buildsasa.com, Westlands, Nairobi.
+- Contact: +254 782 223 749, hello@reference-platform.example, Westlands, Nairobi.
 - Landing claims "SOC 2 Type II · ISO 27001" — marketing claim, unverified `[OBSERVED claim]`.
 
 No public API docs, help centre, changelog, status page or app-store listing found in sitemap `[OBSERVED]`. Help appears to be "Ask Suzy" widget + FAQ.
 
-## b) Console surface — console.buildsasa.com
+## b) Console surface — console.reference-platform.example
 
 Vite + React SPA (`/assets/index-*.js`, 3.0 MB bundle), theme key `constructai-theme` in localStorage (internal codename hint) `[OBSERVED]`.
 
 **Entry flow** `[OBSERVED]`:
 1. Landing: role select — "I'm a client" (property owner, Kenya or abroad) vs "I'm a contractor or service provider" (builders, fencers, drillers, solar/CCTV, landscapers, surveyors + site teams).
-2. Contractor path → sign-in: work email + password, "Forgot?", "Enter Workspace", "Continue with Google" (OAuth via `api.buildsasa.com/api/auth/google`), link "New company? Create your company account", "Are you a client? Switch".
+2. Contractor path → sign-in: work email + password, "Forgot?", "Enter Workspace", "Continue with Google" (OAuth via `api.reference-platform.example/api/auth/google`), link "New company? Create your company account", "Are you a client? Switch".
 
 **Login succeeded** with owner-provided account `[OBSERVED]`:
 - Workspace name shown as "CONTRACTOR-CO", role "Contractor", currency USD.
@@ -56,7 +56,7 @@ Onboarding modal: "Create your first project / Invite a teammate / Open the AI c
 |---|---|---|
 | Marketing | Next.js, Railway hosting, edge `iad1` | OBSERVED |
 | Console | Vite React SPA, static assets, Railway | OBSERVED |
-| API | `api.buildsasa.com` — **Express** (`x-powered-by: Express`), Railway, `/api/health` → 200 JSON | OBSERVED |
+| API | `api.reference-platform.example` — **Express** (`x-powered-by: Express`), Railway, `/api/health` → 200 JSON | OBSERVED |
 | Auth | Email/password + Google OAuth (`/api/auth/google`, `/api/auth/google/exchange`, verify-email, forgot/reset, resend-verification) | OBSERVED |
 | API surface | **77 endpoints** enumerated from bundle — see appendix | OBSERVED |
 | Maps/geo | Leaflet + OpenStreetMap, Nominatim + Photon geocoding | OBSERVED |
@@ -94,7 +94,7 @@ Method: puppeteer-core scripts, ~1 action/2 s, screenshots per step, field table
 
 ## g) Gaps & corrections to assumptions
 
-1. **Product shape differs from our earlier parity audit.** Buildsasa is organised around **change orders, checklists, punch/observations, daily logs, plans/drawings, crews, quotes/invoices** — a contractor field-ops + commercial tool — not primarily valuations/BOQ/certificates (those exist under Business tier: "BOQ & payment certificates"). Our Platform is heavier on BOQ/valuations/retention. Both matter; the overlap is large but the emphasis differs. `[INFERRED]`
+1. **Product shape differs from our earlier parity audit.** the reference platform is organised around **change orders, checklists, punch/observations, daily logs, plans/drawings, crews, quotes/invoices** — a contractor field-ops + commercial tool — not primarily valuations/BOQ/certificates (those exist under Business tier: "BOQ & payment certificates"). Our Platform is heavier on BOQ/valuations/retention. Both matter; the overlap is large but the emphasis differs. `[INFERRED]`
 2. **Two-sided market confirmed**: contractors AND property owners (diaspora) are both first-class funnels. `[OBSERVED]`
 3. **Self-hosted offering** means enterprise buyers exist; our SaaS-only posture may miss that segment — note as opportunity/threat.
 4. **AI is a billed feature** (ai-credits checkout) — they've productised AI usage; we should note pricing/UX of that.
@@ -103,7 +103,7 @@ Method: puppeteer-core scripts, ~1 action/2 s, screenshots per step, field table
 
 ## Appendix: API endpoints (from public JS bundle)
 
-77 paths under `https://api.buildsasa.com` — grouped: auth(7), billing(6), ai(7), projects/jobs(3), change-orders, quotes, punch, observations, checklists(+templates 4), attendance, crews, subcontractors(+payments), equipment, inventory(2), cost-codes, rate-library(2), bid-packages, form-templates, documents/company-docs, scheduled-reports, announcements, conversations, correspondence, action-plans, coordination-issues, directory-contacts, access-logs, dashboard/insight, support/chat, email(2), upload(3), client portal(6), company, me, users(+invite), login, signup, health.
+77 paths under `https://api.reference-platform.example` — grouped: auth(7), billing(6), ai(7), projects/jobs(3), change-orders, quotes, punch, observations, checklists(+templates 4), attendance, crews, subcontractors(+payments), equipment, inventory(2), cost-codes, rate-library(2), bid-packages, form-templates, documents/company-docs, scheduled-reports, announcements, conversations, correspondence, action-plans, coordination-issues, directory-contacts, access-logs, dashboard/insight, support/chat, email(2), upload(3), client portal(6), company, me, users(+invite), login, signup, health.
 
 ## Open questions for owner
 

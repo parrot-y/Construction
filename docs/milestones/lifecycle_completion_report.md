@@ -3,13 +3,13 @@
 **Milestone Reference:** `M-LIFECYCLE-EXTENSIONS`  
 **Date:** 2026-11-03  
 **Audience:** Executive Team & Technical Lead  
-**Scope:** Complete Contractor Lifecycle Integration (Tender to Defects Liability), Competitor Workflow Parity (Buildsasa, Jengo, Procore), 8-Portal Architecture, and Real-World Structural Verification.
+**Scope:** Complete Contractor Lifecycle Integration (Tender to Defects Liability), Competitor Workflow Parity (the reference platform, Jengo, Procore), 8-Portal Architecture, and Real-World Structural Verification.
 
 ---
 
 ## 1. Executive Summary
 
-With the completion of this milestone, **Platform** now supports the entire construction project lifecycle from initial tender BOQ locking to 6-month post-handover Defects Liability Period (DLP) retention fund release. All features benchmarked against regional competitors (Buildsasa, Goldberry, Jengo, Aqiq Solutions, Zinen Technologies) and international systems (Procore, Autodesk Construction Cloud) have been modernized into our high-performance, Kenya-first architecture.
+With the completion of this milestone, **Platform** now supports the entire construction project lifecycle from initial tender BOQ locking to 6-month post-handover Defects Liability Period (DLP) retention fund release. All features benchmarked against regional competitors (the reference platform, Goldberry, Jengo, Aqiq Solutions, Zinen Technologies) and international systems (Procore, Autodesk Construction Cloud) have been modernized into our high-performance, Kenya-first architecture.
 
 Every operation is backed by:
 - **Prisma Schema & PostgreSQL 18 Multi-Tenancy**: 10 new tables protected by `FORCE ROW LEVEL SECURITY`.

@@ -458,7 +458,7 @@ export const PaymentCertificatePdf: React.FC<{ data: PaymentCertificateData }> =
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>Platform Immutable Financial System • Certificate: {certificateNo}</Text>
+          <Text>Site Safi Immutable Financial System • Certificate: {certificateNo}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

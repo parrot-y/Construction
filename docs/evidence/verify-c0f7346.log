@@ -907,8 +907,8 @@ $ turbo run test --force
 @construction/api:test: {"level":30,"time":1793992256952,"pid":74225,"hostname":"kali","reqId":"req-t","res":{"statusCode":201},"responseTime":17.325221999999485,"msg":"request completed"}
 @construction/api:test: {"level":30,"time":1793992256953,"pid":74225,"hostname":"kali","reqId":"req-u","req":{"method":"GET","url":"/api/v1/portals/compliance/2e503dddbffd006d56b901b96d5f87c4027a7ddd61021765533a7a833afbfa41","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
 @construction/api:test: {"level":30,"time":1793992256979,"pid":74225,"hostname":"kali","reqId":"req-u","res":{"statusCode":200},"responseTime":26.027280999999675,"msg":"request completed"}
-@construction/api:test:  ✓ src/buildsasa-parity.test.ts (15 tests) 2687ms
-@construction/api:test:    ✓ Chief Construction CTO & Buildsasa Exact Parity E2E Integration Suite > PDF-01: Generates certified BORAQS forensic inspection PDF with cryptographic SHA-256 seal and returns 200 application/pdf  603ms
+@construction/api:test:  ✓ src/reference-parity.test.ts (15 tests) 2687ms
+@construction/api:test:    ✓ Chief Construction CTO & the reference platform Exact Parity E2E Integration Suite > PDF-01: Generates certified BORAQS forensic inspection PDF with cryptographic SHA-256 seal and returns 200 application/pdf  603ms
 @construction/api:test: {"level":30,"time":1793992259941,"pid":74426,"hostname":"kali","currentUser":"db_app","rolsuper":false,"rolbypassrls":false,"msg":"PostgreSQL RLS security guard verified: runtime role is non-superuser and bound by RLS"}
 @construction/api:test: {"level":30,"time":1793992260329,"pid":74426,"hostname":"kali","reqId":"req-1","req":{"method":"POST","url":"/api/v1/auth/login","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
 @construction/api:test: {"level":30,"time":1793992260477,"pid":74426,"hostname":"kali","reqId":"req-1","res":{"statusCode":200},"responseTime":143.68214799999987,"msg":"request completed"}

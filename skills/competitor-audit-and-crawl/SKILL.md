@@ -1,7 +1,7 @@
 # Skill: competitor-audit-and-crawl
 
 ## When to use
-Any time we study an external product or website (competitor, inspiration, integration docs). Mandatory before Gate 0 research on buildsasa.com.
+Any time we study an external product or website (competitor, inspiration, integration docs). Mandatory before Gate 0 research on reference-platform.example.
 
 ## Ground rules (never break)
 1. Only access public pages, or a trial/demo/paid account the owner legitimately provides. Never bypass logins, paywalls, rate limits, or access controls. Never touch other tenants' data or tamper with URLs/IDs.

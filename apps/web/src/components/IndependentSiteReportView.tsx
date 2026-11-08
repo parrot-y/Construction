@@ -683,7 +683,7 @@ export default function IndependentSiteReportView({
             </span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Platform Independent Site Inspection Reports
+            Site Safi Independent Site Inspection Reports
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Unannounced third-party Clerk of Works audits, GPS-verified progress reality, and material quality assurance for {projectName}.

@@ -12,7 +12,7 @@
 ## 1. Executive Assessment & Architectural Scorecard
 
 An exhaustive, multi-dimensional audit of **Platform** was executed to evaluate its technological superiority, statutory fidelity, and operational resilience against all established Kenyan and East African market incumbents:
-- **Buildsasa** (`buildsasa.com` / `console.buildsasa.com`)
+- **the reference platform** (`reference-platform.example` / `console.reference-platform.example`)
 - **Goldberry Investments** (`goldberry.co.ke` — Cost Master & JengaLex)
 - **Jengo** (`jengo.co.ke`)
 - **Aqiq Solutions** (ERPNext / Frappe implementation partner)
@@ -21,7 +21,7 @@ An exhaustive, multi-dimensional audit of **Platform** was executed to evaluate 
 ### The Architectural Verdict:
 **Platform represents an undisputed, generational leap in construction technology for the East African building and civil engineering sector.** 
 
-While regional incumbents remain trapped in either **diaspora-only photo oversight** (Buildsasa, Jengo), **pre-construction estimation bots** (Goldberry / Cost Master), or **prohibitively expensive, brittle desktop ERPs** (Aqiq / ERPNext), Platform provides an **end-to-end, field-to-boardroom operating system**. It uniquely encodes Kenyan statutory laws (NCA Cap 499A, BORAQS Cap 525, JBC 1999 Standard Form of Building Contract, KRA e-TIMS Cap 470) alongside advanced structural, geotechnical, and civil earthworks engineering standards.
+While regional incumbents remain trapped in either **diaspora-only photo oversight** (the reference platform, Jengo), **pre-construction estimation bots** (Goldberry / Cost Master), or **prohibitively expensive, brittle desktop ERPs** (Aqiq / ERPNext), Platform provides an **end-to-end, field-to-boardroom operating system**. It uniquely encodes Kenyan statutory laws (NCA Cap 499A, BORAQS Cap 525, JBC 1999 Standard Form of Building Contract, KRA e-TIMS Cap 470) alongside advanced structural, geotechnical, and civil earthworks engineering standards.
 
 ```
 +-------------------------------------------------------------------------------------------------------+
@@ -47,12 +47,12 @@ While regional incumbents remain trapped in either **diaspora-only photo oversig
 
 ## 2. In-Depth Incumbent Competitive Audit
 
-### 2.1 Buildsasa (`buildsasa.com` / `console.buildsasa.com`)
+### 2.1 the reference platform (`reference-platform.example` / `console.reference-platform.example`)
 * **Primary Model:** Hybrid human agency + homeowner milestone tracker. Dispatches human "site inspectors" to photograph residential buildings for diaspora clients; takes a margin on transactions and contractor referrals.
 * **Architectural Critique:**
-  1. **Not a Contractor Commercial Operating System:** Buildsasa is built for remote homeowners, not building contractors. It completely lacks an EASMM 2008 6-stage BOQ import engine, has no concept of an append-only subcontractor cost ledger, and cannot generate a contractually enforceable JBC 1999 Interim Payment Certificate (IPC).
+  1. **Not a Contractor Commercial Operating System:** the reference platform is built for remote homeowners, not building contractors. It completely lacks an EASMM 2008 6-stage BOQ import engine, has no concept of an append-only subcontractor cost ledger, and cannot generate a contractually enforceable JBC 1999 Interim Payment Certificate (IPC).
   2. **Human Agency Scalability Bottleneck:** Relying on human inspectors visiting physical sites introduces severe human-resource overhead, scheduling delays, and geographic limitations (concentrated around Nairobi suburbs like Karen, Runda, Kitengela, while failing on upcountry projects in Lodwar, Isiolo, or Kisii).
-  3. **No Field Offline Resilience:** Buildsasa's client portal assumes stable cellular broadband. On deep excavation sites or remote rift valley corridors, the web console cannot function offline.
+  3. **No Field Offline Resilience:** the reference platform's client portal assumes stable cellular broadband. On deep excavation sites or remote rift valley corridors, the web console cannot function offline.
   4. **Per-Seat / Transaction Tax:** Extracts percentage rakes and restricts collaborator seats, punishing contractors who want their entire site hierarchy (supervisors, storekeepers, plant operators) on the platform.
 
 ### 2.2 Goldberry Investments (`goldberry.co.ke` — Cost Master & JengaLex)
@@ -175,9 +175,9 @@ Platform has implemented dedicated, mathematically rigorous domain engines acros
 
 ---
 
-## 4. Business Model & Unit Economics: Zero-Seat-Tax vs Buildsasa
+## 4. Business Model & Unit Economics: Zero-Seat-Tax vs the reference platform
 
-| Commercial Metric | Buildsasa | Global SaaS (Procore / ACC) | Regional ERPs (Aqiq) | **Platform** |
+| Commercial Metric | the reference platform | Global SaaS (Procore / ACC) | Regional ERPs (Aqiq) | **Platform** |
 |---|---|---|---|---|
 | **Pricing Structure** | % transaction rake + inspection fee | $8,000–$30,000 / yr | KES 400k setup + KES 60k/mo | **Flat KES 7,500/project/mo or KES 25k portfolio** |
 | **User Seat Policy** | Restrictive user tiers | Per-seat or Construction Volume | Per-license / Per-named-user | **UNLIMITED SEATS (Zero Seat Tax)** |
@@ -330,7 +330,7 @@ During the initial phase of this audit, three items were identified and surgical
 ## 9. Strategic Summary for Executive Leadership
 
 Platform has achieved complete functional and technological dominance over regional incumbents:
-1. **Versus Buildsasa:** Replaced expensive, unscalable human inspectors with automated, tamper-proof Nairobi GPS-geotagged site diaries, native EASMM BOQ parsing, and a Zero Seat Tax pricing model.
+1. **Versus the reference platform:** Replaced expensive, unscalable human inspectors with automated, tamper-proof Nairobi GPS-geotagged site diaries, native EASMM BOQ parsing, and a Zero Seat Tax pricing model.
 2. **Versus Goldberry:** Extended beyond pre-construction AI estimating into full on-site commercial execution, quality verification, and retention fund accounting.
 3. **Versus Jengo:** Upgraded shallow WhatsApp-style milestone photos into contractually binding JBC 1999 variation chains and interim payment certificates.
 4. **Versus Aqiq & ERPNext:** Delivered deep construction-native capabilities (BS 8666 rebar, BS EN 206 concrete, BS 1377 soil, BS 594987 asphalt, CAN-bus telematics) at 10x lower TCO on an offline-first PWA that site foremen can master in minutes.

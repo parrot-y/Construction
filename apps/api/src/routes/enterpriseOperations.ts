@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
 import { verifySignedSiteOpsToken } from '../services/securityConfig';
+import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
 import {
   CreateETimsInvoiceSchema,
   CreateSubcontractorTaxComplianceSchema,
@@ -455,7 +456,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         extractedData.isSafetyCritical = upperMsg.includes('STOP') || upperMsg.includes('COLLAPSE') || upperMsg.includes('INJURY') || upperMsg.includes('FALL');
         extractedData.incidentDetails = rawMessage.replace(/^[#]INCIDENT[:\s]*/i, '').trim();
 
-        replyMessage = `Platform SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: ${extractedData.isSafetyCritical ? 'CRITICAL STOP-WORK' : 'INCIDENT LOGGED'}.`;
+        replyMessage = `Site Safi SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: ${extractedData.isSafetyCritical ? 'CRITICAL STOP-WORK' : 'INCIDENT LOGGED'}.`;
       } else if (upperMsg.startsWith('#FUEL') || upperMsg.startsWith('#PLANT') || upperMsg.startsWith('FUEL:')) {
         detectedCommand = 'PLANT_FUEL';
         const litersMatch = rawMessage.match(/(\d+(?:\.\d+)?)\s*(?:l|liters?|litres?)/i);
@@ -463,9 +464,9 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         if (litersMatch && litersMatch[1]) extractedData.liters = litersMatch[1];
         if (hoursMatch && hoursMatch[1]) extractedData.hours = hoursMatch[1];
 
-        replyMessage = `Platform Fuel Audit: Mafuta (${extractedData.liters || 0}L) yamerekodiwa kwa masaa (${extractedData.hours || 0} hrs). Siphoning verification active.`;
+        replyMessage = `Site Safi Fuel Audit: Mafuta (${extractedData.liters || 0}L) yamerekodiwa kwa masaa (${extractedData.hours || 0} hrs). Siphoning verification active.`;
       } else {
-        replyMessage = `Platform Bot: Karibu! Tuma ujumbe ukitumia #DIARY, #DELIVERY, #INCIDENT, au #FUEL kurekodi shughuli za tovuti moja kwa moja.`;
+        replyMessage = `Site Safi Bot: Karibu! Tuma ujumbe ukitumia #DIARY, #DELIVERY, #INCIDENT, au #FUEL kurekodi shughuli za tovuti moja kwa moja.`;
       }
 
       try {
@@ -634,8 +635,8 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
               alert_type: data.alertType,
               message_body: data.messageBody,
               delivery_channel: data.deliveryChannel,
-              delivery_status: 'DELIVERED',
-              sent_at: new Date(),
+              delivery_status: 'PENDING',
+              sent_at: null,
             },
           });
 
@@ -661,12 +662,34 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
             alertType: alert.alert_type,
             messageBody: alert.message_body,
             deliveryChannel: alert.delivery_channel,
-            deliveryStatus: alert.delivery_status,
-            sentAt: alert.sent_at?.toISOString() || null,
           };
         });
 
-        return reply.status(201).send(result);
+        // Real dispatch after commit — IN_APP is delivered by definition;
+        // SMS/WHATSAPP go through configured providers (simulated if none).
+        let deliveryStatus: string;
+        let sentAt: string | null = null;
+        if (result.deliveryChannel === 'IN_APP') {
+          deliveryStatus = 'DELIVERED';
+          sentAt = new Date().toISOString();
+        } else {
+          const channel = result.deliveryChannel === 'SMS' ? 'SMS' : 'WHATSAPP';
+          const sendResult = await dispatchNotification({
+            channel,
+            to: normalizeKePhone(result.recipientPhone || ''),
+            body: result.messageBody,
+          });
+          deliveryStatus = sendResult.simulated ? 'SIMULATED' : sendResult.ok ? 'DELIVERED' : 'FAILED';
+          if (sendResult.ok) sentAt = new Date().toISOString();
+        }
+        await withTenantTx(prisma, tenantId, async (tx) => {
+          await tx.siteAlertNotification.update({
+            where: { id: result.id },
+            data: { delivery_status: deliveryStatus, sent_at: sentAt ? new Date(sentAt) : null },
+          });
+        });
+
+        return reply.status(201).send({ ...result, deliveryStatus, sentAt });
       } catch (err: any) {
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,

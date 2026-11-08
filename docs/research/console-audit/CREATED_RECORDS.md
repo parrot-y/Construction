@@ -1,12 +1,12 @@
 # CREATED_RECORDS.md
 
-Log of every record created inside the buildsasa.com console account during research, so the owner can clean up. Prefix all research records with `ZZ-RESEARCH-`.
+Log of every record created inside the reference-platform.example console account during research, so the owner can clean up. Prefix all research records with `ZZ-RESEARCH-`.
 
 | Date | Record type | Identifier / name | Action needed |
 |---|---|---|---|
 | 2026-11-06 | Change order | **CO-4990** — "ZZ-RESEARCH-DO NOT ACT: boundary wall" (GRAND TOWERS) — **CLEANED UP 2026-11-07: status Rejected** (no hard delete exists; Reject is the terminal action). Still visible in lists/activity as Rejected | None — rejected records remain in audit trail by design |
 | 2026-11-06 | Daily log | **Fri 6 Nov entry** — text neutralized 2026-11-07 to "General site supervision and progress monitoring." / crew "Site crew" (no delete exists; edit is the only path). 4 labour-days remain counted for that date | None — or owner may edit/delete manually if a delete exists in UI |
-| 2026-11-06 | Quote | **Q-0001** — "ZZ-RESEARCH-DO NOT ACT: boundary wall quote" — status **Accepted by CLIENT USER** (real client account accepted during E2E test). **No delete/decline path found on Accepted quotes — "Start project" must NOT be clicked.** Client sees it under Quotes & proposals | Manual cleanup only: contact Buildsasa support or wait for trial expiry; do NOT click Start project |
+| 2026-11-06 | Quote | **Q-0001** — "ZZ-RESEARCH-DO NOT ACT: boundary wall quote" — status **Accepted by CLIENT USER** (real client account accepted during E2E test). **No delete/decline path found on Accepted quotes — "Start project" must NOT be clicked.** Client sees it under Quotes & proposals | Manual cleanup only: contact the reference platform support or wait for trial expiry; do NOT click Start project |
 
 Notes:
 - Login was performed with the owner-provided account (role observed: Contractor, workspace "CONTRACTOR-CO", currency USD, free trial).

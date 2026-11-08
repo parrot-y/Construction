@@ -6,9 +6,9 @@
 ## Guiding principle
 Thin end-to-end slices in the money chain: **BOQ → budget → progress/cost → evidence → approval → client visibility**. Everything else is "later" unless it's table stakes for the core loop.
 
-## Roles & portals — coverage plan (all Buildsasa roles mapped, delivered in steps)
+## Roles & portals — coverage plan (all the reference platform roles mapped, delivered in steps)
 
-| Phase | Role/portal | Buildsasa equivalent | Our V1 status |
+| Phase | Role/portal | the reference platform equivalent | Our V1 status |
 |---|---|---|---|
 | Now (built) | Company Admin / Contractor | Contractor | ✅ exists |
 | Now (built) | PM/QS | Project Manager + Quantity Surveyor (merged) | ✅ exists |
@@ -32,13 +32,13 @@ Thin end-to-end slices in the money chain: **BOQ → budget → progress/cost �
 - Company/users/invites/projects/role dashboards (M3) ✅
 - BOQ import (Excel, EASMM) (M4) ✅
 - Budget, cost ledger, approvals, receipts (M5) ✅
-- Site diary, photos (GPS, client-visibility toggle), progress %, offline queue (M6) ✅ — **add per-photo client-visibility toggle [from Buildsasa]**
+- Site diary, photos (GPS, client-visibility toggle), progress %, offline queue (M6) ✅ — **add per-photo client-visibility toggle [from the reference platform]**
 - Variance monitor, project dashboard (M7) ✅
 - Variations workflow (M8) ✅
 - Client portal: progress, photos, retention terms, pending variations (M9) ✅
 - PDF reports: IPC, diary, summary (M10) ✅
-- **Change orders with trigger/cost/schedule impact + PM→Owner approval chain + approval limits** [Buildsasa core — partially = our variations; unify]
-- **Quotes → WhatsApp share → client accept → convert to project → deposit invoice** [Buildsasa killer flow — NEW]
+- **Change orders with trigger/cost/schedule impact + PM→Owner approval chain + approval limits** [the reference platform core — partially = our variations; unify]
+- **Quotes → WhatsApp share → client accept → convert to project → deposit invoice** [the reference platform killer flow — NEW]
 - **Invoicing AR**: draft/sent/paid/overdue, terms, line items, tax % [NEW, simple]
 - **Commitments → claims → payment applications → retention release → certificates** [extends M5/M10]
 - **Punch list / snags** with trade taxonomy + comments [NEW — we have snagging model from lifecycle milestone]

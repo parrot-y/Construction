@@ -1,9 +1,9 @@
 # 07 — Sitemap & navigation
 
-## Public marketing site (buildsasa.com) `[OBSERVED]`
+## Public marketing site (reference-platform.example) `[OBSERVED]`
 `/` · `/pricing` · `/service` · `/service-details` · `/about` · `/contact` · `/faq` · `/news` (+`/news-details`) · `/privacy` · `/terms` · `/request-project` · `/site-reporting` (Neutral Site Reporting) · `/for-clients` (property owners) · feature pages: `/feature-manage-field`, `/feature-change-orders`, `/feature-coordinate-documents`, `/feature-quality-safety`, `/feature-ai-assistant`
 
-## Console (console.buildsasa.com) — SPA, no URL routes observed (state-driven) `[OBSERVED]`
+## Console (console.reference-platform.example) — SPA, no URL routes observed (state-driven) `[OBSERVED]`
 
 ```
 Landing: role select (Client | Contractor) → auth (email/pass | Google | Forgot) → "New company? Create account"
@@ -44,7 +44,7 @@ Workspace shell:
 │   ├── Correspondence ── Letter/Submittal/Transmittal/Notice
 │   └── Coordination issues ── RFI/Clash/Design Question
 └── Global: Ctrl+K search · New (CO/Project/Daily log/Schedule activity/Ask AI) · currency KES⇄USD ·
-    notifications · dark mode · Viewing-as role preview · Ask Buildsasa AI · Shemmy support · user menu
+    notifications · dark mode · Viewing-as role preview · Ask the reference platform AI · Shemmy support · user menu
 ```
 
 ## Project detail tabs `[OBSERVED]`

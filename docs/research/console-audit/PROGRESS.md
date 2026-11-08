@@ -1,4 +1,4 @@
-# PROGRESS.md — buildsasa.com console research
+# PROGRESS.md — reference-platform.example console research
 
 Resumable progress tracker. Update after every session.
 
@@ -29,7 +29,7 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 - [ ] Module-access toggle granularity per role — permission toggles captured; module list appears derived [INFERRED]
 - [ ] "Viewing as" role preview mechanics — partially observed
 - [ ] Bidding flow detail (no jobs/bid-packages in this workspace)
-- [ ] Ask Buildsasa AI / Shemmy chat — not exercised
+- [ ] Ask the reference platform AI / Shemmy chat — not exercised
 - [ ] Upload flow end-to-end (presign observed in bundle only)
 
 ## 2026-11-06 — Deep pass + created records (owner directive: test everything)
@@ -74,7 +74,7 @@ Owner will create additional trial accounts (14-day) for other roles while Claud
 
 ## 2026-11-07 (later) — probes + final creates
 - **Viewing as:** sidebar label present but click did not open a menu in headless run [PARTIAL].
-- **Shemmy/Ask AI:** "Open Shemmy support" opens a support chatbot ("Hi, I'm Shemmy 👋 your Buildsasa support assistant… Talk to a human: WhatsApp · Email") — support assistant, not a work AI. Separate "Ask Buildsasa AI…" input exists inside schedule/checklist forms (AI generation, metered).
+- **Shemmy/Ask AI:** "Open Shemmy support" opens a support chatbot ("Hi, I'm Shemmy 👋 your the reference platform support assistant… Talk to a human: WhatsApp · Email") — support assistant, not a work AI. Separate "Ask the reference platform AI…" input exists inside schedule/checklist forms (AI generation, metered).
 - **Site checks:** confirmed dead nav — renders Dashboard every time [NOT REACHED, likely stub].
 - **Profile menu:** CONTRACTOR-CO button opens Settings · Help & support · Sign out.
 - **Created & verified:** crew (POST /api/crews), 2× inventory items (POST /api/inventory), announcement (POST /api/announcements — published workspace-wide).

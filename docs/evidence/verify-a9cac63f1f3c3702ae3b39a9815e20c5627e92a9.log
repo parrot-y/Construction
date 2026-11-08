@@ -909,7 +909,7 @@ $ turbo run test --force
 @construction/api:test: {"level":30,"time":1793881726940,"pid":1417,"hostname":"sandbox","reqId":"req-t","res":{"statusCode":201},"responseTime":5.802192000000105,"msg":"request completed"}
 @construction/api:test: {"level":30,"time":1793881726940,"pid":1417,"hostname":"sandbox","reqId":"req-u","req":{"method":"GET","url":"/api/v1/portals/compliance/ab184422e6b12c25255422452fb4fb2ebd8399e9c99821a03efda4bda8aea29d","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
 @construction/api:test: {"level":30,"time":1793881726949,"pid":1417,"hostname":"sandbox","reqId":"req-u","res":{"statusCode":200},"responseTime":8.720598000000336,"msg":"request completed"}
-@construction/api:test:  ✓ src/buildsasa-parity.test.ts (15 tests) 1044ms
+@construction/api:test:  ✓ src/reference-parity.test.ts (15 tests) 1044ms
 @construction/api:test: {"level":30,"time":1793881728462,"pid":1447,"hostname":"sandbox","currentUser":"db_app","rolsuper":false,"rolbypassrls":false,"msg":"PostgreSQL RLS security guard verified: runtime role is non-superuser and bound by RLS"}
 @construction/api:test: {"level":30,"time":1793881728567,"pid":1447,"hostname":"sandbox","reqId":"req-1","req":{"method":"POST","url":"/api/v1/auth/login","host":"localhost:80","remoteAddress":"127.0.0.1"},"msg":"incoming request"}
 @construction/api:test: {"level":30,"time":1793881728649,"pid":1447,"hostname":"sandbox","reqId":"req-1","res":{"statusCode":200},"responseTime":80.81682,"msg":"request completed"}

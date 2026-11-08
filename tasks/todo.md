@@ -120,10 +120,10 @@
   - B1: SubcontractorManagementView + MaterialRequisitionView + MaterialWastageVarianceCard
   - B2: StatutoryTaxManagementView + ETimsTaxComplianceView + RetentionAndBondsView + WeatherDelayClaimsView + WhatsAppSiteWebhookView
   - B3: QualityControlView (inspections tab only — cube tests have no internal API, document) + PhotoEvidenceGallery + remaining stragglers
-- [ ] Seed accounts per role (DONE in seed.ts) + Buildsasa portal comparison doc
+- [ ] Seed accounts per role (DONE in seed.ts) + the reference platform portal comparison doc
 - [ ] Final verify-local + PROJECT_STATUS update
 - [x] Wave A+B subagent wiring complete — 20+ views live (see commit 80143d1)
-- [x] PORTAL_PARITY_MAP.md — Buildsasa↔ours role/feature matrix + seed accounts
+- [x] PORTAL_PARITY_MAP.md — the reference platform↔ours role/feature matrix + seed accounts
 - [x] PATCH subcontractor package status endpoint + UI persistence
 - [ ] Known backend gaps (documented, not built): GET equipment-logs, GET telematics-devices list, GET SiteWebhookLog, subcontractor valuations PATCH?, Excel export, AI features, WhatsApp/SMS/eTIMS live providers, scheduled-report delivery
 - [x] Final verify-local GREEN on 80143d1 — 687/687

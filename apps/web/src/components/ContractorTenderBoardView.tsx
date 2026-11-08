@@ -54,7 +54,7 @@ interface ContractorTenderBoardViewProps {
 const DEFAULT_TENDERS: TenderPackage[] = [
   {
     id: 'tnd-2026-001',
-    tenderRef: 'BDS-TND-2026-STR-01',
+    tenderRef: 'SSF-TND-2026-STR-01',
     title: 'Reinforced Concrete Framing & Suspended Slabs Package',
     category: 'Structural Works',
     estimatedBudgetKes: '18500000.00',
@@ -133,7 +133,7 @@ const DEFAULT_TENDERS: TenderPackage[] = [
   },
   {
     id: 'tnd-2026-002',
-    tenderRef: 'BDS-TND-2026-BHOLE-02',
+    tenderRef: 'SSF-TND-2026-BHOLE-02',
     title: 'Solar-Powered Submersible Borehole System & Pressed Steel Storage',
     category: 'Mechanical & Water Works',
     estimatedBudgetKes: '4200000.00',
@@ -170,7 +170,7 @@ const DEFAULT_TENDERS: TenderPackage[] = [
   },
   {
     id: 'tnd-2026-003',
-    tenderRef: 'BDS-TND-2026-FAC-03',
+    tenderRef: 'SSF-TND-2026-FAC-03',
     title: 'High-Performance Aluminum Curtain Walling & Double Glazing',
     category: 'Finishes & Façade',
     estimatedBudgetKes: '9800000.00',
@@ -256,7 +256,7 @@ export default function ContractorTenderBoardView({
 
     const newTender: TenderPackage = {
       id: `tnd-2026-${String(tenders.length + 1).padStart(3, '0')}`,
-      tenderRef: `BDS-TND-2026-PKG-${String(tenders.length + 1).padStart(2, '0')}`,
+      tenderRef: `SSF-TND-2026-PKG-${String(tenders.length + 1).padStart(2, '0')}`,
       title: newTitle.trim(),
       category: newCategory,
       estimatedBudgetKes: newBudgetKes.trim() || '0.00',
@@ -272,7 +272,7 @@ export default function ContractorTenderBoardView({
     setTenders([newTender, ...tenders]);
     setSelectedTenderId(newTender.id);
     setShowPostTenderModal(false);
-    setActionSuccess(`Tender package "${newTender.title}" successfully posted to Platform Tender Board!`);
+    setActionSuccess(`Tender package "${newTender.title}" successfully posted to Site Safi Tender Board!`);
     setNewTitle('');
     setNewScope('');
     if (onTenderCreated) onTenderCreated(newTender);
@@ -385,7 +385,7 @@ export default function ContractorTenderBoardView({
             </span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Platform Contractor Tender Board &amp; Bidding Studio
+            Site Safi Contractor Tender Board &amp; Bidding Studio
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Transparent e-tendering, automated combined score ranking, and contractor contract awards for {projectName}.

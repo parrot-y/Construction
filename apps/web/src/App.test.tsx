@@ -2303,7 +2303,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Header and badge assertions
-      expect(html).toContain('Platform Independent Site Inspection Reports');
+      expect(html).toContain('Site Safi Independent Site Inspection Reports');
       expect(html).toContain('Diaspora Shield • Neutral Site Verification');
       expect(html).toContain('NCA Registered Clerk of Works');
       expect(html).toContain('Book Unannounced Inspection');
@@ -2375,13 +2375,13 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Header assertions
-      expect(html).toContain('Platform Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Site Safi Contractor Tender Board &amp; Bidding Studio');
       expect(html).toContain('Technical 70% • Financial 30% Evaluation');
       expect(html).toContain('+ Post New Tender');
       expect(html).toContain('Submit Contractor Bid');
 
       // Active tenders
-      expect(html).toContain('BDS-TND-2026-STR-01');
+      expect(html).toContain('SSF-TND-2026-STR-01');
       expect(html).toContain('Reinforced Concrete Framing &amp; Suspended Slabs Package');
       expect(html).toContain('18500000.00');
       expect(html).toContain('UNDER_REVIEW');
@@ -2414,7 +2414,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Branding & Hero Banner
-      expect(html).toContain('Platform Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
+      expect(html).toContain('Site Safi — Kenya Construction Operating System &amp; Diaspora Property Owner Portal');
       expect(html).toContain('Apex Builders Kenya Ltd');
       expect(html).toContain('Sign in to access your project workspace');
       expect(html).toContain('Diaspora Client Portal Preview');
@@ -2451,7 +2451,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = renderToString(<App />).replace(/<!-- -->/g, '');
 
       // LandingPortalHub is loaded unauthenticated
-      expect(html).toContain('Platform Kenya - Next-Generation Construction OS &amp; Diaspora Property Owner Portal');
+      expect(html).toContain('Site Safi — Kenya Construction Operating System &amp; Diaspora Property Owner Portal');
       expect(html).toContain('Apex Builders Kenya');
       expect(html).toContain('Sign in to access your project workspace');
       expect(html).toContain('open-login-btn');
@@ -2463,8 +2463,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Embedded M33 components in ClientDashboard
-      expect(html).toContain('Platform Independent Site Inspection Reports');
-      expect(html).toContain('Platform Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Site Safi Independent Site Inspection Reports');
+      expect(html).toContain('Site Safi Contractor Tender Board &amp; Bidding Studio');
 
       // Certified IPCs, Payments, and Monetary Variance Schedule
       expect(html).toContain('Certified Valuations Ledger');
@@ -2494,8 +2494,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('📑 Tender Board');
 
       // Embedded M33 components in PmQsDashboard
-      expect(html).toContain('Platform Independent Site Inspection Reports');
-      expect(html).toContain('Platform Contractor Tender Board &amp; Bidding Studio');
+      expect(html).toContain('Site Safi Independent Site Inspection Reports');
+      expect(html).toContain('Site Safi Contractor Tender Board &amp; Bidding Studio');
       expect(html).toContain('Technical 70% • Financial 30% Evaluation');
       expect(html).toContain('Progress Variance Analysis');
     });
@@ -2523,7 +2523,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('whatsapp-alert-btn');
     });
 
-    it('renders Platform Instant Building Construction Cost & Feasibility Estimator with 5 currencies and 6-stage drawdown', () => {
+    it('renders Site Safi Instant Building Construction Cost & Feasibility Estimator with 5 currencies and 6-stage drawdown', () => {
       const html = renderToString(
         <LandingPortalHub
           onSelectRolePreview={() => {}}
@@ -2532,7 +2532,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       ).replace(/<!-- -->/g, '');
 
       // Cost & Feasibility Estimator section
-      expect(html).toContain('Platform Instant Construction Cost &amp; Feasibility Estimator');
+      expect(html).toContain('Site Safi Instant Construction Cost &amp; Feasibility Estimator');
       expect(html).toContain('BORAQS &amp; JBC 2026 Baseline');
       expect(html).toContain('calc-typology-select');
       expect(html).toContain('calc-area-input');

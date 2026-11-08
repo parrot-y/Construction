@@ -195,7 +195,7 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
             className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition"
           >
             <span>←</span>
-            <span>Back to Platform Kenya Landing Portal Hub</span>
+            <span>Back to Site Safi Landing Portal Hub</span>
           </button>
         </div>
         <LoginForm onLoginSuccess={(newSession) => setSession(newSession)} />

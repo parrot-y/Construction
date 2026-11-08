@@ -9,7 +9,7 @@
 ## 1. Executive Summary
 
 The Kenyan construction software landscape is bifurcated between:
-1. **Diaspora/Client Oversight Tools (Buildsasa, Jengo):** Strong on visual proof for overseas homeowners, but lack depth in contractor financial management, EASMM measurement standards, and formal JBC contract administration.
+1. **Diaspora/Client Oversight Tools (the reference platform, Jengo):** Strong on visual proof for overseas homeowners, but lack depth in contractor financial management, EASMM measurement standards, and formal JBC contract administration.
 2. **Pre-Construction AI & Legal Tools (Goldberry / Cost Master / JengaLex):** Strong on estimating and building code lookup, but lack field execution, offline daily site logs, delivery verification, and variation approval workflows.
 3. **Heavy Bespoke Enterprise ERPs (Aqiq Solutions, Zinen Technologies):** ERPNext/Odoo customization or bespoke agency builds that cost hundreds of thousands of shillings, take 3–6 months to deploy, and are too complex for mobile foremen on dusty sites.
 
@@ -25,8 +25,8 @@ The Kenyan construction software landscape is bifurcated between:
 
 ## 2. In-Depth Competitor Analysis
 
-### 2.1 Buildsasa (`https://www.buildsasa.com/about`)
-- **HQ:** Westlands, Nairobi, Kenya (hello@buildsasa.com, +254 782 223 749).
+### 2.1 the reference platform (`https://www.reference-platform.example/about`)
+- **HQ:** Westlands, Nairobi, Kenya (hello@reference-platform.example, +254 782 223 749).
 - **Primary Business Model:** Hybrid construction management software + human site inspection service + vetted contractor marketplace.
 - **Target Audience:** Remote property owners (especially Kenyan diaspora in the US, UK, and Gulf) building residential homes, apartments, and commercial spaces.
 - **Key Features:**
@@ -108,7 +108,7 @@ The Kenyan construction software landscape is bifurcated between:
 
 ## 3. Feature-by-Feature Competitor Benchmark Matrix
 
-| Feature / Domain | Buildsasa | Goldberry (Cost Master) | Jengo | Aqiq Solutions (ERPNext) | Zinen Technologies | **Platform** |
+| Feature / Domain | the reference platform | Goldberry (Cost Master) | Jengo | Aqiq Solutions (ERPNext) | Zinen Technologies | **Platform** |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Pricing Model** | Custom / Percentage | Subscription | Subscription | Expensive Consulting Setup | Bespoke Project Fee | **Flat KES 7,500/mo or KES 25k portfolio** |
 | **User Seat Policy** | Limited | Per User | Per User | Per User | Per License | **UNLIMITED USERS (Zero seat tax)** |
@@ -139,6 +139,6 @@ The Kenyan construction software landscape is bifurcated between:
 - Goldberry and JengaLex risk alienating consulting Quantity Surveyors by marketing "AI Quantity Surveying". Section 3 of BORAQS Cap 525 legally reserves the preparation of bills and final accounts to registered professionals.
 - **Platform’s Advantage:** We position strictly as the **Contractor's Commercial Operating System**. Consulting QSs love Platform because it formats BOQs per EASMM 2008, tracks variations with contractual clarity, and generates print-ready Interim Payment Certificates adhering to JBC 1999 Clause 34.
 
-### Strategic Move 4: Satisfy the Diaspora Client Need Better Than Buildsasa
-- Buildsasa charges heavy fees to dispatch human site inspectors to take photos.
+### Strategic Move 4: Satisfy the Diaspora Client Need Better Than the reference platform
+- the reference platform charges heavy fees to dispatch human site inspectors to take photos.
 - **Platform’s Advantage:** The Client Portal provides real-time, tamper-proof, Nairobi GPS-geotagged visual proof directly from the contractor's daily site diary at zero extra inspection cost, complete with 5 plain-language financial numbers and neutral health alerts.

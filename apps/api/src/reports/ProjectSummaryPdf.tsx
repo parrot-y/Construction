@@ -475,7 +475,7 @@ export const ProjectSummaryPdf: React.FC<{ data: ProjectSummaryData }> = ({ data
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>Platform Executive Project Summary • Project: {project.code}</Text>
+          <Text>Site Safi Executive Project Summary • Project: {project.code}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

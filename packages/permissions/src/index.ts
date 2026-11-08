@@ -8,7 +8,7 @@ export const Roles = {
   SUBCONTRACTOR: 'SUBCONTRACTOR',
   SUPPLIER: 'SUPPLIER',
   COMPLIANCE: 'COMPLIANCE',
-  // Gate-5 role ladder (observed Buildsasa team roles, doc 15)
+  // Gate-5 role ladder (observed the reference platform team roles, doc 15)
   EXECUTIVE: 'EXECUTIVE',
   SUPERINTENDENT: 'SUPERINTENDENT',
   SITE_ENGINEER: 'SITE_ENGINEER',
