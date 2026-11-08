@@ -150,8 +150,79 @@ function InspectionsTab(): React.JSX.Element {
   );
 }
 
+
+/** Field view — personalized field hub (observed on reference): my checklists + quick actions. */
+function FieldView({ projectId, projectName, setTab }: { projectId: string; projectName?: string; setTab: (t: string) => void }): React.JSX.Element {
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/v1/projects/${projectId}/checklist-assignments`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => setAssignments(j.data || j || []))
+      .catch(() => setAssignments([]))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+
+  const open = assignments.filter((a) => !['APPROVED', 'REJECTED'].includes(String(a.status)));
+  const actions = [
+    { label: 'Report a snag', desc: 'Log a defect or snag for follow-up', tab: 'punch', icon: '🔧' },
+    { label: 'New daily log', desc: 'Record today’s work, labour and weather', tab: 'dailylog', icon: '📋' },
+    { label: 'My checklists', desc: 'Assigned QA checklists and inspections', tab: 'assignments', icon: '✅' },
+    { label: 'Clock in / out', desc: 'Geofenced attendance for your crew', tab: 'attendance', icon: '📍' },
+    { label: 'Report observation', desc: 'Quality, safety or environmental issue', tab: 'observations', icon: '👁️' },
+    { label: 'Safety incident', desc: 'Report an incident or near-miss', tab: 'safety', icon: '⛑️' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Field view</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400">What do you need in the field?{projectName ? ` · ${projectName}` : ''}</p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {actions.map((a) => (
+          <button key={a.tab} onClick={() => setTab(a.tab)}
+            className="text-left p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition">
+            <span className="text-lg">{a.icon}</span>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1.5">{a.label}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{a.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+        <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">My Assigned Checklists</h4>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Complete your assigned QA checklists and safety inspections.</p>
+        {loading ? (
+          <p className="text-xs text-slate-400">Loading…</p>
+        ) : open.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">No assigned checklists</p>
+            <p className="text-xs text-slate-400 mt-1">Ask your supervisor to assign you a checklist from Assignments.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {open.map((a) => (
+              <button key={a.id} onClick={() => setTab('assignments')}
+                className="w-full text-left flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                <div>
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{a.title}</p>
+                  <p className="text-[10px] text-slate-400">{a.trade}{a.assigned_to_name ? ` · ${a.assigned_to_name}` : ''}{a.due_date ? ` · due ${String(a.due_date).slice(0, 10)}` : ''}</p>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{String(a.status).replace(/_/g, ' ')}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SiteSection(): React.JSX.Element {
-  const { tab, projectId: pid, projects, role } = useConsole();
+  const { tab, projectId: pid, projects, role, setTab } = useConsole();
   const canEdit = !['VIEWER', 'CLIENT'].includes(role);
   const canInvestigate = ['COMPANY_ADMIN', 'ADMIN', 'EXECUTIVE', 'PM_QS', 'SITE_SUPERVISOR', 'SUPERINTENDENT'].includes(role);
   const projectName = projects.find((p) => p.id === pid)?.name;
@@ -162,6 +233,9 @@ export default function SiteSection(): React.JSX.Element {
   }
   if (!livePid) return <EmptyProject what={tab} />;
 
+  if (tab === 'fieldview') {
+    return livePid ? <FieldView projectId={livePid} projectName={projectName} setTab={setTab} /> : <EmptyProject what="the field view" />;
+  }
   switch (tab) {
     case 'checklists': return <ChecklistsView projectId={livePid} canManage={canEdit} initialTab="templates" />;
     case 'assignments': return <ChecklistsView projectId={livePid} canManage={canEdit} initialTab="assignments" />;

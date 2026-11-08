@@ -26,7 +26,7 @@ const ALL_PROJECT_TABS = ['all', 'schedule', 'drawings', 'changeorders', 'coordi
 const NO_CO_PROJECT_TABS = ['all', 'schedule', 'drawings', 'coordination', 'correspondence'];
 const DRAWINGS_ONLY_PROJECT_TABS = ['drawings'];
 
-const ALL_SITE_TABS = ['dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'attendance'];
+const ALL_SITE_TABS = ['fieldview', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'attendance'];
 const VIEWER_SITE_TABS = ['dailylog', 'checklists', 'punch', 'inspections', 'observations', 'safety', 'attendance'];
 
 const ALL_MONEY_TABS = ['financials', 'commitments', 'quotes', 'invoices', 'inventory', 'billing'];
@@ -198,6 +198,7 @@ export const SUBTAB_LABELS: Record<string, string> = {
   coordination: 'Coordination',
   correspondence: 'Correspondence',
   // site
+  fieldview: 'Field view',
   dailylog: 'Daily log',
   checklists: 'Checklists',
   assignments: 'Assignments',
