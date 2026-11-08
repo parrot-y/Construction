@@ -47,7 +47,7 @@ const STAKEHOLDER_ROLES: StakeholderRolePreview[] = [
     role: 'CLIENT',
     title: 'Diaspora Property Developer Portal',
     badge: 'Diaspora Investor',
-    badgeStyle: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    badgeStyle: 'bg-orange-100 text-orange-800 border-orange-200',
     description: '100% remote jobsite visibility, unannounced third-party Clerk of Works audits, multi-currency views (KES/USD/GBP/EUR/AED), and variation approvals.',
     keyFeatures: ['Unannounced Neutral Clerk of Works Audits', 'Multi-Currency Diaspora Converter', 'Live GPS-Tagged Milestone Evidence Gallery'],
     ctaLabel: 'Preview Diaspora Client Portal',
@@ -165,15 +165,15 @@ export default function LandingPortalHub({
       {/* Top Navbar */}
       <nav className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-700 to-emerald-500 flex items-center justify-center text-white text-xl font-black shadow-sm">
-            B
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-700 to-orange-500 flex items-center justify-center text-white text-xl font-black shadow-sm">
+            S
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-black text-slate-900 tracking-tight">
                 Site Safi
               </span>
-              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase">
+              <span className="text-[10px] font-bold text-orange-800 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full uppercase">
                 Construction OS
               </span>
             </div>
@@ -187,7 +187,7 @@ export default function LandingPortalHub({
           <button
             onClick={onOpenLogin}
             data-testid="open-login-btn"
-            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center gap-2"
+            className="px-4 py-2 bg-orange-700 hover:bg-orange-800 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center gap-2"
           >
             <span>🔐</span>
             <span>Sign in to access your project workspace</span>
@@ -196,13 +196,13 @@ export default function LandingPortalHub({
       </nav>
 
       {/* Hero Banner */}
-      <header className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-3xl p-8 sm:p-12 shadow-xl border border-slate-700/50 overflow-hidden">
+      <header className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-orange-950 text-white rounded-3xl p-8 sm:p-12 shadow-xl border border-slate-700/50 overflow-hidden">
         {/* Background Decorative Rings */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-3xl space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold backdrop-blur-xs">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/30 text-orange-300 text-xs font-semibold backdrop-blur-xs">
             <span>🇰🇪 Built for Kenyan Ground Truth</span>
             <span>•</span>
             <span>BORAQS • NCA • EASMM 2008 • KEBS</span>
@@ -220,7 +220,7 @@ export default function LandingPortalHub({
             <button
               onClick={() => onSelectRolePreview('CLIENT')}
               data-testid="hero-client-preview-btn"
-              className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl shadow-lg transition flex items-center gap-2"
+              className="px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-xl shadow-lg transition flex items-center gap-2"
             >
               <span>🌍 Diaspora Client Portal Preview</span>
             </button>
@@ -234,19 +234,19 @@ export default function LandingPortalHub({
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-700/60 text-xs">
             <div>
-              <span className="text-emerald-400 font-bold block text-lg font-mono">100%</span>
+              <span className="text-orange-400 font-bold block text-lg font-mono">100%</span>
               <span className="text-slate-400">Neutral Verification</span>
             </div>
             <div>
-              <span className="text-emerald-400 font-bold block text-lg font-mono">5 Currencies</span>
+              <span className="text-orange-400 font-bold block text-lg font-mono">5 Currencies</span>
               <span className="text-slate-400">KES, USD, GBP, EUR, AED</span>
             </div>
             <div>
-              <span className="text-emerald-400 font-bold block text-lg font-mono">0 Seat Tax</span>
+              <span className="text-orange-400 font-bold block text-lg font-mono">0 Seat Tax</span>
               <span className="text-slate-400">External Portals</span>
             </div>
             <div>
-              <span className="text-emerald-400 font-bold block text-lg font-mono">BORAQS &amp; NCA</span>
+              <span className="text-orange-400 font-bold block text-lg font-mono">BORAQS &amp; NCA</span>
               <span className="text-slate-400">Kenyan Statutory Standard</span>
             </div>
           </div>
@@ -256,7 +256,7 @@ export default function LandingPortalHub({
       {/* 4 Key Value Proposition Cards */}
       <section className="space-y-4">
         <div className="text-center max-w-2xl mx-auto space-y-1">
-          <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50 border border-emerald-200 px-3 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-orange-800 uppercase tracking-wider bg-orange-50 border border-orange-200 px-3 py-0.5 rounded-full">
             Core Enterprise Value Pillars
           </span>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -270,7 +270,7 @@ export default function LandingPortalHub({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           {/* Card 1: Diaspora Remote Property Owner Portal */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl font-bold">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-800 flex items-center justify-center text-xl font-bold">
               🌍
             </div>
             <h3 className="text-base font-bold text-slate-900">
@@ -280,7 +280,7 @@ export default function LandingPortalHub({
               Real-time milestone tracking, multi-currency views (KES/USD/GBP/EUR/AED), transparent change orders, and verifiable digital valuation certificates protecting overseas investors from contractor fund diversion.
             </p>
             <div className="flex flex-wrap gap-1.5 pt-1">
-              <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
+              <span className="text-[10px] font-semibold bg-orange-50 text-orange-700 px-2 py-0.5 rounded border border-orange-200">
                 Multi-Currency (KES/USD/GBP/EUR/AED)
               </span>
               <span className="text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
@@ -371,7 +371,7 @@ export default function LandingPortalHub({
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-orange-300 bg-orange-500/20 border border-orange-500/30 px-2.5 py-0.5 rounded-full">
                 Interactive Feasibility Radar
               </span>
               <span className="text-xs text-slate-400 font-mono">BORAQS &amp; JBC 2026 Baseline</span>
@@ -394,7 +394,7 @@ export default function LandingPortalHub({
                 data-testid={`calc-currency-${c.toLowerCase()}`}
                 className={`px-2 py-1 text-xs font-bold rounded-lg transition ${
                   estCurrency === c
-                    ? 'bg-emerald-600 text-white shadow-xs'
+                    ? 'bg-orange-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
                 }`}
               >
@@ -416,7 +416,7 @@ export default function LandingPortalHub({
                 value={estTypology}
                 onChange={(e) => setEstTypology(e.target.value as TypologyKey)}
                 data-testid="calc-typology-select"
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
               >
                 <option value="maisonette">4-Bed Residential Maisonette (Two-Storey)</option>
                 <option value="villa">Luxury Standalone Villa (Double-Height)</option>
@@ -440,7 +440,7 @@ export default function LandingPortalHub({
                   value={estAreaSqm}
                   onChange={(e) => setEstAreaSqm(Math.max(20, Number(e.target.value) || 0))}
                   data-testid="calc-area-input"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:ring-1 focus:ring-orange-500"
                 />
               </div>
 
@@ -453,7 +453,7 @@ export default function LandingPortalHub({
                   value={estRegion}
                   onChange={(e) => setEstRegion(e.target.value as RegionKey)}
                   data-testid="calc-region-select"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
                 >
                   <option value="NAIROBI">Nairobi &amp; Kiambu (1.00x)</option>
                   <option value="MOMBASA">Mombasa &amp; Coastal (1.12x)</option>
@@ -476,7 +476,7 @@ export default function LandingPortalHub({
                     data-testid={`calc-finish-${tier.toLowerCase()}`}
                     className={`py-2 px-2 text-xs font-bold rounded-xl border text-center transition ${
                       estFinish === tier
-                        ? 'bg-emerald-600/30 border-emerald-500 text-emerald-300'
+                        ? 'bg-orange-600/30 border-orange-500 text-orange-300'
                         : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
                     }`}
                   >
@@ -504,7 +504,7 @@ export default function LandingPortalHub({
                 <span className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight" data-testid="calc-total-cost">
                   {formatCalcCost(totalCostInTarget)}
                 </span>
-                <span className="text-xs text-emerald-400 font-mono font-semibold">
+                <span className="text-xs text-orange-400 font-mono font-semibold">
                   (~{formatCalcCost(ratePerSqmInTarget)}/sqm)
                 </span>
               </div>
@@ -539,7 +539,7 @@ export default function LandingPortalHub({
                 type="button"
                 onClick={() => onSelectRolePreview('CLIENT')}
                 data-testid="calc-book-audit-btn"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5"
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5"
               >
                 <span>🕵️ Book Neutral Site Audit</span>
               </button>
@@ -572,7 +572,7 @@ export default function LandingPortalHub({
             <div
               key={roleDef.role}
               data-testid={`stakeholder-role-card-${roleDef.role.toLowerCase()}`}
-              className="bg-slate-50/70 rounded-2xl border border-slate-200 p-5 flex flex-col justify-between hover:border-emerald-500 hover:bg-emerald-50/20 transition group"
+              className="bg-slate-50/70 rounded-2xl border border-slate-200 p-5 flex flex-col justify-between hover:border-orange-500 hover:bg-orange-50/20 transition group"
             >
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
@@ -582,7 +582,7 @@ export default function LandingPortalHub({
                   </span>
                 </div>
 
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-800 transition">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-orange-800 transition">
                   {roleDef.title}
                 </h3>
 
@@ -593,7 +593,7 @@ export default function LandingPortalHub({
                 <ul className="space-y-1 text-[10px] text-slate-500 pt-1 border-t border-slate-200/60">
                   {roleDef.keyFeatures.map((feat, i) => (
                     <li key={i} className="flex items-center gap-1.5">
-                      <span className="text-emerald-600">✓</span>
+                      <span className="text-orange-600">✓</span>
                       <span>{feat}</span>
                     </li>
                   ))}
@@ -603,7 +603,7 @@ export default function LandingPortalHub({
               <button
                 onClick={() => onSelectRolePreview(roleDef.role)}
                 data-testid={`preview-role-btn-${roleDef.role.toLowerCase()}`}
-                className="mt-4 w-full py-2 px-3 bg-white hover:bg-emerald-700 hover:text-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-xl shadow-2xs transition text-center"
+                className="mt-4 w-full py-2 px-3 bg-white hover:bg-orange-700 hover:text-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-xl shadow-2xs transition text-center"
               >
                 {roleDef.ctaLabel}
               </button>

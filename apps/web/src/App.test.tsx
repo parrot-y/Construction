@@ -68,7 +68,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
   it('renders the login screen by default with demo accounts and title', () => {
     const html = renderToString(<LoginForm onLoginSuccess={() => {}} />);
     expect(html).toContain('Apex Builders Kenya');
-    expect(html).toContain('Milestone M1 • Walking Skeleton');
+    expect(html).toContain('Site Safi');
     expect(html).toContain('admin@apexbuilders.co.ke');
     expect(html).toContain('COMPANY_ADMIN');
     expect(html).toContain('PM_QS');
