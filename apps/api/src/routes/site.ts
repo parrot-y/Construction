@@ -1,4 +1,7 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import fs from 'node:fs';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import {
@@ -10,6 +13,75 @@ import {
 import { requirePermission } from '../plugins/rbac';
 
 export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // ---------------------------------------------------------------------------
+  // 0. POST /api/v1/projects/:projectId/uploads - Real file upload (photos, docs)
+  // ---------------------------------------------------------------------------
+  server.post(
+    '/api/v1/projects/:projectId/uploads',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.SITE_DIARY_CREATE),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      const project = await withTenantTx(prisma, tenantId, async (tx) =>
+        tx.project.findFirst({ where: { id: projectId, tenant_id: tenantId }, select: { id: true } }),
+      );
+      if (!project) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No file uploaded' });
+      }
+
+      const allowed = /^(image\/(jpeg|png|webp|gif|heic)|application\/(pdf)|video\/(mp4|quicktime))$/;
+      if (!allowed.test(file.mimetype)) {
+        return reply.status(415).send({
+          statusCode: 415,
+          error: 'Unsupported Media Type',
+          message: `File type ${file.mimetype} not allowed (images, PDF, MP4/MOV only)`,
+        });
+      }
+
+      const uploadRoot = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
+      const safeName = path.basename(file.filename || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const ext = path.extname(safeName).toLowerCase();
+      const storageKey = `${tenantId}/${projectId}/${randomUUID()}${ext}`;
+      const destPath = path.join(uploadRoot, storageKey);
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+
+      const buffer = await file.toBuffer();
+      fs.writeFileSync(destPath, buffer);
+
+      await withTenantTx(prisma, tenantId, async (tx) => {
+        await recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          action: 'FILE_UPLOAD',
+          entityType: 'Project',
+          entityId: projectId,
+          changes: { storageKey, filename: file.filename, mimetype: file.mimetype, sizeBytes: buffer.length },
+        });
+      });
+
+      return reply.status(201).send({
+        data: {
+          storageKey,
+          url: `/uploads/${storageKey}`,
+          filename: file.filename,
+          mimetype: file.mimetype,
+          sizeBytes: buffer.length,
+        },
+      });
+    },
+  );
+
   // ---------------------------------------------------------------------------
   // 1. POST /api/v1/projects/:projectId/site-diaries - Create/Sync Daily Site Diary
   // ---------------------------------------------------------------------------

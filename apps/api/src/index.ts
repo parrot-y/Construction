@@ -1,6 +1,9 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import fs from 'node:fs';
+import path from 'node:path';
 import fastify, { FastifyError, FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
 import { authPlugin } from './plugins/auth';
@@ -75,6 +78,15 @@ export function buildServer(): FastifyInstance {
   server.register(cors, {
     origin: process.env.WEB_ORIGIN || 'http://localhost:5173',
     credentials: true,
+  });
+
+  // Static uploads (site photos, evidence docs) — unguessable UUID keys
+  const uploadRoot = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
+  fs.mkdirSync(uploadRoot, { recursive: true });
+  server.register(fastifyStatic, {
+    root: uploadRoot,
+    prefix: '/uploads/',
+    decorateReply: false,
   });
 
   // Multipart file upload (capped at 15MB per ADR-003)
