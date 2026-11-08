@@ -1,3 +1,4 @@
+import { getRoleNav } from '../navConfig';
 import React, { useEffect, useState } from 'react';
 import { useConsole } from '../ConsoleContext';
 import CrewsView from '../../CrewsView';
@@ -182,18 +183,21 @@ function DirectoryView(): React.JSX.Element {
   );
 }
 
-/** Roles — permission matrix by workspace role. */
-const ROLE_MATRIX: { role: string; can: string[] }[] = [
-  { role: 'Company Admin', can: ['Everything', 'Billing & plan', 'Role management', 'All reports'] },
-  { role: 'Executive', can: ['All projects', 'Financials', 'Reports', 'Team directory'] },
-  { role: 'Project Manager / QS', can: ['Costs & BOQ', 'Variations', 'Certificates', 'Site modules'] },
-  { role: 'Superintendent', can: ['Site operations', 'Financials', 'Crews & subcontractors'] },
-  { role: 'Site Engineer', can: ['Daily logs', 'Drawings', 'Inspections', 'Inventory'] },
-  { role: 'Trade Lead', can: ['Checklists', 'Punch list', 'Attendance', 'Invoices (view)'] },
-  { role: 'Foreman', can: ['Field capture', 'Attendance', 'Inventory'] },
-  { role: 'Worker', can: ['Daily log', 'Drawings', 'Checklists', 'Attendance'] },
-  { role: 'Viewer', can: ['Read-only access', 'No financial detail', 'No People/Files edits'] },
+/** Roles — live workspace access matrix derived from the console nav config. */
+const MATRIX_ROLES: { key: string; label: string }[] = [
+  { key: 'COMPANY_ADMIN', label: 'Contractor' },
+  { key: 'EXECUTIVE', label: 'Executive' },
+  { key: 'PM_QS', label: 'Project Manager / QS' },
+  { key: 'ARCHITECT', label: 'Architect' },
+  { key: 'QA_QC', label: 'QA/QC Officer' },
+  { key: 'SUPERINTENDENT', label: 'Superintendent' },
+  { key: 'SITE_ENGINEER', label: 'Site Engineer' },
+  { key: 'TRADE_LEAD', label: 'Trade Lead' },
+  { key: 'FOREMAN', label: 'Foreman' },
+  { key: 'WORKER', label: 'Worker' },
+  { key: 'VIEWER', label: 'Viewer' },
 ];
+const MATRIX_SECTIONS = ['projects', 'site', 'money', 'people', 'files'] as const;
 
 function RolesView(): React.JSX.Element {
   return (
@@ -207,20 +211,33 @@ function RolesView(): React.JSX.Element {
           <thead>
             <tr className="text-left text-slate-400 border-b border-slate-100 dark:border-slate-800">
               <th className="px-5 py-3 font-semibold">Role</th>
-              <th className="px-5 py-3 font-semibold">Access</th>
+              {MATRIX_SECTIONS.map((sec) => <th key={sec} className="px-3 py-3 font-semibold capitalize text-center">{sec === 'files' ? 'Files' : sec}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
-            {ROLE_MATRIX.map((r) => (
-              <tr key={r.role} className="text-slate-700 dark:text-slate-300">
-                <td className="px-5 py-3 font-bold whitespace-nowrap">{r.role}</td>
-                <td className="px-5 py-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {r.can.map((c) => <span key={c} className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[10px] font-semibold">{c}</span>)}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {MATRIX_ROLES.map((r) => {
+              const rn = getRoleNav(r.key);
+              return (
+                <tr key={r.key} className="text-slate-700 dark:text-slate-300">
+                  <td className="px-5 py-3 font-bold whitespace-nowrap">{r.label}</td>
+                  {MATRIX_SECTIONS.map((sec) => {
+                    const def = rn.sections.find((x) => x.id === sec);
+                    const n = def?.tabs?.length ?? 0;
+                    return (
+                      <td key={sec} className="px-3 py-3 text-center">
+                        {def ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${n >= 5 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : n > 0 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}`}>
+                            {n > 0 ? `${n} tabs` : 'limited'}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
