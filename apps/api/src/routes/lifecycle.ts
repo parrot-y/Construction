@@ -392,6 +392,40 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
   // DOMAIN 2: QUALITY ASSURANCE & INSPECTION CHECKLISTS
   // ===========================================================================
 
+  // 1.4 POST /api/v1/projects/:projectId/rfis/:rfiId/close — manual close
+  server.post(
+    '/api/v1/projects/:projectId/rfis/:rfiId/close',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, rfiId } = request.params as { projectId: string; rfiId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(rfiId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'RFI not found' });
+      }
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const rfi = await tx.rFI.findFirst({ where: { id: rfiId, project_id: projectId } });
+          if (!rfi) throw { status: 404, message: 'RFI not found' };
+          if (rfi.status === 'CLOSED' || rfi.status === 'DRAFT') {
+            throw { status: 400, message: `Cannot close RFI in ${rfi.status} status` };
+          }
+          const u = await tx.rFI.update({ where: { id: rfiId }, data: { status: 'CLOSED', closed_at: new Date() } });
+          await recordAuditLog(tx, {
+            tenantId, projectId, actorId: sub,
+            action: 'RFI_CLOSED', entityType: 'RFI', entityId: rfiId,
+            changes: { from: rfi.status, to: 'CLOSED' },
+          });
+          return u;
+        });
+        return reply.status(200).send(updated);
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err.message });
+      }
+    },
+  );
+
   // 2.1 GET /api/v1/projects/:projectId/inspections - List Inspections
   server.get(
     '/api/v1/projects/:projectId/inspections',
