@@ -184,3 +184,12 @@ Captured every create form on contractor portal: CO, RFI, correspondence, safety
 - [x] 7. PORTAL_PARITY_MAP.md removed; parity goal dropped
 - [ ] 8. PROJECT_STATUS.md update + seed production guard
 - [ ] Final verify-local green + evidence
+
+## Post-audit hardening & polish (continued)
+- [x] Refresh-token server-side rotation + reuse detection (refresh_tokens table, migration 0003, family revocation on replay)
+- [x] Session management: GET/DELETE /auth/sessions + SessionsModal (per-device revoke, sign-out-others)
+- [x] reports/cost.xlsx (fixes dead /reports/cost link); report cards show real export format
+- [x] docs/DEPLOY.md — env, migrations+RLS, grants, production guards
+- [x] PWA: Site Safi manifest branding + real install icons (192/512/apple-touch) + orange favicon
+- [x] g5-15 extended to 6 tests (sessions list/revoke)
+- [x] verify-local GREEN 714/714 on ebaf3c3 + 23cc4ea (web build clean, PWA precache 12 entries)
