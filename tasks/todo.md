@@ -104,3 +104,6 @@
 ## Review
 - Two verify runs were contaminated by editing files mid-run (lint/build failures on in-flight code). Rule: FREEZE repo edits while verify-local runs; batch commits before launching.
 - Test-DB schema drift caused a false 20-test failure when schema edits landed after verify's db push step — always re-verify after schema changes.
+- [x] Cross-portal day-in-the-life simulation test — 7 steps, role handoffs (g5-cross-portal-workflow.test.ts, 7 tests)
+- [x] Punch/snag CSV export — GET /snags/export + UI button (g5-11, 2 tests)
+- [x] Final verify-local GREEN on 4292afc — 684/684 (480 API, 117 web, 63 money, 15 db, 9 permissions)
