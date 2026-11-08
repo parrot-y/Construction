@@ -192,6 +192,15 @@ export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboar
           >
             📊 Import Excel BOQ
           </button>
+          <a
+            href={`/api/v1/projects/${pid}/boq/export`}
+            download
+            data-testid="export-boq-btn"
+            className="px-3.5 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg shadow-sm transition flex items-center gap-1.5"
+            title="Download active BOQ as Excel workbook"
+          >
+            ⬇ Export BOQ
+          </a>
           <span className="hidden sm:inline-block px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg">
             BORAQS / EASMM
           </span>
