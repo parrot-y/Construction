@@ -33,11 +33,11 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
   transactions: initialTransactions,
   onInitiateStkPush,
 }) => {
-  const [subscriptionState, setSubscriptionState] = useState(initialSubState);
-  const [activePlan, setActivePlan] = useState(initialActivePlan);
-  const [monthlyFee, setMonthlyFee] = useState(initialFee);
-  const [daysRemaining, setDaysRemaining] = useState(initialDays);
-  const [lastPaymentRef, setLastPaymentRef] = useState(initialReceipt);
+  const [subscriptionState] = useState(initialSubState);
+  const [activePlan] = useState(initialActivePlan);
+  const [monthlyFee] = useState(initialFee);
+  const [daysRemaining] = useState(initialDays);
+  const [lastPaymentRef] = useState(initialReceipt);
 
   const [transactions, setTransactions] = useState<SubscriptionTransactionItem[]>(
     initialTransactions || [
@@ -88,28 +88,34 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
         await onInitiateStkPush({ phoneNumber: formattedPhone, planCode: selectedPlan, amount });
       }
 
-      // Simulate instantaneous Daraja STK Push dispatch & callback
-      const receiptNo = `QA${Date.now().toString().slice(-8)}`;
+      // Real API call — server records an INITIATED transaction and reports
+      // SIMULATED until live Daraja credentials are configured.
+      const res = await fetch('/api/v1/billing/mpesa-express', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: formattedPhone, planCode: selectedPlan, amount }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.message || `STK push failed (${res.status})`);
+      }
+      const created = await res.json();
+
       const newTx: SubscriptionTransactionItem = {
-        id: `tx-${Date.now()}`,
+        id: created.transactionId ?? `tx-${Date.now()}`,
         phoneNumber: formattedPhone,
         amount,
         planCode: selectedPlan,
-        mpesaReceiptNumber: receiptNo,
-        transactionStatus: 'SUCCESS',
+        mpesaReceiptNumber: null,
+        transactionStatus: 'INITIATED',
         subscriptionPeriodStart: new Date().toISOString(),
         subscriptionPeriodEnd: new Date(Date.now() + 30 * 86400000).toISOString(),
         createdAt: new Date().toISOString(),
       };
 
       setTransactions([newTx, ...transactions]);
-      setActivePlan(selectedPlan);
-      setSubscriptionState('ACTIVE');
-      setMonthlyFee(amount);
-      setDaysRemaining(30);
-      setLastPaymentRef(receiptNo);
-
-      setStkFeedback(`STK Push dispatched to ${formattedPhone}. Authorized KES ${amount}. Receipt: ${receiptNo}`);
+      setStkFeedback(created.customerMessage || `SIMULATED STK push to ${formattedPhone} — awaiting callback`);
       setTimeout(() => {
         setShowStkModal(false);
         setStkFeedback(null);

@@ -247,7 +247,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             checkoutRequestId: checkoutReqId,
             responseCode: '0',
             responseDescription: 'Success. Request accepted for processing',
-            customerMessage: `STK push dispatched to ${formattedPhone}. Enter M-Pesa PIN on handset to authorize KES ${amount}.`,
+            customerMessage: `SIMULATED STK push to ${formattedPhone} — no live Daraja call configured. Enter M-Pesa PIN on handset to authorize KES ${amount}.`,
+            simulated: true,
+            mode: 'SIMULATED',
           };
         });
 
@@ -2054,7 +2056,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           const originatorConversationId = `AGY-B2C-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
           const conversationId = `CONV-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 
-          // Create B2C transaction record in PENDING status (C1 Hardened: no auto-completion)
+          // Maker-checker payout (audit C-02): record stays PENDING_APPROVAL
+          // until a DIFFERENT authorized user approves. No live Daraja call is
+          // made — dispatch is simulated until credentials exist.
           const disbursement = await tx.mpesaDisbursementTransaction.create({
             data: {
               tenant_id: tenantId,
@@ -2068,34 +2072,14 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               conversation_id: conversationId,
               originator_conversation_id: originatorConversationId,
               mpesa_transaction_id: null,
-              transaction_status: 'PENDING',
+              transaction_status: 'PENDING_APPROVAL',
               result_code: null,
-              result_desc: 'Disbursement initiated, awaiting Safaricom B2C callback.',
+              result_desc: 'Awaiting checker approval. Simulated dispatch — no live Daraja call configured.',
               transaction_completed_at: null,
               idempotency_key: idempotencyKey,
+              initiated_by: sub,
             },
           });
-
-          // Mark referenced business documents as PENDING_DISBURSEMENT
-          if (referenceId) {
-            if (disbursementType === 'CASUAL_LABOR_WAGE') {
-              await tx.laborMusterRoll.updateMany({
-                where: { id: referenceId, project_id: projectId },
-                data: {
-                  status: 'PENDING_DISBURSEMENT',
-                  disbursement_reference: conversationId,
-                },
-              });
-            } else if (disbursementType === 'SUBCONTRACTOR_RETENTION') {
-              await tx.subcontractorRetentionRelease.updateMany({
-                where: { id: referenceId, project_id: projectId },
-                data: {
-                  status: 'PENDING_DISBURSEMENT',
-                  disbursement_ref: conversationId,
-                },
-              });
-            }
-          }
 
           await recordAuditLog(tx, {
             tenantId,
@@ -2126,6 +2110,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
             amount: toDecimal(amount).toFixed(2),
             completedAt: null,
             isIdempotentReplay: false,
+            simulated: true,
+            requiresApproval: true,
+            initiatedBy: sub,
           };
         });
 
@@ -2138,6 +2125,93 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
         });
       }
     }
+  );
+
+  // 5.1b Maker-checker approval for B2C payouts (audit C-02)
+  const disbursementAction = async (
+    request: any,
+    reply: any,
+    action: 'APPROVE' | 'REJECT',
+  ) => {
+    const { tenantId, sub } = request.user;
+    const { projectId, id } = request.params as { projectId: string; id: string };
+    if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(id)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Disbursement not found' });
+    }
+    try {
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const d = await tx.mpesaDisbursementTransaction.findFirst({
+          where: { id, project_id: projectId },
+        });
+        if (!d) throw { status: 404, message: 'Disbursement not found' };
+        if (d.transaction_status !== 'PENDING_APPROVAL') {
+          throw { status: 409, message: `Disbursement is ${d.transaction_status}; only PENDING_APPROVAL can be ${action.toLowerCase()}d` };
+        }
+        if (d.initiated_by === sub) {
+          throw { status: 403, message: 'Maker-checker violation: the initiator cannot approve their own payout' };
+        }
+
+        const nextStatus = action === 'APPROVE' ? 'PENDING' : 'REJECTED';
+        const updated = await tx.mpesaDisbursementTransaction.update({
+          where: { id: d.id },
+          data: {
+            transaction_status: nextStatus,
+            approved_by: sub,
+            approved_at: new Date(),
+            result_desc:
+              action === 'APPROVE'
+                ? 'Approved by checker. Simulated dispatch — no live Daraja call configured; awaiting callback.'
+                : 'Rejected by checker.',
+          },
+        });
+
+        // On approval, mark referenced business documents as PENDING_DISBURSEMENT
+        if (action === 'APPROVE' && d.reference_id) {
+          if (d.disbursement_type === 'CASUAL_LABOR_WAGE') {
+            await tx.laborMusterRoll.updateMany({
+              where: { id: d.reference_id, project_id: projectId },
+              data: { status: 'PENDING_DISBURSEMENT', disbursement_reference: d.conversation_id },
+            });
+          } else if (d.disbursement_type === 'SUBCONTRACTOR_RETENTION') {
+            await tx.subcontractorRetentionRelease.updateMany({
+              where: { id: d.reference_id, project_id: projectId },
+              data: { status: 'PENDING_DISBURSEMENT', disbursement_ref: d.conversation_id },
+            });
+          }
+        }
+
+        await recordAuditLog(tx, {
+          tenantId,
+          projectId,
+          actorId: sub,
+          action: action === 'APPROVE' ? 'B2C_DISBURSEMENT_APPROVED' : 'B2C_DISBURSEMENT_REJECTED',
+          entityType: 'MpesaDisbursementTransaction',
+          entityId: d.id,
+          changes: { from: 'PENDING_APPROVAL', to: nextStatus, initiatedBy: d.initiated_by },
+        });
+
+        return { id: updated.id, status: updated.transaction_status, approvedBy: sub, simulated: true };
+      });
+      return reply.status(200).send({ data: result });
+    } catch (err: any) {
+      return reply.status(err.status || 500).send({
+        statusCode: err.status || 500,
+        error: err.status === 404 ? 'Not Found' : err.status === 409 ? 'Conflict' : 'Internal Server Error',
+        message: err.message,
+      });
+    }
+  };
+
+  server.post(
+    '/api/v1/projects/:projectId/b2c-disbursements/:id/approve',
+    { preHandler: [server.authenticate] },
+    (request, reply) => disbursementAction(request, reply, 'APPROVE'),
+  );
+
+  server.post(
+    '/api/v1/projects/:projectId/b2c-disbursements/:id/reject',
+    { preHandler: [server.authenticate] },
+    (request, reply) => disbursementAction(request, reply, 'REJECT'),
   );
 
   // 5.2 Inbound Daraja B2C Callback Webhook (C1 Hardened)
@@ -2291,6 +2365,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               totalDisbursements: disbursements.length,
               completedCount: disbursements.filter((d) => d.transaction_status === 'COMPLETED').length,
               failedCount: disbursements.filter((d) => d.transaction_status === 'FAILED').length,
+              pendingApprovalCount: disbursements.filter((d) => d.transaction_status === 'PENDING_APPROVAL').length,
               totalDisbursedKes: totalDisbursedKes.toFixed(2),
             },
             disbursements: disbursements.map((d) => ({
@@ -2302,6 +2377,9 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               amount: toDecimal(d.amount.toString()).toFixed(2),
               status: d.transaction_status,
               mpesaTransactionId: d.mpesa_transaction_id,
+              initiatedBy: d.initiated_by,
+              approvedBy: d.approved_by,
+              approvedAt: d.approved_at?.toISOString() ?? null,
               completedAt: d.transaction_completed_at?.toISOString(),
               createdAt: d.created_at.toISOString(),
             })),

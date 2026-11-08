@@ -1,6 +1,6 @@
+import { verifyUpload } from '../lib/uploadSecurity';
+import { getStorageDriver } from '../lib/storage';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
-import fs from 'node:fs';
-import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
@@ -40,24 +40,19 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No file uploaded' });
       }
 
-      const allowed = /^(image\/(jpeg|png|webp|gif|heic)|application\/(pdf)|video\/(mp4|quicktime))$/;
-      if (!allowed.test(file.mimetype)) {
+      const buffer = await file.toBuffer();
+      const spec = verifyUpload(buffer, file.mimetype);
+      if (!spec) {
         return reply.status(415).send({
           statusCode: 415,
           error: 'Unsupported Media Type',
-          message: `File type ${file.mimetype} not allowed (images, PDF, MP4/MOV only)`,
+          message: `File type ${file.mimetype} not allowed or content failed verification (images, PDF, MP4/MOV only)`,
         });
       }
 
-      const uploadRoot = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
-      const safeName = path.basename(file.filename || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
-      const ext = path.extname(safeName).toLowerCase();
-      const storageKey = `${tenantId}/${projectId}/${randomUUID()}${ext}`;
-      const destPath = path.join(uploadRoot, storageKey);
-      fs.mkdirSync(path.dirname(destPath), { recursive: true });
-
-      const buffer = await file.toBuffer();
-      fs.writeFileSync(destPath, buffer);
+      // Extension comes from the verified mime type — never the client filename.
+      const storageKey = `${tenantId}/${projectId}/${randomUUID()}${spec.ext}`;
+      await getStorageDriver().put(storageKey, buffer);
 
       await withTenantTx(prisma, tenantId, async (tx) => {
         await recordAuditLog(tx, {

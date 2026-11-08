@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite', () => {
   let app: FastifyInstance;
@@ -53,6 +54,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
     });
     expect(projectRes.statusCode).toBe(201);
     testProjectId = JSON.parse(projectRes.body).data.id;
+    await enrollAllTenantUsers(testProjectId);
 
     // Create test plant equipment
     const equipRes = await app.inject({
@@ -133,7 +135,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       const body = JSON.parse(res.body);
       expect(body.responseCode).toBe('0');
       expect(body.checkoutRequestId).toMatch(/^ws_CO_/);
-      expect(body.customerMessage).toContain('STK push dispatched to 254712345678');
+      expect(body.customerMessage).toContain('SIMULATED STK push to 254712345678');
       capturedCheckoutRequestId = body.checkoutRequestId;
     });
 
@@ -603,7 +605,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
     const testIdempotencyKey = `IDEM-B2C-${Date.now()}`;
     let conversationId: string;
 
-    it('should initiate Safaricom Daraja B2C disbursement in PENDING state awaiting gateway confirmation (C1 hardening)', async () => {
+    it('should initiate Safaricom Daraja B2C disbursement in PENDING_APPROVAL state (maker-checker, simulated dispatch)', async () => {
       const res = await app.inject({
         method: 'POST',
         url: `/api/v1/projects/${testProjectId}/b2c-disburse`,
@@ -621,9 +623,44 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
       conversationId = body.conversationId;
-      expect(body.status).toBe('PENDING');
+      expect(body.status).toBe('PENDING_APPROVAL');
       expect(body.amount).toBe('12500.00');
       expect(body.isIdempotentReplay).toBe(false);
+      expect(body.simulated).toBe(true);
+      expect(body.requiresApproval).toBe(true);
+    });
+
+    it('maker-checker: initiator cannot self-approve; a different COST_APPROVE user can', async () => {
+      const list = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${testProjectId}/b2c-disbursements`,
+        headers: { cookie: authCookie },
+      });
+      const pending = JSON.parse(list.body).disbursements.find((d: any) => d.status === 'PENDING_APPROVAL');
+      expect(pending).toBeTruthy();
+
+      // Same user (maker) -> 403
+      const selfApprove = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${testProjectId}/b2c-disbursements/${pending.id}/approve`,
+        headers: { cookie: authCookie },
+      });
+      expect(selfApprove.statusCode).toBe(403);
+
+      // Different authorized user (PM/QS) -> approves
+      const qsLogin = await app.inject({
+        method: 'POST', url: '/api/v1/auth/login',
+        payload: { email: 'qs@apexbuilders.co.ke', password: 'Password123!' },
+      });
+      const qsCookie = qsLogin.headers['set-cookie'] as string;
+      const approve = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${testProjectId}/b2c-disbursements/${pending.id}/approve`,
+        headers: { cookie: qsCookie },
+      });
+      expect(approve.statusCode).toBe(200);
+      expect(JSON.parse(approve.body).data.status).toBe('PENDING');
+      expect(JSON.parse(approve.body).data.simulated).toBe(true);
     });
 
     it('should handle idempotent replay for identical B2C idempotencyKey', async () => {
@@ -644,7 +681,8 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
       expect(body.isIdempotentReplay).toBe(true);
-      expect(body.status).toBe('PENDING');
+      // status reflects the existing transaction (approved to PENDING by the maker-checker test above)
+      expect(['PENDING_APPROVAL', 'PENDING']).toContain(body.status);
       expect(body.amount).toBe('12500.00');
     });
 

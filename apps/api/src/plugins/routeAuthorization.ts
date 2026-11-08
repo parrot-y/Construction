@@ -139,6 +139,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'GET /api/v1/projects/:projectId/bar-bending-schedules/:scheduleId': Permissions.BOQ_VIEW,
   'PATCH /api/v1/projects/:projectId/bar-bending-schedules/:scheduleId/status': Permissions.BOQ_EDIT,
   'POST /api/v1/projects/:projectId/b2c-disburse': Permissions.COST_APPROVE,
+  'POST /api/v1/projects/:projectId/b2c-disbursements/:id/approve': Permissions.COST_APPROVE,
+  'POST /api/v1/projects/:projectId/b2c-disbursements/:id/reject': Permissions.COST_APPROVE,
   'GET /api/v1/projects/:projectId/b2c-disbursements': Permissions.COST_VIEW,
   'POST /api/v1/projects/:projectId/rmc-deliveries': Permissions.PROGRESS_RECORD,
   'GET /api/v1/projects/:projectId/rmc-deliveries': Permissions.PROGRESS_VIEW,

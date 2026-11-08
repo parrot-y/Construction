@@ -1,7 +1,6 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
-import fastifyStatic from '@fastify/static';
 import fs from 'node:fs';
 import path from 'node:path';
 import fastify, { FastifyError, FastifyInstance } from 'fastify';
@@ -9,6 +8,7 @@ import { HealthCheckResponse } from '@construction/validation';
 import { registerAuthorizationGuards } from './plugins/routeAuthorization';
 import { authPlugin } from './plugins/auth';
 import { securityGuardPlugin } from './plugins/security-guard';
+import { fileRoutes } from './routes/files';
 import { authRoutes } from './routes/auth';
 import { boqRoutes } from './routes/boq';
 import { companyRoutes } from './routes/company';
@@ -81,14 +81,9 @@ export function buildServer(): FastifyInstance {
     credentials: true,
   });
 
-  // Static uploads (site photos, evidence docs) — unguessable UUID keys
+  // Upload storage root (local volume; object-storage driver slots in via UPLOAD_DRIVER)
   const uploadRoot = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
   fs.mkdirSync(uploadRoot, { recursive: true });
-  server.register(fastifyStatic, {
-    root: uploadRoot,
-    prefix: '/uploads/',
-    decorateReply: false,
-  });
 
   // Multipart file upload (capped at 15MB per ADR-003)
   server.register(multipart, {
@@ -133,6 +128,7 @@ export function buildServer(): FastifyInstance {
   registerAuthorizationGuards(server);
 
   // Application Routes
+  server.register(fileRoutes);
   server.register(authRoutes);
   server.register(boqRoutes);
   server.register(companyRoutes);
