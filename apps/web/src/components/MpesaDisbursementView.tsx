@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface MpesaDisbursementItem {
   id: string;
@@ -48,14 +48,42 @@ const DEFAULT_DISBURSEMENTS: MpesaDisbursementItem[] = [
 ];
 
 export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
+  projectId = 'project-rcp-2026',
   projectName = 'Apex Site',
   initialDisbursements = DEFAULT_DISBURSEMENTS,
   onDisburse,
 }) => {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [disbursements, setDisbursements] = useState<MpesaDisbursementItem[]>(initialDisbursements);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/b2c-disbursements`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.disbursements || []) as any[];
+      setDisbursements(list.map((d) => ({
+        id: d.id,
+        disbursementType: d.disbursementType,
+        referenceId: d.referenceId ?? null,
+        recipientPhone: d.recipientPhone,
+        recipientName: d.recipientName,
+        amount: d.amount?.toString?.() ?? String(d.amount ?? 0),
+        status: d.status,
+        mpesaTransactionId: d.mpesaTransactionId ?? null,
+        completedAt: d.completedAt ?? null,
+        createdAt: d.createdAt ?? '',
+      })));
+    } catch { /* keep demo */ }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   // Form State
   const [disbursementType, setDisbursementType] = useState<'CASUAL_LABOR_WAGE' | 'SUBCONTRACTOR_RETENTION' | 'EMERGENCY_PETTY_CASH'>('CASUAL_LABOR_WAGE');
@@ -79,6 +107,32 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
     setLoading(true);
     try {
       const idempotencyKey = `B2C-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+      if (isLive) {
+        const res = await fetch(`/api/v1/projects/${projectId}/b2c-disburse`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            disbursementType,
+            recipientPhone,
+            recipientName,
+            amount,
+            remarks,
+            idempotencyKey,
+          }),
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => null);
+          throw new Error(errBody?.message || `B2C disbursement failed (${res.status})`);
+        }
+        const created = await res.json();
+        await reload();
+        setIsModalOpen(false);
+        setFeedback(
+          `✓ Safaricom Daraja B2C Disbursement Initiated: KES ${parseFloat(created.amount ?? amount).toLocaleString()} to ${created.recipientName ?? recipientName} — status ${created.status ?? 'PENDING'} (awaiting M-Pesa callback)${created.isIdempotentReplay ? ' [idempotent replay]' : ''}`
+        );
+        return;
+      }
+
       const mpesaTxId = `SKL${Math.floor(10000000 + Math.random() * 90000000)}`;
 
       const newDisbursement: MpesaDisbursementItem = {
@@ -113,6 +167,10 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
       setLoading(false);
     }
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-sm text-slate-500">Loading M-Pesa disbursements…</div>;
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">

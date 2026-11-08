@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface MaterialRequisitionItem {
   id: string;
@@ -39,7 +39,7 @@ interface MaterialRequisitionViewProps {
 }
 
 export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Current Project',
   requisitions: initialRequisitions,
   summary: initialSummary,
@@ -85,6 +85,45 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
       },
     ]
   );
+
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/material-requisitions`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.requisitions || json.data || []) as any[];
+      setRequisitions(list.map((r) => ({
+        id: r.id,
+        requisitionNo: r.requisitionNo,
+        inventoryItemId: r.inventoryItemId ?? null,
+        materialName: r.materialName,
+        itemDescription: r.itemDescription,
+        unitOfMeasure: r.unitOfMeasure,
+        requestedQuantity: r.requestedQuantity?.toString?.() ?? String(r.requestedQuantity ?? 0),
+        estimatedUnitCostKes: r.estimatedUnitCostKes?.toString?.() ?? String(r.estimatedUnitCostKes ?? 0),
+        estimatedTotalCostKes: r.estimatedTotalCostKes?.toString?.() ?? String(r.estimatedTotalCostKes ?? 0),
+        urgency: r.urgency,
+        requiredByDate: r.requiredByDate ?? null,
+        supplierName: r.supplierName ?? null,
+        status: r.status,
+        rejectionReason: r.rejectionReason ?? null,
+        requestedBy: r.requestedBy,
+        approvedBy: r.approvedBy ?? null,
+        approvedAt: r.approvedAt ?? null,
+        createdAt: r.createdAt ?? '',
+      })));
+    } catch {
+      setRequisitions([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   const [filter, setFilter] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -136,6 +175,25 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
       requestedBy: requestedBy || 'Site Officer',
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/material-requisitions`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          await reload();
+          setIsSubmitting(false);
+          setIsModalOpen(false);
+          setItemDescription('');
+          setRequestedQuantity('');
+          setEstimatedUnitCostKes('');
+          setSupplierName('');
+          return;
+        }
+      } catch { /* fall through to local */ }
+    }
+
     if (onCreateRequisition) {
       await onCreateRequisition(payload);
     } else {
@@ -167,6 +225,15 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
   };
 
   const handleStatusChange = async (reqId: string, newStatus: 'APPROVED' | 'PO_ISSUED' | 'REJECTED') => {
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/material-requisitions/${reqId}`, {
+          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, approvedBy: null, rejectionReason: null }),
+        });
+        if (res.ok) { await reload(); return; }
+      } catch { /* fall through to local */ }
+    }
     if (onReviewRequisition) {
       await onReviewRequisition(reqId, newStatus);
     } else {
@@ -184,6 +251,10 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
       );
     }
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading material requisitions...</div>;
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">

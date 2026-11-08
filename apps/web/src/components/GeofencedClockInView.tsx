@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { queueOfflineMutation } from '../services/offline-sync';
 
 export interface GeofenceItem {
@@ -32,13 +32,62 @@ interface GeofencedClockInViewProps {
   onCreateGeofence?: (data: any) => Promise<any>;
 }
 
+interface SiteLaborerOption {
+  id: string;
+  fullName: string;
+  workerCode: string;
+  tradeCategory?: string | null;
+}
+
 export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
+  projectId = 'project-rcp-2026',
   projectName = 'Upper Hill Commercial Tower',
   geofences: initialGeofences,
   clockEvents: initialEvents,
   onRecordClockIn,
   onCreateGeofence,
 }) => {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+  const [laborers, setLaborers] = useState<SiteLaborerOption[]>([]);
+  const [selectedLaborerId, setSelectedLaborerId] = useState<string>('');
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const [geoRes, evtRes, labRes] = await Promise.all([
+        fetch(`/api/v1/projects/${projectId}/geofences`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/clock-events`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/laborers`, { credentials: 'include' }),
+      ]);
+      if (geoRes.ok) {
+        const gj = await geoRes.json();
+        const list = (gj.geofences || []) as GeofenceItem[];
+        setGeofences(list);
+      }
+      if (evtRes.ok) {
+        const ej = await evtRes.json();
+        const list = (ej.events || []) as WorkerClockEventItem[];
+        setClockEvents(list);
+      }
+      if (labRes.ok) {
+        const lj = await labRes.json();
+        const list = (lj.laborers || lj.data || []) as any[];
+        const mapped: SiteLaborerOption[] = list.map((l) => ({
+          id: l.id,
+          fullName: l.fullName ?? l.full_name ?? '',
+          workerCode: l.workerCode ?? l.worker_code ?? '',
+          tradeCategory: l.tradeCategory ?? l.trade_category ?? null,
+        }));
+        setLaborers(mapped);
+        setSelectedLaborerId((prev) => prev || mapped[0]?.id || '');
+      }
+    } catch { /* keep demo */ }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
   const [geofences, setGeofences] = useState<GeofenceItem[]>(
     initialGeofences || [
       {
@@ -149,38 +198,63 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
     setIsSubmitting(true);
     setFeedback(null);
 
-    const dist = previewDistance.toFixed(2);
-    const status = isWithinRadius ? 'WITHIN_GEOFENCE' : 'OUTSIDE_GEOFENCE_FLAGGED';
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
     try {
       const payload = {
-        laborerId: 'dummy-laborer-id',
+        laborerId: isLive ? selectedLaborerId : 'dummy-laborer-id',
         clockType,
         capturedLatitude: capturedLat,
         capturedLongitude: capturedLng,
         photoSelfieUrl: selfieUrl,
       };
 
+      let dist = previewDistance.toFixed(2);
+      let status = isWithinRadius ? 'WITHIN_GEOFENCE' : 'OUTSIDE_GEOFENCE_FLAGGED';
+
       if (isOffline) {
-        await queueOfflineMutation(projectName || 'project-site', `/api/v1/projects/active/clock-in`, payload);
+        await queueOfflineMutation(projectName || 'project-site', `/api/v1/projects/${isLive ? projectId : 'active'}/clock-in`, payload);
+      } else if (isLive) {
+        if (!selectedLaborerId) {
+          throw new Error('No registered site laborer selected — register laborers first.');
+        }
+        const res = await fetch(`/api/v1/projects/${projectId}/clock-in`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            laborerId: selectedLaborerId,
+            clockType,
+            capturedLatitude: capturedLat,
+            capturedLongitude: capturedLng,
+            photoSelfieUrl: selfieUrl || null,
+            deviceUserAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+          }),
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => null);
+          throw new Error(errBody?.message || `Clock-in failed (${res.status})`);
+        }
+        const created = await res.json();
+        dist = created.calculatedDistanceMeters ?? dist;
+        status = created.verificationStatus ?? status;
+        await reload();
       } else if (onRecordClockIn) {
         await onRecordClockIn(payload);
       }
 
-      const newEvent: WorkerClockEventItem = {
-        id: `clk-${Date.now()}`,
-        workerName: selectedWorker.split(' (')[0] || selectedWorker,
-        workerCode: selectedWorker.split('(')[1]?.replace(')', '') || 'WKR-NEW',
-        tradeCategory: 'ARTISAN',
-        clockType,
-        eventTimestamp: new Date().toISOString(),
-        calculatedDistanceMeters: dist,
-        verificationStatus: status,
-        photoSelfieUrl: selfieUrl,
-      };
-
-      setClockEvents([newEvent, ...clockEvents]);
+      if (!isLive) {
+        const newEvent: WorkerClockEventItem = {
+          id: `clk-${Date.now()}`,
+          workerName: selectedWorker.split(' (')[0] || selectedWorker,
+          workerCode: selectedWorker.split('(')[1]?.replace(')', '') || 'WKR-NEW',
+          tradeCategory: 'ARTISAN',
+          clockType,
+          eventTimestamp: new Date().toISOString(),
+          calculatedDistanceMeters: dist,
+          verificationStatus: status as WorkerClockEventItem['verificationStatus'],
+          photoSelfieUrl: selfieUrl,
+        };
+        setClockEvents([newEvent, ...clockEvents]);
+      }
       const offlineSuffix = isOffline ? ' (Stored locally in IndexedDB offline queue)' : '';
       setFeedback(
         status === 'WITHIN_GEOFENCE'
@@ -197,6 +271,24 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   const handleCreateGeofence = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (isLive) {
+        const res = await fetch(`/api/v1/projects/${projectId}/geofences`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            geofenceName: geoName,
+            centerLatitude: geoLat,
+            centerLongitude: geoLng,
+            radiusMeters: geoRadius,
+          }),
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => null);
+          throw new Error(errBody?.message || `Geofence save failed (${res.status})`);
+        }
+        await reload();
+        setShowGeofenceModal(false);
+        return;
+      }
       if (onCreateGeofence) {
         await onCreateGeofence({
           geofenceName: geoName,
@@ -223,6 +315,10 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   const totalEvents = clockEvents.length;
   const verifiedCount = clockEvents.filter((c) => c.verificationStatus === 'WITHIN_GEOFENCE').length;
   const flaggedCount = clockEvents.filter((c) => c.verificationStatus === 'OUTSIDE_GEOFENCE_FLAGGED').length;
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading geofence attendance…</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -300,14 +396,31 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Select Site Artisan</label>
               <select
-                value={selectedWorker}
-                onChange={(e) => setSelectedWorker(e.target.value)}
+                value={isLive ? selectedLaborerId : selectedWorker}
+                onChange={(e) => {
+                  if (isLive) setSelectedLaborerId(e.target.value);
+                  else setSelectedWorker(e.target.value);
+                }}
                 className="w-full p-2 rounded-lg border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="Juma Otieno Ochieng (WKR-102)">Juma Otieno Ochieng (Mason - WKR-102)</option>
-                <option value="Dennis Kiprono (WKR-108)">Dennis Kiprono (Steel Fixer - WKR-108)</option>
-                <option value="Francis Mwangi (WKR-115)">Francis Mwangi (Carpenter - WKR-115)</option>
-                <option value="Samuel Kamau (WKR-121)">Samuel Kamau (Electrician - WKR-121)</option>
+                {isLive ? (
+                  laborers.length === 0 ? (
+                    <option value="">No registered laborers</option>
+                  ) : (
+                    laborers.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.fullName} ({l.workerCode}{l.tradeCategory ? ` - ${l.tradeCategory}` : ''})
+                      </option>
+                    ))
+                  )
+                ) : (
+                  <>
+                    <option value="Juma Otieno Ochieng (WKR-102)">Juma Otieno Ochieng (Mason - WKR-102)</option>
+                    <option value="Dennis Kiprono (WKR-108)">Dennis Kiprono (Steel Fixer - WKR-108)</option>
+                    <option value="Francis Mwangi (WKR-115)">Francis Mwangi (Carpenter - WKR-115)</option>
+                    <option value="Samuel Kamau (WKR-121)">Samuel Kamau (Electrician - WKR-121)</option>
+                  </>
+                )}
               </select>
             </div>
 

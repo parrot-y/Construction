@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface RetentionReleaseItem {
   id: string;
@@ -50,6 +50,7 @@ interface RetentionAndBondsViewProps {
 }
 
 export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
+  projectId,
   projectName = 'Riverside Commercial Plaza',
   releases: initialReleases,
   bonds: initialBonds,
@@ -79,6 +80,37 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   const [bondAmount, setBondAmount] = useState('2500000.00');
   const [effectiveDate, setEffectiveDate] = useState('2026-01-15');
   const [expiryDate, setExpiryDate] = useState('2027-01-15');
+  const [releasePackageId, setReleasePackageId] = useState('');
+  const [subPkgs, setSubPkgs] = useState<{ id: string; firm_name: string }[]>([]);
+
+  const isLive = !!projectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive || !projectId) return;
+    try {
+      const [relRes, bondRes, pkgRes] = await Promise.all([
+        fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/contractor-bonds`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include' }),
+      ]);
+      if (relRes.ok) {
+        const rj = await relRes.json();
+        setReleases((rj.releases || []) as RetentionReleaseItem[]);
+      }
+      if (bondRes.ok) {
+        const bj = await bondRes.json();
+        setBonds((bj.bonds || []) as ContractorBondItem[]);
+      }
+      if (pkgRes.ok) {
+        const pj = await pkgRes.json();
+        setSubPkgs((pj.packages || []).map((p: any) => ({ id: p.id, firm_name: p.firm_name })));
+      }
+    } catch { /* keep demo */ }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   // Default state for Retention
   const [releases, setReleases] = useState<RetentionReleaseItem[]>(
@@ -150,7 +182,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
     ]
   );
 
-  const summary = initialSummary || {
+  const summary = (!isLive && initialSummary) ? initialSummary : {
     totalReleasesCount: releases.length,
     totalRetentionHeld: releases.reduce((s, r) => s + parseFloat(r.totalRetentionHeld), 0).toFixed(2),
     totalReleasedAmount: releases.reduce((s, r) => s + parseFloat(r.releaseAmount), 0).toFixed(2),
@@ -178,6 +210,30 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
       createdAt: new Date().toISOString(),
     };
 
+    if (isLive && projectId) {
+      if (!releasePackageId) return;
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subcontractorPackageId: releasePackageId,
+              releaseNo,
+              moietyStage,
+              totalRetentionHeld: held.toFixed(2),
+              releasePercentage: pct.toFixed(2),
+              releaseAmount: amt.toFixed(2),
+              qsRecommendationNotes: qsNotes || null,
+              defectClearanceVerified: defectVerified,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowReleaseModal(false);
+      return;
+    }
+
     if (onCreateRelease) {
       await onCreateRelease(newRel);
     }
@@ -187,6 +243,17 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 
   const handleDisburseClick = async (releaseId: string) => {
     const ref = `MPESA-B2C-${Date.now().toString().slice(-6)}`;
+
+    if (isLive && projectId) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'PAID', disbursementRef: ref }),
+        });
+        if (res.ok) { await reload(); return; }
+      } catch { /* fall through to local */ }
+    }
+
     if (onReviewRelease) {
       await onReviewRelease(releaseId, 'PAID', ref);
     }
@@ -213,12 +280,39 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
       createdAt: new Date().toISOString(),
     };
 
+    if (isLive && projectId) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/contractor-bonds`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bondType,
+              issuingInstitution: issuingBank,
+              bondReferenceNo: bondRef,
+              bondAmount,
+              effectiveDate,
+              expiryDate,
+              claimStatus: 'ACTIVE',
+              dischargeCertificateRef: null,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowBondModal(false);
+      return;
+    }
+
     if (onCreateBond) {
       await onCreateBond(newBond);
     }
     setBonds([newBond, ...bonds]);
     setShowBondModal(false);
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 text-center text-sm text-slate-500">Loading retention &amp; bonds data...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -457,6 +551,24 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               Dual-moiety retention release under JBC 1999 Clause 30 (50% on PC, 50% post-DLP).
             </p>
             <form onSubmit={handleCreateReleaseSubmit} className="space-y-4 text-sm">
+              {isLive && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Subcontractor Package
+                  </label>
+                  <select
+                    value={releasePackageId}
+                    onChange={(e) => setReleasePackageId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700"
+                    required
+                  >
+                    <option value="">Select subcontractor package…</option>
+                    {subPkgs.map((p) => (
+                      <option key={p.id} value={p.id}>{p.firm_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">

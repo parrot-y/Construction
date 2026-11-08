@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface AsphaltBatchRecord {
   id: string;
@@ -105,7 +105,7 @@ const DEFAULT_BATCHES: AsphaltBatchRecord[] = [
 ];
 
 export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Kilimani Commercial Complex',
   initialBatches = DEFAULT_BATCHES,
   onRegisterBatch,
@@ -140,6 +140,45 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
   const [coreThickness, setCoreThickness] = useState('52.00');
   const [coreDensity, setCoreDensity] = useState('2.340');
   const [marshallDensity, setMarshallDensity] = useState('2.400');
+
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/asphalt-batches`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.batches || []) as any[];
+      setBatches(list.map((b) => ({
+        id: b.id,
+        ticketNumber: b.ticketNumber,
+        supplierName: b.supplierName,
+        mixType: b.mixType,
+        truckRegNo: b.truckRegNo,
+        tonnageTons: b.tonnageTons,
+        chainage: b.chainage,
+        deliveryTempC: b.deliveryTempC,
+        finishTempC: b.finishTempC,
+        thermalVerdict: b.thermalVerdict,
+        coreThicknessMm: b.coreThicknessMm ?? null,
+        designThicknessMm: b.designThicknessMm ?? undefined,
+        coreDensityGCm3: b.coreDensityGCm3 ?? null,
+        marshallDensityGCm3: b.marshallDensityGCm3 ?? null,
+        compactionPercent: b.compactionPercent ?? null,
+        qaVerdict: b.qaVerdict,
+        status: b.status,
+        createdAt: b.createdAt,
+      })));
+    } catch {
+      setBatches([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   const getThermalBadge = (verdict: AsphaltBatchRecord['thermalVerdict']) => {
     switch (verdict) {
@@ -178,7 +217,7 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
   const totalBatches = batches.length;
   const totalTonnageSum = batches.reduce((acc, b) => acc + parseFloat(b.tonnageTons || '0'), 0);
   const compliantCount = batches.filter((b) => b.thermalVerdict === 'COMPLIANT').length;
-  const coredCount = batches.filter((b) => b.coreDensityGCm3 !== null && b.coreDensityGCm3 !== undefined).length;
+  const coredCount = batches.filter((b) => b.coreDensityGCm3 != null || b.coreThicknessMm != null).length;
 
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,6 +252,36 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
         status: thermalVerdict === 'REJECTED_COLD_PAVING' ? 'REJECTED' : 'LAID',
         createdAt: new Date().toISOString(),
       };
+
+      if (isLive) {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/asphalt-batches`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticketNumber: newRecord.ticketNumber,
+              supplierName: newRecord.supplierName,
+              mixType: newRecord.mixType,
+              truckRegNo: newRecord.truckRegNo,
+              tonnageTons: parseFloat(newRecord.tonnageTons),
+              chainageStart: newRecord.chainageStart ?? chainageStart,
+              chainageEnd: newRecord.chainageEnd ?? chainageEnd,
+              laneDirection: newRecord.laneDirection ?? laneDirection,
+              plantTempC: parseFloat(newRecord.plantTempC ?? plantTemp),
+              deliveryTempC: parseFloat(newRecord.deliveryTempC),
+              breakdownTempC: parseFloat(newRecord.breakdownTempC ?? breakdownTemp),
+              finishTempC: parseFloat(newRecord.finishTempC),
+              designThicknessMm: parseFloat(newRecord.designThicknessMm ?? designThickness),
+              inspectedBy: inspectorName,
+            }),
+          });
+          if (res.ok) {
+            await reload();
+            setShowAddModal(false);
+            setTruckReg('');
+            return;
+          }
+        } catch { /* fall through to local */ }
+      }
 
       if (onRegisterBatch) {
         await onRegisterBatch(newRecord);
@@ -250,6 +319,25 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
         ? 'REJECTED'
         : (qaVerdict === 'REJECTED_UNDER_COMPACTED' ? 'REJECTED' : 'COMPLETED');
 
+      if (isLive) {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/asphalt-batches/${selectedBatch.id}/core-test`, {
+            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              coreThicknessMm: coreThick,
+              coreDensityGCm3: cDens,
+              marshallDensityGCm3: mDens,
+              inspectedBy: inspectorName,
+            }),
+          });
+          if (res.ok) {
+            await reload();
+            setShowCoreModal(false);
+            return;
+          }
+        } catch { /* fall through to local */ }
+      }
+
       if (onRecordCoreTest) {
         await onRecordCoreTest(selectedBatch.id, {
           coreThicknessMm: coreThick.toFixed(2),
@@ -281,6 +369,10 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">Loading asphalt batches...</div>;
+  }
 
   return (
     <div className="space-y-6">

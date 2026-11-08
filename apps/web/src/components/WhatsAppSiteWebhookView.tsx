@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface WebhookLogItem {
   id: string;
@@ -37,6 +37,7 @@ interface WhatsAppSiteWebhookViewProps {
 }
 
 export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = ({
+  projectId,
   projectName = 'Riverside Commercial Plaza',
   webhookLogs: initialLogs,
   siteAlerts: initialAlerts,
@@ -61,6 +62,25 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
     'CRITICAL_SAFETY_STOP_WORK' | 'DIESEL_DISCREPANCY_FLAG' | 'DIESEL_SIPHONING_FLAG' | 'STRUCTURAL_CONCRETE_FAIL' | 'BUDGET_OVERRUN'
   >('CRITICAL_SAFETY_STOP_WORK');
   const [alertMessage, setAlertMessage] = useState('URGENT: Scaffold edge protection failure observed on North Elevation. Stop work ordered.');
+
+  const isLive = !!projectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive || !projectId) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/site-alerts`, { credentials: 'include' });
+      if (res.ok) {
+        const aj = await res.json();
+        setAlerts((aj.alerts || []) as SiteAlertItem[]);
+      }
+    } catch { /* keep demo */ }
+    // No API endpoint exists to list inbound webhook logs — clear demo feed in live mode.
+    setLogs([]);
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   // Default logs state
   const [logs, setLogs] = useState<WebhookLogItem[]>(
@@ -136,6 +156,9 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 
   const handleSimulateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Live webhook ingest requires an HMAC-signed site-ops token only the API
+    // backend can mint — simulation is demo-mode only.
+    if (isLive) return;
     const upper = rawMessage.toUpperCase();
     let cmd: any = 'UNKNOWN';
     let reply = 'Platform: Message processed.';
@@ -188,12 +211,37 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
       createdAt: new Date().toISOString(),
     };
 
+    if (isLive && projectId) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/site-alerts`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipientPhone,
+              recipientName,
+              recipientRole,
+              alertType,
+              messageBody: alertMessage,
+              deliveryChannel: 'WHATSAPP',
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowAlertModal(false);
+      return;
+    }
+
     if (onDispatchAlert) {
       await onDispatchAlert(newAlert);
     }
     setAlerts([newAlert, ...alerts]);
     setShowAlertModal(false);
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 text-center text-sm text-slate-500">Loading WhatsApp ops data...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -214,7 +262,9 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowSimModal(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
+              disabled={isLive}
+              title={isLive ? 'Inbound webhook simulation requires a signed site-ops token (demo mode only)' : undefined}
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
             >
               <span>📲</span>
               <span>Simulate Inbound WhatsApp</span>

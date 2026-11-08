@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface PlantEquipmentItem {
   id: string;
@@ -51,7 +51,7 @@ interface PlantEquipmentViewProps {
 }
 
 export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Current Project',
   equipment: initialEquipment,
   logs: initialLogs,
@@ -146,6 +146,32 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
     ]
   );
 
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/equipment`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.equipment || []) as any[];
+      setEquipmentList(list.map((e) => ({
+        ...e,
+        ratePerUnitKes: e.ratePerUnitKes?.toString?.() ?? String(e.ratePerUnitKes ?? 0),
+        currentHoursMeter: e.currentHoursMeter?.toString?.() ?? String(e.currentHoursMeter ?? 0),
+      })));
+      // No GET endpoint exists for daily logs; keep caller-provided logs, else clear demo rows.
+      setLogsList(initialLogs || []);
+    } catch {
+      setEquipmentList([]); setLogsList(initialLogs || []);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId, initialLogs]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
   const [activeTab, setActiveTab] = useState<'MACHINERY' | 'FUEL_AUDIT'>('MACHINERY');
   const [showAddMachineModal, setShowAddMachineModal] = useState(false);
   const [showAddLogModal, setShowAddLogModal] = useState(false);
@@ -197,6 +223,22 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
       currentHoursMeter,
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/equipment`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          await reload();
+          setShowAddMachineModal(false);
+          setEquipmentCode('');
+          setName('');
+          return;
+        }
+      } catch { /* fall through to local */ }
+    }
+
     if (onCreateEquipment) {
       await onCreateEquipment(payload);
     }
@@ -238,6 +280,20 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
       verifiedBySupervisor: supervisorName,
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/equipment-logs`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          await reload();
+          setShowAddLogModal(false);
+          return;
+        }
+      } catch { /* fall through to local */ }
+    }
+
     if (onRecordLog) {
       await onRecordLog(payload);
     }
@@ -275,7 +331,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
     setShowAddLogModal(false);
   };
 
-  const summary = initialSummary || {
+  const summary = (initialSummary && !isLive) ? initialSummary : {
     totalEquipment: equipmentList.length,
     operationalCount: equipmentList.filter((e) => e.status === 'OPERATIONAL').length,
     totalHoursLogged: equipmentList
@@ -286,6 +342,10 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
   const fuelDiscrepancyAlertCount = logsList.filter(
     (l) => l.fuelEfficiencyStatus === 'SUSPECTED_DISCREPANCY' || l.fuelEfficiencyStatus === 'SUSPECTED_SIPHONING'
   ).length;
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading plant equipment...</div>;
+  }
 
   return (
     <div className="space-y-6">

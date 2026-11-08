@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export type InspectionStage = 'substructure' | 'framing' | 'slab' | 'roofing' | 'finishes' | 'borehole';
 export type InspectionStatus = 'REQUESTED' | 'DISPATCHED' | 'COMPLETED' | 'CLIENT_REVIEWED';
@@ -258,8 +258,135 @@ const DEFAULT_INSPECTIONS: SiteInspectionReport[] = [
   },
 ];
 
+const mapApiStatus = (s?: string | null): InspectionStatus => {
+  switch (s) {
+    case 'SUBMITTED':
+      return 'COMPLETED';
+    case 'REVIEWED':
+      return 'CLIENT_REVIEWED';
+    case 'SCHEDULED':
+    case 'IN_PROGRESS':
+    case 'DISPATCHED':
+      return 'DISPATCHED';
+    default:
+      return 'REQUESTED';
+  }
+};
+
+const inferStage = (scope?: string | null): InspectionStage => {
+  const s = (scope || '').toLowerCase();
+  if (s.includes('slab')) return 'slab';
+  if (s.includes('substructure') || s.includes('footing') || s.includes('foundation') || s.includes('excavat')) return 'substructure';
+  if (s.includes('fram') || s.includes('column') || s.includes('beam')) return 'framing';
+  if (s.includes('roof') || s.includes('truss')) return 'roofing';
+  if (s.includes('finish') || s.includes('plaster') || s.includes('til') || s.includes('mep') || s.includes('mech')) return 'finishes';
+  if (s.includes('borehole') || s.includes('water') || s.includes('pump') || s.includes('well')) return 'borehole';
+  return 'substructure';
+};
+
+const mapListItemToReport = (i: any): SiteInspectionReport => {
+  const stage = inferStage(i.scopeDescription);
+  const reported = Number(i.reportedProgressPct) || 0;
+  const verified = i.verifiedProgressPct != null ? Number(i.verifiedProgressPct) : reported;
+  const variance = i.variancePct != null ? Number(i.variancePct) : Number((verified - reported).toFixed(2));
+  const dateStr = String(i.conductedDate || i.scheduledDate || i.createdAt || '').slice(0, 10);
+  return {
+    id: i.id,
+    reportRef: i.inspectionCode || i.id,
+    stage,
+    stageLabel: STAGE_LABELS[stage],
+    inspectionDate: dateStr,
+    status: mapApiStatus(i.status),
+    urgency: 'UNANNOUNCED_48HR',
+    inspector: {
+      name: i.inspectorName || 'Independent Inspector (Pending Assignment)',
+      ncaRegistration: i.inspectorLicense || 'NCA Registry Pending',
+      phone: '',
+      email: '',
+      latitude: 0,
+      longitude: 0,
+      accuracyMeters: 0,
+      arrivalTimestamp: i.conductedDate || i.scheduledDate || 'Pending Dispatch',
+    },
+    contractorReportedPct: reported,
+    inspectorVerifiedPct: verified,
+    variancePct: variance,
+    structuralNotes: 'Awaiting inspector field findings submission.',
+    materialsAudit: {
+      cementBrand: 'Pending on-site batch verification',
+      rebarGrade: 'Pending tensile and diameter calibration',
+      aggregateCleanliness: 'Pending silt & organic matter check',
+      batchMix: 'Pending slump test & cube casting witness',
+    },
+    safetyObservations: 'Pending site safety inspection',
+    discrepanciesFlagged: 'Will be compared against contractor reported progress upon arrival',
+    recommendations: 'Awaiting independent inspector site findings',
+    photos: [],
+    clientReview: null,
+  };
+};
+
+const applyInspectionDetail = (insp: SiteInspectionReport, d: any): SiteInspectionReport => {
+  const photos: InspectionPhoto[] = (d.photos || []).map((p: any) => ({
+    id: p.id,
+    title: p.caption || p.elementInspected || 'Site Evidence Photo',
+    category: (p.hasDiscrepancy ? 'Safety' : 'Structural') as InspectionPhoto['category'],
+    url: p.photoUrl,
+    caption: p.caption || '',
+    gpsCoords:
+      p.gpsLatitude != null && p.gpsLongitude != null
+        ? `${Number(p.gpsLatitude).toFixed(6)}, ${Number(p.gpsLongitude).toFixed(6)}`
+        : '—',
+    timestamp: p.capturedAt
+      ? new Date(p.capturedAt).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' }) + ' EAT'
+      : '',
+  }));
+  const hasReview = !!(d.clientReviewNotes || d.clientSatisfactionRating != null);
+  return {
+    ...insp,
+    status: mapApiStatus(d.status),
+    inspector: {
+      ...insp.inspector,
+      name: d.inspectorName || insp.inspector.name,
+      ncaRegistration: d.inspectorLicense || insp.inspector.ncaRegistration,
+      latitude: d.gpsLatitude != null ? Number(d.gpsLatitude) : insp.inspector.latitude,
+      longitude: d.gpsLongitude != null ? Number(d.gpsLongitude) : insp.inspector.longitude,
+      arrivalTimestamp: d.conductedDate || d.scheduledDate || insp.inspector.arrivalTimestamp,
+    },
+    inspectorVerifiedPct: d.verifiedProgressPct != null ? Number(d.verifiedProgressPct) : insp.inspectorVerifiedPct,
+    variancePct: d.variancePct != null ? Number(d.variancePct) : insp.variancePct,
+    structuralNotes:
+      d.findingsNotes ||
+      (d.structuralDefectsFound
+        ? 'Structural defects flagged by independent inspector — see findings notes.'
+        : 'No structural defects flagged.'),
+    materialsAudit: {
+      cementBrand: d.materialsOnSiteNotes || 'Not separately recorded',
+      rebarGrade: d.structuralDefectsFound ? 'See structural defects findings' : 'Not separately recorded',
+      aggregateCleanliness: `Workmanship rating: ${d.workmanshipRating ?? '—'}/5`,
+      batchMix: `Safety compliance rating: ${d.safetyComplianceRating ?? '—'}/5`,
+    },
+    safetyObservations: d.structuralDefectsFound
+      ? 'Structural defects found on site — review findings notes.'
+      : 'No structural safety defects flagged.',
+    discrepanciesFlagged: d.clientDiscrepancyFlagged
+      ? 'Client flagged a discrepancy on this inspection report.'
+      : d.varianceStatus || 'No discrepancy flagged.',
+    recommendations: d.recommendations || '—',
+    photos,
+    clientReview: hasReview
+      ? {
+          rating: d.clientSatisfactionRating ?? 5,
+          feedbackNotes: d.clientReviewNotes || '',
+          signedOffAt: d.updatedAt || '',
+          clientName: 'Client',
+        }
+      : null,
+  };
+};
+
 export default function IndependentSiteReportView({
-  projectId: _projectId = 'project-rcp-2026',
+  projectId = 'project-rcp-2026',
   projectName = 'Riverside Commercial Plaza',
   userRole: _userRole = 'CLIENT',
   onBookInspection,
@@ -287,19 +414,96 @@ export default function IndependentSiteReportView({
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [whatsappStatus, setWhatsappStatus] = useState<string | null>(null);
 
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+  const loadedDetailsRef = useRef<Set<string>>(new Set());
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (Array.isArray(json) ? json : json.inspections || json.data || []) as any[];
+      setInspections(list.map(mapListItemToReport));
+      setSelectedInspectionId((prev) =>
+        list.some((i: any) => i.id === prev) ? prev : list[0]?.id ?? prev
+      );
+      loadedDetailsRef.current.clear();
+    } catch { /* keep demo */ }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  // Lazy-load full findings + photos for the selected live inspection
+  useEffect(() => {
+    if (!isLive || !selectedInspectionId || loadedDetailsRef.current.has(selectedInspectionId)) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${selectedInspectionId}`, { credentials: 'include' });
+        if (!res.ok) return;
+        const detail = await res.json();
+        if (cancelled) return;
+        loadedDetailsRef.current.add(selectedInspectionId);
+        setInspections((prev) => prev.map((i) => (i.id === selectedInspectionId ? applyInspectionDetail(i, detail) : i)));
+      } catch { /* keep list-level data */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, projectId, selectedInspectionId]);
+
   const activeInspection =
     inspections.find((i) => i.id === selectedInspectionId) ?? inspections[0];
 
-  const handleDispatchWhatsApp = () => {
+  const handleDispatchWhatsApp = async () => {
     if (!activeInspection) return;
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${activeInspection.id}/notify-client`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'WHATSAPP' }),
+        });
+        if (res.ok) {
+          const j = await res.json();
+          setWhatsappStatus(`WhatsApp digest dispatched to ${j.recipientPhone}: ${j.message}`);
+          return;
+        }
+      } catch { /* fall through to local digest */ }
+    }
     const isCritical = activeInspection.variancePct <= -10;
     setWhatsappStatus(
       `WhatsApp SMS alert dispatched: [${isCritical ? 'CRITICAL INFLATION ALERT' : 'PROGRESS DIGEST'}] Inspection ${activeInspection.reportRef} verified with ${activeInspection.inspectorVerifiedPct}% physical progress.`
     );
   };
 
-  const handleCreateBooking = (e: React.FormEvent) => {
+  const handleCreateBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stage: bookStage.toUpperCase(),
+            scopeDescription: `${STAGE_LABELS[bookStage]} — Focus: ${bookSpecialFocus}`,
+            scheduledDate: new Date().toISOString(),
+            inspectorName: 'Clerk of Works Dispatching...',
+            inspectorLicense: 'NCA Independent Inspector Registry',
+          }),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          await reload();
+          if (created?.id) setSelectedInspectionId(created.id);
+          setShowBookingModal(false);
+          setBookingSuccess(`Neutral inspection ${created?.inspectionCode ?? ''} successfully booked for ${STAGE_LABELS[bookStage]}! Dispatch notification sent to neutral Clerk of Works.`);
+          return;
+        }
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.message || `Booking failed (${res.status})`);
+      } catch { /* fall through to local demo booking */ }
+    }
     const newReport: SiteInspectionReport = {
       id: `insp-2026-${String(inspections.length + 1).padStart(3, '0')}`,
       reportRef: `BDS-INSP-2026-0891-${bookStage.toUpperCase()}`,
@@ -344,7 +548,7 @@ export default function IndependentSiteReportView({
     }
   };
 
-  const handleSignOffReview = (e: React.FormEvent) => {
+  const handleSignOffReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeInspection || !reviewNotes.trim()) return;
     const targetId = activeInspection.id;
@@ -356,6 +560,34 @@ export default function IndependentSiteReportView({
       signedOffAt: new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' }) + ' EAT',
       clientName: reviewClientName.trim() || 'Diaspora Property Owner',
     };
+
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${targetId}/client-review`, {
+          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientReviewNotes: review.feedbackNotes,
+            clientSatisfactionRating: review.rating,
+            clientDiscrepancyFlagged: activeInspection.variancePct <= -10,
+          }),
+        });
+        if (res.ok) {
+          loadedDetailsRef.current.delete(targetId);
+          await reload();
+          setInspections((prev) =>
+            prev.map((insp) =>
+              insp.id === targetId
+                ? { ...insp, status: 'CLIENT_REVIEWED' as InspectionStatus, clientReview: review }
+                : insp
+            )
+          );
+          setReviewSubmitted(`Inspection report ${targetRef} verified and signed off successfully.`);
+          setReviewNotes('');
+          if (onReviewSubmit) onReviewSubmit(targetId, review);
+          return;
+        }
+      } catch { /* fall through to local update */ }
+    }
 
     const updated = inspections.map((insp) => {
       if (insp.id === targetId) {
@@ -414,6 +646,14 @@ export default function IndependentSiteReportView({
     };
   };
 
+  if (isLive && !liveLoaded) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">
+        Loading independent inspection reports…
+      </div>
+    );
+  }
+
   if (!activeInspection) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-6 text-center text-slate-500 text-xs">
@@ -452,7 +692,7 @@ export default function IndependentSiteReportView({
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <a
-            href={`/api/v1/projects/${_projectId}/reports/independent-inspections/${activeInspection.id}`}
+            href={`/api/v1/projects/${projectId}/reports/independent-inspections/${activeInspection.id}`}
             download
             data-testid="download-inspection-pdf-btn"
             className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5"

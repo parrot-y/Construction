@@ -107,3 +107,18 @@
 - [x] Cross-portal day-in-the-life simulation test — 7 steps, role handoffs (g5-cross-portal-workflow.test.ts, 7 tests)
 - [x] Punch/snag CSV export — GET /snags/export + UI button (g5-11, 2 tests)
 - [x] Final verify-local GREEN on 4292afc — 684/684 (480 API, 117 web, 63 money, 15 db, 9 permissions)
+
+## Finish-all plan (post-return)
+- [x] Dashboard project resolution — real projectId to all mounted views (PmQs/Sup/Admin pickers, ClientDashboard live hydrate)
+- [x] Live-wire: RFI, Drawings, Gantt, Inventory, MusterRoll, SafetyAudits, Tenders, Attendance+laborer reg, Snag CSV+PDF
+- [ ] Wave A subagents: wire demo views → real APIs (platformServices/operations/siteOperations)
+  - A1: PlantEquipmentView + PlantTelematicsView (plant-equipments? telematics-devices/pings/maintenance-alerts)
+  - A2: BarBendingScheduleView + StructuralSteelTakeoffView + RmcTransitTrackerView (bbs/steel-takeoffs/rmc-deliveries+slump)
+  - A3: GeotechnicalSoilView + AsphaltPavementView + TopographicSurveyView (soil-tests/asphalt-batches/surveys)
+  - A4: GeofencedClockInView + MpesaDisbursementView + IndependentSiteReportView (geofences/clock-in/b2c-disbursements/independent-inspections)
+- [ ] Wave B subagents: commercial/enterprise views
+  - B1: SubcontractorManagementView + MaterialRequisitionView + MaterialWastageVarianceCard
+  - B2: StatutoryTaxManagementView + ETimsTaxComplianceView + RetentionAndBondsView + WeatherDelayClaimsView + WhatsAppSiteWebhookView
+  - B3: QualityControlView (inspections tab only — cube tests have no internal API, document) + PhotoEvidenceGallery + remaining stragglers
+- [ ] Seed accounts per role (DONE in seed.ts) + Buildsasa portal comparison doc
+- [ ] Final verify-local + PROJECT_STATUS update

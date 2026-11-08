@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface MaterialWastageItem {
   id: string;
@@ -35,7 +35,7 @@ interface MaterialWastageVarianceCardProps {
 }
 
 export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Current Project',
   reconciliations: initialReconciliations,
   summary: initialSummary,
@@ -79,6 +79,42 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
       },
     ]
   );
+
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/material-wastage`, { credentials: 'include' });
+      if (!res.ok) throw new Error('load failed');
+      const json = await res.json();
+      const list = (json.reconciliations || json.data || []) as any[];
+      setReconciliations(list.map((r) => ({
+        id: r.id,
+        periodName: r.periodName,
+        materialName: r.materialName,
+        unitOfMeasure: r.unitOfMeasure,
+        theoreticalQuantity: r.theoreticalQuantity?.toString?.() ?? String(r.theoreticalQuantity ?? 0),
+        actualConsumedQuantity: r.actualConsumedQuantity?.toString?.() ?? String(r.actualConsumedQuantity ?? 0),
+        allowableWastagePct: r.allowableWastagePct?.toString?.() ?? String(r.allowableWastagePct ?? 0),
+        actualWastagePct: r.actualWastagePct?.toString?.() ?? String(r.actualWastagePct ?? 0),
+        varianceQuantity: r.varianceQuantity?.toString?.() ?? String(r.varianceQuantity ?? 0),
+        unitCostKes: r.unitCostKes?.toString?.() ?? String(r.unitCostKes ?? 0),
+        financialLossKes: r.financialLossKes?.toString?.() ?? String(r.financialLossKes ?? 0),
+        status: r.status,
+        investigationNotes: r.investigationNotes ?? null,
+        createdBy: r.createdBy,
+        createdAt: r.createdAt ?? '',
+      })));
+    } catch {
+      setReconciliations([]);
+    } finally {
+      setLiveLoaded(true);
+    }
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,6 +173,27 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
       createdBy: createdBy || 'Site QS',
     };
 
+    if (isLive) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/material-wastage`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          await reload();
+          setIsSubmitting(false);
+          setIsModalOpen(false);
+          setPeriodName('');
+          setMaterialName('');
+          setTheoreticalQuantity('');
+          setActualConsumedQuantity('');
+          setUnitCostKes('');
+          setInvestigationNotes('');
+          return;
+        }
+      } catch { /* fall through to local */ }
+    }
+
     if (onRecordWastage) {
       await onRecordWastage(payload);
     } else {
@@ -169,6 +226,10 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
     setUnitCostKes('');
     setInvestigationNotes('');
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading wastage reconciliations...</div>;
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">

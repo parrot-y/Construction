@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ConcreteCubeTestModal from './ConcreteCubeTestModal';
 
 export type ChecklistType =
@@ -23,7 +23,8 @@ export interface ChecklistItem {
 export interface InspectionChecklist {
   id: string;
   checklistNumber: string;
-  checklistType: ChecklistType;
+  // Live API checklist_type values (e.g. SCAFFOLDING_SAFETY) exceed the demo union.
+  checklistType: ChecklistType | string;
   location: string;
   inspectorName: string;
   status: InspectionStatus;
@@ -249,6 +250,7 @@ export default function QualityControlView({
   initialChecklists = DEFAULT_CHECKLISTS,
   initialCubeTests = DEFAULT_CUBE_TESTS,
 }: QualityControlViewProps): React.JSX.Element {
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [activeTab, setActiveTab] = useState<'checklists' | 'cube-tests'>(defaultTab);
   const [checklists, setChecklists] = useState<InspectionChecklist[]>(initialChecklists);
   const [selectedChecklistId, setSelectedChecklistId] = useState<string>(
@@ -256,26 +258,127 @@ export default function QualityControlView({
   );
   const [cubeTests, setCubeTests] = useState<ConcreteCubeTest[]>(initialCubeTests);
   const [isCubeModalOpen, setIsCubeModalOpen] = useState(false);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const mapApiStatus = (s: string): InspectionStatus => {
+    if (s === 'APPROVED_WITHOUT_COMMENTS' || s === 'APPROVED_WITH_CONDITIONS') return 'APPROVED_FOR_POUR';
+    if (s === 'REJECTED') return 'REJECTED_REWORK_REQUIRED';
+    return 'PENDING_INSPECTION';
+  };
+
+  const mapApiChecklist = (c: any): InspectionChecklist => ({
+    id: c.id,
+    checklistNumber: c.title || `CHK-${String(c.id).slice(0, 8).toUpperCase()}`,
+    checklistType: c.checklist_type,
+    location: c.location,
+    inspectorName: c.inspector_name || c.inspector_role || 'Site Inspector',
+    status: mapApiStatus(c.status),
+    date: c.inspected_at ? String(c.inspected_at).slice(0, 10) : String(c.scheduled_date || '').slice(0, 10),
+    items: (c.items || []).map((i: any) => ({
+      id: i.id,
+      description: i.check_point,
+      category: i.is_mandatory ? 'Mandatory Hold-Point' : 'Advisory',
+      status: i.result === 'PASS' ? 'PASS' : i.result === 'FAIL' ? 'FAIL' : 'PENDING',
+      notes: i.deficiency_notes || undefined,
+    })),
+  });
+
+  const mapApiCubeTest = (t: any): ConcreteCubeTest => {
+    const breaks = (t.break_results || []) as any[];
+    const b7 = breaks.find((b) => Number(b.break_age_days) <= 7) || null;
+    const b28 = breaks.find((b) => Number(b.break_age_days) >= 28) || null;
+    const latestBreak = breaks[breaks.length - 1] || null;
+    const classLabel = String(t.concrete_class || '')
+      .replace(/^CLASS_/, 'Class ')
+      .replace(/_/g, '/');
+    const sevenMpa = b7?.compressive_mpa != null ? parseFloat(b7.compressive_mpa) : null;
+    const twentyEightMpa = b28?.compressive_mpa != null ? parseFloat(b28.compressive_mpa) : null;
+    let status: ConcreteCubeTest['status'] = 'PENDING_7DAY';
+    if (b28) {
+      status = b28.is_pass === false || (twentyEightMpa !== null && twentyEightMpa < parseFloat(t.target_strength_mpa)) ? 'FAIL' : 'PASS';
+    } else if (b7) {
+      status = 'PENDING_28DAY';
+    }
+    return {
+      id: t.id,
+      testNo: t.batch_reference,
+      pourLocation: t.pour_location,
+      concreteClass: classLabel || 'Class 25/20',
+      targetStrengthMpa: parseFloat(t.target_strength_mpa) || 0,
+      pourDate: String(t.pour_date || '').slice(0, 10),
+      batchTicket: t.delivery_docket_no || t.supplier_name || t.batch_reference,
+      slumpMm: t.slump_tested_mm ?? 0,
+      sevenDayBreakDate: b7 ? String(b7.scheduled_break_date || '').slice(0, 10) : '',
+      sevenDayStrengthMpa: sevenMpa,
+      twentyEightDayBreakDate: b28 ? String(b28.scheduled_break_date || '').slice(0, 10) : '',
+      twentyEightDayStrengthMpa: twentyEightMpa,
+      status,
+      testingLab: latestBreak?.lab_name || t.supplier_name || 'On-site Hydraulic Press',
+    };
+  };
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const [chkRes, cubeRes] = await Promise.all([
+        fetch(`/api/v1/projects/${projectId}/inspections`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/cube-tests`, { credentials: 'include' }),
+      ]);
+      if (chkRes.ok) {
+        const list = (await chkRes.json()) as any[];
+        const mapped = (Array.isArray(list) ? list : []).map(mapApiChecklist);
+        setChecklists(mapped);
+        setSelectedChecklistId((prev) => (mapped.some((c) => c.id === prev) ? prev : mapped[0]?.id || prev));
+      }
+      if (cubeRes.ok) {
+        const list = (await cubeRes.json()) as any[];
+        setCubeTests((Array.isArray(list) ? list : []).map(mapApiCubeTest));
+      }
+    } catch { /* keep demo fixtures */ }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   const selectedChecklist =
     checklists.find((c) => c.id === selectedChecklistId) || checklists[0];
 
   // Toggle item PASS / FAIL / PENDING
   const handleToggleItemStatus = (itemId: string, newStatus: 'PASS' | 'FAIL') => {
+    const target = selectedChecklist?.items.find((i) => i.id === itemId);
+    const nextStatus: 'PASS' | 'FAIL' | 'PENDING' =
+      target?.status === newStatus ? 'PENDING' : newStatus;
+
+    if (isLive && selectedChecklist) {
+      void (async () => {
+        try {
+          const res = await fetch(
+            `/api/v1/projects/${projectId}/inspections/${selectedChecklist.id}/items/${itemId}`,
+            {
+              method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ result: nextStatus, deficiencyNotes: target?.notes || null }),
+            }
+          );
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+    }
+
     setChecklists((prev) =>
       prev.map((chk) => {
         if (chk.id !== selectedChecklistId) return chk;
         const updatedItems = chk.items.map((item) =>
-          item.id === itemId
-            ? { ...item, status: item.status === newStatus ? ('PENDING' as const) : newStatus }
-            : item
+          item.id === itemId ? { ...item, status: nextStatus } : item
         );
         return { ...chk, items: updatedItems };
       })
     );
   };
 
-  // Approve checklist for pour
+  // Approve checklist for pour.
+  // NOTE: the API derives checklist status automatically from item results
+  // (PUT .../items/:itemId) and exposes no direct status-transition endpoint,
+  // so in live mode this only updates local UI state.
   const handleSetChecklistStatus = (newStatus: InspectionStatus) => {
     setChecklists((prev) =>
       prev.map((chk) => (chk.id === selectedChecklistId ? { ...chk, status: newStatus } : chk))
@@ -283,6 +386,46 @@ export default function QualityControlView({
   };
 
   const handleTestCreated = (newTest: any) => {
+    if (isLive) {
+      void (async () => {
+        try {
+          const classMap: Record<string, string> = {
+            'Class 15/20': 'CLASS_15_20', 'Class 20/20': 'CLASS_20_20', 'Class 25/20': 'CLASS_25_20',
+            'Class 30/20': 'CLASS_30_20', 'Class 35/20': 'CLASS_35_20', 'Class 40/20': 'CLASS_40_20',
+          };
+          const res = await fetch(`/api/v1/projects/${projectId}/cube-tests`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              batchReference: newTest.testNo || `CUBE-${Date.now()}`,
+              pourLocation: newTest.pourLocation,
+              pourDate: newTest.pourDate,
+              concreteClass: classMap[newTest.concreteClass] || 'CLASS_25_20',
+              targetStrengthMpa: String(newTest.targetStrengthMpa ?? 25),
+              slumpTestedMm: newTest.slumpMm ?? null,
+              deliveryDocketNo: newTest.batchTicket || null,
+              notes: `Testing lab: ${newTest.testingLab || 'On-site'}`,
+            }),
+          });
+          if (!res.ok) return;
+          const created = await res.json();
+          const breaks: any[] = [];
+          if (newTest.sevenDayStrengthMpa != null) {
+            breaks.push({ cubeNumber: 1, breakAgeDays: 7, scheduledBreakDate: newTest.sevenDayBreakDate, compressiveMpa: String(newTest.sevenDayStrengthMpa), labName: newTest.testingLab });
+          }
+          if (newTest.twentyEightDayStrengthMpa != null) {
+            breaks.push({ cubeNumber: 2, breakAgeDays: 28, scheduledBreakDate: newTest.twentyEightDayBreakDate, compressiveMpa: String(newTest.twentyEightDayStrengthMpa), labName: newTest.testingLab });
+          }
+          for (const b of breaks) {
+            await fetch(`/api/v1/projects/${projectId}/cube-tests/${created.id}/breaks`, {
+              method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(b),
+            });
+          }
+          await reload();
+        } catch { /* keep local */ }
+      })();
+      return;
+    }
     setCubeTests((prev) => [newTest, ...prev]);
   };
 
@@ -321,6 +464,10 @@ export default function QualityControlView({
       label: 'CUBES CURING IN TANK',
     };
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading quality inspections…</div>;
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-0">

@@ -772,4 +772,40 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
       }
     },
   );
+
+  // 3.3 Update Subcontractor Package Status
+  server.patch(
+    '/api/v1/projects/:projectId/subcontractors/:packageId',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, packageId } = request.params as { projectId: string; packageId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(packageId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Package not found' });
+      }
+      const { status } = (request.body || {}) as { status?: string };
+      const allowed = ['AWARDED', 'ACTIVE', 'COMPLETED', 'TERMINATED', 'SUSPENDED'];
+      if (!status || !allowed.includes(status)) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: `status must be one of ${allowed.join(', ')}` });
+      }
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const pkg = await tx.subcontractorPackage.findFirst({ where: { id: packageId, project_id: projectId } });
+          if (!pkg) throw { status: 404, message: 'Subcontractor package not found' };
+          const result = await tx.subcontractorPackage.update({ where: { id: packageId }, data: { status } });
+          await recordAuditLog(tx, {
+            tenantId, actorId: sub, projectId,
+            action: 'SUBCONTRACTOR_PACKAGE_STATUS', entityType: 'SubcontractorPackage', entityId: packageId,
+            changes: { from: pkg.status, to: status },
+          });
+          return result;
+        });
+        return reply.status(200).send(updated);
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update package' });
+      }
+    },
+  );
 };

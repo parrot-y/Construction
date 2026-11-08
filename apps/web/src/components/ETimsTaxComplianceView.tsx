@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface ETimsInvoiceItem {
   id: string;
@@ -54,6 +54,7 @@ interface ETimsTaxComplianceViewProps {
 }
 
 export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
+  projectId,
   projectName = 'Riverside Commercial Plaza',
   invoices: initialInvoices,
   tccRecords: initialTcc,
@@ -78,6 +79,37 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
   const [tccPin, setTccPin] = useState('P051122334K');
   const [tccNumber, setTccNumber] = useState('KRA-TCC-2026-98841');
   const [tccExpiry, setTccExpiry] = useState('2026-12-31');
+  const [tccPackageId, setTccPackageId] = useState('');
+  const [subPkgs, setSubPkgs] = useState<{ id: string; firm_name: string }[]>([]);
+
+  const isLive = !!projectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+
+  const reload = React.useCallback(async () => {
+    if (!isLive || !projectId) return;
+    try {
+      const [invRes, tccRes, pkgRes] = await Promise.all([
+        fetch(`/api/v1/projects/${projectId}/etims-invoices`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/subcontractor-tcc`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include' }),
+      ]);
+      if (invRes.ok) {
+        const ij = await invRes.json();
+        setInvoices((ij.invoices || []) as ETimsInvoiceItem[]);
+      }
+      if (tccRes.ok) {
+        const tj = await tccRes.json();
+        setTccRecords((tj.records || []) as SubcontractorTccItem[]);
+      }
+      if (pkgRes.ok) {
+        const pj = await pkgRes.json();
+        setSubPkgs((pj.packages || []).map((p: any) => ({ id: p.id, firm_name: p.firm_name })));
+      }
+    } catch { /* keep demo */ }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
 
   // Default state for invoices
   const [invoices, setInvoices] = useState<ETimsInvoiceItem[]>(
@@ -158,7 +190,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
   );
 
   // Computations
-  const summary = initialSummary || {
+  const summary = (!isLive && initialSummary) ? initialSummary : {
     totalInvoices: invoices.length,
     totalTaxableAmount: invoices.reduce((s, i) => s + parseFloat(i.totalTaxableAmount), 0).toFixed(2),
     totalTaxAmount: invoices.reduce((s, i) => s + parseFloat(i.totalTaxAmount), 0).toFixed(2),
@@ -193,6 +225,36 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
       createdAt: new Date().toISOString(),
     };
 
+    if (isLive && projectId) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/etims-invoices`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              invoiceNumber,
+              cuInvoiceNumber: cuNo,
+              invoiceType: 'ORIGINAL',
+              buyerPin,
+              buyerName,
+              totalTaxableAmount: taxable.toFixed(2),
+              totalTaxAmount: vat16.toFixed(2),
+              totalInvoiceAmount: gross.toFixed(2),
+              taxBreakdown16: vat16.toFixed(2),
+              taxBreakdown8: '0.00',
+              taxBreakdown0: '0.00',
+              taxBreakdownExempt: '0.00',
+              // Server assigns the sandbox QR/signature; schema requires the fields.
+              qrCodeUrl: 'urn:mjengo:pending-kra-transmission',
+              cryptographicSignature: 'PENDING',
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowInvoiceModal(false);
+      return;
+    }
+
     if (onGenerateInvoice) {
       await onGenerateInvoice(newInv);
     }
@@ -219,12 +281,40 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
       withholdingVatRate: '2.00',
     };
 
+    if (isLive && projectId) {
+      if (!tccPackageId) return;
+      void (async () => {
+        try {
+          const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-tcc`, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subcontractorPackageId: tccPackageId,
+              pinNumber: tccPin,
+              taxpayerName: firmName,
+              tccNumber,
+              tccExpiryDate: tccExpiry,
+              complianceStatus: newTcc.complianceStatus,
+              withholdingTaxRate: newTcc.withholdingTaxRate,
+              withholdingVatRate: newTcc.withholdingVatRate,
+            }),
+          });
+          if (res.ok) await reload();
+        } catch { /* keep local */ }
+      })();
+      setShowTccModal(false);
+      return;
+    }
+
     if (onRegisterTcc) {
       await onRegisterTcc(newTcc);
     }
     setTccRecords([newTcc, ...tccRecords]);
     setShowTccModal(false);
   };
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 text-center text-sm text-slate-500">Loading e-TIMS compliance data...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -571,6 +661,24 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
               Registers subcontractor tax clearance to determine contractual withholding tax (3% vs 5%).
             </p>
             <form onSubmit={handleRegisterTccSubmit} className="space-y-4 text-sm">
+              {isLive && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Linked Subcontractor Package
+                  </label>
+                  <select
+                    value={tccPackageId}
+                    onChange={(e) => setTccPackageId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700"
+                    required
+                  >
+                    <option value="">Select subcontractor package…</option>
+                    {subPkgs.map((p) => (
+                      <option key={p.id} value={p.id}>{p.firm_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Subcontractor Firm Name

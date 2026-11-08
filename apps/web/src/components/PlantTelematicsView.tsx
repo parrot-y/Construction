@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface TelematicsDeviceItem {
   id: string;
@@ -75,6 +75,7 @@ interface PlantTelematicsViewProps {
 }
 
 export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
+  projectId = '',
   projectName = 'Upper Hill Commercial Tower',
   devices: initialDevices,
   pings: initialPings,
@@ -233,6 +234,80 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   const effectiveAlerts = initialAlerts || defaultAlerts;
   const [alerts, setAlerts] = useState<PlantMaintenanceAlertItem[]>(effectiveAlerts);
 
+  const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
+  const [liveLoaded, setLiveLoaded] = useState(!isLive);
+  const [equipmentIdByCode, setEquipmentIdByCode] = useState<Record<string, string>>({});
+
+  const reload = React.useCallback(async () => {
+    if (!isLive) return;
+    try {
+      const [pingRes, alertRes, equipRes] = await Promise.all([
+        fetch(`/api/v1/projects/${projectId}/telematics-pings`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/maintenance-alerts`, { credentials: 'include' }),
+        fetch(`/api/v1/projects/${projectId}/equipment`, { credentials: 'include' }),
+      ]);
+
+      const equipMap: Record<string, string> = {};
+      if (equipRes.ok) {
+        const ej = await equipRes.json();
+        for (const e of (ej.equipment || []) as any[]) {
+          if (e.equipmentCode && e.id) equipMap[e.equipmentCode] = e.id;
+        }
+        setEquipmentIdByCode(equipMap);
+      }
+
+      if (pingRes.ok) {
+        const pj = await pingRes.json();
+        const list = ((pj.pings || []) as any[]).map((p) => ({
+          ...p,
+          latitude: p.latitude?.toString?.() ?? String(p.latitude ?? ''),
+          longitude: p.longitude?.toString?.() ?? String(p.longitude ?? ''),
+          coolantTempC: p.coolantTempC?.toString?.() ?? p.coolantTempC ?? null,
+          oilTempC: p.oilTempC?.toString?.() ?? p.oilTempC ?? null,
+          batteryVoltage: p.batteryVoltage?.toString?.() ?? p.batteryVoltage ?? null,
+          fuelRateLPerH: p.fuelRateLPerH?.toString?.() ?? p.fuelRateLPerH ?? null,
+          fuelLevelPercent: p.fuelLevelPercent?.toString?.() ?? String(p.fuelLevelPercent ?? 0),
+          calculatedFuelLiters: p.calculatedFuelLiters?.toString?.() ?? String(p.calculatedFuelLiters ?? 0),
+          fuelDropLiters: p.fuelDropLiters?.toString?.() ?? p.fuelDropLiters ?? null,
+          dropRateLPerHour: p.dropRateLPerHour?.toString?.() ?? p.dropRateLPerHour ?? null,
+        })) as TelematicsPingItem[];
+        setPings(list);
+
+        // No GET /telematics-devices endpoint exists — derive the fleet device
+        // list from observed pings joined with the equipment register.
+        const byImei = new Map<string, TelematicsDeviceItem>();
+        for (const p of list) {
+          if (!byImei.has(p.deviceImei)) {
+            byImei.set(p.deviceImei, {
+              id: `dev-${p.deviceImei}`,
+              equipmentId: equipMap[p.equipmentCode] || '',
+              equipmentCode: p.equipmentCode,
+              equipmentName: p.equipmentName,
+              deviceImei: p.deviceImei,
+              protocol: 'CANBUS',
+              calibrationTankCapacityLiters: '300.00',
+              status: 'ONLINE',
+              lastHeartbeatAt: p.pingTimestamp,
+            });
+          }
+        }
+        setDevices([...byImei.values()]);
+      }
+
+      if (alertRes.ok) {
+        const aj = await alertRes.json();
+        const list = ((aj.alerts || []) as any[]).map((a) => ({
+          ...a,
+          hoursMeterAtAlert: a.hoursMeterAtAlert?.toString?.() ?? String(a.hoursMeterAtAlert ?? 0),
+        })) as PlantMaintenanceAlertItem[];
+        setAlerts(list);
+      }
+    } catch { /* keep demo */ }
+    setLiveLoaded(true);
+  }, [isLive, projectId]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
   // Ping Simulator State
   const [selectedImei, setSelectedImei] = useState(devices[0]?.deviceImei || '869012059918234');
   const [simEngineStatus, setSimEngineStatus] = useState<'RUNNING' | 'IDLE' | 'STOPPED'>('RUNNING');
@@ -308,6 +383,31 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
     }
 
     try {
+      if (isLive) {
+        // Live mode: hand the ping to the caller's ingest hook (device-token
+        // webhook) if provided, then refresh pings/alerts from the API.
+        if (onIngestPing) {
+          await onIngestPing({
+            deviceImei: selectedImei,
+            latitude: '-1.292100',
+            longitude: '36.821900',
+            engineStatus: simEngineStatus,
+            engineRpm: simEngineStatus === 'STOPPED' ? 0 : parseInt(simRpm, 10),
+            coolantTempC: simCoolant,
+            oilTempC: simOil,
+            batteryVoltage: simVoltage,
+            dtcFaultCodes: simDtc || null,
+            cumulativeEngineSeconds: 36000,
+            fuelLevelPercent: simFuelPct,
+          });
+        }
+        await reload();
+        setFeedback(
+          `✓ Telematics ping submitted for ${selectedDevice?.equipmentName || selectedImei} (${previewFuelLiters.toFixed(1)}L / ${simFuelPct}%) - Status: ${simEngineStatus}.`
+        );
+        return;
+      }
+
       if (onIngestPing) {
         await onIngestPing({
           deviceImei: selectedImei,
@@ -396,6 +496,24 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   const handleRegisterDevice = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (isLive) {
+        const res = await fetch(`/api/v1/projects/${projectId}/telematics-devices`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            equipmentId: equipmentIdByCode[newEquipCode] || Object.values(equipmentIdByCode)[0] || '',
+            deviceImei: newImei,
+            protocol: newProtocol,
+            simPhoneNumber: newSimPhone || null,
+            calibrationTankCapacityLiters: newTankCap,
+          }),
+        });
+        if (res.ok) {
+          await reload();
+          setShowDeviceModal(false);
+          return;
+        }
+      }
+
       if (onRegisterDevice) {
         await onRegisterDevice({
           equipmentId: 'dummy-equip-id',
@@ -439,6 +557,18 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
     setAckError(null);
 
     try {
+      if (isLive) {
+        const res = await fetch(`/api/v1/projects/${projectId}/maintenance-alerts/${alertToAcknowledge.id}/acknowledge`, {
+          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acknowledgedBy: ackBy, actionNotes: ackNotes }),
+        });
+        if (res.ok) {
+          await reload();
+          setAlertToAcknowledge(null);
+          return;
+        }
+      }
+
       if (onAcknowledgeAlert) {
         await onAcknowledgeAlert(alertToAcknowledge.id, {
           acknowledgedBy: ackBy,
@@ -470,6 +600,10 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 
   const activeSiphoningPings = pings.filter((p) => p.isSiphoningEvent);
   const siphoningEventsList = pings.filter((p) => p.isSiphoningEvent || (p.fuelDropLiters && parseFloat(p.fuelDropLiters) > 0));
+
+  if (isLive && !liveLoaded) {
+    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading telematics...</div>;
+  }
 
   return (
     <div className="space-y-6">

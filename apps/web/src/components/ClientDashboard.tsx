@@ -121,8 +121,14 @@ export default function ClientDashboard({
           healthNotice: d.progress.health_notice,
         });
         if (d.photo_evidence) setPhotos(d.photo_evidence.map((p: any) => ({
-          id: p.id, url: p.url || p.storage_key, caption: p.caption,
-          takenAt: p.taken_at || p.captured_at, location: p.location,
+          id: p.id,
+          caption: p.caption || 'Site photo evidence',
+          photo_url: p.photo_url || (p.storage_key ? `/uploads/${p.storage_key}` : ''),
+          latitude: p.latitude ?? null,
+          longitude: p.longitude ?? null,
+          captured_at: p.captured_at || p.taken_at || '',
+          weather: p.weather,
+          recorded_by_name: p.recorded_by_name,
         })));
         if (d.timeline) setTimeline(d.timeline.map((t: any) => ({
           id: t.id, percentage: t.percentage, notes: t.notes,
