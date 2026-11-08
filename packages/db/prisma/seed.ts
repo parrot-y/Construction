@@ -53,6 +53,55 @@ export async function seed() {
       phone_number: '+254744345678',
       role: 'CLIENT',
     },
+    // Gate-5 role ladder — one login per observed portal role
+    {
+      email: 'executive@apexbuilders.co.ke',
+      full_name: 'Esther Wanjiru',
+      phone_number: '+254755345678',
+      role: 'EXECUTIVE',
+    },
+    {
+      email: 'pm@apexbuilders.co.ke',
+      full_name: 'Mary Wangari',
+      phone_number: '+254766345678',
+      role: 'PM_QS',
+    },
+    {
+      email: 'engineer@apexbuilders.co.ke',
+      full_name: 'Kevin Barasa',
+      phone_number: '+254777345678',
+      role: 'SITE_ENGINEER',
+    },
+    {
+      email: 'superintendent@apexbuilders.co.ke',
+      full_name: 'Grace Muthoni',
+      phone_number: '+254788345678',
+      role: 'SUPERINTENDENT',
+    },
+    {
+      email: 'tradelead@apexbuilders.co.ke',
+      full_name: 'Peter Kamau',
+      phone_number: '+254799345678',
+      role: 'TRADE_LEAD',
+    },
+    {
+      email: 'foreman@apexbuilders.co.ke',
+      full_name: 'Samuel Njoroge',
+      phone_number: '+254700345678',
+      role: 'FOREMAN',
+    },
+    {
+      email: 'worker@apexbuilders.co.ke',
+      full_name: 'Joseph Otieno',
+      phone_number: '+254711345678',
+      role: 'WORKER',
+    },
+    {
+      email: 'viewer@apexbuilders.co.ke',
+      full_name: 'Lydia Auma',
+      phone_number: '+254722345678',
+      role: 'VIEWER',
+    },
   ];
 
   await withTenantTx(prisma, tenant.id, async (tx) => {
