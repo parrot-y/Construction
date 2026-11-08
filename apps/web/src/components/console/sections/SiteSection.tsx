@@ -4,6 +4,7 @@ import ChecklistsView from '../../ChecklistsView';
 import SnaggingListView from '../../SnaggingListView';
 import ObservationsView from '../../ObservationsView';
 import SafetyIncidentLogView from '../../SafetyIncidentLogView';
+import InspectionRequestModal from '../../InspectionRequestModal';
 import AttendanceView from '../../AttendanceView';
 import QualityControlView from '../../QualityControlView';
 import IndependentSiteReportView from '../../IndependentSiteReportView';
@@ -124,6 +125,30 @@ function DailyLogsView({ projectId, projectName, canEdit }: { projectId: string;
   );
 }
 
+function InspectionsTab(): React.JSX.Element {
+  const { projectId, projects, role } = useConsole();
+  const livePid = projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
+  const [reqOpen, setReqOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const projectName = projects.find((p) => p.id === projectId)?.name;
+  const canRequest = ['COMPANY_ADMIN','ADMIN','EXECUTIVE','PM_QS','SUPERINTENDENT','SITE_SUPERVISOR','SITE_ENGINEER','ARCHITECT','QA_QC'].includes(role);
+  return (
+    <div className="space-y-4">
+      {canRequest && livePid && (
+        <div className="flex justify-end">
+          <button onClick={() => setReqOpen(true)} className="px-4 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg">New Request</button>
+        </div>
+      )}
+      <IndependentSiteReportView projectId={livePid} projectName={projectName} userRole={role} />
+      <QualityControlView key={refreshKey} projectId={livePid} projectName={projectName} defaultTab="cube-tests" canApprove={['COMPANY_ADMIN','ADMIN','EXECUTIVE','PM_QS','SITE_SUPERVISOR','SUPERINTENDENT'].includes(role)} />
+      {livePid && (
+        <InspectionRequestModal projectId={livePid} projectName={projectName} open={reqOpen}
+          onClose={() => setReqOpen(false)} onCreated={() => setRefreshKey((k) => k + 1)} />
+      )}
+    </div>
+  );
+}
+
 export default function SiteSection(): React.JSX.Element {
   const { tab, projectId: pid, projects, role } = useConsole();
   const canEdit = !['VIEWER', 'CLIENT'].includes(role);
@@ -141,10 +166,7 @@ export default function SiteSection(): React.JSX.Element {
     case 'assignments': return <ChecklistsView projectId={livePid} canManage={canEdit} initialTab="assignments" />;
     case 'punch': return <SnaggingListView projectId={livePid} projectName={projectName} canAdd={canEdit} canRectify={canEdit} canVerify={canInvestigate} />;
     case 'inspections': return (
-      <div className="space-y-4">
-        <IndependentSiteReportView projectId={livePid} projectName={projectName} userRole={role} />
-        <QualityControlView projectId={livePid} projectName={projectName} defaultTab="cube-tests" canApprove={canInvestigate} />
-      </div>
+      <InspectionsTab />
     );
     case 'observations': return <ObservationsView projectId={livePid} canManage={canEdit} />;
     case 'actionplans': return <ObservationsView projectId={livePid} canManage={canEdit} />;

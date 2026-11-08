@@ -524,6 +524,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               tenant_id: tenantId,
               project_id: projectId,
               checklist_type: data.checklistType,
+              inspection_type: data.inspectionType ?? null,
+              assigned_consultant: data.assignedConsultant ?? null,
               title: data.title,
               location: data.location,
               status: 'PENDING',

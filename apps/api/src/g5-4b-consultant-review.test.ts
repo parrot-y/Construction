@@ -32,6 +32,8 @@ describe('Gate-5 G5-4b: Consultant approval chain on inspections', () => {
       method: 'POST', url: `/api/v1/projects/${projectId}/inspections`, headers: { cookie: adminCookie },
       payload: {
         checklistType: 'PRE_POUR_CONCRETE',
+        inspectionType: 'Structural',
+        assignedConsultant: 'ZZ-RESEARCH Consultant',
         title: 'ZZ-RESEARCH pre-pour inspection — consultant chain',
         location: 'Block A, Grid 1-4',
         scheduledDate: '2026-11-10',
@@ -48,6 +50,8 @@ describe('Gate-5 G5-4b: Consultant approval chain on inspections', () => {
     checklistId = cl.id;
     expect(cl.requires_consultant_review).toBe(true);
     expect(cl.consultant_review_status).toBe('PENDING');
+    expect(cl.inspection_type).toBe('Structural');
+    expect(cl.assigned_consultant).toBe('ZZ-RESEARCH Consultant');
     itemIds = cl.items.map((i: any) => i.id);
     expect(itemIds).toHaveLength(3);
   });

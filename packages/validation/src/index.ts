@@ -338,6 +338,8 @@ export type InspectionItemInput = z.infer<typeof InspectionItemInputSchema>;
 
 export const CreateInspectionChecklistSchema = z.object({
   requiresConsultantReview: z.boolean().optional(),
+  inspectionType: z.string().max(60).optional().nullable(),
+  assignedConsultant: z.string().max(255).optional().nullable(),
   checklistType: ChecklistTypeEnum,
   title: z.string().min(3).max(255),
   location: z.string().min(2).max(255),

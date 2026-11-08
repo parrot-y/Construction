@@ -55,6 +55,36 @@ interface DraftItem {
   unitRate: string;
 }
 
+const QUOTE_LINE_TEMPLATES: Record<string, { section: string; description: string; unit: string; quantity: string; unitRate: string }[]> = {
+  'Kitchen remodel': [
+    { section: 'Demolition', description: 'Strip-out existing kitchen units, tiles & services', unit: 'lot', quantity: '1', unitRate: '' },
+    { section: 'Carpentry', description: 'Supply & install base & wall units (melamine)', unit: 'lm', quantity: '', unitRate: '' },
+    { section: 'Plumbing', description: 'Relocate water & waste points', unit: 'point', quantity: '', unitRate: '' },
+    { section: 'Electrical', description: 'New power & lighting points', unit: 'point', quantity: '', unitRate: '' },
+    { section: 'Finishes', description: 'Wall tiling, flooring & silicone', unit: 'm²', quantity: '', unitRate: '' },
+  ],
+  'Bathroom remodel': [
+    { section: 'Demolition', description: 'Strip-out existing bathroom', unit: 'lot', quantity: '1', unitRate: '' },
+    { section: 'Plumbing', description: 'New WC, basin & shower rough-in', unit: 'lot', quantity: '1', unitRate: '' },
+    { section: 'Waterproofing', description: 'Tanking & flood test', unit: 'm²', quantity: '', unitRate: '' },
+    { section: 'Finishes', description: 'Wall & floor tiling', unit: 'm²', quantity: '', unitRate: '' },
+  ],
+  'Tiling works': [
+    { section: 'Finishes', description: 'Floor tiles supply & install', unit: 'm²', quantity: '', unitRate: '' },
+    { section: 'Finishes', description: 'Wall tiles supply & install', unit: 'm²', quantity: '', unitRate: '' },
+  ],
+  'Painting & decor': [
+    { section: 'Finishes', description: 'Wall preparation (filler, sand, primer)', unit: 'm²', quantity: '', unitRate: '' },
+    { section: 'Finishes', description: 'Two-coat emulsion paint', unit: 'm²', quantity: '', unitRate: '' },
+    { section: 'Finishes', description: 'Ceiling paint', unit: 'm²', quantity: '', unitRate: '' },
+  ],
+  'Electrical works': [
+    { section: 'Electrical', description: 'DB & breaker upgrade', unit: 'lot', quantity: '1', unitRate: '' },
+    { section: 'Electrical', description: 'New power points & switches', unit: 'point', quantity: '', unitRate: '' },
+    { section: 'Electrical', description: 'LED downlights & fittings', unit: 'point', quantity: '', unitRate: '' },
+  ],
+};
+
 const UNITS = ['item', 'sum', 'm', 'm2', 'm3', 'no', 'kg', 'day', 'hr', 'lot'];
 
 const STATUS_STYLES: Record<string, string> = {
@@ -344,7 +374,17 @@ export default function QuotesManagementView(): React.JSX.Element {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Line Items</span>
-              <button type="button" onClick={addItem} className="text-[11px] font-semibold text-blue-700 hover:text-blue-900">+ Add item</button>
+              <div className="flex items-center gap-2">
+                <select onChange={(e) => {
+                  const t = QUOTE_LINE_TEMPLATES[e.target.value];
+                  if (t) { setItems((prev) => [...prev.filter((i) => i.description.trim()), ...t]); }
+                  e.target.value = '';
+                }} className="text-[11px] p-1 border border-slate-300 rounded bg-white" defaultValue="">
+                  <option value="">+ Add lines from a template…</option>
+                  {Object.keys(QUOTE_LINE_TEMPLATES).map((k) => <option key={k} value={k}>{k}</option>)}
+                </select>
+                <button type="button" onClick={addItem} className="text-[11px] font-semibold text-blue-700 hover:text-blue-900">+ Add item</button>
+              </div>
             </div>
             {items.map((it, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2 items-center">

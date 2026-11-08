@@ -682,6 +682,8 @@ model InspectionChecklist {
   tenant_id       String            @db.Uuid
   project_id      String            @db.Uuid
   checklist_type  ChecklistType
+  inspection_type String?           @db.VarChar(60) // request category (Quality, Safety, Structural…)
+  assigned_consultant String?       @db.VarChar(255) // consultant(s) notified for review
   title           String            @db.VarChar(255)
   location        String            @db.VarChar(255) // e.g. "Block B, 2nd Floor Slab"
   status          InspectionStatus  @default(PENDING)
