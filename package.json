@@ -8,7 +8,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "postinstall": "node scripts/patch-hyphenate.cjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
