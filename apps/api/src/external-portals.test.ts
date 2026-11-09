@@ -430,7 +430,7 @@ describe('External Stakeholder Portals Suite: Token-Based Zero Seat Tax Access',
     expect(taxCertRes.statusCode).toBe(201);
     const taxCert = JSON.parse(taxCertRes.body);
     const remitRes = await server.inject({
-      method: 'POST',
+      method: 'PUT',
       url: `/api/v1/projects/${projectAId}/tax-certificates/${taxCert.id}/remit`,
       headers: { cookie: adminCookie, 'content-type': 'application/json' },
       payload: { status: 'REMITTED_TO_KRA', itaxAcknowledgementReceipt: 'ITAX-E2E-002' },
