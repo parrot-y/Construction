@@ -491,7 +491,7 @@ export const SiteDiaryReportPdf: React.FC<{ data: SiteDiaryReportData }> = ({ da
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>MjengoLedger Daily Site Diary • Project: {project.code}</Text>
+          <Text>Site Safi Daily Site Diary • Project: {project.code}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

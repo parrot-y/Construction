@@ -2,14 +2,14 @@
 
 **Status:** Completed & Self-Verified  
 **Date:** 2026-11-03  
-**Product:** MjengoLedger  
+**Product:** Platform  
 **Test Suite Status:** 137/137 passing tests across monorepo (100% green builds, 0 type errors)
 
 ---
 
 ## 1. Executive Summary
 
-Milestone M9 delivers the dedicated **Client / Property Developer Portal** for MjengoLedger, tailored for private investors, commercial developers, and property owners. The portal replaces fragmented WhatsApp photo updates and opaque contractor spreadsheets with an executive, jargon-free view of project health:
+Milestone M9 delivers the dedicated **Client / Property Developer Portal** for Platform, tailored for private investors, commercial developers, and property owners. The portal replaces fragmented WhatsApp photo updates and opaque contractor spreadsheets with an executive, jargon-free view of project health:
 
 1. **5 Transparent Financial Numbers**: Computed in arbitrary precision `Decimal` via `@construction/money`.
 2. **Neutral Health & Alignment Guard**: Automated comparison of budget consumption % vs recorded physical progress % with zero accusatory language (`ON_TRACK`, `ATTENTION`, `ACTION_REQUIRED`).

@@ -1,0 +1,86 @@
+name: E2E Workflows (Playwright)
+
+on:
+  push:
+    branches: [main, devin/audit-remediation]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  playwright:
+    name: Playwright A–F against real API + DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: construction_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Patch @react-pdf/hyphenate exports
+        run: node scripts/patch-hyphenate.cjs
+
+      - name: Create e2e database roles
+        env:
+          PGPASSWORD: postgrespassword
+        run: |
+          psql -h localhost -U postgres -d construction_e2e <<'SQL'
+            DO $$ BEGIN
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'db_migrator') THEN
+                CREATE ROLE db_migrator WITH LOGIN PASSWORD 'migrator_secret';
+              END IF;
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'db_app') THEN
+                CREATE ROLE db_app WITH LOGIN PASSWORD 'app_secret';
+              END IF;
+            END $$;
+            GRANT ALL PRIVILEGES ON DATABASE construction_e2e TO db_migrator;
+            GRANT USAGE ON SCHEMA public TO db_app;
+          SQL
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @construction/e2e exec playwright install --with-deps chromium
+
+      - name: Run Playwright workflows A–F
+        env:
+          E2E_DATABASE_URL: postgresql://db_app:app_secret@localhost:5432/construction_e2e
+          E2E_MIGRATOR_DATABASE_URL: postgresql://db_migrator:migrator_secret@localhost:5432/construction_e2e
+        run: pnpm --filter @construction/e2e test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14

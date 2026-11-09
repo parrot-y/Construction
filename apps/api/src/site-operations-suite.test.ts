@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma, withTenantTx } from '@construction/db';
 import { buildServer } from './index';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestones M16, M17 & M18: Site Operations, Plant Utilization & Siphoning, Labor Muster Roll & Safety Audits', () => {
   const server = buildServer();
@@ -58,6 +59,7 @@ describe('Milestones M16, M17 & M18: Site Operations, Plant Utilization & Siphon
     });
     expect(projectRes.statusCode).toBe(201);
     projectId = JSON.parse(projectRes.body).data.id;
+    await enrollAllTenantUsers(projectId);
   });
 
   afterAll(async () => {

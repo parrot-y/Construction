@@ -12,7 +12,7 @@
 
 ## 1. Executive Summary
 
-To guarantee operational parity with legacy construction management platforms and provide bulletproof confidence for Kenyan building contractors (NCA Categories 3–6), `MjengoLedger` features an exhaustive **16-stage end-to-end integration simulation** ([`e2e-live-site-simulation.test.ts`](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/apps/api/src/e2e-live-site-simulation.test.ts)).
+To guarantee operational parity with legacy construction management platforms and provide bulletproof confidence for Kenyan building contractors (NCA Categories 3–6), `Platform` features an exhaustive **16-stage end-to-end integration simulation** ([`e2e-live-site-simulation.test.ts`](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/apps/api/src/e2e-live-site-simulation.test.ts)).
 
 This test simulates the real-world operational lifecycle of the **Riverside Commercial Plaza** project in Nairobi, Kenya, executing every interaction through live HTTP requests against the Fastify API, executing PostgreSQL 18 Row-Level Security transactions under the non-superuser `db_app` role, and enforcing all Kenyan statutory and engineering standards.
 

@@ -1067,27 +1067,31 @@ export function calculateEconomicHaul(
 }
 
 // =============================================================
-// MOBILE PLANT CAN-BUS TELEMATICS & FUEL ANOMALY ENGINE (M32)
+// MOBILE PLANT CAN-BUS TELEMATICS & NEUTRAL FUEL DISCREPANCY ENGINE (M32, M1, 2e)
 // =============================================================
 
-export interface FuelSiphoningEvaluation {
+export interface FuelDiscrepancyEvaluation {
   dropLiters: Decimal;
   elapsedSeconds: number;
   dropRateLitersPerHour: Decimal;
-  isSiphoning: boolean;
-  anomalyType: 'NORMAL' | 'RAPID_THEFT_SIPHON' | 'ACTIVE_SIPHON_IDLE' | 'EXCESSIVE_BURN_THEFT' | 'FUEL_REFUEL_EVENT';
+  isDiscrepancy: boolean;
+  isSiphoning: boolean; // Backward-compatibility alias
+  anomalyType: 'NORMAL' | 'RAPID_UNLOGGED_DROP' | 'ELEVATED_IDLE_CONSUMPTION' | 'EXCESSIVE_BURN_RATE' | 'FUEL_REFUEL_EVENT' | 'RAPID_THEFT_SIPHON' | 'ACTIVE_SIPHON_IDLE' | 'EXCESSIVE_BURN_THEFT';
   severity: 'NONE' | 'LOW' | 'HIGH' | 'CRITICAL';
   message: string;
 }
 
-export function evaluateFuelSiphoningAnomaly(
+// Backward-compatibility interface alias
+export type FuelSiphoningEvaluation = FuelDiscrepancyEvaluation;
+
+export function evaluateFuelDiscrepancyAnomaly(
   previousFuelLiters: DecimalValue,
   currentFuelLiters: DecimalValue,
   previousTimestamp: Date | string,
   currentTimestamp: Date | string,
   engineStatus: 'RUNNING' | 'IDLE' | 'STOPPED',
   maxEngineBurnRateLph: DecimalValue = 35.00
-): FuelSiphoningEvaluation {
+): FuelDiscrepancyEvaluation {
   const prevL = toDecimal(previousFuelLiters);
   const currL = toDecimal(currentFuelLiters);
   const maxBurn = toDecimal(maxEngineBurnRateLph);
@@ -1105,6 +1109,7 @@ export function evaluateFuelSiphoningAnomaly(
       dropLiters: deltaLiters,
       elapsedSeconds,
       dropRateLitersPerHour: new Decimal(0),
+      isDiscrepancy: false,
       isSiphoning: false,
       anomalyType: 'FUEL_REFUEL_EVENT',
       severity: 'NONE',
@@ -1117,27 +1122,29 @@ export function evaluateFuelSiphoningAnomaly(
     ? deltaLiters.dividedBy(elapsedHours).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
     : new Decimal(0);
 
-  // 1. Engine STOPPED theft
+  // 1. Engine STOPPED rapid unlogged drop
   if (engineStatus === 'STOPPED' && deltaLiters.greaterThanOrEqualTo(8.0) && elapsedSeconds <= 7200) {
     return {
       dropLiters: deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
       elapsedSeconds,
       dropRateLitersPerHour,
+      isDiscrepancy: true,
       isSiphoning: true,
-      anomalyType: 'RAPID_THEFT_SIPHON',
+      anomalyType: 'RAPID_UNLOGGED_DROP',
       severity: 'CRITICAL',
-      message: `CRITICAL FUEL LEVEL VARIANCE: ${deltaLiters.toFixed(1)}L drop in ${Math.round(elapsedSeconds / 60)} min while engine STOPPED (unmatched to logged issue).`,
+      message: `CRITICAL FUEL LEVEL VARIANCE: Rapid fuel level drop of ${deltaLiters.toFixed(1)}L in ${Math.round(elapsedSeconds / 60)} min while engine STOPPED (unmatched to logged issue).`,
     };
   }
 
-  // 2. Engine IDLE anomaly
+  // 2. Engine IDLE elevated burn anomaly
   if (engineStatus === 'IDLE' && dropRateLitersPerHour.greaterThan(12.0) && deltaLiters.greaterThanOrEqualTo(5.0)) {
     return {
       dropLiters: deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
       elapsedSeconds,
       dropRateLitersPerHour,
+      isDiscrepancy: true,
       isSiphoning: true,
-      anomalyType: 'ACTIVE_SIPHON_IDLE',
+      anomalyType: 'ELEVATED_IDLE_CONSUMPTION',
       severity: 'CRITICAL',
       message: `ABNORMAL FUEL CONSUMPTION AT IDLE: Fuel consumption rate of ${dropRateLitersPerHour.toFixed(1)} L/h exceeds normal idle limit (max 4.0 L/h).`,
     };
@@ -1150,10 +1157,11 @@ export function evaluateFuelSiphoningAnomaly(
       dropLiters: deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
       elapsedSeconds,
       dropRateLitersPerHour,
+      isDiscrepancy: true,
       isSiphoning: true,
-      anomalyType: 'EXCESSIVE_BURN_THEFT',
+      anomalyType: 'EXCESSIVE_BURN_RATE',
       severity: 'HIGH',
-      message: `ABNORMAL FUEL LOSS: Measured burn rate ${dropRateLitersPerHour.toFixed(1)} L/h exceeds engine physical maximum (${maxPhysicalBurn.toFixed(1)} L/h). Suspected inline fuel diversion.`,
+      message: `ABNORMAL FUEL LOSS: Measured burn rate ${dropRateLitersPerHour.toFixed(1)} L/h exceeds engine physical maximum (${maxPhysicalBurn.toFixed(1)} L/h). Unmatched fuel drop flag.`,
     };
   }
 
@@ -1161,12 +1169,16 @@ export function evaluateFuelSiphoningAnomaly(
     dropLiters: deltaLiters.greaterThan(0) ? deltaLiters.toDecimalPlaces(2, Decimal.ROUND_HALF_UP) : new Decimal(0),
     elapsedSeconds,
     dropRateLitersPerHour,
+    isDiscrepancy: false,
     isSiphoning: false,
     anomalyType: 'NORMAL',
     severity: 'NONE',
     message: 'Normal fuel consumption pattern verified.',
   };
 }
+
+// Backward-compatibility function alias
+export const evaluateFuelSiphoningAnomaly = evaluateFuelDiscrepancyAnomaly;
 
 export interface PlantCanBusDiagnostics {
   hasThermalAlarm: boolean;
@@ -1411,7 +1423,7 @@ export interface ProgressInflationResult {
 }
 
 /**
- * Buildsasa Parity: Evaluates progress inflation between contractor claims and independent inspector findings.
+ *  Evaluates progress inflation between contractor claims and independent inspector findings.
  * E.g., contractor claiming 55% or 65% when inspector verifies 40% or 48% (variance <= -15%) triggers CRITICAL_INFLATION.
  */
 export function calculateProgressInflation(

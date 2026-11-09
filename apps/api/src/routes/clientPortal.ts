@@ -147,9 +147,27 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             recorded_by_name: string;
           }> = [];
 
+          // Gate-4 S7: only photos explicitly opted-in (client_visible) are shared;
+          // diary notes/general_notes are NEVER exposed to the client portal.
+          const dailyUpdates: Array<{
+            entry_date: string;
+            weather: string;
+            site_status: string;
+            is_non_work_day: boolean;
+            visible_photo_count: number;
+          }> = [];
+
           for (const diary of siteDiaries) {
             const recordedByName = userMap.get(diary.recorded_by_id) || 'Site Supervisor';
-            for (const photo of diary.photos) {
+            const visiblePhotos = diary.photos.filter((p) => p.client_visible);
+            dailyUpdates.push({
+              entry_date: diary.entry_date.toISOString().slice(0, 10),
+              weather: diary.weather ?? 'UNKNOWN',
+              site_status: diary.site_status ?? 'UNKNOWN',
+              is_non_work_day: diary.is_non_work_day,
+              visible_photo_count: visiblePhotos.length,
+            });
+            for (const photo of visiblePhotos) {
               photoEvidence.push({
                 id: photo.id,
                 caption: photo.caption || 'Verified Site Evidence',
@@ -226,11 +244,11 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             }
           }
 
-          // 10. Pending Variations: SUBMITTED or QS_EVALUATED awaiting client review
+          // 10. Pending Variations: OWNER_REVIEW awaiting client decision (ADR-010)
           const pendingVariationsRaw = await tx.variationOrder.findMany({
             where: {
               project_id: projectId,
-              status: { in: ['SUBMITTED', 'QS_EVALUATED'] },
+              status: 'OWNER_REVIEW',
             },
             include: {
               items: {
@@ -270,6 +288,29 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             items: pendingVariationsList,
             list: pendingVariationsList,
           };
+
+          // 10b. Certified / Paid Payment Certificates (ADR-008): client-visible
+          // once the QS/PM has certified them — drafts and submissions stay internal.
+          const paymentCertsRaw = await tx.paymentCertificate.findMany({
+            where: {
+              project_id: projectId,
+              status: { in: ['CERTIFIED', 'PAID'] },
+            },
+            orderBy: { certificate_no: 'asc' },
+          });
+          const payment_certificates = paymentCertsRaw.map((c) => ({
+            id: c.id,
+            certificate_no: c.certificate_no,
+            period_start: c.period_start.toISOString().split('T')[0],
+            period_end: c.period_end.toISOString().split('T')[0],
+            this_period_amount: toCurrencyString(c.this_period_amount.toString()),
+            cumulative_certified: toCurrencyString(c.cumulative_certified.toString()),
+            retention_held: toCurrencyString(c.retention_held.toString()),
+            net_payable: toCurrencyString(c.net_payable.toString()),
+            status: c.status,
+            certified_at: c.certified_at ? c.certified_at.toISOString() : null,
+            paid_at: c.paid_at ? c.paid_at.toISOString() : null,
+          }));
 
           // 11. Kenyan Standard Retention Terms
           const maxCapAmountDec = originalBudgetDec.times(0.05);
@@ -318,8 +359,10 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
               health_notice: detailedVariance.message,
             },
             photo_evidence: photoEvidence,
+            daily_updates: dailyUpdates,
             timeline,
             pending_variations,
+            payment_certificates,
             retention_terms,
           };
         });
@@ -345,4 +388,93 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
       }
     },
   );
+
+
+  // ---------------------------------------------------------------------------
+  // Client-initiated project requests ("Request a project" portal flow)
+  // ---------------------------------------------------------------------------
+  const PROJECT_TYPES = [
+    'New house / bungalow', 'Maisonette or villa', 'Apartments / flats',
+    'Commercial building', 'Renovation / remodeling', 'Kitchen or bathroom remodel',
+    'Interior design & finishes', 'Fencing & gates', 'Borehole / water works',
+    'Solar / electrical installation', 'CCTV & security', 'Landscaping & gardening',
+    'Roads, drainage or civil works', 'Land clearing & surveying', 'Other',
+  ];
+  const BUDGET_RANGES = ['Below KES 1M', 'KES 1M - 5M', 'KES 5M - 20M', 'KES 20M - 50M', 'Above KES 50M', 'Not sure yet'];
+  const START_TFRAMES = ['As soon as possible', 'Within 3 months', 'In 3 - 6 months', 'In 6 - 12 months', 'Just planning for now'];
+
+  server.post(
+    '/api/v1/client/project-requests',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user as any;
+      if (role !== 'CLIENT') {
+        return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'Only client accounts can submit project requests' });
+      }
+      const body = (request.body || {}) as Record<string, unknown>;
+      const projectType = String(body.projectType || '').trim();
+      const locationText = String(body.locationText || '').trim();
+      const description = String(body.description || '').trim();
+      if (!PROJECT_TYPES.includes(projectType)) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid project type' });
+      }
+      if (!locationText || locationText.length > 255) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Site location is required (max 255 chars)' });
+      }
+      if (!description || description.length > 5000) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Work description is required (max 5000 chars)' });
+      }
+      const budgetRange = BUDGET_RANGES.includes(String(body.budgetRange)) ? String(body.budgetRange) : null;
+      const startTimeframe = START_TFRAMES.includes(String(body.startTimeframe)) ? String(body.startTimeframe) : null;
+      const contactPhone = body.contactPhone ? String(body.contactPhone).slice(0, 30) : null;
+      try {
+        const created = await withTenantTx(prisma, tenantId, async (tx) =>
+          tx.clientProjectRequest.create({
+            data: {
+              tenant_id: tenantId,
+              user_id: sub,
+              project_type: projectType,
+              location_text: locationText,
+              budget_range: budgetRange,
+              start_timeframe: startTimeframe,
+              description,
+              contact_phone: contactPhone,
+            },
+          }),
+        );
+        return reply.status(201).send({ data: created });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to submit request' });
+      }
+    },
+  );
+
+  server.get(
+    '/api/v1/client/project-requests',
+    { preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user as any;
+      try {
+        const rows = await withTenantTx(prisma, tenantId, async (tx) =>
+          tx.clientProjectRequest.findMany({
+            where: role === 'CLIENT' ? { user_id: sub } : {},
+            orderBy: { created_at: 'desc' },
+            take: 50,
+          }),
+        );
+        return reply.status(200).send({
+          data: rows.map((r) => ({
+            ...r,
+            created_at: r.created_at.toISOString(),
+            updated_at: r.updated_at.toISOString(),
+          })),
+        });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list project requests' });
+      }
+    },
+  );
 };
+

@@ -14,28 +14,28 @@ During the Discovery Gate synthesis across 9 Kenyan contractors and property dev
 - **Pricing Hypothesis:** KES 7,500 / active project / month, or KES 25,000 / month for full portfolio access.
 - **Payment Method Preference:** In Kenya, credit cards have low penetration among SME contractors (< 15%). M-Pesa is universal, instant, and the default commercial settlement rail for SME businesses.
 
-To monetize MjengoLedger sustainably after the 30-day live site pilot, the platform requires an automated subscription billing engine powered by **Safaricom Daraja 2.0 STK Push (Lipa na M-Pesa Online)**.
+To monetize Platform sustainably after the 30-day live site pilot, the platform requires an automated subscription billing engine powered by **Safaricom Daraja 2.0 STK Push (Lipa na M-Pesa Online)**.
 
 ---
 
 ## 2. Decision & Architectural Principles
 
 ### 2.1 Subscription-Only Scope (Zero Project Payouts)
-MjengoLedger acts exclusively as a software provider collecting its own subscription SaaS fees. **The platform does NOT handle or escrow construction project payouts or contractor payments in V1.** Project interim certificate payments remain settled through standard commercial bank RTGS/EFT directly between client and contractor.
+Platform acts exclusively as a software provider collecting its own subscription SaaS fees. **The platform does NOT handle or escrow construction project payouts or contractor payments in V1.** Project interim certificate payments remain settled through standard commercial bank RTGS/EFT directly between client and contractor.
 
 ### 2.2 Billing Mechanics: Daraja 2.0 STK Push
 Subscriptions are initiated via Daraja's `Customer-to-Business` STK Push:
 1. When a contractor activates or renews a project, the Fastify API calls Daraja STK Push endpoint:
    `POST https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest`
 2. The contractor owner receives an instant SIM toolkit prompt on their phone:  
-   *"Do you want to pay KES 7,500.00 to MjengoLedger for Project Riverside Plaza? Enter M-Pesa PIN:"*
-3. Upon PIN entry, Safaricom delivers an asynchronous JSON callback payload to MjengoLedger's webhook.
+   *"Do you want to pay KES 7,500.00 to Platform for Project Riverside Plaza? Enter M-Pesa PIN:"*
+3. Upon PIN entry, Safaricom delivers an asynchronous JSON callback payload to Platform's webhook.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Admin as Contractor Admin (David Mwangi)
-    participant UI as MjengoLedger Web PWA
+    participant UI as Platform Web PWA
     participant API as Fastify API (/billing/mpesa)
     participant Daraja as Safaricom Daraja 2.0 API
     participant DB as PostgreSQL 18 (Subscriptions)

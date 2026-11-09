@@ -1,4 +1,4 @@
-# MjengoLedger — Independent Auditor & Review Pack (for Claude / Auditor)
+# Platform — Independent Auditor & Review Pack (for Claude / Auditor)
 
 **Date of Audit:** 2026-11-03  
 **Auditor / Reviewer:** Claude (Independent Auditor)  
@@ -55,7 +55,7 @@ git log --oneline -n 15
 - [x] **M1 (Walking Skeleton):** JWT session auth, cookie handling, `/login`, `/logout`, `/me`, Prisma 6 schema and seed.
 - [x] **M2 (Tenancy & RBAC):** PostgreSQL 18 Row-Level Security with `FORCE ROW LEVEL SECURITY` across 20 tables; `withTenantTx` explicit transaction helper; isolation test suite (`isolation.test.ts`).
 - [x] **M3 (Company, Projects, Dashboards):** Company profiles, crypto-token invitations (7-day expiry), project assignment, 4 distinct role dashboard experiences.
-- [x] **Discovery Gate:** Synthesized 9 Kenyan stakeholder interviews; primary buyer decided (Main Contractor, NCA 3–6); named **MjengoLedger**; pricing hypothesis KES 7,500/mo.
+- [~] **Discovery Gate:** REOPENED — the 9 "interviews" were confirmed AI-synthesized, not real (R-026, owner 2026-11-06). Buyer (Main Contractor, NCA 3–6), name and pricing (KES 7,500/mo hypothesis) are UNVALIDATED hypotheses pending pilot. Workflow evidence now derives from reference-console research (`docs/research/console-audit/`).
 - [x] **M4 (BOQ Staged Import):** Staged 6-stage Excel BOQ parser per ADR-003, EASMM section mapping, arithmetic discrepancy detection, interactive React 19 preview modal with row status badges, atomic commit in `withTenantTx`.
 - [x] **M5 (Costs & Budget):** Append-only `CostEntry` financial ledger, receipt attachments, PM/QS multi-step approvals (`PENDING -> APPROVED / REJECTED / VOIDED`), Decimal budget aggregation.
 - [x] **M6 (Site Diary & Offline):** Daily site diary logging with weather, trades headcount matrix, material deliveries, geotagged photos with Nairobi GPS tags; IndexedDB mutation queue with `Idempotency-Key` duplicate prevention; Canvas client-side photo compression (5MB -> ~150KB).

@@ -8,10 +8,12 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "postinstall": "node scripts/patch-hyphenate.cjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
+    "playwright-core": "^1.65.0",
     "tsx": "^4.23.15",
     "turbo": "^2.4.4",
     "typescript": "^5.8.2",

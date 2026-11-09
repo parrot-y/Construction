@@ -122,12 +122,11 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
     const { token, fullName, password } = parseResult.data;
 
-    const invitation = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.auth_context', 'invite', TRUE)`;
-      return tx.invitation.findUnique({
-        where: { token },
-      });
-    });
+    // Retrieve invitation via narrow SECURITY DEFINER lookup function without auth_context bypasses (2c)
+    const invitationRows = await prisma.$queryRaw<any[]>`
+      SELECT * FROM lookup_invitation_by_token(${token}::text);
+    `;
+    const invitation = invitationRows[0] || null;
 
     if (!invitation || invitation.status !== 'PENDING') {
       return reply.status(400).send({

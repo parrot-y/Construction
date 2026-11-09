@@ -67,6 +67,16 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
               currentHoursMeter: toDecimal(i.current_hours_meter.toString()).toFixed(2),
               status: i.status,
               createdAt: i.created_at.toISOString(),
+              dailyLogs: i.daily_logs.map((l) => ({
+                id: l.id,
+                logDate: l.log_date.toISOString().split('T')[0],
+                operatingHours: toDecimal(l.operating_hours.toString()).toFixed(2),
+                idleHours: toDecimal(l.idle_or_breakdown_hours.toString()).toFixed(2),
+                fuelLitersIssued: toDecimal(l.fuel_liters_issued.toString()).toFixed(2),
+                fuelCostKes: toDecimal(l.total_fuel_cost_kes.toString()).toFixed(2),
+                operatorName: l.operator_name,
+                activities: l.activities_performed,
+              })),
             })),
           };
         });

@@ -470,12 +470,12 @@ export const ProjectSummaryPdf: React.FC<{ data: ProjectSummaryData }> = ({ data
 
         {/* Professional Neutral Disclaimer */}
         <Text style={styles.disclaimer}>
-          Factual Audit Notice: This executive summary is produced directly from the append-only cryptographic transaction ledger of MjengoLedger. All figures represent verified and approved cost items and physical measurement progress records as of the generation timestamp.
+          Factual Audit Notice: This executive summary is produced directly from the append-only cryptographic transaction ledger of Platform. All figures represent verified and approved cost items and physical measurement progress records as of the generation timestamp.
         </Text>
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>MjengoLedger Executive Project Summary • Project: {project.code}</Text>
+          <Text>Site Safi Executive Project Summary • Project: {project.code}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

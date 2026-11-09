@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect} from 'react';
 import LoginForm from './components/LoginForm';
 import Dashboard from './components/Dashboard';
 import LandingPortalHub from './components/LandingPortalHub';
@@ -6,22 +6,23 @@ import ConsultantPortalView from './components/portals/ConsultantPortalView';
 import SubcontractorPortalView from './components/portals/SubcontractorPortalView';
 import SupplierPortalView from './components/portals/SupplierPortalView';
 import CompliancePortalView from './components/portals/CompliancePortalView';
-import ClientDashboard from './components/ClientDashboard';
-import { AuthSession } from './types/auth';
+import ClientPortalView from './components/portals/ClientPortalView';
+import PublicQuoteView from './components/PublicQuoteView';
+import { AuthSession} from './types/auth';
 
 interface AppProps {
   initialPortal?: {
-    type: 'consultant' | 'subcontractor' | 'supplier' | 'compliance' | 'client';
+    type: 'consultant' | 'subcontractor' | 'supplier' | 'compliance' | 'client' | 'quote';
     token: string;
-  };
+};
 }
 
-export default function App({ initialPortal }: AppProps = {}): React.JSX.Element {
+export default function App({ initialPortal}: AppProps = {}): React.JSX.Element {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [externalPortal, setExternalPortal] = useState<{
     type: string;
     token: string;
-  } | null>(initialPortal || null);
+} | null>(initialPortal || null);
   const [showLoginForm, setShowLoginForm] = useState(false);
 
   useEffect(() => {
@@ -30,101 +31,53 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
       const portal = params.get('portal');
       const token = params.get('token');
       if (portal && token) {
-        setExternalPortal({ type: portal.toLowerCase(), token });
-      }
-    }
-  }, [externalPortal]);
+        setExternalPortal({ type: portal.toLowerCase(), token});
+}
+}
+}, [externalPortal]);
 
   const handleLogout = async () => {
     try {
       await fetch('/api/v1/auth/logout', {
         method: 'POST',
         credentials: 'include',
-      });
-    } catch {
+});
+} catch {
       // Ignore network errors on logout
-    }
+}
     setSession(null);
     setShowLoginForm(false);
+};
+
+  // Demo workspace previews — real logins through the normal auth flow.
+  // Only reachable when VITE_DEMO_MODE=true (LandingPortalHub gates the buttons).
+  const DEMO_LOGINS: Record<string, string> = {
+    COMPANY_ADMIN: 'admin@apexbuilders.co.ke',
+    PM_QS: 'qs@apexbuilders.co.ke',
+    SITE_SUPERVISOR: 'supervisor@apexbuilders.co.ke',
+    EXECUTIVE: 'executive@apexbuilders.co.ke',
+    CLIENT: 'client@apexbuilders.co.ke',
   };
 
-  const handleSelectRolePreview = (role: string) => {
-    const roleUpper = role.toUpperCase();
-    switch (roleUpper) {
-      case 'COMPANY_ADMIN':
-        setSession({
-          user: {
-            id: 'demo-admin-id',
-            email: 'admin@apexbuilders.co.ke',
-            fullName: 'David Kimani (Admin)',
-            role: 'COMPANY_ADMIN',
-            tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex-builders', currency: 'KES' },
-          },
-          permissions: ['company.manage', 'user.invite', 'project.create', 'audit.view', 'tender.manage'],
-          token: 'demo-jwt-admin',
-        });
-        break;
+  const [demoPreview, setDemoPreview] = useState(false);
 
-      case 'PM_QS':
-        setSession({
-          user: {
-            id: 'demo-qs-id',
-            email: 'qs@apexbuilders.co.ke',
-            fullName: 'Faith Mutua (Lead QS)',
-            role: 'PM_QS',
-            tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex-builders', currency: 'KES' },
-          },
-          permissions: ['project.view', 'boq.import', 'boq.manage', 'cost.manage', 'variation.request', 'rfi.create', 'progress.record', 'tender.manage'],
-          token: 'demo-jwt-qs',
-        });
-        break;
-
-      case 'SITE_SUPERVISOR':
-        setSession({
-          user: {
-            id: 'demo-sup-id',
-            email: 'supervisor@apexbuilders.co.ke',
-            fullName: 'John Kamau (Site Supervisor)',
-            role: 'SITE_SUPERVISOR',
-            tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex-builders', currency: 'KES' },
-          },
-          permissions: ['project.view', 'diary.create', 'inspection.create', 'progress.record', 'qc.create'],
-          token: 'demo-jwt-supervisor',
-        });
-        break;
-
-      case 'CLIENT':
-        setSession({
-          user: {
-            id: 'demo-client-id',
-            email: 'client@apexbuilders.co.ke',
-            fullName: 'Dr. Evans Kiprop (Diaspora Investor)',
-            role: 'CLIENT',
-            tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex-builders', currency: 'KES' },
-          },
-          permissions: ['project.view', 'client.portal.access', 'report.view', 'variation.approve'],
-          token: 'demo-jwt-client',
-        });
-        break;
-
-      case 'CONSULTANT':
-        setExternalPortal({ type: 'consultant', token: 'demo-consultant-token-123' });
-        break;
-
-      case 'SUBCONTRACTOR':
-        setExternalPortal({ type: 'subcontractor', token: 'demo-subcontractor-token-123' });
-        break;
-
-      case 'SUPPLIER':
-        setExternalPortal({ type: 'supplier', token: 'demo-supplier-token-123' });
-        break;
-
-      case 'COMPLIANCE':
-        setExternalPortal({ type: 'compliance', token: 'demo-compliance-token-123' });
-        break;
-
-      default:
-        break;
+  const handleSelectRolePreview = async (role: string) => {
+    const email = DEMO_LOGINS[role.toUpperCase()];
+    if (!email) return;
+    try {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password: 'Password123!' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSession(data as AuthSession);
+        setDemoPreview(true);
+      }
+    } catch {
+      // Preview unavailable — user can still sign in normally
     }
   };
 
@@ -135,86 +88,87 @@ export default function App({ initialPortal }: AppProps = {}): React.JSX.Element
     switch (externalPortal.type) {
       case 'consultant':
         return (
-          <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-            <ConsultantPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
-          </main>
-        );
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<ConsultantPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+</main>
+);
       case 'subcontractor':
         return (
-          <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-            <SubcontractorPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
-          </main>
-        );
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<SubcontractorPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+</main>
+);
       case 'supplier':
         return (
-          <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-            <SupplierPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
-          </main>
-        );
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<SupplierPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+</main>
+);
       case 'compliance':
         return (
-          <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-            <CompliancePortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
-          </main>
-        );
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<CompliancePortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+</main>
+);
+      case 'quote':
+        return (
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<PublicQuoteView token={externalPortal.token} onBack={handleExitPortal} />
+</main>
+);
       case 'client':
         return (
-          <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-            <ClientDashboard
-              session={{
-                user: {
-                  id: 'client-guest',
-                  email: 'client@stakeholder.co.ke',
-                  fullName: 'Project Client / Developer',
-                  role: 'CLIENT',
-                  tenant: { id: 'tenant-1', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES' },
-                },
-                permissions: ['project.view'],
-                token: externalPortal.token,
-              }}
-            />
-          </main>
-        );
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<ClientPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+</main>
+);
       default:
         break;
-    }
-  }
+}
+}
 
   // 2. Standard authenticated workspace / login / landing hub flow
   if (session) {
     return (
-      <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-        <Dashboard session={session} onLogout={handleLogout} />
-      </main>
-    );
-  }
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+{demoPreview && (
+<div className="w-full max-w-6xl mx-auto mb-3 px-1">
+<div className="rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold px-4 py-2 text-center">
+            Demo workspace — seeded sample data for evaluation only. Not a real project.
+</div>
+</div>
+)}
+<Dashboard session={session} onLogout={handleLogout} />
+</main>
+);
+}
 
   // 3. Login form view toggle
   if (showLoginForm) {
     return (
-      <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-        <div className="w-full max-w-md mx-auto mb-4">
-          <button
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<div className="w-full max-w-md mx-auto mb-4">
+<button
             onClick={() => setShowLoginForm(false)}
             data-testid="back-to-landing-btn"
             className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition"
           >
-            <span>←</span>
-            <span>Back to Buildsasa Kenya Landing Portal Hub</span>
-          </button>
-        </div>
-        <LoginForm onLoginSuccess={(newSession) => setSession(newSession)} />
-      </main>
-    );
-  }
+<span>←</span>
+<span>Back to Site Safi Landing Portal Hub</span>
+</button>
+</div>
+<LoginForm onLoginSuccess={(newSession) => setSession(newSession)} />
+</main>
+);
+}
 
-  // 4. Default Buildsasa Landing Portal Experience Hub
+  // 4. Default Platform Landing Portal Experience Hub
   return (
-    <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-      <LandingPortalHub
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<LandingPortalHub
         onSelectRolePreview={handleSelectRolePreview}
         onOpenLogin={() => setShowLoginForm(true)}
       />
-    </main>
-  );
+</main>
+);
 }

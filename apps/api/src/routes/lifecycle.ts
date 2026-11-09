@@ -1,3 +1,4 @@
+import React from 'react';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Decimal, toDecimal } from '@construction/money';
@@ -10,12 +11,87 @@ import {
   RecordCubeBreakSchema,
   CreateSnagItemSchema,
   UpdateSnagStatusSchema,
+  CreateSnagCommentSchema,
+  CreateSnagDistributionSchema,
   CreateDefectsCertificateSchema,
+  ConsultantReviewSchema,
 } from '@construction/validation';
+import { Permissions } from '@construction/permissions';
+import { requirePermission } from '../plugins/rbac';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // 2.4 POST /api/v1/projects/:projectId/inspections/:id/consultant-review
+  // Gate-5 G5-4: consultant approval chain — reviewer approves (restores the
+  // computed approval status) or rejects (returns checklist to IN_PROGRESS).
+  server.post(
+    '/api/v1/projects/:projectId/inspections/:id/consultant-review',
+    { preHandler: [server.authenticate, requirePermission(Permissions.INSPECTION_REVIEW)] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, id } = request.params as { projectId: string; id: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(id)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Inspection not found' });
+      }
+      const parsed = ConsultantReviewSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid review', details: parsed.error.errors });
+      }
+      const { decision, notes } = parsed.data;
+      const reviewerName = (request.user as any).full_name || (request.user as any).email || 'Reviewer';
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const checklist = await tx.inspectionChecklist.findFirst({
+            where: { id, project_id: projectId },
+            include: { items: true },
+          });
+          if (!checklist) throw { status: 404, message: 'Inspection not found' };
+          if (!checklist.requires_consultant_review) {
+            throw { status: 400, message: 'This inspection does not require consultant review' };
+          }
+          if (checklist.status !== 'PENDING_CONSULTANT_REVIEW') {
+            throw { status: 400, message: `Checklist is ${checklist.status}, not awaiting consultant review` };
+          }
+
+          const allItems = checklist.items;
+          const hasConditions = allItems.some((i) => !i.is_mandatory && i.result !== 'PASS');
+          const approvedStatus = hasConditions ? 'APPROVED_WITH_CONDITIONS' : 'APPROVED_WITHOUT_COMMENTS';
+
+          const updated = await tx.inspectionChecklist.update({
+            where: { id },
+            data: {
+              consultant_review_status: decision === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+              consultant_reviewed_by_id: sub,
+              consultant_reviewed_by_name: reviewerName,
+              consultant_reviewed_at: new Date(),
+              consultant_review_notes: notes ?? null,
+              ...(decision === 'APPROVE'
+                ? { status: approvedStatus, inspected_at: new Date(), signed_off_by_id: sub }
+                : { status: 'IN_PROGRESS' }),
+            },
+            include: { items: { orderBy: { order_idx: 'asc' } } },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId, projectId, actorId: sub,
+            action: 'INSPECTION_CONSULTANT_REVIEW', entityType: 'InspectionChecklist', entityId: id,
+            changes: { decision, notes: notes ?? null, resultingStatus: updated.status },
+          });
+          return updated;
+        });
+        return reply.status(200).send(result);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        }
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err.message });
+      }
+    },
+  );
+
   // ===========================================================================
   // DOMAIN 1: RFIs & TECHNICAL QUERIES
   // ===========================================================================
@@ -133,6 +209,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               tenant_id: tenantId,
               project_id: projectId,
               rfi_number: nextRfiNumber,
+              issue_type: data.issueType ?? 'RFI',
               title: data.title,
               question: data.question,
               suggested_solution: data.suggestedSolution,
@@ -317,6 +394,40 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
   // DOMAIN 2: QUALITY ASSURANCE & INSPECTION CHECKLISTS
   // ===========================================================================
 
+  // 1.4 POST /api/v1/projects/:projectId/rfis/:rfiId/close — manual close
+  server.post(
+    '/api/v1/projects/:projectId/rfis/:rfiId/close',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, rfiId } = request.params as { projectId: string; rfiId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(rfiId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'RFI not found' });
+      }
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const rfi = await tx.rFI.findFirst({ where: { id: rfiId, project_id: projectId } });
+          if (!rfi) throw { status: 404, message: 'RFI not found' };
+          if (rfi.status === 'CLOSED' || rfi.status === 'DRAFT') {
+            throw { status: 400, message: `Cannot close RFI in ${rfi.status} status` };
+          }
+          const u = await tx.rFI.update({ where: { id: rfiId }, data: { status: 'CLOSED', closed_at: new Date() } });
+          await recordAuditLog(tx, {
+            tenantId, projectId, actorId: sub,
+            action: 'RFI_CLOSED', entityType: 'RFI', entityId: rfiId,
+            changes: { from: rfi.status, to: 'CLOSED' },
+          });
+          return u;
+        });
+        return reply.status(200).send(updated);
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err.message });
+      }
+    },
+  );
+
   // 2.1 GET /api/v1/projects/:projectId/inspections - List Inspections
   server.get(
     '/api/v1/projects/:projectId/inspections',
@@ -414,6 +525,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               tenant_id: tenantId,
               project_id: projectId,
               checklist_type: data.checklistType,
+              inspection_type: data.inspectionType ?? null,
+              assigned_consultant: data.assignedConsultant ?? null,
               title: data.title,
               location: data.location,
               status: 'PENDING',
@@ -421,6 +534,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               inspector_name: data.inspectorName,
               inspector_role: data.inspectorRole,
               summary_notes: data.summaryNotes,
+              requires_consultant_review: data.requiresConsultantReview ?? false,
+              consultant_review_status: data.requiresConsultantReview ? 'PENDING' : 'NOT_REQUIRED',
               items: data.items?.length
                 ? {
                     create: data.items.map((item) => ({
@@ -555,11 +670,17 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             newChecklistStatus = 'IN_PROGRESS';
           } else if (allMandatoryPassed) {
             const hasConditions = allItems.some((i) => !i.is_mandatory && i.result !== 'PASS');
-            newChecklistStatus = hasConditions
+            const wouldApprove = hasConditions
               ? 'APPROVED_WITH_CONDITIONS'
               : 'APPROVED_WITHOUT_COMMENTS';
-            inspectedAt = new Date();
-            signedOffById = sub;
+            // Gate-5 G5-4: consultant approval chain — pause for review
+            if (checklist.requires_consultant_review && checklist.consultant_review_status !== 'APPROVED') {
+              newChecklistStatus = 'PENDING_CONSULTANT_REVIEW';
+            } else {
+              newChecklistStatus = wouldApprove;
+              inspectedAt = new Date();
+              signedOffById = sub;
+            }
           }
 
           const updatedChecklist = await tx.inspectionChecklist.update({
@@ -976,6 +1097,103 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     },
   );
 
+  // 4.1b GET /api/v1/projects/:projectId/snags/export?format=csv
+  // Gate-5: observed Punch list CSV export — flat register of all snags.
+  server.get(
+    '/api/v1/projects/:projectId/snags/export',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      const { format = 'csv' } = request.query as { format?: string };
+
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      if (!['csv', 'pdf'].includes(format)) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Supported formats: csv, pdf' });
+      }
+
+      try {
+        const { rows, project } = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId }, select: { code: true, name: true } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+          const rows = await tx.snagItem.findMany({
+            where: { project_id: projectId },
+            orderBy: { snag_number: 'asc' },
+          });
+          return { rows, project };
+        });
+
+        const esc = (v: unknown) => {
+          const str = v === null || v === undefined ? '' : String(v);
+          return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+        };
+        const header = ['Ref', 'Location', 'Trade', 'Item type', 'Description', 'Severity', 'Priority', 'Status', 'Manager', 'Final approver', 'Cost impact (KES)', 'Schedule impact (days)', 'Due date', 'Private', 'Created'];
+        const lines = rows.map((s) => [
+          `SNAG-${String(s.snag_number).padStart(4, '0')}`,
+          [s.location_block, s.location_floor, s.location_room].filter(Boolean).join(' / '),
+          s.trade_category, s.item_type ?? '', s.description, s.severity, s.priority, s.status,
+          s.manager_name ?? '', s.final_approver_name ?? '',
+          s.cost_impact_kes?.toString() ?? '', s.schedule_impact_days ?? '',
+          s.due_date?.toISOString().slice(0, 10) ?? '', s.is_private ? 'YES' : 'NO',
+          s.identified_at.toISOString().slice(0, 10),
+        ].map(esc).join(','));
+
+        if (format === 'pdf') {
+          const { SnagRegisterPdf } = await import('../reports/SnagRegisterPdf');
+          const { renderPdfToBuffer } = await import('../reports/renderPdf');
+          // project already fetched inside tenant tx above
+          const openStatuses = ['OPEN', 'IN_PROGRESS', 'READY_FOR_REVIEW', 'CONTESTED'];
+          const docElement = React.createElement(SnagRegisterPdf, {
+            data: {
+              projectName: project.name,
+              projectCode: project.code,
+              generatedAt: new Date().toISOString().slice(0, 10),
+              totalCount: rows.length,
+              openCount: rows.filter((r: any) => openStatuses.includes(r.status)).length,
+              verifiedCount: rows.filter((r: any) => r.status === 'VERIFIED_CLOSED').length,
+              rows: rows.map((s) => ({
+                ref: `SNAG-${String(s.snag_number).padStart(4, '0')}`,
+                location: [s.location_block, s.location_floor, s.location_room].filter(Boolean).join(' / '),
+                trade: s.trade_category,
+                itemType: s.item_type,
+                description: s.description,
+                severity: s.severity,
+                priority: s.priority,
+                status: s.status,
+                managerName: s.manager_name,
+                finalApproverName: s.final_approver_name,
+                costImpactKes: s.cost_impact_kes?.toString() ?? null,
+                dueDate: s.due_date?.toISOString().slice(0, 10) ?? null,
+                isPrivate: s.is_private,
+              })),
+            },
+          });
+          const pdfBuffer = await renderPdfToBuffer(docElement);
+          return reply
+            .header('Content-Type', 'application/pdf')
+            .header('Content-Disposition', 'attachment; filename="snag-register.pdf"')
+            .status(200)
+            .send(pdfBuffer);
+        }
+
+        const csv = [header.map(esc).join(','), ...lines].join('\n');
+        return reply
+          .header('Content-Type', 'text/csv; charset=utf-8')
+          .header('Content-Disposition', `attachment; filename="snag-register.csv"`)
+          .status(200)
+          .send(csv);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        }
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err.message });
+      }
+    },
+  );
+
   // 4.2 POST /api/v1/projects/:projectId/snags - Create Snag Item
   server.post(
     '/api/v1/projects/:projectId/snags',
@@ -1032,6 +1250,16 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               description: data.description,
               severity: data.severity,
               status: 'OPEN',
+              // Gate-4 S6 punch-list depth
+              priority: data.priority ?? 'MEDIUM',
+              item_type: data.itemType ?? null,
+              is_private: data.isPrivate ?? false,
+              manager_name: data.managerName ?? null,
+              final_approver_name: data.finalApproverName ?? null,
+              cost_impact_kes: data.costImpactKes ? toDecimal(data.costImpactKes).toFixed(2) : null,
+              schedule_impact_days: data.scheduleImpactDays ?? null,
+              cost_code: data.costCode ?? null,
+              reference_doc: data.referenceDoc ?? null,
               assigned_trade_firm: data.assignedTradeFirm,
               due_date: data.dueDate ? new Date(`${data.dueDate}T00:00:00.000Z`) : null,
               identified_by_name: data.identifiedByName,
@@ -1053,9 +1281,20 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
                     })),
                   }
                 : undefined,
+              distributions: data.distributions?.length
+                ? {
+                    create: data.distributions.map((d) => ({
+                      tenant_id: tenantId,
+                      recipient_name: d.recipientName,
+                      recipient_contact: d.recipientContact ?? null,
+                      channel: d.channel ?? null,
+                    })),
+                  }
+                : undefined,
             },
             include: {
               photos: true,
+              distributions: true,
             },
           });
 
@@ -1139,6 +1378,25 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             throw { status: 404, message: 'Snag item not found' };
           }
 
+          // Gate-4 S6: legal status transitions (Open -> In Progress ->
+          // Ready for Review -> Resolved(rectified) -> Closed | Rejected)
+          const SNAG_TRANSITIONS: Record<string, string[]> = {
+            OPEN: ['IN_PROGRESS', 'RECTIFIED_BY_CONTRACTOR', 'REJECTED'],
+            IN_PROGRESS: ['READY_FOR_REVIEW', 'RECTIFIED_BY_CONTRACTOR', 'REJECTED'],
+            READY_FOR_REVIEW: ['VERIFIED_CLOSED', 'IN_PROGRESS', 'REJECTED'],
+            RECTIFIED_BY_CONTRACTOR: ['VERIFIED_CLOSED', 'READY_FOR_REVIEW', 'IN_PROGRESS', 'CONTESTED'],
+            CONTESTED: ['IN_PROGRESS', 'READY_FOR_REVIEW', 'REJECTED'],
+            VERIFIED_CLOSED: [],
+            REJECTED: [],
+          };
+          const allowed = SNAG_TRANSITIONS[snag.status] ?? [];
+          if (snag.status !== data.status && !allowed.includes(data.status)) {
+            throw {
+              status: 400,
+              message: `Illegal snag transition: ${snag.status} -> ${data.status}`,
+            };
+          }
+
           const now = new Date();
           let rectifiedAt = snag.rectified_at;
           let verifiedAt = snag.verified_at;
@@ -1212,6 +1470,213 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(200).send(updated);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Error',
+            message: err.message,
+          });
+        }
+        request.log.error(err);
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    },
+  );
+
+  // 4.4 GET /api/v1/projects/:projectId/snags/:snagId - Snag detail (comments + distributions)
+  server.get(
+    '/api/v1/projects/:projectId/snags/:snagId',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, snagId } = request.params as { projectId: string; snagId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(snagId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project or snag not found',
+        });
+      }
+
+      try {
+        const snag = await withTenantTx(prisma, tenantId, async (tx) => {
+          const record = await tx.snagItem.findFirst({
+            where: { id: snagId, project_id: projectId },
+            include: {
+              photos: { orderBy: { captured_at: 'asc' } },
+              comments: { orderBy: { created_at: 'asc' } },
+              distributions: { orderBy: { created_at: 'asc' } },
+            },
+          });
+          if (!record) throw { status: 404, message: 'Snag item not found' };
+          return {
+            ...record,
+            cost_impact_kes: record.cost_impact_kes ? record.cost_impact_kes.toString() : null,
+            photos: record.photos.map((p) => ({
+              ...p,
+              gps_latitude: p.gps_latitude ? p.gps_latitude.toString() : null,
+              gps_longitude: p.gps_longitude ? p.gps_longitude.toString() : null,
+            })),
+          };
+        });
+        return reply.status(200).send(snag);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Error',
+            message: err.message,
+          });
+        }
+        request.log.error(err);
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    },
+  );
+
+  // 4.5 POST /api/v1/projects/:projectId/snags/:snagId/comments
+  server.post(
+    '/api/v1/projects/:projectId/snags/:snagId/comments',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, fullName } = request.user;
+      const { projectId, snagId } = request.params as { projectId: string; snagId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(snagId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project or snag not found',
+        });
+      }
+
+      const parseResult = CreateSnagCommentSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid comment payload',
+          details: parseResult.error.errors,
+        });
+      }
+      const data = parseResult.data;
+
+      try {
+        const comment = await withTenantTx(prisma, tenantId, async (tx) => {
+          const snag = await tx.snagItem.findFirst({
+            where: { id: snagId, project_id: projectId },
+            select: { id: true },
+          });
+          if (!snag) throw { status: 404, message: 'Snag item not found' };
+
+          const created = await tx.snagComment.create({
+            data: {
+              tenant_id: tenantId,
+              snag_item_id: snagId,
+              author_name: data.authorName || fullName || 'Team Member',
+              body: data.body,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'SNAG_COMMENT_ADDED',
+            entityType: 'SnagItem',
+            entityId: snagId,
+            changes: { commentId: created.id },
+          });
+
+          return created;
+        });
+        return reply.status(201).send(comment);
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Error',
+            message: err.message,
+          });
+        }
+        request.log.error(err);
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: err.message,
+        });
+      }
+    },
+  );
+
+  // 4.6 POST /api/v1/projects/:projectId/snags/:snagId/distributions
+  server.post(
+    '/api/v1/projects/:projectId/snags/:snagId/distributions',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, snagId } = request.params as { projectId: string; snagId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(snagId)) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Project or snag not found',
+        });
+      }
+
+      const parseResult = CreateSnagDistributionSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid distribution payload',
+          details: parseResult.error.errors,
+        });
+      }
+      const data = parseResult.data;
+
+      try {
+        const distribution = await withTenantTx(prisma, tenantId, async (tx) => {
+          const snag = await tx.snagItem.findFirst({
+            where: { id: snagId, project_id: projectId },
+            select: { id: true },
+          });
+          if (!snag) throw { status: 404, message: 'Snag item not found' };
+
+          const created = await tx.snagDistribution.create({
+            data: {
+              tenant_id: tenantId,
+              snag_item_id: snagId,
+              recipient_name: data.recipientName,
+              recipient_contact: data.recipientContact ?? null,
+              channel: data.channel ?? null,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'SNAG_DISTRIBUTION_ADDED',
+            entityType: 'SnagItem',
+            entityId: snagId,
+            changes: { distributionId: created.id, recipient: data.recipientName },
+          });
+
+          return created;
+        });
+        return reply.status(201).send(distribution);
       } catch (err: any) {
         if (err.status) {
           return reply.status(err.status).send({

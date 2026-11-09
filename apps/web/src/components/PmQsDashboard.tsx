@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { toCurrencyString } from '@construction/money';
-import { AuthSession } from '../types/auth';
+import { formatKes} from '../ui';
+import React, { useEffect, useState} from 'react';
+import { AuthSession} from '../types/auth';
 import BoqImportModal from './BoqImportModal';
 import PhysicalProgressModal from './PhysicalProgressModal';
 import BudgetSummaryCard from './BudgetSummaryCard';
@@ -10,6 +10,18 @@ import VariationManagementView from './VariationManagementView';
 import RfiManagementView from './RfiManagementView';
 import QualityControlView from './QualityControlView';
 import PracticalCompletionCard from './PracticalCompletionCard';
+import CertificatesCloseoutView from './CertificatesCloseoutView';
+import CommitmentsView from './CommitmentsView';
+import ProjectOnboardingView from './ProjectOnboardingView';
+import AnnouncementsView from './AnnouncementsView';
+import InboxView from './InboxView';
+import ObservationsView from './ObservationsView';
+import CrewsView from './CrewsView';
+import CompanyDocumentsView from './CompanyDocumentsView';
+import CorrespondenceView from './CorrespondenceView';
+import ScheduledReportsView from './ScheduledReportsView';
+import AttendanceView from './AttendanceView';
+import ChecklistsView from './ChecklistsView';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
 import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import SiteInventoryManagementView from './SiteInventoryManagementView';
@@ -18,616 +30,731 @@ import ProjectDocumentVaultView from './ProjectDocumentVaultView';
 import SubcontractorManagementView from './SubcontractorManagementView';
 import WeatherDelayClaimsView from './WeatherDelayClaimsView';
 import StatutoryTaxManagementView from './StatutoryTaxManagementView';
-import { MaterialRequisitionView } from './MaterialRequisitionView';
-import { MaterialWastageVarianceCard } from './MaterialWastageVarianceCard';
-import { ProjectSCurveCashFlowCard } from './ProjectSCurveCashFlowCard';
-import { SubcontractorValuationView } from './SubcontractorValuationView';
-import { PlantEquipmentView } from './PlantEquipmentView';
-import { LaborMusterRollView } from './LaborMusterRollView';
-import { SafetyAuditScorecardView } from './SafetyAuditScorecardView';
-import { ETimsTaxComplianceView } from './ETimsTaxComplianceView';
-import { WhatsAppSiteWebhookView } from './WhatsAppSiteWebhookView';
-import { RetentionAndBondsView } from './RetentionAndBondsView';
-import { GeofencedClockInView } from './GeofencedClockInView';
-import { PlantTelematicsView } from './PlantTelematicsView';
-import { BarBendingScheduleView } from './BarBendingScheduleView';
-import { MpesaDisbursementView } from './MpesaDisbursementView';
-import { RmcTransitTrackerView } from './RmcTransitTrackerView';
-import { StructuralSteelTakeoffView } from './StructuralSteelTakeoffView';
-import { GeotechnicalSoilView } from './GeotechnicalSoilView';
-import { AsphaltPavementView } from './AsphaltPavementView';
-import { TopographicSurveyView } from './TopographicSurveyView';
+import { MaterialRequisitionView} from './MaterialRequisitionView';
+import { MaterialWastageVarianceCard} from './MaterialWastageVarianceCard';
+import { ProjectSCurveCashFlowCard} from './ProjectSCurveCashFlowCard';
+import { SubcontractorValuationView} from './SubcontractorValuationView';
+import { PlantEquipmentView} from './PlantEquipmentView';
+import { LaborMusterRollView} from './LaborMusterRollView';
+import { SafetyAuditScorecardView} from './SafetyAuditScorecardView';
+import { ETimsTaxComplianceView} from './ETimsTaxComplianceView';
+import { WhatsAppSiteWebhookView} from './WhatsAppSiteWebhookView';
+import { RetentionAndBondsView} from './RetentionAndBondsView';
+import { GeofencedClockInView} from './GeofencedClockInView';
+import { PlantTelematicsView} from './PlantTelematicsView';
+import { BarBendingScheduleView} from './BarBendingScheduleView';
+import { MpesaDisbursementView} from './MpesaDisbursementView';
+import { RmcTransitTrackerView} from './RmcTransitTrackerView';
+import { StructuralSteelTakeoffView} from './StructuralSteelTakeoffView';
+import { GeotechnicalSoilView} from './GeotechnicalSoilView';
+import { AsphaltPavementView} from './AsphaltPavementView';
+import { TopographicSurveyView} from './TopographicSurveyView';
 import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
+import { isModuleEnabled } from '../lib/modules';
+import QuotesManagementView from './QuotesManagementView';
+import InvoicingView from './InvoicingView';
 
 interface PmQsDashboardProps {
   session: AuthSession;
   onPreviewPortal?: (portalType: string, token: string, name: string, role?: string) => void;
 }
 
-export default function PmQsDashboard({ session, onPreviewPortal }: PmQsDashboardProps): React.JSX.Element {
-  const { user } = session;
-  const sampleBudget = toCurrencyString('45000000.00');
+export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboardProps): React.JSX.Element {
+  const { user} = session;
+  const sampleBudget = '45000000.00';
   const [showBoqModal, setShowBoqModal] = useState(false);
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders'>('all');
+  const [projects, setProjects] = useState<{ id: string; name: string; code: string}[]>([]);
+  const [pid, setPid] = useState('project-rcp-2026');
+  useEffect(() => {
+    fetch('/api/v1/projects', { credentials: 'include'})
+      .then((r) => r.json())
+      .then((j) => {
+        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
+        setProjects(list);
+        if (list.length) setPid(list[0].id);
+})
+      .catch(() => setProjects([]));
+}, []);
+  const [tabGroup, setTabGroup] = useState<'all' | 'core' | 'field' | 'money' | 'collab'>('core');
+  const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox' | 'observations' | 'crews' | 'documents' | 'correspondence' | 'scheduled' | 'attendance' | 'checklists'>('all');
 
   const handleImportSuccess = (boq: any) => {
-    setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
-  };
+    setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: ${formatKes(boq.total_amount)})`);
+};
+
+  const MODULE_TABS: { id: string; label: string; group: 'all' | 'core' | 'field' | 'money' | 'collab'}[] = [
+    { id: 'all', label: 'All Modules', group: 'all'},
+    { id: 'schedule', label: ' Schedule & Gantt', group: 'core'},
+    { id: 'store', label: ' Site Inventory', group: 'core'},
+    { id: 'subcontractors', label: ' Subcontractors', group: 'core'},
+    { id: 'drawings', label: ' Drawings Vault', group: 'core'},
+    { id: 'safety', label: ' HSE & Safety', group: 'core'},
+    { id: 'cost', label: ' Costs & BOQ', group: 'core'},
+    { id: 'variations', label: ' Variations', group: 'core'},
+    { id: 'rfis', label: ' RFI Register', group: 'core'},
+    { id: 'quality', label: ' Quality & Cubes', group: 'core'},
+    { id: 'delays', label: ' Weather & EOT', group: 'core'},
+    { id: 'closeout', label: ' Closeout & Retention', group: 'core'},
+    { id: 'project', label: ' Project', group: 'core'},
+    { id: 'portals', label: ' Stakeholder Portals', group: 'core'},
+    { id: 'tenders', label: ' Tender Board', group: 'core'},
+    { id: 'equipment', label: ' Plant & Machinery', group: 'field'},
+    { id: 'muster', label: ' Labor Muster Roll', group: 'field'},
+    { id: 'safetyaudit', label: ' Field Safety Scorecard', group: 'field'},
+    { id: 'whatsapp', label: ' WhatsApp Site Bot', group: 'field'},
+    { id: 'geofence', label: ' Site Geofencing', group: 'field'},
+    { id: 'telematics', label: ' Plant Telematics', group: 'field'},
+    { id: 'rebar', label: ' Rebar BBS Takeoff', group: 'field'},
+    { id: 'rmc', label: ' RMC Transit & Slump', group: 'field'},
+    { id: 'steel', label: ' Structural Steel Takeoff', group: 'field'},
+    { id: 'soil', label: ' Geotechnical Soil QA', group: 'field'},
+    { id: 'asphalt', label: ' Asphalt Pavement QA', group: 'field'},
+    { id: 'survey', label: ' Topographic Survey & Earthworks', group: 'field'},
+    { id: 'inspections', label: ' Site Inspections', group: 'field'},
+    { id: 'attendance', label: ' Attendance', group: 'field'},
+    { id: 'checklists', label: ' Checklists', group: 'field'},
+    { id: 'crews', label: ' Crews', group: 'field'},
+    { id: 'observations', label: ' Observations', group: 'field'},
+    { id: 'taxes', label: ' KRA WHT / WHVAT', group: 'money'},
+    { id: 'requisitions', label: ' Material Requisitions', group: 'money'},
+    { id: 'wastage', label: ' Wastage Variance', group: 'money'},
+    { id: 'cashflow', label: ' Cash Flow & S-Curve', group: 'money'},
+    { id: 'subvaluations', label: ' Subcontractor Valuations', group: 'money'},
+    { id: 'disbursements', label: ' M-Pesa B2C Payouts', group: 'money'},
+    { id: 'etims', label: ' KRA e-TIMS Invoices', group: 'money'},
+    { id: 'retentionbonds', label: ' Retention & Bonds', group: 'money'},
+    { id: 'quotes', label: ' Quotes & Cash', group: 'money'},
+    { id: 'invoices', label: ' Invoicing', group: 'money'},
+    { id: 'commitments', label: ' Commitments', group: 'money'},
+    { id: 'announcements', label: ' Announcements', group: 'collab'},
+    { id: 'inbox', label: ' Inbox', group: 'collab'},
+    { id: 'documents', label: ' Documents', group: 'collab'},
+    { id: 'correspondence', label: ' Correspondence', group: 'collab'},
+    { id: 'scheduled', label: ' Scheduled Reports', group: 'collab'},
+  ];
 
   return (
-    <div className="space-y-6">
+<div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <span className="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div>
+<span className="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full ">
             PM / Quantity Surveyor Workspace
-          </span>
-          <h2 className="text-xl font-bold text-slate-900 mt-1">Cost Control & BOQ Management</h2>
-          <p className="text-xs text-slate-500">
+</span>
+<h2 className="text-xl font-bold text-slate-900 mt-1">Cost Control & BOQ Management</h2>
+<p className="text-xs text-slate-500">
             Quantity surveyor controls, BOQ baseline, interim valuations, and variance tracking for {user.tenant.name}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <a
-            href="/api/v1/projects/project-rcp-2026/reports/ipc"
+</p>
+</div>
+<div className="flex flex-wrap items-center gap-2">
+          {projects.length > 1 && (
+<select value={pid} onChange={(e) => setPid(e.target.value)}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs max-w-[200px]">
+              {projects.map((p) =><option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+</select>
+)}
+<a
+            href={`/api/v1/projects/${pid}/reports/ipc`}
             download
             data-testid="download-ipc-btn"
             className="px-3.5 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
             title="Download Interim Payment Certificate (IPC PDF)"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span>Download IPC (PDF)</span>
-          </a>
-          <a
-            href="/api/v1/projects/project-rcp-2026/reports/summary"
+<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+</svg>
+<span>Download IPC (PDF)</span>
+</a>
+<a
+            href={`/api/v1/projects/${pid}/reports/summary`}
             download
             data-testid="download-summary-btn"
             className="px-3.5 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
             title="Download Project Summary (PDF)"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span>Project Summary (PDF)</span>
-          </a>
-          <button
+<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+</svg>
+<span>Project Summary (PDF)</span>
+</a>
+<button
             onClick={() => setShowProgressModal(true)}
             className="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
-            📈 Record Progress
-          </button>
-          <button
+             Record Progress
+</button>
+<button
             onClick={() => setShowBoqModal(true)}
             className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
-            📊 Import Excel BOQ
-          </button>
-          <span className="hidden sm:inline-block px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg">
+             Import Excel BOQ
+</button>
+<a
+            href={`/api/v1/projects/${pid}/boq/export`}
+            download
+            data-testid="export-boq-btn"
+            className="px-3.5 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg shadow-sm transition flex items-center gap-1.5"
+            title="Download active BOQ as Excel workbook"
+          >
+            Export BOQ
+</a>
+<span className="hidden sm:inline-block px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg">
             BORAQS / EASMM
-          </span>
-        </div>
-      </div>
+</span>
+</div>
+</div>
 
       {progressSuccess && (
-        <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium rounded-lg flex justify-between items-center">
-          <span>✓ {progressSuccess}</span>
-          <button onClick={() => setProgressSuccess(null)} className="text-blue-600 hover:text-blue-900 font-bold ml-2">×</button>
-        </div>
-      )}
+<div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium rounded-lg flex justify-between items-center">
+<span> {progressSuccess}</span>
+<button onClick={() => setProgressSuccess(null)} className="text-blue-600 hover:text-blue-900 font-bold ml-2">×</button>
+</div>
+)}
 
       {boqSuccess && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
-          <span>✓ {boqSuccess}</span>
-          <button onClick={() => setBoqSuccess(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
-        </div>
-      )}
+<div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
+<span> {boqSuccess}</span>
+<button onClick={() => setBoqSuccess(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+</div>
+)}
 
       {/* Navigation Module Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
-        {[
-          { id: 'all', label: 'All Modules' },
-          { id: 'schedule', label: '📅 Schedule & Gantt' },
-          { id: 'store', label: '📦 Site Inventory' },
-          { id: 'subcontractors', label: '🤝 Subcontractors' },
-          { id: 'drawings', label: '📐 Drawings Vault' },
-          { id: 'safety', label: '🦺 HSE & Safety' },
-          { id: 'cost', label: '💰 Costs & BOQ' },
-          { id: 'variations', label: '📑 Variations' },
-          { id: 'rfis', label: '📋 RFI Register' },
-          { id: 'quality', label: '🧪 Quality & Cubes' },
-          { id: 'delays', label: '🌧️ Weather & EOT' },
-          { id: 'taxes', label: '🏛️ KRA WHT / WHVAT' },
-          { id: 'requisitions', label: '📦 Material Requisitions' },
-          { id: 'wastage', label: '⚖️ Wastage Variance' },
-          { id: 'cashflow', label: '📈 Cash Flow & S-Curve' },
-          { id: 'subvaluations', label: '📑 Subcontractor Valuations' },
-          { id: 'equipment', label: '🚜 Plant & Machinery' },
-          { id: 'muster', label: '👷 Labor Muster Roll' },
-          { id: 'safetyaudit', label: '🦺 Field Safety Scorecard' },
-          { id: 'etims', label: '🧾 KRA e-TIMS Invoices' },
-          { id: 'whatsapp', label: '💬 WhatsApp Site Bot' },
-          { id: 'retentionbonds', label: '🏦 Retention & Bonds' },
-          { id: 'geofence', label: '📍 Site Geofencing' },
-          { id: 'telematics', label: '🛰️ Plant Telematics' },
-          { id: 'rebar', label: '🏗️ Rebar BBS Takeoff' },
-          { id: 'disbursements', label: '💸 M-Pesa B2C Payouts' },
-          { id: 'rmc', label: '🚛 RMC Transit & Slump' },
-          { id: 'steel', label: '⚙️ Structural Steel Takeoff' },
-          { id: 'soil', label: '⛰️ Geotechnical Soil QA' },
-          { id: 'asphalt', label: '🛣️ Asphalt Pavement QA' },
-          { id: 'survey', label: '📐 Topographic Survey & Earthworks' },
-          { id: 'inspections', label: '🕵️ Site Inspections' },
-          { id: 'tenders', label: '📑 Tender Board' },
-          { id: 'closeout', label: '🏆 Closeout & Retention' },
-          { id: 'portals', label: '🌐 Stakeholder Portals' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              activeTab === tab.id
-                ? 'bg-purple-700 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+<div className="space-y-2">
+<div className="flex gap-1.5 overflow-x-auto bg-white p-1 rounded-xl border border-slate-200 shadow-xs w-fit max-w-full">
+          {([
+            { id: 'all', label: 'All Modules'},
+            { id: 'core', label: 'Projects & Delivery'},
+            { id: 'field', label: 'Site & Field'},
+            { id: 'money', label: 'Money & Tax'},
+            { id: 'collab', label: 'Collaboration'},
+          ] as const).map((g) => (
+<button
+              key={g.id}
+              onClick={() => setTabGroup(g.id)}
+              className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition text-xs font-semibold ${
+                tabGroup === g.id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+}`}
+            >
+              {g.label}
+</button>
+))}
+</div>
+<div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
+          {MODULE_TABS.filter((tab) => isModuleEnabled(tab.id)).map((tab) => (
+<button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id as any); if (tab.group !== 'all') setTabGroup(tab.group);}}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                tabGroup !== 'all' && tab.id !== 'all' && tab.group !== tabGroup ? 'hidden' : ''
+} ${
+                activeTab === tab.id
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+}`}
+            >
+              {tab.label}
+</button>
+))}
+</div>
+</div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Approved Budget Baseline
-          </span>
-          <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            KES {sampleBudget}
-          </span>
-          <span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">Locked contract baseline</span>
-        </div>
+</span>
+<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+            {formatKes(sampleBudget)}
+</span>
+<span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">Locked contract baseline</span>
+</div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Active BOQs
-          </span>
-          <span className="text-2xl font-bold text-slate-900 mt-1 block">1 Active</span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">EASMM 2008 Standard</span>
-        </div>
+</span>
+<span className="text-2xl font-bold text-slate-900 mt-1 block">1 Active</span>
+<span className="text-[11px] text-slate-400 mt-0.5 block">EASMM 2008 Standard</span>
+</div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Pending Cost Reviews
-          </span>
-          <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Pending</span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">All cost entries settled</span>
-        </div>
+</span>
+<span className="text-2xl font-bold text-slate-900 mt-1 block">0 Pending</span>
+<span className="text-[11px] text-slate-400 mt-0.5 block">All cost entries settled</span>
+</div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Variations Under Review
-          </span>
-          <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Orders</span>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Net adjustment: KES 0.00</span>
-        </div>
-      </div>
+</span>
+<span className="text-2xl font-bold text-slate-900 mt-1 block">0 Orders</span>
+<span className="text-[11px] text-slate-400 mt-0.5 block">Net adjustment: {formatKes(0)}</span>
+</div>
+</div>
 
       {/* Core Loop Workflow Monitor */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-3">
-        <h3 className="text-sm font-bold text-slate-900">Core Loop Workflow Status</h3>
-        <p className="text-xs text-slate-500">
+<div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-3">
+<h3 className="text-sm font-bold text-slate-900">Core Loop Workflow Status</h3>
+<p className="text-xs text-slate-500">
           Enforcing strict Kenyan construction financial and progress lifecycle:
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 pt-2">
-          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
-            <span className="text-[10px] font-bold text-emerald-800 block">1. BOQ</span>
-            <span className="text-[11px] font-semibold text-emerald-900 block mt-0.5">Imported ✓</span>
-          </div>
-          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
-            <span className="text-[10px] font-bold text-emerald-800 block">2. Budget</span>
-            <span className="text-[11px] font-semibold text-emerald-900 block mt-0.5">Locked ✓</span>
-          </div>
-          <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-center">
-            <span className="text-[10px] font-bold text-blue-800 block">3. Site Progress</span>
-            <span className="text-[11px] font-semibold text-blue-900 block mt-0.5">In Progress</span>
-          </div>
-          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
-            <span className="text-[10px] font-bold text-slate-600 block">4. Actual Cost</span>
-            <span className="text-[11px] font-medium text-slate-500 block mt-0.5">Queued</span>
-          </div>
-          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
-            <span className="text-[10px] font-bold text-slate-600 block">5. Evidence</span>
-            <span className="text-[11px] font-medium text-slate-500 block mt-0.5">Pending</span>
-          </div>
-          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
-            <span className="text-[10px] font-bold text-slate-600 block">6. Approvals</span>
-            <span className="text-[11px] font-medium text-slate-500 block mt-0.5">Pending</span>
-          </div>
-          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
-            <span className="text-[10px] font-bold text-slate-600 block">7. Client View</span>
-            <span className="text-[11px] font-medium text-slate-500 block mt-0.5">Live</span>
-          </div>
-        </div>
-      </div>
+</p>
+<div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 pt-2">
+<div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
+<span className="text-[10px] font-bold text-emerald-800 block">1. BOQ</span>
+<span className="text-[11px] font-semibold text-emerald-900 block mt-0.5">Imported</span>
+</div>
+<div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
+<span className="text-[10px] font-bold text-emerald-800 block">2. Budget</span>
+<span className="text-[11px] font-semibold text-emerald-900 block mt-0.5">Locked</span>
+</div>
+<div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-center">
+<span className="text-[10px] font-bold text-blue-800 block">3. Site Progress</span>
+<span className="text-[11px] font-semibold text-blue-900 block mt-0.5">In Progress</span>
+</div>
+<div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
+<span className="text-[10px] font-bold text-slate-600 block">4. Actual Cost</span>
+<span className="text-[11px] font-medium text-slate-500 block mt-0.5">Queued</span>
+</div>
+<div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
+<span className="text-[10px] font-bold text-slate-600 block">5. Evidence</span>
+<span className="text-[11px] font-medium text-slate-500 block mt-0.5">Pending</span>
+</div>
+<div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
+<span className="text-[10px] font-bold text-slate-600 block">6. Approvals</span>
+<span className="text-[11px] font-medium text-slate-500 block mt-0.5">Pending</span>
+</div>
+<div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
+<span className="text-[10px] font-bold text-slate-600 block">7. Client View</span>
+<span className="text-[11px] font-medium text-slate-500 block mt-0.5">Live</span>
+</div>
+</div>
+</div>
 
       {/* Variance Monitor & Neutral Alert Guard (Milestone M7) */}
-      <VarianceMonitorCard projectName="Riverside Commercial Plaza" />
+<VarianceMonitorCard projectId={pid} projectName={projects.find((p) => p.id === pid)?.name || ''} />
 
       {/* Active Project & Bill of Quantities Structure */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Assigned Project Baseline</span>
-            <h3 className="text-lg font-bold text-slate-900 mt-0.5">Riverside Commercial Plaza</h3>
-            <p className="text-xs text-slate-500">Riverside Drive, Nairobi • Code: RCP-2026</p>
-          </div>
-          <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+<div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+<div className="flex justify-between items-start">
+<div>
+<span className="text-xs font-bold text-slate-400 ">Assigned Project Baseline</span>
+<h3 className="text-lg font-bold text-slate-900 mt-0.5">Riverside Commercial Plaza</h3>
+<p className="text-xs text-slate-500">Riverside Drive, Nairobi • Code: RCP-2026</p>
+</div>
+<span className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
             Active Project
-          </span>
-        </div>
+</span>
+</div>
 
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
-              <tr>
-                <th className="p-3">BOQ Section</th>
-                <th className="p-3">Standard Reference</th>
-                <th className="p-3">Original Budget</th>
-                <th className="p-3">Current Budget</th>
-                <th className="p-3">Actual Cost</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              <tr className="hover:bg-slate-50/50">
-                <td className="p-3 font-semibold text-slate-900">Section 1: Preliminaries & General</td>
-                <td className="p-3 text-slate-500">EASMM Section A</td>
-                <td className="p-3 font-mono font-medium">KES {toCurrencyString('4500000.00')}</td>
-                <td className="p-3 font-mono font-medium">KES {toCurrencyString('4500000.00')}</td>
-                <td className="p-3 font-mono text-slate-400">KES 0.00</td>
-              </tr>
-              <tr className="hover:bg-slate-50/50">
-                <td className="p-3 font-semibold text-slate-900">Section 2: Substructure & Earthworks</td>
-                <td className="p-3 text-slate-500">EASMM Section D</td>
-                <td className="p-3 font-mono font-medium">KES {toCurrencyString('12000000.00')}</td>
-                <td className="p-3 font-mono font-medium">KES {toCurrencyString('12000000.00')}</td>
-                <td className="p-3 font-mono text-slate-400">KES 0.00</td>
-              </tr>
-              <tr className="hover:bg-slate-50/50">
-                <td className="p-3 font-semibold text-slate-900">Section 3: Reinforced Concrete Frame</td>
-                <td className="p-3 text-slate-500">EASMM Section F</td>
-                <td className="p-3 font-mono font-medium">KES {toCurrencyString('18500000.00')}</td>
-                <td className="p-3 font-mono font-medium">KES {toCurrencyString('18500000.00')}</td>
-                <td className="p-3 font-mono text-slate-400">KES 0.00</td>
-              </tr>
-              <tr className="hover:bg-slate-50/50">
-                <td className="p-3 font-semibold text-slate-900">Section 4: Walling, Finishes & Services</td>
-                <td className="p-3 text-slate-500">EASMM Section G & V</td>
-                <td className="p-3 font-mono font-medium">KES {toCurrencyString('10000000.00')}</td>
-                <td className="p-3 font-mono font-medium">KES {toCurrencyString('10000000.00')}</td>
-                <td className="p-3 font-mono text-slate-400">KES 0.00</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+<div className="border border-slate-200 rounded-lg overflow-hidden">
+<table className="w-full text-left text-xs">
+<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold ">
+<tr>
+<th className="p-3">BOQ Section</th>
+<th className="p-3">Standard Reference</th>
+<th className="p-3">Original Budget</th>
+<th className="p-3">Current Budget</th>
+<th className="p-3">Actual Cost</th>
+</tr>
+</thead>
+<tbody className="divide-y divide-slate-100 text-slate-700">
+<tr className="hover:bg-slate-50/50">
+<td className="p-3 font-semibold text-slate-900">Section 1: Preliminaries & General</td>
+<td className="p-3 text-slate-500">EASMM Section A</td>
+<td className="p-3 font-mono font-medium">{formatKes('4500000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('4500000.00')}</td>
+<td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
+</tr>
+<tr className="hover:bg-slate-50/50">
+<td className="p-3 font-semibold text-slate-900">Section 2: Substructure & Earthworks</td>
+<td className="p-3 text-slate-500">EASMM Section D</td>
+<td className="p-3 font-mono font-medium">{formatKes('12000000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('12000000.00')}</td>
+<td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
+</tr>
+<tr className="hover:bg-slate-50/50">
+<td className="p-3 font-semibold text-slate-900">Section 3: Reinforced Concrete Frame</td>
+<td className="p-3 text-slate-500">EASMM Section F</td>
+<td className="p-3 font-mono font-medium">{formatKes('18500000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('18500000.00')}</td>
+<td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
+</tr>
+<tr className="hover:bg-slate-50/50">
+<td className="p-3 font-semibold text-slate-900">Section 4: Walling, Finishes & Services</td>
+<td className="p-3 text-slate-500">EASMM Section G & V</td>
+<td className="p-3 font-mono font-medium">{formatKes('10000000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('10000000.00')}</td>
+<td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 
       {/* Budget vs Actual Metrics Card */}
-      <BudgetSummaryCard projectName="Riverside Commercial Plaza" />
+<BudgetSummaryCard projectId={pid} projectName={projects.find((p) => p.id === pid)?.name || ''} />
 
       {/* Append-Only Costs & Approvals Ledger */}
-      <CostManagementView
-        projectId="project-rcp-2026"
+<CostManagementView
+        projectId={pid}
         canApprove={true}
         canCreate={true}
       />
 
       {/* Variations & Scope Adjustments Workflow (Milestone M8) */}
       {(activeTab === 'all' || activeTab === 'variations') && (
-        <VariationManagementView
-          projectId="project-rcp-2026"
+<VariationManagementView
+          projectId={pid}
           userRole="PM_QS"
           canRequest={true}
           canReview={true}
-          canApprove={false}
+          canApprove={true}
         />
-      )}
+)}
 
       {/* RFI Technical Clarifications Register */}
       {(activeTab === 'all' || activeTab === 'rfis') && (
-        <RfiManagementView
-          projectId="project-rcp-2026"
+<RfiManagementView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           canCreate={true}
         />
-      )}
+)}
 
       {/* Pre-Pour Quality Hold Points & Concrete Cube Tests */}
       {(activeTab === 'all' || activeTab === 'quality') && (
-        <QualityControlView
-          projectId="project-rcp-2026"
+<QualityControlView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           canApprove={true}
         />
-      )}
+)}
+
+      {/* Interim Payment Certificates & Closeout Stage Machine (Gate-4 S4 / ADR-008) */}
+      {(activeTab === 'all' || activeTab === 'closeout') && (
+<CertificatesCloseoutView projectId={pid} canManage={true} />
+)}
 
       {/* Practical Completion & Retention Release Card */}
       {(activeTab === 'all' || activeTab === 'closeout') && (
-        <PracticalCompletionCard
-          projectName="Riverside Commercial Plaza"
-          projectCode="RCP-2026"
+<PracticalCompletionCard
+          projectName={projects.find((p) => p.id === pid)?.name || ''}
+          projectCode={projects.find((p) => p.id === pid)?.code || ''}
         />
-      )}
+)}
 
       {/* External Stakeholder Portals Manager (Zero Seat Tax) */}
       {(activeTab === 'all' || activeTab === 'portals') && (
-        <PortalAccessLinkManager
-          projectId="project-rcp-2026"
+<PortalAccessLinkManager
+          projectId={pid}
           onPreviewPortal={onPreviewPortal}
         />
-      )}
+)}
 
       {/* Interactive Project Schedule & Gantt View */}
       {(activeTab === 'all' || activeTab === 'schedule') && (
-        <ProjectScheduleGanttView
-          projectId="project-rcp-2026"
+<ProjectScheduleGanttView
+          projectId={pid}
           canEdit={true}
         />
-      )}
+)}
 
       {/* Site Store Materials & Inventory View */}
       {(activeTab === 'all' || activeTab === 'store') && (
-        <SiteInventoryManagementView
-          projectId="project-rcp-2026"
+<SiteInventoryManagementView
+          projectId={pid}
           canManage={true}
         />
-      )}
+)}
 
       {/* Subcontractor Work Packages & Directory */}
       {(activeTab === 'all' || activeTab === 'subcontractors') && (
-        <SubcontractorManagementView
-          projectId="project-rcp-2026"
+<SubcontractorManagementView
+          projectId={pid}
           canAward={true}
         />
-      )}
+)}
 
       {/* Project Drawing & Regulatory Document Vault */}
       {(activeTab === 'all' || activeTab === 'drawings') && (
-        <ProjectDocumentVaultView
-          projectId="project-rcp-2026"
+<ProjectDocumentVaultView
+          projectId={pid}
           canUpload={true}
         />
-      )}
+)}
 
       {/* Safety & HSE Incident Register (OSHA 2007) */}
       {(activeTab === 'all' || activeTab === 'safety') && (
-        <SafetyIncidentLogView
-          projectId="project-rcp-2026"
+<SafetyIncidentLogView
+          projectId={pid}
           canLog={true}
           canInvestigate={true}
         />
-      )}
+)}
 
       {/* Weather Delays & Extension of Time (JBC Clause 25/32) */}
       {(activeTab === 'all' || activeTab === 'delays') && (
-        <WeatherDelayClaimsView
-          projectId="project-rcp-2026"
+<WeatherDelayClaimsView
+          projectId={pid}
           canClaim={true}
           canReview={true}
         />
-      )}
+)}
 
       {/* KRA Statutory Withholding Tax (Cap 470) & WHVAT Certificates */}
       {(activeTab === 'all' || activeTab === 'taxes') && (
-        <StatutoryTaxManagementView
-          projectId="project-rcp-2026"
+<StatutoryTaxManagementView
+          projectId={pid}
           canIssue={true}
         />
-      )}
+)}
 
-      {/* Material Purchase Requisitions & Orders (Buildsasa Benchmark) */}
+      {/* Material Purchase Requisitions & Orders (Platform Benchmark) */}
       {(activeTab === 'all' || activeTab === 'requisitions') && (
-        <MaterialRequisitionView
-          projectId="project-rcp-2026"
+<MaterialRequisitionView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
       {/* Material Wastage & Theoretical Loss Engine */}
       {(activeTab === 'all' || activeTab === 'wastage') && (
-        <MaterialWastageVarianceCard
-          projectId="project-rcp-2026"
+<MaterialWastageVarianceCard
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Cash Flow Forecasting & S-Curve */}
       {(activeTab === 'all' || activeTab === 'cashflow') && (
-        <ProjectSCurveCashFlowCard
-          projectId="project-rcp-2026"
+<ProjectSCurveCashFlowCard
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Subcontractor Valuations & Back-to-Back Retention Ledger */}
       {(activeTab === 'all' || activeTab === 'subvaluations') && (
-        <SubcontractorValuationView
-          projectId="project-rcp-2026"
+<SubcontractorValuationView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
       {/* Plant, Machinery & Fuel Siphoning Audit (Milestone M16) */}
-      {(activeTab === 'all' || activeTab === 'equipment') && (
-        <PlantEquipmentView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'equipment') && isModuleEnabled('equipment') && (
+<PlantEquipmentView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
       {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
       {(activeTab === 'all' || activeTab === 'muster') && (
-        <LaborMusterRollView
-          projectId="project-rcp-2026"
+<LaborMusterRollView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
       {(activeTab === 'all' || activeTab === 'safetyaudit') && (
-        <SafetyAuditScorecardView
-          projectId="project-rcp-2026"
+<SafetyAuditScorecardView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
       {/* KRA e-TIMS Electronic Tax Invoices & TCC Compliance (Milestone M19) */}
       {(activeTab === 'all' || activeTab === 'etims') && (
-        <ETimsTaxComplianceView
-          projectId="project-rcp-2026"
+<ETimsTaxComplianceView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
       {/* WhatsApp & SMS Two-Way Site Ops Webhook Stream (Milestone M20) */}
       {(activeTab === 'all' || activeTab === 'whatsapp') && (
-        <WhatsAppSiteWebhookView
-          projectId="project-rcp-2026"
+<WhatsAppSiteWebhookView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
       {/* Subcontractor Dual-Moiety Retention & Contractor Performance Bonds (Milestone M21) */}
       {(activeTab === 'all' || activeTab === 'retentionbonds') && (
-        <RetentionAndBondsView
-          projectId="project-rcp-2026"
+<RetentionAndBondsView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
       {/* Project Geofencing & Biometric Mobile Clock-In (Milestone M23) */}
-      {(activeTab === 'all' || activeTab === 'geofence') && (
-        <GeofencedClockInView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'geofence') && isModuleEnabled('geofence') && (
+<GeofencedClockInView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
-      {(activeTab === 'all' || activeTab === 'telematics') && (
-        <PlantTelematicsView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'telematics') && isModuleEnabled('telematics') && (
+<PlantTelematicsView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* BS 8666 / KS 02-598 Rebar Takeoff & Bar Bending Schedules (Milestone M25) */}
-      {(activeTab === 'all' || activeTab === 'rebar') && (
-        <BarBendingScheduleView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'rebar') && isModuleEnabled('rebar') && (
+<BarBendingScheduleView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Safaricom Daraja B2C Bulk Wages & Retention Disbursements (Milestone M26) */}
       {(activeTab === 'all' || activeTab === 'disbursements') && (
-        <MpesaDisbursementView
-          projectId="project-rcp-2026"
+<MpesaDisbursementView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Ready-Mix Concrete (RMC) Batching & Transit Slump Tracker (Milestone M27) */}
-      {(activeTab === 'all' || activeTab === 'rmc') && (
-        <RmcTransitTrackerView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'rmc') && isModuleEnabled('rmc') && (
+<RmcTransitTrackerView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Structural Steel Framing & Fabrication Takeoff Engine (Milestone M28) */}
-      {(activeTab === 'all' || activeTab === 'steel') && (
-        <StructuralSteelTakeoffView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'steel') && isModuleEnabled('steel') && (
+<StructuralSteelTakeoffView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Geotechnical Soil Compaction QA Engine (Milestone M29) */}
-      {(activeTab === 'all' || activeTab === 'soil') && (
-        <GeotechnicalSoilView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'soil') && isModuleEnabled('soil') && (
+<GeotechnicalSoilView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Asphalt Pavement Quality & Thermal Tracker (Milestone M30) */}
-      {(activeTab === 'all' || activeTab === 'asphalt') && (
-        <AsphaltPavementView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'asphalt') && isModuleEnabled('asphalt') && (
+<AsphaltPavementView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
       {/* Topographic Survey & Earthworks Engine (Milestone M31) */}
-      {(activeTab === 'all' || activeTab === 'survey') && (
-        <TopographicSurveyView
-          projectId="project-rcp-2026"
+      {(activeTab === 'all' || activeTab === 'survey') && isModuleEnabled('survey') && (
+<TopographicSurveyView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
         />
-      )}
+)}
 
-      {/* Buildsasa Diaspora Independent Site Inspection Reports (Milestone M33) */}
+      {/* Platform Diaspora Independent Site Inspection Reports (Milestone M33) */}
       {(activeTab === 'all' || activeTab === 'inspections') && (
-        <IndependentSiteReportView
-          projectId="project-rcp-2026"
+<IndependentSiteReportView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
 
-      {/* Buildsasa Contractor Tender Board & Bidding Studio (Milestone M33) */}
-      {(activeTab === 'all' || activeTab === 'tenders') && (
-        <ContractorTenderBoardView
-          projectId="project-rcp-2026"
+      {/* Platform Contractor Tender Board & Bidding Studio (Milestone M33) */}
+      {(activeTab === 'all' || activeTab === 'tenders') && isModuleEnabled('tenders') && (
+<ContractorTenderBoardView
+          projectId={pid}
           projectName="Riverside Commercial Plaza"
           userRole="PM_QS"
         />
-      )}
+)}
+
+      {/* Quotes-to-Cash: quotations, client acceptance, project conversion (Gate-4 S1) */}
+      {(activeTab === 'all' || activeTab === 'quotes') &&<QuotesManagementView />}
+
+      {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
+      {(activeTab === 'all' || activeTab === 'invoices') &&<InvoicingView />}
+
+      {/* Commitments -> Claims -> Payment Applications (Gate-4 S5) */}
+      {(activeTab === 'all' || activeTab === 'commitments') && (
+<CommitmentsView projectId={pid} canManage={true} />
+)}
+
+      {/* Project onboarding & edit (Gate-4 S8) */}
+      {(activeTab === 'all' || activeTab === 'project') &&<ProjectOnboardingView />}
+
+      {/* Announcements (Gate-5 G5-1) */}
+      {(activeTab === 'all' || activeTab === 'announcements') &&<AnnouncementsView canManage={true} />}
+
+      {/* Checklist templates & assignments (Gate-5 G5-6) */}
+      {(activeTab === 'all' || activeTab === 'checklists') &&<ChecklistsView canManage={true} />}
+
+      {/* Daily attendance (Gate-5 G5-10) */}
+      {(activeTab === 'all' || activeTab === 'attendance') &&<AttendanceView canManage={true} />}
+
+      {/* Scheduled reports (Gate-5 G5-9) */}
+      {(activeTab === 'all' || activeTab === 'scheduled') &&<ScheduledReportsView canManage={true} />}
+
+      {/* Correspondence log (Gate-5 G5-8) */}
+      {(activeTab === 'all' || activeTab === 'correspondence') &&<CorrespondenceView canManage={true} />}
+
+      {/* Company documents vault (Gate-5 G5-7) */}
+      {(activeTab === 'all' || activeTab === 'documents') &&<CompanyDocumentsView canManage={true} />}
+
+      {/* Crews (Gate-5 G5-5) */}
+      {(activeTab === 'all' || activeTab === 'crews') &&<CrewsView canManage={true} />}
+
+      {/* Observations & corrective actions (Gate-5 G5-4) */}
+      {(activeTab === 'all' || activeTab === 'observations') &&<ObservationsView projectId={pid} canManage={true} />}
+
+      {/* Team inbox (Gate-5 G5-3) */}
+      {(activeTab === 'all' || activeTab === 'inbox') &&<InboxView currentUserId={user?.id} />}
 
       {/* BOQ Import Modal */}
-      <BoqImportModal
+<BoqImportModal
         isOpen={showBoqModal}
         onClose={() => setShowBoqModal(false)}
         onImportSuccess={handleImportSuccess}
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
       />
 
       {/* Physical Progress Inspection Modal */}
-      <PhysicalProgressModal
+<PhysicalProgressModal
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
-        projectId="project-rcp-2026"
+        projectId={pid}
         projectName="Riverside Commercial Plaza"
         onProgressRecorded={(prog) => {
           const pct = prog.overallProgress ? (parseFloat(prog.overallProgress) * 100).toFixed(1) : '15.0';
           setProgressSuccess(`QS site progress inspection verified and recorded (${pct}% cumulative completion)`);
-        }}
+}}
       />
-    </div>
-  );
+</div>
+);
 }

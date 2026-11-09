@@ -3,6 +3,8 @@ import { FastifyInstance } from 'fastify';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
 import * as crypto from 'crypto';
+import { enrollAllTenantUsers } from './test-members';
+
 
 describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
   let app: FastifyInstance;
@@ -51,6 +53,7 @@ describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
     });
     expect(projARes.statusCode).toBe(201);
     projectAId = JSON.parse(projARes.body).data.id;
+      await enrollAllTenantUsers(projectAId);
 
     // 2. Setup Tenant B (Simba Construction Ltd)
     let tenantB = await prisma.tenant.findFirst({
@@ -97,13 +100,14 @@ describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
       }
     });
 
-    // Sign a valid JWT session for Tenant B directly
+    // Sign a valid JWT session for Tenant B directly (typ:'access' required by session guard)
     const tokenB = app.jwt.sign({
       sub: userB.id,
       email: userB.email,
       fullName: userB.full_name,
       tenantId: tenantBId,
       role: 'COMPANY_ADMIN',
+      typ: 'access',
     });
     tenantBCookie = `access_token=${tokenB}; Path=/; HttpOnly; SameSite=Lax`;
 
@@ -241,9 +245,11 @@ describe('OWASP Top 10 & Security Penetration Defense Suite', () => {
       });
 
       expect(res.statusCode).toBe(200);
-      const cookieHeader = res.headers['set-cookie'] as string;
+      const cookieHeader = ([] as string[]).concat(res.headers['set-cookie'] as any).join('; ');
       expect(cookieHeader).toContain('HttpOnly');
       expect(cookieHeader.toLowerCase()).toContain('samesite=lax');
+      expect(cookieHeader).toContain('access_token');
+      expect(cookieHeader).toContain('refresh_token');
       expect(res.body).not.toContain('Password123!');
       expect(res.body).not.toContain('password_hash');
     });

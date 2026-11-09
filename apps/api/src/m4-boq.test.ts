@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import ExcelJS from 'exceljs';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestone M4: Staged Excel BOQ Import & Structure Suite', () => {
   const server = buildServer();
@@ -105,6 +106,7 @@ describe('Milestone M4: Staged Excel BOQ Import & Structure Suite', () => {
       });
     });
     projectAId = project.id;
+      await enrollAllTenantUsers(projectAId);
 
     // Create a Tenant B for multi-tenant cross-isolation checks
     const tenantB = await prisma.tenant.upsert({

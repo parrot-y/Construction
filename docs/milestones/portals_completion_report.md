@@ -12,7 +12,7 @@
 
 ## 1. Executive Summary & Architecture Overview
 
-To eliminate the predatory "seat tax" prevalent in enterprise construction ERPs (where contractors are billed $50–$250/user/month for giving read-only access to architects, sub-contractors, suppliers, or county planning inspectors), `MjengoLedger` now provides a **Zero Seat Tax Architecture** across **8 Stakeholder Portals**:
+To eliminate the predatory "seat tax" prevalent in enterprise construction ERPs (where contractors are billed $50–$250/user/month for giving read-only access to architects, sub-contractors, suppliers, or county planning inspectors), `Platform` now provides a **Zero Seat Tax Architecture** across **8 Stakeholder Portals**:
 
 1. **Contractor Executive / Company Admin** (Full portfolio oversight, tenant management, audit trail).
 2. **Commercial PM / Quantity Surveyor** (EASMM 2008 BOQ baseline, valuations, variation register, cost control, IPC generation).

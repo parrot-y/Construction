@@ -2,8 +2,9 @@ import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
-describe('Buildsasa Parity Operations Suite: Schedule, Inventory, Safety, Documents & Subcontractors', () => {
+describe('Operations Suite: Schedule, Inventory, Safety, Documents & Subcontractors', () => {
   let server: FastifyInstance;
   let adminCookie: string;
   let supervisorCookie: string;
@@ -62,6 +63,7 @@ describe('Buildsasa Parity Operations Suite: Schedule, Inventory, Safety, Docume
     });
     expect(projectRes.statusCode).toBe(201);
     projectId = JSON.parse(projectRes.body).data.id;
+    await enrollAllTenantUsers(projectId);
   });
 
   afterAll(async () => {

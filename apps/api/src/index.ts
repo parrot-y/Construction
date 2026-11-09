@@ -1,10 +1,16 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
+import rateLimit from '@fastify/rate-limit';
+import moduleGate from './plugins/moduleGate';
+import fs from 'node:fs';
+import path from 'node:path';
 import fastify, { FastifyError, FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
+import { registerAuthorizationGuards } from './plugins/routeAuthorization';
 import { authPlugin } from './plugins/auth';
 import { securityGuardPlugin } from './plugins/security-guard';
+import { fileRoutes } from './routes/files';
 import { authRoutes } from './routes/auth';
 import { boqRoutes } from './routes/boq';
 import { companyRoutes } from './routes/company';
@@ -24,8 +30,26 @@ import { commercialOperationsRoutes } from './routes/commercialOperations';
 import { siteOperationsRoutes } from './routes/siteOperations';
 import { enterpriseOperationsRoutes } from './routes/enterpriseOperations';
 import { platformServicesRoutes } from './routes/platformServices';
+import { quotesRoutes } from './routes/quotes';
+import { invoicesRoutes } from './routes/invoices';
+import { certificatesRoutes } from './routes/certificates';
+import { commitmentsRoutes } from './routes/commitments';
+import { announcementsRoutes } from './routes/announcements';
+import { inboxRoutes } from './routes/inbox';
+import { observationsRoutes } from './routes/observations';
+import { crewsRoutes } from './routes/crews';
+import { companyDocumentsRoutes } from './routes/companyDocuments';
+import { correspondenceRoutes } from './routes/correspondence';
+import { scheduledReportsRoutes } from './routes/scheduledReports';
+import { attendanceRoutes } from './routes/attendance';
+import { checklistsRoutes } from './routes/checklists';
+import { integrationRoutes } from './routes/integrations';
+import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
+  // Validate production security invariants (Fail-Closed on missing/short secrets)
+  validateEnvironmentSecurity();
+
   const server = fastify({
     logger: {
       level: process.env.LOG_LEVEL || 'info',
@@ -58,6 +82,15 @@ export function buildServer(): FastifyInstance {
     origin: process.env.WEB_ORIGIN || 'http://localhost:5173',
     credentials: true,
   });
+
+  // Upload storage root (local volume; object-storage driver slots in via UPLOAD_DRIVER)
+  const uploadRoot = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
+  fs.mkdirSync(uploadRoot, { recursive: true });
+
+  // Rate limiting (audit S-02): opt-in per route via config.rateLimit —
+  // global:false so test suites and high-frequency internal calls are unaffected.
+  server.register(rateLimit, { global: false });
+  server.register(moduleGate);
 
   // Multipart file upload (capped at 15MB per ADR-003)
   server.register(multipart, {
@@ -98,7 +131,11 @@ export function buildServer(): FastifyInstance {
   // Authentication & Session Plugin
   server.register(authPlugin);
 
+  // Central route authorization (permission map + project membership)
+  registerAuthorizationGuards(server);
+
   // Application Routes
+  server.register(fileRoutes);
   server.register(authRoutes);
   server.register(boqRoutes);
   server.register(companyRoutes);
@@ -118,6 +155,20 @@ export function buildServer(): FastifyInstance {
   server.register(siteOperationsRoutes);
   server.register(enterpriseOperationsRoutes);
   server.register(platformServicesRoutes);
+  server.register(quotesRoutes);
+  server.register(invoicesRoutes);
+  server.register(certificatesRoutes);
+  server.register(commitmentsRoutes);
+  server.register(announcementsRoutes);
+  server.register(inboxRoutes);
+  server.register(observationsRoutes);
+  server.register(crewsRoutes);
+  server.register(companyDocumentsRoutes);
+  server.register(correspondenceRoutes);
+  server.register(scheduledReportsRoutes);
+  server.register(attendanceRoutes);
+  server.register(checklistsRoutes);
+  server.register(integrationRoutes);
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

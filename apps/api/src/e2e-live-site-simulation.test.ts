@@ -4,6 +4,8 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { generateSignedSiteOpsToken } from './services/securityConfig';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Project', () => {
   const server = buildServer();
@@ -153,6 +155,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(proj.location).toBe('Riverside Drive, Nairobi');
     expect(proj.nca_project_no).toBe('NCA-PRJ-2026-0891');
     projectId = proj.id;
+    await enrollAllTenantUsers(projectId);
 
     // 1.3 Assign team members to project (QS, Site Supervisor, Client)
     await server.inject({
@@ -305,6 +308,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
           {
             storageKey: 'evidence/rcp-2026/delivery_bamburi_cement_01.jpg',
             caption: 'Delivery and physical stack verification of 200 bags Bamburi Cement on site',
+            clientVisible: true,
             gpsLatitude: -1.286389,
             gpsLongitude: 36.817223,
           },
@@ -468,10 +472,20 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(submitVoRes.statusCode).toBe(201);
     const voData = JSON.parse(submitVoRes.body).data;
     expect(voData.variation_no).toBe(1);
-    expect(voData.status).toBe('SUBMITTED');
+    // ADR-010: change orders are created as DRAFT and explicitly submitted
+    expect(voData.status).toBe('DRAFT');
     expect(voData.time_extension_days).toBe(7);
     expect(voData.net_amount).toBe('177500.00');
     variationOrderId = voData.id;
+
+    // 5.1b Submit the draft change order into PM_REVIEW
+    const submitCoRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/variations/${variationOrderId}/submit`,
+      headers: { cookie: qsCookie },
+    });
+    expect(submitCoRes.statusCode).toBe(200);
+    expect(JSON.parse(submitCoRes.body).data.status).toBe('PM_REVIEW');
 
     // 5.2 QS evaluates Variation Order
     const budgetBeforeEval = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -490,7 +504,8 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
 
     expect(evalRes.statusCode).toBe(200);
     const evalData = JSON.parse(evalRes.body).data;
-    expect(evalData.status).toBe('QS_EVALUATED');
+    // ADR-010: evaluation is a comment-only step; status stays PM_REVIEW
+    expect(evalData.status).toBe('PM_REVIEW');
 
     // Invariant: Budget must NOT change during evaluation
     const budgetAfterEval = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -990,6 +1005,29 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   // STEP 15: NCA Regulatory Compliance Portal Audit
   // ---------------------------------------------------------------------------
   it('Step 15: NCA Regulatory Auditor accesses Compliance Portal link, verifies 100% concrete cube pass rate, statutory levy clearance, and accredited supervisor presence', async () => {
+    // 0. Record + remit a statutory tax certificate so levy clearance is real
+    const taxCertRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/tax-certificates`,
+      headers: { cookie: adminCookie, 'content-type': 'application/json' },
+      payload: {
+        payeeType: 'MAIN_CONTRACTOR',
+        payeeName: 'Apex Builders Kenya Ltd',
+        payeeKraPin: 'P051234567Z',
+        invoiceOrIpcRef: 'IPC-E2E-001',
+        grossAmount: '1000000.00',
+      },
+    });
+    expect(taxCertRes.statusCode).toBe(201);
+    const taxCert = JSON.parse(taxCertRes.body);
+    const remitRes = await server.inject({
+      method: 'PUT',
+      url: `/api/v1/projects/${projectId}/tax-certificates/${taxCert.id}/remit`,
+      headers: { cookie: adminCookie, 'content-type': 'application/json' },
+      payload: { status: 'REMITTED_TO_KRA', itaxAcknowledgementReceipt: 'ITAX-E2E-001' },
+    });
+    expect(remitRes.statusCode).toBe(200);
+
     // 1. Generate Compliance Portal Link
     const linkRes = await server.inject({
       method: 'POST',
@@ -1109,7 +1147,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     // Verify automated emergency SiteAlertNotification
     const alert = await withTenantTx(prisma, tenantId, (tx) =>
       tx.siteAlertNotification.findFirst({
-        where: { project_id: projectId, alert_type: 'DIESEL_SIPHONING_FLAG' },
+        where: { project_id: projectId, alert_type: { in: ['DIESEL_DISCREPANCY_FLAG', 'DIESEL_SIPHONING_FLAG'] } },
       })
     );
     expect(alert).toBeDefined();
@@ -1164,7 +1202,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
         clockType: 'CLOCK_IN',
         capturedLatitude: '-1.286400',
         capturedLongitude: '36.817230',
-        photoSelfieUrl: 'https://storage.mjengoledger.co.ke/selfies/juma_in.jpg',
+        photoSelfieUrl: 'https://storage.example.com/selfies/juma_in.jpg',
       },
     });
     expect(clock1.statusCode).toBe(201);
@@ -1309,8 +1347,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       method: 'POST',
       url: '/api/v1/webhooks/site-ops',
       headers: {
-        'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
-        'x-tenant-id': tenantId,
+        'x-site-ops-token': generateSignedSiteOpsToken(tenantId),
       },
       payload: {
         senderPhone: '+254722889900',
@@ -1330,8 +1367,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       method: 'POST',
       url: '/api/v1/webhooks/site-ops',
       headers: {
-        'x-site-ops-secret': 'mjengo-site-ops-webhook-secret-production',
-        'x-tenant-id': tenantId,
+        'x-site-ops-token': generateSignedSiteOpsToken(tenantId),
       },
       payload: {
         senderPhone: '+254722889900',
@@ -1481,7 +1517,8 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(actions).toContain('PROGRESS_RECORDED');
     expect(actions).toContain('COST_CREATED');
     expect(actions).toContain('COST_APPROVED');
-    expect(actions).toContain('VARIATION_SUBMITTED');
+    expect(actions).toContain('VARIATION_CREATED');
+    expect(actions).toContain('VARIATION_SUBMIT');
     expect(actions).toContain('VARIATION_EVALUATE');
     expect(actions).toContain('VARIATION_APPROVE');
     expect(actions).toContain('REPORT_GENERATED');

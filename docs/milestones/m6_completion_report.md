@@ -1,6 +1,6 @@
 # Milestone M6 Completion Report: Site Diary, Photos, Progress & Offline Sync
 
-**Project:** MjengoLedger (Kenya-First Construction Management SaaS)  
+**Project:** Platform (Kenya-First Construction Management SaaS)  
 **Date:** 2026-11-03  
 **Status:** Complete & Fully Verified (All 88/88 Monorepo Tests Passing)  
 **Git Head Commit:** [`909b149`](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction)  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary & Core Deliverables
 
-Milestone **M6** implements the field operations engine of MjengoLedger, linking daily on-site physical reality directly to the core loop:
+Milestone **M6** implements the field operations engine of Platform, linking daily on-site physical reality directly to the core loop:
 $$\text{BOQ} \rightarrow \text{Budget} \rightarrow \mathbf{Site\ Progress\ \&\ Evidence} \rightarrow \text{Cost} \rightarrow \text{Approvals} \rightarrow \text{Client Visibility}$$
 
 In accordance with strict Kenyan field conditions (intermittent 3G/4G connectivity on construction sites in Nairobi, Kiambu, and Machakos) and **[ADR-004: Offline Sync Strategy & Field Mutation Queue](file:///home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/SYSTEM_DESIGN.md#adr-004-offline-sync-strategy--field-mutation-queue)**, Milestone M6 establishes:

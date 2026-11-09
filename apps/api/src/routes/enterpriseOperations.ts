@@ -1,6 +1,8 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { verifySignedSiteOpsToken } from '../services/securityConfig';
+import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
 import {
   CreateETimsInvoiceSchema,
   CreateSubcontractorTaxComplianceSchema,
@@ -387,32 +389,32 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
   server.post(
     '/api/v1/webhooks/site-ops',
     async (request, reply) => {
-      // 1. Mandatory Webhook Secret Authentication (C3)
-      const webhookSecret =
+      // 1. Mandatory Signed Token Authentication & Cryptographic Tenant Binding (C3, 2b)
+      const token =
+        (request.headers['x-site-ops-token'] as string) ||
         (request.headers['x-site-ops-secret'] as string) ||
         (request.headers['authorization'] as string)?.replace(/^Bearer\s+/i, '');
-      const expectedSecret = process.env.SITE_OPS_WEBHOOK_SECRET || 'mjengo-site-ops-webhook-secret-production';
-      if (!webhookSecret || webhookSecret !== expectedSecret) {
+
+      const authenticatedTenantId = verifySignedSiteOpsToken(token);
+      if (!authenticatedTenantId) {
         return reply.status(401).send({
           statusCode: 401,
           error: 'Unauthorized',
-          message: 'Invalid or missing site-ops webhook authentication secret',
+          message: 'Invalid or missing signed site-ops webhook authentication token',
         });
       }
 
-      // 2. Explicit Tenant Context Resolution (no fallback to arbitrary tenants) (C3)
-      const tenantId =
-        (request as any).user?.tenantId ||
-        (request.headers['x-tenant-id'] as string) ||
-        (request.query as any)?.tenantId;
-
-      if (!tenantId || !UUID_REGEX.test(tenantId)) {
-        return reply.status(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Explicit valid tenantId is required in header or query parameters',
+      // 2. Reject any attempt to spoof tenantId via header or query params (2b)
+      const headerTenantId = request.headers['x-tenant-id'] as string;
+      if (headerTenantId && headerTenantId !== authenticatedTenantId) {
+        return reply.status(401).send({
+          statusCode: 401,
+          error: 'Unauthorized',
+          message: 'Tenant header mismatch: cannot override cryptographically signed tenant context',
         });
       }
+
+      const tenantId = authenticatedTenantId;
 
       const parseResult = ProcessWebhookPayloadSchema.safeParse(request.body);
       if (!parseResult.success) {
@@ -440,7 +442,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         if (masonMatch && masonMatch[1]) extractedData.masons = parseInt(masonMatch[1], 10);
         if (casualMatch && casualMatch[1]) extractedData.casuals = parseInt(casualMatch[1], 10);
 
-        replyMessage = `MjengoLedger: Asante ${senderName || 'Supervisor'}. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo. (Masons: ${extractedData.masons || 0}, Casuals: ${extractedData.casuals || 0}).`;
+        replyMessage = `Platform: Asante ${senderName || 'Supervisor'}. Rekodi ya Site Diary imepokelewa na kuwekwa kwa mfumo. (Masons: ${extractedData.masons || 0}, Casuals: ${extractedData.casuals || 0}).`;
       } else if (upperMsg.startsWith('#DELIVERY') || upperMsg.startsWith('DELIVERY:')) {
         detectedCommand = 'DELIVERY';
         // Extract material delivery clues
@@ -448,13 +450,13 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         if (bagsMatch && bagsMatch[1]) extractedData.quantity = bagsMatch[1];
         extractedData.summary = rawMessage.replace(/^[#]DELIVERY[:\s]*/i, '').trim();
 
-        replyMessage = `MjengoLedger: Delivery note imethibitishwa: "${extractedData.summary}". Storekeeper ataangalia mzigo kabla ya kutoa GRN.`;
+        replyMessage = `Platform: Delivery note imethibitishwa: "${extractedData.summary}". Storekeeper ataangalia mzigo kabla ya kutoa GRN.`;
       } else if (upperMsg.startsWith('#INCIDENT') || upperMsg.startsWith('INCIDENT:')) {
         detectedCommand = 'INCIDENT';
         extractedData.isSafetyCritical = upperMsg.includes('STOP') || upperMsg.includes('COLLAPSE') || upperMsg.includes('INJURY') || upperMsg.includes('FALL');
         extractedData.incidentDetails = rawMessage.replace(/^[#]INCIDENT[:\s]*/i, '').trim();
 
-        replyMessage = `MjengoLedger SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: ${extractedData.isSafetyCritical ? 'CRITICAL STOP-WORK' : 'INCIDENT LOGGED'}.`;
+        replyMessage = `Site Safi SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: ${extractedData.isSafetyCritical ? 'CRITICAL STOP-WORK' : 'INCIDENT LOGGED'}.`;
       } else if (upperMsg.startsWith('#FUEL') || upperMsg.startsWith('#PLANT') || upperMsg.startsWith('FUEL:')) {
         detectedCommand = 'PLANT_FUEL';
         const litersMatch = rawMessage.match(/(\d+(?:\.\d+)?)\s*(?:l|liters?|litres?)/i);
@@ -462,9 +464,9 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         if (litersMatch && litersMatch[1]) extractedData.liters = litersMatch[1];
         if (hoursMatch && hoursMatch[1]) extractedData.hours = hoursMatch[1];
 
-        replyMessage = `MjengoLedger Fuel Audit: Mafuta (${extractedData.liters || 0}L) yamerekodiwa kwa masaa (${extractedData.hours || 0} hrs). Siphoning verification active.`;
+        replyMessage = `Site Safi Fuel Audit: Mafuta (${extractedData.liters || 0}L) yamerekodiwa kwa masaa (${extractedData.hours || 0} hrs). Siphoning verification active.`;
       } else {
-        replyMessage = `MjengoLedger Bot: Karibu! Tuma ujumbe ukitumia #DIARY, #DELIVERY, #INCIDENT, au #FUEL kurekodi shughuli za tovuti moja kwa moja.`;
+        replyMessage = `Site Safi Bot: Karibu! Tuma ujumbe ukitumia #DIARY, #DELIVERY, #INCIDENT, au #FUEL kurekodi shughuli za tovuti moja kwa moja.`;
       }
 
       try {
@@ -514,6 +516,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
 
           return {
             webhookId: log.id,
+            tenantId,
             detectedCommand: log.detected_command,
             processedStatus: log.processed_status,
             replyMessage: log.reply_message,
@@ -530,6 +533,45 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         });
       }
     }
+  );
+
+  // 2.1b List inbound WhatsApp/SMS site-ops webhook log
+  server.get(
+    '/api/v1/projects/:projectId/site-webhook-logs',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const logs = await tx.siteWebhookLog.findMany({
+            where: { project_id: projectId },
+            orderBy: { created_at: 'desc' },
+            take: 100,
+          });
+          return {
+            logs: logs.map((l) => ({
+              id: l.id,
+              senderPhone: l.sender_phone ? `***${l.sender_phone.slice(-4)}` : null,
+              senderName: l.sender_name,
+              channel: l.channel,
+              rawMessage: l.raw_message,
+              detectedCommand: l.detected_command,
+              processedStatus: l.processed_status,
+              replyMessage: l.reply_message,
+              createdAt: l.created_at.toISOString(),
+            })),
+          };
+        });
+        return reply.send(result);
+      } catch (err: any) {
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list webhook logs' });
+      }
+    },
   );
 
   // 2.2 List Site Alerts for a Project
@@ -632,8 +674,8 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
               alert_type: data.alertType,
               message_body: data.messageBody,
               delivery_channel: data.deliveryChannel,
-              delivery_status: 'DELIVERED',
-              sent_at: new Date(),
+              delivery_status: 'PENDING',
+              sent_at: null,
             },
           });
 
@@ -659,12 +701,34 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
             alertType: alert.alert_type,
             messageBody: alert.message_body,
             deliveryChannel: alert.delivery_channel,
-            deliveryStatus: alert.delivery_status,
-            sentAt: alert.sent_at?.toISOString() || null,
           };
         });
 
-        return reply.status(201).send(result);
+        // Real dispatch after commit — IN_APP is delivered by definition;
+        // SMS/WHATSAPP go through configured providers (simulated if none).
+        let deliveryStatus: string;
+        let sentAt: string | null = null;
+        if (result.deliveryChannel === 'IN_APP') {
+          deliveryStatus = 'DELIVERED';
+          sentAt = new Date().toISOString();
+        } else {
+          const channel = result.deliveryChannel === 'SMS' ? 'SMS' : 'WHATSAPP';
+          const sendResult = await dispatchNotification({
+            channel,
+            to: normalizeKePhone(result.recipientPhone || ''),
+            body: result.messageBody,
+          });
+          deliveryStatus = sendResult.simulated ? 'SIMULATED' : sendResult.ok ? 'DELIVERED' : 'FAILED';
+          if (sendResult.ok) sentAt = new Date().toISOString();
+        }
+        await withTenantTx(prisma, tenantId, async (tx) => {
+          await tx.siteAlertNotification.update({
+            where: { id: result.id },
+            data: { delivery_status: deliveryStatus, sent_at: sentAt ? new Date(sentAt) : null },
+          });
+        });
+
+        return reply.status(201).send({ ...result, deliveryStatus, sentAt });
       } catch (err: any) {
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,

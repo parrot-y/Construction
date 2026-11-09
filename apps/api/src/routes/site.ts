@@ -1,14 +1,82 @@
+import { verifyUpload } from '../lib/uploadSecurity';
+import { getStorageDriver } from '../lib/storage';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import {
   CreateSiteDiarySchema,
   CreateProgressRecordSchema,
   SitePhotoInputSchema,
+  UpdateSitePhotoVisibilitySchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 
 export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // ---------------------------------------------------------------------------
+  // 0. POST /api/v1/projects/:projectId/uploads - Real file upload (photos, docs)
+  // ---------------------------------------------------------------------------
+  server.post(
+    '/api/v1/projects/:projectId/uploads',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.SITE_DIARY_CREATE),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+
+      const project = await withTenantTx(prisma, tenantId, async (tx) =>
+        tx.project.findFirst({ where: { id: projectId, tenant_id: tenantId }, select: { id: true } }),
+      );
+      if (!project) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No file uploaded' });
+      }
+
+      const buffer = await file.toBuffer();
+      const spec = verifyUpload(buffer, file.mimetype);
+      if (!spec) {
+        return reply.status(415).send({
+          statusCode: 415,
+          error: 'Unsupported Media Type',
+          message: `File type ${file.mimetype} not allowed or content failed verification (images, PDF, MP4/MOV only)`,
+        });
+      }
+
+      // Extension comes from the verified mime type — never the client filename.
+      const storageKey = `${tenantId}/${projectId}/${randomUUID()}${spec.ext}`;
+      await getStorageDriver().put(storageKey, buffer);
+
+      await withTenantTx(prisma, tenantId, async (tx) => {
+        await recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          action: 'FILE_UPLOAD',
+          entityType: 'Project',
+          entityId: projectId,
+          changes: { storageKey, filename: file.filename, mimetype: file.mimetype, sizeBytes: buffer.length },
+        });
+      });
+
+      return reply.status(201).send({
+        data: {
+          storageKey,
+          url: `/uploads/${storageKey}`,
+          filename: file.filename,
+          mimetype: file.mimetype,
+          sizeBytes: buffer.length,
+        },
+      });
+    },
+  );
+
   // ---------------------------------------------------------------------------
   // 1. POST /api/v1/projects/:projectId/site-diaries - Create/Sync Daily Site Diary
   // ---------------------------------------------------------------------------
@@ -90,6 +158,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 weather: data.weather,
                 site_status: data.siteStatus,
                 general_notes: data.generalNotes || null,
+                is_non_work_day: data.isNonWorkDay ?? false,
               },
             });
             // Clean up existing headcounts & deliveries for replacement
@@ -104,6 +173,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 weather: data.weather,
                 site_status: data.siteStatus,
                 general_notes: data.generalNotes || null,
+                is_non_work_day: data.isNonWorkDay ?? false,
                 recorded_by_id: sub,
               },
             });
@@ -144,6 +214,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 site_diary_id: diary!.id,
                 storage_key: p.storageKey,
                 caption: p.caption || null,
+                client_visible: p.clientVisible ?? false,
                 taken_at: p.takenAt ? new Date(p.takenAt) : new Date(),
                 gps_latitude: p.gpsLatitude !== undefined && p.gpsLatitude !== null ? p.gpsLatitude : null,
                 gps_longitude: p.gpsLongitude !== undefined && p.gpsLongitude !== null ? p.gpsLongitude : null,
@@ -347,6 +418,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
               site_diary_id: diaryId,
               storage_key: data.storageKey,
               caption: data.caption || null,
+              client_visible: data.clientVisible ?? false,
               taken_at: data.takenAt ? new Date(data.takenAt) : new Date(),
               gps_latitude: data.gpsLatitude !== undefined && data.gpsLatitude !== null ? data.gpsLatitude : null,
               gps_longitude: data.gpsLongitude !== undefined && data.gpsLongitude !== null ? data.gpsLongitude : null,
@@ -598,6 +670,87 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         latestOverallProgress: latestOverall,
         latestOverallPercentage: (parseFloat(latestOverall) * 100).toFixed(2),
       });
+    },
+  );
+
+
+  // ---------------------------------------------------------------------------
+  // 6. PATCH /api/v1/projects/:projectId/site-diaries/:diaryId/photos/:photoId/visibility
+  // Gate-4 S7: per-photo client visibility toggle (opt-in sharing)
+  // ---------------------------------------------------------------------------
+  server.patch(
+    '/api/v1/projects/:projectId/site-diaries/:diaryId/photos/:photoId/visibility',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.SITE_DIARY_CREATE),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, diaryId, photoId } = request.params as {
+        projectId: string;
+        diaryId: string;
+        photoId: string;
+      };
+
+      const parseResult = UpdateSitePhotoVisibilitySchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid visibility payload',
+          details: parseResult.error.errors,
+        });
+      }
+      const { clientVisible } = parseResult.data;
+
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const photo = await tx.sitePhoto.findFirst({
+            where: { id: photoId, site_diary_id: diaryId },
+            include: { site_diary: { select: { project_id: true } } },
+          });
+          if (!photo || photo.site_diary.project_id !== projectId) {
+            throw { status: 404, message: 'Site photo not found' };
+          }
+
+          const record = await tx.sitePhoto.update({
+            where: { id: photoId },
+            data: { client_visible: clientVisible },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'SITE_PHOTO_VISIBILITY_UPDATED',
+            entityType: 'SitePhoto',
+            entityId: photoId,
+            changes: { clientVisible },
+            ipAddress: request.ip,
+            userAgent: request.headers['user-agent'] || null,
+          });
+
+          return record;
+        });
+
+        return reply.status(200).send({ message: 'Photo visibility updated', data: updated });
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            message: err.message,
+          });
+        }
+        server.log.error(err, 'Failed to update photo visibility');
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to update photo visibility',
+        });
+      }
     },
   );
 };

@@ -45,6 +45,8 @@ model Tenant {
   independent_inspection_photos IndependentInspectionPhoto[]
   project_tenders           ProjectTender[]
   tender_bids               TenderBid[]
+  quotes                    Quote[]
+  invoices                  Invoice[]
 
   @@map("tenants")
 }
@@ -55,6 +57,7 @@ model User {
   password_hash  String       @db.VarChar(255)
   full_name      String       @db.VarChar(255)
   phone_number   String?      @db.VarChar(30)
+  country        String?      @db.VarChar(60)
   is_active      Boolean      @default(true)
   created_at     DateTime     @default(now()) @db.Timestamptz
   updated_at     DateTime     @updatedAt @db.Timestamptz
@@ -70,11 +73,15 @@ model User {
 }
 
 model Membership {
-  id         String     @id @default(uuid()) @db.Uuid
-  tenant_id  String     @db.Uuid
-  user_id    String     @db.Uuid
-  role       String     @db.VarChar(50) // "ADMIN", "PM_QS", "SITE_SUPERVISOR", "CLIENT"
-  created_at DateTime   @default(now()) @db.Timestamptz
+  id                String     @id @default(uuid()) @db.Uuid
+  tenant_id         String     @db.Uuid
+  user_id           String     @db.Uuid
+  role              String     @db.VarChar(50) // "ADMIN", "PM_QS", "SITE_SUPERVISOR", "CLIENT"
+  // ADR-010: max |net_amount| (KES) this member may finally approve on a
+  // change order. NULL = no self-approval authority for non-owner roles;
+  // owner roles (ADMIN/COMPANY_ADMIN/CLIENT) are always unlimited.
+  co_approval_limit Decimal?   @db.Decimal(15, 2)
+  created_at        DateTime   @default(now()) @db.Timestamptz
 
   tenant     Tenant     @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -111,10 +118,17 @@ model Project {
   code                 String          @db.VarChar(50)
   description          String?         @db.Text
   location             String?         @db.VarChar(255)
+  map_latitude         Decimal?        @db.Decimal(9, 6) // Gate-4 S8: map pin
+  map_longitude        Decimal?        @db.Decimal(9, 6)
+  contract_currency    String          @default("KES") @db.VarChar(3) // Gate-4 S8: KES-first, USD optional
+  money_at_risk_kes    Decimal?        @db.Decimal(15, 2) // Gate-4 S8: observed money-at-risk field
   nca_project_no       String?         @db.VarChar(100) // NCA Project Registration ID
   status               String          @default("ACTIVE") @db.VarChar(50) // "PLANNING", "ACTIVE", "COMPLETED", "ON_HOLD"
   original_contract_sum Decimal        @default(0.00) @db.Decimal(15, 2)
   current_approved_budget Decimal      @default(0.00) @db.Decimal(15, 2)
+  // ADR-008 closeout stage machine: IN_PROGRESS -> HANDED_OVER -> DEFECTS_LIABILITY -> DEFECTS_EXPIRED -> CLOSED
+  closeout_stage       String          @default("IN_PROGRESS") @db.VarChar(30)
+  practical_completion_date DateTime?  @db.Date
   start_date           DateTime?       @db.Date
   target_end_date      DateTime?       @db.Date
   created_at           DateTime        @default(now()) @db.Timestamptz
@@ -172,6 +186,20 @@ model Project {
   independent_inspection_photos IndependentInspectionPhoto[]
   project_tenders       ProjectTender[]
   tender_bids           TenderBid[]
+  quotes                Quote[]
+  invoices              Invoice[]
+  payment_certificates  PaymentCertificate[]
+  commitments           Commitment[]
+  payment_applications  PaymentApplication[]
+  announcements         Announcement[]
+  inbox_messages        InboxMessage[]
+  site_observations     SiteObservation[]
+  corrective_actions    CorrectiveAction[]
+  crews                 Crew[]
+  correspondence_items  CorrespondenceItem[]
+  daily_attendances     DailyAttendance[]
+  checklist_assignments ChecklistAssignment[]
+  scheduled_reports     ScheduledReport[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -265,6 +293,7 @@ model SiteDiary {
   weather          String               @db.VarChar(50) // "SUNNY", "RAIN_DELAY", "HEAVY_RAIN"
   site_status      String               @db.VarChar(50) // "OPERATIONAL", "STOPPED", "PARTIAL"
   general_notes    String?              @db.Text
+  is_non_work_day  Boolean              @default(false) // Gate-4 S7: weekend/holiday/no-work flag
   recorded_by_id   String               @db.Uuid
   created_at       DateTime             @default(now()) @db.Timestamptz
 
@@ -284,6 +313,7 @@ model SitePhoto {
   site_diary_id  String     @db.Uuid
   storage_key    String     @db.VarChar(500) // S3 object key
   caption        String?    @db.VarChar(255)
+  client_visible Boolean    @default(false) // Gate-4 S7: opt-in per-photo client visibility
   taken_at       DateTime   @db.Timestamptz
   gps_latitude   Decimal?   @db.Decimal(9, 6)
   gps_longitude  Decimal?   @db.Decimal(9, 6)
@@ -317,6 +347,10 @@ model MaterialDelivery {
   unit          String     @db.VarChar(20)
   supplier_name String?    @db.VarChar(255)
   delivery_note String?    @db.VarChar(100)
+  delivery_status String   @default("RECORDED") @db.VarChar(20) // RECORDED | CONFIRMED | DISPUTED
+  confirmed_at   DateTime? @db.Timestamptz
+  confirmed_by_name String? @db.VarChar(255)
+  supplier_invoice_ref String? @db.VarChar(100)
 
   site_diary    SiteDiary  @relation(fields: [site_diary_id], references: [id], onDelete: Cascade)
 
@@ -430,18 +464,57 @@ model VariationOrder {
   variation_no         Int
   title                String          @db.VarChar(255)
   reason               String          @db.Text
-  status               String          @default("SUBMITTED") @db.VarChar(50) // "SUBMITTED", "QS_EVALUATED", "APPROVED", "REJECTED"
+  // ADR-010 lifecycle: DRAFT -> PM_REVIEW -> OWNER_REVIEW -> APPROVED | REJECTED | VOID
+  // Legacy values SUBMITTED/QS_EVALUATED are normalized to PM_REVIEW at read time.
+  status               String          @default("DRAFT") @db.VarChar(50)
+  trigger_type         String?         @db.VarChar(50) // DESIGN_CLARIFICATION | OWNER_REQUEST | UNFORESEEN_CONDITION | CODE_COMPLIANCE | STRUCTURAL_REVIEW | WEATHER_DELAY | OTHER
+  linked_rfi_id        String?         @db.Uuid
+  requested_by_id      String?         @db.Uuid
   net_amount           Decimal         @db.Decimal(15, 2) // Positive or negative
   time_extension_days  Int             @default(0)
+  submitted_at         DateTime?       @db.Timestamptz
   approved_at          DateTime?       @db.Timestamptz
   created_at           DateTime        @default(now()) @db.Timestamptz
 
   project              Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
   items                VariationItem[]
+  assignees            VariationAssignee[]
+  events               VariationEvent[]
 
   @@unique([project_id, variation_no])
   @@index([tenant_id, project_id, status])
   @@map("variation_orders")
+}
+
+model VariationAssignee {
+  id                  String          @id @default(uuid()) @db.Uuid
+  tenant_id           String          @db.Uuid
+  variation_order_id  String          @db.Uuid
+  project_member_id   String          @db.Uuid
+  role                String          @db.VarChar(20) // "REVIEWER" | "APPROVER"
+  created_at          DateTime        @default(now()) @db.Timestamptz
+
+  variation_order     VariationOrder  @relation(fields: [variation_order_id], references: [id], onDelete: Cascade)
+
+  @@unique([variation_order_id, project_member_id, role])
+  @@index([tenant_id, variation_order_id])
+  @@map("variation_assignees")
+}
+
+model VariationEvent {
+  id                  String          @id @default(uuid()) @db.Uuid
+  tenant_id           String          @db.Uuid
+  variation_order_id  String          @db.Uuid
+  actor_type          String          @db.VarChar(20) // "USER" | "CLIENT" | "CLIENT_PORTAL" | "SYSTEM"
+  actor_name          String          @db.VarChar(255)
+  event               String          @db.VarChar(50) // CREATED | SUBMITTED | EVALUATED | ESCALATED | APPROVED | REJECTED | VOIDED
+  note                String?         @db.Text
+  created_at          DateTime        @default(now()) @db.Timestamptz
+
+  variation_order     VariationOrder  @relation(fields: [variation_order_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, variation_order_id, created_at])
+  @@map("variation_events")
 }
 
 model VariationItem {
@@ -531,6 +604,7 @@ model RFI {
   suggested_solution  String?      @db.Text
   drawing_reference   String?      @db.VarChar(100) // e.g. "STR-04 Rev C"
   specification_clause String?     @db.VarChar(100) // e.g. "EASMM Sec 3.4"
+  issue_type          String?       @db.VarChar(30) // RFI | CLASH | DESIGN_QUESTION (observed coordination taxonomy)
   priority            RfiPriority  @default(MEDIUM)
   status              RfiStatus    @default(SUBMITTED)
   cost_impact         Boolean      @default(false)
@@ -602,6 +676,7 @@ enum ChecklistType {
 enum InspectionStatus {
   PENDING
   IN_PROGRESS
+  PENDING_CONSULTANT_REVIEW
   APPROVED_WITHOUT_COMMENTS
   APPROVED_WITH_CONDITIONS
   REJECTED
@@ -612,6 +687,8 @@ model InspectionChecklist {
   tenant_id       String            @db.Uuid
   project_id      String            @db.Uuid
   checklist_type  ChecklistType
+  inspection_type String?           @db.VarChar(60) // request category (Quality, Safety, Structural…)
+  assigned_consultant String?       @db.VarChar(255) // consultant(s) notified for review
   title           String            @db.VarChar(255)
   location        String            @db.VarChar(255) // e.g. "Block B, 2nd Floor Slab"
   status          InspectionStatus  @default(PENDING)
@@ -621,6 +698,15 @@ model InspectionChecklist {
   inspector_role  String?           @db.VarChar(100)
   signed_off_by_id String?          @db.Uuid
   summary_notes   String?           @db.Text
+  // Gate-5 G5-4: consultant approval chain — when requires_consultant_review
+  // is set, auto-completion pauses at PENDING_CONSULTANT_REVIEW until a
+  // reviewer (INSPECTION_REVIEW) approves or rejects.
+  requires_consultant_review Boolean @default(false)
+  consultant_review_status   String  @default("NOT_REQUIRED") @db.VarChar(15) // "NOT_REQUIRED","PENDING","APPROVED","REJECTED"
+  consultant_reviewed_by_id  String? @db.Uuid
+  consultant_reviewed_by_name String? @db.VarChar(255)
+  consultant_reviewed_at     DateTime? @db.Timestamptz
+  consultant_review_notes    String?  @db.Text
   created_at      DateTime          @default(now()) @db.Timestamptz
   updated_at      DateTime          @updatedAt @db.Timestamptz
 
@@ -718,9 +804,11 @@ enum SnagSeverity {
 enum SnagStatus {
   OPEN
   IN_PROGRESS
+  READY_FOR_REVIEW
   RECTIFIED_BY_CONTRACTOR
   VERIFIED_CLOSED
   CONTESTED
+  REJECTED
 }
 
 model SnagItem {
@@ -735,6 +823,16 @@ model SnagItem {
   description         String       @db.Text
   severity            SnagSeverity @default(COSMETIC)
   status              SnagStatus   @default(OPEN)
+  // Gate-4 S6 punch-list depth (observed 36-trade taxonomy form)
+  priority            String       @default("MEDIUM") @db.VarChar(10) // "LOW","MEDIUM","HIGH","CRITICAL"
+  item_type           String?      @db.VarChar(30) // "ARCHITECTURAL","MEP","FINISHES","STRUCTURAL","CIVIL","OTHER"
+  is_private          Boolean      @default(false) // Private flag: hidden from external stakeholder portals
+  manager_name        String?      @db.VarChar(255) // Punch item manager (accountability)
+  final_approver_name String?      @db.VarChar(255) // Final approver (separate accountability)
+  cost_impact_kes     Decimal?     @db.Decimal(15, 2)
+  schedule_impact_days Int?
+  cost_code           String?      @db.VarChar(50)
+  reference_doc       String?      @db.VarChar(255) // Drawing/specification reference
   assigned_trade_firm String?      @db.VarChar(255) // Subcontractor or internal crew
   due_date            DateTime?    @db.Date
   identified_by_name  String       @db.VarChar(255) // Architect / Client / QS / PM
@@ -745,6 +843,8 @@ model SnagItem {
 
   project             Project      @relation(fields: [project_id], references: [id], onDelete: Cascade)
   photos              SnagPhoto[]
+  comments            SnagComment[]
+  distributions       SnagDistribution[]
 
   @@unique([project_id, snag_number])
   @@index([tenant_id, project_id, status])
@@ -814,7 +914,7 @@ model PortalAccessLink {
   portal_type      String    @db.VarChar(50) // "CLIENT", "CONSULTANT", "SUBCONTRACTOR", "SUPPLIER", "COMPLIANCE"
   stakeholder_name String    @db.VarChar(255)
   stakeholder_role String?   @db.VarChar(100) // e.g. "Architect", "Structural Engineer", "Electrical Subcontractor", "Ready-Mix Supplier", "NCA Compliance Officer"
-  token            String    @unique @db.VarChar(255)
+  token_hash       String    @unique @db.VarChar(64)
   is_active        Boolean   @default(true)
   expires_at       DateTime  @db.Timestamptz
   created_at       DateTime  @default(now()) @db.Timestamptz
@@ -949,9 +1049,28 @@ model ProjectDocument {
   created_at           DateTime  @default(now()) @db.Timestamptz
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  annotations          DrawingAnnotation[]
 
   @@index([tenant_id, project_id, category])
   @@map("project_documents")
+}
+
+model DrawingAnnotation {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String   @db.Uuid
+  project_id     String   @db.Uuid
+  document_id    String   @db.Uuid
+  x_pct          Decimal  @db.Decimal(6, 3) // 0-100 horizontal position on the sheet
+  y_pct          Decimal  @db.Decimal(6, 3) // 0-100 vertical position on the sheet
+  note           String   @db.Text
+  author_name    String   @db.VarChar(255)
+  resolved       Boolean  @default(false)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  document       ProjectDocument @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, document_id])
+  @@map("drawing_annotations")
 }
 
 // =============================================================
@@ -1216,7 +1335,7 @@ model PlantEquipmentDailyLog {
   fuel_cost_per_liter_kes    Decimal        @default(180.00) @db.Decimal(8, 2)
   total_fuel_cost_kes        Decimal        @default(0.00) @db.Decimal(12, 2)
   fuel_burn_liters_per_hour  Decimal        @default(0.00) @db.Decimal(8, 2)
-  fuel_efficiency_status     String         @default("NORMAL") @db.VarChar(50) // "NORMAL", "ELEVATED_BURN", "SUSPECTED_SIPHONING"
+  fuel_efficiency_status     String         @default("NORMAL") @db.VarChar(50) // "NORMAL", "ELEVATED_BURN", "SUSPECTED_DISCREPANCY"
   activities_performed       String?        @db.Text
   verified_by_supervisor     String         @db.VarChar(255)
   created_at                 DateTime       @default(now()) @db.Timestamptz
@@ -1251,6 +1370,7 @@ model SiteLaborer {
   project            Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
   attendance_records LaborDailyAttendance[]
   clock_events       WorkerClockEvent[]
+  daily_attendances  DailyAttendance[]
 
   @@unique([tenant_id, national_id_no])
   @@index([tenant_id, project_id, trade_category])
@@ -1422,7 +1542,7 @@ model SiteAlertNotification {
   recipient_phone   String    @db.VarChar(50)
   recipient_name    String    @db.VarChar(255)
   recipient_role    String    @db.VarChar(50) // "PROJECT_MANAGER", "QUANTITY_SURVEYOR", "SITE_SUPERVISOR", "SAFETY_OFFICER"
-  alert_type        String    @db.VarChar(50) // "CRITICAL_SAFETY_STOP_WORK", "DIESEL_SIPHONING_FLAG", "STRUCTURAL_CONCRETE_FAIL", "BUDGET_OVERRUN"
+  alert_type        String    @db.VarChar(50) // "CRITICAL_SAFETY_STOP_WORK", "DIESEL_DISCREPANCY_FLAG", "STRUCTURAL_CONCRETE_FAIL", "BUDGET_OVERRUN"
   message_body      String    @db.Text
   delivery_channel  String    @default("WHATSAPP") @db.VarChar(20) // "WHATSAPP", "SMS", "IN_APP"
   delivery_status   String    @default("SENT") @db.VarChar(50) // "QUEUED", "SENT", "DELIVERED", "FAILED"
@@ -1650,7 +1770,7 @@ model PlantMaintenanceAlert {
   equipment_id               String                @db.Uuid
   device_id                  String?               @db.Uuid
   alert_code                 String                @db.VarChar(50) // E.g. "ALT-EXC01-001"
-  alert_type                 String                @db.VarChar(50) // "DTC_FAULT", "ENGINE_OVERHEAT", "CRITICAL_OIL_TEMP", "SERVICE_INTERVAL_DUE", "SIPHONING_THEFT"
+  alert_type                 String                @db.VarChar(50) // "DTC_FAULT", "ENGINE_OVERHEAT", "CRITICAL_OIL_TEMP", "SERVICE_INTERVAL_DUE", "FUEL_DISCREPANCY"
   severity                   String                @default("WARNING") @db.VarChar(20) // "INFO", "WARNING", "CRITICAL", "FATAL_SHUTDOWN"
   dtc_code                   String?               @db.VarChar(20)
   title                      String                @db.VarChar(255)
@@ -1752,6 +1872,9 @@ model MpesaDisbursementTransaction {
   result_desc                String?   @db.VarChar(255)
   transaction_completed_at   DateTime? @db.Timestamptz
   idempotency_key            String    @unique @db.VarChar(100)
+  initiated_by               String?   @db.Uuid
+  approved_by                String?   @db.Uuid
+  approved_at                DateTime? @db.Timestamptz
   created_at                 DateTime  @default(now()) @db.Timestamptz
   updated_at                 DateTime  @updatedAt @db.Timestamptz
 
@@ -2149,3 +2272,722 @@ model TenderBid {
 
 
 
+
+// -------------------------------------------------------------
+// QUOTES — quotes-to-cash (ADR-007, Gate-4 slice S1)
+// -------------------------------------------------------------
+
+model Quote {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  quote_no        Int
+  title           String    @db.VarChar(255)
+  client_name     String    @db.VarChar(255)
+  client_email    String?   @db.VarChar(255)
+  client_phone    String?   @db.VarChar(50)
+  site_location   String?   @db.VarChar(255)
+  project_id      String?   @db.Uuid
+  currency        String    @default("KES") @db.VarChar(3)
+  status          String    @default("DRAFT") @db.VarChar(20) // "DRAFT","SENT","ACCEPTED","DECLINED","EXPIRED","CONVERTED"
+  subtotal        Decimal   @default(0) @db.Decimal(15, 2)
+  tax_pct         Decimal   @default(0) @db.Decimal(5, 2)
+  tax_amount      Decimal   @default(0) @db.Decimal(15, 2)
+  total           Decimal   @default(0) @db.Decimal(15, 2)
+  deposit_pct     Decimal   @default(0) @db.Decimal(5, 2)
+  deposit_amount  Decimal   @default(0) @db.Decimal(15, 2)
+  terms           String?   @db.Text
+  scope_notes     String?   @db.Text
+  valid_until     DateTime? @db.Date
+  share_token_hash String?  @unique @db.VarChar(64) // SHA-256 hex of the public share token; raw token shown once at send
+  responded_at    DateTime? @db.Timestamptz
+  responded_by    String?   @db.VarChar(255) // typed-name e-signature
+  response_note   String?   @db.Text
+  converted_project_id String? @db.Uuid
+  created_by      String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  tenant          Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  items           QuoteLineItem[]
+  events          QuoteEvent[]
+  invoices        Invoice[]
+
+  @@unique([tenant_id, quote_no])
+  @@index([tenant_id, status])
+  @@index([tenant_id, client_email])
+  @@map("quotes")
+}
+
+model QuoteLineItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String   @db.Uuid
+  quote_id       String   @db.Uuid
+  section        String?  @db.VarChar(120)
+  description    String   @db.Text
+  unit           String   @default("item") @db.VarChar(20) // item,sum,m,m2,m3,no,kg,day,hr,lot
+  quantity       Decimal  @default(1) @db.Decimal(12, 4)
+  unit_rate      Decimal  @default(0) @db.Decimal(15, 4)
+  total_amount   Decimal  @default(0) @db.Decimal(15, 2)
+  sort_order     Int      @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  quote          Quote    @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, quote_id])
+  @@map("quote_line_items")
+}
+
+model QuoteEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  quote_id    String   @db.Uuid
+  actor_type  String   @db.VarChar(20) // "STAFF","CLIENT","SYSTEM"
+  actor_name  String?  @db.VarChar(255)
+  event       String   @db.VarChar(40) // CREATED,SENT,VIEWED,ACCEPTED,DECLINED,COMMENT,CONVERTED,EXPIRED
+  note        String?  @db.Text
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  quote       Quote    @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, quote_id])
+  @@map("quote_events")
+}
+
+// INVOICES — accounts receivable (Gate-4 slice S2)
+// Statuses stored: DRAFT, SENT, PART_PAID, PAID, VOID.
+// OVERDUE is derived at read time (SENT/PART_PAID past due_date) — no cron needed.
+model Invoice {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenant_id    String    @db.Uuid
+  invoice_no   Int
+  title        String    @db.VarChar(255)
+  project_id   String?   @db.Uuid
+  quote_id     String?   @db.Uuid
+  client_name  String    @db.VarChar(255)
+  client_email String?   @db.VarChar(255)
+  client_phone String?   @db.VarChar(50)
+  bill_to      String?   @db.Text
+  po_number    String?   @db.VarChar(100)
+  status       String    @default("DRAFT") @db.VarChar(20)
+  currency     String    @default("KES") @db.VarChar(3)
+  subtotal     Decimal   @default(0) @db.Decimal(15, 2)
+  tax_pct      Decimal   @default(0) @db.Decimal(5, 2)
+  tax_amount   Decimal   @default(0) @db.Decimal(15, 2)
+  total        Decimal   @default(0) @db.Decimal(15, 2)
+  amount_paid  Decimal   @default(0) @db.Decimal(15, 2)
+  balance_due  Decimal   @default(0) @db.Decimal(15, 2)
+  issue_date   DateTime  @db.Date
+  due_date     DateTime  @db.Date
+  terms        String?   @db.Text
+  notes        String?   @db.Text
+  paybill      String?   @db.VarChar(20) // M-Pesa Paybill/Till for client remittance
+  sent_at      DateTime? @db.Timestamptz
+  paid_at      DateTime? @db.Timestamptz
+  voided_at    DateTime? @db.Timestamptz
+  void_reason  String?   @db.VarChar(255)
+  created_by   String?   @db.Uuid
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+
+  tenant   Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  project  Project?          @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  quote    Quote?            @relation(fields: [quote_id], references: [id], onDelete: SetNull)
+  items    InvoiceLineItem[]
+  payments InvoicePayment[]
+
+  @@unique([tenant_id, invoice_no])
+  @@index([tenant_id, status])
+  @@index([tenant_id, project_id])
+  @@index([tenant_id, due_date])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenant_id    String   @db.Uuid
+  invoice_id   String   @db.Uuid
+  section      String?  @db.VarChar(120)
+  description  String   @db.Text
+  unit         String   @default("item") @db.VarChar(20)
+  quantity     Decimal  @default(1) @db.Decimal(12, 4)
+  unit_rate    Decimal  @default(0) @db.Decimal(15, 4)
+  total_amount Decimal  @default(0) @db.Decimal(15, 2)
+  sort_order   Int      @default(0)
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  invoice      Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, invoice_id])
+  @@map("invoice_line_items")
+}
+
+model InvoicePayment {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  invoice_id  String   @db.Uuid
+  amount      Decimal  @db.Decimal(15, 2)
+  method      String   @default("BANK") @db.VarChar(20) // "CASH","BANK","M_PESA","CHEQUE","CARD","OTHER"
+  reference   String?  @db.VarChar(100) // M-Pesa transaction code, cheque no, etc.
+  paid_at     DateTime @default(now()) @db.Timestamptz
+  note        String?  @db.Text
+  recorded_by String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  invoice     Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, invoice_id])
+  @@map("invoice_payments")
+}
+
+// -------------------------------------------------------------
+// PAYMENT CERTIFICATES & CLOSEOUT (ADR-008, Gate-4 S4)
+// Unified interim payment certificate / payment application record.
+// Status machine: DRAFT -> SUBMITTED -> UNDER_REVIEW -> CERTIFIED -> PAID
+//                                    \-> REJECTED (from SUBMITTED/UNDER_REVIEW)
+// -------------------------------------------------------------
+
+model PaymentCertificate {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenant_id            String    @db.Uuid
+  project_id           String    @db.Uuid
+  certificate_no       Int       // Sequential per project (IPC-<project>-NN)
+  period_start         DateTime  @db.Date
+  period_end           DateTime  @db.Date
+  this_period_amount   Decimal   @db.Decimal(15, 2) // Gross amount certified this period
+  previous_certified   Decimal   @db.Decimal(15, 2) // Certified total before this certificate
+  cumulative_certified Decimal   @db.Decimal(15, 2) // previous + this period
+  retention_pct        Decimal   @default(5.00) @db.Decimal(5, 2)
+  retention_deduction  Decimal   @db.Decimal(15, 2) // Retention withheld this period
+  retention_held       Decimal   @db.Decimal(15, 2) // Cumulative retention held after this cert
+  retention_released   Decimal   @default(0) @db.Decimal(15, 2) // Moiety/defects release added back to payable
+  advance_recovery     Decimal   @default(0) @db.Decimal(15, 2)
+  amount_due_previous  Decimal   @default(0) @db.Decimal(15, 2)
+  net_payable          Decimal   @db.Decimal(15, 2)
+  status               String    @default("DRAFT") @db.VarChar(30)
+  submitted_at         DateTime? @db.Timestamptz
+  certified_at         DateTime? @db.Timestamptz
+  paid_at              DateTime? @db.Timestamptz
+  paid_reference       String?   @db.VarChar(100) // M-Pesa code / EFT ref / cheque no
+  submitted_by_id      String?   @db.Uuid
+  certified_by_id      String?   @db.Uuid
+  notes                String?   @db.Text
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @updatedAt @db.Timestamptz
+
+  project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, certificate_no])
+  @@index([tenant_id, project_id, status])
+  @@map("payment_certificates")
+}
+
+// -------------------------------------------------------------
+// COMMITMENTS -> CLAIMS -> PAYMENT APPLICATIONS (Gate-4 S5)
+// Vendor-agnostic commitment ledger (subcontractors, suppliers,
+// consultants) with periodic payment applications, retention and
+// advance-recovery math in Decimal.
+// -------------------------------------------------------------
+
+model Commitment {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenant_id              String    @db.Uuid
+  project_id             String    @db.Uuid
+  commitment_no          Int       // Sequential per project
+  vendor_name            String    @db.VarChar(255)
+  vendor_type            String    @default("SUBCONTRACTOR") @db.VarChar(30) // "SUBCONTRACTOR","SUPPLIER","CONSULTANT","OTHER"
+  scope_description      String?   @db.Text
+  contract_value         Decimal   @db.Decimal(15, 2)
+  currency               String    @default("KES") @db.VarChar(3)
+  retention_pct          Decimal   @default(5.00) @db.Decimal(5, 2)
+  retention_cap_pct      Decimal   @default(5.00) @db.Decimal(5, 2) // Cap as % of contract value (JBC-style)
+  advance_amount         Decimal   @default(0) @db.Decimal(15, 2)
+  advance_paid           Decimal   @default(0) @db.Decimal(15, 2)
+  advance_recover_pct    Decimal   @default(0) @db.Decimal(5, 2) // % of each gross claim recovered until advance cleared
+  cost_code              String?   @db.VarChar(50)
+  status                 String    @default("ACTIVE") @db.VarChar(20) // "DRAFT","ACTIVE","COMPLETED","TERMINATED"
+  subcontractor_package_id String? @db.Uuid
+  notes                  String?   @db.Text
+  created_at             DateTime  @default(now()) @db.Timestamptz
+  updated_at             DateTime  @updatedAt @db.Timestamptz
+
+  project                Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  applications           PaymentApplication[]
+
+  @@unique([project_id, commitment_no])
+  @@index([tenant_id, project_id, status])
+  @@map("commitments")
+}
+
+model PaymentApplication {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenant_id              String    @db.Uuid
+  project_id             String    @db.Uuid
+  commitment_id          String    @db.Uuid
+  application_no         Int       // Sequential per commitment
+  period_start           DateTime  @db.Date
+  period_end             DateTime  @db.Date
+  gross_claimed          Decimal   @db.Decimal(15, 2)
+  previous_certified     Decimal   @db.Decimal(15, 2) // Gross certified on prior APPROVED/PAID applications
+  cumulative_certified   Decimal   @db.Decimal(15, 2)
+  retention_withheld     Decimal   @db.Decimal(15, 2) // This application
+  retention_held         Decimal   @db.Decimal(15, 2) // Cumulative held after this application
+  advance_recovered      Decimal   @db.Decimal(15, 2) // This application
+  advance_outstanding    Decimal   @db.Decimal(15, 2) // Remaining advance after this application
+  wht_pct                Decimal   @default(0) @db.Decimal(5, 2) // Kenyan WHT (e.g. 3% subcontractors)
+  wht_amount             Decimal   @default(0) @db.Decimal(15, 2)
+  previous_balance       Decimal   @default(0) @db.Decimal(15, 2) // Carried amount due from prior applications
+  net_payable            Decimal   @db.Decimal(15, 2)
+  status                 String    @default("DRAFT") @db.VarChar(20) // "DRAFT","SUBMITTED","APPROVED","PAID","REJECTED"
+  submitted_at           DateTime? @db.Timestamptz
+  approved_at            DateTime? @db.Timestamptz
+  paid_at                DateTime? @db.Timestamptz
+  paid_reference         String?   @db.VarChar(100)
+  submitted_by_id        String?   @db.Uuid
+  approved_by_id         String?   @db.Uuid
+  notes                  String?   @db.Text
+  created_at             DateTime  @default(now()) @db.Timestamptz
+  updated_at             DateTime  @updatedAt @db.Timestamptz
+
+  project                Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  commitment             Commitment @relation(fields: [commitment_id], references: [id], onDelete: Cascade)
+
+  @@unique([commitment_id, application_no])
+  @@index([tenant_id, project_id, status])
+  @@map("payment_applications")
+}
+
+model SnagComment {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenant_id     String   @db.Uuid
+  snag_item_id  String   @db.Uuid
+  author_name   String   @db.VarChar(255)
+  body          String   @db.Text
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  snag_item     SnagItem @relation(fields: [snag_item_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, snag_item_id])
+  @@map("snag_comments")
+}
+
+model SnagDistribution {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenant_id         String   @db.Uuid
+  snag_item_id      String   @db.Uuid
+  recipient_name    String   @db.VarChar(255)
+  recipient_contact String?  @db.VarChar(255) // email / phone / role
+  channel           String?  @db.VarChar(30)  // "EMAIL","SMS","WHATSAPP","IN_APP"
+  created_at        DateTime @default(now()) @db.Timestamptz
+
+  snag_item         SnagItem @relation(fields: [snag_item_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, snag_item_id])
+  @@map("snag_distributions")
+}
+
+// -------------------------------------------------------------
+// ANNOUNCEMENTS (Gate-5 G5-1): audience-targeted broadcasts with
+// read acknowledgement receipts.
+// -------------------------------------------------------------
+
+model Announcement {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String?   @db.Uuid // optional project scoping
+  title           String    @db.VarChar(255)
+  body            String    @db.Text
+  priority        String    @default("NORMAL") @db.VarChar(10) // "LOW","NORMAL","HIGH","URGENT"
+  audience        String    @default("ALL") @db.VarChar(20) // "ALL","INTERNAL","CLIENTS","FIELD_TEAM"
+  target_roles    String[]  @default([]) // role-scoped targeting (tenant roles)
+  status          String    @default("PUBLISHED") @db.VarChar(15) // "DRAFT","PUBLISHED","ARCHIVED"
+  published_at    DateTime? @db.Timestamptz
+  expires_at      DateTime? @db.Timestamptz
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  reads           AnnouncementRead[]
+
+  @@index([tenant_id, status, published_at])
+  @@map("announcements")
+}
+
+// Client-initiated project requests ("Request a project" portal flow)
+model ClientProjectRequest {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenant_id       String   @db.Uuid
+  user_id         String   @db.Uuid
+  project_type    String   @db.VarChar(60)
+  location_text   String   @db.VarChar(255)
+  budget_range    String?  @db.VarChar(40)
+  start_timeframe String?  @db.VarChar(40)
+  description     String   @db.Text
+  contact_phone   String?  @db.VarChar(30)
+  status          String   @default("NEW") @db.VarChar(20) // NEW, REVIEWING, CONVERTED, CLOSED
+  created_at      DateTime @default(now()) @db.Timestamptz
+  updated_at      DateTime @updatedAt @db.Timestamptz
+
+  @@index([tenant_id, status, created_at])
+  @@map("client_project_requests")
+}
+
+model AnnouncementRead {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenant_id       String   @db.Uuid
+  announcement_id String   @db.Uuid
+  user_id         String   @db.Uuid
+  read_at         DateTime @default(now()) @db.Timestamptz
+
+  announcement    Announcement @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+
+  @@unique([announcement_id, user_id])
+  @@index([tenant_id, announcement_id])
+  @@map("announcement_reads")
+}
+
+// -------------------------------------------------------------
+// INBOX (Gate-5 G5-3): team messaging observed as Home > Inbox
+// for all field-capable roles. Project-scoped or tenant-wide,
+// role-targeted, threaded replies, read receipts.
+// -------------------------------------------------------------
+
+model InboxMessage {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String?   @db.Uuid
+  sender_id       String    @db.Uuid
+  sender_name     String    @db.VarChar(255)
+  body            String    @db.Text
+  audience        String    @default("PROJECT_TEAM") @db.VarChar(20) // "ALL_MEMBERS","PROJECT_TEAM","ROLE"
+  target_roles    String[]  @default([])
+  parent_id       String?   @db.Uuid // thread reply
+  created_at      DateTime  @default(now()) @db.Timestamptz
+
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  reads           InboxMessageRead[]
+
+  @@index([tenant_id, project_id, created_at])
+  @@map("inbox_messages")
+}
+
+model InboxMessageRead {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenant_id       String   @db.Uuid
+  message_id      String   @db.Uuid
+  user_id         String   @db.Uuid
+  read_at         DateTime @default(now()) @db.Timestamptz
+
+  message         InboxMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+
+  @@unique([message_id, user_id])
+  @@index([tenant_id, message_id])
+  @@map("inbox_message_reads")
+}
+
+// -------------------------------------------------------------
+// OBSERVATIONS & CORRECTIVE ACTIONS (Gate-5 G5-4): observed Site >
+// Observations / Action plans. Observation raised during walks/
+// inspections; corrective actions link back via source ref.
+// -------------------------------------------------------------
+
+model SiteObservation {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  obs_number      Int       // Sequential per project (OBS-001…)
+  title           String    @db.VarChar(255)
+  type            String    @default("QUALITY") @db.VarChar(20) // "QUALITY","SAFETY","ENVIRONMENTAL","COMMISSIONING"
+  priority        String    @default("MEDIUM") @db.VarChar(10) // "LOW","MEDIUM","HIGH"
+  location        String?   @db.VarChar(255) // e.g. "Level 2 — Grid C4"
+  description     String    @db.Text
+  status          String    @default("OPEN") @db.VarChar(15) // "OPEN","IN_REVIEW","CLOSED"
+  raised_by_id    String?   @db.Uuid
+  raised_by_name  String    @db.VarChar(255)
+  closed_at       DateTime? @db.Timestamptz
+  closed_by_name  String?   @db.VarChar(255)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  corrective_actions CorrectiveAction[]
+
+  @@unique([project_id, obs_number])
+  @@index([tenant_id, project_id, status])
+  @@map("site_observations")
+}
+
+model CorrectiveAction {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  observation_id  String?   @db.Uuid
+  title           String    @db.VarChar(255)
+  owner_name      String    @db.VarChar(255)
+  due_date        DateTime? @db.Date
+  source_ref      String?   @db.VarChar(50) // e.g. "OBS-003" or external ref
+  steps           String[]  @default([]) // ordered action steps
+  status          String    @default("ACTIVE") @db.VarChar(15) // "ACTIVE","COMPLETED"
+  completed_at    DateTime? @db.Timestamptz
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  observation     SiteObservation? @relation(fields: [observation_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, project_id, status])
+  @@map("corrective_actions")
+}
+
+// -------------------------------------------------------------
+// CREWS (Gate-5 G5-5): observed People > Crews — named trade crews
+// with foreman + members, optionally project-assigned.
+// -------------------------------------------------------------
+
+model Crew {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String?   @db.Uuid
+  name            String    @db.VarChar(255) // e.g. "Masonry Crew A"
+  trade           String    @db.VarChar(100) // "Masonry","Electrical","Plumbing"…
+  foreman_name    String?   @db.VarChar(255)
+  status          String    @default("ACTIVE") @db.VarChar(15) // "ACTIVE","INACTIVE"
+  notes           String?   @db.Text
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  members         CrewMember[]
+  attendances     DailyAttendance[]
+
+  @@index([tenant_id, project_id, status])
+  @@map("crews")
+}
+
+model CrewMember {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  crew_id         String    @db.Uuid
+  name            String    @db.VarChar(255)
+  trade           String?   @db.VarChar(100)
+  phone           String?   @db.VarChar(50)
+  daily_rate_kes  Decimal?  @db.Decimal(12, 2)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+
+  crew            Crew      @relation(fields: [crew_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, crew_id])
+  @@map("crew_members")
+}
+
+// -------------------------------------------------------------
+// COMPANY DOCUMENTS VAULT (Gate-5 G5-7): observed Files & reports >
+// Company documents — tenant-level vault with categories
+// (Policies/Templates/Certifications/Insurance/HR/Legal), expiry
+// tracking, and "Unfiled documents" triage (category null until
+// filed). Distinct from project-scoped ProjectDocument.
+// -------------------------------------------------------------
+
+model CompanyDocument {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  title           String    @db.VarChar(255)
+  category        String?   @db.VarChar(30) // null = UNFILED; "POLICY","TEMPLATE","CERTIFICATION","INSURANCE","HR","LEGAL","OTHER"
+  reference_no    String?   @db.VarChar(100) // e.g. NCA cert no., policy no.
+  file_name       String?   @db.VarChar(255)
+  mime_type       String?   @db.VarChar(100)
+  file_size       Int?
+  storage_key     String?   @db.VarChar(500)
+  expiry_date     DateTime? @db.Date
+  status          String    @default("ACTIVE") @db.VarChar(15) // "ACTIVE","ARCHIVED"
+  uploaded_by_id  String?   @db.Uuid
+  uploaded_by_name String   @db.VarChar(255)
+  notes           String?   @db.Text
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  @@index([tenant_id, category, status])
+  @@index([tenant_id, expiry_date])
+  @@map("company_documents")
+}
+
+// -------------------------------------------------------------
+// CORRESPONDENCE LOG (Gate-5 G5-8): observed Projects >
+// Correspondence — formal project letters: Letter, Submittal,
+// Transmittal, Notice. Sequential per project, direction-aware.
+// -------------------------------------------------------------
+
+model CorrespondenceItem {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  corr_number     Int       // sequential per project → COR-001…
+  type            String    @db.VarChar(20) // "LETTER","SUBMITTAL","TRANSMITTAL","NOTICE"
+  direction       String    @default("OUTGOING") @db.VarChar(10) // "OUTGOING","INCOMING"
+  subject         String    @db.VarChar(500)
+  from_name       String    @db.VarChar(255)
+  to_name         String    @db.VarChar(255)
+  reference       String?   @db.VarChar(100) // e.g. "VO/2026/014", consultant ref
+  letter_date     DateTime? @db.Date
+  status          String    @default("DRAFT") @db.VarChar(15) // "DRAFT","SENT","RECEIVED","RESPONDED","FILED"
+  body            String?   @db.Text
+  attachment_name String?   @db.VarChar(255)
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, corr_number])
+  @@index([tenant_id, project_id, type])
+  @@map("correspondence_items")
+}
+
+// -------------------------------------------------------------
+// SCHEDULED REPORTS (Gate-5 G5-9): observed Files & reports >
+// Scheduled — saved report definitions with frequency, recipient
+// list, project scope, and run history. Generation snapshots a
+// tenant summary into ScheduledReportRun; external delivery is a
+// later integration.
+// -------------------------------------------------------------
+
+model ScheduledReport {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String?   @db.Uuid
+  name            String    @db.VarChar(255)
+  report_type     String    @db.VarChar(20) // "FINANCIAL","OPERATIONAL","BY_PROJECT","BY_REGION","CUSTOM"
+  frequency       String    @db.VarChar(10) // "DAILY","WEEKLY","MONTHLY"
+  day_of_week     Int?      // 0=Sun…6=Sat (WEEKLY)
+  day_of_month    Int?      // 1-28 (MONTHLY)
+  recipients      String[]  @default([]) // emails or role labels
+  format          String    @default("PDF") @db.VarChar(10) // "PDF","EXCEL","JSON"
+  status          String    @default("ACTIVE") @db.VarChar(10) // "ACTIVE","PAUSED"
+  next_run_at     DateTime? @db.Timestamptz
+  last_run_at     DateTime? @db.Timestamptz
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  runs            ScheduledReportRun[]
+
+  @@index([tenant_id, status, next_run_at])
+  @@map("scheduled_reports")
+}
+
+model ScheduledReportRun {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  report_id       String    @db.Uuid
+  ran_at          DateTime  @default(now()) @db.Timestamptz
+  status          String    @db.VarChar(10) // "SUCCESS","FAILED"
+  summary         Json?     // snapshot payload
+  error           String?   @db.Text
+
+  report          ScheduledReport @relation(fields: [report_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, report_id, ran_at])
+  @@map("scheduled_report_runs")
+}
+
+// -------------------------------------------------------------
+// DAILY ATTENDANCE (Gate-5 G5-10): observed Site > Attendance —
+// Today / History / Check In / Report Leave or Off-Day.
+// Per-laborer per-project per-day register; distinct from payroll
+// LaborDailyAttendance (weekly muster) and geofenced
+// WorkerClockEvent (IoT). Optional crew link.
+// -------------------------------------------------------------
+
+model DailyAttendance {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  laborer_id      String    @db.Uuid
+  crew_id         String?   @db.Uuid
+  work_date       DateTime  @db.Date
+  status          String    @default("PRESENT") @db.VarChar(15) // "PRESENT","HALF_DAY","LEAVE","OFF_DAY","ABSENT"
+  check_in_at     DateTime? @db.Timestamptz
+  check_out_at    DateTime? @db.Timestamptz
+  hours_worked    Decimal?  @db.Decimal(4, 2)
+  notes           String?   @db.Text
+  recorded_by_id  String?   @db.Uuid
+  recorded_by_name String?  @db.VarChar(255)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  laborer         SiteLaborer @relation(fields: [laborer_id], references: [id], onDelete: Cascade)
+  crew            Crew?     @relation(fields: [crew_id], references: [id], onDelete: SetNull)
+
+  @@unique([tenant_id, project_id, laborer_id, work_date])
+  @@index([tenant_id, project_id, work_date])
+  @@map("daily_attendances")
+}
+
+// -------------------------------------------------------------
+// CHECKLIST TEMPLATES & ASSIGNMENTS (Gate-5 G5-6): observed Site >
+// Checklists (New Template form builder) + Assignments (Assign a
+// form, statuses Draft→Assigned→In Progress→Submitted→
+// Approved/Rejected). Templates are reusable across projects
+// (is_global) or project-scoped via assignments.
+// -------------------------------------------------------------
+
+model ChecklistTemplate {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  title           String    @db.VarChar(255)
+  trade_category  String    @db.VarChar(50) // 15 observed trades + GENERAL/CUSTOM
+  kind            String    @default("CUSTOM") @db.VarChar(15) // "SAFETY","QUALITY","PRE_HANDOVER","CUSTOM"
+  is_global       Boolean   @default(false) // available to all projects
+  questions       Json      @default("[]") // [{text,type,options?,required}]
+  status          String    @default("ACTIVE") @db.VarChar(10) // "ACTIVE","ARCHIVED"
+  created_by_id   String?   @db.Uuid
+  created_by_name String?   @db.VarChar(255)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  @@index([tenant_id, trade_category, status])
+  @@map("checklist_templates")
+}
+
+model ChecklistAssignment {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  project_id      String    @db.Uuid
+  template_id     String?   @db.Uuid
+  title           String    @db.VarChar(255) // snapshot of template title or custom
+  trade           String    @db.VarChar(100) // assigned trade label
+  assigned_to_name String?  @db.VarChar(255)
+  due_date        DateTime? @db.Date
+  status          String    @default("DRAFT") @db.VarChar(15) // "DRAFT","ASSIGNED","IN_PROGRESS","SUBMITTED","APPROVED","REJECTED"
+  responses       Json?     // [{questionIdx, answer, notes?}]
+  submitted_at    DateTime? @db.Timestamptz
+  reviewed_by_name String?  @db.VarChar(255)
+  review_notes    String?   @db.Text
+  created_by_id   String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id, status])
+  @@map("checklist_assignments")
+}
+
+// Server-side refresh-token rotation tracking (audit S-01).
+// One row per issued refresh token (keyed by JWT jti). On refresh the row is
+// consumed; presenting an already-consumed or unknown jti revokes the family.
+model RefreshToken {
+  jti        String   @id @db.VarChar(64)
+  tenant_id  String   @db.Uuid
+  user_id    String   @db.Uuid
+  expires_at DateTime @db.Timestamptz
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  @@index([tenant_id, user_id])
+  @@map("refresh_tokens")
+}

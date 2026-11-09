@@ -4,7 +4,7 @@
 **Classification:** Product Architecture & Domain Engineering Specification  
 **Author:** Chief Construction Technology Officer (CTO) & Product Architect Agent  
 **Audience:** Core Engineering Team, Product Managers, Consulting Quantity Surveyors, Executive Board  
-**Target Platform:** MjengoLedger (Multi-Tenant Construction Project Control SaaS)  
+**Target Platform:** Platform (Multi-Tenant Construction Project Control SaaS)  
 **Date:** November 2026  
 **Status:** Approved Master Architecture Baseline  
 
@@ -22,7 +22,7 @@
    - [3.1 Comprehensive Competitor Comparison Matrix](#31-comprehensive-competitor-comparison-matrix)
    - [3.2 The Global SaaS Failure Modes on Kenyan Sites](#32-the-global-saas-failure-modes-on-kenyan-sites)
    - [3.3 The Regional / Local Competitor Bottlenecks](#33-the-regional--local-competitor-bottlenecks)
-   - [3.4 MjengoLedger’s Unfair Strategic Advantage & Moat](#34-mjengoledgers-unfair-strategic-advantage--moat)
+   - [3.4 Platform’s Unfair Strategic Advantage & Moat](#34-platforms-unfair-strategic-advantage--moat)
 4. [The 8-Stage Contractor Project Lifecycle Architecture](#4-the-8-stage-contractor-project-lifecycle-architecture)
    - [Stage 1: Inception, Statutory Approvals & BOQ Baseline Lock](#stage-1-inception-statutory-approvals--boq-baseline-lock)
    - [Stage 2: Site Possession, Mobilization & Signage](#stage-2-site-possession-mobilization--signage)
@@ -58,8 +58,8 @@ The Kenyan construction sector generates over 7% of Kenya's Gross Domestic Produ
    - **Global Construction Software** (Procore, Autodesk Construction Cloud, Buildertrend, Fieldwire) is priced in USD ($5,000 to $25,000+ per year), demands reliable broadband, requires credit card billing, enforces foreign (North American/European) contract workflows (AIA contracts, US mechanics liens), and completely lacks support for East African measurement conventions (EASMM 2008) and dual-moiety retention funds.
    - **Local / Regional Tools** either target enterprise contractors with exorbitant onboarding fees (Lobocon: KES 300,000 pilot + KES 100,000/month/project), charge punitive per-seat licenses that penalize field reporting (Strukchad: KES 2,000 to 5,000/user/month), or operate with closed pricing and legacy architectures (ManPro).
 
-### MjengoLedger's Strategic Thesis
-MjengoLedger occupies the vast, unserved mid-market by delivering an **opinionated, field-first, statutory-native project operating system** built specifically for Kenyan building contractors. By pricing at **KES 7,500/project/month** (or **KES 25,000/month portfolio** with unlimited users), MjengoLedger offers **10x lower Total Cost of Ownership (TCO)** than legacy enterprise tools while delivering Procore-grade field management, offline PWA resilience, and full statutory alignment with the National Construction Authority (NCA) and Board of Registration of Architects and Quantity Surveyors (BORAQS).
+### Platform's Strategic Thesis
+Platform occupies the vast, unserved mid-market by delivering an **opinionated, field-first, statutory-native project operating system** built specifically for Kenyan building contractors. By pricing at **KES 7,500/project/month** (or **KES 25,000/month portfolio** with unlimited users), Platform offers **10x lower Total Cost of Ownership (TCO)** than legacy enterprise tools while delivering Procore-grade field management, offline PWA resilience, and full statutory alignment with the National Construction Authority (NCA) and Board of Registration of Architects and Quantity Surveyors (BORAQS).
 
 ```mermaid
 flowchart TD
@@ -76,7 +76,7 @@ flowchart TD
         L3["Desktop-First / Incomplete Offline Mobile PWA"]
     end
 
-    subgraph MjengoLedger_Moat["MjengoLedger (Our Advantage)"]
+    subgraph Platform_Moat["Platform (Our Advantage)"]
         M1["Flat KES 7,500/mo/project (Zero User Seat Tax)"]
         M2["Offline-First PWA (Works on 2G/3G Safaricom)"]
         M3["Native EASMM 2008 + JBC 1999 Retention Ledger"]
@@ -88,7 +88,7 @@ flowchart TD
 
 ## 2. Kenyan Statutory & Regulatory Framework
 
-To build software that contractors, quantity surveyors, architects, and structural engineers trust as an authoritative system of record, MjengoLedger must encode the precise statutory instruments governing construction in Kenya.
+To build software that contractors, quantity surveyors, architects, and structural engineers trust as an authoritative system of record, Platform must encode the precise statutory instruments governing construction in Kenya.
 
 ### 2.1 National Construction Authority (NCA) Act (Cap 499A)
 The National Construction Authority (NCA) was established under Act No. 41 of 2011 (now codified under Cap 499A) and the National Construction Authority Regulations 2014 to oversee the construction industry and coordinate its development.
@@ -96,7 +96,7 @@ The National Construction Authority (NCA) was established under Act No. 41 of 20
 #### A. Contractor Registration & Capacity Categories
 Under Section 17 of the NCA Act, no contractor may execute building or civil engineering works without a valid annual practicing license issued by the NCA. Contractors are categorized by technical scope and financial capability:
 
-| NCA Class | Maximum Contract Value (KES) | Target Market & Firm Profile | MjengoLedger Value Proposition |
+| NCA Class | Maximum Contract Value (KES) | Target Market & Firm Profile | Platform Value Proposition |
 |---|---|---|---|
 | **NCA 1** | **Unlimited** | Multi-billion infrastructure, Tier-1 multinational firms (e.g., CRBC, Epco Builders, Laxmanbhai, China Wu Yi). | Secondary target; enterprise division tracking. |
 | **NCA 2** | Up to **KES 500,000,000** | Large commercial towers, university campuses, major hospital blocks. | High-value target; multi-site project controls. |
@@ -131,7 +131,7 @@ Under Regulation 17 of the NCA Regulations, **every construction project with a 
      * Main Contractor Name & NCA Registration Category
 
 #### C. Accredited Site Supervisors & Skilled Artisans
-Under Section 5(2)(l) of the NCA Act and the 2021 NCA Accreditation Guidelines, all site foremen/supervisors and trade artisans (masons, steel fixers, carpenters, plumbers, electricians) must undergo trade testing and hold a valid **NCA Accreditation Card** with a unique accreditation number. MjengoLedger's Labor Headcount register tracks these accreditation IDs, shielding the contractor from regulatory closure during surprise NCA compliance audits.
+Under Section 5(2)(l) of the NCA Act and the 2021 NCA Accreditation Guidelines, all site foremen/supervisors and trade artisans (masons, steel fixers, carpenters, plumbers, electricians) must undergo trade testing and hold a valid **NCA Accreditation Card** with a unique accreditation number. Platform's Labor Headcount register tracks these accreditation IDs, shielding the contractor from regulatory closure during surprise NCA compliance audits.
 
 ---
 
@@ -142,9 +142,9 @@ The **Architects and Quantity Surveyors Act (Cap. 525 of the Laws of Kenya)** es
 1. **The Statutory Practice Monopoly (Section 3 & 4):**
    - It is a criminal offense punishable by fine and imprisonment for any individual or corporate entity to use the title "Quantity Surveyor", "Registered QS", "Architect", or "Chartered QS", or to practice quantity surveying or architecture for fee or reward, unless registered and currently licensed by BORAQS.
    - The preparation of statutory Bills of Quantities, contractual interim valuations, variation determinations, and final accounts for public and commercial projects is reserved exclusively for registered Quantity Surveyors.
-2. **The Product Boundaries for MjengoLedger:**
+2. **The Product Boundaries for Platform:**
    - **Never market software as an "AI Quantity Surveyor" or "Automated QS".** This violates Cap 525 and alienates the consulting QS community whose buy-in is required for certificate approval.
-   - MjengoLedger is strictly architected as a **Contractor Project Operating System & Financial Control Ledger**. The software acts as an analytical calculation engine, evidence repository, and measurement assistant.
+   - Platform is strictly architected as a **Contractor Project Operating System & Financial Control Ledger**. The software acts as an analytical calculation engine, evidence repository, and measurement assistant.
    - Features are branded neutrally:
      * *BOQ Baseline Import & Parsing* (not "BOQ Generation")
      * *Contractor Progress Claim Assessment* (not "Statutory Valuation")
@@ -198,7 +198,7 @@ EASMM 2008 Standard BOQ Structure:
 └── Grand Summary (Subtotals of Sections 1–8 + Contingencies [typically 5%] + 16% Value Added Tax [VAT])
 ```
 
-#### B. EASMM Measurement Principles Encoded in MjengoLedger
+#### B. EASMM Measurement Principles Encoded in Platform
 1. **Net Measurement Rule:** All work is measured net as fixed in position. No allowances are added to measured quantities for cutting, offcuts, lap, or waste. Contractors must calculate waste percentages (e.g., 5% rebar cutting scrap, 8% stone breakage) within their unit rates.
 2. **Standard Metric Units:**
    - Linear meters (`LM` or `m`): Trench excavations, skirting, fascia boards, conduit runs.
@@ -225,7 +225,7 @@ Traditional software models retention naively as:
 $$\text{Retention} = \min(\text{Gross Valuation} \times 10\%, \text{Cap})$$
 This naive equation catastrophic fails after Practical Completion because it ignores releases already paid out, leading to double deductions or under-paying the contractor.
 
-MjengoLedger models retention as an **append-only transaction ledger**:
+Platform models retention as an **append-only transaction ledger**:
 
 $$\begin{aligned}
 \text{Gross Valuation to Date} &= \sum (\text{Measured Permanent Works}) + \sum (\text{Approved Variations}) + 0.80 \times (\text{Unfixed Materials on Site}) \\[6pt]
@@ -265,7 +265,7 @@ $$\begin{aligned}
 
 ### 3.1 Comprehensive Competitor Comparison Matrix
 
-| Evaluation Vector | Procore (USA) | Autodesk Build (USA) | Fieldwire (Hilti - USA) | Lobocon (Kenya) | Strukchad (Kenya) | ManPro (Kenya) | MjengoLedger (Our Target) |
+| Evaluation Vector | Procore (USA) | Autodesk Build (USA) | Fieldwire (Hilti - USA) | Lobocon (Kenya) | Strukchad (Kenya) | ManPro (Kenya) | Platform (Our Target) |
 |---|---|---|---|---|---|---|---|
 | **Primary Target Buyer** | Tier 1/2 General Contractors ($20M+ revenue) | Large Engineering & Design-Build Contractors | Subcontractors & Trade Crews | Commercial Contractors (>1 live project) | Commercial & Residential Contractors | Mid-Market Contractors & PMs | **NCA 3 to NCA 6 Kenyan Main Contractors** |
 | **Pricing Model** | Annual contract based on construction volume ($8k–$30k+/yr) | Tiered seat + sheet count ($1,200–$3,600/user/yr) | Per user/mo ($39–$79/user/mo) | KES 300k pilot + KES 100k/mo/project (KES 1.2M/yr) | KES 2k–5k / user / month (Punitive seat tax) | Custom enterprise quote (Opaque, HTTP 404) | **Flat KES 7,500/mo/project or KES 25,000/mo portfolio (Unlimited Users)** |
@@ -303,10 +303,10 @@ $$\begin{aligned}
 
 ---
 
-### 3.4 MjengoLedger’s Unfair Strategic Advantage & Moat
+### 3.4 Platform’s Unfair Strategic Advantage & Moat
 
 ```
-MjengoLedger Strategic Pillars:
+Platform Strategic Pillars:
 ├── 1. Zero Seat Tax: Flat KES 7,500/project/month with UNLIMITED USERS (onboard every foreman & storekeeper)
 ├── 2. Native EASMM & JBC Engine: 100% compliant with Kenyan QS practice & dual-moiety retention math
 ├── 3. Ultra-Light Offline PWA: Less than 15MB initial bundle, background photo sync, runs on 2G/3G Safaricom
@@ -341,11 +341,11 @@ flowchart TD
 3. **Tender Award & Contract Execution:** Contractor prices the BOQ, submits tender, undergoes tender evaluation, and executes the formal contract (JBC 1999 Edition with Quantities).
 4. **NCA OPRS Project Registration:** The project is registered on `oprs.nca.go.ke`. The contractor's valid NCA practicing license, consultant registration numbers, NEMA license, and signed BOQ Grand Summary are uploaded to obtain the official **NCA Project Registration Number**.
 
-#### B. MjengoLedger Operational Architecture
+#### B. Platform Operational Architecture
 - **Tenant Project Setup:** Contractor inputs Project Name, Site Location (with GPS coordinates), Client Details, NCA Registration ID, and Contract Start/End Dates.
 - **Master BOQ Baseline Import:**
   - Contractor uploads the contractual Excel BOQ.
-  - The MjengoLedger parser normalizes rows into the standard 8 EASMM sections, validates item codes, units (`SM`, `LM`, `CM`, `KG`, `ITEM`), quantities, and unit rates.
+  - The Platform parser normalizes rows into the standard 8 EASMM sections, validates item codes, units (`SM`, `LM`, `CM`, `KG`, `ITEM`), quantities, and unit rates.
   - Upon verification, the BOQ is **locked as Version 1 (Baseline)**. The schema marks this version immutable with a cryptographic SHA-256 hash. Any future scope adjustments must flow through formal Variation Orders.
 
 ---
@@ -362,7 +362,7 @@ flowchart TD
    - Water supply connection (Nairobi City Water & Sewerage Company - NCWSC or private water bowser storage tanks).
    - Contractor onboards site staff: Project Manager, Site Agent/Supervisor, Storekeeper, Safety Officer, and head masons.
 
-#### B. MjengoLedger Operational Architecture
+#### B. Platform Operational Architecture
 - **NCA Signboard Generator:** Generates a printable, standardized vector PDF of the official project signboard populated with the recorded NCA ID, County Permit number, NEMA license number, registered consultants, and main contractor license details.
 - **Site Team Roster & Role Assignment:** The PM invites site supervisors, storekeepers, and visiting engineers with specific project-level roles and offline sync permissions.
 - **Initial Mobilization Checklist:** Digital inspection checklist covering site hoarding, security guards, water storage capacity, first aid station, and PPE distribution.
@@ -394,7 +394,7 @@ The substructure encompasses all works up to the damp-proof course (DPC) level:
    - 1000-gauge heavy-duty polythene Damp-Proof Membrane (DPM) laid with 300mm taped laps.
    - 150mm reinforced concrete ground floor slab poured with BRC mesh A142/A193 fabric.
 
-#### B. MjengoLedger Operational Architecture
+#### B. Platform Operational Architecture
 - **Concrete Cube Quality Registry:**
   - Automated creation of cube test batches linked to specific pours (e.g., "Foundation Bases Grid A1-D4").
   - Automated push notifications and calendar alerts when 7-day and 28-day break dates arrive.
@@ -424,7 +424,7 @@ The substructure encompasses all works up to the damp-proof course (DPC) level:
    - **Electrical:** Wall chasing for PVC conduits, switch boxes, socket boxes, distribution board trunking.
    - **Plumbing & Drainage:** Wall chasing for PPR potable water pipework; installation of PVC soil and waste stacks (110mm soil stack, 40mm/50mm waste branches) with solvent cement joints, passing through cast floor sleeves.
 
-#### B. MjengoLedger Operational Architecture
+#### B. Platform Operational Architecture
 - **Pre-Pour Inspection Module:** Mobile form capturing photos of steel reinforcement, cover blocks, and MEP conduit conduits prior to pour authorization.
 - **Physical Progress Tracking:** Measured completion of columns, slabs, and stone walling logged in square/cubic meters and mapped directly against corresponding BOQ line items.
 
@@ -449,7 +449,7 @@ The substructure encompasses all works up to the damp-proof course (DPC) level:
    - Solid core timber flush doors, heavy-duty steel external doors, aluminum powder-coated sliding windows, 6mm clear sheet glazing, architectural ironmongery (union 3-lever mortice locks, brass handles).
    - External cabro block paving ($60\text{ mm}$ or $80\text{ mm}$ heavy-duty paving blocks on sand bed), perimeter boundary walls, razor wire, and automated gate installation.
 
-#### B. MjengoLedger Operational Architecture
+#### B. Platform Operational Architecture
 - **Trade-Specific Quality Checklists:** Pre-configured inspection checklists for Tile Alignment, Waterproofing Flood Tests, Plumbing Pressure Tests, and Insulation Resistance (Megger) Tests.
 - **Defect Tagging (Internal Contractor Snagging):** Site supervisor identifies and tags finishing flaws on mobile before presenting the project to the client’s consultants.
 
@@ -457,13 +457,13 @@ The substructure encompasses all works up to the damp-proof course (DPC) level:
 
 ### Stage 6: Commercial Administration (Site Diary, Material Audit, Variations & IPCs)
 
-Stage 6 runs continuously throughout the project and constitutes the primary commercial engine of MjengoLedger:
+Stage 6 runs continuously throughout the project and constitutes the primary commercial engine of Platform:
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Site as Site Supervisor / Storekeeper
-    participant ML as MjengoLedger Platform
+    participant ML as Platform Platform
     participant PM as Contractor PM / QS
     participant Lead as Consulting QS / Architect
     participant Client as Employer / Developer
@@ -486,14 +486,14 @@ sequenceDiagram
 
 #### B. Architect's Instructions & Variation Orders
 - Under JBC 1999 Clause 13, no variation is recognized without a formal **Architect’s Instruction (AI)**.
-- MjengoLedger pairs every contractor variation submission with:
+- Platform pairs every contractor variation submission with:
   1. The AI reference document/photo.
   2. The specific BOQ items being omitted or added.
   3. Pro-rata rate justification derived from baseline BOQ unit rates.
   4. Cost impact on the contract sum and schedule impact (requested extension of time in days).
 
 #### C. Monthly Interim Payment Certificate (IPC) Formulation
-- MjengoLedger executes the exact mathematical formulation specified in Section 2.5:
+- Platform executes the exact mathematical formulation specified in Section 2.5:
   1. Cumulative measurement of permanent works executed to date.
   2. Approved variations to date.
   3. Value of eligible unfixed materials on site (certified at 80% of verified delivery value).
@@ -517,7 +517,7 @@ sequenceDiagram
   5. **Defects Liability Period (DLP) begins** (standard 6 calendar months).
   6. **Release of First Moiety (50%) of Retention Fund:** Architect and QS certify the release of 50% of the accumulated retention fund to the contractor.
 
-#### B. MjengoLedger Snagging Architecture
+#### B. Platform Snagging Architecture
 - **Digital Punch List / Snagging Engine:**
   - Fast mobile capture of defects (e.g., "Cracked tile in Master Ensuite", "Missing lock escutcheon on Bedroom 2 door", "Plaster hairline crack on external north elevation").
   - Geotagged, high-resolution before-photos with markup/drawing overlays.
@@ -542,13 +542,13 @@ sequenceDiagram
    - At the expiration of the DLP, the Architect conducts a final re-inspection. Upon verifying that all snags have been rectified, the Architect issues the **Certificate of Making Good Defects**.
 4. **Final Payment Certificate & Second Moiety Release:**
    - The Architect issues the Final Certificate releasing the remaining **50% of the retention fund** along with any outstanding final account balances.
-   - Project status transitions to `CLOSED` in MjengoLedger, locking all operational ledgers into read-only archive status.
+   - Project status transitions to `CLOSED` in Platform, locking all operational ledgers into read-only archive status.
 
 ---
 
 ## 5. Prisma Data Model Specification (Extensions)
 
-The following production-grade Prisma schema extensions integrate seamlessly with MjengoLedger's existing `packages/db/prisma/schema.prisma`. They introduce strict multi-tenant isolation, standard UUID primary keys, exact decimal precisions, and complete relational integrity.
+The following production-grade Prisma schema extensions integrate seamlessly with Platform's existing `packages/db/prisma/schema.prisma`. They introduce strict multi-tenant isolation, standard UUID primary keys, exact decimal precisions, and complete relational integrity.
 
 ```prisma
 // =============================================================
@@ -859,7 +859,7 @@ model DefectsLiabilityCertificate {
 
 ### 6.1 Offline-First Architectural Blueprint (Dexie / Service Worker PWA)
 
-To make MjengoLedger work reliably on remote Kenyan building sites where Safaricom 4G signal is intermittent or degraded, the architecture separates local UI interactions from background network synchronizations:
+To make Platform work reliably on remote Kenyan building sites where Safaricom 4G signal is intermittent or degraded, the architecture separates local UI interactions from background network synchronizations:
 
 ```mermaid
 flowchart TD
@@ -875,7 +875,7 @@ flowchart TD
         SyncPayload["Compressed Delta JSON + WebP Photos"]
     end
 
-    subgraph Fastify_Backend["MjengoLedger Server (Railway / Docker)"]
+    subgraph Fastify_Backend["Platform Server (Railway / Docker)"]
         API["Fastify 5 REST API + Idempotency Middleware"]
         Postgres[("PostgreSQL 16 Multi-Tenant DB")]
         S3[("Wasabi / AWS S3 S3-Compatible Object Store")]
@@ -901,11 +901,11 @@ flowchart TD
 
 ### 6.2 Safaricom Low-Bandwidth & Data Optimization (Edge / WebP / Delta Sync)
 
-Mobile data bundles in Kenya (e.g., Safaricom Tunukiwa bundles) are bought in small daily buckets (e.g., 250MB to 1GB). Field software that wastes data is quickly uninstalled or abandoned by foremen. MjengoLedger enforces extreme data frugality:
+Mobile data bundles in Kenya (e.g., Safaricom Tunukiwa bundles) are bought in small daily buckets (e.g., 250MB to 1GB). Field software that wastes data is quickly uninstalled or abandoned by foremen. Platform enforces extreme data frugality:
 
 1. **Client-Side Image Transcoding:**
    - High-resolution smartphone cameras take 12MP to 48MP photos (5MB to 15MB each).
-   - Before uploading, MjengoLedger's client-side canvas engine downsizes photos to a maximum dimension of 1920px (Full HD) and transcodes them into **lossy WebP at 78% quality**.
+   - Before uploading, Platform's client-side canvas engine downsizes photos to a maximum dimension of 1920px (Full HD) and transcodes them into **lossy WebP at 78% quality**.
    - Result: File size drops from **8.5MB to ~320KB** (a **96% reduction in bandwidth consumption**) without losing visual clarity for crack inspection or delivery note reading.
 2. **Presigned Direct Object Storage Uploads:**
    - Photos upload directly from the mobile browser to S3-compatible storage (e.g., Cloudflare R2 or Wasabi) via short-lived presigned URLs, bypassing application servers and reducing API server bandwidth to zero.
@@ -916,14 +916,14 @@ Mobile data bundles in Kenya (e.g., Safaricom Tunukiwa bundles) are bought in sm
 
 ### 6.3 Pricing Model & Unit Economics Comparison
 
-The financial breakdown below proves how MjengoLedger provides equivalent or superior field operational utility compared to Procore, while remaining 10x to 25x more accessible to Kenyan contractors:
+The financial breakdown below proves how Platform provides equivalent or superior field operational utility compared to Procore, while remaining 10x to 25x more accessible to Kenyan contractors:
 
 #### Financial Scenario: Mid-Sized Contractor (NCA 4)
 - **Active Projects:** 2 commercial/residential sites in Nairobi Metropolitan Area.
 - **Project Team per Site:** 1 Project Manager, 1 Site Agent/Supervisor, 1 Storekeeper, 1 Consultant QS (Collaborator), 1 Developer Representative (Collaborator).
 - **Total Software Users:** 10 active stakeholders.
 
-| Cost Element | Procore Global Enterprise | Lobocon Enterprise (Local) | Strukchad Per-Seat (Local) | MjengoLedger Flat Plan |
+| Cost Element | Procore Global Enterprise | Lobocon Enterprise (Local) | Strukchad Per-Seat (Local) | Platform Flat Plan |
 |---|---|---|---|---|
 | **Annual Base License Fee** | $12,000 USD (KES 1,560,000) | KES 1,038,000 / project $\times$ 2 = **KES 2,076,000** | KES 0 base | **KES 25,000 / month Portfolio Plan** |
 | **User Seat Surcharges** | Included (unlimited) | Included | 4 Pro seats @ KES 5k + 6 Lite @ KES 2k = **KES 32,000 / month** | **KES 0 (Unlimited users included)** |
@@ -937,7 +937,7 @@ The financial breakdown below proves how MjengoLedger provides equivalent or sup
 
 ## 7. Engineering Implementation Roadmap & Governance
 
-To implement this master lifecycle architecture systematically within MjengoLedger's existing codebase, engineering execution is structured into 4 sequential technical phases:
+To implement this master lifecycle architecture systematically within Platform's existing codebase, engineering execution is structured into 4 sequential technical phases:
 
 ```
 Engineering Roadmap Phasing:
@@ -972,6 +972,6 @@ Engineering Roadmap Phasing:
 
 ## 8. Summary Conclusion
 
-By uniting the statutory discipline of the **National Construction Authority (NCA Act Cap 499A)**, the professional precision of **BORAQS (Cap 525)**, the contractual mechanics of **JBC 1999 Edition with Quantities**, and the elemental rigor of **EASMM 2008**, MjengoLedger establishes an unassailable product moat. 
+By uniting the statutory discipline of the **National Construction Authority (NCA Act Cap 499A)**, the professional precision of **BORAQS (Cap 525)**, the contractual mechanics of **JBC 1999 Edition with Quantities**, and the elemental rigor of **EASMM 2008**, Platform establishes an unassailable product moat. 
 
-By delivering this functionality through a lightweight, offline-resilient mobile PWA priced at a transparent **KES 7,500/project/month** with zero user seat penalties, MjengoLedger delivers **Procore-level field and financial parity at 10x lower Total Cost of Ownership**, uniquely positioning it to become the definitive operating system for construction across East Africa.
+By delivering this functionality through a lightweight, offline-resilient mobile PWA priced at a transparent **KES 7,500/project/month** with zero user seat penalties, Platform delivers **Procore-level field and financial parity at 10x lower Total Cost of Ownership**, uniquely positioning it to become the definitive operating system for construction across East Africa.

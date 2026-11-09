@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { enrollAllTenantUsers } from './test-members';
 
 describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite', () => {
   let app: FastifyInstance;
@@ -53,6 +54,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
     });
     expect(projectRes.statusCode).toBe(201);
     testProjectId = JSON.parse(projectRes.body).data.id;
+    await enrollAllTenantUsers(testProjectId);
 
     // Create test plant equipment
     const equipRes = await app.inject({
@@ -133,7 +135,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       const body = JSON.parse(res.body);
       expect(body.responseCode).toBe('0');
       expect(body.checkoutRequestId).toMatch(/^ws_CO_/);
-      expect(body.customerMessage).toContain('STK push dispatched to 254712345678');
+      expect(body.customerMessage).toContain('SIMULATED STK push to 254712345678');
       capturedCheckoutRequestId = body.checkoutRequestId;
     });
 
@@ -152,10 +154,11 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(401);
     });
 
-    it('should reject authenticated callback missing explicit tenantId with 400 Bad Request (C1 hardening)', async () => {
+    it('should ignore spoofed tenantId and resolve tenant securely from database transaction (C1 & 2b hardening)', async () => {
+      const attackerTenantId = '00000000-0000-0000-0000-000000000000';
       const res = await app.inject({
         method: 'POST',
-        url: '/api/v1/billing/mpesa-callback',
+        url: `/api/v1/billing/mpesa-callback?tenantId=${attackerTenantId}`,
         headers: {
           'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
         },
@@ -164,11 +167,12 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
           CheckoutRequestID: capturedCheckoutRequestId,
           ResultCode: 0,
           ResultDesc: 'Success',
+          MpesaReceiptNumber: 'NL12345678',
         },
       });
 
-      expect(res.statusCode).toBe(400);
-      expect(JSON.parse(res.body).message).toContain('Explicit valid tenantId is required');
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).tenantId).toBe(testTenantId);
     });
 
     it('should return 404 when processing callback for unknown checkout request ID', async () => {
@@ -289,7 +293,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
           clockType: 'CLOCK_IN',
           capturedLatitude: '-1.292150',
           capturedLongitude: '36.821920',
-          photoSelfieUrl: 'https://storage.mjengoledger.co.ke/selfies/wkr999_in.jpg',
+          photoSelfieUrl: 'https://storage.example.com/selfies/wkr999_in.jpg',
         },
       });
 
@@ -449,12 +453,12 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(body.calculatedFuelLiters).toBe('280.00');
       expect(body.isSiphoningEvent).toBe(true);
 
-      // Verify that an automated SiteAlertNotification of type DIESEL_SIPHONING_FLAG was dispatched
+      // Verify that an automated SiteAlertNotification of type DIESEL_DISCREPANCY_FLAG was dispatched (2e neutral wording)
       const alert = await withTenantTx(prisma, testTenantId, (tx) =>
         tx.siteAlertNotification.findFirst({
           where: {
             project_id: testProjectId,
-            alert_type: 'DIESEL_SIPHONING_FLAG',
+            alert_type: { in: ['DIESEL_DISCREPANCY_FLAG', 'DIESEL_SIPHONING_FLAG'] },
           },
         })
       );
@@ -601,7 +605,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
     const testIdempotencyKey = `IDEM-B2C-${Date.now()}`;
     let conversationId: string;
 
-    it('should initiate Safaricom Daraja B2C disbursement in PENDING state awaiting gateway confirmation (C1 hardening)', async () => {
+    it('should initiate Safaricom Daraja B2C disbursement in PENDING_APPROVAL state (maker-checker, simulated dispatch)', async () => {
       const res = await app.inject({
         method: 'POST',
         url: `/api/v1/projects/${testProjectId}/b2c-disburse`,
@@ -619,9 +623,44 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
       conversationId = body.conversationId;
-      expect(body.status).toBe('PENDING');
+      expect(body.status).toBe('PENDING_APPROVAL');
       expect(body.amount).toBe('12500.00');
       expect(body.isIdempotentReplay).toBe(false);
+      expect(body.simulated).toBe(true);
+      expect(body.requiresApproval).toBe(true);
+    });
+
+    it('maker-checker: initiator cannot self-approve; a different COST_APPROVE user can', async () => {
+      const list = await app.inject({
+        method: 'GET',
+        url: `/api/v1/projects/${testProjectId}/b2c-disbursements`,
+        headers: { cookie: authCookie },
+      });
+      const pending = JSON.parse(list.body).disbursements.find((d: any) => d.status === 'PENDING_APPROVAL');
+      expect(pending).toBeTruthy();
+
+      // Same user (maker) -> 403
+      const selfApprove = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${testProjectId}/b2c-disbursements/${pending.id}/approve`,
+        headers: { cookie: authCookie },
+      });
+      expect(selfApprove.statusCode).toBe(403);
+
+      // Different authorized user (PM/QS) -> approves
+      const qsLogin = await app.inject({
+        method: 'POST', url: '/api/v1/auth/login',
+        payload: { email: 'qs@apexbuilders.co.ke', password: 'Password123!' },
+      });
+      const qsCookie = qsLogin.headers['set-cookie'] as string;
+      const approve = await app.inject({
+        method: 'POST',
+        url: `/api/v1/projects/${testProjectId}/b2c-disbursements/${pending.id}/approve`,
+        headers: { cookie: qsCookie },
+      });
+      expect(approve.statusCode).toBe(200);
+      expect(JSON.parse(approve.body).data.status).toBe('PENDING');
+      expect(JSON.parse(approve.body).data.simulated).toBe(true);
     });
 
     it('should handle idempotent replay for identical B2C idempotencyKey', async () => {
@@ -642,7 +681,8 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.body);
       expect(body.isIdempotentReplay).toBe(true);
-      expect(body.status).toBe('PENDING');
+      // status reflects the existing transaction (approved to PENDING by the maker-checker test above)
+      expect(['PENDING_APPROVAL', 'PENDING']).toContain(body.status);
       expect(body.amount).toBe('12500.00');
     });
 
@@ -662,10 +702,11 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
       expect(res.statusCode).toBe(401);
     });
 
-    it('should reject authenticated B2C callback missing tenantId with 400 Bad Request (C1 hardening)', async () => {
+    it('should ignore spoofed tenantId and resolve tenant securely from database disbursement (C1 & 2b hardening)', async () => {
+      const attackerTenantId = '00000000-0000-0000-0000-000000000000';
       const res = await app.inject({
         method: 'POST',
-        url: '/api/v1/billing/mpesa-b2c-callback',
+        url: `/api/v1/billing/mpesa-b2c-callback?tenantId=${attackerTenantId}`,
         headers: {
           'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
         },
@@ -678,8 +719,8 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
         },
       });
 
-      expect(res.statusCode).toBe(400);
-      expect(JSON.parse(res.body).message).toContain('Explicit valid tenantId is required');
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).tenantId).toBe(testTenantId);
     });
 
     it('should process inbound Daraja B2C callback and update transaction status to COMPLETED', async () => {
