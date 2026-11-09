@@ -42,3 +42,4 @@ playwright-report/
 .cache/
 tmp/
 /tmp
+uploads/
