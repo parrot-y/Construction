@@ -29,6 +29,8 @@ const UNAUTHENTICATED_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/portals/consultant/:token/rfis/:rfiId/reply': 'Token-scoped consultant reply',
   'GET /api/v1/portals/subcontractor/:token': 'Token-scoped subcontractor portal',
   'POST /api/v1/portals/subcontractor/:token/snags/:snagId/rectify': 'Token-scoped snag reply',
+  'POST /api/v1/portals/subcontractor/:token/valuations': 'Token-scoped valuation submission',
+  'POST /api/v1/portals/supplier/:token/deliveries/:deliveryId/confirm': 'Token-scoped delivery confirmation',
   'GET /api/v1/portals/supplier/:token': 'Token-scoped supplier portal',
   'GET /api/v1/portals/compliance/:token': 'Token-scoped compliance portal',
   'GET /api/v1/portals/client/:token/change-orders': 'Token-scoped client CO approval list (ADR-010)',

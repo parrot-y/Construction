@@ -298,6 +298,17 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           where: { project_id: link.project_id },
           orderBy: { issue_date: 'desc' },
         }),
+        // Statutory levy clearance = at least one WHT certificate remitted to KRA.
+        tx.statutoryTaxCertificate.count({
+          where: {
+            project_id: link.project_id,
+            status: { in: ['REMITTED_TO_KRA', 'ACKNOWLEDGED'] },
+          },
+        }),
+        // Accredited site supervisor = an assigned SITE_SUPERVISOR project member.
+        tx.projectMember.count({
+          where: { project_id: link.project_id, role: 'SITE_SUPERVISOR' },
+        }),
       ]);
 
       return {
@@ -725,7 +736,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     }
 
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, cubeTests, inspections, certificates] = await Promise.all([
+      const [project, cubeTests, inspections, certificates, remittedLevyCount, supervisorMemberCount] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
         }),
@@ -746,6 +757,17 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         tx.defectsLiabilityCertificate.findMany({
           where: { project_id: link.project_id },
           orderBy: { issue_date: 'desc' },
+        }),
+        // Statutory levy clearance = at least one WHT certificate remitted to KRA.
+        tx.statutoryTaxCertificate.count({
+          where: {
+            project_id: link.project_id,
+            status: { in: ['REMITTED_TO_KRA', 'ACKNOWLEDGED'] },
+          },
+        }),
+        // Accredited site supervisor = an assigned SITE_SUPERVISOR project member.
+        tx.projectMember.count({
+          where: { project_id: link.project_id, role: 'SITE_SUPERVISOR' },
         }),
       ]);
 
@@ -770,8 +792,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           ncaSiteRegistration: `NCA/PRJ/${project?.code || '2026'}/REG`,
           // No statutory-levy or supervisor-certification records exist yet —
           // return null so the portal shows "Not tracked" instead of inventing compliance.
-          statutoryLevyPaid: null,
-          certifiedSiteSupervisorPresent: null,
+          statutoryLevyPaid: remittedLevyCount > 0,
+          certifiedSiteSupervisorPresent: supervisorMemberCount > 0,
           concreteCubePassRate: `${passRate}%`,
           totalBatchesSampled: cubeTests.length,
           prePourInspectionsConducted: inspections.length,

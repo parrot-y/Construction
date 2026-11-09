@@ -1,0 +1,126 @@
+================================================================================
+PLATFORM LOCAL CI VERIFICATION REPLICA
+Commit:   2eac74f
+Log file: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/evidence/verify-2eac74f.log
+Started:  2026-11-09T09:27:38Z
+================================================================================
+Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
+psql (PostgreSQL) 17.6 (Debian 17.6-1)
+
+=== Step 1: Initializing Fresh Ephemeral PostgreSQL Cluster ===
+Data Directory:   /tmp/verify-local-db-E9x9eM
+Socket Directory: /tmp/verify-local-sock-0JIcPy
+Port:             51867
+Starting PostgreSQL daemon...
+Waiting for PostgreSQL to accept connections...
+PostgreSQL is ready.
+
+=== Step 2: Creating Database & Roles (db_migrator & db_app) ===
+CREATE DATABASE
+DO
+GRANT
+GRANT
+
+=== Step 3: Applying Prisma migrations as db_migrator (baseline + RLS policies) ===
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "construction_test", schema "public" at "localhost:51867"
+
+4 migrations found in prisma/migrations
+
+Applying migration `0001_baseline`
+Applying migration `0002_rls_policies`
+Applying migration `0003_refresh_tokens`
+Applying migration `0004_supplier_delivery_confirmation`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 0001_baseline/
+    └─ migration.sql
+  └─ 0002_rls_policies/
+    └─ migration.sql
+  └─ 0003_refresh_tokens/
+    └─ migration.sql
+  └─ 0004_supplier_delivery_confirmation/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+
+=== Step 4: Granting Schema Permissions to db_app AFTER Tables Exist (C5) ===
+GRANT
+GRANT
+GRANT
+ALTER DEFAULT PRIVILEGES
+ALTER DEFAULT PRIVILEGES
+
+=== Step 5: Re-applying rls.sql (idempotent re-enforcement on every deploy) ===
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "refresh_tokens" does not exist, skipping
+DO
+DO
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+
+=== Step 6: Seeding Database as db_migrator ===
+$ tsx prisma/seed.ts
+Seeding initial Kenyan construction tenant and V1 users...
+Database seeded successfully! Tenant: Apex Builders Kenya Ltd (db7d3c91-2862-45d8-be72-10987033f5fe), Project: Riverside Commercial Plaza
+
+=== Step 7: Secret Scanning ===
+Secret scanning passed: No secrets detected.
+
+=== Step 8: Running Linter (pnpm run lint) ===
+$ turbo run lint
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running lint in 7 packages
+   • Remote caching disabled
+
+@construction/web:lint: cache miss, executing 634e78c18b41ae87
+@construction/api:lint: cache miss, executing 2b0e5934e6b060f7
+@construction/validation:lint: cache hit, replaying logs e35cf88c7b1a6b1b
+@construction/validation:lint: $ tsc --noEmit
+@construction/db:lint: cache miss, executing bc3c1f98b5192c0b
+@construction/permissions:lint: cache hit, replaying logs 28b54d3163807c0a
+@construction/money:lint: cache hit, replaying logs 514421fca7ebcfca
+@construction/permissions:lint: $ tsc --noEmit
+@construction/money:lint: $ tsc --noEmit
+@construction/api:lint: $ tsc --noEmit
+@construction/db:lint: $ tsc --noEmit
+@construction/web:lint: $ tsc --noEmit
