@@ -46,3 +46,13 @@
 
 ## 2026-11-09 — dev demo DB drift
 The live dev API uses `construction_demo`, tests/verify use `construction_test` on the same PG cluster. Schema changes (db push / migrations) must be applied to BOTH or the running app 500s while tests stay green. Check `/proc/<api-pid>/environ` DATABASE_URL to confirm which DB the dev server uses.
+
+## 2026-11-09 — e2e workspace gotchas
+- pnpm workspace globs match DIRECTORIES: `'e2e/*'` looks for subdirs of e2e/, not e2e itself — use `'e2e'`.
+- API refuses to boot on superuser DB roles (RLS guard) — e2e must run API as non-superuser `db_app` and setup as `db_migrator`; `NODE_ENV=test` skips listen entirely.
+- Health endpoint is `/health`, not `/api/v1/health`.
+- `@react-pdf/hyphenate` needs `scripts/patch-hyphenate.cjs` on fresh installs — added as root postinstall.
+- Playwright `request` fixture shares the cookie jar within a test — "unauthenticated" checks need `request.newContext()`.
+- New workspace packages with a `test` script get picked up by `turbo run test` — name e2e scripts `test:e2e` or verify-local will try to run them without infra.
+- API response envelopes vary: `{data}`, `{invoice}`, `{message,data}` — unwrap centrally in test helpers.
+- Decimal fields (quantity, unitRate, amounts) are STRINGS in validation schemas — send '40' not 40.

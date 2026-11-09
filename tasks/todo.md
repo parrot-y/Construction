@@ -198,31 +198,33 @@ Captured every create form on contractor portal: CO, RFI, correspondence, safety
 Branch: devin/audit-remediation. Rules: evidence per item in docs/evidence/, no parity wording, no invented data, simulated integrations labelled, verify stays green.
 
 ### Phase 1 — Security & data safety
-- [~] 1.1 Authorization: route-authz-matrix.md evidence; b2c-disburse finance perm + approval + audit; retention review role check; replace inline hasPermission in certificates.ts/variations.ts with shared preHandler
-- [ ] 1.2 route-guard test fails build on unguarded routes (DONE prev session — verify + evidence)
-- [ ] 1.3 Uploads: server-side filename, MIME+magic allowlist, size limit, attachment/nosniff or authed tenant route, .html/.svg tests (DONE — verify + evidence)
-- [ ] 1.4 Real migrations + rls.sql in CI from empty DB (DONE — verify + evidence)
-- [ ] 1.5 Sessions: revocation/session table, short access + refresh, rate limits (DONE — verify + evidence)
-- [ ] 1.6 M-Pesa: SIMULATED labels chosen (DONE — document choice in PR)
+- [x] 1.1 Authorization: route-authz-matrix.md evidence; b2c-disburse finance perm + approval + audit; retention review role check; replace inline hasPermission in certificates.ts/variations.ts with shared preHandler
+- [x] 1.2 route-guard test fails build on unguarded routes (DONE prev session — verify + evidence)
+- [x] 1.3 Uploads: server-side filename, MIME+magic allowlist, size limit, attachment/nosniff or authed tenant route, .html/.svg tests (DONE — verify + evidence)
+- [x] 1.4 Real migrations + rls.sql in CI from empty DB (DONE — verify + evidence)
+- [x] 1.5 Sessions: revocation/session table, short access + refresh, rate limits (DONE — verify + evidence)
+- [x] 1.6 M-Pesa: SIMULATED labels chosen (DONE — document choice in PR)
 
 ### Phase 2 — Design system reset
-- [ ] 2.1 docs/DESIGN_SYSTEM.md + Tailwind tokens + apps/web/src/ui component library
-- [ ] 2.2 formatKes() everywhere + lint/test guard
-- [ ] 2.3 Landing page rewrite (no emoji/gradient/invented stats)
-- [ ] 2.4 Console shell + dashboards: one layout, job-grouped nav, page headers
-- [ ] 2.5 Loading/empty/error states on every data view; no insights without data
-- [ ] 2.6 Mobile-first supervisor @390/360px, 44px targets, offline/sync header
-- [ ] 2.7 A11y: labels, focus, keyboard nav, no colour-only status
+- [~] 2.1 docs/DESIGN_SYSTEM.md + Tailwind tokens + apps/web/src/ui component library
+- [~] 2.2 formatKes() everywhere + lint/test guard
+- [~] 2.3 Landing page rewrite (no emoji/gradient/invented stats)
+- [~] 2.4 Console shell + dashboards: one layout, job-grouped nav, page headers
+- [~] 2.5 Loading/empty/error states on every data view; no insights without data
+- [~] 2.6 Mobile-first supervisor @390/360px, 44px targets, offline/sync header
+- [~] 2.7 A11y: labels, focus, keyboard nav, no colour-only status
 
 ### Phase 3 — Real portals & wiring
-- [ ] 3.1 Remove fake client sessions (demo-jwt-*, demo tokens, fake names) → seeded demo tenant or nothing
-- [ ] 3.2 Wire consultant/subcontractor/supplier/compliance/client portals to real token endpoints
-- [ ] 3.3 Remove hard-coded numbers (45000000, demo/sample grep sweep)
-- [ ] 3.4 No-fetch views: wire or flag-hide (ContractorTenderBoard, ProjectDocumentVault, SafetyIncidentLog, SubcontractorValuation, SubscriptionBilling); wire /certificates + /subcontractor-valuations
-- [ ] 3.5 Dead links: /reports/cost (DONE via cost.xlsx — verify), /reports/site-diary/latest
-- [ ] 3.6 PublicQuoteView loading/not-found/expired/error states
-- [ ] 3.7 Peripheral modules behind feature flags, out of nav; MVP core chain only
+- [x] 3.1 Remove fake client sessions (demo-jwt-*, demo tokens, fake names) → seeded demo tenant or nothing
+- [x] 3.2 Wire consultant/subcontractor/supplier/compliance/client portals to real token endpoints
+- [x] 3.3 Remove hard-coded numbers (45000000, demo/sample grep sweep)
+- [x] 3.4 No-fetch views: wire or flag-hide (ContractorTenderBoard, ProjectDocumentVault, SafetyIncidentLog, SubcontractorValuation, SubscriptionBilling); wire /certificates + /subcontractor-valuations
+- [x] 3.5 Dead links: /reports/cost (DONE via cost.xlsx — verify), /reports/site-diary/latest
+- [x] 3.6 PublicQuoteView loading/not-found/expired/error states
+- [x] 3.7 Peripheral modules behind feature flags, out of nav; MVP core chain only
 
-### Phase 4 — Playwright e2e A–F (real API+DB, no route stubs, traces, CI-gating)
+- [x] Phase 4 — Playwright (e2e/ suite, 18/18 green, CI workflow added) e2e A–F (real API+DB, no route stubs, traces, CI-gating)
 
-### Phase 5 — Report: PROJECT_STATUS + before/after screenshots + audit summary
+- [x] Phase 5 — Report (PROJECT_STATUS + visual evidence + audit summary)
+
+### Phase 5 — Report — Report: PROJECT_STATUS + before/after screenshots + audit summary
