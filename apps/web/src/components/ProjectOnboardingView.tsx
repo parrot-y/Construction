@@ -257,7 +257,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 <div className="flex items-center justify-between flex-wrap gap-2">
 <div>
 <h3 className="text-base font-bold text-slate-900">Project Onboarding &amp; Settings</h3>
-<p className="text-xs text-slate-500">Edit-project parity: contract value &amp; dates, map pin, health status, PM/Architect/QS assignments</p>
+<p className="text-xs text-slate-500">Edit project: contract value &amp; dates, map pin, health status, PM/Architect/QS assignments</p>
 </div>
 <button
           onClick={() => { setShowCreate((v) => !v); setSelectedId(''); setForm(emptyForm);}}
@@ -279,7 +279,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 ))}
 </select>
           {selected && (
-<span className="text-[10px] font-mono text-slate-400">
+<span className="text-[10px] text-slate-400">
               budget {formatKes(selected.current_approved_budget)} · closeout {selected.closeout_stage}
 </span>
 )}

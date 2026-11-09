@@ -225,6 +225,7 @@ RETURNS TABLE (
   portal_type VARCHAR,
   stakeholder_name VARCHAR,
   stakeholder_role VARCHAR,
+  subcontractor_package_id UUID,
   is_active BOOLEAN,
   expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ
@@ -232,7 +233,7 @@ RETURNS TABLE (
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE sql AS $$
-  SELECT id, tenant_id, project_id, portal_type, stakeholder_name, stakeholder_role, is_active, expires_at, created_at
+  SELECT id, tenant_id, project_id, portal_type, stakeholder_name, stakeholder_role, subcontractor_package_id, is_active, expires_at, created_at
   FROM public.portal_access_links
   WHERE token_hash = p_token_hash
   LIMIT 1;

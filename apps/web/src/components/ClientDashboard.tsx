@@ -654,8 +654,8 @@ export default function ClientDashboard({
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
 <span className="text-slate-500 block text-[11px]">Maximum Retention Fund Cap:</span>
-<span className="font-mono font-bold text-slate-800 text-sm">
-                {formatKes(parseFloat(financials.originalAgreedBudget || '0') * 0.05)} (5% of Contract Sum)
+<span className="font-bold text-slate-800 text-sm">
+                {formatKes(parseFloat(financials.originalAgreedBudget || '0') * 0.05)} <span className="font-normal text-slate-500">(5% of Contract Sum)</span>
 </span>
 </div>
 

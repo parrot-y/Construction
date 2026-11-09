@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -39,6 +40,7 @@ export default function CompliancePortalView({
 }: CompliancePortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [auditor, setAuditor] = useState({ name: auditorName || '', agency: auditorAgency || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
   const [complianceSummary, setComplianceSummary] = useState<ComplianceSummary>({
@@ -66,33 +68,37 @@ export default function CompliancePortalView({
         if (cancelled) return;
         const d = body.data || body;
         if (d.regulatoryAuditor) setAuditor({ name: d.regulatoryAuditor.name || '', agency: d.regulatoryAuditor.agency || '' });
+        if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
         if (d.project) setProj({ name: d.project.name || '', code: d.project.code || '' });
         if (d.complianceSummary) setComplianceSummary({
           ncaSiteRegistration: d.complianceSummary.ncaSiteRegistration || '',
           statutoryLevyPaid: d.complianceSummary.statutoryLevyPaid ?? null,
           certifiedSiteSupervisorPresent: d.complianceSummary.certifiedSiteSupervisorPresent ?? null,
-          concreteCubePassRate: d.complianceSummary.concreteCubePassRate || '—',
+          concreteCubePassRate: d.complianceSummary.concreteCubePassRate ?? 'No tests yet',
           totalBatchesSampled: d.complianceSummary.totalBatchesSampled ?? 0,
           prePourInspectionsConducted: d.complianceSummary.prePourInspectionsConducted ?? 0,
         });
         setCubeTests((d.cubeTests || []).map((c: any) => ({
           id: c.id,
-          batch_reference: c.batch_reference,
-          pour_date: c.pour_date,
-          element_location: c.pour_location,
-          design_grade_mpa: Number(c.target_strength_mpa),
-          break_results: (c.break_results || []).map((b: any) => ({
-            age_days: b.break_age_days,
-            compressive_strength_mpa: Number(b.compressive_mpa ?? 0),
-            is_pass: !!b.is_pass,
+          batch_reference: c.deliveryDocketNo || c.id,
+          pour_date: c.pourDate,
+          element_location: c.pourLocation,
+          concrete_class: c.concreteClass,
+          design_grade_mpa: Number(c.targetStrengthMpa ?? 0),
+          supplier_name: c.supplierName,
+          break_results: (c.breakResults || []).map((b: any) => ({
+            age_days: b.breakAgeDays,
+            compressive_strength_mpa: Number(b.compressiveMpa ?? 0),
+            is_pass: !!b.isPass,
           })),
         })));
         setInspections((d.inspections || []).map((i: any) => ({
           id: i.id,
           title: i.title,
-          category: i.inspection_type || String(i.checklist_type || ''),
-          scheduled_date: i.scheduled_date,
+          category: i.inspectionType || String(i.checklistType || ''),
+          scheduled_date: i.scheduledDate,
           status: i.status,
+          location: i.location,
         })));
         setCertificates(d.certificates || []);
       } catch (e: any) {
@@ -108,11 +114,12 @@ export default function CompliancePortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
+    const isExpired = /expired/i.test(loadError);
+    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
-      <div className="max-w-5xl mx-auto p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-rose-700">{loadError}</p>
-        <p className="text-xs text-slate-400">Check the link or ask your project manager for a new one.</p>
-        {onBackToDashboard && <button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button>}
+      <div className="max-w-5xl mx-auto">
+        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
+        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
       </div>
     );
   }
@@ -131,20 +138,21 @@ export default function CompliancePortalView({
 
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="compliance-portal-view">
+      <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
-<header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-              NCA &amp; Regulatory Compliance Portal • Zero Seat Tax
+<span className="text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+              NCA &amp; Regulatory Compliance Portal
 </span>
-<span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
-              Auditor Direct Link
+<span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+              Secured auditor link
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
-<p className="text-xs text-slate-400">
-            Inspector:<span className="text-slate-200 font-semibold">{auditor.name}</span> • {auditor.agency}
+<h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
+<p className="text-xs text-slate-500">
+            Inspector:<span className="text-slate-700 font-semibold">{auditor.name}</span> • {auditor.agency}
 </p>
 </div>
 
@@ -152,35 +160,43 @@ export default function CompliancePortalView({
 <button
             onClick={() => setShowCertificateModal(true)}
             data-testid="view-statutory-certificate-btn"
-            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-300 hover:text-white bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-700 rounded-lg transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-lg transition flex items-center gap-1.5"
           >
 <span> Statutory Docket Certificate</span>
 </button>
           {onBackToDashboard && (
 <button
               onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition"
+              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
             >
               ← Back to Project
 </button>
 )}
-<div className="text-right">
-<p className="text-[11px] text-slate-400">Statutory Mandate</p>
-<p className="text-xs font-bold text-emerald-400">NCA Cap 499A Verified</p>
-</div>
 </div>
 </header>
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• Review NCA registration, statutory levy and supervisor certification status</li>
+            <li>• Inspect concrete cube test results and site inspection records</li>
+            <li>• Issue statutory docket certificates for completed works</li>
+</ul>
+</div>
+
 
       {/* Statutory Compliance Cards */}
 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
 <p className="text-[11px] font-semibold text-slate-500">NCA Registration</p>
 <p className="text-xs font-mono font-bold text-slate-900 truncate">
-            {complianceSummary.ncaSiteRegistration}
+            {complianceSummary.ncaSiteRegistration || 'Not recorded'}
 </p>
+{complianceSummary.ncaSiteRegistration && (
 <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded mt-1">
             Registered Site
 </span>
+)}
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
@@ -287,6 +303,9 @@ export default function CompliancePortalView({
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
+              {cubeTests.length === 0 && (
+<tr><td colSpan={7} className="p-6 text-center text-sm text-slate-400">No concrete cube tests recorded yet — cube results appear here once the contractor logs batch tests.</td></tr>
+)}
               {cubeTests.map((c) => {
                 const day7 = c.break_results?.find((b: any) => b.age_days === 7);
                 const day28 = c.break_results?.find((b: any) => b.age_days === 28);
@@ -331,6 +350,9 @@ export default function CompliancePortalView({
 </div>
 
 <div className="divide-y divide-slate-100 text-xs">
+          {inspections.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-6">No inspections on file yet — inspection requests and results will appear here once the site team schedules them.</p>
+)}
           {inspections.map((insp) => (
 <div key={insp.id} className="py-3 flex justify-between items-center">
 <div>
@@ -370,7 +392,7 @@ export default function CompliancePortalView({
 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3">
 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">NCA Registration:</span>
-<span className="font-bold text-slate-900 font-mono">{complianceSummary.ncaSiteRegistration}</span>
+<span className="font-bold text-slate-900 font-mono">{complianceSummary.ncaSiteRegistration || 'Not recorded'}</span>
 </div>
 {statutoryPermits.length === 0 ? (
 <div className="text-slate-500">No statutory permits on file — the contractor has not uploaded NEMA, county, DOSHS or NCWSC documents for this project.</div>
@@ -378,7 +400,7 @@ export default function CompliancePortalView({
 statutoryPermits.map((pm) => (
 <div key={pm.id} className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">{pm.authority}:</span>
-<span className="font-bold text-slate-900 font-mono">{pm.permitNumber} ({pm.status})</span>
+<span className="font-bold text-slate-900"><span className="font-mono">{pm.permitNumber}</span> ({pm.status})</span>
 </div>
 ))
 )}

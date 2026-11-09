@@ -49,7 +49,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
   onReviewRequisition,
 }) => {
   const [requisitions, setRequisitions] = useState<MaterialRequisitionItem[]>(
-    initialRequisitions || [
+    initialRequisitions || (import.meta.env.DEV ? [
       {
         id: 'req-01',
         requisitionNo: 'REQ-2026-001',
@@ -84,7 +84,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
         approvedAt: '2026-11-03T11:00:00Z',
         createdAt: '2026-11-02T14:15:00Z',
 },
-    ]
+    ] : [])
 );
 
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);

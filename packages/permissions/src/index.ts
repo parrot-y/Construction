@@ -63,6 +63,8 @@ export const Permissions = {
 
   // Organization & Members
   COMPANY_INVITE: 'company.invite',
+  // External stakeholder portal links
+  PORTAL_MANAGE: 'portal.manage',
   COMPANY_MANAGE: 'company.manage',
 
   // Tender Board
@@ -119,6 +121,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.REPORT_GENERATE,
     Permissions.REPORT_VIEW,
     Permissions.COMPANY_INVITE,
+    Permissions.PORTAL_MANAGE,
     Permissions.COMPANY_MANAGE,
     Permissions.TENDER_CREATE,
     Permissions.TENDER_VIEW,
@@ -161,6 +164,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.REPORT_GENERATE,
     Permissions.REPORT_VIEW,
     Permissions.COMPANY_INVITE,
+    Permissions.PORTAL_MANAGE,
     Permissions.COMPANY_MANAGE,
     Permissions.TENDER_CREATE,
     Permissions.TENDER_VIEW,
@@ -220,6 +224,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,
     Permissions.INSPECTION_REVIEW,
+    Permissions.PORTAL_MANAGE,
   ],
   [Roles.SITE_SUPERVISOR]: [
     Permissions.PROJECT_VIEW,

@@ -8,7 +8,7 @@
 
 ## Feature checklist — reference product has it? → our MVP priority
 
-| Feature | Reference console | Our MVP priority |
+| Feature | Benchmark console | Our MVP priority |
 |---|---|---|
 | Projects hub w/ lifecycle statuses | ✅ | Must |
 | Change orders w/ trigger/cost/schedule/approval chain | ✅ core | Must |

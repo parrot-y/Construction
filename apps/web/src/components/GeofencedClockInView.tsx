@@ -89,7 +89,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   useEffect(() => { void reload();}, [reload]);
 
   const [geofences, setGeofences] = useState<GeofenceItem[]>(
-    initialGeofences || [
+    initialGeofences || (import.meta.env.DEV ? [
       {
         id: 'geo-01',
         geofenceName: 'Site Main Gate & Perimeter Compound',
@@ -98,11 +98,11 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
         radiusMeters: '150.00',
         isActive: true,
 },
-    ]
+    ] : [])
 );
 
   const [clockEvents, setClockEvents] = useState<WorkerClockEventItem[]>(
-    initialEvents || [
+    initialEvents || (import.meta.env.DEV ? [
       {
         id: 'clk-01',
         workerName: 'Juma Otieno Ochieng',
@@ -135,7 +135,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
         calculatedDistanceMeters: '42.80',
         verificationStatus: 'WITHIN_GEOFENCE',
 },
-    ]
+    ] : [])
 );
 
   // Clock In Simulator State
@@ -503,7 +503,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                 type="text"
                 value={selfieUrl}
                 onChange={(e) => setSelfieUrl(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 text-slate-800"
               />
 </div>
 </div>

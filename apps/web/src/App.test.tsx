@@ -1110,7 +1110,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 });
 });
 
-  describe('External Stakeholder Portals (Zero Seat Tax Architecture)', () => {
+  describe('External Stakeholder Portals (Token Architecture)', () => {
     it('renders ConsultantPortalView with token access, pending RFIs, cube strength tests, and pre-pour QA', () => {
       const rawHtml = renderToString(
 <ConsultantPortalView
@@ -1173,23 +1173,19 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Loading portal');
 });
 
-    it('renders PortalAccessLinkManager with zero-seat-tax links for all external stakeholders', () => {
+    it('renders PortalAccessLinkManager shell — links load from the API, no fabricated rows', () => {
       const rawHtml = renderToString(
 <PortalAccessLinkManager projectId="project-rcp-2026" />
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('External Stakeholder Portals (Zero Seat Tax)');
-      expect(html).toContain('Unlimited External Users');
-      expect(html).toContain('+ Generate Stakeholder Link');
-      expect(html).toContain('CONSULTANT PORTAL');
-      expect(html).toContain('Arch. Peter Mwangi');
-      expect(html).toContain('SUBCONTRACTOR PORTAL');
-      expect(html).toContain('Simba Plumbing Works Ltd');
-      expect(html).toContain('SUPPLIER PORTAL');
-      expect(html).toContain('Bamburi Ready-Mix Nairobi');
-      expect(html).toContain('COMPLIANCE PORTAL');
-      expect(html).toContain('Eng. Faith Mutua');
+      // SSR render shows the loading state — real links arrive via fetch.
+      // No fabricated stakeholder names or tokens may appear.
+      expect(html).toContain('External Stakeholder Portals');
+      expect(html).toContain('Loading portal links');
+      expect(html).not.toContain('Arch. Peter Mwangi');
+      expect(html).not.toContain('Simba Plumbing Works Ltd');
+      expect(html).not.toContain('mockToken');
 });
 
     it('allows unauthenticated stakeholder entry into Consultant portal via App component with initialPortal', () => {
@@ -1228,11 +1224,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 };
 
       const pmHtml = renderToString(<PmQsDashboard session={pmSession} />).replace(/<!-- -->/g, '');
-      expect(pmHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
-      expect(pmHtml).toContain(' Stakeholder Portals');
+      expect(pmHtml).toContain('External Stakeholder Portals');
+      expect(pmHtml).toContain('Stakeholder Portals');
 
       const adminHtml = renderToString(<CompanyAdminDashboard session={adminSession} />).replace(/<!-- -->/g, '');
-      expect(adminHtml).toContain('External Stakeholder Portals (Zero Seat Tax)');
+      expect(adminHtml).toContain('External Stakeholder Portals');
 });
 });
 

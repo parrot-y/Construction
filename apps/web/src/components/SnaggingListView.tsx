@@ -259,7 +259,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
               Practical Completion Handover
 </span>
-<span className="text-xs text-slate-400 font-mono">BORAQS Closeout</span>
+<span className="text-xs text-slate-400">BORAQS Closeout</span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
             Defects Snagging Punch List Register

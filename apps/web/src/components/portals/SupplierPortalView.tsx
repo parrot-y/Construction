@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
 
 export interface SupplierDelivery {
   id: string;
@@ -46,11 +47,13 @@ export default function SupplierPortalView({
 }: SupplierPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [stakeholder, setStakeholder] = useState({ name: supplierName || '', category: supplierCategory || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
   const [deliveries, setDeliveries] = useState<SupplierDelivery[]>([]);
   const [filter, setFilter] = useState<'ALL' | 'RECEIVED' | 'PENDING'>('ALL');
   const [showPoModal, setShowPoModal] = useState(false);
+  const [actionInputs, setActionInputs] = useState<Record<string, { invoiceRef: string; note: string }>>({});
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -62,20 +65,22 @@ export default function SupplierPortalView({
       if (!res.ok) throw new Error(body.message || 'This portal link is invalid or has expired');
       const d = body.data || body;
       if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', category: d.stakeholder.vendorType || '' });
-      if (d.project) setProj({ name: d.project.name || '', code: d.project.code || '' });
+      if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
+        if (d.project) setProj({ name: d.project.name || '', code: d.project.code || '' });
       setDeliveries((d.deliveries || []).map((m: any) => ({
         id: m.id,
-        delivery_note_number: m.delivery_note || m.id.slice(0, 8).toUpperCase(),
-        material_description: m.material_name,
+        delivery_note_number: m.deliveryNote || m.id.slice(0, 8).toUpperCase(),
+        material_description: m.materialName,
         quantity: Number(m.quantity),
         unit: m.unit,
-        supplier_name: m.supplier_name || stakeholder.name,
-        status: m.delivery_status === 'CONFIRMED' ? 'RECEIVED' : m.delivery_status === 'DISPUTED' ? 'REJECTED' : 'PENDING',
+        supplier_name: m.supplierName || stakeholder.name,
+        status: m.deliveryStatus === 'CONFIRMED' ? 'RECEIVED' : m.deliveryStatus === 'DISPUTED' ? 'REJECTED' : 'PENDING',
         siteDate: m.siteDate,
-        delivery_status: m.delivery_status,
-        confirmed_at: m.confirmed_at,
-        confirmed_by_name: m.confirmed_by_name,
-        supplier_invoice_ref: m.supplier_invoice_ref,
+        delivery_status: m.deliveryStatus,
+        confirmed_at: m.confirmedAt,
+        confirmed_by_name: m.confirmedByName,
+        supplier_invoice_ref: m.supplierInvoiceRef,
+        dispute_reason: m.disputeReason,
       })));
     } catch (e: any) {
       setLoadError(e.message || 'Failed to load portal');
@@ -93,7 +98,11 @@ export default function SupplierPortalView({
       const res = await fetch(`/api/v1/portals/supplier/${token}/deliveries/${deliveryId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          invoiceRef: actionInputs[deliveryId]?.invoiceRef || undefined,
+          note: actionInputs[deliveryId]?.note || undefined,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Action failed');
@@ -110,11 +119,12 @@ export default function SupplierPortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
+    const isExpired = /expired/i.test(loadError);
+    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
-      <div className="max-w-5xl mx-auto p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-rose-700">{loadError}</p>
-        <p className="text-xs text-slate-400">Check the link or ask your project manager for a new one.</p>
-        {onBackToDashboard && <button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button>}
+      <div className="max-w-5xl mx-auto">
+        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
+        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
       </div>
     );
   }
@@ -124,26 +134,23 @@ export default function SupplierPortalView({
     return d.status === filter;
 });
 
-  const totalDeliveredVolume = deliveries
-    .filter((d) => d.status === 'RECEIVED')
-    .reduce((sum, d) => sum + Number(d.quantity || 0), 0);
-
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="supplier-portal-view">
+      <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
-<header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 rounded-full">
-              Material Supplier &amp; Batching Portal • Zero Seat Tax
+<span className="text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full">
+              Material Supplier &amp; Batching Portal
 </span>
-<span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
-              Verified Dispatch Link
+<span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+              Secured project link
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
-<p className="text-xs text-slate-400">
-            Vendor:<span className="text-slate-200 font-semibold">{stakeholder.name}</span> • {stakeholder.category}
+<h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
+<p className="text-xs text-slate-500">
+            Vendor:<span className="text-slate-700 font-semibold">{stakeholder.name}</span> • {stakeholder.category}
 </p>
 </div>
 
@@ -151,44 +158,58 @@ export default function SupplierPortalView({
 <button
             onClick={() => setShowPoModal(true)}
             data-testid="view-po-ledger-btn"
-            className="px-3.5 py-1.5 text-xs font-semibold text-blue-300 hover:text-white bg-blue-900/60 hover:bg-blue-800 border border-blue-700 rounded-lg transition"
+            className="px-3.5 py-1.5 text-xs font-semibold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-lg transition"
           >
              PO &amp; Invoicing Ledger
 </button>
           {onBackToDashboard && (
 <button
               onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition"
+              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
             >
               ← Back to Project
 </button>
 )}
-<div className="text-right">
-<p className="text-[11px] text-slate-400">Verified Delivered</p>
-<p className="text-xs font-bold text-emerald-400">{totalDeliveredVolume} m³ Accepted</p>
-</div>
 </div>
 </header>
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• Confirm deliveries or dispute them with a reason</li>
+            <li>• Submit invoice references against confirmed deliveries</li>
+            <li>• Track your purchase orders and delivery schedule</li>
+</ul>
+</div>
+
 
       {/* Delivery status summary — real counts from site diary records */}
+{deliveries.length > 0 && (
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Total Deliveries</p>
 <p className="text-2xl font-bold text-slate-900 mt-1">{deliveries.length}</p>
 </div>
+{deliveries.filter((d) => d.status === 'RECEIVED').length > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Confirmed by You</p>
 <p className="text-2xl font-bold text-emerald-700 mt-1">{deliveries.filter((d) => d.status === 'RECEIVED').length}</p>
 </div>
+)}
+{deliveries.filter((d) => d.status === 'PENDING').length > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Awaiting Confirmation</p>
 <p className="text-2xl font-bold text-amber-700 mt-1">{deliveries.filter((d) => d.status === 'PENDING').length}</p>
 </div>
+)}
+{deliveries.filter((d) => d.status === 'REJECTED').length > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Disputed</p>
 <p className="text-2xl font-bold text-rose-700 mt-1">{deliveries.filter((d) => d.status === 'REJECTED').length}</p>
 </div>
+)}
 </div>
+)}
 
       {feedback && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg">{feedback}</div>
@@ -226,7 +247,7 @@ export default function SupplierPortalView({
 <div className="space-y-4">
         {filteredDeliveries.length === 0 && (
 <div className="bg-white p-8 rounded-xl border border-slate-200 text-center text-sm text-slate-400">
-            No deliveries recorded for this project yet.
+            No deliveries recorded for this project yet — purchase orders and site deliveries will appear here for confirmation.
 </div>
 )}
         {filteredDeliveries.map((del) => (
@@ -278,23 +299,41 @@ export default function SupplierPortalView({
 <p className="text-[11px] text-slate-500">Invoice ref: {del.supplier_invoice_ref}</p>
 )}
             {del.status === 'PENDING' && (
-<div className="flex gap-2 pt-1">
+<div className="space-y-2 pt-1">
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+<input
+                    type="text"
+                    placeholder="Supplier invoice ref (optional)"
+                    value={actionInputs[del.id]?.invoiceRef || ''}
+                    onChange={(e) => setActionInputs((prev) => ({ ...prev, [del.id]: { ...prev[del.id], invoiceRef: e.target.value, note: prev[del.id]?.note || '' } }))}
+                    className="text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+<input
+                    type="text"
+                    placeholder="Dispute reason (required to dispute)"
+                    value={actionInputs[del.id]?.note || ''}
+                    onChange={(e) => setActionInputs((prev) => ({ ...prev, [del.id]: { ...prev[del.id], note: e.target.value, invoiceRef: prev[del.id]?.invoiceRef || '' } }))}
+                    className="text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+</div>
+<div className="flex gap-2">
 <button
-                  type="button"
-                  disabled={actionBusy === del.id}
-                  onClick={() => confirmDelivery(del.id, 'CONFIRM')}
-                  className="px-3 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50"
-                >
-                  {actionBusy === del.id ? 'Saving…' : 'Confirm Delivery'}
+                    type="button"
+                    disabled={actionBusy === del.id}
+                    onClick={() => confirmDelivery(del.id, 'CONFIRM')}
+                    className="px-3 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50"
+                  >
+                    {actionBusy === del.id ? 'Saving…' : 'Confirm Delivery'}
 </button>
 <button
-                  type="button"
-                  disabled={actionBusy === del.id}
-                  onClick={() => confirmDelivery(del.id, 'DISPUTE')}
-                  className="px-3 py-1.5 text-xs font-bold bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 rounded-lg disabled:opacity-50"
-                >
-                  Dispute
+                    type="button"
+                    disabled={actionBusy === del.id}
+                    onClick={() => confirmDelivery(del.id, 'DISPUTE')}
+                    className="px-3 py-1.5 text-xs font-bold bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 rounded-lg disabled:opacity-50"
+                  >
+                    Dispute
 </button>
+</div>
 </div>
 )}
 </div>

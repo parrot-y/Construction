@@ -113,7 +113,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 
   // Default state for invoices
   const [invoices, setInvoices] = useState<ETimsInvoiceItem[]>(
-    initialInvoices || [
+    initialInvoices || (import.meta.env.DEV ? [
       {
         id: 'etims-1',
         invoiceNumber: 'INV-2026-001',
@@ -154,12 +154,12 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
         transmittedAt: '2026-11-04T08:15:00Z',
         createdAt: '2026-11-04T08:10:00Z',
 },
-    ]
+    ] : [])
 );
 
   // Default state for Subcontractor TCC
   const [tccRecords, setTccRecords] = useState<SubcontractorTccItem[]>(
-    initialTcc || [
+    initialTcc || (import.meta.env.DEV ? [
       {
         id: 'tcc-1',
         subcontractorPackageId: 'sub-pkg-1',
@@ -186,7 +186,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
         withholdingTaxRate: '5.00', // Non-compliant elevated rate
         withholdingVatRate: '2.00',
 },
-    ]
+    ] : [])
 );
 
   // Computations
@@ -536,6 +536,9 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
               KRA e-TIMS Tax Receipt
 </h3>
+<p className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-3 inline-block">
+              SIMULATED — not transmitted to KRA eTIMS
+</p>
 <p className="text-xs text-slate-500 mb-4 font-mono">{selectedInvoice.cuInvoiceNumber}</p>
 <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-lg inline-block my-2 border border-slate-300 dark:border-slate-700">
 <div className="w-48 h-48 bg-white p-2 mx-auto flex items-center justify-center text-slate-900 font-mono text-xs border border-dashed border-slate-400">

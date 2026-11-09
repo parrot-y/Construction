@@ -120,10 +120,10 @@
   - B1: SubcontractorManagementView + MaterialRequisitionView + MaterialWastageVarianceCard
   - B2: StatutoryTaxManagementView + ETimsTaxComplianceView + RetentionAndBondsView + WeatherDelayClaimsView + WhatsAppSiteWebhookView
   - B3: QualityControlView (inspections tab only — cube tests have no internal API, document) + PhotoEvidenceGallery + remaining stragglers
-- [x] Seed accounts per role (DONE in seed.ts); parity-map doc removed per audit — parity goal dropped
+- [x] Seed accounts per role (DONE in seed.ts); feature-map doc removed per audit — matching goal dropped
 - [ ] Final verify-local + PROJECT_STATUS update
 - [x] Wave A+B subagent wiring complete — 20+ views live (see commit 80143d1)
-- [x] ~~PORTAL_PARITY_MAP.md~~ removed — parity goal dropped per audit; seed accounts remain in seed.ts
+- [x] feature-map doc removed — matching goal dropped per audit; seed accounts remain in seed.ts
 - [x] PATCH subcontractor package status endpoint + UI persistence
 - [ ] Known backend gaps (documented, not built): GET equipment-logs, GET telematics-devices list, GET SiteWebhookLog, subcontractor valuations PATCH?, Excel export, AI features, WhatsApp/SMS/eTIMS live providers, scheduled-report delivery
 - [x] Final verify-local GREEN on 80143d1 — 687/687
@@ -134,7 +134,7 @@
 - [x] integrations.test.ts (4 tests)
 - [x] Final verify-local GREEN — 691/691 on 6858172
 
-## Reference-console parity rebuild (live-captured 2026-11-08)
+## Console rebuild from live captures (2026-11-08)
 Captures: /tmp/refstudy/crawl/<role>/<section>.{txt,png} — 8 roles x 6 sections.
 
 - [x] AppShell: icon rail (Ask AI, Home, Projects, Site, Money, People, Files & reports) + topbar (workspace label, search, currency toggle, New, notifications, avatar, dark-mode ready)
@@ -156,7 +156,7 @@ Captures: /tmp/refstudy/crawl/<role>/<section>.{txt,png} — 8 roles x 6 section
 - [x] All 10 seed logins verified live via Playwright DOM probe
 - [x] Probe/refstudy scripts removed from repo (never commit research tooling)
 
-## Form-level parity sweep (live-captured 2026-11-08, second pass)
+## Form-level sweep from live captures (2026-11-08, second pass)
 Captured every create form on contractor portal: CO, RFI, correspondence, safety, observation, punch, crew, subcontractor, daily log, invoice, quote, commitment, financials subtabs, reports, company docs, unfiled, field view, mobile landing.
 
 - [x] CO modal: linked RFI + multi-assignee selects (backend already supported assigneeIds/linkedRfiId)
@@ -174,15 +174,15 @@ Captured every create form on contractor portal: CO, RFI, correspondence, safety
 - Honest gaps remaining: real AI backend (Ask AI is labelled rule-based nav assistant), AI Design SOON, drawing markup viewer, live eTIMS/WhatsApp provider creds, client-portal "Request a project" flow, deeper subtab internals beyond first-crawl depth.
 - Probe scripts contained reference credentials -> removed from HEAD; history still contains them (pre-scrub commits) — offer history rewrite if user wants.
 
-## Security audit remediation (post-parity, ordered)
+## Security audit remediation (post-rebuild, ordered)
 - [x] 1. Authorization: central route permission map + project-membership guard + guarded route test
 - [x] 2. Uploads: magic-byte verification, mime-derived ext, authenticated tenant-scoped serving, storage driver seam
 - [x] 3. M-Pesa honesty: simulated flags in API+UI, maker-checker B2C payouts
 - [x] 4. Real Prisma migrations (baseline + RLS) + deploy-step rls.sql re-enforcement; users/tenants RLS exception documented
 - [x] 5. Sessions: 15m access + 7d refresh rotation, per-request is_active/membership check, @fastify/rate-limit on login/refresh/public
 - [x] 6. Peripheral modules (plant/survey/tender/steel/asphalt/geofence) quarantinable via DISABLED_MODULES
-- [x] 7. PORTAL_PARITY_MAP.md removed; parity goal dropped
-- [ ] 8. PROJECT_STATUS.md update + seed production guard
+- [x] 7. PORTAL_MATCHING_MAP.md removed; feature-matching goal dropped
+- [x] {i}. PROJECT_STATUS.md update + seed production guard
 - [ ] Final verify-local green + evidence
 
 ## Post-audit hardening & polish (continued)
@@ -195,7 +195,7 @@ Captured every create form on contractor portal: CO, RFI, correspondence, safety
 - [x] verify-local GREEN 714/714 on ebaf3c3 + 23cc4ea (web build clean, PWA precache 12 entries)
 
 ## Audit remediation program (Claude audit of PR #1 — ordered phases)
-Branch: devin/audit-remediation. Rules: evidence per item in docs/evidence/, no parity wording, no invented data, simulated integrations labelled, verify stays green.
+Branch: devin/audit-remediation. Rules: evidence per item in docs/evidence/, no competitor wording, no invented data, simulated integrations labelled, verify stays green.
 
 ### Phase 1 — Security & data safety
 - [x] 1.1 Authorization: route-authz-matrix.md evidence; b2c-disburse finance perm + approval + audit; retention review role check; replace inline hasPermission in certificates.ts/variations.ts with shared preHandler
@@ -228,3 +228,44 @@ Branch: devin/audit-remediation. Rules: evidence per item in docs/evidence/, no 
 - [x] Phase 5 — Report (PROJECT_STATUS + visual evidence + audit summary)
 
 ### Phase 5 — Report — Report: PROJECT_STATUS + before/after screenshots + audit summary
+
+## Portal hardening pass (branch devin/portal-hardening)
+Plan per auditor items 1-13, failing test first each:
+- [x] {i}. Subcontractor link scoped to subcontractor_package_id; remove contains-matching; isolation test
+- [x] {i}. Link create/list: allow-list via requirePermission (admin/PM_QS only) + dedicated permission
+- [x] {i}. rateLimit on /api/v1/portals/*; identical 404 for invalid/expired/wrong-type
+- [x] {i}. Explicit DTOs for consultant/compliance/subcontractor/supplier payloads; drop unused queries
+- [x] {i}. Rectify: portal-scoped upload endpoint w/ magic-byte verify; tenant+project check
+- [x] {i}. Consultant reply: Zod schema, 400 missing, reject ANSWERED/CLOSED, no creator responder_id, external_responder_name/external_link_id
+- [x] {i}. Valuation: Decimal math, prev payments from valuations, cap vs package sum, WHT from config, package-scoped link required
+- [x] 8. Supplier confirm/dispute: note required on DISPUTE, invoiceRef on CONFIRM, block final-state
+- [x] {i}. Compliance: remove invented ncaSiteRegistration, "Not recorded"; "No tests yet" not 100%
+- [x] {i}. PortalAccessLinkManager: remove mock fallback, canonical linkUrl, regenerate/revoke, last-used/use-count/expiry
+- [x] {i}. Portal views: expiry banner, revoked state, shared error component
+- [x] {i}. Portal empty states + wording cleanup (done partially in 39f57c3)
+- [x] {i}. Supplier dispute fields; sub valuation context; client portal photos/certs/invoices
+- [x] E2E green: e-portals.spec.ts 12/12 (chromium + mobile-390) — two-sub isolation, revoked, expired (real expires_at mutation), role-restricted create, rectify w/ real upload. Fixed e2e infra: rls.sql functions must be owned by RLS-bypassing role (E2E_ADMIN_DATABASE_URL), psql URL schema-param strip, RLS-safe fixture UPDATE.
+- [x] Evidence: docs/evidence/portal-hardening.md; PROJECT_STATUS update; verify-local 730/730 (API 525, web 118, money 63, db 15, permissions 9)
+
+## Auditor punch list (PR #2 review) — DONE, evidence: docs/evidence/auditor-punch-list.md
+- [x] Landing page verified clean; real console screenshots wired
+- [x] Portals UI: ZERO SEAT TAX/Verified Token/uppercase pills removed; next-step empty states on every (0) tab; fabricated NCA badge + hardcoded 5% retention math fixed
+- [x] Fabricated defaults: all initialX fixture fallbacks DEV-gated; sim-success fallbacks removed (variation/cost/inspection booking); fake project/equipment IDs removed
+- [x] ci.yml confirmed: migrate deploy from empty DB + rls.sql + RLS tests as db_app
+- [x] route-authz-matrix.md regenerated: 279 routes, 255 authenticated all permission-guarded, 24 allowlisted, 0 violations
+- [x] External-product wording scrubbed from todo/STATUS/research summary
+- [x] font-mono: 472 uses, codes/numbers only (unchanged — prior pass already cleaned)
+- [x] Fresh screenshots: 16 files @1440+@390 via real seeded stack + UI login
+
+## Auditor re-review round 2 — DONE (evidence: docs/evidence/auditor-punch-list.md)
+- [x] console-desktop/mobile.png replaced with real admin-console captures; stale landing.png deleted
+- [x] font-mono 472→458: prose/status/unit/free-text usages removed; remainder codes/numbers/dates/coords/PINs/phones/numeric inputs
+- [x] Portal headers: dark bands → light console-style cards on all 5 portals; "What you can do here" card added; all-zero tiles hidden; "5% Retention" label now uses real rate
+- [x] "Shot SUBCONTRACTOR"/"Screenshot Stakeholder": zero hits in source — e2e fixtures only ("E2E <TYPE>")
+- [x] parity/reference-console wording: zero hits in todo.md + PROJECT_STATUS.md
+- [x] Fresh portal screenshots @1440+@390 post-change; PR #3 updated
+- [x] Bonus: fake SHA-256 seal removed, Daraja-verified claim → simulated label, eTIMS modal SIMULATED banner
+
+## NEXT TASK
+- Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM) → wire real integrations
+- Production deploy per docs/DEPLOY.md (DISABLED_MODULES, object storage, domain/TLS)

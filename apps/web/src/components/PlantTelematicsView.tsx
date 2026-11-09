@@ -86,7 +86,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   onAcknowledgeAlert,
 }) => {
   const [devices, setDevices] = useState<TelematicsDeviceItem[]>(
-    initialDevices || [
+    initialDevices || (import.meta.env.DEV ? [
       {
         id: 'dev-001',
         equipmentId: 'eq-001',
@@ -117,11 +117,11 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
         status: 'ONLINE',
         lastHeartbeatAt: new Date(Date.now() - 300000).toISOString(),
 },
-    ]
+    ] : [])
 );
 
   const [pings, setPings] = useState<TelematicsPingItem[]>(
-    initialPings || [
+    initialPings || (import.meta.env.DEV ? [
       {
         id: 'png-01',
         equipmentCode: 'EXC-001',
@@ -194,7 +194,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
         anomalySeverity: 'NONE',
         pingTimestamp: new Date(Date.now() - 120000).toISOString(),
 },
-    ]
+    ] : [])
 );
 
   const defaultAlerts: PlantMaintenanceAlertItem[] = [
@@ -231,7 +231,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 },
   ];
 
-  const effectiveAlerts = initialAlerts || defaultAlerts;
+  const effectiveAlerts = initialAlerts || (import.meta.env.DEV ? defaultAlerts : []);
   const [alerts, setAlerts] = useState<PlantMaintenanceAlertItem[]>(effectiveAlerts);
 
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
@@ -514,9 +514,14 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 }
 }
 
+      const resolvedEquipmentId = equipmentIdByCode[newEquipCode] || Object.values(equipmentIdByCode)[0] || '';
       if (onRegisterDevice) {
+        if (!resolvedEquipmentId) {
+          setFeedback('Select equipment registered on this project before registering a telematics device.');
+          return;
+        }
         await onRegisterDevice({
-          equipmentId: 'dummy-equip-id',
+          equipmentId: resolvedEquipmentId,
           deviceImei: newImei,
           protocol: newProtocol,
           canBusBaudRate: newBaudRate,
@@ -799,7 +804,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <span>{latestPing.dtcFaultCodes}</span>
 </div>
 ) : (
-<div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono text-xs font-bold">
+<div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold">
 <span></span>
 <span>No Active DTCs</span>
 </div>
@@ -1226,7 +1231,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1 text-xs">
 <div className="font-bold text-slate-800">{alertToAcknowledge.title}</div>
 <div className="text-slate-600">{alertToAcknowledge.description}</div>
-<div className="text-slate-500 font-mono text-[11px]">
+<div className="text-slate-500 text-[11px]">
                 Machine: {alertToAcknowledge.equipmentName} ({alertToAcknowledge.equipmentCode}) • Severity: {alertToAcknowledge.severity}
 </div>
 </div>

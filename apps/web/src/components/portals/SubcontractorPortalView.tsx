@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../../ui';
+import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
 
 export interface SubcontractorSnag {
   id: string;
@@ -23,7 +24,9 @@ export interface SubcontractMilestone {
   id: string;
   milestoneName: string;
   pct: number;
-  amountKes: string;
+  grossKes: string;
+  retentionKes: string;
+  netKes: string;
   status: 'PAID' | 'CERTIFIED' | 'UNDER_REVIEW' | 'PENDING_CLAIM';
   certifiedDate?: string;
 }
@@ -56,12 +59,14 @@ export default function SubcontractorPortalView({
 }: SubcontractorPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [stakeholder, setStakeholder] = useState({ name: subcontractorName || '', trade: subcontractorTrade || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
   const [snagList, setSnagList] = useState<SubcontractorSnag[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [selectedSnagId, setSelectedSnagId] = useState<string | null>(null);
   const [rectifyPhotoKey, setRectifyPhotoKey] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [rectifyNotes, setRectifyNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -82,19 +87,20 @@ export default function SubcontractorPortalView({
         if (cancelled) return;
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', trade: d.stakeholder.trade || '' });
+        if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
         if (d.project) setProj({ name: d.project.name || '', code: d.project.code || '' });
         setSnagList((d.snags || []).map((s: any) => ({
           id: s.id,
           snag_number: `SNG-${String(s.snag_number).padStart(3, '0')}`,
-          location: [s.location_block, s.location_floor].filter(Boolean).join(', ') || s.location_floor || '—',
+          location: [s.locationBlock, s.locationFloor, s.locationRoom].filter(Boolean).join(', ') || '—',
           description: s.description,
           severity: s.severity === 'CRITICAL_SAFETY' ? 'CRITICAL' : s.severity === 'FUNCTIONAL' ? 'MINOR' : 'COSMETIC',
           status: s.status,
-          trade_category: s.trade_category || '',
-          assigned_trade_firm: s.assigned_trade_firm,
-          created_at: s.created_at,
+          trade_category: s.tradeCategory || '',
+          assigned_trade_firm: '',
+          created_at: s.identifiedAt,
           photos: (s.photos || []).map((ph: any) => ({
-            id: ph.id, photo_type: ph.photo_type, storage_key: ph.storage_key, caption: ph.caption,
+            id: ph.id, photo_type: ph.photoType, storage_key: ph.storageKey, caption: ph.caption,
           })),
         })));
         setPackages(d.packages || []);
@@ -112,39 +118,46 @@ export default function SubcontractorPortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
+    const isExpired = /expired/i.test(loadError);
+    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
-      <div className="max-w-5xl mx-auto p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-rose-700">{loadError}</p>
-        <p className="text-xs text-slate-400">Check the link or ask your project manager for a new one.</p>
-        {onBackToDashboard && <button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button>}
+      <div className="max-w-5xl mx-auto">
+        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
+        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
       </div>
     );
   }
 
   // Commercial summary derived from real work packages + valuations
   const commercialSummary: SubcontractCommercialSummary = (() => {
-    const contractSum = packages.reduce((a: number, p: any) => a + Number(p.subcontract_sum || 0), 0);
+    const contractSum = packages.reduce((a: number, p: any) => a + Number(p.subcontractSum || 0), 0);
     const allVals = packages.flatMap((p: any) => p.valuations || []);
-    const certified = allVals.filter((v: any) => ['QS_VERIFIED', 'APPROVED_FOR_PAYMENT', 'PAID'].includes(v.payment_status))
-      .reduce((a: number, v: any) => a + Number(v.gross_work_certified_kes || 0), 0);
-    const retention = allVals.reduce((a: number, v: any) => a + Number(v.retention_deducted_kes || 0), 0);
+    const certified = allVals.filter((v: any) => ['QS_VERIFIED', 'APPROVED_FOR_PAYMENT', 'PAID'].includes(v.paymentStatus))
+      .reduce((a: number, v: any) => a + Number(v.grossWorkCertifiedKes || 0), 0);
+    const retention = allVals.reduce((a: number, v: any) => a + Number(v.retentionDeductedKes || 0), 0);
     const milestones: SubcontractMilestone[] = packages.flatMap((p: any) =>
-      (p.valuations || []).map((v: any) => ({
-        id: v.id,
-        milestoneName: `${p.trade_category} — ${v.certificate_no}`,
-        pct: 0,
-        amountKes: String(v.net_payable_kes),
-        status: v.payment_status === 'PAID' ? 'PAID' : v.payment_status === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
-        certifiedDate: v.valuation_date ? String(v.valuation_date).split('T')[0] : undefined,
-      })),
+      (p.valuations || []).map((v: any) => {
+        const pkgSum = Number(p.subcontractSum || 0);
+        const gross = Number(v.grossWorkCertifiedKes || 0);
+        return {
+          id: v.id,
+          milestoneName: `${p.tradeCategory} — ${v.certificateNo}`,
+          pct: pkgSum > 0 ? Math.round((gross / pkgSum) * 1000) / 10 : 0,
+          grossKes: v.grossWorkCertifiedKes,
+          retentionKes: v.retentionDeductedKes,
+          netKes: v.netPayableKes,
+          status: v.paymentStatus === 'PAID' ? 'PAID' : v.paymentStatus === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
+          certifiedDate: v.valuationDate ? String(v.valuationDate).split('T')[0] : undefined,
+        };
+      }),
     );
     return {
       contractSumKes: String(contractSum),
       cumulativeCertifiedKes: String(certified),
       retentionWithheldKes: String(retention),
-      retentionRatePct: packages[0] ? Number(packages[0].retention_rate_pct || 5) : 5,
-      netDisbursedKes: allVals.filter((v: any) => v.payment_status === 'PAID')
-        .reduce((a: number, v: any) => a + Number(v.net_payable_kes || 0), 0)
+      retentionRatePct: packages[0] ? Number(packages[0].retentionRatePct || 5) : 5,
+      netDisbursedKes: allVals.filter((v: any) => v.paymentStatus === 'PAID')
+        .reduce((a: number, v: any) => a + Number(v.netPayableKes || 0), 0)
         .toString(),
       milestones,
     };
@@ -214,20 +227,21 @@ export default function SubcontractorPortalView({
 
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="subcontractor-portal-view">
+      <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
-<header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
-              Subcontractor Portal • Zero Seat Tax
+<span className="text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full">
+              Subcontractor Portal
 </span>
-<span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
-              Active Trade Token
+<span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+              Secured project link
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
-<p className="text-xs text-slate-400">
-            Assigned Trade:<span className="text-slate-200 font-semibold">{stakeholder.name}</span> ({stakeholder.trade})
+<h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
+<p className="text-xs text-slate-500">
+            Assigned Trade:<span className="text-slate-700 font-semibold">{stakeholder.name}</span> ({stakeholder.trade})
 </p>
 </div>
 
@@ -235,38 +249,60 @@ export default function SubcontractorPortalView({
           {onBackToDashboard && (
 <button
               onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition"
+              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
             >
               ← Back to Project
 </button>
 )}
-<div className="text-right">
-<p className="text-[11px] text-slate-400">Action Required</p>
-<p className="text-xs font-bold text-amber-400">{openCount} Defects Open</p>
-</div>
 </div>
 </header>
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• See defects assigned to your trade and upload photo proof to rectify them</li>
+            <li>• Track your valuation claims, certified amounts and retention held</li>
+            <li>• Submit a new valuation claim against your work package</li>
+</ul>
+</div>
 
-      {/* KPI Stats */}
+
+      {/* KPI Stats — tiles hidden while their values are all zero */}
+{(openCount > 0 || rectifiedCount > 0 || closedCount > 0 || Number(commercialSummary.contractSumKes) > 0) && (
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+{openCount > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Open Defects</p>
 <p className="text-2xl font-bold text-amber-600 mt-1">{openCount}</p>
 </div>
+)}
+{rectifiedCount > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Rectified (Pending Sign-off)</p>
 <p className="text-2xl font-bold text-blue-600 mt-1">{rectifiedCount}</p>
 <span className="text-[10px] text-slate-400">({closedCount} verified &amp; closed)</span>
 </div>
+)}
+{closedCount > 0 && rectifiedCount === 0 && (
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+<p className="text-xs font-semibold text-slate-500">Verified &amp; Closed</p>
+<p className="text-2xl font-bold text-emerald-600 mt-1">{closedCount}</p>
+</div>
+)}
+{Number(commercialSummary.contractSumKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Subcontract Sum</p>
 <p className="text-base font-bold text-slate-900 mt-1 font-mono">{formatKes(commercialSummary.contractSumKes)}</p>
 </div>
+)}
+{Number(commercialSummary.retentionWithheldKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
-<p className="text-xs font-semibold text-slate-500">5% Retention Held</p>
+<p className="text-xs font-semibold text-slate-500">{commercialSummary.retentionRatePct}% Retention Held</p>
 <p className="text-base font-bold text-purple-700 mt-1 font-mono">{formatKes(commercialSummary.retentionWithheldKes)}</p>
 </div>
+)}
 </div>
+)}
 
       {feedback && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex justify-between items-center shadow-sm">
@@ -303,6 +339,9 @@ export default function SubcontractorPortalView({
       {/* Tab 1: Defect Rectification Register */}
       {activeTab === 'DEFECTS' && (
 <div className="space-y-4">
+          {snagList.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No snagging items assigned to your trade yet — snags raised against your scope appear here; rectify with photo proof to close them.</p>
+)}
           {snagList.map((snag) => {
             const isOpen = snag.status === 'OPEN';
             const isRectified = snag.status === 'RECTIFIED_BY_CONTRACTOR';
@@ -385,15 +424,36 @@ export default function SubcontractorPortalView({
 
 <div>
 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                            After-Repair Photo Storage Key / Image URL:
+                            After-Repair Photo (required):
 </label>
 <input
-                            type="text"
-                            value={rectifyPhotoKey}
-                            onChange={(e) => setRectifyPhotoKey(e.target.value)}
-                            placeholder="e.g. uploads/snags/rectified_washbasin_coupling.jpg"
-                            className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/heic,application/pdf,video/mp4,video/quicktime"
+                            disabled={uploadingPhoto}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setUploadingPhoto(true);
+                              setFeedback(null);
+                              try {
+                                const fd = new FormData();
+                                fd.append('file', file);
+                                const up = await fetch(`/api/v1/portals/subcontractor/${token}/snags/${snag.id}/upload`, { method: 'POST', body: fd });
+                                const ub = await up.json().catch(() => ({}));
+                                if (!up.ok) throw new Error(ub.message || 'Photo upload failed');
+                                setRectifyPhotoKey(ub.data?.storageKey || '');
+                                setFeedback('Photo uploaded — submit to mark the defect rectified.');
+                              } catch (err: any) {
+                                setFeedback(err.message || 'Photo upload failed');
+                              } finally {
+                                setUploadingPhoto(false);
+                                e.target.value = '';
+                              }
+                            }}
+                            className="w-full text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
                           />
+{uploadingPhoto && <p className="text-[11px] text-slate-500 mt-1">Uploading photo…</p>}
+{rectifyPhotoKey && !uploadingPhoto && <p className="text-[11px] text-emerald-700 mt-1">Photo attached.</p>}
 </div>
 
 <div>
@@ -423,7 +483,7 @@ export default function SubcontractorPortalView({
 </button>
 <button
                             type="button"
-                            disabled={submitting || !rectifyPhotoKey.trim()}
+                            disabled={submitting || uploadingPhoto || !rectifyPhotoKey.trim()}
                             onClick={() => handleRectifySubmit(snag.id)}
                             className="px-4 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 transition"
                           >
@@ -470,17 +530,16 @@ export default function SubcontractorPortalView({
 <th className="p-3">Milestone Scope of Work</th>
 <th className="p-3">Weight (%)</th>
 <th className="p-3">Contract Value</th>
-<th className="p-3">5% Retention</th>
+<th className="p-3">{commercialSummary.retentionRatePct}% Retention</th>
 <th className="p-3">Net Payable</th>
 <th className="p-3">Claim Status</th>
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
-                  {commercialSummary.milestones.map((m) => {
-                    const retentionAmt = parseFloat(m.amountKes.replace(/,/g, '')) * 0.05;
-                    const netAmt = parseFloat(m.amountKes.replace(/,/g, '')) * 0.95;
-
-                    return (
+                  {commercialSummary.milestones.length === 0 && (
+<tr><td colSpan={6} className="p-6 text-center text-sm text-slate-400">No valuation claims certified yet — submit a milestone claim below and the QS will certify it here.</td></tr>
+)}
+                  {commercialSummary.milestones.map((m) => (
 <tr key={m.id} className="hover:bg-slate-50">
 <td className="p-3 font-medium text-slate-900">
                           {m.milestoneName}
@@ -489,9 +548,9 @@ export default function SubcontractorPortalView({
 )}
 </td>
 <td className="p-3 font-bold text-slate-700">{m.pct}%</td>
-<td className="p-3 font-mono font-bold text-slate-900">{formatKes(m.amountKes)}</td>
-<td className="p-3 font-mono text-purple-700">{formatKes(retentionAmt)}</td>
-<td className="p-3 font-mono font-bold text-emerald-700">{formatKes(netAmt)}</td>
+<td className="p-3 font-mono font-bold text-slate-900">{formatKes(m.grossKes)}</td>
+<td className="p-3 font-mono text-purple-700">{formatKes(m.retentionKes)}</td>
+<td className="p-3 font-mono font-bold text-emerald-700">{formatKes(m.netKes)}</td>
 <td className="p-3">
 <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -506,8 +565,7 @@ export default function SubcontractorPortalView({
 </span>
 </td>
 </tr>
-);
-})}
+))}
 </tbody>
 </table>
 </div>
@@ -545,14 +603,39 @@ export default function SubcontractorPortalView({
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
                 >
                   {packages.map((pkg: any) => (
-                    <option key={pkg.id} value={pkg.id}>{pkg.trade_category} — {pkg.firm_name}</option>
+                    <option key={pkg.id} value={pkg.id}>{pkg.tradeCategory} — {pkg.firmName}</option>
                   ))}
                 </select>
 </div>
 
+{(() => {
+                  const pkg = packages.find((p: any) => p.id === claimPackageId);
+                  if (!pkg) return null;
+                  const vals = pkg.valuations || [];
+                  const certifiedToDate = vals.length ? Math.max(...vals.map((v: any) => Number(v.grossWorkCertifiedKes || 0))) : 0;
+                  const packageSum = Number(pkg.subcontractSum || 0);
+                  const remaining = Math.max(0, packageSum - certifiedToDate);
+                  return (
+<div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-center">
+<div>
+<p className="text-[10px] text-slate-500 font-semibold">Package value</p>
+<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(packageSum))}</p>
+</div>
+<div>
+<p className="text-[10px] text-slate-500 font-semibold">Certified to date</p>
+<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(certifiedToDate))}</p>
+</div>
+<div>
+<p className="text-[10px] text-slate-500 font-semibold">Remaining</p>
+<p className="text-xs font-bold text-emerald-700 font-mono">{formatKes(String(remaining))}</p>
+</div>
+</div>
+);
+                })()}
+
 <div>
 <label className="block font-semibold text-slate-700 mb-1">
-                  Claim Valuation Amount (KES Gross):
+                  Claim Valuation Amount (KES Gross, cumulative):
 </label>
 <input
                   type="text"

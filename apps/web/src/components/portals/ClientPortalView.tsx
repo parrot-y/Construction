@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../../ui';
+import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
 
 interface CoItem {
   id: string;
@@ -36,6 +38,14 @@ interface PortalPayload {
   changeOrders: ChangeOrder[];
 }
 
+interface ClientExtra {
+  linkExpiresAt?: string;
+  progressPhotos: { id: string; storageKey: string; caption?: string | null; takenAt?: string; entryDate?: string }[];
+  certificates: { id: string; certificateNo: string; periodEnd?: string; thisPeriodAmount: string; cumulativeCertified: string; netPayable: string; status: string; paidAt?: string | null }[];
+  invoices: { id: string; invoiceNo: string; title: string; status: string; currency: string; total: string; amountPaid: string; balanceDue: string; issueDate?: string; dueDate?: string }[];
+  progressRecords: { id: string; recordDate?: string; overallProgress?: string | null; notes?: string | null }[];
+}
+
 interface ClientPortalViewProps {
   token: string;
   onBackToDashboard?: () => void;
@@ -55,6 +65,8 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
+  const [extra, setExtra] = useState<ClientExtra | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,6 +79,12 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 }
       const json = await res.json();
       setData(json.data);
+      if (json.data?.linkExpiresAt) setLinkExpiresAt(json.data.linkExpiresAt);
+      // Best-effort load of the read-only project feed (photos, certificates, invoices)
+      fetch(`/api/v1/portals/client/${encodeURIComponent(token)}`, { credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((b) => { if (b?.data) { setExtra(b.data); if (b.data.linkExpiresAt) setLinkExpiresAt(b.data.linkExpiresAt); } })
+        .catch(() => {});
 } catch (err: any) {
       setError(err?.message || 'Failed to load change orders');
 } finally {
@@ -117,21 +135,21 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 }
 
   if (error || !data) {
+    const isExpired = /expired/i.test(error || '');
+    const isRevoked = /revoked|invalid/i.test(error || '');
     return (
-<div className="bg-white rounded-xl border border-slate-200 p-10 text-center space-y-3">
-<p className="text-sm font-semibold text-rose-600">{error || 'Portal unavailable'}</p>
-<p className="text-xs text-slate-500">This link may have expired. Ask your contractor for a new one.</p>
-        {onBackToDashboard && (
-<button onClick={onBackToDashboard} className="text-xs text-purple-600 hover:underline">Back</button>
-)}
-</div>
-);
-}
+      <div>
+        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={error || undefined} />
+        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-purple-600 hover:underline">Back</button></div>}
+      </div>
+    );
+  }
 
   const pending = data.changeOrders.filter((c) => c.status === 'OWNER_REVIEW');
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+      <PortalExpiryBanner expiresAt={linkExpiresAt} />
 <div className="flex items-start justify-between gap-4">
 <div>
 <p className="text-[10px] font-bold text-purple-700">Client Portal</p>
@@ -146,6 +164,16 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 )}
 </div>
 
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• Approve or decline change orders raised by the contractor</li>
+            <li>• Follow payment certificates, invoices and retention deductions</li>
+            <li>• View progress photos, milestones and project updates</li>
+</ul>
+</div>
+
       {feedback && (
 <div className="p-3 bg-purple-50 border border-purple-200 text-purple-800 text-xs font-medium rounded-lg">{feedback}</div>
 )}
@@ -158,7 +186,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 
 <div className="space-y-3">
         {data.changeOrders.length === 0 && (
-<p className="text-sm text-slate-500 text-center py-8">No change orders on this project yet.</p>
+<p className="text-sm text-slate-500 text-center py-8">No change orders on this project yet — when the contractor raises a variation, it will appear here for your approval.</p>
 )}
         {data.changeOrders.map((co) => {
           const isNegative = co.net_amount.trim().startsWith('-');
@@ -215,6 +243,83 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 </div>
 );
 })}
+
+      {/* Read-only project feed: progress, certificates, invoices */}
+      {extra && (
+        <>
+          {extra.progressRecords.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold text-slate-700 mb-2">Progress</h3>
+              <div className="space-y-1.5">
+                {extra.progressRecords.map((pr) => (
+                  <div key={pr.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
+                    <span className="text-slate-600">{pr.recordDate ? new Date(pr.recordDate).toLocaleDateString('en-KE') : '—'}</span>
+                    <span className="font-semibold text-slate-900">{pr.overallProgress != null ? `${pr.overallProgress}%` : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {extra.progressPhotos.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold text-slate-700 mb-2">Site photos shared with you</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {extra.progressPhotos.map((ph) => (
+                  <a key={ph.id} href={`/uploads/${ph.storageKey}`} target="_blank" rel="noreferrer" className="block">
+                    <img src={`/uploads/${ph.storageKey}`} alt={ph.caption || 'Site progress'} className="w-full h-24 object-cover rounded-lg border border-slate-200" loading="lazy" />
+                    {ph.caption && <p className="text-[10px] text-slate-500 mt-0.5 truncate">{ph.caption}</p>}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {extra.certificates.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold text-slate-700 mb-2">Payment certificates</h3>
+              <div className="space-y-1.5">
+                {extra.certificates.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
+                    <div>
+                      <span className="font-mono font-semibold text-slate-900">{c.certificateNo}</span>
+                      <span className="text-slate-500 ml-2">{c.periodEnd ? new Date(c.periodEnd).toLocaleDateString('en-KE') : ''}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-semibold text-slate-900">{formatKes(c.netPayable)}</span>
+                      <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded ${c.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{c.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {extra.invoices.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold text-slate-700 mb-2">Invoices</h3>
+              <div className="space-y-1.5">
+                {extra.invoices.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
+                    <div>
+                      <span className="font-mono font-semibold text-slate-900">{inv.invoiceNo}</span>
+                      <span className="text-slate-500 ml-2">{inv.title}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-semibold text-slate-900">{formatKes(inv.balanceDue)} due</span>
+                      <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded ${inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{inv.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {extra.progressPhotos.length === 0 && extra.certificates.length === 0 && extra.invoices.length === 0 && extra.progressRecords.length === 0 && (
+            <p className="text-xs text-slate-400 text-center py-4">No progress updates shared yet — the site team will publish photos and certificates here.</p>
+          )}
+        </>
+      )}
 </div>
 </div>
 );

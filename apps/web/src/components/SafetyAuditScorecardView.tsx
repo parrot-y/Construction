@@ -46,7 +46,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [liveLoaded, setLiveLoaded] = useState(!isLive);
   const [auditsList, setAuditsList] = useState<SafetyAuditItem[]>(
-    initialAudits || [
+    initialAudits || (import.meta.env.DEV ? [
       {
         id: 'saf-1',
         auditNo: 'SAF-2026-001',
@@ -83,7 +83,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
         status: 'OPEN',
         createdAt: '2026-10-25T14:30:00Z',
 },
-    ]
+    ] : [])
 );
 
   const [showAddModal, setShowAddModal] = useState(false);

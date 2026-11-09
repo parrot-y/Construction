@@ -54,7 +54,7 @@ export default function PracticalCompletionCard({
 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
               Project Closeout & Statutory Handover
 </span>
-<span className="text-xs text-slate-400 font-mono">BORAQS Standard</span>
+<span className="text-xs text-slate-400">BORAQS Standard</span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
             Practical Completion & Retention Release Card

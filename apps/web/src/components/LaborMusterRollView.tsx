@@ -61,7 +61,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
   onReviewMusterRoll,
 }) => {
   const [laborerList, setLaborerList] = useState<SiteLaborerItem[]>(
-    initialLaborers || [
+    initialLaborers || (import.meta.env.DEV ? [
       {
         id: 'lab-1',
         workerCode: 'LAB-MSN-01',
@@ -98,11 +98,11 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
         isActive: true,
         createdAt: '2026-11-01T08:00:00Z',
 },
-    ]
+    ] : [])
 );
 
   const [musterRollsList, setMusterRollsList] = useState<LaborMusterRollItem[]>(
-    initialMusterRolls || [
+    initialMusterRolls || (import.meta.env.DEV ? [
       {
         id: 'mr-1',
         payrollNo: 'MR-WK44-001',
@@ -133,7 +133,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
         approvedBy: 'Arch. David Muthomi (QS)',
         createdAt: '2026-10-30T17:00:00Z',
 },
-    ]
+    ] : [])
 );
 
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
@@ -192,18 +192,22 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
   const [dailyRateKes, setDailyRateKes] = useState('1500.00');
 
   // Create Muster Roll Form
-  const [payrollNo, setPayrollNo] = useState(`MR-WK45-${Math.floor(1000 + Math.random() * 9000)}`);
-  const [weekEndingDate, setWeekEndingDate] = useState('2026-11-13');
+  const [payrollNo, setPayrollNo] = useState('');
+  const [weekEndingDate, setWeekEndingDate] = useState(new Date().toISOString().slice(0, 10));
   const [rollNotes, setRollNotes] = useState('');
-  const [attendanceEntries, setAttendanceEntries] = useState([
-    { laborerId: laborerList[0]?.id || '', daysWorked: '6.00', overtimeHours: '0.00', taskAssigned: 'Superstructure masonry walling'},
-    { laborerId: laborerList[1]?.id || '', daysWorked: '6.00', overtimeHours: '4.00', taskAssigned: 'Slab soffit formwork propping'},
-    { laborerId: laborerList[2]?.id || '', daysWorked: '6.00', overtimeHours: '2.00', taskAssigned: 'Material carriage and concrete mixing'},
-  ]);
+  const [attendanceEntries, setAttendanceEntries] = useState(
+    import.meta.env.DEV
+      ? [
+          { laborerId: laborerList[0]?.id || '', daysWorked: '6.00', overtimeHours: '0.00', taskAssigned: 'Superstructure masonry walling'},
+          { laborerId: laborerList[1]?.id || '', daysWorked: '6.00', overtimeHours: '4.00', taskAssigned: 'Slab soffit formwork propping'},
+          { laborerId: laborerList[2]?.id || '', daysWorked: '6.00', overtimeHours: '2.00', taskAssigned: 'Material carriage and concrete mixing'},
+        ]
+      : [],
+  );
 
   // Review & Disburse Modal Form
   const [reviewStatus, setReviewStatus] = useState<'QS_APPROVED' | 'DISBURSED' | 'REJECTED'>('QS_APPROVED');
-  const [disbursementRef, setDisbursementRef] = useState(`MPESA-B2C-${Math.floor(1000000 + Math.random() * 9000000)}`);
+  const [disbursementRef, setDisbursementRef] = useState('');
 
   const handleCreateWorker = async (e: React.FormEvent) => {
     e.preventDefault();

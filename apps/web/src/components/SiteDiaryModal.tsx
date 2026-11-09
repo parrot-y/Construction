@@ -404,7 +404,7 @@ export default function SiteDiaryModal({
                   onChange={(e) => setEquipmentHours(e.target.value)}
                   className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
                 />
-<span className="text-[11px] text-slate-500 font-mono">hrs</span>
+<span className="text-[11px] text-slate-500">hrs</span>
 </div>
 <div className="flex items-center gap-1">
 <input
@@ -414,7 +414,7 @@ export default function SiteDiaryModal({
                   onChange={(e) => setFuelLitres(e.target.value)}
                   className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
                 />
-<span className="text-[11px] text-slate-500 font-mono">L</span>
+<span className="text-[11px] text-slate-500">L</span>
 </div>
 </div>
 </div>

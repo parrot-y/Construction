@@ -107,7 +107,7 @@ const DEFAULT_BATCHES: AsphaltBatchRecord[] = [
 export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
   projectId,
   projectName = 'Kilimani Commercial Complex',
-  initialBatches = DEFAULT_BATCHES,
+  initialBatches = import.meta.env.DEV ? DEFAULT_BATCHES : [],
   onRegisterBatch,
   onRecordCoreTest,
 }) => {

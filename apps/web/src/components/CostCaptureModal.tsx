@@ -84,23 +84,6 @@ export default function CostCaptureModal({
 }
       onClose();
 } catch (err: any) {
-      // If simulated or demo environment where offline fetch fails, simulate success
-      if (err.message.includes('fetch') || err.message.includes('NetworkError')) {
-        const simulatedCost = {
-          id: 'sim-' + Date.now(),
-          amount: parsedAmount.toFixed(2),
-          cost_category: costCategory,
-          vendor_name: vendorName || 'Direct Site Purchase',
-          invoice_ref: invoiceRef || 'N/A',
-          description,
-          status: 'PENDING',
-          created_at: new Date().toISOString(),
-          receipts: receiptFile ? [{ filename: receiptFile.name}] : [],
-};
-        if (onCostCreated) onCostCreated(simulatedCost);
-        onClose();
-        return;
-}
       setError(err.message || 'Failed to submit cost entry');
 } finally {
       setIsSubmitting(false);

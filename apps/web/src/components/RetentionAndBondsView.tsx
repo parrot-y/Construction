@@ -115,7 +115,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 
   // Default state for Retention
   const [releases, setReleases] = useState<RetentionReleaseItem[]>(
-    initialReleases || [
+    initialReleases || (import.meta.env.DEV ? [
       {
         id: 'rel-1',
         releaseNo: 'RET-REL-001',
@@ -150,12 +150,12 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
         disbursedAt: null,
         createdAt: '2026-11-04T09:00:00Z',
 },
-    ]
+    ] : [])
 );
 
   // Default state for Bonds
   const [bonds, setBonds] = useState<ContractorBondItem[]>(
-    initialBonds || [
+    initialBonds || (import.meta.env.DEV ? [
       {
         id: 'bnd-1',
         bondType: 'PERFORMANCE_BOND',
@@ -180,7 +180,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
         dischargeCertificateRef: 'DISCH-APG-001',
         createdAt: '2026-01-15T09:00:00Z',
 },
-    ]
+    ] : [])
 );
 
   const summary = (!isLive && initialSummary) ? initialSummary : {
@@ -512,7 +512,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                       {bnd.bondReferenceNo}
 </td>
 <td className="py-3 px-4 text-xs">
-<span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono">
+<span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                         {bnd.bondType.replace(/_/g, ' ')}
 </span>
 </td>

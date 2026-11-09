@@ -621,10 +621,27 @@ describe('Operations E2E Integration Suite', () => {
   });
 
   // ===========================================================================
-  // AUDIT AREA 1: Zero Seat Tax Stakeholder Portals & Multi-Currency Support
+  // AUDIT AREA 1: Tokenized Stakeholder Portals & Multi-Currency Support
   // ===========================================================================
-  it('PORTAL-01: Zero Seat Tax tokenized link access for all 4 external stakeholder roles without user licensing fees', async () => {
+  it('PORTAL-01: Tokenized link access for all 4 external stakeholder roles without user licensing fees', async () => {
     const rolesToTest = ['CONSULTANT', 'SUBCONTRACTOR', 'SUPPLIER', 'COMPLIANCE'] as const;
+
+    // SUBCONTRACTOR links must bind to a work package on the project
+    const pkgRes = await app.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectAId}/subcontractors`,
+      headers: { cookie: pmCookie, 'content-type': 'application/json' },
+      payload: {
+        tradeCategory: 'PLUMBING',
+        firmName: 'External SUBCONTRACTOR Partner',
+        subcontractSum: '500000.00',
+        retentionRatePct: '5.00',
+        status: 'ACTIVE',
+      },
+    });
+    expect(pkgRes.statusCode).toBe(201);
+    const pkgData = JSON.parse(pkgRes.body);
+    const subPackageId = pkgData.id || pkgData.data?.id;
 
     for (const portalRole of rolesToTest) {
       const linkRes = await app.inject({
@@ -636,6 +653,7 @@ describe('Operations E2E Integration Suite', () => {
           stakeholderName: `External ${portalRole} Partner`,
           stakeholderRole: `${portalRole} Specialist`,
           expiresInDays: 30,
+          ...(portalRole === 'SUBCONTRACTOR' ? { subcontractorPackageId: subPackageId } : {}),
         },
       });
 

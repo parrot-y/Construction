@@ -351,6 +351,7 @@ model MaterialDelivery {
   confirmed_at   DateTime? @db.Timestamptz
   confirmed_by_name String? @db.VarChar(255)
   supplier_invoice_ref String? @db.VarChar(100)
+  dispute_reason String?  @db.VarChar(500)
 
   site_diary    SiteDiary  @relation(fields: [site_diary_id], references: [id], onDelete: Cascade)
 
@@ -630,13 +631,16 @@ model RFIResponse {
   id              String       @id @default(uuid()) @db.Uuid
   tenant_id       String       @db.Uuid
   rfi_id          String       @db.Uuid
-  responder_id    String       @db.Uuid
+  responder_id    String?      @db.Uuid
+  // External portal replies have no user account — record who they were.
+  external_responder_name String? @db.VarChar(255)
+  external_link_id  String?      @db.Uuid
   official_answer String       @db.Text
   is_accepted     Boolean      @default(true)
   created_at      DateTime     @default(now()) @db.Timestamptz
 
   rfi             RFI          @relation(fields: [rfi_id], references: [id], onDelete: Cascade)
-  responder       User         @relation(fields: [responder_id], references: [id])
+  responder       User?        @relation(fields: [responder_id], references: [id])
 
   @@index([tenant_id, rfi_id])
   @@map("rfi_responses")
@@ -918,6 +922,11 @@ model PortalAccessLink {
   is_active        Boolean   @default(true)
   expires_at       DateTime  @db.Timestamptz
   created_at       DateTime  @default(now()) @db.Timestamptz
+  last_used_at     DateTime? @db.Timestamptz
+  use_count        Int       @default(0)
+  // SUBCONTRACTOR links are scoped to exactly one work package — a link
+  // without this field sees nothing (audit: no cross-subs visibility).
+  subcontractor_package_id String? @db.Uuid
 
   project          Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
 

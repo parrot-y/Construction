@@ -77,9 +77,9 @@ jobs:
             GRANT ALL PRIVILEGES ON SCHEMA public TO db_migrator;
           "
 
-          # 2. Deploy Prisma Schema as db_migrator (creates all tables with correct ownership)
+          # 2. Apply real Prisma migrations as db_migrator from an empty database (audit P1.4)
           DATABASE_URL="postgresql://db_migrator:migrator_secret@localhost:5432/construction_test?schema=public" \
-          pnpm --filter @construction/db prisma db push --skip-generate
+          pnpm --filter @construction/db exec prisma migrate deploy
 
           # 3. Grant schema permissions to db_app AFTER tables exist, and configure default privileges for db_migrator (C5)
           psql -h localhost -U postgres -d construction_test -c "

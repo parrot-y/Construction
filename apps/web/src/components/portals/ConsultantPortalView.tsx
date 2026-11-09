@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
 
 export interface ConsultantRfiItem {
   id: string;
@@ -65,6 +66,7 @@ export default function ConsultantPortalView({
 }: ConsultantPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [stakeholder, setStakeholder] = useState({ name: stakeholderName || '', role: stakeholderRole || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
   const [rfis, setRfis] = useState<ConsultantRfiItem[]>([]);
@@ -87,45 +89,52 @@ export default function ConsultantPortalView({
         if (cancelled) return;
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', role: d.stakeholder.role || '' });
+        if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
         if (d.project) setProj({ name: d.project.name || '', code: d.project.code || '' });
         setRfis((d.rfis || []).map((r: any) => ({
           id: r.id,
-          rfi_number: `RFI-${String(r.rfi_number).padStart(3, '0')}`,
+          rfi_number: `RFI-${String(r.rfiNumber).padStart(3, '0')}`,
           title: r.title,
           question: r.question,
-          discipline: r.assigned_to_role || 'GENERAL',
+          drawing_reference: r.drawingReference,
+          discipline: r.issueType || 'GENERAL',
           urgency: r.priority === 'CRITICAL' ? 'BLOCKER' : (r.priority === 'HIGH' || r.priority === 'URGENT') ? 'URGENT' : 'NORMAL',
           status: r.status,
-          created_at: r.created_at,
+          created_at: r.createdAt,
           responses: (r.responses || []).map((x: any) => ({
-            id: x.id, official_answer: x.official_answer, is_accepted: x.is_accepted, created_at: x.created_at,
+            id: x.id, official_answer: x.officialAnswer, is_accepted: x.isAccepted, created_at: x.createdAt, responder_name: x.responderName,
           })),
         })));
         setCubeTests((d.cubeTests || []).map((c: any) => ({
           id: c.id,
-          batch_reference: c.batch_reference,
-          pour_date: c.pour_date,
-          element_location: c.pour_location,
-          design_grade_mpa: Number(c.target_strength_mpa),
-          break_results: (c.break_results || []).map((b: any) => ({
+          batch_reference: c.deliveryDocketNo || c.id,
+          pour_date: c.pourDate,
+          element_location: c.pourLocation,
+          concrete_class: c.concreteClass,
+          design_grade_mpa: Number(c.targetStrengthMpa ?? 0),
+          supplier_name: c.supplierName,
+          break_results: (c.breakResults || []).map((b: any) => ({
             id: b.id,
-            age_days: b.break_age_days,
-            failure_load_kn: Number(b.crushing_load_kn ?? 0),
-            compressive_strength_mpa: Number(b.compressive_mpa ?? 0),
-            is_pass: !!b.is_pass,
+            age_days: b.breakAgeDays,
+            failure_load_kn: 0,
+            compressive_strength_mpa: Number(b.compressiveMpa ?? 0),
+            is_pass: !!b.isPass,
+            lab_name: b.labName,
           })),
         })));
         setInspections((d.inspections || []).map((i: any) => ({
           id: i.id,
           title: i.title,
-          category: i.inspection_type || String(i.checklist_type || ''),
-          scheduled_date: i.scheduled_date,
+          category: i.inspectionType || String(i.checklistType || ''),
+          scheduled_date: i.scheduledDate,
           status: i.status,
+          location: i.location,
+          inspector_name: i.inspectorName,
           items: (i.items || []).map((it: any) => ({
             id: it.id,
-            item_description: it.check_point,
+            item_description: it.checkPoint,
             is_compliant: it.result === 'PASS',
-            notes: it.deficiency_notes,
+            notes: it.deficiencyNotes,
           })),
         })));
       } catch (e: any) {
@@ -141,11 +150,12 @@ export default function ConsultantPortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
+    const isExpired = /expired/i.test(loadError);
+    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
-      <div className="max-w-5xl mx-auto p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-rose-700">{loadError}</p>
-        <p className="text-xs text-slate-400">Check the link or ask your project manager for a new one.</p>
-        {onBackToDashboard && <button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button>}
+      <div className="max-w-5xl mx-auto">
+        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
+        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
       </div>
     );
   }
@@ -183,20 +193,21 @@ export default function ConsultantPortalView({
 
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="consultant-portal-view">
-      {/* Zero Seat Tax Header */}
-<header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <PortalExpiryBanner expiresAt={linkExpiresAt} />
+      {/* Portal header */}
+<header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-full">
-              Zero Seat Tax • Consultant Portal
+<span className="text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-0.5 rounded-full">
+              Consultant Portal
 </span>
-<span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
-              Verified Token Access
+<span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+              Secured project link
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
-<p className="text-xs text-slate-400">
-            Welcome,<span className="text-slate-200 font-semibold">{stakeholder.name}</span> • {stakeholder.role}
+<h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
+<p className="text-xs text-slate-500">
+            Welcome,<span className="text-slate-700 font-semibold">{stakeholder.name}</span> • {stakeholder.role}
 </p>
 </div>
 
@@ -204,17 +215,23 @@ export default function ConsultantPortalView({
           {onBackToDashboard && (
 <button
               onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition"
+              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
             >
               ← Back to Project
 </button>
 )}
-<div className="text-right hidden sm:block">
-<p className="text-[11px] text-slate-400">Statutory Standard</p>
-<p className="text-xs font-bold text-slate-200">BORAQS Cap 525 / KS 02-598</p>
-</div>
 </div>
 </header>
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• Review RFIs raised by the site team and reply with technical answers</li>
+            <li>• Track concrete cube test results against KS 02-598 targets</li>
+            <li>• Complete pre-pour QA checklists for upcoming concrete works</li>
+</ul>
+</div>
+
 
       {/* Tabs */}
 <div className="flex border-b border-slate-200 gap-4 text-xs font-semibold">
@@ -260,6 +277,9 @@ export default function ConsultantPortalView({
       {/* TAB 1: RFIs */}
       {activeTab === 'rfis' && (
 <div className="space-y-4">
+          {rfis.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No RFIs on this project yet — the project team raises design and coordination questions here, and your reply is recorded against the drawing.</p>
+)}
           {rfis.map((rfi) => {
             const isAnswered = rfi.status === 'ANSWERED' || rfi.status === 'CLOSED';
             const isSelected = selectedRfi === rfi.id;
@@ -380,6 +400,9 @@ export default function ConsultantPortalView({
 </div>
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {cubeTests.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8 col-span-2">No concrete cube tests recorded yet — results appear here once the contractor logs batch tests.</p>
+)}
             {cubeTests.map((c) => (
 <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
 <div className="flex justify-between items-start">
@@ -426,6 +449,9 @@ export default function ConsultantPortalView({
       {/* TAB 3: Pre-Pour QA */}
       {activeTab === 'inspections' && (
 <div className="space-y-4">
+          {inspections.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No pre-pour inspections scheduled yet — the site team schedules QA inspections here before each concrete pour.</p>
+)}
           {inspections.map((insp) => (
 <div key={insp.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
 <div className="flex justify-between items-center">

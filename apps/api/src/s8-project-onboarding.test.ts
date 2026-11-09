@@ -4,7 +4,7 @@ import { prisma, withTenantTx } from '@construction/db';
 import { enrollAllTenantUsers } from './test-members';
 
 /**
- * Gate-4 S8: Project onboarding & edit — observed Edit-project modal parity:
+ * Gate-4 S8: Project onboarding & edit — observed Edit-project modal coverage:
  * contract value + currency, map pin, money-at-risk, status lifecycle,
  * possession/completion dates, PM/Architect/QS assignment, manual progress.
  */

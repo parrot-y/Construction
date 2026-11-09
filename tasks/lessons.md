@@ -60,3 +60,9 @@ The live dev API uses `construction_demo`, tests/verify use `construction_test` 
 - 2026-11-09: Never run whitespace-collapsing regexes (`re.sub(r'  +',' ',s)`) over whole source files — it destroys indentation. Collapse only intra-line runs (`(?<=\S) {2,}(?=\S)`).
 - 2026-11-09: Tests that pass only because of fabricated component DEFAULT PROPS are testing fake data — when removing defaults, update tests to pass explicit fixtures or assert honest empty states.
 - 2026-11-09: Concurrent subagents + `git stash` in the same worktree can clobber live edits — avoid stash; verify `git status`/`git diff` after any subagent file operations.
+
+## Portal hardening lessons (2026-11-09)
+- `str.replace` in python patches ALL occurrences — when two route blocks share identical text (consultant vs compliance count queries), the second site gets silently stripped too. Always assert occurrence count or scope the replacement.
+- Enum-vs-action naming: storing the raw action string ('CONFIRM') into a status column ('CONFIRMED') passed typecheck but broke state-machine guards — map explicitly and assert via DB row in tests.
+- Test fixtures must match real response envelopes: `.id || .data?.id` — a wrong assumption produced 'undefined' UUID → Prisma P2023, not a clean 400.
+- Ephemeral /tmp Postgres clusters get wiped between sessions — construction_test/demo/e2e DBs must be rebuilt (initdb + migrate deploy + rls.sql + grants + seed) before API tests.
