@@ -15,7 +15,7 @@ export default function LandingPortalHub({
   onSelectRolePreview,
   onOpenLogin,
 }: LandingPortalHubProps): React.JSX.Element {
-  const isDev = import.meta.env.DEV;
+  const isDev = import.meta.env.VITE_DEMO_MODE === 'true';
 
   const capabilities = [
     {

@@ -46,27 +46,27 @@ interface ClientDashboardProps {
 }
 
 const DEFAULT_PROJECT = {
-  id: 'project-rcp-2026',
-  name: 'Riverside Commercial Plaza',
-  code: 'RCP-2026',
-  location: 'Riverside Drive, Nairobi',
-  ncaRegistration: 'NCA-PRJ-2026-0891',
-  startDate: '2026-01-15',
-  expectedCompletionDate: '2026-12-15',
+  id: '',
+  name: '',
+  code: '',
+  location: '',
+  ncaRegistration: '',
+  startDate: '',
+  expectedCompletionDate: '',
 };
 const DEFAULT_FINANCIALS = {
-  originalAgreedBudget: '45000000.00',
-  approvedVariationsTotal: '900000.00',
-  currentApprovedBudget: '45900000.00',
-  totalSpentToDate: '4500000.00',
-  remainingBalance: '41400000.00',
-  budgetUsedPercentage: 9.8,
+  originalAgreedBudget: '0.00',
+  approvedVariationsTotal: '0.00',
+  currentApprovedBudget: '0.00',
+  totalSpentToDate: '0.00',
+  remainingBalance: '0.00',
+  budgetUsedPercentage: 0,
 };
 const DEFAULT_PROGRESS = {
-  physicalProgressPercentage: 12.0,
-  varianceDelta: -2.2,
+  physicalProgressPercentage: 0,
+  varianceDelta: 0,
   healthStatus: 'ON_TRACK' as const,
-  healthNotice: 'Expenditure is aligned with recorded physical progress.',
+  healthNotice: 'No progress data recorded yet.',
 };
 
 export default function ClientDashboard({
@@ -84,6 +84,8 @@ export default function ClientDashboard({
   const [sites, setSites] = useState<{ id: string; name: string; code?: string; status?: string; location?: string}[]>([]);
   const [financials, setFinancials] = useState(financialsProp ?? DEFAULT_FINANCIALS);
   const [progress, setProgress] = useState(progressProp ?? DEFAULT_PROGRESS);
+  const [paymentCertificates, setPaymentCertificates] = useState<any[] | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const [photos, setPhotos] = useState(photosProp);
   const [timeline, setTimeline] = useState(timelineProp);
 
@@ -133,6 +135,8 @@ export default function ClientDashboard({
           recordedAt: t.recorded_at, itemDescription: t.item_description,
           sectionCode: t.section_code,
 })));
+        if (Array.isArray(d.payment_certificates)) setPaymentCertificates(d.payment_certificates);
+        setHydrated(true);
 } catch { /* keep demo defaults */}
 };
 
@@ -182,7 +186,7 @@ export default function ClientDashboard({
   const remainingBalanceFormatted = toCurrencyString(financials.remainingBalance);
 
   // Kenyan standard 5% retention cap of contract sum
-  const retentionCap = toCurrencyString('2250000.00');
+  const retentionCap = toCurrencyString(String(parseFloat(financials.originalAgreedBudget || '0') * 0.05));
 
   const getHealthBadge = (status: 'ON_TRACK' | 'ATTENTION' | 'ACTION_REQUIRED') => {
     switch (status) {
@@ -554,18 +558,20 @@ export default function ClientDashboard({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] uppercase font-semibold block">Net Payments Disbursed:</span>
 <span className="text-sm font-bold font-mono text-blue-700 mt-0.5 block">
-              {formatWithCurrency('4050000.00')}
+              {formatWithCurrency(String((paymentCertificates || []).reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
-<span className="text-[10px] text-slate-400 font-mono">90% of Gross Certified</span>
+<span className="text-[10px] text-slate-400 font-mono">Sum of net payable on certified IPCs</span>
 </div>
 
+{hydrated && progress.varianceDelta !== 0 && (
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-500 text-[10px] uppercase font-semibold block">Monetary Progress Variance:</span>
-<span className="text-sm font-bold font-mono text-emerald-700 mt-0.5 block">
-              {formatWithCurrency('1008000.00')} Favorable
+<span className="text-slate-500 text-[10px] uppercase font-semibold block">Progress vs plan:</span>
+<span className={`text-sm font-bold font-mono mt-0.5 block ${progress.varianceDelta >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {progress.varianceDelta >= 0 ? '+' : ''}{progress.varianceDelta.toFixed(1)} pts
 </span>
-<span className="text-[10px] text-emerald-600 font-medium">Under baseline estimate</span>
+<span className="text-[10px] text-slate-500 font-medium">{progress.healthNotice}</span>
 </div>
+)}
 </div>
 
         {/* Certified IPCs Table */}
@@ -583,32 +589,27 @@ export default function ClientDashboard({
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
-<tr className="hover:bg-slate-50/60">
-<td className="py-2.5 px-3 font-mono font-bold text-slate-800">IPC #01</td>
-<td className="py-2.5 px-3 text-slate-700">Substructure &amp; Foundation Excavation</td>
-<td className="py-2.5 px-3 text-slate-500 font-mono">2026-02-28</td>
-<td className="py-2.5 px-3 font-mono font-bold text-slate-900">{formatWithCurrency('2500000.00')}</td>
-<td className="py-2.5 px-3 font-mono text-amber-700">{formatWithCurrency('250000.00')}</td>
-<td className="py-2.5 px-3 font-mono font-bold text-emerald-700">{formatWithCurrency('2250000.00')}</td>
+{(paymentCertificates || []).map((c: any) => (
+<tr key={c.id} className="hover:bg-slate-50/60">
+<td className="py-2.5 px-3 font-mono font-bold text-slate-800">{c.certificate_no}</td>
+<td className="py-2.5 px-3 text-slate-700">{c.period_start} → {c.period_end}</td>
+<td className="py-2.5 px-3 text-slate-500 font-mono">{c.certified_at ? c.certified_at.split('T')[0] : '—'}</td>
+<td className="py-2.5 px-3 font-mono font-bold text-slate-900">{formatWithCurrency(c.this_period_amount)}</td>
+<td className="py-2.5 px-3 font-mono text-amber-700">{formatWithCurrency(c.retention_held)}</td>
+<td className="py-2.5 px-3 font-mono font-bold text-emerald-700">{formatWithCurrency(c.net_payable)}</td>
 <td className="py-2.5 px-3 text-right">
-<span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    Paid
+<span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${c.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-sky-100 text-sky-800 border-sky-300'}`}>
+                    {c.status === 'PAID' ? 'Paid' : 'Certified'}
 </span>
 </td>
 </tr>
-<tr className="hover:bg-slate-50/60">
-<td className="py-2.5 px-3 font-mono font-bold text-slate-800">IPC #02</td>
-<td className="py-2.5 px-3 text-slate-700">Ground Floor Columns &amp; Ring Beam</td>
-<td className="py-2.5 px-3 text-slate-500 font-mono">2026-03-31</td>
-<td className="py-2.5 px-3 font-mono font-bold text-slate-900">{formatWithCurrency('2000000.00')}</td>
-<td className="py-2.5 px-3 font-mono text-amber-700">{formatWithCurrency('200000.00')}</td>
-<td className="py-2.5 px-3 font-mono font-bold text-emerald-700">{formatWithCurrency('1800000.00')}</td>
-<td className="py-2.5 px-3 text-right">
-<span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    Paid
-</span>
-</td>
-</tr>
+))}
+{hydrated && (paymentCertificates || []).length === 0 && (
+<tr><td colSpan={7} className="py-8 text-center text-slate-400">No certified payment certificates yet.</td></tr>
+)}
+{!hydrated && (
+<tr><td colSpan={7} className="py-8 text-center text-slate-400">Loading certificates…</td></tr>
+)}
 </tbody>
 </table>
 </div>

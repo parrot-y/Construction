@@ -46,132 +46,13 @@ export default function BoqImportModal({
   projectId,
   projectName,
 }: BoqImportModalProps): React.JSX.Element | null {
-  const [step, setStep] = useState<'UPLOAD' | 'PREVIEW' | 'COMMITTING'>('UPLOAD');
+  const [step, setStep] = useState<'UPLOAD' | 'PARSING' | 'PREVIEW' | 'COMMITTING'>('UPLOAD');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [excludeRejected, setExcludeRejected] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Sample or parsed preview data
-  const [previewData, setPreviewData] = useState<BOQPreviewData | null>({
-    sourceFilename: 'Riverside-Commercial-Plaza-BOQ-Rev2.xlsx',
-    totalSections: 4,
-    totalItems: 8,
-    validItemsCount: 7,
-    warningItemsCount: 1,
-    rejectedItemsCount: 0,
-    calculatedGrandTotal: toCurrencyString('45000000.00'),
-    sections: [
-      {
-        title: 'Section 1: Preliminaries & General Conditions (EASMM Section A)',
-        orderIdx: 1,
-        subtotal: toCurrencyString('4500000.00'),
-        items: [
-          {
-            itemCode: '1.1',
-            description: 'Contractual requirements, site security hoarding, and water for the works',
-            unit: 'ITEM',
-            quantity: '1.0000',
-            unitRate: '2500000.0000',
-            totalAmount: toCurrencyString('2500000.00'),
-            isProvisional: false,
-            status: 'VALID',
-},
-          {
-            itemCode: '1.2',
-            description: 'Provisional Sum for Kenya Power 3-phase substation connection',
-            unit: 'SUM',
-            quantity: '0.0000',
-            unitRate: '0.0000',
-            totalAmount: toCurrencyString('2000000.00'),
-            isProvisional: true,
-            status: 'VALID',
-},
-        ],
-},
-      {
-        title: 'Section 2: Substructure & Earthworks (EASMM Section D)',
-        orderIdx: 2,
-        subtotal: toCurrencyString('12000000.00'),
-        items: [
-          {
-            itemCode: '2.1',
-            description: 'Bulk excavation in normal soil not exceeding 3.0m deep',
-            unit: 'CM',
-            quantity: '3000.0000',
-            unitRate: '850.0000',
-            totalAmount: toCurrencyString('2550000.00'),
-            isProvisional: false,
-            status: 'VALID',
-},
-          {
-            itemCode: '2.2',
-            description: 'Hardcore bed 300mm thick compacted in layers',
-            unit: 'SM',
-            quantity: '1500.0000',
-            unitRate: '1200.0000',
-            totalAmount: toCurrencyString('1800000.00'),
-            isProvisional: false,
-            status: 'VALID',
-},
-          {
-            itemCode: '2.3',
-            description: 'Reinforced concrete class 25/20 in strip foundation footings',
-            unit: 'CM',
-            quantity: '450.0000',
-            unitRate: '17000.0000',
-            totalAmount: toCurrencyString('7650000.00'),
-            isProvisional: false,
-            status: 'WARNING',
-            rejectionReason: 'Minor rounding discrepancy in Excel formula (KES 0.02 variance)',
-},
-        ],
-},
-      {
-        title: 'Section 3: Reinforced Concrete Superstructure (EASMM Section F)',
-        orderIdx: 3,
-        subtotal: toCurrencyString('18500000.00'),
-        items: [
-          {
-            itemCode: '3.1',
-            description: 'Vibrated reinforced concrete class 25/20 in columns, beams and suspended slabs',
-            unit: 'CM',
-            quantity: '600.0000',
-            unitRate: '17500.0000',
-            totalAmount: toCurrencyString('10500000.00'),
-            isProvisional: false,
-            status: 'VALID',
-},
-          {
-            itemCode: '3.2',
-            description: 'High tensile ribbed rebar steel D16 to D25 bent and placed',
-            unit: 'KG',
-            quantity: '40000.0000',
-            unitRate: '200.0000',
-            totalAmount: toCurrencyString('8000000.00'),
-            isProvisional: false,
-            status: 'VALID',
-},
-        ],
-},
-      {
-        title: 'Section 4: Walling, Finishes & Services (EASMM Section G & V)',
-        orderIdx: 4,
-        subtotal: toCurrencyString('10000000.00'),
-        items: [
-          {
-            itemCode: '4.1',
-            description: 'Machine cut stone walling 200mm thick bedded in cement-sand mortar (1:3)',
-            unit: 'SM',
-            quantity: '2500.0000',
-            unitRate: '4000.0000',
-            totalAmount: toCurrencyString('10000000.00'),
-            isProvisional: false,
-            status: 'VALID',
-},
-        ],
-},
-    ],
-});
+  const [previewData, setPreviewData] = useState<BOQPreviewData | null>(null);
 
   if (!isOpen) return null;
 
@@ -183,41 +64,55 @@ export default function BoqImportModal({
 }
 };
 
-  const handleSimulateParse = () => {
-    if (!selectedFile && !previewData) {
-      setErrorMsg('Please select an Excel (.xlsx) file to parse');
+  const handleParse = async () => {
+    if (!selectedFile) {
+      setErrorMsg('Please select an Excel (.xlsx) or CSV file to parse');
       return;
-}
-    if (selectedFile) {
-      setPreviewData((prev) =>
-        prev
-          ? {
-              ...prev,
-              sourceFilename: selectedFile.name,
-}
-          : prev,
-);
-}
-    setStep('PREVIEW');
-};
+    }
+    setStep('PARSING');
+    setErrorMsg(null);
+    try {
+      const form = new FormData();
+      form.append('file', selectedFile);
+      const res = await fetch(`/api/v1/projects/${projectId}/boq/preview`, {
+        method: 'POST',
+        credentials: 'include',
+        body: form,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || json.message || 'Parse failed');
+      setPreviewData(json.data);
+      setStep('PREVIEW');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to parse workbook');
+      setStep('UPLOAD');
+    }
+  };
 
   const handleConfirmImport = async () => {
+    if (!previewData) return;
     setStep('COMMITTING');
     try {
-      // Simulate confirmation or call /api/v1/projects/:id/boq/confirm
-      setTimeout(() => {
-        onImportSuccess({
-          version: 1,
-          total_amount: previewData?.calculatedGrandTotal || '45000000.00',
-          sectionsCount: previewData?.sections.length || 4,
-});
-        onClose();
-}, 600);
-} catch (err) {
-      setErrorMsg(`Import failed: ${(err as Error).message}`);
+      const res = await fetch(`/api/v1/projects/${projectId}/boq/confirm`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceFilename: previewData.sourceFilename,
+          sections: previewData.sections,
+          excludeRejected,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || json.message || 'Import failed');
+      onImportSuccess(json.data);
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to commit BOQ import');
       setStep('PREVIEW');
-}
-};
+    }
+  };
+
 
   return (
 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
@@ -420,7 +315,7 @@ export default function BoqImportModal({
 </button>
 <button
                 type="button"
-                onClick={handleSimulateParse}
+                onClick={handleParse}
                 className="px-5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition"
               >
                 Parse &amp; Preview BOQ

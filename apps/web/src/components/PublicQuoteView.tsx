@@ -102,7 +102,15 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 );
 }
 
-  if (!quote) return<div />;
+  if (!quote) {
+    return (
+<div className="bg-white rounded-xl border border-slate-200 p-8 text-center space-y-3">
+<p className="text-sm font-semibold text-rose-700">This quotation could not be loaded.</p>
+        <button onClick={load} className="text-xs font-semibold text-blue-600 hover:underline">Retry</button>
+        {onBack &&<button onClick={onBack} className="text-xs text-slate-500 hover:underline ml-3">Back</button>}
+</div>
+);
+}
 
   const responded = quote.status !== 'SENT';
 

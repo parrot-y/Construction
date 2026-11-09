@@ -37,58 +37,13 @@ interface ProjectSCurveCashFlowCardProps {
 export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps> = ({
   projectId: _projectId,
   projectName = 'Current Project',
-  budgetAtCompletionKes = '120000000.00',
+  budgetAtCompletionKes = '0.00',
   metrics: initialMetrics,
   sCurveSeries: initialSeries,
   onRecordPoint,
 }) => {
   const [series, setSeries] = useState<SCurveDataPoint[]>(
-    initialSeries || [
-      {
-        periodMonth: '2026-07',
-        plannedValueKes: '10000000.00',
-        actualCostKes: '9800000.00',
-        earnedValueKes: '10000000.00',
-        cpi: '1.0204',
-        spi: '1.0000',
-        clientBilledKes: '10500000.00',
-        netCashFlowKes: '700000.00',
-        status: 'ON_TRACK',
-},
-      {
-        periodMonth: '2026-08',
-        plannedValueKes: '25000000.00',
-        actualCostKes: '23500000.00',
-        earnedValueKes: '24800000.00',
-        cpi: '1.0553',
-        spi: '0.9920',
-        clientBilledKes: '26000000.00',
-        netCashFlowKes: '2500000.00',
-        status: 'AHEAD_UNDER_BUDGET',
-},
-      {
-        periodMonth: '2026-09',
-        plannedValueKes: '45000000.00',
-        actualCostKes: '44000000.00',
-        earnedValueKes: '45500000.00',
-        cpi: '1.0341',
-        spi: '1.0111',
-        clientBilledKes: '48000000.00',
-        netCashFlowKes: '4000000.00',
-        status: 'ON_TRACK',
-},
-      {
-        periodMonth: '2026-10',
-        plannedValueKes: '70000000.00',
-        actualCostKes: '68500000.00',
-        earnedValueKes: '69200000.00',
-        cpi: '1.0102',
-        spi: '0.9886',
-        clientBilledKes: '72000000.00',
-        netCashFlowKes: '3500000.00',
-        status: 'ON_TRACK',
-},
-    ]
+    initialSeries || []
 );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -102,10 +57,11 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 
   // Derive metrics
   const latestPoint = series[series.length - 1];
-  const cpi = initialMetrics?.cpi ?? latestPoint?.cpi ?? '1.0102';
-  const spi = initialMetrics?.spi ?? latestPoint?.spi ?? '0.9886';
-  const eac = initialMetrics?.estimateAtCompletionKes ?? (Number(budgetAtCompletionKes) / parseFloat(cpi)).toFixed(2);
-  const netCashFlow = initialMetrics?.cumulativeNetCashFlowKes ?? latestPoint?.netCashFlowKes ?? '3500000.00';
+  const cpi = initialMetrics?.cpi ?? latestPoint?.cpi ?? '—';
+  const spi = initialMetrics?.spi ?? latestPoint?.spi ?? '—';
+  const eacNum = parseFloat(cpi);
+  const eac = initialMetrics?.estimateAtCompletionKes ?? (eacNum > 0 ? (Number(budgetAtCompletionKes) / eacNum).toFixed(2) : '0.00');
+  const netCashFlow = initialMetrics?.cumulativeNetCashFlowKes ?? latestPoint?.netCashFlowKes ?? '0.00';
 
   // SVG Chart Dimensions & Calculations
   const chartWidth = 600;
@@ -237,7 +193,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
 <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Forecast at Completion</p>
 <p className="text-xl font-bold text-indigo-900 mt-1">
-            KES {Number(eac).toLocaleString('en-KE', { minimumFractionDigits: 0})}
+            {Number(eac) > 0 ? `KES ${Number(eac).toLocaleString('en-KE', { minimumFractionDigits: 0})}` : '—'}
 </p>
 <p className="text-xs text-indigo-600 mt-0.5">
             BAC: KES {Number(budgetAtCompletionKes).toLocaleString('en-KE', { minimumFractionDigits: 0})}

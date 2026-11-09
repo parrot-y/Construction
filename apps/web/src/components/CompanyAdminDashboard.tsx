@@ -44,7 +44,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
     { id: 'compliance' as const, label: 'Compliance & Documents'},
     { id: 'people' as const, label: 'People & Access'},
   ];
-  const selectedProjectName = projects.find((p) => p.id === pid)?.name || 'Riverside Commercial Plaza';
+  const selectedProjectName = projects.find((p) => p.id === pid)?.name || '—';
   const ASSIGN_ROLES = ['ADMIN','COMPANY_ADMIN','EXECUTIVE','PM_QS','SITE_SUPERVISOR','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CLIENT','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE'];
   const handleRoleChange = async (membershipId: string, role: string) => {
     try {
@@ -100,7 +100,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
   const [projectCode, setProjectCode] = useState('');
   const [projectLocation, setProjectLocation] = useState('Nairobi, Kenya');
   const [projectNcaNo, setProjectNcaNo] = useState('');
-  const [projectContractSum, setProjectContractSum] = useState('45000000');
+  const [projectContractSum, setProjectContractSum] = useState('');
 
   const handleInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,7 +203,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
             Total Contract Value
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            KES {toCurrencyString(metrics ? String(metrics.totalContractSum) : '45000000.00')}
+            KES {toCurrencyString(metrics ? String(metrics.totalContractSum) : '0.00')}
 </span>
 <span className="text-[11px] text-slate-400 mt-0.5 block">Sum across projects</span>
 </div>
@@ -213,9 +213,9 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
             Approved Budget
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            KES {toCurrencyString(metrics ? String(metrics.totalApprovedBudget) : '45000000.00')}
+            KES {toCurrencyString(metrics ? String(metrics.totalApprovedBudget) : '0.00')}
 </span>
-<span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingApprovalsCount ?? 0} pending approvals` : '100% committed'}</span>
+<span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingApprovalsCount ?? 0} pending approvals` : 'No data yet'}</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -279,31 +279,8 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </td>
 </tr>
 )) : (
-<tr className="hover:bg-slate-50/50">
-<td className="p-3">
-<span className="font-bold text-slate-900 block">Riverside Commercial Plaza</span>
-<span className="font-mono text-[11px] text-slate-500">Code: RCP-2026</span>
-</td>
-<td className="p-3">
-<span>Riverside Drive, Nairobi</span>
-<span className="block text-[11px] text-slate-400">NCA Reg: NCA-PRJ-2026-0891</span>
-</td>
-<td className="p-3 font-mono font-semibold text-slate-900">
-                    KES {toCurrencyString('45000000.00')}
-</td>
-<td className="p-3">
-<span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      ACTIVE
-</span>
-</td>
-<td className="p-3">
-<div className="flex gap-1 flex-wrap">
-<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 rounded text-slate-600 border border-slate-200">Faith A. (QS)</span>
-<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 rounded text-slate-600 border border-slate-200">John M. (Site)</span>
-<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 rounded text-slate-600 border border-slate-200">Sarah W. (Client)</span>
-</div>
-</td>
-</tr>
+<tr><td colSpan={5} className="p-8 text-center text-sm text-slate-400">No projects yet — create your first project to get started.</td></tr>
+
 )}
 </tbody>
 </table>
@@ -328,12 +305,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 
 <div className="divide-y divide-slate-100 border border-slate-100 rounded-lg">
-            {(members ?? [
-              { membershipId: 'demo-1', role: 'COMPANY_ADMIN', user: { full_name: 'David Kimani', email: 'admin@apexbuilders.co.ke'}},
-              { membershipId: 'demo-2', role: 'PM_QS', user: { full_name: 'Faith Achieng', email: 'qs@apexbuilders.co.ke'}},
-              { membershipId: 'demo-3', role: 'SITE_SUPERVISOR', user: { full_name: 'John Mwangi', email: 'supervisor@apexbuilders.co.ke'}},
-              { membershipId: 'demo-4', role: 'CLIENT', user: { full_name: 'Sarah Wambui', email: 'client@apexbuilders.co.ke'}},
-            ]).map((m: any) => (
+            {(members ?? []).map((m: any) => (
 <div key={m.membershipId} className="p-3 flex justify-between items-center gap-2">
 <div className="min-w-0">
 <p className="text-xs font-bold text-slate-900 truncate">{m.user?.full_name || m.user?.email}</p>
@@ -364,6 +336,9 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 )}
 </div>
 ))}
+{members !== null && members.length === 0 && (
+<p className="text-slate-400 text-center py-4 text-xs">No team members yet — invite your first user.</p>
+)}
 </div>
 </div>
 
@@ -384,29 +359,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 </div>
 )) : (
-<>
-<div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-start gap-2.5">
-<span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-<div>
-<p className="font-semibold text-slate-800">Project Baseline Created: Riverside Commercial Plaza</p>
-<p className="text-[11px] text-slate-500">Action: project.create • Actor: David Kimani</p>
-</div>
-</div>
-<div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-start gap-2.5">
-<span className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 shrink-0" />
-<div>
-<p className="font-semibold text-slate-800">BOQ Baseline Imported (EASMM 2008 Standard)</p>
-<p className="text-[11px] text-slate-500">Action: boq.import • Actor: Faith Achieng</p>
-</div>
-</div>
-<div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-start gap-2.5">
-<span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-<div>
-<p className="font-semibold text-slate-800">Company Profile Updated: KRA PIN & NCA Registration</p>
-<p className="text-[11px] text-slate-500">Action: company.update • Actor: David Kimani</p>
-</div>
-</div>
-</>
+<p className="text-slate-400 text-center py-4">No audit events yet.</p>
 )}
 </div>
 </div>
@@ -661,7 +614,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                   required
                   value={projectContractSum}
                   onChange={(e) => setProjectContractSum(e.target.value)}
-                  placeholder="45000000"
+                  placeholder="e.g. 45000000"
                   className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
                 />
 </div>
