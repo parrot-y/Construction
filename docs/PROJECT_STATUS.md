@@ -2,9 +2,9 @@
 
 Single source of truth for where the project stands. Updated at the end of every session by whoever worked (Gemini, Claude, or the owner). Keep it short and factual.
 
-**Last updated:** 2026-11-08
-**Current phase:** Security audit remediation (8 ordered items) — authorization, uploads, M-Pesa honesty, migrations/RLS, sessions, module quarantine, parity cleanup done; final verification pending
-**Next action:** Owner review of security-remediation head; real provider credentials (Daraja, WhatsApp/SMS/eTIMS) for pilot.
+**Last updated:** 2026-11-09
+**Current phase:** Formal audit remediation (Phases 1–4 delivered on `devin/audit-remediation`; Phase 5 reporting)
+**Next action:** Owner/Claude re-audit of the phase PRs; provider credentials for pilot.
 
 ## Product snapshot
 
@@ -125,3 +125,49 @@ None.
 | 2026-11-08 | Devin | Finish-all sweep: dashboards resolve real projectId (pickers in PmQs/Sup/Admin headers; ClientDashboard hydrates from /client-portal); 20+ milestone views live-wired to real APIs via parallel subagents (plant, telematics, BBS, steel, RMC, soil, asphalt, survey, geofence, B2C, inspections, subcontractors, requisitions, wastage, taxes, eTIMS, bonds, delay claims, WhatsApp alerts, quality/cube-tests); PATCH subcontractor status endpoint; PORTAL_PARITY_MAP.md (role↔portal↔feature matrix vs observed reference + seed account list); ClientDashboard photo mapping fix. verify-local GREEN on 80143d1: 687/687 (483 API, 117 web, 63 money, 15 db, 9 permissions). Evidence: docs/evidence/verify-HEAD.log. Known gaps documented in tasks/todo.md (provider integrations, AI, Excel export, few missing GET endpoints). |
 | 2026-11-08 | Devin | Integrations layer + Site Safi brand + mobile-first: provider abstraction (AT SMS / WhatsApp Cloud / Resend) with env-only config and honest SIMULATED status; real dispatch on inspection notify, site alerts, scheduled reports; IntegrationsView settings UI; missing GETs (telematics-devices, site-webhook-logs, equipment dailyLogs); bottom-tab mobile nav on field dashboards; reference-platform name scrubbed repo-wide. verify-local GREEN on 6858172/3858acd: 691/691 (487 API, 117 web, 63 money, 15 db, 9 permissions). Evidence: docs/evidence/verify-HEAD.log. |
 | 2026-11-08 | Devin | Full-system security audit remediation (8 ordered items, parity work paused): (1) Authorization — new plugins/routeAuthorization.ts maps every previously-unguarded authenticated route to a permission + enforces project membership (tenant-wide roles exempt, nonexistent projects fall through to 404); route-guard.test.ts now fails on any authenticated route lacking a permission guard, map entry, self-service or in-handler justification; seed creates ProjectMember rows. (2) Uploads — magic-byte + mime allowlist, extension derived from verified type never filename, public fastify-static /uploads replaced by authenticated tenant-scoped GET /uploads/* (nosniff, Content-Disposition, traversal-safe), pluggable storage driver (UPLOAD_DIR volume, object-storage seam). (3) M-Pesa honesty — STK/B2C marked simulated:true in API + UI; B2C payouts now maker-checker (PENDING_APPROVAL, initiator cannot self-approve, approve/reject endpoints, initiated_by/approved_by/approved_at columns); billing UI no longer fabricates SUCCESS receipts. (4) Real Prisma migrations — 0001 baseline + 0002 RLS policies via migrate deploy; rls.sql re-applied every deploy; users/tenants RLS exception documented (pre-auth identity resolution). (5) Sessions — 15m access + 7d refresh rotation, per-request is_active/membership enforcement, @fastify/rate-limit on login/refresh//api/public/*; web fetch wrapper silently refreshes on 401. (6) Peripheral modules (plant/survey/tender/steel/asphalt/geofence) quarantinable via DISABLED_MODULES env (404 when off). (7) PORTAL_PARITY_MAP.md removed; parity goal dropped. (8) Seed refuses to run when NODE_ENV=production. New tests: g5-14 uploads (4), g5-15 sessions (4), g5-16 module gate (2), maker-checker B2C coverage. Pending: final verify-local run + evidence. |
+
+
+---
+
+## Audit remediation status (2026-11-09, branch `devin/audit-remediation`)
+
+### Phase 1 — Security & data safety: DONE
+- Route authorization: every authenticated route has `authenticate` + `requirePermission` or a documented allowlist; project-membership enforced centrally (`plugins/routeAuthorization.ts`). Route-guard test fails the build on violations. Evidence: `docs/evidence/phase-1-security.md`, `route-authz-matrix.md`.
+- Uploads: magic-byte + MIME allowlist, server-generated filenames, authenticated tenant-scoped `/uploads/*` with `nosniff` + `Content-Disposition`. Tests cover `.html`/`.svg` rejection.
+- Migrations: real `prisma/migrations/` (0001 baseline, 0002 RLS, 0003 refresh tokens, 0004 supplier delivery confirmation); `rls.sql` re-applied on every deploy; `users`/`tenants` exemption documented.
+- Sessions: 15-min access + 7-day refresh JWT pair, rotation with reuse detection (`refresh_tokens` table), per-request `is_active`/membership check, rate limits on login/refresh/public routes, session list/revoke endpoints + UI.
+- M-Pesa: **SIMULATED** — STK/B2C responses and UI say so; B2C payouts are maker-checker (`PENDING_APPROVAL` → different `COST_APPROVE` user approves).
+
+### Phase 2 — Design system: PARTIAL
+- `docs/DESIGN_SYSTEM.md` + Tailwind tokens + `apps/web/src/ui/` kit (Button, Card, Badge, EmptyState, ErrorState, Skeleton, PageHeader, Table, Tabs, Modal, Toast) exist and are in use on newer surfaces.
+- `formatKes` is the shared KES formatter; money views route through it.
+- **Open:** full migration of all legacy views off ad-hoc styling; landing copy rewrite partially done; exhaustive uppercase/mono/emoji sweep not re-audited after the console rebuild.
+
+### Phase 3 — Real portals & wiring: DONE (with honest gaps)
+- All external portals (consultant, subcontractor, supplier, compliance, client) fetch real token-scoped API data; invalid/expired tokens show explicit states. Client portal approves change orders via token link.
+- Demo fixtures removed from live paths; remaining local defaults exist only in feature-flagged peripheral modules and dev-mode demo login (gated by `VITE_DEMO_MODE`/`import.meta.env.DEV`).
+- Dead links fixed (`/reports/cost` → `cost.xlsx`, site-diary report uses real diary id); `/certificates` and `/subcontractor-valuations` wired into Money console.
+- Peripheral modules (plant, survey, tender, steel, asphalt, geofence, telematics) gated via `DISABLED_MODULES` API-side and `isModuleEnabled` UI-side.
+- Evidence: `docs/evidence/phase-3-portals.md`.
+
+### Phase 4 — Workflow proof: DONE
+- `e2e/` Playwright suite: 9 specs covering workflows A–F against real API + Postgres (RLS-enforced `db_app` role), zero API stubs. 18/18 passing locally (chromium + mobile-390). CI: `.github/workflows/e2e.yml` fails the PR on failure and uploads the report/traces. Evidence: `docs/evidence/phase-4-e2e.md`.
+
+### Phase 5 — Reporting: THIS DOCUMENT + `docs/evidence/visual/`
+- Screenshots (1440px + 390px): landing, admin console, supervisor console, all five portals + public quote — `docs/evidence/visual/`.
+
+### What is SIMULATED (honest list)
+- M-Pesa STK push & B2C disbursement (maker-checker built; no live Daraja calls).
+- WhatsApp / SMS / email notifications (plumbing + env slots; no live provider).
+- eTIMS fiscal submissions.
+- Ask AI assistant (rule-based navigation helper, labelled beta).
+
+### What is FEATURE-FLAGGED
+- Peripheral modules: plant/equipment+telematics, survey/soil/topo, tender board, structural steel, asphalt QA, geofence/clock-in — `DISABLED_MODULES` (API) + `isModuleEnabled` (UI).
+- Demo workspace picker on login — `VITE_DEMO_MODE`/dev only.
+
+### What remains OPEN
+- Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM).
+- Second seeded tenant for a stronger two-tenant isolation e2e (current proof uses membership/RLS on nonexistent + non-member projects).
+- Phase 2 remainder: full legacy-view migration to the design system.
+- Production deployment itself (runbook: `docs/DEPLOY.md`).
