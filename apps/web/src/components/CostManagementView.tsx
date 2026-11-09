@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 import CostCaptureModal from './CostCaptureModal';
 
 export interface CostItem {
@@ -54,7 +54,7 @@ export default function CostManagementView({
 
   const handleCostCreated = (newCost: CostItem) => {
     setCosts([newCost, ...costs]);
-    setActionFeedback(`Cost entry for KES ${toCurrencyString(newCost.amount)} logged successfully in PENDING status`);
+    setActionFeedback(`Cost entry for ${formatKes(newCost.amount)} logged successfully in PENDING status`);
 };
 
   const handleApprove = async (costId: string) => {
@@ -221,7 +221,7 @@ export default function CostManagementView({
 )}
 </td>
 <td className="py-3 px-3 text-right font-bold text-slate-900">
-                    {toCurrencyString(cost.amount)}
+                    {formatKes(cost.amount)}
 </td>
 <td className="py-3 px-3 text-center font-sans">
 <span

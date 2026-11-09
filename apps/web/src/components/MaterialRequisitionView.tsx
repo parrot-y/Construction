@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../ui';
 
 export interface MaterialRequisitionItem {
   id: string;
@@ -148,12 +149,10 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
   const pendingCount = requisitions.filter((r) => r.status === 'PENDING_APPROVAL').length;
   const approvedCount = requisitions.filter((r) => r.status === 'APPROVED' || r.status === 'PO_ISSUED').length;
   const totalEstimatedKes = requisitions
-    .reduce((sum, r) => sum + Number(r.estimatedTotalCostKes || 0), 0)
-    .toLocaleString('en-KE', { minimumFractionDigits: 2});
+    .reduce((sum, r) => sum + Number(r.estimatedTotalCostKes || 0), 0);
 
-  const calculatedTotal = (
-    (parseFloat(requestedQuantity) || 0) * (parseFloat(estimatedUnitCostKes) || 0)
-).toLocaleString('en-KE', { minimumFractionDigits: 2});
+  const calculatedTotal =
+    (parseFloat(requestedQuantity) || 0) * (parseFloat(estimatedUnitCostKes) || 0);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,7 +299,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
 <p className="text-xs font-semibold text-indigo-700 ">Total Value (KES)</p>
 <p className="text-2xl font-bold text-indigo-900 mt-1">
-            KES {initialSummary?.totalEstimatedKes ?? totalEstimatedKes}
+            {formatKes(initialSummary?.totalEstimatedKes ?? totalEstimatedKes)}
 </p>
 </div>
 </div>
@@ -361,10 +360,10 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
                     {req.requestedQuantity}<span className="text-xs text-slate-500">{req.unitOfMeasure}</span>
 </td>
 <td className="py-3 px-4">
-                    KES {Number(req.estimatedUnitCostKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                    {formatKes(req.estimatedUnitCostKes)}
 </td>
 <td className="py-3 px-4 font-bold text-slate-900">
-                    KES {Number(req.estimatedTotalCostKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                    {formatKes(req.estimatedTotalCostKes)}
 </td>
 <td className="py-3 px-4">
 <span
@@ -524,7 +523,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
               {/* Dynamic Total Preview */}
 <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 flex justify-between items-center">
 <span className="font-semibold text-amber-900">Calculated Commitment:</span>
-<span className="text-base font-bold text-amber-900 font-mono">KES {calculatedTotal}</span>
+<span className="text-base font-bold text-amber-900 font-mono">{formatKes(calculatedTotal)}</span>
 </div>
 
 <div className="grid grid-cols-2 gap-4">

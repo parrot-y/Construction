@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 export interface StatutoryTaxCertificate {
   id: string;
@@ -227,7 +227,7 @@ export default function StatutoryTaxManagementView({
 <span className="text-xs text-slate-500 font-medium">Total Gross Certified</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-xl font-bold text-slate-900 font-mono">
-                {toCurrencyString(totalGross)}
+                {formatKes(totalGross)}
 </span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Certified contract progress</div>
@@ -237,7 +237,7 @@ export default function StatutoryTaxManagementView({
 <span className="text-xs text-slate-500 font-medium">3% WHT Withheld</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-xl font-bold text-red-700 font-mono">
-                {toCurrencyString(totalWht)}
+                {formatKes(totalWht)}
 </span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Remitted to KRA Account</div>
@@ -247,7 +247,7 @@ export default function StatutoryTaxManagementView({
 <span className="text-xs text-slate-500 font-medium">2% WHVAT Withheld</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-xl font-bold text-amber-700 font-mono">
-                {toCurrencyString(totalWhvat)}
+                {formatKes(totalWhvat)}
 </span>
 </div>
 <div className="text-xs text-slate-500 mt-2">VAT Withholding Agent</div>
@@ -257,7 +257,7 @@ export default function StatutoryTaxManagementView({
 <span className="text-xs text-slate-500 font-medium">Net Disbursed</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-xl font-bold text-emerald-700 font-mono">
-                {toCurrencyString(totalNet)}
+                {formatKes(totalNet)}
 </span>
 </div>
 <div className="text-xs text-emerald-700 mt-2 font-medium">Cleared for payee payout</div>
@@ -315,16 +315,16 @@ export default function StatutoryTaxManagementView({
                   {cert.invoice_or_ipc_ref}
 </td>
 <td className="py-3 px-4 text-right font-mono text-slate-800">
-                  {toCurrencyString(cert.gross_amount)}
+                  {formatKes(cert.gross_amount)}
 </td>
 <td className="py-3 px-4 text-right font-mono text-red-700 font-medium">
-                  -{toCurrencyString(cert.wht_deducted)}
+                  -{formatKes(cert.wht_deducted)}
 </td>
 <td className="py-3 px-4 text-right font-mono text-amber-700 font-medium">
-                  -{toCurrencyString(cert.whvat_deducted)}
+                  -{formatKes(cert.whvat_deducted)}
 </td>
 <td className="py-3 px-4 text-right font-mono font-extrabold text-emerald-800">
-                  {toCurrencyString(cert.net_payable)}
+                  {formatKes(cert.net_payable)}
 </td>
 <td className="py-3 px-4 text-center">
                   {getStatusBadge(cert.status)}
@@ -448,19 +448,19 @@ export default function StatutoryTaxManagementView({
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-1.5">
 <div className="flex justify-between text-slate-600">
 <span>Gross Valuation:</span>
-<span className="font-mono font-bold text-slate-900">{toCurrencyString(grossNum)}</span>
+<span className="font-mono font-bold text-slate-900">{formatKes(grossNum)}</span>
 </div>
 <div className="flex justify-between text-red-700">
 <span>Less 3% KRA Withholding Tax (WHT):</span>
-<span className="font-mono font-bold">-{toCurrencyString(whtNum)}</span>
+<span className="font-mono font-bold">-{formatKes(whtNum)}</span>
 </div>
 <div className="flex justify-between text-amber-700">
 <span>Less 2% Withholding VAT (WHVAT):</span>
-<span className="font-mono font-bold">-{toCurrencyString(whvatNum)}</span>
+<span className="font-mono font-bold">-{formatKes(whvatNum)}</span>
 </div>
 <div className="flex justify-between text-emerald-800 pt-1 border-t border-slate-200 font-bold text-sm">
 <span>Net Payable Amount:</span>
-<span className="font-mono">{toCurrencyString(netNum)}</span>
+<span className="font-mono">{formatKes(netNum)}</span>
 </div>
 </div>
 

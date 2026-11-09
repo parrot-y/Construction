@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 interface PaymentApplication {
   id: string;
@@ -317,15 +317,15 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 </span>
 </div>
 <div className="text-[11px] text-slate-600">
-                  Contract<strong>KES {toCurrencyString(c.contract_value)}</strong>
-                  {c.certified_to_date ? ` · Certified<strong>KES ${toCurrencyString(c.certified_to_date)}</strong>` : ''}
-                  {c.retention_held ? ` · Retention<strong>KES ${toCurrencyString(c.retention_held)}</strong>` : ''}
-                  {c.advance_outstanding && c.advance_outstanding !== '0.00' ? ` · Advance outstanding<strong>KES ${toCurrencyString(c.advance_outstanding)}</strong>` : ''}
+                  Contract<strong>{formatKes(c.contract_value)}</strong>
+                  {c.certified_to_date ? ` · Certified<strong>${formatKes(c.certified_to_date)}</strong>` : ''}
+                  {c.retention_held ? ` · Retention<strong>${formatKes(c.retention_held)}</strong>` : ''}
+                  {c.advance_outstanding && c.advance_outstanding !== '0.00' ? ` · Advance outstanding<strong>${formatKes(c.advance_outstanding)}</strong>` : ''}
 </div>
 </div>
 <div className="flex items-center gap-3">
                 {c.net_amount_owed && c.net_amount_owed !== '0.00' && (
-<span className="text-xs font-mono font-bold text-amber-700">Owed KES {toCurrencyString(c.net_amount_owed)}</span>
+<span className="text-xs font-mono font-bold text-amber-700">Owed {formatKes(c.net_amount_owed)}</span>
 )}
 <span className="text-[11px] text-slate-400">{c.applications.length} claim{c.applications.length === 1 ? '' : 's'} {expanded === c.id ? '▾' : '▸'}</span>
 </div>
@@ -347,15 +347,15 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <span className="text-[10px] text-slate-500">{a.period_start} → {a.period_end}</span>
 </div>
 <div className="text-[11px] text-slate-600">
-                        Gross<strong>KES {toCurrencyString(a.gross_claimed)}</strong>
-                        {' · '}Retention −<strong>KES {toCurrencyString(a.retention_withheld)}</strong>
-                        {a.advance_recovered !== '0.00' ? ` · Advance −KES ${toCurrencyString(a.advance_recovered)}` : ''}
-                        {a.wht_amount !== '0.00' ? ` · WHT −KES ${toCurrencyString(a.wht_amount)}` : ''}
+                        Gross<strong>{formatKes(a.gross_claimed)}</strong>
+                        {' · '}Retention −<strong>{formatKes(a.retention_withheld)}</strong>
+                        {a.advance_recovered !== '0.00' ? ` · Advance −${formatKes(a.advance_recovered)}` : ''}
+                        {a.wht_amount !== '0.00' ? ` · WHT −${formatKes(a.wht_amount)}` : ''}
                         {a.paid_reference ? ` · Ref ${a.paid_reference}` : ''}
 </div>
 </div>
 <div className="flex items-center gap-2">
-<span className="text-xs font-mono font-bold text-emerald-700">KES {toCurrencyString(a.net_payable)}</span>
+<span className="text-xs font-mono font-bold text-emerald-700">{formatKes(a.net_payable)}</span>
                       {canManage && (
 <div className="flex gap-1.5">
                           {a.status === 'DRAFT' && (

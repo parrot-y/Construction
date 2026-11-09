@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../../../ui';
 import BoqWorkbookView from './BoqWorkbookView';
 import { useConsole} from '../ConsoleContext';
 import CostManagementView from '../../CostManagementView';
@@ -76,7 +77,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
             {([['Cash in', kpis?.cashIn], ['Deposits & advances', kpis?.deposits], ['Cash out', kpis?.cashOut], ['Net', kpis?.net]] as [string, number | undefined][]).map(([l, v]) => (
 <div key={l} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
 <p className="text-[10px] font-bold text-slate-400">{l}</p>
-<p className="text-lg font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">{v === undefined ? '—' : `KES ${v.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`}</p>
+<p className="text-lg font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">{v === undefined ? '—' : formatKes(v)}</p>
 </div>
 ))}
 </div>

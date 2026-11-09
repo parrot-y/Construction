@@ -1,6 +1,5 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
 import { AuthSession} from '../types/auth';
 import BoqImportModal from './BoqImportModal';
 import PhysicalProgressModal from './PhysicalProgressModal';
@@ -63,7 +62,7 @@ interface PmQsDashboardProps {
 
 export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboardProps): React.JSX.Element {
   const { user} = session;
-  const sampleBudget = toCurrencyString('45000000.00');
+  const sampleBudget = '45000000.00';
   const [showBoqModal, setShowBoqModal] = useState(false);
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -84,7 +83,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
   const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox' | 'observations' | 'crews' | 'documents' | 'correspondence' | 'scheduled' | 'attendance' | 'checklists'>('all');
 
   const handleImportSuccess = (boq: any) => {
-    setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: KES ${boq.total_amount})`);
+    setBoqSuccess(`BOQ Version ${boq.version} successfully imported and committed (Grand Total: ${formatKes(boq.total_amount)})`);
 };
 
   const MODULE_TABS: { id: string; label: string; group: 'all' | 'core' | 'field' | 'money' | 'collab'}[] = [
@@ -270,7 +269,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             Approved Budget Baseline
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            KES {sampleBudget}
+            {formatKes(sampleBudget)}
 </span>
 <span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">Locked contract baseline</span>
 </div>
@@ -369,29 +368,29 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <tr className="hover:bg-slate-50/50">
 <td className="p-3 font-semibold text-slate-900">Section 1: Preliminaries & General</td>
 <td className="p-3 text-slate-500">EASMM Section A</td>
-<td className="p-3 font-mono font-medium">KES {toCurrencyString('4500000.00')}</td>
-<td className="p-3 font-mono font-medium">KES {toCurrencyString('4500000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('4500000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('4500000.00')}</td>
 <td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
 </tr>
 <tr className="hover:bg-slate-50/50">
 <td className="p-3 font-semibold text-slate-900">Section 2: Substructure & Earthworks</td>
 <td className="p-3 text-slate-500">EASMM Section D</td>
-<td className="p-3 font-mono font-medium">KES {toCurrencyString('12000000.00')}</td>
-<td className="p-3 font-mono font-medium">KES {toCurrencyString('12000000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('12000000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('12000000.00')}</td>
 <td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
 </tr>
 <tr className="hover:bg-slate-50/50">
 <td className="p-3 font-semibold text-slate-900">Section 3: Reinforced Concrete Frame</td>
 <td className="p-3 text-slate-500">EASMM Section F</td>
-<td className="p-3 font-mono font-medium">KES {toCurrencyString('18500000.00')}</td>
-<td className="p-3 font-mono font-medium">KES {toCurrencyString('18500000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('18500000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('18500000.00')}</td>
 <td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
 </tr>
 <tr className="hover:bg-slate-50/50">
 <td className="p-3 font-semibold text-slate-900">Section 4: Walling, Finishes & Services</td>
 <td className="p-3 text-slate-500">EASMM Section G & V</td>
-<td className="p-3 font-mono font-medium">KES {toCurrencyString('10000000.00')}</td>
-<td className="p-3 font-mono font-medium">KES {toCurrencyString('10000000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('10000000.00')}</td>
+<td className="p-3 font-mono font-medium">{formatKes('10000000.00')}</td>
 <td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
 </tr>
 </tbody>

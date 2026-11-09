@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 export interface InventoryItem {
   id: string;
@@ -293,7 +293,7 @@ export default function SiteInventoryManagementView({
 <span className="text-xs text-slate-500 font-medium">Store Valuation (KES)</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">
-                {toCurrencyString(totalStoreValueKes)}
+                {formatKes(totalStoreValueKes)}
 </span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
@@ -388,7 +388,7 @@ export default function SiteInventoryManagementView({
                 {item.unit_cost_estimate && (
 <div className="flex justify-between">
 <span>Est. Unit Cost:</span>
-<strong className="text-slate-700">KES {Number(item.unit_cost_estimate).toLocaleString()}</strong>
+<strong className="text-slate-700">{formatKes(item.unit_cost_estimate)}</strong>
 </div>
 )}
                 {item.storage_location && (

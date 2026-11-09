@@ -1,5 +1,5 @@
 import React, { useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 export interface BOQItemPreview {
   itemCode: string;
@@ -194,7 +194,7 @@ export default function BoqImportModal({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-[10px] font-semibold text-slate-500 block">Grand Total</span>
 <span className="text-base font-bold font-mono text-slate-900 mt-0.5 block">
-                    KES {previewData.calculatedGrandTotal}
+                    {formatKes(previewData.calculatedGrandTotal)}
 </span>
 </div>
 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
@@ -224,7 +224,7 @@ export default function BoqImportModal({
 <div className="bg-slate-100 px-4 py-2.5 flex justify-between items-center text-xs border-b border-slate-200">
 <span className="font-bold text-slate-800">{section.title}</span>
 <span className="font-mono font-semibold text-slate-900">
-                        Subtotal: KES {section.subtotal}
+                        Subtotal: {formatKes(section.subtotal)}
 </span>
 </div>
 <table className="w-full text-left text-xs">
@@ -256,9 +256,9 @@ export default function BoqImportModal({
 </td>
 <td className="p-2.5 font-mono text-slate-500">{item.unit}</td>
 <td className="p-2.5 text-right font-mono">{item.quantity}</td>
-<td className="p-2.5 text-right font-mono">{toCurrencyString(item.unitRate)}</td>
+<td className="p-2.5 text-right font-mono">{formatKes(item.unitRate)}</td>
 <td className="p-2.5 text-right font-mono font-semibold text-slate-900">
-                              {item.totalAmount}
+                              {formatKes(item.totalAmount)}
 </td>
 <td className="p-2.5 text-center">
                               {item.status === 'VALID' && (

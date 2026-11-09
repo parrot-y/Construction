@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 import { AuthSession} from '../types/auth';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
 import SubcontractorManagementView from './SubcontractorManagementView';
@@ -204,7 +205,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
             Total Contract Value
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            KES {toCurrencyString(metrics ? String(metrics.totalContractSum) : '0.00')}
+            {formatKes(metrics?.totalContractSum ?? 0)}
 </span>
 <span className="text-[11px] text-slate-400 mt-0.5 block">Sum across projects</span>
 </div>
@@ -214,7 +215,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
             Approved Budget
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            KES {toCurrencyString(metrics ? String(metrics.totalApprovedBudget) : '0.00')}
+            {formatKes(metrics?.totalApprovedBudget ?? 0)}
 </span>
 <span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingApprovalsCount ?? 0} pending approvals` : 'No data yet'}</span>
 </div>

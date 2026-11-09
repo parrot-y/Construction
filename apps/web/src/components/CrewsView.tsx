@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatKes } from '../ui';
 
 interface CrewMember { id: string; name: string; trade?: string | null; phone?: string | null; daily_rate_kes?: string | null}
 interface Crew {
@@ -153,7 +154,7 @@ export default function CrewsView({ canManage = true}: { canManage?: boolean}): 
 </div>
 </div>
 <button onClick={() => setExpanded(expanded === c.id ? null : c.id)} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800">
-                {expanded === c.id ? 'Hide members' : `Members (${c.members.length}) · est. KES ${parseFloat(c.daily_cost_kes).toLocaleString()}/day`}
+                {expanded === c.id ? 'Hide members' : `Members (${c.members.length}) · est. ${formatKes(c.daily_cost_kes)}/day`}
 </button>
               {expanded === c.id && (
 <div className="border-t border-slate-100 pt-2 space-y-1.5">

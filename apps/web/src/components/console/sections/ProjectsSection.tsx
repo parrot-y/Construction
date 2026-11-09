@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../../../ui';
 import { useConsole} from '../ConsoleContext';
 import { SUBTAB_LABELS} from '../navConfig';
 import ProjectScheduleGanttView from '../../ProjectScheduleGanttView';
@@ -111,7 +112,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 </span>
                 {(coCounts[p.id]?.value ?? 0) > 0 && (
 <span className="text-slate-500 dark:text-slate-400">
-<span className="font-bold text-slate-800 dark:text-slate-200">{coCounts[p.id]!.value.toLocaleString()}</span> CO value
+<span className="font-bold text-slate-800 dark:text-slate-200">{formatKes(coCounts[p.id]!.value)}</span> CO value
 </span>
 )}
 </div>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 interface PaymentCertificate {
   id: string;
@@ -332,14 +332,14 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 </span>
 </div>
 <div className="text-[11px] text-slate-600">
-                  This period<strong>KES {toCurrencyString(c.this_period_amount)}</strong>
-                  {' · '}Cumulative<strong>KES {toCurrencyString(c.cumulative_certified)}</strong>
-                  {' · '}Retention held<strong>KES {toCurrencyString(c.retention_held)}</strong>
+                  This period<strong>{formatKes(c.this_period_amount)}</strong>
+                  {' · '}Cumulative<strong>{formatKes(c.cumulative_certified)}</strong>
+                  {' · '}Retention held<strong>{formatKes(c.retention_held)}</strong>
                   {c.paid_reference ? ` · Ref ${c.paid_reference}` : ''}
 </div>
 </div>
 <div className="flex items-center gap-3">
-<span className="text-sm font-mono font-bold text-emerald-700">KES {toCurrencyString(c.net_payable)}</span>
+<span className="text-sm font-mono font-bold text-emerald-700">{formatKes(c.net_payable)}</span>
                 {canManage && (
 <div className="flex gap-1.5">
                     {c.status === 'DRAFT' && (

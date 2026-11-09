@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 export interface SubcontractorPackage {
   id: string;
@@ -208,7 +208,7 @@ export default function SubcontractorManagementView({
 <span className="text-xs text-slate-500 font-medium">Total Subcontract Commitments</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">
-                {toCurrencyString(totalCommitmentKes)}
+                {formatKes(totalCommitmentKes)}
 </span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
@@ -335,7 +335,7 @@ export default function SubcontractorManagementView({
 <div className="lg:w-60 flex flex-col items-start lg:items-end justify-center">
 <span className="text-xs text-slate-400">Subcontract Sum</span>
 <span className="text-lg font-bold text-slate-900 font-mono">
-                    {toCurrencyString(pkg.subcontract_sum)}
+                    {formatKes(pkg.subcontract_sum)}
 </span>
                   {canAward && (
 <div className="mt-2 flex items-center gap-2">

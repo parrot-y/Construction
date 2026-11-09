@@ -173,7 +173,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <p className="text-xl font-bold text-slate-800 mt-1">
             {activePlan === 'PORTFOLIO_TIER' ? 'Portfolio Tier' : 'Single Project Tier'}
 </p>
-<p className="text-xs text-emerald-600 mt-1 font-medium">KES {monthlyFee} / Month</p>
+<p className="text-xs text-emerald-600 mt-1 font-medium">{formatKes(monthlyFee)} / Month</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -304,7 +304,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 </span>
 </td>
 <td className="p-3 font-mono">{tx.phoneNumber}</td>
-<td className="p-3 font-mono font-bold text-slate-800">KES {tx.amount}</td>
+<td className="p-3 font-mono font-bold text-slate-800">{formatKes(tx.amount)}</td>
 <td className="p-3">
                     {tx.transactionStatus === 'SUCCESS' ? (
 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">SUCCESS</span>
@@ -390,7 +390,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center font-semibold">
 <span className="text-slate-600">Total Payable:</span>
 <span className="text-slate-900 font-bold text-sm">
-                  KES {selectedPlan === 'PORTFOLIO_TIER' ? '25,000.00' : '7,500.00'}
+                  {formatKes(selectedPlan === 'PORTFOLIO_TIER' ? 25000 : 7500)}
 </span>
 </div>
 

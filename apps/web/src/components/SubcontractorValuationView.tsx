@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../ui';
 
 export interface SubcontractorValuationItem {
   id: string;
@@ -226,25 +227,25 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
 <p className="text-xs font-semibold text-slate-500 ">Gross Work Certified</p>
 <p className="text-xl font-bold text-slate-800 mt-1">
-            KES {(initialSummary?.totalGrossCertifiedKes ? Number(initialSummary.totalGrossCertifiedKes) : totalGross).toLocaleString('en-KE')}
+            {formatKes(initialSummary?.totalGrossCertifiedKes ? Number(initialSummary.totalGrossCertifiedKes) : totalGross)}
 </p>
 </div>
 <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
 <p className="text-xs font-semibold text-amber-700 ">Retention Held</p>
 <p className="text-xl font-bold text-amber-900 mt-1">
-            KES {(initialSummary?.totalRetentionHeldKes ? Number(initialSummary.totalRetentionHeldKes) : totalRetention).toLocaleString('en-KE')}
+            {formatKes(initialSummary?.totalRetentionHeldKes ? Number(initialSummary.totalRetentionHeldKes) : totalRetention)}
 </p>
 </div>
 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
 <p className="text-xs font-semibold text-indigo-700 ">KRA WHT Deducted (3%)</p>
 <p className="text-xl font-bold text-indigo-900 mt-1">
-            KES {(initialSummary?.totalWhtDeductedKes ? Number(initialSummary.totalWhtDeductedKes) : totalWht).toLocaleString('en-KE')}
+            {formatKes(initialSummary?.totalWhtDeductedKes ? Number(initialSummary.totalWhtDeductedKes) : totalWht)}
 </p>
 </div>
 <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
 <p className="text-xs font-semibold text-emerald-700 ">Net Amount Payable</p>
 <p className="text-xl font-bold text-emerald-900 mt-1">
-            KES {(initialSummary?.totalNetPayableKes ? Number(initialSummary.totalNetPayableKes) : totalNet).toLocaleString('en-KE')}
+            {formatKes(initialSummary?.totalNetPayableKes ? Number(initialSummary.totalNetPayableKes) : totalNet)}
 </p>
 </div>
 </div>
@@ -282,16 +283,16 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </span>
 </td>
 <td className="py-3 px-4 font-medium text-slate-900">
-                  KES {Number(val.grossWorkCertifiedKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                  {formatKes(val.grossWorkCertifiedKes)}
 </td>
 <td className="py-3 px-4 text-amber-700">
-                  KES {Number(val.retentionDeductedKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                  {formatKes(val.retentionDeductedKes)}
 </td>
 <td className="py-3 px-4 text-indigo-700">
-                  KES {Number(val.withholdingTaxDeductedKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                  {formatKes(val.withholdingTaxDeductedKes)}
 </td>
 <td className="py-3 px-4 font-bold text-slate-900">
-                  KES {Number(val.netPayableKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                  {formatKes(val.netPayableKes)}
 </td>
 <td className="py-3 px-4">
 <span
@@ -419,19 +420,19 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1.5 text-xs">
 <div className="flex justify-between">
 <span className="text-slate-500">Gross Work Certified:</span>
-<span className="font-semibold text-slate-900">KES {gross.toLocaleString('en-KE', { minimumFractionDigits: 2})}</span>
+<span className="font-semibold text-slate-900">{formatKes(gross)}</span>
 </div>
 <div className="flex justify-between">
 <span className="text-amber-700">Less: Retention ({retPct}%):</span>
-<span className="font-semibold text-amber-700">- KES {retDeducted.toLocaleString('en-KE', { minimumFractionDigits: 2})}</span>
+<span className="font-semibold text-amber-700">- {formatKes(retDeducted)}</span>
 </div>
 <div className="flex justify-between">
 <span className="text-indigo-700">Less: KRA WHT ({whtPct}%):</span>
-<span className="font-semibold text-indigo-700">- KES {whtDeducted.toLocaleString('en-KE', { minimumFractionDigits: 2})}</span>
+<span className="font-semibold text-indigo-700">- {formatKes(whtDeducted)}</span>
 </div>
 <div className="border-t border-slate-200 pt-1.5 flex justify-between font-bold text-sm">
 <span className="text-slate-900">Net Amount Payable:</span>
-<span className="text-emerald-700">KES {netPayable.toLocaleString('en-KE', { minimumFractionDigits: 2})}</span>
+<span className="text-emerald-700">{formatKes(netPayable)}</span>
 </div>
 </div>
 

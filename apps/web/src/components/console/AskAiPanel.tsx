@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState} from 'react';
+import { formatKes } from '../../ui';
 import { useConsole} from './ConsoleContext';
 import { IconSend, IconSpark, IconX} from './icons';
 import { SUBTAB_LABELS} from './navConfig';
@@ -67,7 +68,7 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
       if (!rows.length) return '';
       const outstanding = rows.filter((i) => Number(i.balance_due_num ?? i.balance_due ?? 0) > 0);
       const total = outstanding.reduce((a, i) => a + Number(i.balance_due_num ?? i.balance_due ?? 0), 0);
-      return `${outstanding.length} unpaid invoice${outstanding.length === 1 ? '' : 's'} — KES ${total.toLocaleString('en-KE', { maximumFractionDigits: 0})} outstanding.`;
+      return `${outstanding.length} unpaid invoice${outstanding.length === 1 ? '' : 's'} — ${formatKes(total)} outstanding.`;
 },
 },
   {

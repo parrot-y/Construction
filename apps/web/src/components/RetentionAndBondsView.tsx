@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../ui';
 
 export interface RetentionReleaseItem {
   id: string;
@@ -352,12 +353,12 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-blue-900/50">
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Subcontract Retention Held</div>
-<div className="text-xl font-bold text-white mt-1">KES {Number(summary.totalRetentionHeld).toLocaleString()}</div>
+<div className="text-xl font-bold text-white mt-1">{formatKes(summary.totalRetentionHeld)}</div>
 <div className="text-[10px] text-blue-300 mt-1">5% Subcontract Sum Cap</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Retention Disbursed</div>
-<div className="text-xl font-bold text-emerald-400 mt-1">KES {Number(summary.totalReleasedAmount).toLocaleString()}</div>
+<div className="text-xl font-bold text-emerald-400 mt-1">{formatKes(summary.totalReleasedAmount)}</div>
 <div className="text-[10px] text-emerald-300 mt-1">M-Pesa B2C / EFT Released</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
@@ -367,7 +368,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Total Bond Guarantees</div>
-<div className="text-xl font-bold text-white mt-1">KES {Number(bonds.reduce((s, b) => s + parseFloat(b.bondAmount), 0)).toLocaleString()}</div>
+<div className="text-xl font-bold text-white mt-1">{formatKes(bonds.reduce((s, b) => s + parseFloat(b.bondAmount), 0))}</div>
 <div className="text-[10px] text-slate-400 mt-1">Risk Protection Ceiling</div>
 </div>
 </div>
@@ -437,13 +438,13 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </span>
 </td>
 <td className="py-3 px-4 text-right font-medium">
-                      {Number(rel.totalRetentionHeld).toLocaleString(undefined, { minimumFractionDigits: 2})}
+                      {formatKes(rel.totalRetentionHeld)}
 </td>
 <td className="py-3 px-4 text-center font-bold text-blue-600 dark:text-blue-400">
                       {rel.releasePercentage}%
 </td>
 <td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                      {Number(rel.releaseAmount).toLocaleString(undefined, { minimumFractionDigits: 2})}
+                      {formatKes(rel.releaseAmount)}
 </td>
 <td className="py-3 px-4 text-center">
 <span
@@ -517,7 +518,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </td>
 <td className="py-3 px-4 font-semibold">{bnd.issuingInstitution}</td>
 <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
-                      {Number(bnd.bondAmount).toLocaleString(undefined, { minimumFractionDigits: 2})}
+                      {formatKes(bnd.bondAmount)}
 </td>
 <td className="py-3 px-4 font-mono text-xs">{bnd.effectiveDate}</td>
 <td className="py-3 px-4 font-mono text-xs">{bnd.expiryDate}</td>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../ui';
 
 export interface SiteLaborerItem {
   id: string;
@@ -432,7 +433,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
             Total Wages Disbursed
 </span>
 <p className="text-2xl font-bold text-emerald-600 mt-1 font-mono">
-            KES {totalDisbursedKes.toLocaleString('en-KE', { minimumFractionDigits: 2})}
+            {formatKes(totalDisbursedKes)}
 </p>
 <span className="text-xs text-emerald-700 font-medium">M-Pesa B2C Bulk Mobile Payroll</span>
 </div>
@@ -493,10 +494,10 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                       {roll.totalManDays} days
 </td>
 <td className="px-4 py-3 font-mono text-gray-700">
-                      KES {parseFloat(roll.grossWagesKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                      {formatKes(roll.grossWagesKes)}
 </td>
 <td className="px-4 py-3 font-mono font-bold text-gray-900">
-                      KES {parseFloat(roll.netWagesPayableKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                      {formatKes(roll.netWagesPayableKes)}
 </td>
 <td className="px-4 py-3">
                       {roll.status === 'DISBURSED' ? (
@@ -584,7 +585,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 </span>
 </td>
 <td className="px-4 py-3 font-mono font-bold text-gray-900">
-                      KES {parseFloat(worker.dailyRateKes).toLocaleString('en-KE', { minimumFractionDigits: 2})} / day
+                      {formatKes(worker.dailyRateKes)} / day
 </td>
 <td className="px-4 py-3">
 <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
@@ -823,7 +824,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                         >
                           {laborerList.map((l) => (
 <option key={l.id} value={l.id}>
-                              {l.fullName} ({l.tradeCategory}) - KES {l.dailyRateKes}
+                              {l.fullName} ({l.tradeCategory}) - {formatKes(l.dailyRateKes)}
 </option>
 ))}
 </select>
@@ -922,7 +923,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 <div>
 <span className="font-semibold text-gray-700">Net Payable:</span>{' '}
 <span className="font-bold text-emerald-700 font-mono">
-                    KES {parseFloat(selectedRollForReview.netWagesPayableKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                    {formatKes(selectedRollForReview.netWagesPayableKes)}
 </span>
 </div>
 <div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 export interface ProjectDelayEvent {
   id: string;
@@ -304,7 +304,7 @@ export default function WeatherDelayClaimsView({
 <span className="text-xs text-slate-500 font-medium">LAD Financial Relief</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-xl font-bold text-slate-900 font-mono">
-                {toCurrencyString(totalFinancialRelief)}
+                {formatKes(totalFinancialRelief)}
 </span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Liquidated damages shielded</div>
@@ -390,7 +390,7 @@ export default function WeatherDelayClaimsView({
 </span>
 )}
 <span>
-<strong className="text-slate-700">Daily LAD Rate:</strong> KES {Number(item.daily_lad_rate_kes).toLocaleString()}/day
+<strong className="text-slate-700">Daily LAD Rate:</strong> {formatKes(item.daily_lad_rate_kes)}/day
 </span>
                     {item.certifying_authority && (
 <span>
@@ -409,7 +409,7 @@ export default function WeatherDelayClaimsView({
 </span>
                     {item.lad_financial_relief_kes && (
 <span className="text-xs font-semibold text-slate-600 block mt-0.5">
-                        Relief: {toCurrencyString(item.lad_financial_relief_kes)}
+                        Relief: {formatKes(item.lad_financial_relief_kes)}
 </span>
 )}
 </div>

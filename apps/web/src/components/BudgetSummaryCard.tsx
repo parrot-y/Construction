@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatKes } from '../ui';
 
 export interface BudgetSummaryData {
   approvedBudget: string;
@@ -27,18 +28,18 @@ interface BudgetSummaryCardProps {
 
 export default function BudgetSummaryCard({
   summary = {
-    approvedBudget: '45,000,000.00',
-    approvedCost: '12,450,200.00',
-    pendingCost: '1,850,000.00',
+    approvedBudget: '45000000.00',
+    approvedCost: '12450200.00',
+    pendingCost: '1850000.00',
     rejectedCost: '0.00',
-    remainingBudget: '32,549,800.00',
+    remainingBudget: '32549800.00',
     consumptionPercentage: '27.67',
     categoryBreakdown: {
-      MATERIAL: { approved: '6,200,000.00', pending: '850,000.00'},
-      LABOR: { approved: '3,150,000.00', pending: '500,000.00'},
-      PLANT: { approved: '1,200,200.00', pending: '250,000.00'},
-      SUBCONTRACT: { approved: '1,100,000.00', pending: '150,000.00'},
-      PRELIMINARY: { approved: '800,000.00', pending: '100,000.00'},
+      MATERIAL: { approved: '6200000.00', pending: '850000.00'},
+      LABOR: { approved: '3150000.00', pending: '500000.00'},
+      PLANT: { approved: '1200200.00', pending: '250000.00'},
+      SUBCONTRACT: { approved: '1100000.00', pending: '150000.00'},
+      PRELIMINARY: { approved: '800000.00', pending: '100000.00'},
 },
     varianceAlert: {
       hasWarning: false,
@@ -85,7 +86,7 @@ export default function BudgetSummaryCard({
 <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 font-mono">
 <span>0%</span>
 <span>50%</span>
-<span>100% (KES {summary.approvedBudget})</span>
+<span>100% ({formatKes(summary.approvedBudget)})</span>
 </div>
 </div>
 
@@ -96,7 +97,7 @@ export default function BudgetSummaryCard({
             Approved Budget
 </span>
 <span className="text-sm font-bold font-mono text-slate-900 mt-1 block">
-            KES {summary.approvedBudget}
+            {formatKes(summary.approvedBudget)}
 </span>
 </div>
 
@@ -105,7 +106,7 @@ export default function BudgetSummaryCard({
             Actual Spent (Approved)
 </span>
 <span className="text-sm font-bold font-mono text-emerald-800 mt-1 block">
-            KES {summary.approvedCost}
+            {formatKes(summary.approvedCost)}
 </span>
 </div>
 
@@ -114,7 +115,7 @@ export default function BudgetSummaryCard({
             Pending Approval
 </span>
 <span className="text-sm font-bold font-mono text-amber-800 mt-1 block">
-            KES {summary.pendingCost}
+            {formatKes(summary.pendingCost)}
 </span>
 </div>
 
@@ -123,7 +124,7 @@ export default function BudgetSummaryCard({
             Remaining Budget
 </span>
 <span className="text-sm font-bold font-mono text-blue-800 mt-1 block">
-            KES {summary.remainingBudget}
+            {formatKes(summary.remainingBudget)}
 </span>
 </div>
 </div>
@@ -137,50 +138,50 @@ export default function BudgetSummaryCard({
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Materials</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              KES {summary.categoryBreakdown.MATERIAL.approved}
+              {formatKes(summary.categoryBreakdown.MATERIAL.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{summary.categoryBreakdown.MATERIAL.pending} pend
+              +{formatKes(summary.categoryBreakdown.MATERIAL.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Labor</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              KES {summary.categoryBreakdown.LABOR.approved}
+              {formatKes(summary.categoryBreakdown.LABOR.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{summary.categoryBreakdown.LABOR.pending} pend
+              +{formatKes(summary.categoryBreakdown.LABOR.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Plant / Hire</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              KES {summary.categoryBreakdown.PLANT.approved}
+              {formatKes(summary.categoryBreakdown.PLANT.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{summary.categoryBreakdown.PLANT.pending} pend
+              +{formatKes(summary.categoryBreakdown.PLANT.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Subcontracts</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              KES {summary.categoryBreakdown.SUBCONTRACT.approved}
+              {formatKes(summary.categoryBreakdown.SUBCONTRACT.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{summary.categoryBreakdown.SUBCONTRACT.pending} pend
+              +{formatKes(summary.categoryBreakdown.SUBCONTRACT.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Prelims</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              KES {summary.categoryBreakdown.PRELIMINARY.approved}
+              {formatKes(summary.categoryBreakdown.PRELIMINARY.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{summary.categoryBreakdown.PRELIMINARY.pending} pend
+              +{formatKes(summary.categoryBreakdown.PRELIMINARY.pending)} pend
 </span>
 </div>
 </div>

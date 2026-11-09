@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 import { AuthSession} from '../types/auth';
 import MilestoneTimeline, { TimelineItem} from './MilestoneTimeline';
 import PhotoEvidenceGallery from './PhotoEvidenceGallery';
@@ -171,7 +171,7 @@ export default function ClientDashboard({
 
   const formatWithCurrency = (kesStr: string, isAddition = false): string => {
     if (selectedCurrency === 'KES') {
-      return `${isAddition ? '+ ' : ''}KES ${toCurrencyString(kesStr)}`;
+      return `${isAddition ? '+ ' : ''}${formatKes(kesStr)}`;
 }
     const num = parseFloat(kesStr);
     if (isNaN(num)) return `${exchangeRates[selectedCurrency].symbol} 0.00`;
@@ -180,14 +180,6 @@ export default function ClientDashboard({
     return `${isAddition ? '+ ' : ''}${exchangeRates[selectedCurrency].symbol} ${formatted}`;
 };
 
-  const originalBudgetFormatted = toCurrencyString(financials.originalAgreedBudget);
-  const variationsTotalFormatted = toCurrencyString(financials.approvedVariationsTotal);
-  const currentBudgetFormatted = toCurrencyString(financials.currentApprovedBudget);
-  const totalSpentFormatted = toCurrencyString(financials.totalSpentToDate);
-  const remainingBalanceFormatted = toCurrencyString(financials.remainingBalance);
-
-  // Kenyan standard 5% retention cap of contract sum
-  const retentionCap = toCurrencyString(String(parseFloat(financials.originalAgreedBudget || '0') * 0.05));
 
   const getHealthBadge = (status: 'ON_TRACK' | 'ATTENTION' | 'ACTION_REQUIRED') => {
     switch (status) {
@@ -351,7 +343,7 @@ export default function ClientDashboard({
 </span>
             {selectedCurrency !== 'KES' ? (
 <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
-                Base: KES {originalBudgetFormatted}
+                Base: {formatKes(financials.originalAgreedBudget)}
 </span>
 ) : (
 <span className="text-[11px] text-slate-400 mt-0.5 block">Approved Contract Sum</span>
@@ -368,7 +360,7 @@ export default function ClientDashboard({
 </span>
             {selectedCurrency !== 'KES' ? (
 <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
-                Base: KES {variationsTotalFormatted}
+                Base: {formatKes(financials.approvedVariationsTotal)}
 </span>
 ) : (
 <span className="text-[11px] text-slate-400 mt-0.5 block">Net approved scope changes</span>
@@ -385,7 +377,7 @@ export default function ClientDashboard({
 </span>
             {selectedCurrency !== 'KES' ? (
 <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
-                Base: KES {currentBudgetFormatted}
+                Base: {formatKes(financials.currentApprovedBudget)}
 </span>
 ) : (
 <span className="text-[11px] text-slate-400 mt-0.5 block">Baseline + Variations</span>
@@ -402,7 +394,7 @@ export default function ClientDashboard({
 </span>
             {selectedCurrency !== 'KES' ? (
 <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
-                Base: KES {totalSpentFormatted}
+                Base: {formatKes(financials.totalSpentToDate)}
 </span>
 ) : (
 <span className="text-[11px] text-slate-400 mt-0.5 block">Total Certified Cost</span>
@@ -419,7 +411,7 @@ export default function ClientDashboard({
 </span>
             {selectedCurrency !== 'KES' ? (
 <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
-                Base: KES {remainingBalanceFormatted}
+                Base: {formatKes(financials.remainingBalance)}
 </span>
 ) : (
 <span className="text-[11px] text-slate-400 mt-0.5 block">Available project funds</span>
@@ -437,7 +429,7 @@ export default function ClientDashboard({
 </span>
 </div>
 <span className="text-slate-500 font-mono text-[11px]">
-              KES {totalSpentFormatted} of KES {currentBudgetFormatted}
+              {formatKes(financials.totalSpentToDate)} of {formatKes(financials.currentApprovedBudget)}
 </span>
 </div>
 <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
@@ -545,7 +537,7 @@ export default function ClientDashboard({
 <span className="text-sm font-bold font-mono text-slate-900 mt-0.5 block">
               {formatWithCurrency(financials.originalAgreedBudget)}
 </span>
-<span className="text-[10px] text-slate-400 font-mono">Base: KES {originalBudgetFormatted}</span>
+<span className="text-[10px] text-slate-400 font-mono">Base: {formatKes(financials.originalAgreedBudget)}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
@@ -553,7 +545,7 @@ export default function ClientDashboard({
 <span className="text-sm font-bold font-mono text-emerald-700 mt-0.5 block">
               {formatWithCurrency(financials.totalSpentToDate)}
 </span>
-<span className="text-[10px] text-slate-400 font-mono">Base: KES {totalSpentFormatted}</span>
+<span className="text-[10px] text-slate-400 font-mono">Base: {formatKes(financials.totalSpentToDate)}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
@@ -645,7 +637,7 @@ export default function ClientDashboard({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
 <span className="text-slate-500 block text-[11px]">Maximum Retention Fund Cap:</span>
 <span className="font-mono font-bold text-slate-800 text-sm">
-                KES {retentionCap} (5% of Contract Sum)
+                {formatKes(parseFloat(financials.originalAgreedBudget || '0') * 0.05)} (5% of Contract Sum)
 </span>
 </div>
 

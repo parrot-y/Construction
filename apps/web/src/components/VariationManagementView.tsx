@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
 
 export interface VariationItemData {
@@ -303,7 +303,7 @@ export default function VariationManagementView({
                           isPositive ? 'text-emerald-700' : 'text-amber-700'
 }`}
                       >
-                        {isPositive ? '+' : '-'}KES {toCurrencyString(Math.abs(netNum))}
+                        {isPositive ? '+' : '-'}{formatKes(Math.abs(netNum))}
 </span>
 <span className="text-[10px] text-slate-400 block">
                         {vo.time_extension_days > 0 ? `+${vo.time_extension_days} Days Extension` : '0 Days Extension'}
@@ -364,13 +364,13 @@ export default function VariationManagementView({
 <td className="p-2.5 font-mono">
                                     {isAddition ? `+${item.quantity}` : `${item.quantity}`} {item.unit}
 </td>
-<td className="p-2.5 font-mono">KES {toCurrencyString(item.unit_rate)}</td>
+<td className="p-2.5 font-mono">{formatKes(item.unit_rate)}</td>
 <td
                                     className={`p-2.5 font-mono font-bold text-right ${
                                       itemTotalNum >= 0 ? 'text-emerald-700' : 'text-rose-700'
 }`}
                                   >
-                                    {itemTotalNum >= 0 ? '+' : '-'}KES {toCurrencyString(Math.abs(itemTotalNum))}
+                                    {itemTotalNum >= 0 ? '+' : '-'}{formatKes(Math.abs(itemTotalNum))}
 </td>
 </tr>
 );

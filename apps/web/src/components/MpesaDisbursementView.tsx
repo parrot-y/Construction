@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../ui';
 
 export interface MpesaDisbursementItem {
   id: string;
@@ -71,8 +72,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 
   const totalDisbursedKes = disbursements
     .filter((d) => d.status === 'COMPLETED')
-    .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0)
-    .toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2});
+    .reduce((sum, d) => sum + parseFloat(d.amount || '0'), 0);
 
   const handleApproval = async (id: string, action: 'approve' | 'reject') => {
     setLoading(true);
@@ -124,7 +124,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
         await reload();
         setIsModalOpen(false);
         setFeedback(
-          `⧗ SIMULATED B2C payout created: KES ${parseFloat(created.amount ?? amount).toLocaleString()} to ${created.recipientName ?? recipientName} — status ${created.status ?? 'PENDING_APPROVAL'} (maker-checker approval required; no live Daraja call)${created.isIdempotentReplay ? ' [idempotent replay]' : ''}`
+          `⧗ SIMULATED B2C payout created: ${formatKes(parseFloat(created.amount ?? amount))} to ${created.recipientName ?? recipientName} — status ${created.status ?? 'PENDING_APPROVAL'} (maker-checker approval required; no live Daraja call)${created.isIdempotentReplay ? ' [idempotent replay]' : ''}`
 );
         return;
 }
@@ -156,7 +156,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 
       setDisbursements([newDisbursement, ...disbursements]);
       setIsModalOpen(false);
-      setFeedback(` Safaricom Daraja B2C Disbursement Sent: KES ${parseFloat(amount).toLocaleString()} disbursed to ${recipientName} (${mpesaTxId})`);
+      setFeedback(` Safaricom Daraja B2C Disbursement Sent: ${formatKes(parseFloat(amount))} disbursed to ${recipientName} (${mpesaTxId})`);
 } catch (err: any) {
       setFeedback(`Error: ${err.message}`);
 } finally {
@@ -202,7 +202,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Total Disbursed</p>
-<p className="text-2xl font-bold text-gray-900 mt-1">KES {totalDisbursedKes}</p>
+<p className="text-2xl font-bold text-gray-900 mt-1">{formatKes(totalDisbursedKes)}</p>
 <span className="text-xs text-emerald-600 font-medium">B2C Salary & Business Payouts</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -250,7 +250,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 </span>
 </td>
 <td className="px-4 py-3 text-right font-bold text-gray-900">
-                  KES {parseFloat(tx.amount).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                  {formatKes(tx.amount)}
 </td>
 <td className="px-4 py-3 text-center">
 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${

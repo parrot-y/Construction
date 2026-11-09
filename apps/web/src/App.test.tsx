@@ -145,7 +145,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('Variance Monitor');
     expect(html).toContain('Riverside Commercial Plaza');
     expect(html).toContain('Section 1: Preliminaries &amp; General');
-    expect(html).toContain('45000000.00');
+    expect(html).toContain('KES 45,000,000');
 });
 
   it('renders SITE_SUPERVISOR dashboard with daily diary, headcount, and offline PWA indicator', () => {
@@ -555,8 +555,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Unforeseen condition');
 
       // Formatted KES amounts and time extensions
-      expect(html).toContain('900000.00');
-      expect(html).toContain('450000.00');
+      expect(html).toContain('KES 900,000');
+      expect(html).toContain('KES 450,000');
       expect(html).toContain('+14 Days Extension');
       expect(html).toContain('+5 Days Extension');
 
@@ -774,7 +774,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       expect(html).toContain('Contract Retention Terms (Kenyan Standard)');
       expect(html).toContain('10% of Gross Certified Work');
-      expect(html).toContain('2250000.00');
+      expect(html).toContain('KES 2,250,000');
       expect(html).toContain('5% of Contract Sum');
       expect(html).toContain('50% released at Practical Completion');
       expect(html).toContain('50% released at end of Defects Liability Period (DLP)');
@@ -988,7 +988,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const html = rawHtml.replace(/<!-- -->/g, '');
 
       expect(html).toContain('First Moiety (50%)');
-      expect(html).toContain('1125000.00');
+      expect(html).toContain('KES 1,125,000');
       expect(html).toContain('RELEASED');
       expect(html).toContain('Released to Contractor ');
       expect(html).toContain('IPC #10-FIN-RET1');
@@ -1334,7 +1334,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       expect(html).toContain('Site Material Requisitions &amp; Orders');
       expect(html).toContain('REQ-2026-001');
-            expect(html).toContain('234,000.00');
+            expect(html).toContain('KES 234,000');
       expect(html).toContain('HIGH');
       expect(html).toContain('New Material Request');
 });
@@ -1349,7 +1349,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
             expect(html).toContain('Standard Tolerance');
       expect(html).toContain('D16 High-Yield Rebar (Y16)');
       expect(html).toContain('Critical Unexplained Loss');
-      expect(html).toContain('238,000.00');
+      expect(html).toContain('KES 238,000');
       expect(html).toContain('Log Wastage Takeoff');
 });
 

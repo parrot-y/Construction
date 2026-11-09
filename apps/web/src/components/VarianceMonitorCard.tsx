@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatKes } from '../ui';
 
 export interface SectionBreakdownItem {
   sectionId: string;
@@ -49,9 +50,9 @@ export interface VarianceMonitorCardProps {
 
 export default function VarianceMonitorCard({
   projectName = '',
-  approvedBudget = '45,000,000.00',
-  approvedCost = '12,450,200.00',
-  pendingCost = '1,850,000.00',
+  approvedBudget = '45000000.00',
+  approvedCost = '12450200.00',
+  pendingCost = '1850000.00',
   detailedVariance = {
     costConsumptionPercentage: '27.67',
     physicalProgressPercentage: '30.00',
@@ -65,10 +66,10 @@ export default function VarianceMonitorCard({
     {
       sectionId: 'sec-1',
       title: 'Section 1: Preliminaries & General',
-      allocatedBudget: '4,500,000.00',
-      actualSpent: '1,800,000.00',
-      pendingSpent: '200,000.00',
-      remainingBudget: '2,700,000.00',
+      allocatedBudget: '4500000.00',
+      actualSpent: '1800000.00',
+      pendingSpent: '200000.00',
+      remainingBudget: '2700000.00',
       consumptionPercentage: '40.00',
       isOverBudget: false,
       status: 'NORMAL',
@@ -76,10 +77,10 @@ export default function VarianceMonitorCard({
     {
       sectionId: 'sec-2',
       title: 'Section 2: Substructure & Earthworks',
-      allocatedBudget: '12,000,000.00',
-      actualSpent: '7,500,000.00',
-      pendingSpent: '500,000.00',
-      remainingBudget: '4,500,000.00',
+      allocatedBudget: '12000000.00',
+      actualSpent: '7500000.00',
+      pendingSpent: '500000.00',
+      remainingBudget: '4500000.00',
       consumptionPercentage: '62.50',
       isOverBudget: false,
       status: 'NORMAL',
@@ -87,10 +88,10 @@ export default function VarianceMonitorCard({
     {
       sectionId: 'sec-3',
       title: 'Section 3: Reinforced Concrete Frame',
-      allocatedBudget: '18,500,000.00',
-      actualSpent: '2,500,000.00',
-      pendingSpent: '800,000.00',
-      remainingBudget: '16,000,000.00',
+      allocatedBudget: '18500000.00',
+      actualSpent: '2500000.00',
+      pendingSpent: '800000.00',
+      remainingBudget: '16000000.00',
       consumptionPercentage: '13.51',
       isOverBudget: false,
       status: 'NORMAL',
@@ -98,21 +99,21 @@ export default function VarianceMonitorCard({
     {
       sectionId: 'sec-4',
       title: 'Section 4: Walling, Finishes & Services',
-      allocatedBudget: '10,000,000.00',
-      actualSpent: '650,200.00',
-      pendingSpent: '350,000.00',
-      remainingBudget: '9,349,800.00',
+      allocatedBudget: '10000000.00',
+      actualSpent: '650200.00',
+      pendingSpent: '350000.00',
+      remainingBudget: '9349800.00',
       consumptionPercentage: '6.50',
       isOverBudget: false,
       status: 'NORMAL',
 },
   ],
   categoryBreakdown = {
-    MATERIAL: { approved: '6,200,000.00', pending: '850,000.00'},
-    LABOR: { approved: '3,150,000.00', pending: '500,000.00'},
-    PLANT: { approved: '1,200,200.00', pending: '250,000.00'},
-    SUBCONTRACT: { approved: '1,100,000.00', pending: '150,000.00'},
-    PRELIMINARY: { approved: '800,000.00', pending: '100,000.00'},
+    MATERIAL: { approved: '6200000.00', pending: '850000.00'},
+    LABOR: { approved: '3150000.00', pending: '500000.00'},
+    PLANT: { approved: '1200200.00', pending: '250000.00'},
+    SUBCONTRACT: { approved: '1100000.00', pending: '150000.00'},
+    PRELIMINARY: { approved: '800000.00', pending: '100000.00'},
 },
 }: VarianceMonitorCardProps): React.JSX.Element {
   const costPct = parseFloat(detailedVariance.costConsumptionPercentage) || 0;
@@ -191,7 +192,7 @@ export default function VarianceMonitorCard({
 <span className="font-semibold text-slate-700">Cost Consumption (Approved)</span>
 </div>
 <span className="font-mono font-bold text-slate-900">
-              {`${detailedVariance.costConsumptionPercentage}% (KES ${approvedCost} of KES ${approvedBudget} • KES ${pendingCost} pending)`}
+              {`${detailedVariance.costConsumptionPercentage}% (${formatKes(approvedCost)} of ${formatKes(approvedBudget)} • ${formatKes(pendingCost)} pending)`}
 </span>
 </div>
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
@@ -233,50 +234,50 @@ export default function VarianceMonitorCard({
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Materials</span>
 <span className="font-mono font-bold text-slate-800 block text-xs mt-1">
-              KES {categoryBreakdown.MATERIAL.approved}
+              {formatKes(categoryBreakdown.MATERIAL.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block mt-0.5">
-              +{categoryBreakdown.MATERIAL.pending} pend
+              +{formatKes(categoryBreakdown.MATERIAL.pending)} pend
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Labor</span>
 <span className="font-mono font-bold text-slate-800 block text-xs mt-1">
-              KES {categoryBreakdown.LABOR.approved}
+              {formatKes(categoryBreakdown.LABOR.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block mt-0.5">
-              +{categoryBreakdown.LABOR.pending} pend
+              +{formatKes(categoryBreakdown.LABOR.pending)} pend
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Plant / Hire</span>
 <span className="font-mono font-bold text-slate-800 block text-xs mt-1">
-              KES {categoryBreakdown.PLANT.approved}
+              {formatKes(categoryBreakdown.PLANT.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block mt-0.5">
-              +{categoryBreakdown.PLANT.pending} pend
+              +{formatKes(categoryBreakdown.PLANT.pending)} pend
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Subcontracts</span>
 <span className="font-mono font-bold text-slate-800 block text-xs mt-1">
-              KES {categoryBreakdown.SUBCONTRACT.approved}
+              {formatKes(categoryBreakdown.SUBCONTRACT.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block mt-0.5">
-              +{categoryBreakdown.SUBCONTRACT.pending} pend
+              +{formatKes(categoryBreakdown.SUBCONTRACT.pending)} pend
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Preliminaries</span>
 <span className="font-mono font-bold text-slate-800 block text-xs mt-1">
-              KES {categoryBreakdown.PRELIMINARY.approved}
+              {formatKes(categoryBreakdown.PRELIMINARY.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block mt-0.5">
-              +{categoryBreakdown.PRELIMINARY.pending} pend
+              +{formatKes(categoryBreakdown.PRELIMINARY.pending)} pend
 </span>
 </div>
 </div>
@@ -313,12 +314,12 @@ export default function VarianceMonitorCard({
                 return (
 <tr key={sec.sectionId} className="hover:bg-slate-50/50">
 <td className="p-3 font-semibold text-slate-900">{title}</td>
-<td className="p-3 text-right font-mono font-medium">KES {sec.allocatedBudget}</td>
-<td className="p-3 text-right font-mono font-medium">KES {sec.actualSpent}</td>
+<td className="p-3 text-right font-mono font-medium">{formatKes(sec.allocatedBudget)}</td>
+<td className="p-3 text-right font-mono font-medium">{formatKes(sec.actualSpent)}</td>
 <td className="p-3 text-right font-mono text-amber-700">
-                      KES {sec.pendingSpent || '0.00'}
+                      {formatKes(sec.pendingSpent || '0.00')}
 </td>
-<td className="p-3 text-right font-mono font-medium">KES {sec.remainingBudget}</td>
+<td className="p-3 text-right font-mono font-medium">{formatKes(sec.remainingBudget)}</td>
 <td className="p-3 text-right font-mono font-bold">{`${sec.consumptionPercentage}%`}</td>
 <td className="p-3 text-center">
 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${tagClass}`}>

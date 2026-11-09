@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 interface ProjectMember {
   id: string;
@@ -280,7 +280,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 </select>
           {selected && (
 <span className="text-[10px] font-mono text-slate-400">
-              budget KES {toCurrencyString(selected.current_approved_budget)} · closeout {selected.closeout_stage}
+              budget {formatKes(selected.current_approved_budget)} · closeout {selected.closeout_stage}
 </span>
 )}
 </div>

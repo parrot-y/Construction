@@ -1,5 +1,5 @@
 import React from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatKes } from '../ui';
 
 export interface PracticalCompletionCardProps {
   projectName?: string;
@@ -36,10 +36,6 @@ export default function PracticalCompletionCard({
   secondMoietyStatus = 'HELD_IN_ESCROW',
   secondMoietyAmount = '1125000.00',
 }: PracticalCompletionCardProps): React.JSX.Element {
-  const formattedContractSum = toCurrencyString(contractSum);
-  const totalRetentionAmount = toCurrencyString('2250000.00'); // 5% of 45M
-  const formattedFirstMoiety = toCurrencyString(firstMoietyAmount);
-  const formattedSecondMoiety = toCurrencyString(secondMoietyAmount);
 
   // DLP duration 6 months ≈ 182 days
   const totalDlpDays = dlpDurationMonths * 30.5;
@@ -152,10 +148,10 @@ export default function PracticalCompletionCard({
 
 <div className="space-y-1">
 <span className="text-2xl font-bold font-mono text-emerald-700 block">
-                {`KES ${formattedFirstMoiety}`}
+                {formatKes(firstMoietyAmount)}
 </span>
 <span className="text-[11px] text-slate-500 block">
-                50% of total KES {totalRetentionAmount} retention fund ({(retentionRate * 100).toFixed(0)}% of KES {formattedContractSum} contract sum)
+                50% of total {formatKes('2250000.00')} retention fund ({(retentionRate * 100).toFixed(0)}% of {formatKes(contractSum)} contract sum)
 </span>
 </div>
 
@@ -196,7 +192,7 @@ export default function PracticalCompletionCard({
 
 <div className="space-y-1">
 <span className="text-2xl font-bold font-mono text-slate-800 block">
-                {`KES ${formattedSecondMoiety}`}
+                {formatKes(secondMoietyAmount)}
 </span>
 <span className="text-[11px] text-slate-500 block">
                 Final 50% release conditioned upon Certificate of Making Good Defects
@@ -287,7 +283,7 @@ export default function PracticalCompletionCard({
 <p className="text-xs text-slate-600 leading-relaxed">
             Joint final inspection by Arch. Peter Mwangi and Lead QS Faith Achieng scheduled for{' '}
 <span className="font-semibold text-slate-900">10 April 2027</span>. Upon sign-off of
-            this certificate, the final 50% Second Moiety (KES {formattedSecondMoiety}) will be released
+            this certificate, the final 50% Second Moiety ({formatKes(secondMoietyAmount)}) will be released
             and the Final Account settled.
 </p>
 
@@ -303,7 +299,7 @@ export default function PracticalCompletionCard({
                 Final Retention Release
 </span>
 <span className="font-mono font-bold text-emerald-700 mt-0.5 block">
-                KES {formattedSecondMoiety}
+                {formatKes(secondMoietyAmount)}
 </span>
 </div>
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">

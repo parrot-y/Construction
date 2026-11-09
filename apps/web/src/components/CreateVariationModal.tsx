@@ -89,7 +89,7 @@ export default function CreateVariationModal({
         const prefix = total.isNegative() ? '-' : total.isPositive() ? '+' : '';
         return {
           lineTotal: total,
-          formatted: `${prefix}KES ${toCurrencyString(total.abs())}`,
+          formatted: `${prefix}${formatKes(total.abs().toString())}`,
 };
 } catch {
         return { lineTotal: new Decimal(0), formatted: formatKes(0)};
@@ -529,7 +529,7 @@ export default function CreateVariationModal({
                   isNetPositive ? 'text-emerald-400' : 'text-amber-400'
 }`}
               >
-                {isNetPositive ? '+' : '-'} KES {toCurrencyString(itemCalculations.netAmount.abs())}
+                {isNetPositive ? '+' : '-'} {formatKes(itemCalculations.netAmount.abs().toString())}
 </span>
 <span className="block text-[10px] text-slate-400">
                 {isNetPositive ? 'Net Budget Addition' : 'Net Budget Omission'}

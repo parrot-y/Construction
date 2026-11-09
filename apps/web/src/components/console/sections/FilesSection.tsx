@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../../../ui';
 import { useConsole} from '../ConsoleContext';
 import CompanyDocumentsView from '../../CompanyDocumentsView';
 import ScheduledReportsView from '../../ScheduledReportsView';
@@ -72,7 +73,7 @@ function ReportsView(): React.JSX.Element {
       {coMetrics && (
 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            ['Total CO Value', `KES ${coMetrics.total.toLocaleString()}`, 'all change orders'],
+            ['Total CO Value', `${formatKes(coMetrics.total)}`, 'all change orders'],
             ['Approval Rate', coMetrics.approvalRate === null ? '—' : `${coMetrics.approvalRate}%`, 'of submitted COs'],
             ['Median Cycle', coMetrics.medianCycle === null ? '—' : `${coMetrics.medianCycle}d`, 'submit → decision'],
             ['Rework Rate', `${coMetrics.reworkRate}%`, 'rejected or rework'],

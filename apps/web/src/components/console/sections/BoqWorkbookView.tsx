@@ -1,10 +1,11 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../../../ui';
 
 interface BoqItem { id: string; item_code: string; description: string; unit: string; quantity: string; unit_rate: string; total_amount: string; is_provisional?: boolean}
 interface BoqSection { id: string; title: string; total_amount: string; items: BoqItem[]}
 interface Boq { id: string; version: number; status: string; total_amount: string; sections: BoqSection[]}
 
-const fmt = (n: string | number) => `KES ${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+const fmt = (n: string | number) => formatKes(n || 0);
 
 /** Read-only active BOQ workbook (sections → items → amounts). */
 export default function BoqWorkbookView({ projectId}: { projectId: string}): React.JSX.Element {
