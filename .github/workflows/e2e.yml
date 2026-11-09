@@ -73,6 +73,7 @@ jobs:
         env:
           E2E_DATABASE_URL: postgresql://db_app:app_secret@localhost:5432/construction_e2e
           E2E_MIGRATOR_DATABASE_URL: postgresql://db_migrator:migrator_secret@localhost:5432/construction_e2e
+          E2E_ADMIN_DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/construction_e2e
         run: pnpm --filter @construction/e2e test:e2e
 
       - name: Upload Playwright report

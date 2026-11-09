@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -39,6 +40,7 @@ export default function CompliancePortalView({
 }: CompliancePortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [auditor, setAuditor] = useState({ name: auditorName || '', agency: auditorAgency || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
   const [complianceSummary, setComplianceSummary] = useState<ComplianceSummary>({
@@ -66,33 +68,37 @@ export default function CompliancePortalView({
         if (cancelled) return;
         const d = body.data || body;
         if (d.regulatoryAuditor) setAuditor({ name: d.regulatoryAuditor.name || '', agency: d.regulatoryAuditor.agency || '' });
+        if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
         if (d.project) setProj({ name: d.project.name || '', code: d.project.code || '' });
         if (d.complianceSummary) setComplianceSummary({
           ncaSiteRegistration: d.complianceSummary.ncaSiteRegistration || '',
           statutoryLevyPaid: d.complianceSummary.statutoryLevyPaid ?? null,
           certifiedSiteSupervisorPresent: d.complianceSummary.certifiedSiteSupervisorPresent ?? null,
-          concreteCubePassRate: d.complianceSummary.concreteCubePassRate || '—',
+          concreteCubePassRate: d.complianceSummary.concreteCubePassRate ?? 'No tests yet',
           totalBatchesSampled: d.complianceSummary.totalBatchesSampled ?? 0,
           prePourInspectionsConducted: d.complianceSummary.prePourInspectionsConducted ?? 0,
         });
         setCubeTests((d.cubeTests || []).map((c: any) => ({
           id: c.id,
-          batch_reference: c.batch_reference,
-          pour_date: c.pour_date,
-          element_location: c.pour_location,
-          design_grade_mpa: Number(c.target_strength_mpa),
-          break_results: (c.break_results || []).map((b: any) => ({
-            age_days: b.break_age_days,
-            compressive_strength_mpa: Number(b.compressive_mpa ?? 0),
-            is_pass: !!b.is_pass,
+          batch_reference: c.deliveryDocketNo || c.id,
+          pour_date: c.pourDate,
+          element_location: c.pourLocation,
+          concrete_class: c.concreteClass,
+          design_grade_mpa: Number(c.targetStrengthMpa ?? 0),
+          supplier_name: c.supplierName,
+          break_results: (c.breakResults || []).map((b: any) => ({
+            age_days: b.breakAgeDays,
+            compressive_strength_mpa: Number(b.compressiveMpa ?? 0),
+            is_pass: !!b.isPass,
           })),
         })));
         setInspections((d.inspections || []).map((i: any) => ({
           id: i.id,
           title: i.title,
-          category: i.inspection_type || String(i.checklist_type || ''),
-          scheduled_date: i.scheduled_date,
+          category: i.inspectionType || String(i.checklistType || ''),
+          scheduled_date: i.scheduledDate,
           status: i.status,
+          location: i.location,
         })));
         setCertificates(d.certificates || []);
       } catch (e: any) {
@@ -108,11 +114,12 @@ export default function CompliancePortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
+    const isExpired = /expired/i.test(loadError);
+    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
-      <div className="max-w-5xl mx-auto p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-rose-700">{loadError}</p>
-        <p className="text-xs text-slate-400">Check the link or ask your project manager for a new one.</p>
-        {onBackToDashboard && <button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button>}
+      <div className="max-w-5xl mx-auto">
+        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
+        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
       </div>
     );
   }
@@ -131,6 +138,7 @@ export default function CompliancePortalView({
 
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="compliance-portal-view">
+      <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>

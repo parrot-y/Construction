@@ -165,6 +165,22 @@ None.
 - Peripheral modules: plant/equipment+telematics, survey/soil/topo, tender board, structural steel, asphalt QA, geofence/clock-in — `DISABLED_MODULES` (API) + `isModuleEnabled` (UI).
 - Demo workspace picker on login — `VITE_DEMO_MODE`/dev only.
 
+### Portal hardening pass (2026-11-09, branch devin/portal-hardening)
+- SUBCONTRACTOR portal links are bound to exactly one `subcontractor_package_id` at creation — no cross-subcontractor visibility (packages, valuations, snags). `contains` matching removed.
+- Portal link management behind new `portal.manage` permission (admin/PM-QS allow-list); regenerate + revoke endpoints; canonical `/?portal=<type>&token=<token>` URLs; last-used/use-count/expiry surfaced.
+- All `/api/v1/portals/*` routes rate-limited (60/min; 30/min link management); invalid/expired/wrong-type tokens return identical 404s.
+- Explicit response DTOs for consultant/compliance/subcontractor/supplier/client payloads — no internal fields.
+- Rectification photos go through a portal-scoped upload endpoint with the same magic-byte verification as site uploads; storage keys verified tenant+project scoped.
+- Consultant replies Zod-validated (3–5000), closed-RFI replies rejected, external responder identity recorded (`external_responder_name`/`external_link_id`).
+- Subcontractor valuations use Decimal math, compute prior payments from existing valuations, cap at package contract sum, WHT rate from `PORTAL_WHT_RATE_PCT`.
+- Supplier confirm/dispute: note required on dispute, invoice ref on confirm, final states blocked.
+- Compliance portal reports honest nulls ("Not recorded", "No tests yet") — no invented NCA registration or 100% pass rate.
+- Portal link manager shows real API data only (no mock tokens), expiry banner + shared revoked/expired/error states on all portals.
+- Client portal exposes read-only progress photos (client_visible), payment certificates, invoices, progress records.
+- Playwright `e-portals.spec.ts`: 12/12 green (chromium + 390px mobile) against real API+DB — two-subcontractor package isolation, role-restricted link creation, revoke/regenerate lifecycle, deterministic expired link (expires_at mutated via SQL as superuser), rectification with real magic-byte-verified PNG upload + foreign-key rejection.
+- E2E infra fix: `rls.sql` SECURITY DEFINER functions must be owned by an RLS-bypassing role — `global-setup.ts` now applies rls.sql/grants via `E2E_ADMIN_DATABASE_URL` (superuser) and re-owns functions; CI passes the postgres URL.
+- Evidence: `docs/evidence/portal-hardening.md`; tests `portal-hardening.test.ts` (14) + `external-portals.test.ts` (13); `verify-local` fresh-cluster run: API 525, web 118, money 63, db 15, permissions 9 = 730/730 (`docs/evidence/verify-portal-hardening-final.log`).
+
 ### What remains OPEN
 - Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM).
 - Second seeded tenant for a stronger two-tenant isolation e2e (current proof uses membership/RLS on nonexistent + non-member projects).

@@ -1,10 +1,13 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
-import { CreatePortalLinkSchema, ClientVariationRespondSchema } from '@construction/validation';
+import { CreatePortalLinkSchema, ClientVariationRespondSchema, ConsultantRfiReplySchema, SupplierDeliveryActionSchema } from '@construction/validation';
 import { randomBytes, createHash } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
 import { toDecimal } from '@construction/money';
+import { randomUUID } from 'node:crypto';
+import { verifyUpload } from '../lib/uploadSecurity';
+import { getStorageDriver } from '../lib/storage';
 import {
   applyCoBudgetRollup,
   claimCoTransition,
@@ -62,11 +65,11 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     {
       preHandler: [
         server.authenticate,
-        requirePermission(Permissions.PROJECT_VIEW),
+        requirePermission(Permissions.PORTAL_MANAGE),
       ],
     },
     async (request, reply) => {
-      const { tenantId, sub, role } = request.user;
+      const { tenantId, sub } = request.user;
       const { projectId } = request.params as { projectId: string };
 
       if (!UUID_REGEX.test(projectId)) {
@@ -74,14 +77,6 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           statusCode: 404,
           error: 'Not Found',
           message: 'Project not found',
-        });
-      }
-
-      if (role === 'SITE_SUPERVISOR' || role === 'CLIENT') {
-        return reply.status(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only Project Managers and Admins can generate stakeholder portal access links',
         });
       }
 
@@ -95,7 +90,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         });
       }
 
-      const { portalType, stakeholderName, stakeholderRole, expiresInDays } = parseResult.data;
+      const { portalType, stakeholderName, stakeholderRole, expiresInDays, subcontractorPackageId } = parseResult.data as any;
       const rawToken = randomBytes(32).toString('hex');
       const tokenHash = createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
@@ -110,6 +105,19 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             throw { status: 404, message: 'Project not found' };
           }
 
+          // SUBCONTRACTOR links must be scoped to exactly one work package —
+          // without it the portal would see every package on the project.
+          if (portalType === 'SUBCONTRACTOR' && !subcontractorPackageId) {
+            throw { status: 400, message: 'subcontractorPackageId is required for SUBCONTRACTOR portal links' };
+          }
+          if (portalType === 'SUBCONTRACTOR' && subcontractorPackageId) {
+            const pkg = await tx.subcontractorPackage.findFirst({
+              where: { id: subcontractorPackageId, project_id: projectId },
+              select: { id: true },
+            });
+            if (!pkg) throw { status: 404, message: 'Subcontractor package not found on this project' };
+          }
+
           const created = await tx.portalAccessLink.create({
             data: {
               tenant_id: tenantId,
@@ -120,6 +128,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
               token_hash: tokenHash,
               is_active: true,
               expires_at: expiresAt,
+              subcontractor_package_id: portalType === 'SUBCONTRACTOR' ? subcontractorPackageId : null,
             },
           });
 
@@ -150,16 +159,16 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             stakeholderName: link.stakeholder_name,
             stakeholderRole: link.stakeholder_role,
             token: rawToken,
-            linkUrl: `/portal/${link.portal_type.toLowerCase()}/${rawToken}`,
+            linkUrl: `/?portal=${link.portal_type.toLowerCase()}&token=${rawToken}`,
             expiresAt: link.expires_at.toISOString(),
             createdAt: link.created_at.toISOString(),
           },
         });
       } catch (err: any) {
-        if (err.status === 404) {
-          return reply.status(404).send({
-            statusCode: 404,
-            error: 'Not Found',
+        if (err?.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : 'Bad Request',
             message: err.message,
           });
         }
@@ -174,7 +183,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     {
       preHandler: [
         server.authenticate,
-        requirePermission(Permissions.PROJECT_VIEW),
+        requirePermission(Permissions.PORTAL_MANAGE),
       ],
     },
     async (request, reply) => {
@@ -208,8 +217,112 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           isActive: l.is_active && new Date() < l.expires_at,
           expiresAt: l.expires_at.toISOString(),
           createdAt: l.created_at.toISOString(),
+          lastUsedAt: l.last_used_at?.toISOString() ?? null,
+          useCount: l.use_count,
         })),
       });
+    },
+  );
+
+  // POST /api/v1/projects/:projectId/portals/links/:linkId/regenerate — new token, old revoked
+  server.post(
+    '/api/v1/projects/:projectId/portals/links/:linkId/regenerate',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.PORTAL_MANAGE),
+      ],
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, linkId } = request.params as { projectId: string; linkId: string };
+      if (!UUID_REGEX.test(linkId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Portal link not found' });
+      }
+      const rawToken = randomBytes(32).toString('hex');
+      const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+      try {
+        const link = await withTenantTx(prisma, tenantId, async (tx) => {
+          const existing = await tx.portalAccessLink.findFirst({
+            where: { id: linkId, project_id: projectId },
+          });
+          if (!existing) throw { status: 404, message: 'Portal link not found' };
+          await tx.portalAccessLink.update({
+            where: { id: linkId },
+            data: { is_active: false },
+          });
+          const created = await tx.portalAccessLink.create({
+            data: {
+              tenant_id: tenantId,
+              project_id: projectId,
+              portal_type: existing.portal_type,
+              stakeholder_name: existing.stakeholder_name,
+              stakeholder_role: existing.stakeholder_role,
+              token_hash: tokenHash,
+              is_active: true,
+              expires_at: existing.expires_at,
+              subcontractor_package_id: existing.subcontractor_package_id,
+            },
+          });
+          await recordAuditLog(tx, {
+            tenantId, actorId: sub, action: 'PORTAL_LINK_REGENERATED',
+            entityType: 'PORTAL_ACCESS_LINK', entityId: created.id, projectId,
+            changes: { portalType: existing.portal_type, stakeholderName: existing.stakeholder_name, revokedLinkId: linkId },
+          });
+          return created;
+        });
+        return reply.status(201).send({
+          statusCode: 201,
+          data: {
+            id: link.id,
+            portalType: link.portal_type,
+            stakeholderName: link.stakeholder_name,
+            token: rawToken,
+            linkUrl: `/?portal=${link.portal_type.toLowerCase()}&token=${rawToken}`,
+            expiresAt: link.expires_at.toISOString(),
+          },
+        });
+      } catch (err: any) {
+        if (err.status === 404) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: err.message });
+        throw err;
+      }
+    },
+  );
+
+  // DELETE /api/v1/projects/:projectId/portals/links/:linkId — revoke
+  server.delete(
+    '/api/v1/projects/:projectId/portals/links/:linkId',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.PORTAL_MANAGE),
+      ],
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, linkId } = request.params as { projectId: string; linkId: string };
+      if (!UUID_REGEX.test(linkId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Portal link not found' });
+      }
+      const revoked = await withTenantTx(prisma, tenantId, async (tx) => {
+        const existing = await tx.portalAccessLink.findFirst({
+          where: { id: linkId, project_id: projectId },
+        });
+        if (!existing) return null;
+        await tx.portalAccessLink.update({ where: { id: linkId }, data: { is_active: false } });
+        await recordAuditLog(tx, {
+          tenantId, actorId: sub, action: 'PORTAL_LINK_REVOKED',
+          entityType: 'PORTAL_ACCESS_LINK', entityId: linkId, projectId,
+          changes: { portalType: existing.portal_type, stakeholderName: existing.stakeholder_name },
+        });
+        return existing;
+      });
+      if (!revoked) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Portal link not found' });
+      }
+      return reply.status(200).send({ statusCode: 200, data: { id: linkId, isActive: false } });
     },
   );
 
@@ -217,7 +330,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
   // 2. PUBLIC TOKEN VALIDATION
   // ===========================================================================
 
-  server.get('/api/v1/portals/validate/:token', async (request, reply) => {
+  server.get('/api/v1/portals/validate/:token', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolvePortalLink(token);
 
@@ -255,7 +371,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
   // ===========================================================================
 
   // GET /api/v1/portals/consultant/:token
-  server.get('/api/v1/portals/consultant/:token', async (request, reply) => {
+  server.get('/api/v1/portals/consultant/:token', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolvePortalLink(token, 'CONSULTANT');
 
@@ -271,6 +390,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       const [project, rfis, inspections, cubeTests, certificates] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
+          select: { id: true, name: true, code: true, status: true },
         }),
         tx.rFI.findMany({
           where: { project_id: link.project_id },
@@ -298,17 +418,6 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           where: { project_id: link.project_id },
           orderBy: { issue_date: 'desc' },
         }),
-        // Statutory levy clearance = at least one WHT certificate remitted to KRA.
-        tx.statutoryTaxCertificate.count({
-          where: {
-            project_id: link.project_id,
-            status: { in: ['REMITTED_TO_KRA', 'ACKNOWLEDGED'] },
-          },
-        }),
-        // Accredited site supervisor = an assigned SITE_SUPERVISOR project member.
-        tx.projectMember.count({
-          where: { project_id: link.project_id, role: 'SITE_SUPERVISOR' },
-        }),
       ]);
 
       return {
@@ -316,16 +425,71 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           name: link.stakeholder_name,
           role: link.stakeholder_role || 'Consultant',
         },
-        project: {
-          id: project?.id,
-          name: project?.name,
-          code: project?.code,
-          status: project?.status,
-        },
-        rfis,
-        inspections,
-        cubeTests,
-        certificates,
+        linkExpiresAt: link.expires_at.toISOString(),
+        project: project ?? null,
+        rfis: (rfis || []).map((r: any) => ({
+          id: r.id,
+          rfiNumber: r.rfi_number,
+          title: r.title,
+          question: r.question,
+          drawingReference: r.drawing_reference,
+          specificationClause: r.specification_clause,
+          issueType: r.issue_type,
+          priority: r.priority,
+          status: r.status,
+          costImpact: r.cost_impact?.toString(),
+          scheduleImpactDays: r.schedule_impact_days,
+          dueDate: r.due_date,
+          createdAt: r.created_at,
+          responses: (r.responses || []).map((x: any) => ({
+            id: x.id,
+            officialAnswer: x.official_answer,
+            isAccepted: x.is_accepted,
+            responderName: x.external_responder_name,
+            createdAt: x.created_at,
+          })),
+          attachments: (r.attachments || []).map((a: any) => ({
+            id: a.id, filename: a.filename, fileSize: a.file_size, mimeType: a.mime_type, storageKey: a.storage_key,
+          })),
+        })),
+        inspections: (inspections || []).map((i: any) => ({
+          id: i.id,
+          title: i.title,
+          checklistType: i.checklist_type,
+          inspectionType: i.inspection_type,
+          assignedConsultant: i.assigned_consultant,
+          location: i.location,
+          status: i.status,
+          scheduledDate: i.scheduled_date,
+          inspectedAt: i.inspected_at,
+          inspectorName: i.inspector_name,
+          summaryNotes: i.summary_notes,
+          items: (i.items || []).map((it: any) => ({
+            id: it.id, orderIdx: it.order_idx, checkPoint: it.check_point,
+            isMandatory: it.is_mandatory, result: it.result, deficiencyNotes: it.deficiency_notes,
+          })),
+        })),
+        cubeTests: (cubeTests || []).map((c: any) => ({
+          id: c.id,
+          pourLocation: c.pour_location,
+          pourDate: c.pour_date,
+          concreteClass: c.concrete_class,
+          targetStrengthMpa: c.target_strength_mpa?.toString(),
+          slumpTestedMm: c.slump_tested_mm,
+          supplierName: c.supplier_name,
+          deliveryDocketNo: c.delivery_docket_no,
+          breakResults: (c.break_results || []).map((b: any) => ({
+            id: b.id, cubeNumber: b.cube_number, breakAgeDays: b.break_age_days,
+            compressiveMpa: b.compressive_mpa?.toString(), isPass: b.is_pass, labName: b.lab_name,
+          })),
+        })),
+        certificates: (certificates || []).map((c: any) => ({
+          id: c.id, certificateType: c.certificate_type, certificateReference: c.certificate_reference,
+          issueDate: c.issue_date, effectiveDate: c.effective_date,
+          dlpDurationMonths: c.dlp_duration_months, dlpExpiryDate: c.dlp_expiry_date,
+          retentionAmountReleased: c.retention_amount_released?.toString(),
+          architectName: c.architect_name, qsName: c.qs_name,
+        })),
       };
     });
 
@@ -336,7 +500,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
   });
 
   // POST /api/v1/portals/consultant/:token/rfis/:rfiId/reply
-  server.post('/api/v1/portals/consultant/:token/rfis/:rfiId/reply', async (request, reply) => {
+  server.post('/api/v1/portals/consultant/:token/rfis/:rfiId/reply', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token, rfiId } = request.params as { token: string; rfiId: string };
     const link = await resolvePortalLink(token, 'CONSULTANT');
 
@@ -348,14 +515,16 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       });
     }
 
-    const body = request.body as { officialAnswer: string; consultantName?: string; consultantBoraqsNo?: string };
-    if (!body.officialAnswer || body.officialAnswer.trim().length < 3) {
+    const parsed = ConsultantRfiReplySchema.safeParse(request.body);
+    if (!parsed.success) {
       return reply.status(400).send({
         statusCode: 400,
         error: 'Bad Request',
-        message: 'Official answer must be at least 3 characters',
+        message: 'Invalid reply payload — officialAnswer must be 3-5000 characters',
+        details: parsed.error.flatten(),
       });
     }
+    const body = parsed.data;
 
     const response = await withTenantTx(prisma, link.tenant_id, async (tx) => {
       const rfi = await tx.rFI.findFirst({
@@ -365,12 +534,17 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       if (!rfi) {
         throw { status: 404, message: 'RFI not found on this project' };
       }
+      if (rfi.status === 'ANSWERED' || rfi.status === 'CLOSED') {
+        throw { status: 409, message: `RFI is already ${rfi.status.toLowerCase()} — replies are closed` };
+      }
 
       const created = await tx.rFIResponse.create({
         data: {
           tenant_id: link.tenant_id,
           rfi_id: rfiId,
-          responder_id: rfi.created_by_id,
+          responder_id: null,
+          external_responder_name: body.consultantName || link.stakeholder_name,
+          external_link_id: link.id,
           official_answer: `[${body.consultantName || link.stakeholder_name} - ${body.consultantBoraqsNo || link.stakeholder_role || 'Consultant'}]\n${body.officialAnswer.trim()}`,
           is_accepted: true,
         },
@@ -397,7 +571,17 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       });
 
       return created;
+    }).catch((err: any) => {
+      if (err?.status) {
+        return { __portalError: { status: err.status, message: err.message } };
+      }
+      throw err;
     });
+
+    if ((response as any)?.__portalError) {
+      const e = (response as any).__portalError;
+      return reply.status(e.status).send({ statusCode: e.status, error: e.status === 404 ? 'Not Found' : 'Conflict', message: e.message });
+    }
 
     return reply.status(200).send({
       statusCode: 200,
@@ -410,7 +594,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
   // ===========================================================================
 
   // GET /api/v1/portals/subcontractor/:token
-  server.get('/api/v1/portals/subcontractor/:token', async (request, reply) => {
+  server.get('/api/v1/portals/subcontractor/:token', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolvePortalLink(token, 'SUBCONTRACTOR');
 
@@ -423,56 +610,92 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     }
 
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const tradeFilter = link.stakeholder_role
+      const project = await tx.project.findFirst({
+        where: { id: link.project_id },
+        select: { id: true, name: true, code: true },
+      });
+
+      // A SUBCONTRACTOR link is bound to exactly one work package at creation.
+      // No package binding => no data (never fall back to "all packages").
+      const pkg = link.subcontractor_package_id
+        ? await tx.subcontractorPackage.findFirst({
+            where: { id: link.subcontractor_package_id, project_id: link.project_id },
+            include: { valuations: { orderBy: { valuation_date: 'desc' } } },
+          })
+        : null;
+
+      // Snags are scoped to the package's trade category / firm name (exact,
+      // case-insensitive — no substring matching across firms).
+      const snagScope = pkg
         ? {
+            is_private: false,
             OR: [
-              { trade_category: { contains: link.stakeholder_role, mode: 'insensitive' as const } },
-              { firm_name: { contains: link.stakeholder_name, mode: 'insensitive' as const } },
+              { trade_category: { equals: pkg.trade_category, mode: 'insensitive' as const } },
+              { assigned_trade_firm: { equals: pkg.firm_name, mode: 'insensitive' as const } },
             ],
           }
-        : {};
-      const [project, snags, packages] = await Promise.all([
-        tx.project.findFirst({
-          where: { id: link.project_id },
-        }),
-        tx.snagItem.findMany({
-          where: {
-            project_id: link.project_id,
-            // Gate-4 S6: private punch items are hidden from external portals
-            is_private: false,
-            // Filter by trade firm or category if specified on stakeholder_role
-            ...(link.stakeholder_role
-              ? {
-                  OR: [
-                    { trade_category: { contains: link.stakeholder_role, mode: 'insensitive' } },
-                    { assigned_trade_firm: { contains: link.stakeholder_name, mode: 'insensitive' } },
-                  ],
-                }
-              : {}),
-          },
-          include: {
-            photos: true,
-          },
-          orderBy: { snag_number: 'desc' },
-        }),
-        tx.subcontractorPackage.findMany({
-          where: { project_id: link.project_id, ...tradeFilter },
-          include: { valuations: { orderBy: { valuation_date: 'desc' } } },
-          orderBy: { created_at: 'asc' },
-        }),
-      ]);
+        : null;
+
+      const snags = snagScope
+        ? await tx.snagItem.findMany({
+            where: { project_id: link.project_id, ...snagScope },
+            include: { photos: true },
+            orderBy: { snag_number: 'desc' },
+          })
+        : [];
+
+      // Explicit DTO — no internal ids beyond what the portal needs.
+      const packages = pkg
+        ? [{
+            id: pkg.id,
+            tradeCategory: pkg.trade_category,
+            firmName: pkg.firm_name,
+            scopeDescription: pkg.scope_description,
+            subcontractSum: pkg.subcontract_sum.toString(),
+            retentionRatePct: pkg.retention_rate_pct.toString(),
+            status: pkg.status,
+            valuations: (pkg.valuations || []).map((v: any) => ({
+              id: v.id,
+              certificateNo: v.certificate_no,
+              valuationDate: v.valuation_date,
+              grossWorkCertifiedKes: v.gross_work_certified_kes.toString(),
+              retentionDeductedKes: v.retention_deducted_kes.toString(),
+              previousPaymentsDeductedKes: v.previous_payments_deducted_kes.toString(),
+              withholdingTaxDeductedKes: v.withholding_tax_deducted_kes.toString(),
+              netPayableKes: v.net_payable_kes.toString(),
+              paymentStatus: v.payment_status,
+              notes: v.notes,
+            })),
+          }]
+        : [];
 
       return {
         stakeholder: {
           name: link.stakeholder_name,
-          trade: link.stakeholder_role || 'Specialist Subcontractor',
+          trade: link.stakeholder_role || pkg?.trade_category || 'Specialist Subcontractor',
         },
-        project: {
-          id: project?.id,
-          name: project?.name,
-          code: project?.code,
-        },
-        snags,
+        linkExpiresAt: link.expires_at.toISOString(),
+        project: project ?? null,
+        snags: snags.map((sn: any) => ({
+          id: sn.id,
+          snagNumber: sn.snag_number,
+          description: sn.description,
+          locationBlock: sn.location_block,
+          locationFloor: sn.location_floor,
+          locationRoom: sn.location_room,
+          tradeCategory: sn.trade_category,
+          severity: sn.severity,
+          status: sn.status,
+          identifiedAt: sn.identified_at,
+          rectifiedAt: sn.rectified_at,
+          photos: (sn.photos || []).map((ph: any) => ({
+            id: ph.id,
+            photoType: ph.photo_type,
+            caption: ph.caption,
+            storageKey: ph.storage_key,
+            capturedAt: ph.captured_at,
+          })),
+        })),
         packages,
       };
     });
@@ -483,8 +706,47 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     });
   });
 
+  // POST /api/v1/portals/subcontractor/:token/snags/:snagId/upload — rectification photo
+  server.post(
+    '/api/v1/portals/subcontractor/:token/snags/:snagId/upload',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { token } = request.params as { token: string };
+      const link = await resolvePortalLink(token, 'SUBCONTRACTOR');
+      if (!link) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired subcontractor access token' });
+      }
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No file uploaded' });
+      }
+      const buffer = await file.toBuffer();
+      const spec = verifyUpload(buffer, file.mimetype);
+      if (!spec) {
+        return reply.status(415).send({
+          statusCode: 415,
+          error: 'Unsupported Media Type',
+          message: `File type ${file.mimetype} not allowed or content failed verification (images, PDF, MP4/MOV only)`,
+        });
+      }
+      // Key is namespaced to this link's tenant + project — same layout as
+      // authenticated site uploads so the shared /uploads route can serve it.
+      const storageKey = `${link.tenant_id}/${link.project_id}/${randomUUID()}${spec.ext}`;
+      await getStorageDriver().put(storageKey, buffer);
+      return reply.status(201).send({
+        statusCode: 201,
+        data: { storageKey, url: `/uploads/${storageKey}`, mimetype: spec.contentType, sizeBytes: buffer.length },
+      });
+    },
+  );
+
   // POST /api/v1/portals/subcontractor/:token/snags/:snagId/rectify
-  server.post('/api/v1/portals/subcontractor/:token/snags/:snagId/rectify', async (request, reply) => {
+  server.post('/api/v1/portals/subcontractor/:token/snags/:snagId/rectify', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token, snagId } = request.params as { token: string; snagId: string };
     const link = await resolvePortalLink(token, 'SUBCONTRACTOR');
 
@@ -502,6 +764,16 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         statusCode: 400,
         error: 'Bad Request',
         message: 'Rectified photo proof storage key is required',
+      });
+    }
+    // The key must have been issued by this link's tenant+project upload route —
+    // reject arbitrary keys that would point at another tenant's files.
+    const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
+    if (!body.photoStorageKey.startsWith(expectedPrefix) || body.photoStorageKey.includes('..')) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'photoStorageKey was not issued for this project — upload via the portal upload endpoint first',
       });
     }
 
@@ -559,27 +831,67 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
 
 
   // POST /api/v1/portals/subcontractor/:token/valuations — sub submits a progress valuation
-  server.post('/api/v1/portals/subcontractor/:token/valuations', async (request, reply) => {
+  server.post('/api/v1/portals/subcontractor/:token/valuations', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolvePortalLink(token, 'SUBCONTRACTOR');
     if (!link) {
       return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired subcontractor access token' });
     }
     const body = request.body as { packageId?: string; grossWorkCertifiedKes?: string | number; notes?: string };
-    const gross = Number(body?.grossWorkCertifiedKes);
-    if (!body?.packageId || !Number.isFinite(gross) || gross <= 0) {
-      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'packageId and a positive grossWorkCertifiedKes are required' });
+    // The link is bound to one package — a valuation can only target that package.
+    if (!link.subcontractor_package_id) {
+      return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'This portal link is not bound to a work package' });
     }
+    if (body?.packageId && body.packageId !== link.subcontractor_package_id) {
+      return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'Valuations can only be submitted for the linked work package' });
+    }
+    let gross: ReturnType<typeof toDecimal>;
+    try {
+      gross = toDecimal(String(body?.grossWorkCertifiedKes ?? ''));
+    } catch {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'grossWorkCertifiedKes must be a positive amount' });
+    }
+    if (gross.lte(0)) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'grossWorkCertifiedKes must be a positive amount' });
+    }
+    const WHT_RATE_PCT = toDecimal(process.env.PORTAL_WHT_RATE_PCT || '3.00');
     try {
       const valuation = await withTenantTx(prisma, link.tenant_id, async (tx) => {
         const pkg = await tx.subcontractorPackage.findFirst({
-          where: { id: body.packageId, project_id: link.project_id },
+          where: { id: link.subcontractor_package_id, project_id: link.project_id },
         });
         if (!pkg) throw new Error('Work package not found on this project');
-        const count = await tx.subcontractorValuation.count({ where: { subcontractor_package_id: pkg.id } });
-        const retentionRate = Number(pkg.retention_rate_pct || 5);
-        const retention = (gross * retentionRate) / 100;
-        const wht = (gross * 3) / 100;
+
+        // Certified-to-date = sum of gross on prior valuations; previous
+        // payments = net payable already approved/paid on prior valuations.
+        const prior = await tx.subcontractorValuation.findMany({
+          where: { subcontractor_package_id: pkg.id },
+          select: { gross_work_certified_kes: true, net_payable_kes: true, payment_status: true },
+        });
+        const certifiedToDate = prior.reduce((acc, v) => acc.plus(toDecimal(v.gross_work_certified_kes.toString())), toDecimal('0'));
+        const prevPayments = prior
+          .filter((v) => ['APPROVED_FOR_PAYMENT', 'PAID'].includes(v.payment_status))
+          .reduce((acc, v) => acc.plus(toDecimal(v.net_payable_kes.toString())), toDecimal('0'));
+
+        // Gross is cumulative work certified — cap at the package contract sum.
+        const packageSum = toDecimal(pkg.subcontract_sum.toString());
+        if (gross.gt(packageSum)) {
+          throw new Error(`Gross work certified cannot exceed the package contract sum (${packageSum.toFixed(2)})`);
+        }
+        if (gross.lte(certifiedToDate)) {
+          throw new Error(`Gross work certified must exceed certified-to-date (${certifiedToDate.toFixed(2)})`);
+        }
+
+        const count = prior.length;
+        const retentionRate = toDecimal(pkg.retention_rate_pct.toString());
+        const retention = gross.times(retentionRate.dividedBy(100));
+        const wht = gross.minus(prevPayments).gt(0)
+          ? gross.minus(prevPayments).times(WHT_RATE_PCT.dividedBy(100))
+          : toDecimal('0');
+        const netPayable = gross.minus(retention).minus(prevPayments).minus(wht);
         const created = await tx.subcontractorValuation.create({
           data: {
             tenant_id: link.tenant_id,
@@ -588,12 +900,12 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             certificate_no: `SC-VAL-${String(count + 1).padStart(3, '0')}`,
             valuation_date: new Date(),
             gross_work_certified_kes: gross.toFixed(2),
-            retention_rate_pct: retentionRate,
+            retention_rate_pct: retentionRate.toFixed(2),
             retention_deducted_kes: retention.toFixed(2),
-            previous_payments_deducted_kes: '0.00',
-            withholding_tax_pct: 3,
+            previous_payments_deducted_kes: prevPayments.toFixed(2),
+            withholding_tax_pct: WHT_RATE_PCT.toFixed(2),
             withholding_tax_deducted_kes: wht.toFixed(2),
-            net_payable_kes: (gross - retention - wht).toFixed(2),
+            net_payable_kes: netPayable.toFixed(2),
             payment_status: 'SUBMITTED',
             notes: `[Portal submission by ${link.stakeholder_name}] ${body.notes || ''}`.trim(),
           },
@@ -620,7 +932,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
   // ===========================================================================
 
   // GET /api/v1/portals/supplier/:token
-  server.get('/api/v1/portals/supplier/:token', async (request, reply) => {
+  server.get('/api/v1/portals/supplier/:token', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolvePortalLink(token, 'SUPPLIER');
 
@@ -650,15 +965,24 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       const deliveries = diaries
         .flatMap((d) =>
           d.deliveries.map((m) => ({
-            ...m,
+            id: m.id,
+            materialName: m.material_name,
+            quantity: m.quantity.toString(),
+            unit: m.unit,
+            supplierName: m.supplier_name,
+            deliveryNote: m.delivery_note,
+            deliveryStatus: m.delivery_status,
+            confirmedAt: m.confirmed_at,
+            confirmedByName: m.confirmed_by_name,
+            supplierInvoiceRef: m.supplier_invoice_ref,
+            disputeReason: m.dispute_reason,
             siteDate: d.entry_date,
           })),
         )
         .filter((m) =>
           !link.stakeholder_name ||
-          !m.supplier_name ||
-          m.supplier_name.toLowerCase().includes(link.stakeholder_name.toLowerCase()) ||
-          link.stakeholder_name.toLowerCase().includes((m.supplier_name || '').toLowerCase()),
+          !m.supplierName ||
+          m.supplierName.toLowerCase() === link.stakeholder_name.toLowerCase(),
         );
 
       return {
@@ -666,6 +990,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           name: link.stakeholder_name,
           vendorType: link.stakeholder_role || 'Material Supplier',
         },
+        linkExpiresAt: link.expires_at.toISOString(),
         project: {
           id: project?.id,
           name: project?.name,
@@ -683,37 +1008,51 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
 
 
   // POST /api/v1/portals/supplier/:token/deliveries/:deliveryId/confirm
-  server.post('/api/v1/portals/supplier/:token/deliveries/:deliveryId/confirm', async (request, reply) => {
+  server.post('/api/v1/portals/supplier/:token/deliveries/:deliveryId/confirm', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token, deliveryId } = request.params as { token: string; deliveryId: string };
     const link = await resolvePortalLink(token, 'SUPPLIER');
     if (!link) {
       return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired supplier access token' });
     }
-    const body = request.body as { action?: 'CONFIRM' | 'DISPUTE'; invoiceRef?: string; note?: string };
-    const action = body?.action === 'DISPUTE' ? 'DISPUTE' : 'CONFIRM';
+    const parsed = SupplierDeliveryActionSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid action payload', details: parsed.error.flatten() });
+    }
+    const body = parsed.data;
+    if (body.action === 'DISPUTE' && (!body.note || body.note.trim().length < 3)) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'A dispute note is required' });
+    }
     const updated = await withTenantTx(prisma, link.tenant_id, async (tx) => {
       const delivery = await tx.materialDelivery.findFirst({
         where: { id: deliveryId },
         include: { site_diary: { select: { project_id: true } } },
       });
       if (!delivery || delivery.site_diary.project_id !== link.project_id) {
-        throw new Error('Delivery not found on this project');
+        throw { status: 404, message: 'Delivery not found on this project' };
       }
-      if (delivery.delivery_status === 'CONFIRMED' && action === 'CONFIRM') {
-        throw new Error('Delivery already confirmed');
+      // CONFIRMED and DISPUTED are final states for the supplier — staff must
+      // reset the delivery before the supplier can act again.
+      if (delivery.delivery_status === 'CONFIRMED' || delivery.delivery_status === 'DISPUTED') {
+        throw { status: 409, message: `Delivery is already ${delivery.delivery_status.toLowerCase()} — contact the site team to reopen it` };
       }
       return tx.materialDelivery.update({
         where: { id: deliveryId },
         data: {
-          delivery_status: action === 'CONFIRM' ? 'CONFIRMED' : 'DISPUTED',
-          confirmed_at: action === 'CONFIRM' ? new Date() : null,
+          delivery_status: body.action === 'CONFIRM' ? 'CONFIRMED' : 'DISPUTED',
+          confirmed_at: body.action === 'CONFIRM' ? new Date() : null,
           confirmed_by_name: link.stakeholder_name,
-          supplier_invoice_ref: body?.invoiceRef || delivery.supplier_invoice_ref,
+          supplier_invoice_ref: body.invoiceRef || delivery.supplier_invoice_ref,
+          dispute_reason: body.action === 'DISPUTE' ? body.note!.trim() : delivery.dispute_reason,
         },
       });
-    }).catch((err) => ({ error: err.message }));
-    if ((updated as any).error) {
-      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: (updated as any).error });
+    }).catch((err: any) => ({ __err: err }));
+    const uerr = (updated as any).__err;
+    if (uerr) {
+      const st = uerr?.status ?? 400;
+      return reply.status(st).send({ statusCode: st, error: st === 404 ? 'Not Found' : 'Conflict', message: uerr?.message || 'Action failed' });
     }
     return reply.status(200).send({ statusCode: 200, data: updated });
   });
@@ -723,7 +1062,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
   // ===========================================================================
 
   // GET /api/v1/portals/compliance/:token
-  server.get('/api/v1/portals/compliance/:token', async (request, reply) => {
+  server.get('/api/v1/portals/compliance/:token', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolvePortalLink(token, 'COMPLIANCE');
 
@@ -771,17 +1113,19 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         }),
       ]);
 
-      // Calculate total cube break pass rate
+      // Calculate total cube break pass rate — null when no breaks recorded
+      // so the portal shows "No tests yet" instead of a fabricated 100%.
       const allBreaks = cubeTests.flatMap((c) => c.break_results);
       const totalBreaks = allBreaks.length;
       const passedBreaks = allBreaks.filter((b) => b.is_pass === true).length;
-      const passRate = totalBreaks > 0 ? ((passedBreaks / totalBreaks) * 100).toFixed(1) : '100.0';
+      const passRate = totalBreaks > 0 ? `${((passedBreaks / totalBreaks) * 100).toFixed(1)}%` : null;
 
       return {
         regulatoryAuditor: {
           name: link.stakeholder_name,
           agency: link.stakeholder_role || 'National Construction Authority (NCA) / County Planning',
         },
+        linkExpiresAt: link.expires_at.toISOString(),
         project: {
           id: project?.id,
           name: project?.name,
@@ -789,18 +1133,50 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           status: project?.status,
         },
         complianceSummary: {
-          ncaSiteRegistration: `NCA/PRJ/${project?.code || '2026'}/REG`,
+          // No NCA registration record exists in the schema — report honestly.
+          ncaSiteRegistration: null,
           // No statutory-levy or supervisor-certification records exist yet —
           // return null so the portal shows "Not tracked" instead of inventing compliance.
           statutoryLevyPaid: remittedLevyCount > 0,
           certifiedSiteSupervisorPresent: supervisorMemberCount > 0,
-          concreteCubePassRate: `${passRate}%`,
+          concreteCubePassRate: passRate,
           totalBatchesSampled: cubeTests.length,
           prePourInspectionsConducted: inspections.length,
         },
-        cubeTests,
-        inspections,
-        certificates,
+        cubeTests: (cubeTests || []).map((c: any) => ({
+          id: c.id,
+          pourLocation: c.pour_location,
+          pourDate: c.pour_date,
+          concreteClass: c.concrete_class,
+          targetStrengthMpa: c.target_strength_mpa?.toString(),
+          supplierName: c.supplier_name,
+          deliveryDocketNo: c.delivery_docket_no,
+          breakResults: (c.break_results || []).map((b: any) => ({
+            id: b.id, cubeNumber: b.cube_number, breakAgeDays: b.break_age_days,
+            compressiveMpa: b.compressive_mpa?.toString(), isPass: b.is_pass, labName: b.lab_name,
+          })),
+        })),
+        inspections: (inspections || []).map((i: any) => ({
+          id: i.id,
+          title: i.title,
+          checklistType: i.checklist_type,
+          inspectionType: i.inspection_type,
+          location: i.location,
+          status: i.status,
+          scheduledDate: i.scheduled_date,
+          inspectedAt: i.inspected_at,
+          inspectorName: i.inspector_name,
+          items: (i.items || []).map((it: any) => ({
+            id: it.id, checkPoint: it.check_point, isMandatory: it.is_mandatory,
+            result: it.result, deficiencyNotes: it.deficiency_notes,
+          })),
+        })),
+        certificates: (certificates || []).map((c: any) => ({
+          id: c.id, certificateType: c.certificate_type, certificateReference: c.certificate_reference,
+          issueDate: c.issue_date, effectiveDate: c.effective_date,
+          dlpExpiryDate: c.dlp_expiry_date,
+          retentionAmountReleased: c.retention_amount_released?.toString(),
+        })),
       };
     });
 
@@ -814,8 +1190,96 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
   // 7. PROJECT CLIENT / DEVELOPER PORTAL — CHANGE ORDER APPROVAL (ADR-010)
   // ===========================================================================
 
+  // GET /api/v1/portals/client/:token — client dashboard payload:
+  // progress photos flagged client_visible, payment certificates, invoices.
+  server.get('/api/v1/portals/client/:token', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'CLIENT');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired client access token',
+      });
+    }
+
+    const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+      const [project, diaries, certificates, invoices, progress] = await Promise.all([
+        tx.project.findFirst({ where: { id: link.project_id } }),
+        tx.siteDiary.findMany({
+          where: { project_id: link.project_id },
+          include: { photos: { where: { client_visible: true } } },
+          orderBy: { entry_date: 'desc' },
+          take: 30,
+        }),
+        tx.paymentCertificate.findMany({
+          where: { project_id: link.project_id },
+          orderBy: { period_end: 'desc' },
+        }),
+        tx.invoice.findMany({
+          where: { project_id: link.project_id },
+          orderBy: { issue_date: 'desc' },
+        }),
+        tx.progressRecord.findMany({
+          where: { project_id: link.project_id },
+          orderBy: { record_date: 'desc' },
+          take: 10,
+        }),
+      ]);
+
+      return {
+        stakeholder: {
+          name: link.stakeholder_name,
+          role: link.stakeholder_role || 'Project Client / Developer',
+        },
+        linkExpiresAt: link.expires_at.toISOString(),
+        project: project
+          ? { id: project.id, name: project.name, code: project.code, status: project.status, contractSum: project.original_contract_sum?.toString() }
+          : null,
+        progressPhotos: diaries.flatMap((d) =>
+          (d.photos || []).map((ph: any) => ({
+            id: ph.id,
+            storageKey: ph.storage_key,
+            caption: ph.caption,
+            takenAt: ph.taken_at,
+            entryDate: d.entry_date,
+          })),
+        ),
+        certificates: certificates.map((c: any) => ({
+          id: c.id, certificateNo: c.certificate_no,
+          periodStart: c.period_start, periodEnd: c.period_end,
+          thisPeriodAmount: c.this_period_amount.toString(),
+          cumulativeCertified: c.cumulative_certified.toString(),
+          retentionHeld: c.retention_held.toString(),
+          netPayable: c.net_payable.toString(),
+          status: c.status, paidAt: c.paid_at,
+        })),
+        invoices: invoices.map((i: any) => ({
+          id: i.id, invoiceNo: i.invoice_no, title: i.title,
+          status: i.status, currency: i.currency,
+          total: i.total.toString(), amountPaid: i.amount_paid.toString(),
+          balanceDue: i.balance_due.toString(),
+          issueDate: i.issue_date, dueDate: i.due_date,
+        })),
+        progressRecords: progress.map((pr: any) => ({
+          id: pr.id, recordDate: pr.record_date,
+          overallProgress: pr.overall_progress?.toString(), notes: pr.notes,
+        })),
+      };
+    });
+
+    return reply.status(200).send({ statusCode: 200, data: payload });
+  });
+
   // GET /api/v1/portals/client/:token/change-orders
-  server.get('/api/v1/portals/client/:token/change-orders', async (request, reply) => {
+  server.get('/api/v1/portals/client/:token/change-orders', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token } = request.params as { token: string };
     const link = await resolvePortalLink(token, 'CLIENT');
 
@@ -845,6 +1309,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           name: link.stakeholder_name,
           role: link.stakeholder_role || 'Project Client / Developer',
         },
+        linkExpiresAt: link.expires_at.toISOString(),
         project: project
           ? { id: project.id, name: project.name, code: project.code, status: project.status }
           : null,
@@ -859,7 +1324,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
   });
 
   // POST /api/v1/portals/client/:token/change-orders/:coId/respond
-  server.post('/api/v1/portals/client/:token/change-orders/:coId/respond', async (request, reply) => {
+  server.post('/api/v1/portals/client/:token/change-orders/:coId/respond', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
     const { token, coId } = request.params as { token: string; coId: string };
     const link = await resolvePortalLink(token, 'CLIENT');
 

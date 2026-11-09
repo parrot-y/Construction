@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../../ui';
+import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
 
 export interface SubcontractorSnag {
   id: string;
@@ -56,12 +57,14 @@ export default function SubcontractorPortalView({
 }: SubcontractorPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [stakeholder, setStakeholder] = useState({ name: subcontractorName || '', trade: subcontractorTrade || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
   const [snagList, setSnagList] = useState<SubcontractorSnag[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [selectedSnagId, setSelectedSnagId] = useState<string | null>(null);
   const [rectifyPhotoKey, setRectifyPhotoKey] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [rectifyNotes, setRectifyNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -82,19 +85,20 @@ export default function SubcontractorPortalView({
         if (cancelled) return;
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', trade: d.stakeholder.trade || '' });
+        if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
         if (d.project) setProj({ name: d.project.name || '', code: d.project.code || '' });
         setSnagList((d.snags || []).map((s: any) => ({
           id: s.id,
           snag_number: `SNG-${String(s.snag_number).padStart(3, '0')}`,
-          location: [s.location_block, s.location_floor].filter(Boolean).join(', ') || s.location_floor || '—',
+          location: [s.locationBlock, s.locationFloor, s.locationRoom].filter(Boolean).join(', ') || '—',
           description: s.description,
           severity: s.severity === 'CRITICAL_SAFETY' ? 'CRITICAL' : s.severity === 'FUNCTIONAL' ? 'MINOR' : 'COSMETIC',
           status: s.status,
-          trade_category: s.trade_category || '',
-          assigned_trade_firm: s.assigned_trade_firm,
-          created_at: s.created_at,
+          trade_category: s.tradeCategory || '',
+          assigned_trade_firm: '',
+          created_at: s.identifiedAt,
           photos: (s.photos || []).map((ph: any) => ({
-            id: ph.id, photo_type: ph.photo_type, storage_key: ph.storage_key, caption: ph.caption,
+            id: ph.id, photo_type: ph.photoType, storage_key: ph.storageKey, caption: ph.caption,
           })),
         })));
         setPackages(d.packages || []);
@@ -112,39 +116,40 @@ export default function SubcontractorPortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
+    const isExpired = /expired/i.test(loadError);
+    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
-      <div className="max-w-5xl mx-auto p-8 text-center space-y-3">
-        <p className="text-sm font-semibold text-rose-700">{loadError}</p>
-        <p className="text-xs text-slate-400">Check the link or ask your project manager for a new one.</p>
-        {onBackToDashboard && <button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button>}
+      <div className="max-w-5xl mx-auto">
+        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
+        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
       </div>
     );
   }
 
   // Commercial summary derived from real work packages + valuations
   const commercialSummary: SubcontractCommercialSummary = (() => {
-    const contractSum = packages.reduce((a: number, p: any) => a + Number(p.subcontract_sum || 0), 0);
+    const contractSum = packages.reduce((a: number, p: any) => a + Number(p.subcontractSum || 0), 0);
     const allVals = packages.flatMap((p: any) => p.valuations || []);
-    const certified = allVals.filter((v: any) => ['QS_VERIFIED', 'APPROVED_FOR_PAYMENT', 'PAID'].includes(v.payment_status))
-      .reduce((a: number, v: any) => a + Number(v.gross_work_certified_kes || 0), 0);
-    const retention = allVals.reduce((a: number, v: any) => a + Number(v.retention_deducted_kes || 0), 0);
+    const certified = allVals.filter((v: any) => ['QS_VERIFIED', 'APPROVED_FOR_PAYMENT', 'PAID'].includes(v.paymentStatus))
+      .reduce((a: number, v: any) => a + Number(v.grossWorkCertifiedKes || 0), 0);
+    const retention = allVals.reduce((a: number, v: any) => a + Number(v.retentionDeductedKes || 0), 0);
     const milestones: SubcontractMilestone[] = packages.flatMap((p: any) =>
       (p.valuations || []).map((v: any) => ({
         id: v.id,
-        milestoneName: `${p.trade_category} — ${v.certificate_no}`,
+        milestoneName: `${p.tradeCategory} — ${v.certificateNo}`,
         pct: 0,
-        amountKes: String(v.net_payable_kes),
-        status: v.payment_status === 'PAID' ? 'PAID' : v.payment_status === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
-        certifiedDate: v.valuation_date ? String(v.valuation_date).split('T')[0] : undefined,
+        amountKes: String(v.netPayableKes),
+        status: v.paymentStatus === 'PAID' ? 'PAID' : v.paymentStatus === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
+        certifiedDate: v.valuationDate ? String(v.valuationDate).split('T')[0] : undefined,
       })),
     );
     return {
       contractSumKes: String(contractSum),
       cumulativeCertifiedKes: String(certified),
       retentionWithheldKes: String(retention),
-      retentionRatePct: packages[0] ? Number(packages[0].retention_rate_pct || 5) : 5,
-      netDisbursedKes: allVals.filter((v: any) => v.payment_status === 'PAID')
-        .reduce((a: number, v: any) => a + Number(v.net_payable_kes || 0), 0)
+      retentionRatePct: packages[0] ? Number(packages[0].retentionRatePct || 5) : 5,
+      netDisbursedKes: allVals.filter((v: any) => v.paymentStatus === 'PAID')
+        .reduce((a: number, v: any) => a + Number(v.netPayableKes || 0), 0)
         .toString(),
       milestones,
     };
@@ -214,6 +219,7 @@ export default function SubcontractorPortalView({
 
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="subcontractor-portal-view">
+      <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
@@ -388,15 +394,36 @@ export default function SubcontractorPortalView({
 
 <div>
 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                            After-Repair Photo Storage Key / Image URL:
+                            After-Repair Photo (required):
 </label>
 <input
-                            type="text"
-                            value={rectifyPhotoKey}
-                            onChange={(e) => setRectifyPhotoKey(e.target.value)}
-                            placeholder="e.g. uploads/snags/rectified_washbasin_coupling.jpg"
-                            className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/heic,application/pdf,video/mp4,video/quicktime"
+                            disabled={uploadingPhoto}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setUploadingPhoto(true);
+                              setFeedback(null);
+                              try {
+                                const fd = new FormData();
+                                fd.append('file', file);
+                                const up = await fetch(`/api/v1/portals/subcontractor/${token}/snags/${snag.id}/upload`, { method: 'POST', body: fd });
+                                const ub = await up.json().catch(() => ({}));
+                                if (!up.ok) throw new Error(ub.message || 'Photo upload failed');
+                                setRectifyPhotoKey(ub.data?.storageKey || '');
+                                setFeedback('Photo uploaded — submit to mark the defect rectified.');
+                              } catch (err: any) {
+                                setFeedback(err.message || 'Photo upload failed');
+                              } finally {
+                                setUploadingPhoto(false);
+                                e.target.value = '';
+                              }
+                            }}
+                            className="w-full text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
                           />
+{uploadingPhoto && <p className="text-[11px] text-slate-500 mt-1">Uploading photo…</p>}
+{rectifyPhotoKey && !uploadingPhoto && <p className="text-[11px] text-emerald-700 mt-1">Photo attached.</p>}
 </div>
 
 <div>
@@ -426,7 +453,7 @@ export default function SubcontractorPortalView({
 </button>
 <button
                             type="button"
-                            disabled={submitting || !rectifyPhotoKey.trim()}
+                            disabled={submitting || uploadingPhoto || !rectifyPhotoKey.trim()}
                             onClick={() => handleRectifySubmit(snag.id)}
                             className="px-4 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 transition"
                           >
@@ -551,14 +578,39 @@ export default function SubcontractorPortalView({
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
                 >
                   {packages.map((pkg: any) => (
-                    <option key={pkg.id} value={pkg.id}>{pkg.trade_category} — {pkg.firm_name}</option>
+                    <option key={pkg.id} value={pkg.id}>{pkg.tradeCategory} — {pkg.firmName}</option>
                   ))}
                 </select>
 </div>
 
+{(() => {
+                  const pkg = packages.find((p: any) => p.id === claimPackageId);
+                  if (!pkg) return null;
+                  const vals = pkg.valuations || [];
+                  const certifiedToDate = vals.length ? Math.max(...vals.map((v: any) => Number(v.grossWorkCertifiedKes || 0))) : 0;
+                  const packageSum = Number(pkg.subcontractSum || 0);
+                  const remaining = Math.max(0, packageSum - certifiedToDate);
+                  return (
+<div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-center">
+<div>
+<p className="text-[10px] text-slate-500 font-semibold">Package value</p>
+<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(packageSum))}</p>
+</div>
+<div>
+<p className="text-[10px] text-slate-500 font-semibold">Certified to date</p>
+<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(certifiedToDate))}</p>
+</div>
+<div>
+<p className="text-[10px] text-slate-500 font-semibold">Remaining</p>
+<p className="text-xs font-bold text-emerald-700 font-mono">{formatKes(String(remaining))}</p>
+</div>
+</div>
+);
+                })()}
+
 <div>
 <label className="block font-semibold text-slate-700 mb-1">
-                  Claim Valuation Amount (KES Gross):
+                  Claim Valuation Amount (KES Gross, cumulative):
 </label>
 <input
                   type="text"

@@ -561,7 +561,25 @@ export const CreatePortalLinkSchema = z.object({
   stakeholderName: z.string().min(2).max(255),
   stakeholderRole: z.string().max(100).optional().nullable(),
   expiresInDays: z.number().int().min(1).max(365).default(30),
+  // SUBCONTRACTOR links must bind to one work package (audit: no cross-subs visibility)
+  subcontractorPackageId: z.string().uuid().optional().nullable(),
 });
+
+// Consultant portal RFI reply (external, unauthenticated token scope)
+export const ConsultantRfiReplySchema = z.object({
+  officialAnswer: z.string().min(3).max(5000),
+  consultantName: z.string().max(255).optional().nullable(),
+  consultantBoraqsNo: z.string().max(50).optional().nullable(),
+});
+export type ConsultantRfiReply = z.infer<typeof ConsultantRfiReplySchema>;
+
+// Supplier portal delivery confirm/dispute
+export const SupplierDeliveryActionSchema = z.object({
+  action: z.enum(['CONFIRM', 'DISPUTE']),
+  invoiceRef: z.string().max(100).optional().nullable(),
+  note: z.string().max(500).optional().nullable(),
+});
+export type SupplierDeliveryAction = z.infer<typeof SupplierDeliveryActionSchema>;
 export type CreatePortalLink = z.infer<typeof CreatePortalLinkSchema>;
 
 // -------------------------------------------------------------

@@ -914,7 +914,23 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(snagId).toBeDefined();
     expect(snagBody.status).toBe('OPEN');
 
-    // 2. Generate Subcontractor Token Link
+    // 2. Award a work package + generate package-scoped Subcontractor Token Link
+    const pkgRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/subcontractors`,
+      headers: { cookie: adminCookie },
+      payload: {
+        tradeCategory: 'PLUMBING',
+        firmName: 'Simba Plumbing Works Ltd',
+        subcontractSum: '800000.00',
+        retentionRatePct: '5.00',
+        status: 'ACTIVE',
+      },
+    });
+    expect(pkgRes.statusCode).toBe(201);
+    const pkgBody = JSON.parse(pkgRes.body);
+    const subPackageId = pkgBody.id || pkgBody.data?.id;
+
     const linkRes = await server.inject({
       method: 'POST',
       url: `/api/v1/projects/${projectId}/portals/links`,
@@ -924,6 +940,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
         stakeholderName: 'Simba Plumbing Works Ltd',
         stakeholderRole: 'Plumbing',
         expiresInDays: 14,
+        subcontractorPackageId: subPackageId,
       },
     });
 
@@ -940,12 +957,23 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     const subPortal = JSON.parse(subPortalRes.body).data;
     expect(subPortal.snags.length).toBeGreaterThan(0);
 
-    // 4. Subcontractor submits rectification proof
+    // 4. Subcontractor uploads rectification photo via portal endpoint, then submits proof
+    const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+    const upForm = new FormData();
+    upForm.append('file', new Blob([pngBytes], { type: 'image/png' }), 'rectified.png');
+    const upRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/portals/subcontractor/${subToken}/snags/${snagId}/upload`,
+      payload: upForm,
+    });
+    expect(upRes.statusCode).toBe(201);
+    const storageKey = JSON.parse(upRes.body).data.storageKey;
+
     const rectifyRes = await server.inject({
       method: 'POST',
       url: `/api/v1/portals/subcontractor/${subToken}/snags/${snagId}/rectify`,
       payload: {
-        photoStorageKey: 'uploads/snags/rectified_basin_coupling.jpg',
+        photoStorageKey: storageKey,
         notes: 'Tightened compression coupling and tested under 6-bar mains pressure with zero leakage.',
         gpsLat: -1.286389,
         gpsLng: 36.817223,

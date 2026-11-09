@@ -182,7 +182,7 @@ Captured every create form on contractor portal: CO, RFI, correspondence, safety
 - [x] 5. Sessions: 15m access + 7d refresh rotation, per-request is_active/membership check, @fastify/rate-limit on login/refresh/public
 - [x] 6. Peripheral modules (plant/survey/tender/steel/asphalt/geofence) quarantinable via DISABLED_MODULES
 - [x] 7. PORTAL_MATCHING_MAP.md removed; feature-matching goal dropped
-- [ ] 8. PROJECT_STATUS.md update + seed production guard
+- [x] {i}. PROJECT_STATUS.md update + seed production guard
 - [ ] Final verify-local green + evidence
 
 ## Post-audit hardening & polish (continued)
@@ -228,3 +228,21 @@ Branch: devin/audit-remediation. Rules: evidence per item in docs/evidence/, no 
 - [x] Phase 5 — Report (PROJECT_STATUS + visual evidence + audit summary)
 
 ### Phase 5 — Report — Report: PROJECT_STATUS + before/after screenshots + audit summary
+
+## Portal hardening pass (branch devin/portal-hardening)
+Plan per auditor items 1-13, failing test first each:
+- [x] {i}. Subcontractor link scoped to subcontractor_package_id; remove contains-matching; isolation test
+- [x] {i}. Link create/list: allow-list via requirePermission (admin/PM_QS only) + dedicated permission
+- [x] {i}. rateLimit on /api/v1/portals/*; identical 404 for invalid/expired/wrong-type
+- [x] {i}. Explicit DTOs for consultant/compliance/subcontractor/supplier payloads; drop unused queries
+- [x] {i}. Rectify: portal-scoped upload endpoint w/ magic-byte verify; tenant+project check
+- [x] {i}. Consultant reply: Zod schema, 400 missing, reject ANSWERED/CLOSED, no creator responder_id, external_responder_name/external_link_id
+- [x] {i}. Valuation: Decimal math, prev payments from valuations, cap vs package sum, WHT from config, package-scoped link required
+- [x] 8. Supplier confirm/dispute: note required on DISPUTE, invoiceRef on CONFIRM, block final-state
+- [x] {i}. Compliance: remove invented ncaSiteRegistration, "Not recorded"; "No tests yet" not 100%
+- [x] {i}. PortalAccessLinkManager: remove mock fallback, canonical linkUrl, regenerate/revoke, last-used/use-count/expiry
+- [x] {i}. Portal views: expiry banner, revoked state, shared error component
+- [x] {i}. Portal empty states + wording cleanup (done partially in 39f57c3)
+- [x] {i}. Supplier dispute fields; sub valuation context; client portal photos/certs/invoices
+- [x] E2E green: e-portals.spec.ts 12/12 (chromium + mobile-390) — two-sub isolation, revoked, expired (real expires_at mutation), role-restricted create, rectify w/ real upload. Fixed e2e infra: rls.sql functions must be owned by RLS-bypassing role (E2E_ADMIN_DATABASE_URL), psql URL schema-param strip, RLS-safe fixture UPDATE.
+- [x] Evidence: docs/evidence/portal-hardening.md; PROJECT_STATUS update; verify-local 730/730 (API 525, web 118, money 63, db 15, permissions 9)
