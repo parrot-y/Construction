@@ -82,8 +82,8 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
 ))}
 </div>
 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-<BudgetSummaryCard projectName={projectName} />
-<VarianceMonitorCard projectName={projectName} />
+<BudgetSummaryCard projectId={projectId} projectName={projectName} />
+<VarianceMonitorCard projectId={projectId} projectName={projectName} />
 </div>
 </div>
 )}
@@ -93,7 +93,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
       {ft === 'retention' &&<RetentionAndBondsView projectId={projectId} projectName={projectName} userRole="PM_QS" />}
       {ft === 'budget' && (
 <div className="space-y-4">
-<BudgetSummaryCard projectName={projectName} />
+<BudgetSummaryCard projectId={projectId} projectName={projectName} />
 <ProjectSCurveCashFlowCard projectId={projectId} projectName={projectName} />
 </div>
 )}

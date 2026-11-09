@@ -135,17 +135,14 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
     const html = renderToString(<PmQsDashboard session={qsSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
-    expect(html).toContain('Faith Achieng');
     expect(html).toContain('PM_QS');
     expect(html).toContain('Cost Control &amp; BOQ Management');
     expect(html).toContain('Import Excel BOQ');
     expect(html).toContain('BORAQS / EASMM');
     expect(html).toContain('Approved Budget Baseline');
     expect(html).toContain('Core Loop Workflow Status');
-    expect(html).toContain('Variance Monitor');
-    expect(html).toContain('Riverside Commercial Plaza');
-    expect(html).toContain('Section 1: Preliminaries &amp; General');
-    expect(html).toContain('KES 45,000,000');
+    // Variance/budget cards render honest empty states until live data loads
+    expect(html).toContain('No variance data yet');
 });
 
   it('renders SITE_SUPERVISOR dashboard with daily diary, headcount, and offline PWA indicator', () => {
@@ -245,7 +242,25 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
   it('renders BudgetSummaryCard with approved budget, actual spent, pending approvals, and category breakdown', () => {
     const html = renderToString(
-<BudgetSummaryCard projectName="Riverside Commercial Plaza" />,
+<BudgetSummaryCard
+          projectName="Riverside Commercial Plaza"
+          summary={{
+            approvedBudget: '45000000.00',
+            approvedCost: '12450200.00',
+            pendingCost: '1850000.00',
+            rejectedCost: '0.00',
+            remainingBudget: '32549800.00',
+            consumptionPercentage: '27.67',
+            categoryBreakdown: {
+              MATERIAL: { approved: '6200000.00', pending: '850000.00'},
+              LABOR: { approved: '3150000.00', pending: '500000.00'},
+              PLANT: { approved: '1200200.00', pending: '250000.00'},
+              SUBCONTRACT: { approved: '1100000.00', pending: '150000.00'},
+              PRELIMINARY: { approved: '800000.00', pending: '100000.00'},
+            },
+            varianceAlert: { hasWarning: false, message: null },
+          }}
+        />,
 );
     expect(html).toContain('Budget vs Actual Expenditure');
     expect(html).toContain('Approved Budget');
@@ -322,7 +337,32 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
   describe('Milestone M7: Variance Monitor & Health Visualization', () => {
     it('renders VarianceMonitorCard with default ON_TRACK status, comparison bars, and section breakdown', () => {
       const html = renderToString(
-<VarianceMonitorCard projectName="Riverside Commercial Plaza" />,
+<VarianceMonitorCard
+          projectName="Riverside Commercial Plaza"
+          approvedBudget="45000000.00"
+          approvedCost="12450200.00"
+          pendingCost="1850000.00"
+          detailedVariance={{
+            costConsumptionPercentage: '27.67',
+            physicalProgressPercentage: '30.00',
+            differencePercentage: '-2.33%',
+            status: 'ON_TRACK',
+            statusLabel: 'Normal Alignment',
+            severity: 'info',
+            message: 'Expenditure is aligned with recorded physical progress.',
+          }}
+          categoryBreakdown={{
+            MATERIAL: { approved: '6200000.00', pending: '850000.00'},
+            LABOR: { approved: '3150000.00', pending: '500000.00'},
+            PLANT: { approved: '1200200.00', pending: '250000.00'},
+            SUBCONTRACT: { approved: '1100000.00', pending: '150000.00'},
+            PRELIMINARY: { approved: '800000.00', pending: '100000.00'},
+          }}
+          sectionBreakdown={[
+            { sectionId: 'sec-1', title: 'Section 1: Preliminaries & General', allocatedBudget: '4500000.00', actualSpent: '1800000.00', pendingSpent: '200000.00', remainingBudget: '2700000.00', consumptionPercentage: '40.00', isOverBudget: false, status: 'NORMAL' },
+            { sectionId: 'sec-2', title: 'Section 2: Substructure & Earthworks', allocatedBudget: '12000000.00', actualSpent: '7500000.00', pendingSpent: '500000.00', remainingBudget: '4500000.00', consumptionPercentage: '62.50', isOverBudget: false, status: 'NORMAL' },
+          ]}
+        />,
 );
 
       // Header & Status
@@ -442,12 +482,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 };
 
       const qsHtml = renderToString(<PmQsDashboard session={qsSession} />);
-      expect(qsHtml).toContain('Variance Monitor &amp; Health Guard');
-      expect(qsHtml).toContain('BOQ Section-by-Section Spend Breakdown');
+      // Cards render honest empty states until live budget/variance data loads
+      expect(qsHtml).toContain('No variance data yet');
 
       const clientHtml = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
-      expect(clientHtml).toContain('Variance Monitor &amp; Health Guard');
-      expect(clientHtml).toContain('BOQ Section-by-Section Spend Breakdown');
+      expect(clientHtml).toContain('No variance data yet');
 });
 });
 
@@ -761,23 +800,15 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     it('displays neutral project health guard card with factual notice and variance metrics', () => {
       const html = renderToString(<ClientDashboard session={clientSession} />);
 
-      expect(html).toContain('Project Health &amp; Alignment Guard');
-      expect(html).toContain('ON TRACK • Normal Alignment');
-      expect(html).toContain('Expenditure is aligned with recorded physical progress.');
-      expect(html).toContain('Physical Progress');
-      expect(html).toContain('Budget Consumed');
-      expect(html).toContain('Variance Delta');
+      // Unhydrated client portal shows honest empty state, never fabricated metrics
+      expect(html).toContain('No variance data yet');
 });
 
     it('displays Kenyan standard contract retention terms with 10% deduction and 5% cap', () => {
       const html = renderToString(<ClientDashboard session={clientSession} />);
 
-      expect(html).toContain('Contract Retention Terms (Kenyan Standard)');
-      expect(html).toContain('10% of Gross Certified Work');
-      expect(html).toContain('KES 2,250,000');
-      expect(html).toContain('5% of Contract Sum');
-      expect(html).toContain('50% released at Practical Completion');
-      expect(html).toContain('50% released at end of Defects Liability Period (DLP)');
+      // Retention legal copy only renders with hydrated certificate data
+      expect(html).not.toContain('KES 2,250,000');
 });
 });
 
@@ -963,6 +994,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 <PracticalCompletionCard
           projectName="Riverside Commercial Plaza"
           projectCode="RCP-2026"
+          practicalCompletionDate="2026-10-15"
+          architectName="Arch. Peter M. Mwangi"
+          architectBoraqsNo="A-742"
+          qsName="Qs. Faith Achieng"
+          qsBoraqsNo="Q-819"
         />,
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
@@ -982,6 +1018,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
           projectName="Riverside Commercial Plaza"
           projectCode="RCP-2026"
           contractSum="45000000.00"
+          firstMoietyReleased={true}
           firstMoietyAmount="1125000.00"
         />,
 );
@@ -998,7 +1035,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const rawHtml = renderToString(
 <PracticalCompletionCard
           projectName="Riverside Commercial Plaza"
+          practicalCompletionDate="2026-10-15"
           dlpDaysRemaining={124}
+          dlpExpiryDate="15 April 2027"
         />,
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
@@ -1013,6 +1052,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const rawHtml = renderToString(
 <PracticalCompletionCard
           projectName="Riverside Commercial Plaza"
+          practicalCompletionDate="2026-10-15"
+          dlpExpiryDate="10 April 2027"
+          secondMoietyStatus="HELD_IN_ESCROW"
           secondMoietyAmount="1125000.00"
         />,
 );

@@ -265,7 +265,7 @@ export default function ClientDashboard({
 <div className="flex items-center gap-2 mt-2 text-xs text-slate-600">
 <span className="font-semibold text-slate-800">{projectData.name}</span>
 <span>•</span>
-<span className="font-mono text-slate-500">{projectData.location}</span>
+<span className="text-slate-500">{projectData.location}</span>
 <span>•</span>
 <span className="font-mono text-slate-500">NCA: {projectData.ncaRegistration}</span>
 </div>
@@ -499,7 +499,25 @@ export default function ClientDashboard({
 </div>
 
       {/* Variance Monitor & Neutral Health Guard (Milestone M7) */}
-<VarianceMonitorCard projectName={projectData.name} />
+<VarianceMonitorCard
+        projectName={projectData.name}
+        approvedBudget={financials.currentApprovedBudget}
+        approvedCost={financials.totalSpentToDate}
+        pendingCost="0.00"
+        detailedVariance={
+          hydrated && progress.physicalProgressPercentage != null && financials.budgetUsedPercentage != null
+            ? {
+                costConsumptionPercentage: String(financials.budgetUsedPercentage),
+                physicalProgressPercentage: String(progress.physicalProgressPercentage),
+                differencePercentage: `${progress.varianceDelta > 0 ? '+' : ''}${progress.varianceDelta}%`,
+                status: progress.healthStatus,
+                statusLabel: progress.healthStatus === 'ON_TRACK' ? 'On Track' : progress.healthStatus === 'ATTENTION' ? 'Attention' : 'Action Required',
+                severity: progress.healthStatus === 'ON_TRACK' ? 'info' : progress.healthStatus === 'ATTENTION' ? 'warning' : 'critical',
+                message: progress.healthNotice || 'Expenditure vs recorded progress.',
+              }
+            : undefined
+        }
+      />
 
       {/* Certified IPCs & Valuation Payments Schedule (Diaspora Multi-Currency Converted) */}
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
@@ -509,7 +527,7 @@ export default function ClientDashboard({
 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                 Certified Valuations Ledger
 </span>
-<span className="text-xs text-slate-500 font-mono">
+<span className="text-xs text-slate-500">
                 Currency: {selectedCurrency} ({exchangeRates[selectedCurrency].label})
 </span>
 </div>
@@ -553,7 +571,7 @@ export default function ClientDashboard({
 <span className="text-sm font-bold font-mono text-blue-700 mt-0.5 block">
               {formatWithCurrency(String((paymentCertificates || []).reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
-<span className="text-[10px] text-slate-400 font-mono">Sum of net payable on certified IPCs</span>
+<span className="text-[10px] text-slate-400">Sum of net payable on certified IPCs</span>
 </div>
 
 {hydrated && progress.varianceDelta !== 0 && (

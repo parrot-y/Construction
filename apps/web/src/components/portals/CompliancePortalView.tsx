@@ -367,10 +367,10 @@ export default function CompliancePortalView({
 </button>
 </div>
 
-<div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3 font-mono">
+<div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3">
 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">NCA Registration:</span>
-<span className="font-bold text-slate-900">{complianceSummary.ncaSiteRegistration}</span>
+<span className="font-bold text-slate-900 font-mono">{complianceSummary.ncaSiteRegistration}</span>
 </div>
 {statutoryPermits.length === 0 ? (
 <div className="text-slate-500">No statutory permits on file — the contractor has not uploaded NEMA, county, DOSHS or NCWSC documents for this project.</div>
@@ -378,7 +378,7 @@ export default function CompliancePortalView({
 statutoryPermits.map((pm) => (
 <div key={pm.id} className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">{pm.authority}:</span>
-<span className="font-bold text-slate-900">{pm.permitNumber} ({pm.status})</span>
+<span className="font-bold text-slate-900 font-mono">{pm.permitNumber} ({pm.status})</span>
 </div>
 ))
 )}

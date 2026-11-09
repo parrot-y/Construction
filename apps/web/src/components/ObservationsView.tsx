@@ -279,7 +279,7 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 <label className="space-y-1"><span className={label}>Source ref</span>
 <input value={actForm.sourceRef} onChange={(e) => setActForm({ ...actForm, sourceRef: e.target.value})} placeholder="e.g. OBS-003" className={input} /></label>
 <label className="sm:col-span-2 space-y-1"><span className={label}>Steps (one per line)</span>
-<textarea rows={3} value={actForm.steps} onChange={(e) => setActForm({ ...actForm, steps: e.target.value})} placeholder={'Mark out repair zone\nApply bonding agent\nApply repair mortar'} className={`${input} resize-none font-mono`} /></label>
+<textarea rows={3} value={actForm.steps} onChange={(e) => setActForm({ ...actForm, steps: e.target.value})} placeholder={'Mark out repair zone\nApply bonding agent\nApply repair mortar'} className={`${input} resize-none`} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void createAction()} disabled={saving || actForm.title.length< 3 || actForm.ownerName.length< 2}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">

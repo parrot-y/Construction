@@ -1,5 +1,5 @@
-import React from 'react';
-import { formatKes } from '../ui';
+import React, { useEffect, useState } from 'react';
+import { formatKes, EmptyState } from '../ui';
 
 export interface SectionBreakdownItem {
   sectionId: string;
@@ -40,6 +40,7 @@ export interface CategoryBreakdownData {
 
 export interface VarianceMonitorCardProps {
   projectName?: string;
+  projectId?: string;
   approvedBudget?: string;
   approvedCost?: string;
   pendingCost?: string;
@@ -48,80 +49,69 @@ export interface VarianceMonitorCardProps {
   categoryBreakdown?: CategoryBreakdownData;
 }
 
+interface LiveVariance {
+  name?: string;
+  approvedBudget?: string;
+  detailedVariance?: DetailedVarianceData;
+}
+
 export default function VarianceMonitorCard({
   projectName = '',
-  approvedBudget = '45000000.00',
-  approvedCost = '12450200.00',
-  pendingCost = '1850000.00',
-  detailedVariance = {
-    costConsumptionPercentage: '27.67',
-    physicalProgressPercentage: '30.00',
-    differencePercentage: '-2.33%',
-    status: 'ON_TRACK',
-    statusLabel: 'Normal Alignment',
-    severity: 'info',
-    message: 'Expenditure is aligned with recorded physical progress.',
-},
-  sectionBreakdown = [
-    {
-      sectionId: 'sec-1',
-      title: 'Section 1: Preliminaries & General',
-      allocatedBudget: '4500000.00',
-      actualSpent: '1800000.00',
-      pendingSpent: '200000.00',
-      remainingBudget: '2700000.00',
-      consumptionPercentage: '40.00',
-      isOverBudget: false,
-      status: 'NORMAL',
-},
-    {
-      sectionId: 'sec-2',
-      title: 'Section 2: Substructure & Earthworks',
-      allocatedBudget: '12000000.00',
-      actualSpent: '7500000.00',
-      pendingSpent: '500000.00',
-      remainingBudget: '4500000.00',
-      consumptionPercentage: '62.50',
-      isOverBudget: false,
-      status: 'NORMAL',
-},
-    {
-      sectionId: 'sec-3',
-      title: 'Section 3: Reinforced Concrete Frame',
-      allocatedBudget: '18500000.00',
-      actualSpent: '2500000.00',
-      pendingSpent: '800000.00',
-      remainingBudget: '16000000.00',
-      consumptionPercentage: '13.51',
-      isOverBudget: false,
-      status: 'NORMAL',
-},
-    {
-      sectionId: 'sec-4',
-      title: 'Section 4: Walling, Finishes & Services',
-      allocatedBudget: '10000000.00',
-      actualSpent: '650200.00',
-      pendingSpent: '350000.00',
-      remainingBudget: '9349800.00',
-      consumptionPercentage: '6.50',
-      isOverBudget: false,
-      status: 'NORMAL',
-},
-  ],
-  categoryBreakdown = {
-    MATERIAL: { approved: '6200000.00', pending: '850000.00'},
-    LABOR: { approved: '3150000.00', pending: '500000.00'},
-    PLANT: { approved: '1200200.00', pending: '250000.00'},
-    SUBCONTRACT: { approved: '1100000.00', pending: '150000.00'},
-    PRELIMINARY: { approved: '800000.00', pending: '100000.00'},
-},
+  projectId,
+  approvedBudget,
+  approvedCost,
+  pendingCost,
+  detailedVariance,
+  sectionBreakdown,
+  categoryBreakdown,
 }: VarianceMonitorCardProps): React.JSX.Element {
-  const costPct = parseFloat(detailedVariance.costConsumptionPercentage) || 0;
-  const physPct = parseFloat(detailedVariance.physicalProgressPercentage) || 0;
+  const [live, setLive] = useState<LiveVariance | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+
+  const needsLive = !approvedBudget && !!projectId;
+  useEffect(() => {
+    if (!needsLive) return;
+    let cancelled = false;
+    setLiveLoading(true);
+    fetch('/api/v1/dashboard', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (cancelled || !j) return;
+        const rows = j.data?.projects || j.projects || j.data || [];
+        const p = (Array.isArray(rows) ? rows : []).find((x: any) => x.id === projectId);
+        if (p) {
+          setLive({
+            name: p.name,
+            approvedBudget: p.current_approved_budget,
+            detailedVariance: p.varianceDetail
+              ? {
+                  status: p.varianceDetail.status,
+                  statusLabel: p.varianceDetail.statusLabel,
+                  severity: p.varianceDetail.severity,
+                  message: p.varianceDetail.message,
+                  costConsumptionPercentage: p.varianceDetail.costConsumptionPercentage,
+                  physicalProgressPercentage: p.varianceDetail.physicalProgressPercentage,
+                  differencePercentage: p.varianceDetail.differencePercentage,
+                }
+              : undefined,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLiveLoading(false); });
+    return () => { cancelled = true; };
+  }, [needsLive, projectId]);
+
+  const resolvedBudget = approvedBudget ?? live?.approvedBudget;
+  const resolvedVariance = detailedVariance ?? live?.detailedVariance;
+  const resolvedName = projectName || live?.name || '';
+
+  const costPct = parseFloat(resolvedVariance?.costConsumptionPercentage || '0') || 0;
+  const physPct = parseFloat(resolvedVariance?.physicalProgressPercentage || '0') || 0;
 
   // Status configuration per ADR-001 & ADR-005 (Strict Neutrality)
-  const isActionRequired = detailedVariance.status === 'ACTION_REQUIRED';
-  const isAttention = detailedVariance.status === 'ATTENTION';
+  const isActionRequired = resolvedVariance?.status === 'ACTION_REQUIRED';
+  const isAttention = resolvedVariance?.status === 'ATTENTION';
 
   const statusBadgeClass = isActionRequired
     ? 'bg-rose-50 text-rose-800 border-rose-300'
@@ -137,6 +127,24 @@ export default function VarianceMonitorCard({
 
   const statusIcon = isActionRequired ? '' : isAttention ? 'ℹ' : '';
 
+  const hasData = !!resolvedVariance || (!!resolvedBudget && Number(resolvedBudget) > 0);
+  if (!hasData && !liveLoading) {
+    return (
+      <EmptyState
+        title="No variance data yet"
+        hint="Budget and progress figures appear here once the project has an approved budget, costs and progress records."
+      />
+    );
+  }
+  if (!resolvedVariance) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <span className="text-xs font-bold text-slate-700 block">Variance monitor</span>
+        <p className="text-xs text-slate-500 mt-1">Loading variance data…</p>
+      </div>
+    );
+  }
+
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-6">
       {/* 1. Header & Neutral Status Badge */}
@@ -145,7 +153,7 @@ export default function VarianceMonitorCard({
 <div className="flex items-center gap-2">
 <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
 <span className="text-[11px] font-bold text-slate-500">
-              Variance Monitor &amp; Health Guard • {projectName}
+              Variance Monitor &amp; Health Guard • {resolvedName}
 </span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
@@ -161,10 +169,10 @@ export default function VarianceMonitorCard({
             className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusBadgeClass} flex items-center gap-1.5`}
           >
 <span>{statusIcon}</span>
-<span>{`${detailedVariance.statusLabel} (${detailedVariance.status})`}</span>
+<span>{`${resolvedVariance.statusLabel} (${resolvedVariance.status})`}</span>
 </span>
 <span className="text-xs font-mono font-bold px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg border border-slate-200">
-            Δ {detailedVariance.differencePercentage}
+            Δ {resolvedVariance.differencePercentage}
 </span>
 </div>
 </div>
@@ -174,7 +182,7 @@ export default function VarianceMonitorCard({
 <span className="text-base select-none">{statusIcon}</span>
 <div>
 <span className="font-bold block mb-0.5">Project Health Notice:</span>
-<span>{detailedVariance.message}</span>
+<span>{resolvedVariance.message}</span>
 </div>
 </div>
 
@@ -192,7 +200,7 @@ export default function VarianceMonitorCard({
 <span className="font-semibold text-slate-700">Cost Consumption (Approved)</span>
 </div>
 <span className="font-mono font-bold text-slate-900">
-              {`${detailedVariance.costConsumptionPercentage}% (${formatKes(approvedCost)} of ${formatKes(approvedBudget)} • ${formatKes(pendingCost)} pending)`}
+              {`${resolvedVariance.costConsumptionPercentage}% (${formatKes(approvedCost)} of ${formatKes(approvedBudget)} • ${formatKes(pendingCost)} pending)`}
 </span>
 </div>
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
@@ -213,7 +221,7 @@ export default function VarianceMonitorCard({
 <span className="font-semibold text-slate-700">Physical Milestone Progress</span>
 </div>
 <span className="font-mono font-bold text-blue-700">
-              {`${detailedVariance.physicalProgressPercentage}% (Verified On-Site)`}
+              {`${resolvedVariance.physicalProgressPercentage}% (Verified On-Site)`}
 </span>
 </div>
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
@@ -226,6 +234,7 @@ export default function VarianceMonitorCard({
 </div>
 
       {/* 4. Category Cost Distribution */}
+{categoryBreakdown && (
 <div className="space-y-2">
 <span className="text-xs font-bold text-slate-700 block">
           Category Cost Distribution (Approved / Pending)
@@ -283,7 +292,10 @@ export default function VarianceMonitorCard({
 </div>
 </div>
 
+      )}
+
       {/* 5. Section-by-Section BOQ Spend Table */}
+{sectionBreakdown && sectionBreakdown.length > 0 && (
 <div className="space-y-2">
 <span className="text-xs font-bold text-slate-700 block">
           BOQ Section-by-Section Spend Breakdown
@@ -333,6 +345,7 @@ export default function VarianceMonitorCard({
 </table>
 </div>
 </div>
+)}
 </div>
 );
 }

@@ -1,5 +1,5 @@
-import React from 'react';
-import { formatKes } from '../ui';
+import React, { useEffect, useState } from 'react';
+import { formatKes, EmptyState } from '../ui';
 
 export interface BudgetSummaryData {
   approvedBudget: string;
@@ -23,32 +23,61 @@ export interface BudgetSummaryData {
 
 interface BudgetSummaryCardProps {
   summary?: BudgetSummaryData;
+  projectId?: string;
   projectName?: string;
 }
 
 export default function BudgetSummaryCard({
-  summary = {
-    approvedBudget: '45000000.00',
-    approvedCost: '12450200.00',
-    pendingCost: '1850000.00',
-    rejectedCost: '0.00',
-    remainingBudget: '32549800.00',
-    consumptionPercentage: '27.67',
-    categoryBreakdown: {
-      MATERIAL: { approved: '6200000.00', pending: '850000.00'},
-      LABOR: { approved: '3150000.00', pending: '500000.00'},
-      PLANT: { approved: '1200200.00', pending: '250000.00'},
-      SUBCONTRACT: { approved: '1100000.00', pending: '150000.00'},
-      PRELIMINARY: { approved: '800000.00', pending: '100000.00'},
-},
-    varianceAlert: {
-      hasWarning: false,
-      message: null,
-},
-},
+  summary,
+  projectId,
   projectName = '',
 }: BudgetSummaryCardProps): React.JSX.Element {
-  const percent = parseFloat(summary.consumptionPercentage) || 0;
+  const [live, setLive] = useState<BudgetSummaryData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (summary || !projectId) return;
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/v1/projects/${projectId}/budget/summary`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (cancelled || !j) return;
+        const d = j.data || j;
+        if (d?.approvedBudget) {
+          setLive({
+            approvedBudget: d.approvedBudget,
+            approvedCost: d.approvedCost,
+            pendingCost: d.pendingCost,
+            rejectedCost: d.rejectedCost,
+            remainingBudget: d.remainingBudget,
+            consumptionPercentage: d.consumptionPercentage,
+            categoryBreakdown: d.categoryBreakdown,
+            varianceAlert: d.varianceAlert,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [summary, projectId]);
+
+  const resolved = summary ?? live;
+  if (!resolved) {
+    return loading ? (
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <span className="text-[11px] font-bold text-slate-500">Financial Ledger Baseline • {projectName}</span>
+        <p className="text-xs text-slate-500 mt-2">Loading budget summary…</p>
+      </div>
+    ) : (
+      <EmptyState
+        title="No budget data yet"
+        hint="Approved budget, costs and category breakdown appear here once the project BOQ and cost entries exist."
+      />
+    );
+  }
+
+  const percent = parseFloat(resolved.consumptionPercentage) || 0;
   const isHighConsumption = percent > 80;
 
   return (
@@ -63,15 +92,15 @@ export default function BudgetSummaryCard({
 </div>
 <div className="text-right">
 <span className="text-xs font-medium text-slate-500">Budget Consumed:</span>
-<span className="text-xs font-bold font-mono text-slate-900">{summary.consumptionPercentage}%</span>
+<span className="text-xs font-bold font-mono text-slate-900">{resolved.consumptionPercentage}%</span>
 </div>
 </div>
 
       {/* Neutral Variance Alert Banner */}
-      {summary.varianceAlert?.hasWarning && (
+      {resolved.varianceAlert?.hasWarning && (
 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center gap-2">
 <span className="text-sm font-bold">ℹ</span>
-<span>{summary.varianceAlert.message}</span>
+<span>{resolved.varianceAlert.message}</span>
 </div>
 )}
 
@@ -86,7 +115,7 @@ export default function BudgetSummaryCard({
 <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 font-mono">
 <span>0%</span>
 <span>50%</span>
-<span>100% ({formatKes(summary.approvedBudget)})</span>
+<span>100% ({formatKes(resolved.approvedBudget)})</span>
 </div>
 </div>
 
@@ -97,7 +126,7 @@ export default function BudgetSummaryCard({
             Approved Budget
 </span>
 <span className="text-sm font-bold font-mono text-slate-900 mt-1 block">
-            {formatKes(summary.approvedBudget)}
+            {formatKes(resolved.approvedBudget)}
 </span>
 </div>
 
@@ -106,7 +135,7 @@ export default function BudgetSummaryCard({
             Actual Spent (Approved)
 </span>
 <span className="text-sm font-bold font-mono text-emerald-800 mt-1 block">
-            {formatKes(summary.approvedCost)}
+            {formatKes(resolved.approvedCost)}
 </span>
 </div>
 
@@ -115,7 +144,7 @@ export default function BudgetSummaryCard({
             Pending Approval
 </span>
 <span className="text-sm font-bold font-mono text-amber-800 mt-1 block">
-            {formatKes(summary.pendingCost)}
+            {formatKes(resolved.pendingCost)}
 </span>
 </div>
 
@@ -124,7 +153,7 @@ export default function BudgetSummaryCard({
             Remaining Budget
 </span>
 <span className="text-sm font-bold font-mono text-blue-800 mt-1 block">
-            {formatKes(summary.remainingBudget)}
+            {formatKes(resolved.remainingBudget)}
 </span>
 </div>
 </div>
@@ -138,50 +167,50 @@ export default function BudgetSummaryCard({
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Materials</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              {formatKes(summary.categoryBreakdown.MATERIAL.approved)}
+              {formatKes(resolved.categoryBreakdown.MATERIAL.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{formatKes(summary.categoryBreakdown.MATERIAL.pending)} pend
+              +{formatKes(resolved.categoryBreakdown.MATERIAL.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Labor</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              {formatKes(summary.categoryBreakdown.LABOR.approved)}
+              {formatKes(resolved.categoryBreakdown.LABOR.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{formatKes(summary.categoryBreakdown.LABOR.pending)} pend
+              +{formatKes(resolved.categoryBreakdown.LABOR.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Plant / Hire</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              {formatKes(summary.categoryBreakdown.PLANT.approved)}
+              {formatKes(resolved.categoryBreakdown.PLANT.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{formatKes(summary.categoryBreakdown.PLANT.pending)} pend
+              +{formatKes(resolved.categoryBreakdown.PLANT.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Subcontracts</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              {formatKes(summary.categoryBreakdown.SUBCONTRACT.approved)}
+              {formatKes(resolved.categoryBreakdown.SUBCONTRACT.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{formatKes(summary.categoryBreakdown.SUBCONTRACT.pending)} pend
+              +{formatKes(resolved.categoryBreakdown.SUBCONTRACT.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Prelims</span>
 <span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
-              {formatKes(summary.categoryBreakdown.PRELIMINARY.approved)}
+              {formatKes(resolved.categoryBreakdown.PRELIMINARY.approved)}
 </span>
 <span className="text-[10px] text-amber-600 font-mono block">
-              +{formatKes(summary.categoryBreakdown.PRELIMINARY.pending)} pend
+              +{formatKes(resolved.categoryBreakdown.PRELIMINARY.pending)} pend
 </span>
 </div>
 </div>

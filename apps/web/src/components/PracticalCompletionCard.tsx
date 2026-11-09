@@ -9,6 +9,7 @@ export interface PracticalCompletionCardProps {
   practicalCompletionDate?: string;
   dlpDurationMonths?: number;
   dlpDaysRemaining?: number;
+  dlpExpiryDate?: string;
   architectName?: string;
   architectBoraqsNo?: string;
   qsName?: string;
@@ -22,25 +23,27 @@ export interface PracticalCompletionCardProps {
 export default function PracticalCompletionCard({
   projectName = '',
   projectCode = '',
-  contractSum = '45000000.00',
+  contractSum,
   retentionRate = 0.05,
-  practicalCompletionDate = '2026-10-15',
+  practicalCompletionDate,
   dlpDurationMonths = 6,
-  dlpDaysRemaining = 124,
-  architectName = 'Arch. Peter M. Mwangi',
-  architectBoraqsNo = 'A-742',
-  qsName = 'Qs. Faith Achieng',
-  qsBoraqsNo = 'Q-819',
-  firstMoietyReleased = true,
-  firstMoietyAmount = '1125000.00',
-  secondMoietyStatus = 'HELD_IN_ESCROW',
-  secondMoietyAmount = '1125000.00',
+  dlpDaysRemaining,
+  dlpExpiryDate,
+  architectName,
+  architectBoraqsNo,
+  qsName,
+  qsBoraqsNo,
+  firstMoietyReleased,
+  firstMoietyAmount,
+  secondMoietyStatus,
+  secondMoietyAmount,
 }: PracticalCompletionCardProps): React.JSX.Element {
 
-  // DLP duration 6 months ≈ 182 days
-  const totalDlpDays = dlpDurationMonths * 30.5;
-  const elapsedDlpDays = Math.max(0, Math.round(totalDlpDays - dlpDaysRemaining));
-  const dlpProgressPct = Math.min(100, Math.round((elapsedDlpDays / totalDlpDays) * 100));
+  // DLP duration 6 months ≈ 182 days — only when real DLP data is supplied
+  const totalDlpDays = (dlpDurationMonths ?? 6) * 30.5;
+  const dlpProgressPct = dlpDaysRemaining != null
+    ? Math.min(100, Math.round(((totalDlpDays - dlpDaysRemaining) / totalDlpDays) * 100))
+    : null;
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
@@ -86,14 +89,14 @@ export default function PracticalCompletionCard({
                 ISSUED
 </span>
 <span className="text-xs font-mono font-medium text-slate-600">
-                {`Date: ${practicalCompletionDate}`}
+                {`Date: ${practicalCompletionDate ?? '—'}`}
 </span>
 </div>
 </div>
 
 <p className="text-xs text-slate-700 leading-relaxed font-sans">
             The Lead Consultant Architect and Quantity Surveyor certify that the Works for{' '}
-<span className="font-semibold text-slate-900">{projectName} ({projectCode})</span> have
+<span className="font-semibold text-slate-900">{projectName || '—'} ({projectCode || '—'})</span> have
             reached Practical Completion in accordance with the Contract conditions and are fit for
             beneficial occupation by the Client.
 </p>
@@ -105,9 +108,9 @@ export default function PracticalCompletionCard({
 <span className="text-[10px] font-semibold text-slate-400 block">
                   Lead Consultant Architect
 </span>
-<span className="font-bold text-slate-900 block">{architectName}</span>
+<span className="font-bold text-slate-900 block">{architectName ?? '—'}</span>
 <span className="text-[11px] font-mono text-emerald-800 font-semibold">
-                  {`BORAQS Reg. No. ${architectBoraqsNo}`}
+                  {architectBoraqsNo ? `BORAQS Reg. No. ${architectBoraqsNo}` : '—'}
 </span>
 </div>
 </div>
@@ -118,9 +121,9 @@ export default function PracticalCompletionCard({
 <span className="text-[10px] font-semibold text-slate-400 block">
                   Lead Quantity Surveyor
 </span>
-<span className="font-bold text-slate-900 block">{qsName}</span>
+<span className="font-bold text-slate-900 block">{qsName ?? '—'}</span>
 <span className="text-[11px] font-mono text-emerald-800 font-semibold">
-                  {`BORAQS Reg. No. ${qsBoraqsNo}`}
+                  {qsBoraqsNo ? `BORAQS Reg. No. ${qsBoraqsNo}` : '—'}
 </span>
 </div>
 </div>
@@ -142,7 +145,7 @@ export default function PracticalCompletionCard({
 </h5>
 </div>
 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full border border-emerald-200">
-                {firstMoietyReleased ? 'RELEASED' : 'PENDING'}
+                {firstMoietyReleased == null ? '—' : firstMoietyReleased ? 'RELEASED' : 'PENDING'}
 </span>
 </div>
 
@@ -151,7 +154,7 @@ export default function PracticalCompletionCard({
                 {formatKes(firstMoietyAmount)}
 </span>
 <span className="text-[11px] text-slate-500 block">
-                50% of total {formatKes('2250000.00')} retention fund ({(retentionRate * 100).toFixed(0)}% of {formatKes(contractSum)} contract sum)
+                50% of total {'—'} retention fund ({(retentionRate * 100).toFixed(0)}% of {formatKes(contractSum)} contract sum)
 </span>
 </div>
 
@@ -159,7 +162,7 @@ export default function PracticalCompletionCard({
 <div className="flex justify-between">
 <span>Release Status:</span>
 <span className="font-semibold text-emerald-700">
-                  {firstMoietyReleased ? 'Released to Contractor ' : 'Pending Certification'}
+                  {firstMoietyReleased == null ? '—' : firstMoietyReleased ? 'Released to Contractor ' : 'Pending Certification'}
 </span>
 </div>
 <div className="flex justify-between">
@@ -206,7 +209,7 @@ export default function PracticalCompletionCard({
 </div>
 <div className="flex justify-between">
 <span>Target Release Date:</span>
-<span className="font-mono text-slate-800">15 April 2027</span>
+<span className="font-mono text-slate-800">{dlpExpiryDate ?? '—'}</span>
 </div>
 </div>
 </div>
@@ -226,10 +229,10 @@ export default function PracticalCompletionCard({
 
 <div className="text-right">
 <span className="text-xl font-mono font-bold text-purple-900 block">
-                {`${dlpDaysRemaining} Days Remaining`}
+                {dlpDaysRemaining != null ? `${dlpDaysRemaining} Days Remaining` : '—'}
 </span>
 <span className="text-[11px] text-slate-500 font-mono block">
-                Expires 15 April 2027
+                {dlpExpiryDate ? `Expires ${dlpExpiryDate}` : '—'}
 </span>
 </div>
 </div>
@@ -237,14 +240,14 @@ export default function PracticalCompletionCard({
           {/* Progress Bar */}
 <div className="space-y-1.5">
 <div className="flex justify-between text-[11px] font-mono text-slate-600">
-<span>Practical Completion (15 Oct 2026)</span>
-<span>{`${dlpProgressPct}% Elapsed`}</span>
-<span>DLP Expiry (15 Apr 2027)</span>
+<span>Practical Completion ({practicalCompletionDate ?? '—'})</span>
+<span>{dlpProgressPct != null ? `${dlpProgressPct}% Elapsed` : '—'}</span>
+<span>DLP Expiry ({dlpExpiryDate ?? '—'})</span>
 </div>
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden border border-slate-300">
 <div
                 className="bg-purple-600 h-full rounded-full transition-all"
-                style={{ width: `${dlpProgressPct}%`}}
+                style={{ width: `${dlpProgressPct ?? 0}%`}}
               />
 </div>
 </div>
@@ -276,13 +279,13 @@ export default function PracticalCompletionCard({
 </h4>
 </div>
 <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded text-xs font-semibold">
-              PENDING FINAL INSPECTION
+              {secondMoietyStatus ? 'PENDING FINAL INSPECTION' : '—'}
 </span>
 </div>
 
 <p className="text-xs text-slate-600 leading-relaxed">
-            Joint final inspection by Arch. Peter Mwangi and Lead QS Faith Achieng scheduled for{' '}
-<span className="font-semibold text-slate-900">10 April 2027</span>. Upon sign-off of
+            Joint final inspection scheduled for{' '}
+<span className="font-semibold text-slate-900">{dlpExpiryDate ?? '—'}</span>. Upon sign-off of
             this certificate, the final 50% Second Moiety ({formatKes(secondMoietyAmount)}) will be released
             and the Final Account settled.
 </p>
@@ -292,7 +295,7 @@ export default function PracticalCompletionCard({
 <span className="text-[10px] text-slate-400 font-semibold block">
                 Final Inspection Date
 </span>
-<span className="font-mono font-bold text-slate-800 mt-0.5 block">10 April 2027</span>
+<span className="font-mono font-bold text-slate-800 mt-0.5 block">{dlpExpiryDate ?? '—'}</span>
 </div>
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] text-slate-400 font-semibold block">
@@ -306,7 +309,7 @@ export default function PracticalCompletionCard({
 <span className="text-[10px] text-slate-400 font-semibold block">
                 Final Account Status
 </span>
-<span className="font-mono font-bold text-slate-700 mt-0.5 block">In Preparation</span>
+<span className="font-bold text-slate-700 mt-0.5 block">In Preparation</span>
 </div>
 </div>
 </div>

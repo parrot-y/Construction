@@ -851,7 +851,6 @@ export default function IndependentSiteReportView({
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
 <div className="flex justify-between items-center">
 <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-<span>⭐</span>
 <span>Client Review &amp; Report Sign-Off</span>
 </h4>
             {activeInspection.clientReview && (

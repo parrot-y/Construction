@@ -68,7 +68,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
 <span className="font-semibold">Online & Synchronized</span>
 <span className="text-emerald-600 hidden sm:inline">• Real-time connection to Site Safi Cloud</span>
 </div>
-<span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-100 rounded border border-emerald-200 font-semibold">
+<span className="text-[10px] px-2 py-0.5 bg-emerald-100 rounded border border-emerald-200 font-semibold">
           IndexedDB Offline Queue Active
 </span>
 </div>

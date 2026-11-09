@@ -383,7 +383,7 @@ export default function SiteDiaryModal({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
 <div className="flex justify-between items-center">
 <span className="font-bold text-slate-800"> Plant & Equipment Log</span>
-<span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded font-mono font-semibold">
+<span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded font-semibold">
                 Machinery Hours & Fuel
 </span>
 </div>
@@ -423,7 +423,7 @@ export default function SiteDiaryModal({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
 <div className="flex justify-between items-center">
 <span className="font-bold text-slate-800"> Geotagged Photo Evidence</span>
-<span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-mono">
+<span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
                 GPS Geotagged • Nairobi
 </span>
 </div>

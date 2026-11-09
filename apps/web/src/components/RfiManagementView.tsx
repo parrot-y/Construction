@@ -441,7 +441,7 @@ export default function RfiManagementView({
 <span className="mx-1">•</span>
 <span>{new Date(rfi.submittedAt).toLocaleDateString()}</span>
 </div>
-<span className="font-mono text-purple-700 font-semibold">
+<span className="text-purple-700 font-semibold">
                                   Assigned to: {rfi.assignedConsultant}
 </span>
 </div>

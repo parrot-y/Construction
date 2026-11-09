@@ -513,7 +513,7 @@ export default function SnaggingListView({
                         BEFORE
 </span>
 </div>
-<span className="text-[10px] text-slate-500 font-mono block">Defect</span>
+<span className="text-[10px] text-slate-500 block">Defect</span>
 </div>
 
                   {/* Arrow */}
@@ -539,7 +539,7 @@ export default function SnaggingListView({
 </div>
 )}
 </div>
-<span className="text-[10px] text-slate-500 font-mono block">Rectified</span>
+<span className="text-[10px] text-slate-500 block">Rectified</span>
 </div>
 </div>
 </div>

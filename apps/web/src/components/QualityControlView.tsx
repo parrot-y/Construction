@@ -578,7 +578,7 @@ export default function QualityControlView({
 </span>
 </div>
 ) : (
-<span className="text-slate-400 font-mono text-[11px]">Pending break</span>
+<span className="text-slate-400 text-[11px]">Pending break</span>
 )}
 </td>
 <td className="p-3 whitespace-nowrap">
@@ -597,7 +597,7 @@ export default function QualityControlView({
 </div>
 ) : (
 <div>
-<span className="text-amber-700 font-medium font-mono text-[11px]">
+<span className="text-amber-700 font-medium text-[11px]">
                               Scheduled
 </span>
 <span className="text-[10px] text-slate-400 block font-mono">

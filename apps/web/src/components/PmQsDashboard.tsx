@@ -200,7 +200,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             className="px-3.5 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg shadow-sm transition flex items-center gap-1.5"
             title="Download active BOQ as Excel workbook"
           >
-            ⬇ Export BOQ
+            Export BOQ
 </a>
 <span className="hidden sm:inline-block px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-lg">
             BORAQS / EASMM
@@ -338,7 +338,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </div>
 
       {/* Variance Monitor & Neutral Alert Guard (Milestone M7) */}
-<VarianceMonitorCard projectName="Riverside Commercial Plaza" />
+<VarianceMonitorCard projectId={pid} projectName={projects.find((p) => p.id === pid)?.name || ''} />
 
       {/* Active Project & Bill of Quantities Structure */}
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
@@ -399,7 +399,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </div>
 
       {/* Budget vs Actual Metrics Card */}
-<BudgetSummaryCard projectName="Riverside Commercial Plaza" />
+<BudgetSummaryCard projectId={pid} projectName={projects.find((p) => p.id === pid)?.name || ''} />
 
       {/* Append-Only Costs & Approvals Ledger */}
 <CostManagementView
@@ -445,8 +445,8 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {/* Practical Completion & Retention Release Card */}
       {(activeTab === 'all' || activeTab === 'closeout') && (
 <PracticalCompletionCard
-          projectName="Riverside Commercial Plaza"
-          projectCode="RCP-2026"
+          projectName={projects.find((p) => p.id === pid)?.name || ''}
+          projectCode={projects.find((p) => p.id === pid)?.code || ''}
         />
 )}
 
