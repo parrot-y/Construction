@@ -140,19 +140,19 @@ export default function CompliancePortalView({
 <div className="max-w-5xl mx-auto space-y-6" data-testid="compliance-portal-view">
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
-<header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+<span className="text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
               NCA &amp; Regulatory Compliance Portal
 </span>
-<span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
+<span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
               Secured auditor link
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
-<p className="text-xs text-slate-400">
-            Inspector:<span className="text-slate-200 font-semibold">{auditor.name}</span> • {auditor.agency}
+<h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
+<p className="text-xs text-slate-500">
+            Inspector:<span className="text-slate-700 font-semibold">{auditor.name}</span> • {auditor.agency}
 </p>
 </div>
 
@@ -160,26 +160,30 @@ export default function CompliancePortalView({
 <button
             onClick={() => setShowCertificateModal(true)}
             data-testid="view-statutory-certificate-btn"
-            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-300 hover:text-white bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-700 rounded-lg transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-lg transition flex items-center gap-1.5"
           >
 <span> Statutory Docket Certificate</span>
 </button>
           {onBackToDashboard && (
 <button
               onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition"
+              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
             >
               ← Back to Project
 </button>
 )}
-<div className="text-right">
-<p className="text-[11px] text-slate-400">Statutory Mandate</p>
-<p className={`text-xs font-bold ${complianceSummary.ncaSiteRegistration ? 'text-emerald-400' : 'text-slate-400'}`}>
-            {complianceSummary.ncaSiteRegistration ? 'NCA Registered' : 'NCA Registration Not Recorded'}
-</p>
-</div>
 </div>
 </header>
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• Review NCA registration, statutory levy and supervisor certification status</li>
+            <li>• Inspect concrete cube test results and site inspection records</li>
+            <li>• Issue statutory docket certificates for completed works</li>
+</ul>
+</div>
+
 
       {/* Statutory Compliance Cards */}
 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -396,7 +400,7 @@ export default function CompliancePortalView({
 statutoryPermits.map((pm) => (
 <div key={pm.id} className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">{pm.authority}:</span>
-<span className="font-bold text-slate-900 font-mono">{pm.permitNumber} ({pm.status})</span>
+<span className="font-bold text-slate-900"><span className="font-mono">{pm.permitNumber}</span> ({pm.status})</span>
 </div>
 ))
 )}

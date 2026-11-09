@@ -229,19 +229,19 @@ export default function SubcontractorPortalView({
 <div className="max-w-5xl mx-auto space-y-6" data-testid="subcontractor-portal-view">
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
-<header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+<span className="text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full">
               Subcontractor Portal
 </span>
-<span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
+<span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
               Secured project link
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
-<p className="text-xs text-slate-400">
-            Assigned Trade:<span className="text-slate-200 font-semibold">{stakeholder.name}</span> ({stakeholder.trade})
+<h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
+<p className="text-xs text-slate-500">
+            Assigned Trade:<span className="text-slate-700 font-semibold">{stakeholder.name}</span> ({stakeholder.trade})
 </p>
 </div>
 
@@ -249,38 +249,60 @@ export default function SubcontractorPortalView({
           {onBackToDashboard && (
 <button
               onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition"
+              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
             >
               ← Back to Project
 </button>
 )}
-<div className="text-right">
-<p className="text-[11px] text-slate-400">Action Required</p>
-<p className="text-xs font-bold text-amber-400">{openCount} Defects Open</p>
-</div>
 </div>
 </header>
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• See defects assigned to your trade and upload photo proof to rectify them</li>
+            <li>• Track your valuation claims, certified amounts and retention held</li>
+            <li>• Submit a new valuation claim against your work package</li>
+</ul>
+</div>
 
-      {/* KPI Stats */}
+
+      {/* KPI Stats — tiles hidden while their values are all zero */}
+{(openCount > 0 || rectifiedCount > 0 || closedCount > 0 || Number(commercialSummary.contractSumKes) > 0) && (
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+{openCount > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Open Defects</p>
 <p className="text-2xl font-bold text-amber-600 mt-1">{openCount}</p>
 </div>
+)}
+{rectifiedCount > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Rectified (Pending Sign-off)</p>
 <p className="text-2xl font-bold text-blue-600 mt-1">{rectifiedCount}</p>
 <span className="text-[10px] text-slate-400">({closedCount} verified &amp; closed)</span>
 </div>
+)}
+{closedCount > 0 && rectifiedCount === 0 && (
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+<p className="text-xs font-semibold text-slate-500">Verified &amp; Closed</p>
+<p className="text-2xl font-bold text-emerald-600 mt-1">{closedCount}</p>
+</div>
+)}
+{Number(commercialSummary.contractSumKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Subcontract Sum</p>
 <p className="text-base font-bold text-slate-900 mt-1 font-mono">{formatKes(commercialSummary.contractSumKes)}</p>
 </div>
+)}
+{Number(commercialSummary.retentionWithheldKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
-<p className="text-xs font-semibold text-slate-500">5% Retention Held</p>
+<p className="text-xs font-semibold text-slate-500">{commercialSummary.retentionRatePct}% Retention Held</p>
 <p className="text-base font-bold text-purple-700 mt-1 font-mono">{formatKes(commercialSummary.retentionWithheldKes)}</p>
 </div>
+)}
 </div>
+)}
 
       {feedback && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex justify-between items-center shadow-sm">

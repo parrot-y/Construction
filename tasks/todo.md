@@ -253,9 +253,18 @@ Plan per auditor items 1-13, failing test first each:
 - [x] Fabricated defaults: all initialX fixture fallbacks DEV-gated; sim-success fallbacks removed (variation/cost/inspection booking); fake project/equipment IDs removed
 - [x] ci.yml confirmed: migrate deploy from empty DB + rls.sql + RLS tests as db_app
 - [x] route-authz-matrix.md regenerated: 279 routes, 255 authenticated all permission-guarded, 24 allowlisted, 0 violations
-- [x] "parity"/"reference console" scrubbed from todo/STATUS/research summary
+- [x] External-product wording scrubbed from todo/STATUS/research summary
 - [x] font-mono: 472 uses, codes/numbers only (unchanged — prior pass already cleaned)
 - [x] Fresh screenshots: 16 files @1440+@390 via real seeded stack + UI login
+
+## Auditor re-review round 2 — DONE (evidence: docs/evidence/auditor-punch-list.md)
+- [x] console-desktop/mobile.png replaced with real admin-console captures; stale landing.png deleted
+- [x] font-mono 472→458: prose/status/unit/free-text usages removed; remainder codes/numbers/dates/coords/PINs/phones/numeric inputs
+- [x] Portal headers: dark bands → light console-style cards on all 5 portals; "What you can do here" card added; all-zero tiles hidden; "5% Retention" label now uses real rate
+- [x] "Shot SUBCONTRACTOR"/"Screenshot Stakeholder": zero hits in source — e2e fixtures only ("E2E <TYPE>")
+- [x] parity/reference-console wording: zero hits in todo.md + PROJECT_STATUS.md
+- [x] Fresh portal screenshots @1440+@390 post-change; PR #3 updated
+- [x] Bonus: fake SHA-256 seal removed, Daraja-verified claim → simulated label, eTIMS modal SIMULATED banner
 
 ## NEXT TASK
 - Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM) → wire real integrations

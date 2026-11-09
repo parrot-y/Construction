@@ -279,7 +279,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 ))}
 </select>
           {selected && (
-<span className="text-[10px] font-mono text-slate-400">
+<span className="text-[10px] text-slate-400">
               budget {formatKes(selected.current_approved_budget)} · closeout {selected.closeout_stage}
 </span>
 )}

@@ -503,7 +503,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                 type="text"
                 value={selfieUrl}
                 onChange={(e) => setSelfieUrl(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 text-slate-800"
               />
 </div>
 </div>

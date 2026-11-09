@@ -164,6 +164,16 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 )}
 </div>
 
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• Approve or decline change orders raised by the contractor</li>
+            <li>• Follow payment certificates, invoices and retention deductions</li>
+            <li>• View progress photos, milestones and project updates</li>
+</ul>
+</div>
+
       {feedback && (
 <div className="p-3 bg-purple-50 border border-purple-200 text-purple-800 text-xs font-medium rounded-lg">{feedback}</div>
 )}

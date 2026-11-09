@@ -94,3 +94,65 @@ workflow; identical steps replicated locally by verify-local.sh.
 ## Verification
 - `apps/web` tsc clean, vitest 118/118.
 - Full `scripts/verify-local.sh` re-run recorded in verify log (see commit).
+
+## Round 2 (2026-11-09, commit pending) — auditor re-review items
+
+### 1. Landing console screenshots replaced
+- `apps/web/public/screenshots/console-desktop.png` + `console-mobile.png`
+  replaced with fresh captures of the REAL admin console (post-login DOM
+  verified: "Evening, MWANGI", RCP-2026 Riverside Commercial Plaza).
+- Stale unused `landing.png` (byte-identical to old gradient) deleted.
+- Landing DOM verified live: only `/screenshots/console-*.png` imgs, plain
+  Kenya-first copy, no stats/emoji/gradient.
+
+### 2. font-mono restricted — before/after
+- Before: 472 occurrences. After: 458.
+- Removed from prose/labels/statuses/units/free-text: "BORAQS Closeout",
+  "BORAQS Standard", "hrs"/"L" unit labels, WhatsApp processedStatus +
+  recipientRole badges + message textarea, "No Active DTCs", telematics
+  machine/severity line, onboarding budget/closeout line, retention-cap
+  prose suffix, bond-type words, compliance permit+status mix, geofence
+  selfie-URL input, fabricated SHA-256 seal block (also removed fake
+  "BDS VERIFIED" badge — invented forensic claim).
+- Remaining 458: money/percent/qty via formatKes/toCurrencyString, dates &
+  times in tables, coordinates/GPS, project/cert/invoice/RFI/snag/delivery/
+  payroll/bond/tender/document reference numbers, PINs/KRA/eTIMS numbers,
+  phone numbers (numeric identifiers), numeric input fields, chart tick
+  labels. Enforced by review + currency-guard.test.ts.
+
+### 3. Portal headers — light layout + capabilities + zero tiles
+- All 5 portals verified live via Playwright DOM: `header.bg-slate-900`
+  absent on every portal; "What you can do here" card present on all 5.
+- Dark slate-900 header bands replaced with white cards matching console
+  style; action buttons restyled light; redundant in-header mini-stats
+  dropped (KPI tiles carry the numbers).
+- Subcontractor: "5% Retention Held" hardcoded label → actual
+  `retentionRatePct`; tiles hidden while all-zero (open/rectified/closed/
+  contract sum/retention each conditional).
+- Supplier: whole summary grid hidden when no deliveries; per-tile
+  zero-hiding for confirmed/awaiting/disputed.
+- Consultant/Compliance/Client: status cards show honest "Not recorded"/
+  "Not tracked"/"No tests yet" states (not zeros) — kept.
+
+### 4. Fixture names
+- Repo-wide grep for "Shot SUBCONTRACTOR"/"Screenshot Stakeholder" and
+  `\bshot\b|\bscreenshot\b` in source: zero hits outside dist bundles.
+  E2E fixtures use "E2E <TYPE>" names only; live DB portal links verified
+  clean (CONSULTANT Partner etc.).
+
+### 5. parity/reference-console wording
+- grep -ni "parity|reference console" tasks/todo.md docs/PROJECT_STATUS.md
+  → zero hits.
+
+### 6. Fresh screenshots
+- docs/evidence/shots/portal-{consultant,subcontractor,supplier,compliance,
+  client}-{1440,390}.png re-captured post-change (10 files, md5-distinct);
+  admin-console-{1440,390}.png + landing-{1440,390}.png fresh;
+  console-desktop/mobile.png in public/ updated.
+
+### Bonus honesty fixes found during audit
+- SubscriptionBillingView "Safaricom Daraja Verified" → "M-Pesa payment
+  record — simulated until Daraja is configured".
+- ETimsTaxComplianceView receipt modal: SIMULATED banner added (was
+  presenting mock QR/signature as a verifiable KRA receipt).
+- IndependentSiteReportView: removed fabricated SHA-256 forensic seal.

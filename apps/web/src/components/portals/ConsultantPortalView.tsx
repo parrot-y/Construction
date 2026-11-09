@@ -195,19 +195,19 @@ export default function ConsultantPortalView({
 <div className="max-w-5xl mx-auto space-y-6" data-testid="consultant-portal-view">
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Portal header */}
-<header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-full">
+<span className="text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-0.5 rounded-full">
               Consultant Portal
 </span>
-<span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
+<span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
               Secured project link
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
-<p className="text-xs text-slate-400">
-            Welcome,<span className="text-slate-200 font-semibold">{stakeholder.name}</span> • {stakeholder.role}
+<h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
+<p className="text-xs text-slate-500">
+            Welcome,<span className="text-slate-700 font-semibold">{stakeholder.name}</span> • {stakeholder.role}
 </p>
 </div>
 
@@ -215,17 +215,23 @@ export default function ConsultantPortalView({
           {onBackToDashboard && (
 <button
               onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition"
+              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
             >
               ← Back to Project
 </button>
 )}
-<div className="text-right hidden sm:block">
-<p className="text-[11px] text-slate-400">Statutory Standard</p>
-<p className="text-xs font-bold text-slate-200">BORAQS Cap 525 / KS 02-598</p>
-</div>
 </div>
 </header>
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• Review RFIs raised by the site team and reply with technical answers</li>
+            <li>• Track concrete cube test results against KS 02-598 targets</li>
+            <li>• Complete pre-pour QA checklists for upcoming concrete works</li>
+</ul>
+</div>
+
 
       {/* Tabs */}
 <div className="flex border-b border-slate-200 gap-4 text-xs font-semibold">

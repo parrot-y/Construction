@@ -512,7 +512,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                       {bnd.bondReferenceNo}
 </td>
 <td className="py-3 px-4 text-xs">
-<span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono">
+<span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                         {bnd.bondType.replace(/_/g, ' ')}
 </span>
 </td>

@@ -198,7 +198,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Last M-Pesa Receipt</p>
 <p className="text-lg font-mono font-bold text-slate-800 mt-1">{lastPaymentRef || 'None'}</p>
-<p className="text-xs text-slate-400 mt-1">Safaricom Daraja Verified</p>
+<p className="text-xs text-slate-400 mt-1">M-Pesa payment record — simulated until Daraja is configured</p>
 </div>
 </div>
 

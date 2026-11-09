@@ -381,7 +381,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                   >
                     #{log.detectedCommand}
 </span>
-<span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded font-mono">
+<span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
                      {log.processedStatus}
 </span>
 </div>
@@ -442,7 +442,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                       {alt.recipientName}
 </td>
 <td className="py-3 px-4 text-xs">
-<span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono">
+<span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                         {alt.recipientRole}
 </span>
 </td>
@@ -513,7 +513,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                   rows={4}
                   value={rawMessage}
                   onChange={(e) => setRawMessage(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono text-sm"
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 text-sm"
                   placeholder="E.g. #DIARY 12 masons, 18 casuals or #DELIVERY 100 bags Bamburi or #INCIDENT scaffolding damage"
                   required
                 />

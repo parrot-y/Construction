@@ -134,27 +134,23 @@ export default function SupplierPortalView({
     return d.status === filter;
 });
 
-  const totalDeliveredVolume = deliveries
-    .filter((d) => d.status === 'RECEIVED')
-    .reduce((sum, d) => sum + Number(d.quantity || 0), 0);
-
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="supplier-portal-view">
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
-<header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 rounded-full">
+<span className="text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full">
               Material Supplier &amp; Batching Portal
 </span>
-<span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
+<span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
               Secured project link
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
-<p className="text-xs text-slate-400">
-            Vendor:<span className="text-slate-200 font-semibold">{stakeholder.name}</span> • {stakeholder.category}
+<h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
+<p className="text-xs text-slate-500">
+            Vendor:<span className="text-slate-700 font-semibold">{stakeholder.name}</span> • {stakeholder.category}
 </p>
 </div>
 
@@ -162,44 +158,58 @@ export default function SupplierPortalView({
 <button
             onClick={() => setShowPoModal(true)}
             data-testid="view-po-ledger-btn"
-            className="px-3.5 py-1.5 text-xs font-semibold text-blue-300 hover:text-white bg-blue-900/60 hover:bg-blue-800 border border-blue-700 rounded-lg transition"
+            className="px-3.5 py-1.5 text-xs font-semibold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-lg transition"
           >
              PO &amp; Invoicing Ledger
 </button>
           {onBackToDashboard && (
 <button
               onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition"
+              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
             >
               ← Back to Project
 </button>
 )}
-<div className="text-right">
-<p className="text-[11px] text-slate-400">Verified Delivered</p>
-<p className="text-xs font-bold text-emerald-400">{totalDeliveredVolume} m³ Accepted</p>
-</div>
 </div>
 </header>
+      {/* What you can do here */}
+<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+<p className="text-xs font-bold text-slate-500 mb-2">What you can do here</p>
+<ul className="text-xs text-slate-600 space-y-1">
+            <li>• Confirm deliveries or dispute them with a reason</li>
+            <li>• Submit invoice references against confirmed deliveries</li>
+            <li>• Track your purchase orders and delivery schedule</li>
+</ul>
+</div>
+
 
       {/* Delivery status summary — real counts from site diary records */}
+{deliveries.length > 0 && (
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Total Deliveries</p>
 <p className="text-2xl font-bold text-slate-900 mt-1">{deliveries.length}</p>
 </div>
+{deliveries.filter((d) => d.status === 'RECEIVED').length > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Confirmed by You</p>
 <p className="text-2xl font-bold text-emerald-700 mt-1">{deliveries.filter((d) => d.status === 'RECEIVED').length}</p>
 </div>
+)}
+{deliveries.filter((d) => d.status === 'PENDING').length > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Awaiting Confirmation</p>
 <p className="text-2xl font-bold text-amber-700 mt-1">{deliveries.filter((d) => d.status === 'PENDING').length}</p>
 </div>
+)}
+{deliveries.filter((d) => d.status === 'REJECTED').length > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Disputed</p>
 <p className="text-2xl font-bold text-rose-700 mt-1">{deliveries.filter((d) => d.status === 'REJECTED').length}</p>
 </div>
+)}
 </div>
+)}
 
       {feedback && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg">{feedback}</div>

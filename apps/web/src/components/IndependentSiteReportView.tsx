@@ -1139,18 +1139,6 @@ export default function IndependentSiteReportView({
 </div>
 </div>
 
-            {/* Cryptographic Security Hash */}
-<div className="bg-slate-900 text-slate-300 p-3 rounded-xl text-[10px] font-mono flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-<div>
-<span className="text-slate-500 block">SHA-256 FORENSIC TAMPER-EVIDENT SEAL:</span>
-<span className="text-emerald-400 font-bold">
-                  E8F4B92C1D70A38165B907F63DE14CA29910E4B7208173429FA01BC4
-</span>
-</div>
-<span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded text-[9px] font-bold">
-                BDS VERIFIED
-</span>
-</div>
 
             {/* Modal Actions */}
 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
