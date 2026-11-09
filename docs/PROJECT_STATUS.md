@@ -138,10 +138,9 @@ None.
 - Sessions: 15-min access + 7-day refresh JWT pair, rotation with reuse detection (`refresh_tokens` table), per-request `is_active`/membership check, rate limits on login/refresh/public routes, session list/revoke endpoints + UI.
 - M-Pesa: **SIMULATED** — STK/B2C responses and UI say so; B2C payouts are maker-checker (`PENDING_APPROVAL` → different `COST_APPROVE` user approves).
 
-### Phase 2 — Design system: PARTIAL
-- `docs/DESIGN_SYSTEM.md` + Tailwind tokens + `apps/web/src/ui/` kit (Button, Card, Badge, EmptyState, ErrorState, Skeleton, PageHeader, Table, Tabs, Modal, Toast) exist and are in use on newer surfaces.
-- `formatKes` is the shared KES formatter; money views route through it.
-- **Open:** full migration of all legacy views off ad-hoc styling; landing copy rewrite partially done; exhaustive uppercase/mono/emoji sweep not re-audited after the console rebuild.
+### Phase 2 — Design system: PARTIAL (improved)
+- `docs/DESIGN_SYSTEM.md` + Tailwind tokens + `apps/web/src/ui/` kit exist; ~30 components now render money through `formatKes` (guard test baseline shrunk, fails on new violations); uppercase micro-labels/tracking stripped across 75 files; landing verified clean of emoji/gradient/invented stats; 390px overflow check passes on landing.
+- **Open:** font-mono sweep (~480 usages, needs case-by-case review); full legacy-view migration to `ui/` primitives; 360px console sweep; full a11y audit. Evidence: `docs/evidence/phase-2-progress.md`.
 
 ### Phase 3 — Real portals & wiring: DONE (with honest gaps)
 - All external portals (consultant, subcontractor, supplier, compliance, client) fetch real token-scoped API data; invalid/expired tokens show explicit states. Client portal approves change orders via token link.
