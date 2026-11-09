@@ -6,7 +6,7 @@ import {
   CreateVariationOrderSchema,
   ReviewVariationOrderSchema,
 } from '@construction/validation';
-import { requirePermission } from '../plugins/rbac';
+import { requirePermission, requireAnyPermission } from '../plugins/rbac';
 import {
   applyCoBudgetRollup,
   claimCoTransition,
@@ -474,6 +474,9 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
     {
       preHandler: [
         server.authenticate,
+        // Baseline gate; handler enforces per-action permission (APPROVE→VARIATION_APPROVE,
+        // VOID→VARIATION_REQUEST, REJECT→VARIATION_REVIEW|VARIATION_APPROVE, else VARIATION_REVIEW).
+        requireAnyPermission(Permissions.VARIATION_REQUEST, Permissions.VARIATION_REVIEW, Permissions.VARIATION_APPROVE),
       ],
     },
     async (request, reply) => {

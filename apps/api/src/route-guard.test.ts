@@ -70,6 +70,7 @@ function scanRoutes(): RouteRegistration[] {
         hasAuthenticate: optionsSegment.includes('authenticate'),
         hasPermissionGuard:
           optionsSegment.includes('requirePermission') ||
+          optionsSegment.includes('requireAnyPermission') ||
           optionsSegment.includes('requireProjectMembership'),
       });
     }

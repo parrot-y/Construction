@@ -7,7 +7,7 @@ import {
   PaymentCertificateActionSchema,
   CloseoutTransitionSchema,
 } from '@construction/validation';
-import { requirePermission } from '../plugins/rbac';
+import { requirePermission, requireAnyPermission } from '../plugins/rbac';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -225,7 +225,14 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
   // POST /api/v1/projects/:projectId/payment-certificates/:certId/action
   server.post(
     '/api/v1/projects/:projectId/payment-certificates/:certId/action',
-    { preHandler: [server.authenticate] },
+    {
+      preHandler: [
+        server.authenticate,
+        // Baseline gate; the handler enforces the precise per-action permission
+        // (CERTIFICATE_MANAGE for draft/submit/review, COST_APPROVE for certify/reject/paid).
+        requireAnyPermission(Permissions.CERTIFICATE_MANAGE, Permissions.COST_APPROVE),
+      ],
+    },
     async (request, reply) => {
       const { tenantId, sub, role } = request.user;
       const { projectId, certId } = request.params as { projectId: string; certId: string };

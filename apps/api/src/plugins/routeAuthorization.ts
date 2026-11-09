@@ -204,9 +204,7 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
 // the guard test can verify coverage without double-guarding.
 // ---------------------------------------------------------------------------
 export const IN_HANDLER_GUARDED: Record<string, string> = {
-  'POST /api/v1/projects/:projectId/payment-certificates/:certId/action': 'Handler maps action -> CERTIFICATE_MANAGE/approve permission',
   'POST /api/v1/projects/:projectId/commitments/:commitmentId/applications/:applicationId/action': 'Handler maps application action -> permission check',
-  'POST /api/v1/projects/:projectId/variations/:variationId/review': 'Handler maps action -> VARIATION_APPROVE/REVIEW per ADR-010',
   'GET /api/v1/integrations/status': 'Handler restricts to COMPANY_ADMIN',
   'POST /api/v1/integrations/test': 'Handler restricts to COMPANY_ADMIN',
   'POST /api/v1/projects/:projectId/telematics-devices': 'Handler role-gates (CLIENT read-only)',
