@@ -20,3 +20,13 @@
   e2e; a full console sweep at 360px is not done.
 - Accessibility pass (labels/focus/keyboard) is partial — ui/ components have
   focus styles; every legacy modal hasn't been audited.
+
+## Session 2 additions (commit cd49cfd)
+- Fabricated defaults removed from VarianceMonitorCard, BudgetSummaryCard,
+  PracticalCompletionCard; cards fetch real data via projectId
+  (/dashboard, /budget/summary, /closeout) or render honest EmptyState.
+- font-mono audit: 13 decorative misuses removed; ~470 legitimate
+  code/number usages kept.
+- Emoji sweep: ⭐/⬇ removed; zero emoji remain in apps/web/src.
+- Test suite: fixtures pass explicit props; unhydrated views assert
+  honest empty states — 118/118 green.

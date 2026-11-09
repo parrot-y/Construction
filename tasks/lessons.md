@@ -56,3 +56,7 @@ The live dev API uses `construction_demo`, tests/verify use `construction_test` 
 - New workspace packages with a `test` script get picked up by `turbo run test` — name e2e scripts `test:e2e` or verify-local will try to run them without infra.
 - API response envelopes vary: `{data}`, `{invoice}`, `{message,data}` — unwrap centrally in test helpers.
 - Decimal fields (quantity, unitRate, amounts) are STRINGS in validation schemas — send '40' not 40.
+
+- 2026-11-09: Never run whitespace-collapsing regexes (`re.sub(r'  +',' ',s)`) over whole source files — it destroys indentation. Collapse only intra-line runs (`(?<=\S) {2,}(?=\S)`).
+- 2026-11-09: Tests that pass only because of fabricated component DEFAULT PROPS are testing fake data — when removing defaults, update tests to pass explicit fixtures or assert honest empty states.
+- 2026-11-09: Concurrent subagents + `git stash` in the same worktree can clobber live edits — avoid stash; verify `git status`/`git diff` after any subagent file operations.
