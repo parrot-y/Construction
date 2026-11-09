@@ -347,6 +347,10 @@ model MaterialDelivery {
   unit          String     @db.VarChar(20)
   supplier_name String?    @db.VarChar(255)
   delivery_note String?    @db.VarChar(100)
+  delivery_status String   @default("RECORDED") @db.VarChar(20) // RECORDED | CONFIRMED | DISPUTED
+  confirmed_at   DateTime? @db.Timestamptz
+  confirmed_by_name String? @db.VarChar(255)
+  supplier_invoice_ref String? @db.VarChar(100)
 
   site_diary    SiteDiary  @relation(fields: [site_diary_id], references: [id], onDelete: Cascade)
 

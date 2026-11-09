@@ -412,7 +412,15 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     }
 
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, snags] = await Promise.all([
+      const tradeFilter = link.stakeholder_role
+        ? {
+            OR: [
+              { trade_category: { contains: link.stakeholder_role, mode: 'insensitive' as const } },
+              { firm_name: { contains: link.stakeholder_name, mode: 'insensitive' as const } },
+            ],
+          }
+        : {};
+      const [project, snags, packages] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
         }),
@@ -436,6 +444,11 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           },
           orderBy: { snag_number: 'desc' },
         }),
+        tx.subcontractorPackage.findMany({
+          where: { project_id: link.project_id, ...tradeFilter },
+          include: { valuations: { orderBy: { valuation_date: 'desc' } } },
+          orderBy: { created_at: 'asc' },
+        }),
       ]);
 
       return {
@@ -449,6 +462,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           code: project?.code,
         },
         snags,
+        packages,
       };
     });
 
@@ -532,6 +546,64 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     });
   });
 
+
+  // POST /api/v1/portals/subcontractor/:token/valuations — sub submits a progress valuation
+  server.post('/api/v1/portals/subcontractor/:token/valuations', async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'SUBCONTRACTOR');
+    if (!link) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired subcontractor access token' });
+    }
+    const body = request.body as { packageId?: string; grossWorkCertifiedKes?: string | number; notes?: string };
+    const gross = Number(body?.grossWorkCertifiedKes);
+    if (!body?.packageId || !Number.isFinite(gross) || gross <= 0) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'packageId and a positive grossWorkCertifiedKes are required' });
+    }
+    try {
+      const valuation = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const pkg = await tx.subcontractorPackage.findFirst({
+          where: { id: body.packageId, project_id: link.project_id },
+        });
+        if (!pkg) throw new Error('Work package not found on this project');
+        const count = await tx.subcontractorValuation.count({ where: { subcontractor_package_id: pkg.id } });
+        const retentionRate = Number(pkg.retention_rate_pct || 5);
+        const retention = (gross * retentionRate) / 100;
+        const wht = (gross * 3) / 100;
+        const created = await tx.subcontractorValuation.create({
+          data: {
+            tenant_id: link.tenant_id,
+            project_id: link.project_id,
+            subcontractor_package_id: pkg.id,
+            certificate_no: `SC-VAL-${String(count + 1).padStart(3, '0')}`,
+            valuation_date: new Date(),
+            gross_work_certified_kes: gross.toFixed(2),
+            retention_rate_pct: retentionRate,
+            retention_deducted_kes: retention.toFixed(2),
+            previous_payments_deducted_kes: '0.00',
+            withholding_tax_pct: 3,
+            withholding_tax_deducted_kes: wht.toFixed(2),
+            net_payable_kes: (gross - retention - wht).toFixed(2),
+            payment_status: 'SUBMITTED',
+            notes: `[Portal submission by ${link.stakeholder_name}] ${body.notes || ''}`.trim(),
+          },
+        });
+        await recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          actorId: link.id,
+          action: 'SUBCONTRACTOR_VALUATION_SUBMITTED_VIA_PORTAL',
+          entityType: 'SubcontractorValuation',
+          entityId: created.id,
+          changes: { via: 'external_portal', gross, submittedBy: link.stakeholder_name },
+        });
+        return created;
+      });
+      return reply.status(201).send({ statusCode: 201, data: valuation });
+    } catch (err: any) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: err.message });
+    }
+  });
+
   // ===========================================================================
   // 5. MATERIAL SUPPLIER & BATCHING PLANT PORTAL
   // ===========================================================================
@@ -564,12 +636,19 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         }),
       ]);
 
-      const deliveries = diaries.flatMap((d) =>
-        d.deliveries.map((m) => ({
-          ...m,
-          siteDate: d.entry_date,
-        })),
-      );
+      const deliveries = diaries
+        .flatMap((d) =>
+          d.deliveries.map((m) => ({
+            ...m,
+            siteDate: d.entry_date,
+          })),
+        )
+        .filter((m) =>
+          !link.stakeholder_name ||
+          !m.supplier_name ||
+          m.supplier_name.toLowerCase().includes(link.stakeholder_name.toLowerCase()) ||
+          link.stakeholder_name.toLowerCase().includes((m.supplier_name || '').toLowerCase()),
+        );
 
       return {
         stakeholder: {
@@ -589,6 +668,43 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       statusCode: 200,
       data: payload,
     });
+  });
+
+
+  // POST /api/v1/portals/supplier/:token/deliveries/:deliveryId/confirm
+  server.post('/api/v1/portals/supplier/:token/deliveries/:deliveryId/confirm', async (request, reply) => {
+    const { token, deliveryId } = request.params as { token: string; deliveryId: string };
+    const link = await resolvePortalLink(token, 'SUPPLIER');
+    if (!link) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired supplier access token' });
+    }
+    const body = request.body as { action?: 'CONFIRM' | 'DISPUTE'; invoiceRef?: string; note?: string };
+    const action = body?.action === 'DISPUTE' ? 'DISPUTE' : 'CONFIRM';
+    const updated = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+      const delivery = await tx.materialDelivery.findFirst({
+        where: { id: deliveryId },
+        include: { site_diary: { select: { project_id: true } } },
+      });
+      if (!delivery || delivery.site_diary.project_id !== link.project_id) {
+        throw new Error('Delivery not found on this project');
+      }
+      if (delivery.delivery_status === 'CONFIRMED' && action === 'CONFIRM') {
+        throw new Error('Delivery already confirmed');
+      }
+      return tx.materialDelivery.update({
+        where: { id: deliveryId },
+        data: {
+          delivery_status: action === 'CONFIRM' ? 'CONFIRMED' : 'DISPUTED',
+          confirmed_at: action === 'CONFIRM' ? new Date() : null,
+          confirmed_by_name: link.stakeholder_name,
+          supplier_invoice_ref: body?.invoiceRef || delivery.supplier_invoice_ref,
+        },
+      });
+    }).catch((err) => ({ error: err.message }));
+    if ((updated as any).error) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: (updated as any).error });
+    }
+    return reply.status(200).send({ statusCode: 200, data: updated });
   });
 
   // ===========================================================================
@@ -652,8 +768,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         },
         complianceSummary: {
           ncaSiteRegistration: `NCA/PRJ/${project?.code || '2026'}/REG`,
-          statutoryLevyPaid: true,
-          certifiedSiteSupervisorPresent: true,
+          // No statutory-levy or supervisor-certification records exist yet —
+          // return null so the portal shows "Not tracked" instead of inventing compliance.
+          statutoryLevyPaid: null,
+          certifiedSiteSupervisorPresent: null,
           concreteCubePassRate: `${passRate}%`,
           totalBatchesSampled: cubeTests.length,
           prePourInspectionsConducted: inspections.length,

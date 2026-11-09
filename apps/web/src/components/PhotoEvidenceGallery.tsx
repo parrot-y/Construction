@@ -6,29 +6,6 @@ interface PhotoEvidenceGalleryProps {
   projectId?: string;
 }
 
-const DEFAULT_PHOTOS: PhotoEvidenceItem[] = [
-  {
-    id: 'photo-seed-1',
-    caption: 'Substructure excavation and mass concrete blinding inspection',
-    photo_url: '/uploads/evidence/rcp-2026/foundation_blinding_01.jpg',
-    latitude: -1.286389,
-    longitude: 36.817223,
-    captured_at: '2026-02-01T10:30:00.000Z',
-    weather: 'SUNNY_CLEAR',
-    recorded_by_name: 'David Kimani (Site Supervisor)',
-},
-  {
-    id: 'photo-seed-2',
-    caption: 'Column starter rebar alignment inspection against structural drawings',
-    photo_url: '/uploads/evidence/rcp-2026/column_rebar_inspection.jpg',
-    latitude: -1.286500,
-    longitude: 36.817350,
-    captured_at: '2026-02-15T14:15:00.000Z',
-    weather: 'PARTLY_CLOUDY',
-    recorded_by_name: 'David Kimani (Site Supervisor)',
-},
-];
-
 export default function PhotoEvidenceGallery({
   photos,
   projectId = '',
@@ -71,8 +48,8 @@ export default function PhotoEvidenceGallery({
 
   const resolvedPhotos = isLive
     ? (livePhotos ?? [])
-    : (photos && photos.length > 0 ? photos : DEFAULT_PHOTOS);
-  const displayPhotos = resolvedPhotos.length > 0 ? resolvedPhotos : (isLive ? [] : DEFAULT_PHOTOS);
+    : (photos ?? []);
+  const displayPhotos = resolvedPhotos;
 
   if (isLive && !liveLoaded) {
     return<div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading photo evidence…</div>;
@@ -90,9 +67,7 @@ export default function PhotoEvidenceGallery({
             Geotagged site inspection photos verified and signed off by resident engineers
 </p>
 </div>
-<span className="text-xs text-slate-400 font-mono self-end sm:self-auto">
-           Riverside Drive, Nairobi
-</span>
+
 </div>
 
       {/* Statutory Data Protection Notice (M5) */}

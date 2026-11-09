@@ -1,4 +1,4 @@
-import React, { useState} from 'react';
+import React, { useEffect, useState} from 'react';
 
 export interface SubcontractorSnag {
   id: string;
@@ -42,112 +42,112 @@ interface SubcontractorPortalViewProps {
   subcontractorTrade?: string;
   projectName?: string;
   projectCode?: string;
-  snags?: SubcontractorSnag[];
-  commercialSummary?: SubcontractCommercialSummary;
   onBackToDashboard?: () => void;
 }
 
-const DEFAULT_COMMERCIAL: SubcontractCommercialSummary = {
-  contractSumKes: '4,800,000.00',
-  cumulativeCertifiedKes: '3,120,000.00',
-  retentionWithheldKes: '156,000.00',
-  retentionRatePct: 5.0,
-  netDisbursedKes: '2,964,000.00',
-  milestones: [
-    {
-      id: 'sub-ms-1',
-      milestoneName: 'Substructure Drainage Piping & Manhole Connections',
-      pct: 30,
-      amountKes: '1,440,000.00',
-      status: 'PAID',
-      certifiedDate: '2026-01-28',
-},
-    {
-      id: 'sub-ms-2',
-      milestoneName: '1st - 3rd Floor Soil, Waste & Vent Stacks Rough-In',
-      pct: 35,
-      amountKes: '1,680,000.00',
-      status: 'CERTIFIED',
-      certifiedDate: '2026-02-25',
-},
-    {
-      id: 'sub-ms-3',
-      milestoneName: 'Sanitaryware Fixtures, Basin Traps & Water Heaters',
-      pct: 25,
-      amountKes: '1,200,000.00',
-      status: 'PENDING_CLAIM',
-},
-    {
-      id: 'sub-ms-4',
-      milestoneName: 'Pressure Testing, Chlorination & Final Commissioning',
-      pct: 10,
-      amountKes: '480,000.00',
-      status: 'PENDING_CLAIM',
-},
-  ],
-};
-
 export default function SubcontractorPortalView({
-  token = 'demo-subcontractor-token',
-  subcontractorName = 'Simba Plumbing Works Ltd',
-  subcontractorTrade = 'Specialist Sanitary & Drainage Subcontractor',
-  projectName = 'Riverside Commercial Plaza',
-  projectCode = 'RCP-2026',
-  snags = [
-    {
-      id: 'snag-sub-1',
-      snag_number: 'SNG-001',
-      location: 'Floor 2, Washroom 2B',
-      description: 'Compression coupling on hot water basin supply is dripping at 1 drop/5s under test pressure.',
-      severity: 'MINOR',
-      status: 'OPEN',
-      trade_category: 'Plumbing',
-      assigned_trade_firm: 'Simba Plumbing Works Ltd',
-      created_at: new Date().toISOString(),
-      photos: [
-        {
-          id: 'p-1',
-          photo_type: 'DEFECT',
-          storage_key: 'uploads/snags/defect_washbasin_coupling.jpg',
-          caption: 'Dripping coupling under washbasin counter',
-},
-      ],
-},
-    {
-      id: 'snag-sub-2',
-      snag_number: 'SNG-002',
-      location: 'Ground Floor, Kitchenette',
-      description: 'Install stainless steel bottle trap to kitchen sink waste pipe.',
-      severity: 'COSMETIC',
-      status: 'RECTIFIED_BY_CONTRACTOR',
-      trade_category: 'Plumbing',
-      assigned_trade_firm: 'Simba Plumbing Works Ltd',
-      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-      photos: [
-        {
-          id: 'p-2',
-          photo_type: 'RECTIFIED',
-          storage_key: 'uploads/snags/rectified_sink_trap.jpg',
-          caption: 'Trap installed and tested with zero leak',
-},
-      ],
-},
-  ],
-  commercialSummary = DEFAULT_COMMERCIAL,
+  token,
+  subcontractorName,
+  subcontractorTrade,
+  projectName,
+  projectCode,
   onBackToDashboard,
 }: SubcontractorPortalViewProps): React.JSX.Element {
-  const [activeTab, setActiveTab] = useState<'DEFECTS' | 'VALUATIONS'>('DEFECTS');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [stakeholder, setStakeholder] = useState({ name: subcontractorName || '', trade: subcontractorTrade || '' });
+  const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
+  const [snagList, setSnagList] = useState<SubcontractorSnag[]>([]);
+  const [packages, setPackages] = useState<any[]>([]);
   const [selectedSnagId, setSelectedSnagId] = useState<string | null>(null);
   const [rectifyPhotoKey, setRectifyPhotoKey] = useState('');
   const [rectifyNotes, setRectifyNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [snagList, setSnagList] = useState<SubcontractorSnag[]>(snags);
+  const [activeTab, setActiveTab] = useState<'DEFECTS' | 'VALUATIONS'>('DEFECTS');
   const [showClaimModal, setShowClaimModal] = useState(false);
-  const [claimMilestoneName, setClaimMilestoneName] = useState(
-    'Sanitaryware Fixtures, Basin Traps & Water Heaters'
-);
-  const [claimAmount, setClaimAmount] = useState('1,200,000.00');
+  const [claimPackageId, setClaimPackageId] = useState('');
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimNotes, setClaimNotes] = useState('');
+
+  useEffect(() => {
+    if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/portals/subcontractor/${token}`, { credentials: 'include' });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.message || 'This portal link is invalid or has expired');
+        if (cancelled) return;
+        const d = body.data || body;
+        if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', trade: d.stakeholder.trade || '' });
+        if (d.project) setProj({ name: d.project.name || '', code: d.project.code || '' });
+        setSnagList((d.snags || []).map((s: any) => ({
+          id: s.id,
+          snag_number: `SNG-${String(s.snag_number).padStart(3, '0')}`,
+          location: [s.location_block, s.location_floor].filter(Boolean).join(', ') || s.location_floor || '—',
+          description: s.description,
+          severity: s.severity === 'CRITICAL_SAFETY' ? 'CRITICAL' : s.severity === 'FUNCTIONAL' ? 'MINOR' : 'COSMETIC',
+          status: s.status,
+          trade_category: s.trade_category || '',
+          assigned_trade_firm: s.assigned_trade_firm,
+          created_at: s.created_at,
+          photos: (s.photos || []).map((ph: any) => ({
+            id: ph.id, photo_type: ph.photo_type, storage_key: ph.storage_key, caption: ph.caption,
+          })),
+        })));
+        setPackages(d.packages || []);
+        if ((d.packages || []).length > 0) setClaimPackageId(d.packages[0].id);
+      } catch (e: any) {
+        if (!cancelled) setLoadError(e.message || 'Failed to load portal');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
+  if (loading) {
+    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
+  }
+  if (loadError) {
+    return (
+      <div className="max-w-5xl mx-auto p-8 text-center space-y-3">
+        <p className="text-sm font-semibold text-rose-700">{loadError}</p>
+        <p className="text-xs text-slate-400">Check the link or ask your project manager for a new one.</p>
+        {onBackToDashboard && <button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button>}
+      </div>
+    );
+  }
+
+  // Commercial summary derived from real work packages + valuations
+  const commercialSummary: SubcontractCommercialSummary = (() => {
+    const contractSum = packages.reduce((a: number, p: any) => a + Number(p.subcontract_sum || 0), 0);
+    const allVals = packages.flatMap((p: any) => p.valuations || []);
+    const certified = allVals.filter((v: any) => ['QS_VERIFIED', 'APPROVED_FOR_PAYMENT', 'PAID'].includes(v.payment_status))
+      .reduce((a: number, v: any) => a + Number(v.gross_work_certified_kes || 0), 0);
+    const retention = allVals.reduce((a: number, v: any) => a + Number(v.retention_deducted_kes || 0), 0);
+    const milestones: SubcontractMilestone[] = packages.flatMap((p: any) =>
+      (p.valuations || []).map((v: any) => ({
+        id: v.id,
+        milestoneName: `${p.trade_category} — ${v.certificate_no}`,
+        pct: 0,
+        amountKes: String(v.net_payable_kes),
+        status: v.payment_status === 'PAID' ? 'PAID' : v.payment_status === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
+        certifiedDate: v.valuation_date ? String(v.valuation_date).split('T')[0] : undefined,
+      })),
+    );
+    return {
+      contractSumKes: contractSum.toLocaleString('en-KE', { minimumFractionDigits: 2 }),
+      cumulativeCertifiedKes: certified.toLocaleString('en-KE', { minimumFractionDigits: 2 }),
+      retentionWithheldKes: retention.toLocaleString('en-KE', { minimumFractionDigits: 2 }),
+      retentionRatePct: packages[0] ? Number(packages[0].retention_rate_pct || 5) : 5,
+      netDisbursedKes: allVals.filter((v: any) => v.payment_status === 'PAID')
+        .reduce((a: number, v: any) => a + Number(v.net_payable_kes || 0), 0)
+        .toLocaleString('en-KE', { minimumFractionDigits: 2 }),
+      milestones,
+    };
+  })();
 
   const openCount = snagList.filter((s) => s.status === 'OPEN').length;
   const rectifiedCount = snagList.filter((s) => s.status === 'RECTIFIED_BY_CONTRACTOR').length;
@@ -157,60 +157,59 @@ export default function SubcontractorPortalView({
     if (!rectifyPhotoKey.trim()) {
       setFeedback('Photo proof storage key or photo file is required to verify defect rectification.');
       return;
-}
-
+    }
     setSubmitting(true);
     setFeedback(null);
-
     try {
       const res = await fetch(`/api/v1/portals/subcontractor/${token}/snags/${snagId}/rectify`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           photoStorageKey: rectifyPhotoKey.trim(),
-          notes: rectifyNotes.trim() || `Rectified by ${subcontractorName}`,
-          gpsLat: -1.2683,
-          gpsLng: 36.8044,
-}),
-});
-
-      if (res.ok) {
-        setFeedback('Defect marked as rectified! Awaiting Site Supervisor sign-off.');
-        setSnagList((prev) =>
-          prev.map((s) =>
-            s.id === snagId ? { ...s, status: 'RECTIFIED_BY_CONTRACTOR'} : s
-)
-);
-        setSelectedSnagId(null);
-        setRectifyPhotoKey('');
-        setRectifyNotes('');
-} else {
-        const err = await res.json().catch(() => ({}));
-        setFeedback(err.message || 'Error updating snag rectification.');
-}
-} catch {
-      // Offline / Preview fallback
-      setFeedback('Defect marked as rectified (Preview Mode).');
-      setSnagList((prev) =>
-        prev.map((s) =>
-          s.id === snagId ? { ...s, status: 'RECTIFIED_BY_CONTRACTOR'} : s
-)
-);
+          notes: rectifyNotes.trim() || `Rectified by ${stakeholder.name}`,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Error updating snag rectification.');
+      setFeedback('Defect marked as rectified! Awaiting Site Supervisor sign-off.');
+      setSnagList((prev) => prev.map((s) => s.id === snagId ? { ...s, status: 'RECTIFIED_BY_CONTRACTOR' } : s));
       setSelectedSnagId(null);
       setRectifyPhotoKey('');
       setRectifyNotes('');
-} finally {
+    } catch (e: any) {
+      setFeedback(e.message || 'Network error — rectification not submitted.');
+    } finally {
       setSubmitting(false);
-}
-};
+    }
+  };
 
-  const handleSubmitClaim = (e: React.FormEvent) => {
+  const handleSubmitClaim = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFeedback(
-      `Interim progress claim for"${claimMilestoneName}" (KES ${claimAmount}) submitted to QS for joint measurement.`
-);
-    setShowClaimModal(false);
-};
+    const gross = Number(String(claimAmount).replace(/[^0-9.]/g, ''));
+    if (!claimPackageId || !Number.isFinite(gross) || gross <= 0) {
+      setFeedback('Select a work package and enter a valid amount.');
+      return;
+    }
+    setSubmitting(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/v1/portals/subcontractor/${token}/valuations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageId: claimPackageId, grossWorkCertifiedKes: gross, notes: claimNotes.trim() || undefined }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Valuation submission failed.');
+      setFeedback(`Valuation ${body.data?.certificate_no || ''} submitted to QS for verification.`);
+      setShowClaimModal(false);
+      setClaimAmount('');
+      setClaimNotes('');
+    } catch (e: any) {
+      setFeedback(e.message || 'Network error — valuation not submitted.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="subcontractor-portal-view">
@@ -225,9 +224,9 @@ export default function SubcontractorPortalView({
               Active Trade Token
 </span>
 </div>
-<h1 className="text-xl font-bold mt-2 text-white">{projectName} ({projectCode})</h1>
+<h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
 <p className="text-xs text-slate-400">
-            Assigned Trade:<span className="text-slate-200 font-semibold">{subcontractorName}</span> ({subcontractorTrade})
+            Assigned Trade:<span className="text-slate-200 font-semibold">{stakeholder.name}</span> ({stakeholder.trade})
 </p>
 </div>
 
@@ -536,15 +535,18 @@ export default function SubcontractorPortalView({
 <form onSubmit={handleSubmitClaim} className="space-y-3 text-xs">
 <div>
 <label className="block font-semibold text-slate-700 mb-1">
-                  Completed Milestone Stage:
+                  Work Package:
 </label>
-<input
-                  type="text"
+<select
                   required
-                  value={claimMilestoneName}
-                  onChange={(e) => setClaimMilestoneName(e.target.value)}
+                  value={claimPackageId}
+                  onChange={(e) => setClaimPackageId(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
-                />
+                >
+                  {packages.map((pkg: any) => (
+                    <option key={pkg.id} value={pkg.id}>{pkg.trade_category} — {pkg.firm_name}</option>
+                  ))}
+                </select>
 </div>
 
 <div>
@@ -559,10 +561,19 @@ export default function SubcontractorPortalView({
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
                 />
 <p className="text-[10px] text-slate-500 mt-0.5">
-                  5% retention (KES {(parseFloat(claimAmount.replace(/,/g, '') || '0') * 0.05).toLocaleString('en-US', { minimumFractionDigits: 2})}) will be automatically applied per contract terms.
+                  Contract retention and 3% WHT are calculated automatically on submission.
 </p>
 </div>
 
+<div>
+<label className="block font-semibold text-slate-700 mb-1">Notes (optional):</label>
+<textarea
+                  rows={2}
+                  value={claimNotes}
+                  onChange={(e) => setClaimNotes(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                />
+</div>
 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
 <button
                   type="button"
@@ -573,9 +584,10 @@ export default function SubcontractorPortalView({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-lg shadow-sm"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-lg shadow-sm disabled:opacity-50"
                 >
-                  Submit to QS
+                  {submitting ? 'Submitting…' : 'Submit to QS'}
 </button>
 </div>
 </form>

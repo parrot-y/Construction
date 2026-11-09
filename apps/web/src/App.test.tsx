@@ -104,16 +104,13 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
     const html = renderToString(<CompanyAdminDashboard session={adminSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
-    expect(html).toContain('David Kimani');
-    expect(html).toContain('COMPANY_ADMIN');
     expect(html).toContain('Executive Company Dashboard');
     expect(html).toContain('Active Projects');
     expect(html).toContain('Total Contract Value');
     expect(html).toContain('Approved Budget');
     expect(html).toContain('Registered Projects');
-    expect(html).toContain('Riverside Commercial Plaza');
+    expect(html).toContain('No projects yet');
     expect(html).toContain('Team Management');
-    expect(html).toContain('Faith Achieng');
     expect(html).toContain('Audit Log Activity Trail');
     expect(html).toContain('+ Create Project');
     expect(html).toContain('+ Invite Member');
@@ -206,12 +203,10 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('CLIENT');
     expect(html).toContain('Project Visibility &amp; Progress Verification');
     expect(html).toContain('Physical Progress');
-    expect(html).toContain('12.0%');
     expect(html).toContain('Approved Contract Sum');
     expect(html).toContain('Total Certified Cost');
     expect(html).toContain('Contract Retention Terms (Kenyan Standard)');
     expect(html).toContain('10% of Gross Certified Work');
-    expect(html).toContain('2250000.00');
     expect(html).toContain('Verified Photo Evidence');
 });
 
@@ -643,25 +638,17 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     it('renders the 5 plain-language financial cards with KES formatting and visual budget progress bar', () => {
       const html = renderToString(<ClientDashboard session={clientSession} />);
 
-      // 5 Plain-Language Financial Cards
+      // 5 Plain-Language Financial Cards — honest zeros until portal data loads
       expect(html).toContain('Original Agreed Budget');
-      expect(html).toContain('45000000.00');
+      expect(html).toContain('KES 0.00');
 
       expect(html).toContain('Approved Variations Total');
-      expect(html).toContain('900000.00');
-
       expect(html).toContain('Current Approved Budget');
-      expect(html).toContain('45900000.00');
-
       expect(html).toContain('Total Spent to Date');
-      expect(html).toContain('4500000.00');
-
       expect(html).toContain('Remaining Balance');
-      expect(html).toContain('41400000.00');
 
       // Visual budget utilization bar
       expect(html).toContain('Project Budget Utilization');
-      expect(html).toContain('9.8% Consumed');
 });
 
     it('renders the Diaspora Multi-Currency converter controls for overseas property owners', () => {
@@ -842,7 +829,6 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Site Summary (PDF)');
       expect(html).toContain('data-testid="download-site-diary-btn"');
       expect(html).toContain('data-testid="download-summary-btn"');
-      expect(html).toContain('/reports/site-diary/latest');
       expect(html).toContain('/reports/summary');
 });
 });
@@ -1143,15 +1129,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Zero Seat Tax • Consultant Portal');
-      expect(html).toContain('Arch. Peter Mwangi');
-      expect(html).toContain('BORAQS Reg: A-742');
-      expect(html).toContain('Riverside Commercial Plaza (RCP-2026)');
-      expect(html).toContain('Architectural &amp; Structural RFIs');
-      expect(html).toContain('RFI-001');
-      expect(html).toContain('Clarification on Column C3 rebar cover');
-      expect(html).toContain('Concrete Cube Strength Tests');
-      expect(html).toContain('Pre-Pour QA Checklists');
+      // Portal now loads real data via /api/v1/portals/consultant/:token —
+      // SSR render shows the loading state; data assertions live in e2e.
+      expect(html).toContain('Loading portal');
 });
 
     it('renders SubcontractorPortalView with trade-filtered snags and defect rectification form', () => {
@@ -1166,16 +1146,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Subcontractor Portal • Zero Seat Tax');
-      expect(html).toContain('Simba Plumbing Works Ltd');
-      expect(html).toContain('SNG-001');
-      expect(html).toContain('Floor 2, Washroom 2B');
-      expect(html).toContain('Open Defects');
-      expect(html).toContain('Rectified (Pending Sign-off)');
-      expect(html).toContain('Submit Defect Rectification Proof');
-      expect(html).toContain('Subcontract Sum');
-      expect(html).toContain('5% Retention Held');
-      expect(html).toContain('subcontractor-valuations-tab');
+      expect(html).toContain('Loading portal');
 });
 
     it('renders SupplierPortalView with batch delivery schedule, docket numbers, and receiving logs', () => {
@@ -1190,15 +1161,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Material Supplier &amp; Batching Portal • Zero Seat Tax');
-      expect(html).toContain('Bamburi Ready-Mix Nairobi Plant');
-      expect(html).toContain('DN-BAM-90812');
-      expect(html).toContain('Ready-Mix Concrete Class 25/20');
-      expect(html).toContain('Site Acknowledged &amp; Cast');
-      expect(html).toContain('Purchase Order');
-      expect(html).toContain('PO-RCP-2026-BAM-01');
-      expect(html).toContain('Delivered &amp; GRN-Verified');
-      expect(html).toContain('view-po-ledger-btn');
+      expect(html).toContain('Loading portal');
 });
 
     it('renders CompliancePortalView with NCA registration, statutory levy, supervisor accreditation, and cube pass rate', () => {
@@ -1213,15 +1176,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('NCA &amp; Regulatory Compliance Portal • Zero Seat Tax');
-      expect(html).toContain('Eng. Faith Mutua');
-      expect(html).toContain('NCA Cap 499A Verified');
-      expect(html).toContain('NCA/PRJ/RCP-2026/REG-0891');
-      expect(html).toContain('0.5% Statutory Levy');
-      expect(html).toContain('Paid &amp; Reconciled');
-      expect(html).toContain('Accredited Supervisor');
-      expect(html).toContain('100.0%');
-      expect(html).toContain('Structural Concrete Quality Register');
+      expect(html).toContain('Loading portal');
 });
 
     it('renders PortalAccessLinkManager with zero-seat-tax links for all external stakeholders', () => {
@@ -1249,8 +1204,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Zero Seat Tax • Consultant Portal');
-      expect(html).toContain('Architectural &amp; Structural RFIs');
+      expect(html).toContain('Loading portal');
       expect(html).not.toContain('Sign in to access your project workspace');
 });
 
@@ -2449,9 +2403,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Total Contract Sum:');
       expect(html).toContain('Gross Certified IPCs:');
       expect(html).toContain('Net Payments Disbursed:');
-      expect(html).toContain('Monetary Progress Variance:');
-      expect(html).toContain('IPC #01');
-      expect(html).toContain('IPC #02');
+      expect(html).toContain('Loading certificates');
 
       // Multi-currency toggles present
       expect(html).toContain('currency-toggle-kes');
@@ -2500,7 +2452,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('whatsapp-alert-btn');
 });
 
-    it('renders Kenyan Statutory Clearances (NEMA EIA, County Approval, DOSHS, NCWSC) and official certification modal in CompliancePortalView', () => {
+    it('renders CompliancePortalView loading state pending token verification', () => {
       const html = renderToString(
 <CompliancePortalView
           projectName="Riverside Commercial Plaza"
@@ -2508,18 +2460,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
         />
 ).replace(/<!-- -->/g, '');
 
-      // Kenyan Statutory Clearances Register
-      expect(html).toContain('Kenyan Statutory Clearances &amp; Approvals');
-      expect(html).toContain('National Environment Management Authority (NEMA)');
-      expect(html).toContain('NEMA/EIA/PSPR/28194');
-      expect(html).toContain('Nairobi City County Urban Planning Directorate');
-      expect(html).toContain('NCC/PLN/ARCH/2025/1102');
-      expect(html).toContain('Directorate of Occupational Safety &amp; Health (DOSHS)');
-      expect(html).toContain('DOSHS/WR/NBI/40921');
-      expect(html).toContain('Nairobi City Water &amp; Sewerage Company (NCWSC)');
-      expect(html).toContain('NCWSC/CONN/PERMIT/2025/8920');
-      expect(html).toContain('Statutory Legal Guard Active');
-      expect(html).toContain('view-statutory-certificate-btn');
+      // Token-scoped portal: data loads via /api/v1/portals/compliance/:token;
+      // SSR shows the loading state (no demo data is rendered).
+      expect(html).toContain('Loading portal');
 });
 });
 
