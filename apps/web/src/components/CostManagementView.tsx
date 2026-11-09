@@ -134,7 +134,7 @@ export default function CostManagementView({
       {/* View Header */}
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
 <div>
-<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+<span className="text-[11px] font-bold text-slate-500">
             Append-Only Financial Ledger
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-0.5">Project Cost Entries & Approvals</h3>

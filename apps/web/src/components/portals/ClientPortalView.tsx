@@ -134,7 +134,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
 <div className="flex items-start justify-between gap-4">
 <div>
-<p className="text-[10px] font-bold uppercase tracking-wider text-purple-700">Client Portal</p>
+<p className="text-[10px] font-bold text-purple-700">Client Portal</p>
 <h2 className="text-lg font-bold text-slate-900">{data.project?.name || 'Project'}</h2>
 <p className="text-xs text-slate-500">
             {data.stakeholder.name} · {data.stakeholder.role}

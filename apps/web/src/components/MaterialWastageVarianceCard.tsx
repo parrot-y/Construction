@@ -141,11 +141,10 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
   const actualWastagePct = theo > 0 ? ((varianceQty / theo) * 100).toFixed(2) : '0.00';
   const allowedThresholdQty = theo * (1 + allowable / 100);
   const excessQty = actual > allowedThresholdQty ? actual - allowedThresholdQty : 0;
-  const financialLoss = (excessQty * unitCost).toLocaleString('en-KE', { minimumFractionDigits: 2});
+  const financialLoss = excessQty * unitCost;
 
   const totalFinancialLoss = reconciliations
-    .reduce((sum, r) => sum + Number(r.financialLossKes || 0), 0)
-    .toLocaleString('en-KE', { minimumFractionDigits: 2});
+    .reduce((sum, r) => sum + Number(r.financialLossKes || 0), 0);
   const criticalCount = reconciliations.filter((r) => r.status === 'CRITICAL_UNEXPLAINED_LOSS').length;
   const withinTolCount = reconciliations.filter((r) => r.status === 'WITHIN_TOLERANCE').length;
 
@@ -256,27 +255,27 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
       {/* KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Reconciled</p>
+<p className="text-xs font-semibold text-slate-500 ">Total Reconciled</p>
 <p className="text-2xl font-bold text-slate-800 mt-1">
             {initialSummary?.totalReconciliations ?? reconciliations.length}
 </p>
 </div>
 <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
-<p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Within Tolerance</p>
+<p className="text-xs font-semibold text-emerald-700 ">Within Tolerance</p>
 <p className="text-2xl font-bold text-emerald-900 mt-1">
             {initialSummary?.withinToleranceCount ?? withinTolCount}
 </p>
 </div>
 <div className="bg-rose-50 p-4 rounded-lg border border-rose-200">
-<p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">Critical Theft/Loss Flags</p>
+<p className="text-xs font-semibold text-rose-700 ">Critical Theft/Loss Flags</p>
 <p className="text-2xl font-bold text-rose-900 mt-1">
             {initialSummary?.criticalLossesCount ?? criticalCount}
 </p>
 </div>
 <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-<p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Financial Leakage</p>
+<p className="text-xs font-semibold text-amber-700 ">Financial Leakage</p>
 <p className="text-2xl font-bold text-amber-900 mt-1">
-            KES {initialSummary?.totalFinancialLossKes ?? totalFinancialLoss}
+            {formatKes(initialSummary?.totalFinancialLossKes ?? totalFinancialLoss)}
 </p>
 </div>
 </div>
@@ -284,7 +283,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
       {/* Reconciliation Table */}
 <div className="overflow-x-auto">
 <table className="w-full text-left text-sm text-slate-600">
-<thead className="bg-slate-50 text-slate-700 font-semibold uppercase text-xs border-b border-slate-200">
+<thead className="bg-slate-50 text-slate-700 font-semibold text-xs border-b border-slate-200">
 <tr>
 <th className="py-3 px-4">Period & Cycle</th>
 <th className="py-3 px-4">Material</th>
@@ -333,7 +332,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 <td className="py-3 px-4 font-bold text-slate-900">
                     {Number(rec.financialLossKes) > 0 ? (
 <span className="text-rose-600">
-                        KES {Number(rec.financialLossKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
+                        {formatKes(rec.financialLossKes)}
 </span>
 ) : (
 <span className="text-emerald-600">{formatKes(0)}</span>
@@ -477,7 +476,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 </div>
 <div>
 <span className="text-slate-500">Financial Leakage:</span>
-<span className="font-bold text-slate-900 font-mono">KES {financialLoss}</span>
+<span className="font-bold text-slate-900 font-mono">{formatKes(financialLoss)}</span>
 </div>
 </div>
 

@@ -1,4 +1,5 @@
 import React, { useState} from 'react';
+import { formatKes } from '../ui';
 
 export interface SCurveDataPoint {
   periodMonth: string;
@@ -60,7 +61,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
   const cpi = initialMetrics?.cpi ?? latestPoint?.cpi ?? '—';
   const spi = initialMetrics?.spi ?? latestPoint?.spi ?? '—';
   const eacNum = parseFloat(cpi);
-  const eac = initialMetrics?.estimateAtCompletionKes ?? (eacNum > 0 ? (Number(budgetAtCompletionKes) / eacNum).toFixed(2) : '0.00');
+  const eac = initialMetrics?.estimateAtCompletionKes ?? (eacNum > 0 ? (Number(budgetAtCompletionKes) / eacNum) : '0.00');
   const netCashFlow = initialMetrics?.cumulativeNetCashFlowKes ?? latestPoint?.netCashFlowKes ?? '0.00';
 
   // SVG Chart Dimensions & Calculations
@@ -167,7 +168,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
       {/* EVM KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cost Performance (CPI)</p>
+<p className="text-xs font-semibold text-slate-500 ">Cost Performance (CPI)</p>
 <div className="flex items-baseline gap-2 mt-1">
 <span className={`text-2xl font-bold ${parseFloat(cpi) >= 1.0 ? 'text-emerald-700' : 'text-rose-700'}`}>
               {cpi}
@@ -179,7 +180,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 </div>
 
 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Schedule Index (SPI)</p>
+<p className="text-xs font-semibold text-slate-500 ">Schedule Index (SPI)</p>
 <div className="flex items-baseline gap-2 mt-1">
 <span className={`text-2xl font-bold ${parseFloat(spi) >= 1.0 ? 'text-emerald-700' : 'text-amber-700'}`}>
               {spi}
@@ -191,19 +192,19 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 </div>
 
 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-<p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Forecast at Completion</p>
+<p className="text-xs font-semibold text-indigo-700 ">Forecast at Completion</p>
 <p className="text-xl font-bold text-indigo-900 mt-1">
-            {Number(eac) > 0 ? `KES ${Number(eac).toLocaleString('en-KE', { minimumFractionDigits: 0})}` : '—'}
+            {Number(eac) > 0 ? formatKes(eac) : '—'}
 </p>
 <p className="text-xs text-indigo-600 mt-0.5">
-            BAC: KES {Number(budgetAtCompletionKes).toLocaleString('en-KE', { minimumFractionDigits: 0})}
+            BAC: {formatKes(budgetAtCompletionKes)}
 </p>
 </div>
 
 <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
-<p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Net Cash Flow (Liquidity)</p>
+<p className="text-xs font-semibold text-emerald-700 ">Net Cash Flow (Liquidity)</p>
 <p className="text-xl font-bold text-emerald-900 mt-1">
-            KES {Number(netCashFlow).toLocaleString('en-KE', { minimumFractionDigits: 0})}
+            {formatKes(netCashFlow)}
 </p>
 <p className="text-xs text-emerald-700 mt-0.5">Billed vs Paid to Date</p>
 </div>
@@ -286,7 +287,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
       {/* Monthly Periods Breakdown Table */}
 <div className="overflow-x-auto">
 <table className="w-full text-left text-sm text-slate-600">
-<thead className="bg-slate-50 text-slate-700 font-semibold uppercase text-xs border-b border-slate-200">
+<thead className="bg-slate-50 text-slate-700 font-semibold text-xs border-b border-slate-200">
 <tr>
 <th className="py-3 px-4">Period Month</th>
 <th className="py-3 px-4">Planned Value (PV)</th>
@@ -302,15 +303,15 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
             {series.map((item) => (
 <tr key={item.periodMonth} className="hover:bg-slate-50/80 transition">
 <td className="py-3 px-4 font-mono font-semibold text-slate-900">{item.periodMonth}</td>
-<td className="py-3 px-4">KES {Number(item.plannedValueKes).toLocaleString('en-KE')}</td>
+<td className="py-3 px-4">{formatKes(item.plannedValueKes)}</td>
 <td className="py-3 px-4 font-semibold text-emerald-700">
-                  KES {Number(item.earnedValueKes).toLocaleString('en-KE')}
+                  {formatKes(item.earnedValueKes)}
 </td>
-<td className="py-3 px-4 text-slate-900">KES {Number(item.actualCostKes).toLocaleString('en-KE')}</td>
+<td className="py-3 px-4 text-slate-900">{formatKes(item.actualCostKes)}</td>
 <td className="py-3 px-4 font-mono font-medium">{item.cpi}</td>
 <td className="py-3 px-4 font-mono font-medium">{item.spi}</td>
 <td className="py-3 px-4 font-bold text-slate-900">
-                  KES {Number(item.netCashFlowKes).toLocaleString('en-KE')}
+                  {formatKes(item.netCashFlowKes)}
 </td>
 <td className="py-3 px-4">
 <span

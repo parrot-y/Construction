@@ -55,7 +55,7 @@ export default function LandingPortalHub({
 
       {/* Hero — plain, no gradient, no invented stats */}
 <header className="max-w-2xl space-y-5">
-<h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight">
+<h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
           Run your construction sites from one place.
 </h1>
 <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">
@@ -123,7 +123,7 @@ export default function LandingPortalHub({
       {/* Dev-only role previews */}
       {isDev && (
 <section className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4">
-<p className="text-[11px] font-bold text-slate-400 uppercase">Developer only</p>
+<p className="text-[11px] font-bold text-slate-400 ">Developer only</p>
 <div className="flex flex-wrap gap-2 mt-2">
             {['COMPANY_ADMIN', 'PM_QS', 'SITE_SUPERVISOR', 'EXECUTIVE', 'CLIENT'].map((r) => (
 <button

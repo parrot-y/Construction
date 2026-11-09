@@ -187,7 +187,7 @@ export default function ConsultantPortalView({
 <header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-full">
+<span className="text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-full">
               Zero Seat Tax • Consultant Portal
 </span>
 <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
@@ -279,7 +279,7 @@ export default function ConsultantPortalView({
                       {rfi.discipline}
 </span>
 <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                         rfi.urgency === 'BLOCKER'
                           ? 'bg-red-100 text-red-800 border border-red-200'
                           : rfi.urgency === 'URGENT'

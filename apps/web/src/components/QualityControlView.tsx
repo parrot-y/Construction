@@ -291,7 +291,7 @@ export default function QualityControlView({
 <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
               Quality Assurance & Structural Inspection
 </span>
 <span className="text-xs text-slate-400 font-mono">KS 02-598 / BORAQS</span>
@@ -363,7 +363,7 @@ export default function QualityControlView({
                       {chk.checklistNumber}
 </span>
 <span
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-wider ${getStatusBadge(
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${getStatusBadge(
                         chk.status
 )}`}
                     >
@@ -440,7 +440,7 @@ export default function QualityControlView({
 <div className="overflow-x-auto">
 <table className="w-full text-left text-xs border-collapse bg-white rounded-lg border border-slate-200 overflow-hidden">
 <thead>
-<tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 uppercase tracking-wider text-[10px]">
+<tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-[10px]">
 <th className="p-3 font-semibold">Hold-Point Inspection Parameter</th>
 <th className="p-3 font-semibold">Trade Category</th>
 <th className="p-3 font-semibold">Inspector Notes / Criteria</th>
@@ -464,7 +464,7 @@ export default function QualityControlView({
 </td>
 <td className="p-3 text-center whitespace-nowrap">
 <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                             item.status === 'PASS'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : item.status === 'FAIL'
@@ -525,7 +525,7 @@ export default function QualityControlView({
 <div className="overflow-x-auto">
 <table className="w-full text-left text-xs border-collapse">
 <thead>
-<tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[10px]">
+<tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px]">
 <th className="p-3 font-semibold">Test # & Supplier Ticket</th>
 <th className="p-3 font-semibold">Pour Structural Location</th>
 <th className="p-3 font-semibold">Class</th>

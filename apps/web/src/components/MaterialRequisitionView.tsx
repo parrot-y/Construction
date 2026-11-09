@@ -280,25 +280,25 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
       {/* Summary KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Requisitions</p>
+<p className="text-xs font-semibold text-slate-500 ">Total Requisitions</p>
 <p className="text-2xl font-bold text-slate-800 mt-1">
             {initialSummary?.totalCount ?? totalCount}
 </p>
 </div>
 <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-<p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Pending Review</p>
+<p className="text-xs font-semibold text-amber-700 ">Pending Review</p>
 <p className="text-2xl font-bold text-amber-900 mt-1">
             {initialSummary?.pendingCount ?? pendingCount}
 </p>
 </div>
 <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
-<p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Approved / PO Issued</p>
+<p className="text-xs font-semibold text-emerald-700 ">Approved / PO Issued</p>
 <p className="text-2xl font-bold text-emerald-900 mt-1">
             {initialSummary?.approvedCount ?? approvedCount}
 </p>
 </div>
 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-<p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Total Value (KES)</p>
+<p className="text-xs font-semibold text-indigo-700 ">Total Value (KES)</p>
 <p className="text-2xl font-bold text-indigo-900 mt-1">
             KES {initialSummary?.totalEstimatedKes ?? totalEstimatedKes}
 </p>
@@ -325,7 +325,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
       {/* Requisitions Table */}
 <div className="overflow-x-auto">
 <table className="w-full text-left text-sm text-slate-600">
-<thead className="bg-slate-50 text-slate-700 font-semibold uppercase text-xs border-b border-slate-200">
+<thead className="bg-slate-50 text-slate-700 font-semibold text-xs border-b border-slate-200">
 <tr>
 <th className="py-3 px-4">Req No</th>
 <th className="py-3 px-4">Item & Description</th>

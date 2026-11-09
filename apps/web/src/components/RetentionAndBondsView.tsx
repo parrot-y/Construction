@@ -325,7 +325,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <span>•</span>
 <span>JBC 1999 Clause 30 &amp; 34 Dual-Moiety</span>
 </div>
-<h1 className="text-2xl font-bold tracking-tight">Retention Releases &amp; Performance Bonds</h1>
+<h1 className="text-2xl font-bold ">Retention Releases &amp; Performance Bonds</h1>
 <p className="text-sm text-blue-200/80 mt-1">
               Project:<span className="font-semibold text-white">{projectName}</span> | 50% Practical Completion Release, 50% Post-DLP Expiry Release &amp; Bank Guarantee Expiry Monitor
 </p>
@@ -411,7 +411,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <div className="overflow-x-auto">
 <table className="w-full text-left border-collapse text-sm">
 <thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">
+<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
 <th className="py-3 px-4">Certificate #</th>
 <th className="py-3 px-4">Subcontractor Firm</th>
 <th className="py-3 px-4">Trade</th>
@@ -494,7 +494,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <div className="overflow-x-auto">
 <table className="w-full text-left border-collapse text-sm">
 <thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">
+<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
 <th className="py-3 px-4">Bond Reference #</th>
 <th className="py-3 px-4">Bond Type</th>
 <th className="py-3 px-4">Guarantor (Bank / Insurer)</th>

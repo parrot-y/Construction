@@ -52,7 +52,7 @@ export default function PracticalCompletionCard({
 <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
               Project Closeout & Statutory Handover
 </span>
 <span className="text-xs text-slate-400 font-mono">BORAQS Standard</span>
@@ -66,7 +66,7 @@ export default function PracticalCompletionCard({
 </div>
 
 <div className="flex items-center gap-2">
-<span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+<span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold flex items-center gap-1.5">
 <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
 <span>PRACTICAL COMPLETION ACHIEVED</span>
 </span>
@@ -78,7 +78,7 @@ export default function PracticalCompletionCard({
 <div className="bg-emerald-50/40 border border-emerald-200 rounded-xl p-4 sm:p-5 space-y-3">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+<span className="text-[10px] font-bold text-emerald-800 block">
                 Official Statutory Certificate
 </span>
 <h4 className="text-base font-bold text-slate-900 mt-0.5">
@@ -106,7 +106,7 @@ export default function PracticalCompletionCard({
 <div className="p-3 bg-white rounded-lg border border-emerald-100 flex items-start gap-2.5">
 <span className="text-lg"></span>
 <div>
-<span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-400 block">
                   Lead Consultant Architect
 </span>
 <span className="font-bold text-slate-900 block">{architectName}</span>
@@ -119,7 +119,7 @@ export default function PracticalCompletionCard({
 <div className="p-3 bg-white rounded-lg border border-emerald-100 flex items-start gap-2.5">
 <span className="text-lg"></span>
 <div>
-<span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-400 block">
                   Lead Quantity Surveyor
 </span>
 <span className="font-bold text-slate-900 block">{qsName}</span>
@@ -138,7 +138,7 @@ export default function PracticalCompletionCard({
 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none" />
 <div className="flex justify-between items-start">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                   First Moiety (50%)
 </span>
 <h5 className="text-sm font-bold text-slate-900 mt-1">
@@ -178,7 +178,7 @@ export default function PracticalCompletionCard({
 <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-bl-full pointer-events-none" />
 <div className="flex justify-between items-start">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                   Second Moiety (Final 50%)
 </span>
 <h5 className="text-sm font-bold text-slate-900 mt-1">
@@ -220,7 +220,7 @@ export default function PracticalCompletionCard({
 <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 space-y-4">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
                 Contractual Warranty Window
 </span>
 <h4 className="text-base font-bold text-slate-900 mt-1">
@@ -272,7 +272,7 @@ export default function PracticalCompletionCard({
 <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
                 Final Closeout Certificate
 </span>
 <h4 className="text-base font-bold text-slate-900 mt-1">
@@ -293,13 +293,13 @@ export default function PracticalCompletionCard({
 
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-<span className="text-[10px] text-slate-400 uppercase font-semibold block">
+<span className="text-[10px] text-slate-400 font-semibold block">
                 Final Inspection Date
 </span>
 <span className="font-mono font-bold text-slate-800 mt-0.5 block">10 April 2027</span>
 </div>
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-<span className="text-[10px] text-slate-400 uppercase font-semibold block">
+<span className="text-[10px] text-slate-400 font-semibold block">
                 Final Retention Release
 </span>
 <span className="font-mono font-bold text-emerald-700 mt-0.5 block">
@@ -307,7 +307,7 @@ export default function PracticalCompletionCard({
 </span>
 </div>
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-<span className="text-[10px] text-slate-400 uppercase font-semibold block">
+<span className="text-[10px] text-slate-400 font-semibold block">
                 Final Account Status
 </span>
 <span className="font-mono font-bold text-slate-700 mt-0.5 block">In Preparation</span>

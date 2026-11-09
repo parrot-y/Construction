@@ -346,7 +346,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
       {/* Metric Cards */}
 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Perimeter Centroid</p>
+<p className="text-xs font-semibold text-slate-500 ">Perimeter Centroid</p>
 <p className="text-sm font-mono font-bold text-slate-800 mt-1">
             {activeGeofence ? `${activeGeofence.centerLatitude}, ${activeGeofence.centerLongitude}` : 'None'}
 </p>
@@ -354,19 +354,19 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Clock Events</p>
+<p className="text-xs font-semibold text-slate-500 ">Total Clock Events</p>
 <p className="text-xl font-bold text-slate-800 mt-1">{totalEvents}</p>
 <p className="text-xs text-slate-400 mt-1">Today's site muster roll</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Verified On-Site</p>
+<p className="text-xs font-semibold text-emerald-600 ">Verified On-Site</p>
 <p className="text-xl font-bold text-emerald-700 mt-1">{verifiedCount}</p>
 <p className="text-xs text-emerald-600 mt-1">Within authorized boundary</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-rose-600 uppercase tracking-wider">Flagged Violations</p>
+<p className="text-xs font-semibold text-rose-600 ">Flagged Violations</p>
 <p className="text-xl font-bold text-rose-700 mt-1">{flaggedCount}</p>
 <p className="text-xs text-rose-500 mt-1">Off-site clock-in attempts</p>
 </div>

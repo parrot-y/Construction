@@ -28,7 +28,7 @@ export default function MilestoneTimeline({
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
             Project Schedule & Verification
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">Milestone Progress Timeline</h3>

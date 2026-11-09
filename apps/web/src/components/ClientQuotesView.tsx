@@ -94,7 +94,7 @@ export default function ClientQuotesView(): React.JSX.Element {
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
           Quotes & Proposals
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">Quotes addressed to you</h3>

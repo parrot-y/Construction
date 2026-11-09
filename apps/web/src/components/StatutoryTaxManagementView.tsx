@@ -268,7 +268,7 @@ export default function StatutoryTaxManagementView({
       {/* Filter Bar */}
 <div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-wrap items-center gap-3">
 <div className="flex items-center gap-2">
-<label className="text-xs font-semibold text-slate-600 uppercase">Status:</label>
+<label className="text-xs font-semibold text-slate-600 ">Status:</label>
 <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}

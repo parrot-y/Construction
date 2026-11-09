@@ -222,7 +222,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 <div className="flex items-center gap-1">
             {STAGES.map((s, i) => (
 <React.Fragment key={s}>
-<div className={`flex-1 text-center px-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide ${
+<div className={`flex-1 text-center px-2 py-2 rounded-lg text-[10px] font-bold ${
                   i< stageIdx ? 'bg-emerald-50 text-emerald-700' : i === stageIdx ? 'bg-purple-600 text-white' : 'bg-slate-50 text-slate-400'
 }`}>
                   {STAGE_LABELS[s]}

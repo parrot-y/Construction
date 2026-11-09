@@ -302,22 +302,22 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
       {/* KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Tests Logged</span>
+<span className="text-xs font-medium text-gray-500 ">Total Tests Logged</span>
 <p className="text-2xl font-bold text-gray-900 mt-1">{totalTests}</p>
 <span className="text-xs text-gray-400">All earthwork layers</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Compaction Pass Rate</span>
+<span className="text-xs font-medium text-gray-500 ">Compaction Pass Rate</span>
 <p className="text-2xl font-bold text-emerald-600 mt-1">{passRate}%</p>
 <span className="text-xs text-emerald-500">{passedTests} of {totalTests} verified</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Re-Rolling Required</span>
+<span className="text-xs font-medium text-gray-500 ">Re-Rolling Required</span>
 <p className="text-2xl font-bold text-red-600 mt-1">{totalTests - passedTests}</p>
 <span className="text-xs text-red-500">Failed density / moisture</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Kenya Road Standard (KS 02-102)</span>
+<span className="text-xs font-medium text-gray-500 ">Kenya Road Standard (KS 02-102)</span>
 <p className="text-2xl font-bold text-blue-600 mt-1">≥95% RC</p>
 <span className="text-xs text-blue-500">Subbase (≥98% Pad / Base)</span>
 </div>
@@ -354,7 +354,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
 <div className="overflow-x-auto">
 <table className="min-w-full divide-y divide-gray-200 text-sm text-left">
-<thead className="bg-gray-50 text-gray-600 font-semibold text-xs uppercase tracking-wider">
+<thead className="bg-gray-50 text-gray-600 font-semibold text-xs ">
 <tr>
 <th scope="col" className="px-4 py-3">Test No &amp; Date</th>
 <th scope="col" className="px-4 py-3">Location &amp; Layer</th>

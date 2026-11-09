@@ -273,7 +273,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
             Quotes-to-Cash
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">Quotations & Proposals</h3>
@@ -373,7 +373,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 
 <div className="space-y-2">
 <div className="flex justify-between items-center">
-<span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Line Items</span>
+<span className="text-[11px] font-bold text-slate-700 ">Line Items</span>
 <div className="flex items-center gap-2">
 <select onChange={(e) => {
                   const t = QUOTE_LINE_TEMPLATES[e.target.value];
@@ -408,10 +408,10 @@ export default function QuotesManagementView(): React.JSX.Element {
 
 <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
 <span className="text-slate-600">
-              Subtotal:<strong>{form.currency} {toCurrencyString(itemSubtotal.toFixed(2))}</strong>
-              {' • '}Tax ({taxPctNum}%):<strong>{toCurrencyString(taxAmt.toFixed(2))}</strong>
-              {' • '}Total:<strong>{form.currency} {toCurrencyString(total.toFixed(2))}</strong>
-              {' • '}Deposit ({depositPctNum}%):<strong>{toCurrencyString(depositAmt.toFixed(2))}</strong>
+              Subtotal:<strong>{form.currency} {toCurrencyString(itemSubtotal)}</strong>
+              {' • '}Tax ({taxPctNum}%):<strong>{toCurrencyString(taxAmt)}</strong>
+              {' • '}Total:<strong>{form.currency} {toCurrencyString(total)}</strong>
+              {' • '}Deposit ({depositPctNum}%):<strong>{toCurrencyString(depositAmt)}</strong>
 </span>
 <button type="submit" disabled={busyId === 'create'}
               className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50">
@@ -429,7 +429,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
-<tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-200">
+<tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
 <th className="py-2 pr-3">Quote</th>
 <th className="py-2 pr-3">Client</th>
 <th className="py-2 pr-3">Total</th>

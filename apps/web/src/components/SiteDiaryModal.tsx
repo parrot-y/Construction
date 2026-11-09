@@ -357,7 +357,7 @@ export default function SiteDiaryModal({
                   placeholder="Unit"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="w-16 p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono uppercase"
+                  className="w-16 p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono "
                 />
 </div>
 </div>

@@ -65,7 +65,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
       {/* Header Banner */}
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 <div>
-<span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+<span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full ">
             Site Supervisor Workspace
 </span>
 <h2 className="text-xl font-bold text-slate-900 mt-1">Site Operations & Daily Diary</h2>
@@ -166,7 +166,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
       {/* Metrics Row */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Assigned Sites
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">1 Project</span>
@@ -174,7 +174,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Today's Diary Status
 </span>
 <span className="text-lg font-bold text-amber-700 mt-1 block">
@@ -184,7 +184,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Today's Headcount
 </span>
 <span className="text-2xl font-bold font-mono text-slate-900 mt-1 block">
@@ -194,7 +194,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Site Photos Today
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Photos</span>
@@ -207,7 +207,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
 <div className="flex justify-between items-start">
 <div>
-<span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Site Station</span>
+<span className="text-xs font-bold text-slate-400 ">Active Site Station</span>
 <h3 className="text-lg font-bold text-slate-900 mt-0.5">{activeProject?.name || '—'}</h3>
 <p className="text-xs text-slate-500">{activeProject ? `${activeProject.code}` : 'Select a project'}</p>
 </div>

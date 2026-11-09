@@ -85,7 +85,7 @@ export default function CreateRfiModal({
         {/* Header */}
 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
               Formal Technical Clarification
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">

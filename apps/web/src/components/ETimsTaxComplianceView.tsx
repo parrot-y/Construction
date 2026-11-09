@@ -327,7 +327,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <span>•</span>
 <span>VSCU / OSCU Compliant</span>
 </div>
-<h1 className="text-2xl font-bold tracking-tight">Electronic Tax Invoices & TCC Ledger</h1>
+<h1 className="text-2xl font-bold ">Electronic Tax Invoices & TCC Ledger</h1>
 <p className="text-sm text-red-200/80 mt-1">
               Project:<span className="font-semibold text-white">{projectName}</span> | Real-time KRA cryptographically signed invoices &amp; Subcontractor Tax Compliance Tracking
 </p>
@@ -413,7 +413,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <div className="overflow-x-auto">
 <table className="w-full text-left border-collapse text-sm">
 <thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">
+<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
 <th className="py-3 px-4">Invoice #</th>
 <th className="py-3 px-4">KRA Control Unit No.</th>
 <th className="py-3 px-4">Buyer (Developer / Client)</th>
@@ -480,7 +480,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <div className="overflow-x-auto">
 <table className="w-full text-left border-collapse text-sm">
 <thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">
+<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
 <th className="py-3 px-4">Subcontractor Firm</th>
 <th className="py-3 px-4">Trade</th>
 <th className="py-3 px-4">KRA PIN</th>
@@ -608,7 +608,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                     type="text"
                     value={buyerPin}
                     onChange={(e) => setBuyerPin(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono uppercase"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono "
                     required
                   />
 </div>
@@ -700,7 +700,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                     type="text"
                     value={tccPin}
                     onChange={(e) => setTccPin(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono uppercase"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono "
                     required
                   />
 </div>

@@ -231,7 +231,7 @@ export default function ProjectDocumentVaultView({
       {/* Filter and Search Bar */}
 <div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
 <div className="flex items-center gap-2">
-<label className="text-xs font-semibold text-slate-600 uppercase">Category:</label>
+<label className="text-xs font-semibold text-slate-600 ">Category:</label>
 <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -279,7 +279,7 @@ export default function ProjectDocumentVaultView({
             >
 <div>
 <div className="flex items-center justify-between gap-2 mb-2">
-<span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+<span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700">
                     {doc.category.replace('_', ' ')}
 </span>
                   {getStatusBadge(doc.approval_status)}

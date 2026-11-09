@@ -125,7 +125,7 @@ export default function ClientRequestView(): React.JSX.Element {
 )}
 
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-<p className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">My requests</p>
+<p className="px-5 py-3 text-xs font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">My requests</p>
         {requests.length === 0 ? (
 <p className="px-5 py-8 text-xs text-slate-400 text-center">No requests yet — send your first one above.</p>
 ) : (

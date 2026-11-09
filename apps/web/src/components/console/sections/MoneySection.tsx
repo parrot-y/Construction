@@ -75,7 +75,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {([['Cash in', kpis?.cashIn], ['Deposits & advances', kpis?.deposits], ['Cash out', kpis?.cashOut], ['Net', kpis?.net]] as [string, number | undefined][]).map(([l, v]) => (
 <div key={l} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-<p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{l}</p>
+<p className="text-[10px] font-bold text-slate-400">{l}</p>
 <p className="text-lg font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">{v === undefined ? '—' : `KES ${v.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`}</p>
 </div>
 ))}

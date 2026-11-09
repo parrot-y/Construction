@@ -378,7 +378,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
       {/* Summary KPI Cards */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Total Machinery Fleet
 </span>
 <p className="text-2xl font-bold text-gray-900 mt-1">
@@ -390,7 +390,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Operational Availability
 </span>
 <p className="text-2xl font-bold text-emerald-600 mt-1">
@@ -402,7 +402,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Cumulative Operating Hours
 </span>
 <p className="text-2xl font-bold text-gray-900 mt-1">
@@ -418,7 +418,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
               : 'bg-white border-gray-200'
 }`}
         >
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Fuel Discrepancy Risk Flags
 </span>
 <p

@@ -494,7 +494,7 @@ export default function IndependentSiteReportView({
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
               Diaspora Shield • Neutral Site Verification
 </span>
 <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
@@ -574,7 +574,7 @@ export default function IndependentSiteReportView({
 
       {/* Inspections List Bar */}
 <div className="space-y-2">
-<span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+<span className="text-xs font-bold text-slate-700 block">
           Inspection Reports Register:
 </span>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -622,7 +622,7 @@ export default function IndependentSiteReportView({
 </div>
 
 <div className="text-left sm:text-right text-xs">
-<span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Inspection Urgency</span>
+<span className="text-[10px] font-semibold text-slate-400 block">Inspection Urgency</span>
 <span className="font-bold text-slate-800">
               {activeInspection.urgency === 'UNANNOUNCED_48HR'
                 ? ' 48-Hour Unannounced Surprise Audit'
@@ -636,7 +636,7 @@ export default function IndependentSiteReportView({
         {/* Inspector Credentials & GPS Coordinates */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
 <div className="flex items-center justify-between">
-<h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+<h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
 <span></span>
 <span>Independent Inspector Credentials &amp; On-Site GPS Telemetry</span>
 </h4>
@@ -647,19 +647,19 @@ export default function IndependentSiteReportView({
 
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-400 block text-[10px] font-semibold uppercase">Clerk of Works / Lead Auditor</span>
+<span className="text-slate-400 block text-[10px] font-semibold ">Clerk of Works / Lead Auditor</span>
 <span className="font-bold text-slate-900 mt-0.5 block">{activeInspection.inspector.name}</span>
 <span className="text-slate-600 text-[11px] font-mono mt-0.5 block">NCA Reg: {activeInspection.inspector.ncaRegistration}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-400 block text-[10px] font-semibold uppercase">Contact Telephony</span>
+<span className="text-slate-400 block text-[10px] font-semibold ">Contact Telephony</span>
 <span className="font-bold text-slate-900 mt-0.5 block">{activeInspection.inspector.phone}</span>
 <span className="text-slate-600 text-[11px] mt-0.5 block">{activeInspection.inspector.email}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-400 block text-[10px] font-semibold uppercase">GPS Coordinate Lock &amp; Accuracy</span>
+<span className="text-slate-400 block text-[10px] font-semibold ">GPS Coordinate Lock &amp; Accuracy</span>
 <span className="font-mono font-bold text-slate-900 mt-0.5 block">
                 {activeInspection.inspector.latitude.toFixed(6)}, {activeInspection.inspector.longitude.toFixed(6)}
 </span>
@@ -674,7 +674,7 @@ export default function IndependentSiteReportView({
 <div className={`p-4 rounded-xl border ${varianceInfo.bg} shadow-xs space-y-3`}>
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider block">
+<span className="text-[10px] font-bold block">
                 Ground Truth vs Contractor Valuation Claim
 </span>
 <h4 className="text-sm font-bold mt-0.5">Progress Variance Analysis</h4>
@@ -686,7 +686,7 @@ export default function IndependentSiteReportView({
 
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Contractor Reported</span>
+<span className="text-[11px] font-semibold text-slate-500 block">Contractor Reported</span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
                 {activeInspection.contractorReportedPct.toFixed(1)}%
 </span>
@@ -694,7 +694,7 @@ export default function IndependentSiteReportView({
 </div>
 
 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Inspector Verified</span>
+<span className="text-[11px] font-semibold text-slate-500 block">Inspector Verified</span>
 <span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
                 {activeInspection.inspectorVerifiedPct.toFixed(1)}%
 </span>
@@ -702,7 +702,7 @@ export default function IndependentSiteReportView({
 </div>
 
 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Variance Delta</span>
+<span className="text-[11px] font-semibold text-slate-500 block">Variance Delta</span>
 <span className={`text-lg font-bold font-mono mt-0.5 block ${activeInspection.variancePct<= -10 ? 'text-rose-700' : 'text-slate-800'}`}>
                 {activeInspection.variancePct > 0 ? `+${activeInspection.variancePct.toFixed(1)}%` : `${activeInspection.variancePct.toFixed(1)}%`}
 </span>
@@ -720,7 +720,7 @@ export default function IndependentSiteReportView({
 
         {/* Inspection Detailed Findings */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-4">
-<h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-2">
+<h4 className="text-xs font-bold text-slate-800 border-b border-slate-100 pb-2">
             Independent Technical Inspection Findings
 </h4>
 
@@ -788,10 +788,10 @@ export default function IndependentSiteReportView({
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+<span className="text-[10px] font-bold text-slate-400 block">
                 GPS &amp; Timestamped Photographic Evidence
 </span>
-<h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+<h4 className="text-xs font-bold text-slate-800">
                 Photo Evidence Gallery
 </h4>
 </div>
@@ -850,7 +850,7 @@ export default function IndependentSiteReportView({
         {/* Client Review & Rating Form */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
 <div className="flex justify-between items-center">
-<h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+<h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
 <span>⭐</span>
 <span>Client Review &amp; Report Sign-Off</span>
 </h4>
@@ -961,7 +961,7 @@ export default function IndependentSiteReportView({
 <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                   Platform Neutral Field Audit
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">
@@ -1070,7 +1070,7 @@ export default function IndependentSiteReportView({
             {/* Header */}
 <div className="flex justify-between items-start border-b-2 border-emerald-800 pb-4">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-widest text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded">
                   BORAQS &amp; NCA ACCREDITED CLERK OF WORKS • FORENSIC DOCKET
 </span>
 <h3 className="text-xl font-black text-slate-900 mt-1">
@@ -1091,22 +1091,22 @@ export default function IndependentSiteReportView({
             {/* Certificate Details Grid */}
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
 <div>
-<span className="text-slate-500 block text-[10px] uppercase font-semibold">Inspector</span>
+<span className="text-slate-500 block text-[10px] font-semibold">Inspector</span>
 <span className="font-bold text-slate-900">{activeInspection.inspector.name}</span>
 <span className="text-[10px] text-slate-500 block">{activeInspection.inspector.ncaRegistration}</span>
 </div>
 <div>
-<span className="text-slate-500 block text-[10px] uppercase font-semibold">Date &amp; Geotag</span>
+<span className="text-slate-500 block text-[10px] font-semibold">Date &amp; Geotag</span>
 <span className="font-bold text-slate-900">{activeInspection.inspectionDate}</span>
 <span className="text-[10px] text-slate-500 block font-mono">GPS: ±{activeInspection.inspector.accuracyMeters}m</span>
 </div>
 <div>
-<span className="text-slate-500 block text-[10px] uppercase font-semibold">Stage</span>
+<span className="text-slate-500 block text-[10px] font-semibold">Stage</span>
 <span className="font-bold text-slate-900">{activeInspection.stage.toUpperCase()}</span>
 <span className="text-[10px] text-slate-500 block">{activeInspection.urgency}</span>
 </div>
 <div>
-<span className="text-slate-500 block text-[10px] uppercase font-semibold">Status</span>
+<span className="text-slate-500 block text-[10px] font-semibold">Status</span>
 <span className="font-bold text-emerald-700">{activeInspection.status}</span>
 <span className="text-[10px] text-slate-500 block">Neutral Audit</span>
 </div>
@@ -1121,7 +1121,7 @@ export default function IndependentSiteReportView({
 }`}
             >
 <div className="flex justify-between items-center mb-2">
-<span className="font-bold text-xs uppercase tracking-wide">
+<span className="font-bold text-xs ">
                   {activeInspection.variancePct<= -10
                     ? ' Forensic Variance Alert: Contractor Progress Inflation'
                     : ' Verified Physical Progress Concurrence'}
@@ -1132,15 +1132,15 @@ export default function IndependentSiteReportView({
 </div>
 <div className="grid grid-cols-3 gap-2 text-center text-xs">
 <div className="bg-white p-2 rounded border border-slate-200">
-<span className="text-[10px] text-slate-500 block uppercase">Contractor Claimed</span>
+<span className="text-[10px] text-slate-500 block ">Contractor Claimed</span>
 <span className="text-sm font-bold text-slate-900">{activeInspection.contractorReportedPct}%</span>
 </div>
 <div className="bg-white p-2 rounded border border-slate-200">
-<span className="text-[10px] text-slate-500 block uppercase">Inspector Verified</span>
+<span className="text-[10px] text-slate-500 block ">Inspector Verified</span>
 <span className="text-sm font-bold text-emerald-700">{activeInspection.inspectorVerifiedPct}%</span>
 </div>
 <div className="bg-white p-2 rounded border border-slate-200">
-<span className="text-[10px] text-slate-500 block uppercase">Commercial Action</span>
+<span className="text-[10px] text-slate-500 block ">Commercial Action</span>
 <span className="text-xs font-bold text-rose-700">
                     {activeInspection.variancePct<= -10 ? 'Withhold Claim' : 'Authorize IPC'}
 </span>
@@ -1151,14 +1151,14 @@ export default function IndependentSiteReportView({
             {/* Forensic Notes & Materials */}
 <div className="space-y-3 text-xs">
 <div className="bg-white p-3 rounded-xl border border-slate-200">
-<h4 className="font-bold text-slate-800 uppercase text-[10px] tracking-wide mb-1">
+<h4 className="font-bold text-slate-800 text-[10px] mb-1">
                   Structural Findings &amp; Observations
 </h4>
 <p className="text-slate-600 leading-relaxed">{activeInspection.structuralNotes}</p>
 </div>
 
 <div className="bg-white p-3 rounded-xl border border-slate-200">
-<h4 className="font-bold text-slate-800 uppercase text-[10px] tracking-wide mb-1">
+<h4 className="font-bold text-slate-800 text-[10px] mb-1">
                   Materials Verification Audit
 </h4>
 <ul className="text-slate-600 space-y-1 list-disc list-inside">

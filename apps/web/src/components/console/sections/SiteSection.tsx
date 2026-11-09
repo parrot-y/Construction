@@ -85,7 +85,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 <div className="min-w-0">
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
                         {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short'})}
-                        {isToday &&<span className="ml-2 text-[10px] font-bold text-orange-600 uppercase">Today</span>}
+                        {isToday &&<span className="ml-2 text-[10px] font-bold text-orange-600 ">Today</span>}
 </p>
 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                         {entries.length > 0

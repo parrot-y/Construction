@@ -59,7 +59,7 @@ export default function PhotoEvidenceGallery({
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
             Site Progress Photos
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">Verified Photo Evidence Gallery</h3>

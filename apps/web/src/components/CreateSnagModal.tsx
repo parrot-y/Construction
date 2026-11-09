@@ -127,7 +127,7 @@ export default function CreateSnagModal({
         {/* Header */}
 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
               Punch List & Defect Logging
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">
@@ -155,7 +155,7 @@ export default function CreateSnagModal({
 
           {/* Spatial Location Hierarchy: Block -> Floor -> Room */}
 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
-<span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+<span className="text-[11px] font-bold text-slate-700 block">
               Spatial Zoning (Block → Floor → Room)
 </span>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

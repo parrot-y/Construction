@@ -81,7 +81,7 @@ function ExecHome(): React.JSX.Element {
 <div className="space-y-6">
 <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 rounded-2xl p-6 text-white relative overflow-hidden">
 <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-orange-600/20 blur-3xl" />
-<p className="text-xs font-semibold text-orange-300 uppercase tracking-wider">{greet}, {firstName}</p>
+<p className="text-xs font-semibold text-orange-300 ">{greet}, {firstName}</p>
 <h2 className="text-xl font-bold mt-1">Your projects, money and site activity at a glance.</h2>
 <button onClick={() => { setSection('projects'); setTab('all');}}
           className="mt-4 px-4 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition">
@@ -92,14 +92,14 @@ function ExecHome(): React.JSX.Element {
 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3 flex items-start gap-3">
 <IconSpark className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
 <div>
-<p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Assistant insight</p>
+<p className="text-[10px] font-bold text-amber-700 dark:text-amber-400">Assistant insight</p>
 <p className="text-xs text-amber-900 dark:text-amber-200 mt-0.5">{insight}</p>
 </div>
 </div>
 
       {(logToday === false || openSnags > 0 || clientRequests > 0) && (
 <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-2xl p-4">
-<p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2">Needs your attention today</p>
+<p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 mb-2">Needs your attention today</p>
 <div className="space-y-1.5">
             {logToday === false && (
 <button onClick={() => { setSection('site'); setTab('dailylog');}} className="w-full text-left flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-200 hover:underline">
@@ -123,7 +123,7 @@ function ExecHome(): React.JSX.Element {
 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {kpis.map((k) => (
 <div key={k.label} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-<p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{k.label}</p>
+<p className="text-[10px] font-bold text-slate-400">{k.label}</p>
 <p className={`text-xl font-bold mt-1 ${k.warn ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{k.value}</p>
 <p className="text-[10px] text-slate-400 mt-0.5">{k.sub}</p>
 </div>

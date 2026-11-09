@@ -271,7 +271,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 <span>•</span>
 <span>Two-Way Kenya Site Sync</span>
 </div>
-<h1 className="text-2xl font-bold tracking-tight">Field WhatsApp Bot &amp; Incident Dispatch</h1>
+<h1 className="text-2xl font-bold ">Field WhatsApp Bot &amp; Incident Dispatch</h1>
 <p className="text-sm text-emerald-200/80 mt-1">
               Project:<span className="font-semibold text-white">{projectName}</span> | Foremen &amp; fundis report daily diaries, materials &amp; safety hazards via WhatsApp (#DIARY, #DELIVERY, #INCIDENT)
 </p>
@@ -390,7 +390,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
               {/* Message and Swahili Bot Reply */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div className="bg-slate-50 dark:bg-slate-800/40 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-<div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+<div className="text-[11px] font-semibold text-slate-500 mb-1">
                     Incoming Field Message
 </div>
 <p className="text-sm text-slate-800 dark:text-slate-200 italic">
@@ -399,7 +399,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 </div>
 
 <div className="bg-emerald-50/60 dark:bg-emerald-950/20 p-3 rounded-lg border border-emerald-200/60 dark:border-emerald-800/40">
-<div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">
+<div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
                     Automated Swahili / English Reply
 </div>
 <p className="text-sm text-emerald-900 dark:text-emerald-200">
@@ -426,7 +426,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 <div className="overflow-x-auto">
 <table className="w-full text-left border-collapse text-sm">
 <thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">
+<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
 <th className="py-3 px-4">Recipient</th>
 <th className="py-3 px-4">Role</th>
 <th className="py-3 px-4">Mobile</th>

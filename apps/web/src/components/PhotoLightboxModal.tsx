@@ -35,7 +35,7 @@ export default function PhotoLightboxModal({
         {/* Header */}
 <div className="p-4 sm:p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
               Verified Site Evidence
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">Photo Inspection Lightbox</h3>
@@ -75,7 +75,7 @@ export default function PhotoLightboxModal({
           {/* Metadata Card Grid */}
 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-400 block">
                 Nairobi GPS Pin
 </span>
 <span className="font-mono font-medium text-slate-800 mt-0.5 block">
@@ -84,7 +84,7 @@ export default function PhotoLightboxModal({
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-400 block">
                 Captured At
 </span>
 <span className="font-medium text-slate-800 mt-0.5 block">
@@ -93,7 +93,7 @@ export default function PhotoLightboxModal({
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-400 block">
                 Weather Conditions
 </span>
 <span className="font-medium text-slate-800 mt-0.5 block">
@@ -102,7 +102,7 @@ export default function PhotoLightboxModal({
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg sm:col-span-3">
-<span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-400 block">
                 Verified Inspector / Recorded By
 </span>
 <span className="font-medium text-slate-800 mt-0.5 block">

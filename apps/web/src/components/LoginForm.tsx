@@ -72,13 +72,13 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
               S
 </div>
 <div>
-<p className="text-lg font-extrabold tracking-tight">Site Safi</p>
+<p className="text-lg font-extrabold ">Site Safi</p>
 <p className="text-[11px] text-slate-400 font-medium">Kenya Construction OS</p>
 </div>
 </div>
 </div>
 <div className="relative space-y-4">
-<h2 className="text-2xl font-extrabold tracking-tight leading-snug">
+<h2 className="text-2xl font-extrabold leading-snug">
             Run every site,<br />from one workspace.
 </h2>
 <p className="text-sm text-slate-400 leading-relaxed">
@@ -102,13 +102,13 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
             S
 </div>
 <div>
-<p className="text-base font-extrabold tracking-tight text-slate-900">Site Safi</p>
+<p className="text-base font-extrabold text-slate-900">Site Safi</p>
 <p className="text-[11px] text-slate-500">Kenya Construction OS</p>
 </div>
 </div>
 
 <div className="mb-6">
-<h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in</h1>
+<h1 className="text-2xl font-bold text-slate-900 ">Sign in</h1>
 <p className="text-sm text-slate-500 mt-1">Access your project workspace</p>
 </div>
 

@@ -46,7 +46,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
   projectName = 'Current Project',
   valuations: initialValuations,
   summary: initialSummary,
-  subcontractorPackages,  // loaded live below when not provided
+  subcontractorPackages, // loaded live below when not provided
   userRole = 'PM_QS',
   onCreateValuation,
   onReviewValuation,
@@ -224,25 +224,25 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       {/* KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Gross Work Certified</p>
+<p className="text-xs font-semibold text-slate-500 ">Gross Work Certified</p>
 <p className="text-xl font-bold text-slate-800 mt-1">
             KES {(initialSummary?.totalGrossCertifiedKes ? Number(initialSummary.totalGrossCertifiedKes) : totalGross).toLocaleString('en-KE')}
 </p>
 </div>
 <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-<p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Retention Held</p>
+<p className="text-xs font-semibold text-amber-700 ">Retention Held</p>
 <p className="text-xl font-bold text-amber-900 mt-1">
             KES {(initialSummary?.totalRetentionHeldKes ? Number(initialSummary.totalRetentionHeldKes) : totalRetention).toLocaleString('en-KE')}
 </p>
 </div>
 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-<p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">KRA WHT Deducted (3%)</p>
+<p className="text-xs font-semibold text-indigo-700 ">KRA WHT Deducted (3%)</p>
 <p className="text-xl font-bold text-indigo-900 mt-1">
             KES {(initialSummary?.totalWhtDeductedKes ? Number(initialSummary.totalWhtDeductedKes) : totalWht).toLocaleString('en-KE')}
 </p>
 </div>
 <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
-<p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Net Amount Payable</p>
+<p className="text-xs font-semibold text-emerald-700 ">Net Amount Payable</p>
 <p className="text-xl font-bold text-emerald-900 mt-1">
             KES {(initialSummary?.totalNetPayableKes ? Number(initialSummary.totalNetPayableKes) : totalNet).toLocaleString('en-KE')}
 </p>
@@ -252,7 +252,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       {/* Valuations Table */}
 <div className="overflow-x-auto">
 <table className="w-full text-left text-sm text-slate-600">
-<thead className="bg-slate-50 text-slate-700 font-semibold uppercase text-xs border-b border-slate-200">
+<thead className="bg-slate-50 text-slate-700 font-semibold text-xs border-b border-slate-200">
 <tr>
 <th className="py-3 px-4">Cert No</th>
 <th className="py-3 px-4">Subcontractor Firm</th>

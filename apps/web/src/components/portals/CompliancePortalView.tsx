@@ -135,7 +135,7 @@ export default function CompliancePortalView({
 <header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+<span className="text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
               NCA &amp; Regulatory Compliance Portal • Zero Seat Tax
 </span>
 <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
@@ -351,7 +351,7 @@ export default function CompliancePortalView({
 <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
 <div className="flex justify-between items-start border-b border-slate-100 pb-3">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+<span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                   REPUBLIC OF KENYA • STATUTORY CLEARANCE DOCKET
 </span>
 <h3 className="text-lg font-bold text-slate-900 mt-1">

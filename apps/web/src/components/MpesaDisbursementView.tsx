@@ -201,24 +201,24 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
       {/* KPI Summary Cards */}
 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-<p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Disbursed</p>
+<p className="text-xs font-medium text-gray-500 ">Total Disbursed</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">KES {totalDisbursedKes}</p>
 <span className="text-xs text-emerald-600 font-medium">B2C Salary & Business Payouts</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-<p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Completed Payouts</p>
+<p className="text-xs font-medium text-gray-500 ">Completed Payouts</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">
             {disbursements.filter((d) => d.status === 'COMPLETED').length}
 </p>
 <span className="text-xs text-gray-500 font-medium">100% Success Rate</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-<p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Disbursement Types</p>
+<p className="text-xs font-medium text-gray-500 ">Disbursement Types</p>
 <p className="text-2xl font-bold text-blue-600 mt-1">3 Categories</p>
 <span className="text-xs text-gray-500 font-medium">Casuals • Subcontractors • Petty</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-<p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Daraja Gateway</p>
+<p className="text-xs font-medium text-gray-500 ">Daraja Gateway</p>
 <p className="text-2xl font-bold text-emerald-600 mt-1">OPERATIONAL</p>
 <span className="text-xs text-gray-500 font-medium">Safaricom B2C API 2.0</span>
 </div>

@@ -256,7 +256,7 @@ export default function SnaggingListView({
 <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[10px] font-bold uppercase tracking-wider text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
               Practical Completion Handover
 </span>
 <span className="text-xs text-slate-400 font-mono">BORAQS Closeout</span>
@@ -297,7 +297,7 @@ export default function SnaggingListView({
       {/* KPI Counters */}
 <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 bg-slate-50/30 border-b border-slate-200 text-xs">
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-400 block">
             Total Snags
 </span>
 <span className="text-lg font-bold font-mono text-slate-800 mt-0.5 block">
@@ -305,7 +305,7 @@ export default function SnaggingListView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-rose-600 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-rose-600 block">
             Open Deficiencies
 </span>
 <span className="text-lg font-bold font-mono text-rose-700 mt-0.5 block">
@@ -313,7 +313,7 @@ export default function SnaggingListView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-blue-600 block">
             Rectified by Contractor
 </span>
 <span className="text-lg font-bold font-mono text-blue-700 mt-0.5 block">
@@ -321,7 +321,7 @@ export default function SnaggingListView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-emerald-600 block">
             Verified & Closed
 </span>
 <span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
@@ -435,7 +435,7 @@ export default function SnaggingListView({
 
 <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
 <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider border ${getSeverityBadge(
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] border ${getSeverityBadge(
                       snag.severity
 )}`}
                   >
@@ -443,7 +443,7 @@ export default function SnaggingListView({
 </span>
 
 <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider border ${getStatusBadge(
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] border ${getStatusBadge(
                       snag.status
 )}`}
                   >

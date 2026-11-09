@@ -118,7 +118,7 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm max-w-3xl mx-auto overflow-hidden">
 <div className="bg-slate-900 text-white px-6 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<p className="text-[10px] uppercase tracking-widest text-slate-400">Quotation</p>
+<p className="text-[10px] text-slate-400">Quotation</p>
 <h1 className="text-lg font-bold">Q-{String(quote.quote_no).padStart(4, '0')} — {quote.title}</h1>
 <p className="text-xs text-slate-400 mt-0.5">
             {contractor &&<>From {contractor} •</>}
@@ -138,7 +138,7 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 <div className="p-6 space-y-5">
 <table className="w-full text-xs">
 <thead>
-<tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-200">
+<tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
 <th className="py-2 pr-3">Description</th>
 <th className="py-2 pr-3">Unit</th>
 <th className="py-2 pr-3 text-right">Qty</th>
@@ -174,7 +174,7 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 
         {quote.terms && (
 <div className="border-t border-slate-100 pt-4">
-<p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Terms & Conditions</p>
+<p className="text-[11px] font-bold text-slate-400 mb-1">Terms & Conditions</p>
 <p className="text-xs text-slate-600 whitespace-pre-wrap">{quote.terms}</p>
 </div>
 )}

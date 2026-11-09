@@ -78,7 +78,7 @@ function ReportsView(): React.JSX.Element {
             ['Rework Rate', `${coMetrics.reworkRate}%`, 'rejected or rework'],
           ].map(([label, value, sub]) => (
 <div key={label as string} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
-<p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+<p className="text-[10px] font-bold text-slate-400">{label}</p>
 <p className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">{value}</p>
 <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
 </div>

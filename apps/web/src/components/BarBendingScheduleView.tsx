@@ -357,24 +357,24 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
       {/* KPI Cards */}
 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-<p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Steel Tonnage</p>
+<p className="text-xs font-medium text-gray-500 ">Total Steel Tonnage</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">{totalTonnageSum}<span className="text-sm font-normal text-gray-500">Tonnes</span></p>
 <span className="text-xs text-blue-600 font-medium">BS 8666 Compliant</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-<p className="text-xs font-medium text-gray-500 uppercase tracking-wider">BBS Schedules</p>
+<p className="text-xs font-medium text-gray-500 ">BBS Schedules</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">{schedules.length}</p>
 <span className="text-xs text-gray-500 font-medium">Sub & Superstructure</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-<p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Approved for Cutting</p>
+<p className="text-xs font-medium text-gray-500 ">Approved for Cutting</p>
 <p className="text-2xl font-bold text-green-600 mt-1">
             {schedules.filter((s) => s.status === 'APPROVED_FOR_CUTTING').length}
 </p>
 <span className="text-xs text-gray-500 font-medium">Ready for Steel Fixers</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-<p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Bar Length</p>
+<p className="text-xs font-medium text-gray-500 ">Stock Bar Length</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">12.0<span className="text-sm font-normal text-gray-500">Meters</span></p>
 <span className="text-xs text-green-600 font-medium">East African Commercial Std</span>
 </div>
@@ -561,7 +561,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 </div>
 
 <div className="border-t pt-4">
-<h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">First Reinforcement Bar Configuration</h4>
+<h4 className="text-xs font-bold text-gray-700 mb-2">First Reinforcement Bar Configuration</h4>
 <div className="grid grid-cols-4 gap-3">
 <div>
 <label className="block text-xs font-medium text-gray-600">Member Tag</label>

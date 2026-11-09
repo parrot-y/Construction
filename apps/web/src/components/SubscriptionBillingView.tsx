@@ -169,7 +169,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
       {/* Metrics Row */}
 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Plan</p>
+<p className="text-xs font-semibold text-slate-500 ">Active Plan</p>
 <p className="text-xl font-bold text-slate-800 mt-1">
             {activePlan === 'PORTFOLIO_TIER' ? 'Portfolio Tier' : 'Single Project Tier'}
 </p>
@@ -177,7 +177,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Validity Remaining</p>
+<p className="text-xs font-semibold text-slate-500 ">Validity Remaining</p>
 <p className="text-xl font-bold text-slate-800 mt-1">{daysRemaining ?? '—'} Days</p>
 <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
 <div
@@ -188,7 +188,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Project Capacity</p>
+<p className="text-xs font-semibold text-slate-500 ">Project Capacity</p>
 <p className="text-xl font-bold text-slate-800 mt-1">
             {activePlan === 'PORTFOLIO_TIER' ? 'Unlimited' : '1 Active Site'}
 </p>
@@ -196,7 +196,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Last M-Pesa Receipt</p>
+<p className="text-xs font-semibold text-slate-500 ">Last M-Pesa Receipt</p>
 <p className="text-lg font-mono font-bold text-slate-800 mt-1">{lastPaymentRef || 'None'}</p>
 <p className="text-xs text-slate-400 mt-1">Safaricom Daraja Verified</p>
 </div>
@@ -208,7 +208,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div className={`p-6 rounded-xl border ${activePlan === 'PROJECT_TIER' ? 'border-emerald-500 ring-2 ring-emerald-100 bg-white' : 'border-slate-200 bg-slate-50'}`}>
 <div className="flex justify-between items-start">
 <div>
-<span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Single Project</span>
+<span className="text-xs font-bold text-emerald-600 ">Single Project</span>
 <h3 className="text-lg font-bold text-slate-800 mt-1">Project Tier</h3>
 <p className="text-2xl font-bold text-slate-900 mt-2">{formatKes(7500)}<span className="text-xs font-normal text-slate-500">/ month</span></p>
 </div>
@@ -237,7 +237,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div className={`p-6 rounded-xl border ${activePlan === 'PORTFOLIO_TIER' ? 'border-emerald-500 ring-2 ring-emerald-100 bg-white' : 'border-slate-200 bg-slate-50'}`}>
 <div className="flex justify-between items-start">
 <div>
-<span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">Enterprise</span>
+<span className="text-xs font-bold text-indigo-600 ">Enterprise</span>
 <h3 className="text-lg font-bold text-slate-800 mt-1">Portfolio Tier</h3>
 <p className="text-2xl font-bold text-slate-900 mt-2">{formatKes(25000)}<span className="text-xs font-normal text-slate-500">/ month</span></p>
 </div>

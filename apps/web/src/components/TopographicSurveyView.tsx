@@ -821,7 +821,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           {/* 1. Total Cut Volume */}
 <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 space-y-1">
 <div className="flex items-center justify-between text-emerald-700">
-<span className="text-xs font-semibold uppercase tracking-wider">Total Cut Volume</span>
+<span className="text-xs font-semibold ">Total Cut Volume</span>
 <span className="text-lg"></span>
 </div>
 <p className="text-xl font-bold font-mono text-emerald-950">
@@ -834,7 +834,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           {/* 2. Total Fill Volume */}
 <div className="bg-rose-50/70 border border-rose-200 rounded-xl p-4 space-y-1">
 <div className="flex items-center justify-between text-rose-700">
-<span className="text-xs font-semibold uppercase tracking-wider">Total Fill Volume</span>
+<span className="text-xs font-semibold ">Total Fill Volume</span>
 <span className="text-lg"></span>
 </div>
 <p className="text-xl font-bold font-mono text-rose-950">
@@ -849,7 +849,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
             isCutSurplus ? 'bg-amber-50/70 border-amber-200' : 'bg-indigo-50/70 border-indigo-200'
 }`}>
 <div className="flex items-center justify-between">
-<span className={`text-xs font-semibold uppercase tracking-wider ${
+<span className={`text-xs font-semibold ${
                 isCutSurplus ? 'text-amber-700' : 'text-indigo-700'
 }`}>
                 Net Earthwork Balance
@@ -870,7 +870,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           {/* 4. Economic Limit of Haul */}
 <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 space-y-1">
 <div className="flex items-center justify-between text-blue-700">
-<span className="text-xs font-semibold uppercase tracking-wider">Economic Haul Limit</span>
+<span className="text-xs font-semibold ">Economic Haul Limit</span>
 <span className="text-lg"></span>
 </div>
 <p className="text-xl font-bold font-mono text-blue-950">
@@ -883,7 +883,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           {/* 5. Total Overhaul Cost */}
 <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 space-y-1">
 <div className="flex items-center justify-between text-slate-700">
-<span className="text-xs font-semibold uppercase tracking-wider">Total Overhaul Cost</span>
+<span className="text-xs font-semibold ">Total Overhaul Cost</span>
 <span className="text-lg"></span>
 </div>
 <p className="text-xl font-bold font-mono text-slate-900">
@@ -941,7 +941,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 
 <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-xs">
 <table className="w-full text-left text-xs">
-<thead className="bg-slate-100/80 text-slate-700 uppercase font-semibold text-[11px] border-b border-slate-200">
+<thead className="bg-slate-100/80 text-slate-700 font-semibold text-[11px] border-b border-slate-200">
 <tr>
 <th className="py-3 px-3">#</th>
 <th className="py-3 px-3">Chainage</th>
@@ -1206,7 +1206,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
               {/* Station Rows Input */}
 <div className="space-y-3 pt-2">
 <div className="flex items-center justify-between">
-<h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+<h4 className="text-xs font-bold text-slate-800 ">
                     Cross-Section Stations Takeoff ({formStations.length} Stations)
 </h4>
 <button
@@ -1220,7 +1220,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 
 <div className="overflow-x-auto border border-slate-200 rounded-xl">
 <table className="w-full text-left text-xs">
-<thead className="bg-slate-100/70 text-slate-600 uppercase font-semibold text-[10px]">
+<thead className="bg-slate-100/70 text-slate-600 font-semibold text-[10px]">
 <tr>
 <th className="p-2">#</th>
 <th className="p-2">Chainage (m)</th>

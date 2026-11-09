@@ -90,7 +90,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
             >
 <div className="flex items-start justify-between gap-2">
 <div>
-<p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{p.code}</p>
+<p className="text-[10px] font-bold text-slate-400">{p.code}</p>
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 leading-snug">{p.name}</h3>
 </div>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border shrink-0 ${

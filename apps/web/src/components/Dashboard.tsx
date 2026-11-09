@@ -123,7 +123,7 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
 </div>
 <div className="min-w-0">
 <div className="flex items-center gap-2">
-<span className="text-[10px] font-bold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
                   {user.tenant.name}
 </span>
 <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">

@@ -254,7 +254,7 @@ export default function CreateVariationModal({
         {/* Header */}
 <div className="flex justify-between items-start pb-4 border-b border-slate-100">
 <div>
-<span className="text-[10px] font-bold tracking-wider text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full uppercase">
+<span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full ">
               Milestone M8 • Variations Workflow
 </span>
 <h3 id="modal-headline" className="text-lg font-bold text-slate-900 mt-1">
@@ -369,7 +369,7 @@ export default function CreateVariationModal({
           {/* Variation Line Items Section */}
 <div className="space-y-3 pt-2">
 <div className="flex justify-between items-center">
-<span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+<span className="text-xs font-bold text-slate-900 ">
                 Scope Items (Additions &amp; Omissions)
 </span>
 <button
@@ -516,7 +516,7 @@ export default function CreateVariationModal({
           {/* Live Net Amount Summary Card */}
 <div className="p-3.5 bg-slate-900 text-white rounded-xl flex items-center justify-between">
 <div>
-<span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+<span className="text-[10px] font-bold text-slate-400 block">
                 Calculated Net Amount
 </span>
 <span className="text-xs text-slate-300">

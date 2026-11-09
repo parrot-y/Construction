@@ -396,7 +396,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
       {/* KPI Cards */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Total Workforce Registered
 </span>
 <p className="text-2xl font-bold text-gray-900 mt-1">
@@ -408,7 +408,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Skill Breakdown (Fundis vs Casuals)
 </span>
 <p className="text-2xl font-bold text-gray-900 mt-1">
@@ -418,7 +418,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Pending QS Verification
 </span>
 <p className="text-2xl font-bold text-amber-600 mt-1">
@@ -428,7 +428,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Total Wages Disbursed
 </span>
 <p className="text-2xl font-bold text-emerald-600 mt-1 font-mono">

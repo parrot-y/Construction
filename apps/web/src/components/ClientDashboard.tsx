@@ -263,7 +263,7 @@ export default function ClientDashboard({
       {/* Header Banner */}
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 <div>
-<span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+<span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full ">
             Client / Property Developer Portal
 </span>
 <h2 className="text-xl font-bold text-slate-900 mt-1">Project Visibility & Progress Verification</h2>
@@ -321,7 +321,7 @@ export default function ClientDashboard({
 </p>
 </div>
 <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
-<span className="text-[10px] font-semibold text-slate-500 uppercase px-1">Diaspora View:</span>
+<span className="text-[10px] font-semibold text-slate-500 px-1">Diaspora View:</span>
             {(['KES', 'USD', 'GBP', 'EUR', 'AED'] as CurrencyCode[]).map((c) => (
 <button
                 key={c}
@@ -343,7 +343,7 @@ export default function ClientDashboard({
 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {/* Card 1: Original Agreed Budget */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
               Original Agreed Budget
 </span>
 <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
@@ -360,7 +360,7 @@ export default function ClientDashboard({
 
           {/* Card 2: Approved Variations Total */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
               Approved Variations Total
 </span>
 <span className="text-base sm:text-lg font-bold font-mono text-blue-700 mt-1 block">
@@ -377,7 +377,7 @@ export default function ClientDashboard({
 
           {/* Card 3: Current Approved Budget */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
               Current Approved Budget
 </span>
 <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
@@ -394,7 +394,7 @@ export default function ClientDashboard({
 
           {/* Card 4: Total Spent to Date */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
               Total Spent to Date
 </span>
 <span className="text-base sm:text-lg font-bold font-mono text-emerald-700 mt-1 block">
@@ -411,7 +411,7 @@ export default function ClientDashboard({
 
           {/* Card 5: Remaining Balance */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm col-span-2 md:col-span-1">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
               Remaining Balance
 </span>
 <span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
@@ -453,7 +453,7 @@ export default function ClientDashboard({
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+<span className="text-[10px] font-bold text-slate-400 block">
               Automated Variance Analytics
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-0.5">Project Health & Alignment Guard</h3>
@@ -474,7 +474,7 @@ export default function ClientDashboard({
 
 <div className="grid grid-cols-3 gap-3 pt-1 text-center">
 <div className="bg-white p-3 rounded-lg border border-slate-200">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
               Physical Progress
 </span>
 <span className="text-lg font-bold text-emerald-700 mt-0.5 block">
@@ -483,7 +483,7 @@ export default function ClientDashboard({
 </div>
 
 <div className="bg-white p-3 rounded-lg border border-slate-200">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
               Budget Consumed
 </span>
 <span className="text-lg font-bold text-slate-800 mt-0.5 block">
@@ -492,7 +492,7 @@ export default function ClientDashboard({
 </div>
 
 <div className="bg-white p-3 rounded-lg border border-slate-200">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
               Variance Delta
 </span>
 <span
@@ -514,7 +514,7 @@ export default function ClientDashboard({
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                 Certified Valuations Ledger
 </span>
 <span className="text-xs text-slate-500 font-mono">
@@ -530,7 +530,7 @@ export default function ClientDashboard({
 </div>
 
 <div className="text-left sm:text-right text-xs">
-<span className="text-[10px] text-slate-400 font-semibold uppercase block">Total Net Paid to Date</span>
+<span className="text-[10px] text-slate-400 font-semibold block">Total Net Paid to Date</span>
 <span className="text-base font-mono font-bold text-emerald-700">
               {formatWithCurrency('4050000.00')}
 </span>
@@ -541,7 +541,7 @@ export default function ClientDashboard({
         {/* Dynamic Multi-Currency Valuation Summary Bar */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-500 text-[10px] uppercase font-semibold block">Total Contract Sum:</span>
+<span className="text-slate-500 text-[10px] font-semibold block">Total Contract Sum:</span>
 <span className="text-sm font-bold font-mono text-slate-900 mt-0.5 block">
               {formatWithCurrency(financials.originalAgreedBudget)}
 </span>
@@ -549,7 +549,7 @@ export default function ClientDashboard({
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-500 text-[10px] uppercase font-semibold block">Gross Certified IPCs:</span>
+<span className="text-slate-500 text-[10px] font-semibold block">Gross Certified IPCs:</span>
 <span className="text-sm font-bold font-mono text-emerald-700 mt-0.5 block">
               {formatWithCurrency(financials.totalSpentToDate)}
 </span>
@@ -557,7 +557,7 @@ export default function ClientDashboard({
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-500 text-[10px] uppercase font-semibold block">Net Payments Disbursed:</span>
+<span className="text-slate-500 text-[10px] font-semibold block">Net Payments Disbursed:</span>
 <span className="text-sm font-bold font-mono text-blue-700 mt-0.5 block">
               {formatWithCurrency(String((paymentCertificates || []).reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
@@ -566,7 +566,7 @@ export default function ClientDashboard({
 
 {hydrated && progress.varianceDelta !== 0 && (
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-500 text-[10px] uppercase font-semibold block">Progress vs plan:</span>
+<span className="text-slate-500 text-[10px] font-semibold block">Progress vs plan:</span>
 <span className={`text-sm font-bold font-mono mt-0.5 block ${progress.varianceDelta >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
               {progress.varianceDelta >= 0 ? '+' : ''}{progress.varianceDelta.toFixed(1)} pts
 </span>
@@ -579,7 +579,7 @@ export default function ClientDashboard({
 <div className="overflow-x-auto">
 <table className="w-full text-left text-xs border-collapse">
 <thead>
-<tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase text-slate-600">
+<tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
 <th className="py-2.5 px-3">Certificate Ref</th>
 <th className="py-2.5 px-3">Milestone Scope</th>
 <th className="py-2.5 px-3">Date Certified</th>
@@ -629,7 +629,7 @@ export default function ClientDashboard({
         {/* Retention Fund & Contract Terms Card */}
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
               Statutory Protection
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">Contract Retention Terms (Kenyan Standard)</h3>

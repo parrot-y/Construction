@@ -143,7 +143,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {/* Header Banner */}
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 <div>
-<span className="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+<span className="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full ">
             PM / Quantity Surveyor Workspace
 </span>
 <h2 className="text-xl font-bold text-slate-900 mt-1">Cost Control & BOQ Management</h2>
@@ -266,7 +266,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {/* Metrics Row */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Approved Budget Baseline
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
@@ -276,7 +276,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Active BOQs
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">1 Active</span>
@@ -284,7 +284,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Pending Cost Reviews
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Pending</span>
@@ -292,7 +292,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Variations Under Review
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Orders</span>
@@ -345,7 +345,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
 <div className="flex justify-between items-start">
 <div>
-<span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Assigned Project Baseline</span>
+<span className="text-xs font-bold text-slate-400 ">Assigned Project Baseline</span>
 <h3 className="text-lg font-bold text-slate-900 mt-0.5">Riverside Commercial Plaza</h3>
 <p className="text-xs text-slate-500">Riverside Drive, Nairobi • Code: RCP-2026</p>
 </div>
@@ -356,7 +356,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 
 <div className="border border-slate-200 rounded-lg overflow-hidden">
 <table className="w-full text-left text-xs">
-<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
+<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold ">
 <tr>
 <th className="p-3">BOQ Section</th>
 <th className="p-3">Standard Reference</th>

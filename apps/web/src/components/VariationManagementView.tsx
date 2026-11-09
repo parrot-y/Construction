@@ -202,7 +202,7 @@ export default function VariationManagementView({
               Change Orders &amp; Variations
 </h3>
             {userRole && (
-<span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full uppercase">
+<span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full ">
                 {userRole}
 </span>
 )}
@@ -332,7 +332,7 @@ export default function VariationManagementView({
                     {vo.items && vo.items.length > 0 && (
 <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
 <table className="w-full text-left">
-<thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200">
+<thead className="bg-slate-50 text-slate-600 font-semibold text-[10px] border-b border-slate-200">
 <tr>
 <th className="p-2.5">Scope Description</th>
 <th className="p-2.5">Type</th>
@@ -383,7 +383,7 @@ export default function VariationManagementView({
                     {/* Activity feed */}
                     {vo.events && vo.events.length > 0 && (
 <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
-<p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">Activity</p>
+<p className="text-[10px] font-bold text-slate-500 mb-2">Activity</p>
 <ul className="space-y-1.5">
                           {vo.events.map((ev) => (
 <li key={ev.id} className="flex items-start gap-2 text-[11px] text-slate-600">

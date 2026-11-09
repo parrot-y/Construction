@@ -127,7 +127,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
       {/* Portfolio Overview Header */}
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <div>
-<span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+<span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full ">
             Company Admin Portfolio Overview
 </span>
 <h2 className="text-xl font-bold text-slate-900 mt-1">Executive Company Dashboard</h2>
@@ -192,7 +192,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
       {/* Portfolio Metrics Grid */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Active Projects
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">{metrics ? `${metrics.activeProjectsCount} Active` : '1 Active'}</span>
@@ -200,7 +200,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Total Contract Value
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
@@ -210,7 +210,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Approved Budget
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
@@ -220,7 +220,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-<span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[11px] font-semibold text-slate-500 block">
             Team & Invites
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">{metrics ? `${metrics.teamMembersCount} Members` : '—'}</span>
@@ -242,7 +242,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 
 <div className="border border-slate-200 rounded-lg overflow-hidden">
 <table className="w-full text-left text-xs">
-<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
+<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold ">
 <tr>
 <th className="p-3">Project Details</th>
 <th className="p-3">Location & NCA</th>

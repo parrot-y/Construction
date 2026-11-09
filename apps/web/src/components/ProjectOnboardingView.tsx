@@ -317,7 +317,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 
       {/* Contract value & dates */}
 <div className="border border-slate-200 rounded-xl p-4 space-y-3">
-<h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Contract value &amp; dates</h4>
+<h4 className="text-xs font-bold text-slate-800 ">Contract value &amp; dates</h4>
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
 <label className="space-y-1">
 <span className={label}>Contract value</span>
@@ -360,7 +360,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
       {/* Team assignments */}
       {!showCreate && selected && (
 <div className="border border-slate-200 rounded-xl p-4 space-y-3">
-<h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Project team (PM / Architect / QS)</h4>
+<h4 className="text-xs font-bold text-slate-800 ">Project team (PM / Architect / QS)</h4>
 <div className="space-y-1.5">
             {selected.members.length === 0 &&<p className="text-xs text-slate-500">No members assigned yet.</p>}
             {selected.members.map((m) => (

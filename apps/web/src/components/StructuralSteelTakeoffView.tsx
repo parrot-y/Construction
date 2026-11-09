@@ -453,22 +453,22 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
       {/* KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Steel Tonnage</span>
+<span className="text-xs font-medium text-gray-500 ">Total Steel Tonnage</span>
 <p className="text-2xl font-bold text-gray-900 mt-1">{totalTonnageSum.toFixed(3)} T</p>
 <span className="text-xs text-gray-400">{(totalTonnageSum * 1000).toLocaleString()} kg Total</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Intumescent Paint Area</span>
+<span className="text-xs font-medium text-gray-500 ">Intumescent Paint Area</span>
 <p className="text-2xl font-bold text-indigo-600 mt-1">{totalPaintAreaSum.toFixed(2)} m²</p>
 <span className="text-xs text-indigo-500">Surface Fireproofing / Primer</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Schedules</span>
+<span className="text-xs font-medium text-gray-500 ">Total Schedules</span>
 <p className="text-2xl font-bold text-blue-600 mt-1">{takeoffs.length}</p>
 <span className="text-xs text-blue-500">Frames, Mezzanines, Trusses</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Standard Specification</span>
+<span className="text-xs font-medium text-gray-500 ">Standard Specification</span>
 <p className="text-2xl font-bold text-emerald-600 mt-1">S355JR</p>
 <span className="text-xs text-emerald-500">KS / BS High-Yield Steel</span>
 </div>
@@ -582,12 +582,12 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 
               {/* Members Table */}
 <div>
-<h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+<h4 className="text-xs font-bold text-gray-700 mb-2">
                   Takeoff Members Bill (BS 4 Standard Sections)
 </h4>
 <div className="overflow-x-auto border border-gray-200 rounded-lg">
 <table className="min-w-full divide-y divide-gray-200 text-xs text-left">
-<thead className="bg-gray-50 text-gray-600 font-semibold uppercase">
+<thead className="bg-gray-50 text-gray-600 font-semibold ">
 <tr>
 <th className="px-3 py-2">Mark</th>
 <th className="px-3 py-2">Section Designation</th>
@@ -700,7 +700,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
               {/* Members Schedule Table Input */}
 <div>
 <div className="flex justify-between items-center mb-2">
-<h4 className="text-xs font-bold text-gray-700 uppercase">Structural Members Schedule</h4>
+<h4 className="text-xs font-bold text-gray-700 ">Structural Members Schedule</h4>
 <button
                     type="button"
                     onClick={addMemberRow}

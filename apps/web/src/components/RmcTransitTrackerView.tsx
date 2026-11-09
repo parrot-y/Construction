@@ -472,22 +472,22 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
       {/* KPI Stats */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Truckloads</span>
+<span className="text-xs font-medium text-gray-500 ">Total Truckloads</span>
 <p className="text-2xl font-bold text-gray-900 mt-1">{totalTrucks}</p>
 <span className="text-xs text-gray-400">Total: {totalVolumeM3.toFixed(2)} m³</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">In Transit</span>
+<span className="text-xs font-medium text-gray-500 ">In Transit</span>
 <p className="text-2xl font-bold text-blue-600 mt-1">{inTransitCount}</p>
 <span className="text-xs text-blue-500">Live Hydration Tracking</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Cold Joint Rejected</span>
+<span className="text-xs font-medium text-gray-500 ">Cold Joint Rejected</span>
 <p className="text-2xl font-bold text-red-600 mt-1">{rejectedCount}</p>
 <span className="text-xs text-red-500">&gt;120m transit or slump fail</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Slump Standard (BS EN 12350-2)</span>
+<span className="text-xs font-medium text-gray-500 ">Slump Standard (BS EN 12350-2)</span>
 <p className="text-2xl font-bold text-emerald-600 mt-1">±25 mm</p>
 <span className="text-xs text-emerald-500">Allowable tolerance</span>
 </div>
@@ -524,7 +524,7 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
 <div className="overflow-x-auto">
 <table className="min-w-full divide-y divide-gray-200 text-sm text-left">
-<thead className="bg-gray-50 text-gray-600 font-semibold text-xs uppercase tracking-wider">
+<thead className="bg-gray-50 text-gray-600 font-semibold text-xs ">
 <tr>
 <th className="px-4 py-3">Ticket &amp; Truck</th>
 <th className="px-4 py-3">Supplier &amp; Mix</th>

@@ -648,32 +648,32 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
       {/* Fleet Telematics Overview Cards */}
 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Devices</p>
+<p className="text-xs font-semibold text-slate-500 ">Active Devices</p>
 <p className="text-xl font-bold text-slate-800 mt-1">{devices.length} IoT Units</p>
 <p className="text-xs text-emerald-600 mt-1">All units reporting online</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Pings Received</p>
+<p className="text-xs font-semibold text-slate-500 ">Total Pings Received</p>
 <p className="text-xl font-bold text-slate-800 mt-1">{pings.length}</p>
 <p className="text-xs text-slate-400 mt-1">Live telemetry stream</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Monitored Fuel Volume</p>
+<p className="text-xs font-semibold text-slate-500 ">Monitored Fuel Volume</p>
 <p className="text-xl font-bold text-slate-800 mt-1">650.00 L</p>
 <p className="text-xs text-slate-500 mt-1">Total calibrated capacity</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-rose-600 uppercase tracking-wider">Fuel Discrepancies</p>
+<p className="text-xs font-semibold text-rose-600 ">Fuel Discrepancies</p>
 <p className="text-xl font-bold text-rose-700 mt-1">{activeSiphoningPings.length}</p>
 <p className="text-xs text-rose-600 mt-1">&gt;30L sudden drop events</p>
 </div>
 </div>
 
       {/* ============================================================= */}
-      {/* CAN-BUS LIVE DIAGNOSTICS DASHBOARD (MILESTONE M32)            */}
+      {/* CAN-BUS LIVE DIAGNOSTICS DASHBOARD (MILESTONE M32) */}
       {/* ============================================================= */}
 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-100 pb-3">
@@ -715,7 +715,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
               : 'bg-slate-50 border-slate-200 text-slate-800'
 }`}>
 <div className="flex justify-between items-center mb-1">
-<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Coolant Temp (PID 0x05)</span>
+<span className="text-[11px] font-bold text-slate-500">Coolant Temp (PID 0x05)</span>
 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                 isOverheatFatal
                   ? 'bg-rose-600 text-white animate-pulse'
@@ -753,7 +753,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
           {/* Gauge 2: Oil Temperature */}
 <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
 <div className="flex justify-between items-center mb-1">
-<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Engine Oil Temp</span>
+<span className="text-[11px] font-bold text-slate-500">Engine Oil Temp</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">PID 0x5C</span>
 </div>
 <div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
@@ -765,7 +765,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
           {/* Gauge 3: Engine RPM */}
 <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
 <div className="flex justify-between items-center mb-1">
-<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Engine Speed</span>
+<span className="text-[11px] font-bold text-slate-500">Engine Speed</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">PID 0x0C</span>
 </div>
 <div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
@@ -777,7 +777,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
           {/* Gauge 4: Battery Voltage */}
 <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
 <div className="flex justify-between items-center mb-1">
-<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Battery Voltage</span>
+<span className="text-[11px] font-bold text-slate-500">Battery Voltage</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">24V System</span>
 </div>
 <div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
@@ -789,7 +789,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
           {/* Gauge 5: ECU DTC Active Codes Badge */}
 <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
 <div className="flex justify-between items-center mb-1">
-<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">ECU DTC Codes</span>
+<span className="text-[11px] font-bold text-slate-500">ECU DTC Codes</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">OBD-II Faults</span>
 </div>
 <div className="mt-1">
@@ -811,7 +811,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </div>
 
       {/* ============================================================= */}
-      {/* DIESEL SIPHONING ANOMALY INCIDENT FEED (MILESTONE M32)        */}
+      {/* DIESEL SIPHONING ANOMALY INCIDENT FEED (MILESTONE M32) */}
       {/* ============================================================= */}
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
 <div className="p-4 border-b border-slate-200 flex justify-between items-center">
@@ -902,7 +902,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </div>
 
       {/* ============================================================= */}
-      {/* MAINTENANCE ALERTS FEED & ACKNOWLEDGE (MILESTONE M32)         */}
+      {/* MAINTENANCE ALERTS FEED & ACKNOWLEDGE (MILESTONE M32) */}
       {/* ============================================================= */}
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
 <div className="p-4 border-b border-slate-200 flex justify-between items-center">
@@ -926,7 +926,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <div className="space-y-1">
 <div className="flex items-center gap-2">
 <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                      className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
                         alert.severity === 'FATAL_SHUTDOWN' || alert.severity === 'CRITICAL'
                           ? 'bg-rose-100 text-rose-800 border border-rose-300'
                           : alert.severity === 'WARNING'
@@ -1189,7 +1189,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </div>
 
       {/* ============================================================= */}
-      {/* ACCESSIBLE ACKNOWLEDGE MAINTENANCE ALERT MODAL (M32)          */}
+      {/* ACCESSIBLE ACKNOWLEDGE MAINTENANCE ALERT MODAL (M32) */}
       {/* ============================================================= */}
       {alertToAcknowledge && (
 <div
@@ -1282,7 +1282,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 )}
 
       {/* ============================================================= */}
-      {/* ACCESSIBLE REGISTER DEVICE MODAL                              */}
+      {/* ACCESSIBLE REGISTER DEVICE MODAL */}
       {/* ============================================================= */}
       {showDeviceModal && (
 <div

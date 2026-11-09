@@ -311,7 +311,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <div className="flex items-center gap-2 flex-wrap">
 <span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">COM-{String(c.commitment_no).padStart(3, '0')}</span>
 <span className="text-sm font-bold text-slate-900">{c.vendor_name}</span>
-<span className="text-[10px] font-semibold text-slate-500 uppercase">{c.vendor_type}</span>
+<span className="text-[10px] font-semibold text-slate-500 ">{c.vendor_type}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${COMMITMENT_STATUS_STYLES[c.status] || COMMITMENT_STATUS_STYLES.ACTIVE}`}>
                     {c.status}
 </span>

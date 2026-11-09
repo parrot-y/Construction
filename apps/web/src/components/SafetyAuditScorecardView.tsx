@@ -246,7 +246,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
       {/* Summary KPI Cards */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Average Compliance Score
 </span>
 <p className="text-2xl font-bold text-gray-900 mt-1 font-mono">
@@ -265,7 +265,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Satisfactory Inspections
 </span>
 <p className="text-2xl font-bold text-emerald-600 mt-1">
@@ -279,7 +279,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
             summary.stopOrdersCount > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
 }`}
         >
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Critical Stop-Work Orders
 </span>
 <p
@@ -293,7 +293,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+<span className="text-xs font-semibold text-gray-500 ">
             Auditing Authority Coverage
 </span>
 <p className="text-2xl font-bold text-indigo-600 mt-1">

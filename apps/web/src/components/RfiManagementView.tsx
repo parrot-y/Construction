@@ -225,7 +225,7 @@ export default function RfiManagementView({
 <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
               BORAQS / EBK Engineering Coordination
 </span>
 <span className="text-xs text-slate-400 font-mono">ISO 9001:2015</span>
@@ -253,7 +253,7 @@ export default function RfiManagementView({
       {/* Summary KPI Strip */}
 <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 bg-slate-50/30 border-b border-slate-200 text-xs">
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-400 block">
             Total RFIs Logged
 </span>
 <span className="text-lg font-bold font-mono text-slate-800 mt-0.5 block">
@@ -261,7 +261,7 @@ export default function RfiManagementView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-amber-600 block">
             Pending Consultant Reply
 </span>
 <span className="text-lg font-bold font-mono text-amber-700 mt-0.5 block">
@@ -269,7 +269,7 @@ export default function RfiManagementView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-emerald-600 block">
             Answered & Resolved
 </span>
 <span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
@@ -277,7 +277,7 @@ export default function RfiManagementView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-rose-600 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-rose-600 block">
             Critical Path Queries
 </span>
 <span className="text-lg font-bold font-mono text-rose-700 mt-0.5 block">
@@ -350,7 +350,7 @@ export default function RfiManagementView({
 <div className="overflow-x-auto">
 <table className="w-full text-left text-xs border-collapse">
 <thead>
-<tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[10px]">
+<tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px]">
 <th className="p-3 font-semibold">RFI #</th>
 <th className="p-3 font-semibold">Title & Reference</th>
 <th className="p-3 font-semibold">Assigned Consultant</th>
@@ -397,7 +397,7 @@ export default function RfiManagementView({
 </td>
 <td className="p-3 whitespace-nowrap">
 <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider border ${getPriorityBadge(
+                          className={`px-2 py-0.5 rounded-full text-[10px] border ${getPriorityBadge(
                             rfi.priority
 )}`}
                         >
@@ -406,7 +406,7 @@ export default function RfiManagementView({
 </td>
 <td className="p-3 whitespace-nowrap">
 <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${getStatusBadge(
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getStatusBadge(
                             rfi.status
 )}`}
                         >
@@ -466,7 +466,7 @@ export default function RfiManagementView({
 
                             {/* Official Consultant Responses */}
 <div className="space-y-3 pt-2">
-<h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+<h4 className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
 <span></span>
 <span>Official Consultant Resolution Thread ({rfi.responses.length})</span>
 </h4>

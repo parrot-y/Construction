@@ -143,7 +143,7 @@ export default function VarianceMonitorCard({
 <div>
 <div className="flex items-center gap-2">
 <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+<span className="text-[11px] font-bold text-slate-500">
               Variance Monitor &amp; Health Guard • {projectName}
 </span>
 </div>
@@ -179,7 +179,7 @@ export default function VarianceMonitorCard({
 
       {/* 3. Cost Consumption % vs Physical Progress % Comparison Bars */}
 <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-4">
-<span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+<span className="text-xs font-bold text-slate-700 block">
           Progress vs Expenditure Real-time Alignment
 </span>
 
@@ -226,7 +226,7 @@ export default function VarianceMonitorCard({
 
       {/* 4. Category Cost Distribution */}
 <div className="space-y-2">
-<span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+<span className="text-xs font-bold text-slate-700 block">
           Category Cost Distribution (Approved / Pending)
 </span>
 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
@@ -284,12 +284,12 @@ export default function VarianceMonitorCard({
 
       {/* 5. Section-by-Section BOQ Spend Table */}
 <div className="space-y-2">
-<span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+<span className="text-xs font-bold text-slate-700 block">
           BOQ Section-by-Section Spend Breakdown
 </span>
 <div className="border border-slate-200 rounded-lg overflow-hidden">
 <table className="w-full text-left text-xs">
-<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
+<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold ">
 <tr>
 <th className="p-3">Section Description</th>
 <th className="p-3 text-right">Allocated Budget</th>

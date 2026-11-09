@@ -55,7 +55,7 @@ export default function BudgetSummaryCard({
       {/* Header */}
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+<span className="text-[11px] font-bold text-slate-500">
             Financial Ledger Baseline • {projectName}
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-0.5">Budget vs Actual Expenditure</h3>
@@ -92,7 +92,7 @@ export default function BudgetSummaryCard({
       {/* Financial Metrics Cards */}
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-<span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-slate-500 block">
             Approved Budget
 </span>
 <span className="text-sm font-bold font-mono text-slate-900 mt-1 block">
@@ -101,7 +101,7 @@ export default function BudgetSummaryCard({
 </div>
 
 <div className="bg-emerald-50/60 p-3 rounded-lg border border-emerald-200">
-<span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-emerald-700 block">
             Actual Spent (Approved)
 </span>
 <span className="text-sm font-bold font-mono text-emerald-800 mt-1 block">
@@ -110,7 +110,7 @@ export default function BudgetSummaryCard({
 </div>
 
 <div className="bg-amber-50/60 p-3 rounded-lg border border-amber-200">
-<span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-amber-700 block">
             Pending Approval
 </span>
 <span className="text-sm font-bold font-mono text-amber-800 mt-1 block">
@@ -119,7 +119,7 @@ export default function BudgetSummaryCard({
 </div>
 
 <div className="bg-blue-50/60 p-3 rounded-lg border border-blue-200">
-<span className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider block">
+<span className="text-[10px] font-semibold text-blue-700 block">
             Remaining Budget
 </span>
 <span className="text-sm font-bold font-mono text-blue-800 mt-1 block">

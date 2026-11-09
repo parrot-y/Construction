@@ -64,7 +64,7 @@ export default function BoqWorkbookView({ projectId}: { projectId: string}): Rea
 <td className="px-5 py-2 font-mono text-[11px]">{it.item_code}</td>
 <td className="px-3 py-2 max-w-[320px]">
                       {it.description}
-                      {it.is_provisional &&<span className="ml-2 text-[9px] font-bold text-amber-600 uppercase">provisional</span>}
+                      {it.is_provisional &&<span className="ml-2 text-[9px] font-bold text-amber-600 ">provisional</span>}
 </td>
 <td className="px-3 py-2">{it.unit}</td>
 <td className="px-3 py-2 text-right font-mono">{Number(it.quantity).toLocaleString()}</td>

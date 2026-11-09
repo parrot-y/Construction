@@ -121,7 +121,7 @@ export default function BoqImportModal({
 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 uppercase tracking-wider">
+<span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 ">
                 EASMM 2008 Standard Pipeline
 </span>
 <span className="text-xs text-slate-400">• ADR-003 Staged Import</span>
@@ -174,7 +174,7 @@ export default function BoqImportModal({
 
               {/* Kenyan Format Guidance */}
 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-600">
-<h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+<h4 className="font-bold text-slate-800 text-[11px]">
                   Kenyan Quantity Surveying Standard Compliance (EASMM 2008)
 </h4>
 <ul className="list-disc pl-4 space-y-1">
@@ -192,25 +192,25 @@ export default function BoqImportModal({
               {/* Preview Metrics Summary Bar */}
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-[10px] font-semibold text-slate-500 uppercase block">Grand Total</span>
+<span className="text-[10px] font-semibold text-slate-500 block">Grand Total</span>
 <span className="text-base font-bold font-mono text-slate-900 mt-0.5 block">
                     KES {previewData.calculatedGrandTotal}
 </span>
 </div>
 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-<span className="text-[10px] font-semibold text-emerald-700 uppercase block">Valid Items</span>
+<span className="text-[10px] font-semibold text-emerald-700 block">Valid Items</span>
 <span className="text-base font-bold text-emerald-900 mt-0.5 block">
                     {previewData.validItemsCount} Items 
 </span>
 </div>
 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-<span className="text-[10px] font-semibold text-amber-700 uppercase block">Warnings / Rounding</span>
+<span className="text-[10px] font-semibold text-amber-700 block">Warnings / Rounding</span>
 <span className="text-base font-bold text-amber-900 mt-0.5 block">
                     {previewData.warningItemsCount} Flagged
 </span>
 </div>
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-[10px] font-semibold text-slate-500 uppercase block">EASMM Sections</span>
+<span className="text-[10px] font-semibold text-slate-500 block">EASMM Sections</span>
 <span className="text-base font-bold text-slate-900 mt-0.5 block">
                     {previewData.totalSections} Sections
 </span>
@@ -228,7 +228,7 @@ export default function BoqImportModal({
 </span>
 </div>
 <table className="w-full text-left text-xs">
-<thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px]">
+<thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold text-[10px]">
 <tr>
 <th className="p-2.5">Code</th>
 <th className="p-2.5">Description</th>

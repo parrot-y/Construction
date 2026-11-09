@@ -397,24 +397,24 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
       {/* KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Paved Tonnage</span>
+<span className="text-xs font-medium text-gray-500 ">Total Paved Tonnage</span>
 <p className="text-2xl font-bold text-gray-900 mt-1">{totalTonnageSum.toFixed(2)} T</p>
 <span className="text-xs text-gray-400">{totalBatches} truckloads delivered</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Thermal Compliance</span>
+<span className="text-xs font-medium text-gray-500 ">Thermal Compliance</span>
 <p className="text-2xl font-bold text-emerald-600 mt-1">
             {totalBatches > 0 ? ((compliantCount / totalBatches) * 100).toFixed(1) : '100.0'}%
 </p>
 <span className="text-xs text-emerald-500">≥140°C delivery / ≥85°C finish</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Core Drills Verified</span>
+<span className="text-xs font-medium text-gray-500 ">Core Drills Verified</span>
 <p className="text-2xl font-bold text-blue-600 mt-1">{coredCount}</p>
 <span className="text-xs text-blue-500">In-situ density &amp; thickness</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-<span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Compaction Standard</span>
+<span className="text-xs font-medium text-gray-500 ">Compaction Standard</span>
 <p className="text-2xl font-bold text-indigo-600 mt-1">≥97.0%</p>
 <span className="text-xs text-indigo-500">Marshall Laboratory Ratio</span>
 </div>
@@ -451,7 +451,7 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
 <div className="overflow-x-auto">
 <table className="min-w-full divide-y divide-gray-200 text-sm text-left">
-<thead className="bg-gray-50 text-gray-600 font-semibold text-xs uppercase tracking-wider">
+<thead className="bg-gray-50 text-gray-600 font-semibold text-xs ">
 <tr>
 <th scope="col" className="px-4 py-3">Ticket &amp; Truck</th>
 <th scope="col" className="px-4 py-3">Mix &amp; Quantity</th>
@@ -681,7 +681,7 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
               {/* Thermal Quality Box */}
 <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg space-y-2">
-<span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+<span className="text-xs font-bold text-gray-700 ">
                   Compaction Temperature Envelope (°C)
 </span>
 <div className="grid grid-cols-4 gap-2 text-xs">

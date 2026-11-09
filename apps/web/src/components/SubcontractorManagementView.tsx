@@ -243,7 +243,7 @@ export default function SubcontractorManagementView({
       {/* Filter Bar */}
 <div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-wrap items-center gap-3">
 <div className="flex items-center gap-2">
-<label className="text-xs font-semibold text-slate-600 uppercase">Trade:</label>
+<label className="text-xs font-semibold text-slate-600 ">Trade:</label>
 <select
             value={tradeFilter}
             onChange={(e) => setTradeFilter(e.target.value)}
@@ -265,7 +265,7 @@ export default function SubcontractorManagementView({
 </div>
 
 <div className="flex items-center gap-2">
-<label className="text-xs font-semibold text-slate-600 uppercase">Status:</label>
+<label className="text-xs font-semibold text-slate-600 ">Status:</label>
 <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -293,7 +293,7 @@ export default function SubcontractorManagementView({
 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
 <div className="flex-1 min-w-0">
 <div className="flex items-center gap-2 mb-1">
-<span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-50 text-amber-800">
+<span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-800">
                       {pkg.trade_category.replace('_', ' ')}
 </span>
                     {getStatusBadge(pkg.status)}

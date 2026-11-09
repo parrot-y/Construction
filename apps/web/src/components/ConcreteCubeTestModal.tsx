@@ -94,7 +94,7 @@ export default function ConcreteCubeTestModal({
         {/* Header */}
 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+<span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
               KS 02-598 / BS EN 12390-3
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">
@@ -194,7 +194,7 @@ export default function ConcreteCubeTestModal({
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
-<span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+<span className="text-[11px] font-bold text-slate-700 block">
               Hydraulic Press Compressive Break Values (MPa)
 </span>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

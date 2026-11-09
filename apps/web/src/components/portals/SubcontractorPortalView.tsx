@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatKes } from '../../ui';
 
 export interface SubcontractorSnag {
   id: string;
@@ -138,13 +139,13 @@ export default function SubcontractorPortalView({
       })),
     );
     return {
-      contractSumKes: contractSum.toLocaleString('en-KE', { minimumFractionDigits: 2 }),
-      cumulativeCertifiedKes: certified.toLocaleString('en-KE', { minimumFractionDigits: 2 }),
-      retentionWithheldKes: retention.toLocaleString('en-KE', { minimumFractionDigits: 2 }),
+      contractSumKes: String(contractSum),
+      cumulativeCertifiedKes: String(certified),
+      retentionWithheldKes: String(retention),
       retentionRatePct: packages[0] ? Number(packages[0].retention_rate_pct || 5) : 5,
       netDisbursedKes: allVals.filter((v: any) => v.payment_status === 'PAID')
         .reduce((a: number, v: any) => a + Number(v.net_payable_kes || 0), 0)
-        .toLocaleString('en-KE', { minimumFractionDigits: 2 }),
+        .toString(),
       milestones,
     };
   })();
@@ -217,7 +218,7 @@ export default function SubcontractorPortalView({
 <header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+<span className="text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
               Subcontractor Portal • Zero Seat Tax
 </span>
 <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
@@ -259,11 +260,11 @@ export default function SubcontractorPortalView({
 </div>
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Subcontract Sum</p>
-<p className="text-base font-bold text-slate-900 mt-1 font-mono">KES {commercialSummary.contractSumKes}</p>
+<p className="text-base font-bold text-slate-900 mt-1 font-mono">{formatKes(commercialSummary.contractSumKes)}</p>
 </div>
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">5% Retention Held</p>
-<p className="text-base font-bold text-purple-700 mt-1 font-mono">KES {commercialSummary.retentionWithheldKes}</p>
+<p className="text-base font-bold text-purple-700 mt-1 font-mono">{formatKes(commercialSummary.retentionWithheldKes)}</p>
 </div>
 </div>
 
@@ -322,7 +323,7 @@ export default function SubcontractorPortalView({
                       {snag.location}
 </span>
 <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                         snag.severity === 'CRITICAL'
                           ? 'bg-red-100 text-red-800'
                           : snag.severity === 'MINOR'
@@ -357,7 +358,7 @@ export default function SubcontractorPortalView({
                         key={p.id}
                         className="text-[11px] p-2 bg-slate-50 border border-slate-200 rounded flex items-center gap-2"
                       >
-<span className="font-bold text-slate-600 uppercase text-[10px]">
+<span className="font-bold text-slate-600 text-[10px]">
                           [{p.photo_type} Photo]:
 </span>
 <span className="text-slate-500 font-mono text-[10px] truncate max-w-xs">{p.storage_key}</span>
@@ -476,8 +477,8 @@ export default function SubcontractorPortalView({
 </thead>
 <tbody className="divide-y divide-slate-100">
                   {commercialSummary.milestones.map((m) => {
-                    const retentionAmt = (parseFloat(m.amountKes.replace(/,/g, '')) * 0.05).toLocaleString('en-US', { minimumFractionDigits: 2});
-                    const netAmt = (parseFloat(m.amountKes.replace(/,/g, '')) * 0.95).toLocaleString('en-US', { minimumFractionDigits: 2});
+                    const retentionAmt = parseFloat(m.amountKes.replace(/,/g, '')) * 0.05;
+                    const netAmt = parseFloat(m.amountKes.replace(/,/g, '')) * 0.95;
 
                     return (
 <tr key={m.id} className="hover:bg-slate-50">
@@ -488,9 +489,9 @@ export default function SubcontractorPortalView({
 )}
 </td>
 <td className="p-3 font-bold text-slate-700">{m.pct}%</td>
-<td className="p-3 font-mono font-bold text-slate-900">KES {m.amountKes}</td>
-<td className="p-3 font-mono text-purple-700">KES {retentionAmt}</td>
-<td className="p-3 font-mono font-bold text-emerald-700">KES {netAmt}</td>
+<td className="p-3 font-mono font-bold text-slate-900">{formatKes(m.amountKes)}</td>
+<td className="p-3 font-mono text-purple-700">{formatKes(retentionAmt)}</td>
+<td className="p-3 font-mono font-bold text-emerald-700">{formatKes(netAmt)}</td>
 <td className="p-3">
 <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -520,7 +521,7 @@ export default function SubcontractorPortalView({
 <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
 <div className="flex justify-between items-start border-b border-slate-100 pb-3">
 <div>
-<span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+<span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                   Subcontractor Interim Claim
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">
