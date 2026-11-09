@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState} from 'react';
 
 export interface ScheduleTask {
   id: string;
@@ -42,7 +42,7 @@ export default function ProjectScheduleGanttView({
       status: 'COMPLETED',
       assigned_trade: 'Plant Operators & Casuals',
       order_index: 1,
-    },
+},
     {
       id: 'task-2',
       wbs_phase: 'SUBSTRUCTURE',
@@ -56,7 +56,7 @@ export default function ProjectScheduleGanttView({
       status: 'IN_PROGRESS',
       assigned_trade: 'Steel Fixers & Masons',
       order_index: 2,
-    },
+},
     {
       id: 'task-3',
       wbs_phase: 'SUPERSTRUCTURE',
@@ -69,7 +69,7 @@ export default function ProjectScheduleGanttView({
       status: 'IN_PROGRESS',
       assigned_trade: 'Carpenters & Scaffolding',
       order_index: 3,
-    },
+},
     {
       id: 'task-4',
       wbs_phase: 'MEP_SERVICES',
@@ -82,7 +82,7 @@ export default function ProjectScheduleGanttView({
       status: 'PLANNED',
       assigned_trade: 'Electricians',
       order_index: 4,
-    },
+},
   ],
   onTaskCreated,
   onTaskUpdated,
@@ -94,7 +94,7 @@ export default function ProjectScheduleGanttView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/tasks`, { credentials: 'include' });
+      const res = await fetch(`/api/v1/projects/${projectId}/tasks`, { credentials: 'include'});
       if (!res.ok) throw new Error('load failed');
       const json = await res.json();
       const list = (json.tasks || json.data || []) as any[];
@@ -105,15 +105,15 @@ export default function ProjectScheduleGanttView({
         actual_start_date: t.actual_start_date?.slice?.(0, 10) ?? t.actual_start_date ?? null,
         actual_end_date: t.actual_end_date?.slice?.(0, 10) ?? t.actual_end_date ?? null,
         progress_percentage: t.progress_percentage?.toString?.() ?? String(t.progress_percentage ?? 0),
-      })));
-    } catch {
+})));
+} catch {
       setTasks([]);
-    } finally {
+} finally {
       setLiveLoaded(true);
-    }
-  }, [isLive, projectId]);
+}
+}, [isLive, projectId]);
 
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => { void reload();}, [reload]);
   const [phaseFilter, setPhaseFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -131,7 +131,7 @@ export default function ProjectScheduleGanttView({
     const matchesPhase = phaseFilter === 'ALL' || t.wbs_phase === phaseFilter;
     const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
     return matchesPhase && matchesStatus;
-  });
+});
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.status === 'COMPLETED').length;
@@ -157,13 +157,13 @@ export default function ProjectScheduleGanttView({
       status: 'PLANNED',
       assigned_trade: newTrade.trim() || 'General Masons',
       order_index: tasks.length + 1,
-    };
+};
 
     if (isLive) {
       void (async () => {
         try {
           const res = await fetch(`/api/v1/projects/${projectId}/tasks`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
             body: JSON.stringify({
               wbsPhase: newPhase, taskName: newTaskName.trim(),
               description: newDesc.trim() || null,
@@ -171,19 +171,19 @@ export default function ProjectScheduleGanttView({
               durationDays: newDuration,
               assignedTrade: newTrade.trim() || null,
               orderIndex: tasks.length + 1,
-            }),
-          });
+}),
+});
           if (res.ok) await reload();
-        } catch { /* ignore */ }
-      })();
-    } else {
+} catch { /* ignore */}
+})();
+} else {
       setTasks([...tasks, newTask]);
       if (onTaskCreated) onTaskCreated(newTask);
-    }
+}
     setShowModal(false);
     setNewTaskName('');
     setNewDesc('');
-  };
+};
 
   const handleUpdateProgress = (taskId: string, newProgress: number) => {
     const nextStatus = newProgress === 100 ? 'COMPLETED' : newProgress > 0 ? 'IN_PROGRESS' : 'PLANNED';
@@ -191,222 +191,222 @@ export default function ProjectScheduleGanttView({
       void (async () => {
         try {
           await fetch(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
-            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ progressPercentage: String(newProgress), status: nextStatus }),
-          });
+            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
+            body: JSON.stringify({ progressPercentage: String(newProgress), status: nextStatus}),
+});
           await reload();
-        } catch { /* ignore */ }
-      })();
+} catch { /* ignore */}
+})();
       return;
-    }
+}
     setTasks(
       tasks.map((t) =>
         t.id === taskId
-          ? { ...t, progress_percentage: newProgress, status: nextStatus }
+          ? { ...t, progress_percentage: newProgress, status: nextStatus}
           : t
-      )
-    );
+)
+);
     if (onTaskUpdated) {
-      onTaskUpdated(taskId, { progress_percentage: newProgress, status: nextStatus });
-    }
-  };
+      onTaskUpdated(taskId, { progress_percentage: newProgress, status: nextStatus});
+}
+};
 
   const getStatusBadge = (status: ScheduleTask['status']) => {
     switch (status) {
       case 'COMPLETED':
-        return <span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">Completed</span>;
+        return<span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">Completed</span>;
       case 'IN_PROGRESS':
-        return <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">In Progress</span>;
+        return<span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">In Progress</span>;
       case 'DELAYED':
-        return <span className="px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">Delayed</span>;
+        return<span className="px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">Delayed</span>;
       case 'BLOCKED':
-        return <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800">Blocked</span>;
+        return<span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800">Blocked</span>;
       default:
-        return <span className="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">Planned</span>;
-    }
-  };
+        return<span className="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">Planned</span>;
+}
+};
 
   if (isLive && !liveLoaded) {
-    return <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading schedule…</div>;
-  }
+    return<div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Loading schedule…</div>;
+}
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" data-testid="project-schedule-gantt-view" data-project-id={projectId}>
+<div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" data-testid="project-schedule-gantt-view" data-project-id={projectId}>
       {/* Header & KPI Summary */}
-      <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-indigo-100 text-indigo-700">
+<div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+<div>
+<div className="flex items-center gap-2">
+<span className="px-2.5 py-1 text-xs font-bold rounded-full bg-indigo-100 text-indigo-700">
                 WBS &amp; GANTT
-              </span>
-              <h2 className="text-xl font-bold text-slate-900">Project Master Schedule</h2>
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
+</span>
+<h2 className="text-xl font-bold text-slate-900">Project Master Schedule</h2>
+</div>
+<p className="text-sm text-slate-500 mt-1">
               Phased activity tracking, planned vs. actual timelines, and trade crew allocations.
-            </p>
-          </div>
+</p>
+</div>
           {canEdit && (
-            <button
+<button
               onClick={() => setShowModal(true)}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
             >
               + Add Schedule Task
-            </button>
-          )}
-        </div>
+</button>
+)}
+</div>
 
         {/* 4 KPI Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
-            <span className="text-xs text-slate-500 font-medium">Overall Progress</span>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">{overallProgress}%</span>
-              <span className="text-xs text-slate-400">weighted avg</span>
-            </div>
-            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${overallProgress}%` }}></div>
-            </div>
-          </div>
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
+<span className="text-xs text-slate-500 font-medium">Overall Progress</span>
+<div className="mt-1 flex items-baseline gap-2">
+<span className="text-2xl font-bold text-slate-900">{overallProgress}%</span>
+<span className="text-xs text-slate-400">weighted avg</span>
+</div>
+<div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+<div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${overallProgress}%`}}></div>
+</div>
+</div>
 
-          <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
-            <span className="text-xs text-slate-500 font-medium">Total Milestones</span>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">{totalTasks}</span>
-              <span className="text-xs text-slate-400">tasks</span>
-            </div>
-            <div className="text-xs text-emerald-600 mt-2 font-medium">
+<div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
+<span className="text-xs text-slate-500 font-medium">Total Milestones</span>
+<div className="mt-1 flex items-baseline gap-2">
+<span className="text-2xl font-bold text-slate-900">{totalTasks}</span>
+<span className="text-xs text-slate-400">tasks</span>
+</div>
+<div className="text-xs text-emerald-600 mt-2 font-medium">
               {completedTasks} completed
-            </div>
-          </div>
+</div>
+</div>
 
-          <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
-            <span className="text-xs text-slate-500 font-medium">Active In-Progress</span>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-amber-600">{inProgressTasks}</span>
-              <span className="text-xs text-slate-400">on site</span>
-            </div>
-            <div className="text-xs text-slate-500 mt-2">
+<div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
+<span className="text-xs text-slate-500 font-medium">Active In-Progress</span>
+<div className="mt-1 flex items-baseline gap-2">
+<span className="text-2xl font-bold text-amber-600">{inProgressTasks}</span>
+<span className="text-xs text-slate-400">on site</span>
+</div>
+<div className="text-xs text-slate-500 mt-2">
               Executing trades
-            </div>
-          </div>
+</div>
+</div>
 
-          <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
-            <span className="text-xs text-slate-500 font-medium">Schedule Variance</span>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className={`text-2xl font-bold ${delayedTasks > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+<div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
+<span className="text-xs text-slate-500 font-medium">Schedule Variance</span>
+<div className="mt-1 flex items-baseline gap-2">
+<span className={`text-2xl font-bold ${delayedTasks > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                 {delayedTasks}
-              </span>
-              <span className="text-xs text-slate-400">delayed</span>
-            </div>
-            <div className="text-xs text-slate-500 mt-2">
+</span>
+<span className="text-xs text-slate-400">delayed</span>
+</div>
+<div className="text-xs text-slate-500 mt-2">
               {delayedTasks === 0 ? 'On program track' : 'Action required'}
-            </div>
-          </div>
-        </div>
-      </div>
+</div>
+</div>
+</div>
+</div>
 
       {/* Filter Controls */}
-      <div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-slate-600 uppercase">Phase:</label>
-          <select
+<div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-wrap items-center gap-3">
+<div className="flex items-center gap-2">
+<label className="text-xs font-semibold text-slate-600 uppercase">Phase:</label>
+<select
             value={phaseFilter}
             onChange={(e) => setPhaseFilter(e.target.value)}
             className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
-            <option value="ALL">All WBS Phases</option>
-            <option value="SUBSTRUCTURE">Substructure</option>
-            <option value="SUPERSTRUCTURE">Superstructure</option>
-            <option value="ROOFING">Roofing</option>
-            <option value="MEP_SERVICES">MEP Services</option>
-            <option value="FINISHES">Finishes &amp; Joinery</option>
-            <option value="EXTERNAL_WORKS">External Works &amp; Civil</option>
-          </select>
-        </div>
+<option value="ALL">All WBS Phases</option>
+<option value="SUBSTRUCTURE">Substructure</option>
+<option value="SUPERSTRUCTURE">Superstructure</option>
+<option value="ROOFING">Roofing</option>
+<option value="MEP_SERVICES">MEP Services</option>
+<option value="FINISHES">Finishes &amp; Joinery</option>
+<option value="EXTERNAL_WORKS">External Works &amp; Civil</option>
+</select>
+</div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-slate-600 uppercase">Status:</label>
-          <select
+<div className="flex items-center gap-2">
+<label className="text-xs font-semibold text-slate-600 uppercase">Status:</label>
+<select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
-            <option value="ALL">All Statuses</option>
-            <option value="PLANNED">Planned</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="DELAYED">Delayed</option>
-            <option value="BLOCKED">Blocked</option>
-          </select>
-        </div>
-      </div>
+<option value="ALL">All Statuses</option>
+<option value="PLANNED">Planned</option>
+<option value="IN_PROGRESS">In Progress</option>
+<option value="COMPLETED">Completed</option>
+<option value="DELAYED">Delayed</option>
+<option value="BLOCKED">Blocked</option>
+</select>
+</div>
+</div>
 
       {/* Task List / Gantt Timeline View */}
-      <div className="divide-y divide-slate-100">
+<div className="divide-y divide-slate-100">
         {filteredTasks.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">
+<div className="p-8 text-center text-slate-500 text-sm">
             No schedule tasks found matching the selected filters.
-          </div>
-        ) : (
+</div>
+) : (
           filteredTasks.map((task) => (
-            <div key={task.id} className="p-4 hover:bg-slate-50/80 transition-colors">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+<div key={task.id} className="p-4 hover:bg-slate-50/80 transition-colors">
+<div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+<div className="flex-1 min-w-0">
+<div className="flex items-center gap-2 mb-1">
+<span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                       {task.wbs_phase}
-                    </span>
+</span>
                     {getStatusBadge(task.status)}
-                    <span className="text-xs text-slate-400">
+<span className="text-xs text-slate-400">
                       • {task.duration_days} days
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-slate-900 truncate">
+</span>
+</div>
+<h4 className="text-sm font-bold text-slate-900 truncate">
                     {task.task_name}
-                  </h4>
+</h4>
                   {task.description && (
-                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+<p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
                       {task.description}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">
-                    <span>
-                      📅 <strong className="text-slate-700">Planned:</strong> {task.planned_start_date} → {task.planned_end_date}
-                    </span>
+</p>
+)}
+<div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-2">
+<span>
+<strong className="text-slate-700">Planned:</strong> {task.planned_start_date} → {task.planned_end_date}
+</span>
                     {task.actual_start_date && (
-                      <span>
-                        ⏱️ <strong className="text-slate-700">Actual Start:</strong> {task.actual_start_date}
-                      </span>
-                    )}
+<span>
+                        ⏱<strong className="text-slate-700">Actual Start:</strong> {task.actual_start_date}
+</span>
+)}
                     {task.assigned_trade && (
-                      <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-medium">
-                        🔨 {task.assigned_trade}
-                      </span>
-                    )}
-                  </div>
-                </div>
+<span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                         {task.assigned_trade}
+</span>
+)}
+</div>
+</div>
 
                 {/* Progress Control */}
-                <div className="lg:w-64 flex flex-col justify-center">
-                  <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                    <span>Progress</span>
-                    <span>{task.progress_percentage}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-2">
-                    <div
+<div className="lg:w-64 flex flex-col justify-center">
+<div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+<span>Progress</span>
+<span>{task.progress_percentage}%</span>
+</div>
+<div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-2">
+<div
                       className={`h-2 rounded-full transition-all duration-300 ${
                         Number(task.progress_percentage) === 100
                           ? 'bg-emerald-500'
                           : Number(task.progress_percentage) > 50
                           ? 'bg-indigo-600'
                           : 'bg-amber-500'
-                      }`}
-                      style={{ width: `${task.progress_percentage}%` }}
+}`}
+                      style={{ width: `${task.progress_percentage}%`}}
                     ></div>
-                  </div>
+</div>
                   {canEdit && (
-                    <input
+<input
                       type="range"
                       min="0"
                       max="100"
@@ -416,42 +416,42 @@ export default function ProjectScheduleGanttView({
                       className="w-full accent-indigo-600 cursor-pointer h-1 bg-slate-200 rounded"
                       aria-label={`Update progress for ${task.task_name}`}
                     />
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+)}
+</div>
+</div>
+</div>
+))
+)}
+</div>
 
       {/* Task Creation Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 border border-slate-100">
-            <h3 className="text-lg font-bold text-slate-900 mb-1">Create Schedule Milestone Task</h3>
-            <p className="text-xs text-slate-500 mb-4">
+<div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+<div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 border border-slate-100">
+<h3 className="text-lg font-bold text-slate-900 mb-1">Create Schedule Milestone Task</h3>
+<p className="text-xs text-slate-500 mb-4">
               Add a work breakdown activity to the site master program.
-            </p>
-            <form onSubmit={handleCreateTask} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">WBS Phase</label>
-                <select
+</p>
+<form onSubmit={handleCreateTask} className="space-y-3">
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">WBS Phase</label>
+<select
                   value={newPhase}
                   onChange={(e) => setNewPhase(e.target.value)}
                   className="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
                 >
-                  <option value="SUBSTRUCTURE">Substructure (Excavation &amp; Footings)</option>
-                  <option value="SUPERSTRUCTURE">Superstructure (Columns &amp; Slabs)</option>
-                  <option value="ROOFING">Roofing &amp; Truss Fabrication</option>
-                  <option value="MEP_SERVICES">MEP Services (Electrical &amp; Plumbing)</option>
-                  <option value="FINISHES">Finishes, Plaster &amp; Joinery</option>
-                  <option value="EXTERNAL_WORKS">External Works &amp; Drainage</option>
-                </select>
-              </div>
+<option value="SUBSTRUCTURE">Substructure (Excavation &amp; Footings)</option>
+<option value="SUPERSTRUCTURE">Superstructure (Columns &amp; Slabs)</option>
+<option value="ROOFING">Roofing &amp; Truss Fabrication</option>
+<option value="MEP_SERVICES">MEP Services (Electrical &amp; Plumbing)</option>
+<option value="FINISHES">Finishes, Plaster &amp; Joinery</option>
+<option value="EXTERNAL_WORKS">External Works &amp; Drainage</option>
+</select>
+</div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Task Name</label>
-                <input
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">Task Name</label>
+<input
                   type="text"
                   required
                   placeholder="e.g. Ring beam reinforcement and casting"
@@ -459,84 +459,84 @@ export default function ProjectScheduleGanttView({
                   onChange={(e) => setNewTaskName(e.target.value)}
                   className="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
                 />
-              </div>
+</div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
-                <textarea
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
+<textarea
                   rows={2}
                   placeholder="Technical scope, specifications, or location notes..."
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   className="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
                 />
-              </div>
+</div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Planned Start</label>
-                  <input
+<div className="grid grid-cols-2 gap-3">
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">Planned Start</label>
+<input
                     type="date"
                     required
                     value={newStartDate}
                     onChange={(e) => setNewStartDate(e.target.value)}
                     className="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Planned End</label>
-                  <input
+</div>
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">Planned End</label>
+<input
                     type="date"
                     required
                     value={newEndDate}
                     onChange={(e) => setNewEndDate(e.target.value)}
                     className="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
                   />
-                </div>
-              </div>
+</div>
+</div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Duration (Days)</label>
-                  <input
+<div className="grid grid-cols-2 gap-3">
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">Duration (Days)</label>
+<input
                     type="number"
                     min="1"
                     value={newDuration}
                     onChange={(e) => setNewDuration(Number(e.target.value))}
                     className="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assigned Trade Crew</label>
-                  <input
+</div>
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">Assigned Trade Crew</label>
+<input
                     type="text"
                     placeholder="e.g. Masons &amp; Fundis"
                     value={newTrade}
                     onChange={(e) => setNewTrade(e.target.value)}
                     className="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
                   />
-                </div>
-              </div>
+</div>
+</div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
+<div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+<button
                   type="button"
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
                 >
                   Cancel
-                </button>
-                <button
+</button>
+<button
                   type="submit"
                   className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
                 >
                   Save Task
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+</button>
+</div>
+</form>
+</div>
+</div>
+)}
+</div>
+);
 }

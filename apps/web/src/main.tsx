@@ -12,10 +12,10 @@ const tryRefresh = (): Promise<boolean> => {
   refreshPromise ??= originalFetch('/api/v1/auth/refresh', {
     method: 'POST',
     credentials: 'include',
-  })
+})
     .then((r) => r.ok)
     .catch(() => false)
-    .finally(() => { refreshPromise = null; });
+    .finally(() => { refreshPromise = null;});
   return refreshPromise;
 };
 
@@ -27,12 +27,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   const retryable = !(input instanceof Request) || !input.bodyUsed;
   if (retryable && (await tryRefresh())) {
     return originalFetch(input, init);
-  }
+}
   return res;
 };
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+<React.StrictMode>
+<App />
+</React.StrictMode>,
 );
