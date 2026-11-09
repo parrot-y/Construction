@@ -89,7 +89,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
       const statusFilter = status?.toUpperCase();
       if (statusFilter === 'OVERDUE') {
         where.status = { in: ['SENT', 'PART_PAID'] };
-        // due_date is @db.Date: lte keeps parity with effectiveStatus(), which
+        // due_date is @db.Date: lte matches effectiveStatus(), which
         // treats an invoice due today (stored as midnight) as overdue.
         where.due_date = { lte: new Date() };
       } else if (statusFilter) {

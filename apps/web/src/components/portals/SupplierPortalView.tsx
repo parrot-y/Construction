@@ -135,10 +135,10 @@ export default function SupplierPortalView({
 <div>
 <div className="flex items-center gap-2">
 <span className="text-[11px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 rounded-full">
-              Material Supplier &amp; Batching Portal • Zero Seat Tax
+              Material Supplier &amp; Batching Portal
 </span>
 <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
-              Verified Dispatch Link
+              Secured project link
 </span>
 </div>
 <h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>

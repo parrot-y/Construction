@@ -62,7 +62,8 @@ interface PmQsDashboardProps {
 
 export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboardProps): React.JSX.Element {
   const { user} = session;
-  const sampleBudget = '45000000.00';
+  const [projectDetail, setProjectDetail] = useState<{ name?: string; code?: string; location?: string } | null>(null);
+  const [budgetSummary, setBudgetSummary] = useState<{ approvedBudget?: string; sectionBreakdown?: any[] } | null>(null);
   const [showBoqModal, setShowBoqModal] = useState(false);
   const [boqSuccess, setBoqSuccess] = useState<string | null>(null);
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -79,6 +80,20 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 })
       .catch(() => setProjects([]));
 }, []);
+
+  useEffect(() => {
+    if (!pid) return;
+    let cancelled = false;
+    fetch(`/api/v1/projects/${pid}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!cancelled && j) setProjectDetail(j.data || j); })
+      .catch(() => {});
+    fetch(`/api/v1/projects/${pid}/budget/summary`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!cancelled && j) setBudgetSummary(j.data || j); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [pid]);
   const [tabGroup, setTabGroup] = useState<'all' | 'core' | 'field' | 'money' | 'collab'>('core');
   const [activeTab, setActiveTab] = useState<'all' | 'cost' | 'variations' | 'rfis' | 'quality' | 'closeout' | 'portals' | 'schedule' | 'store' | 'safety' | 'drawings' | 'subcontractors' | 'delays' | 'taxes' | 'requisitions' | 'wastage' | 'cashflow' | 'subvaluations' | 'equipment' | 'muster' | 'safetyaudit' | 'etims' | 'whatsapp' | 'retentionbonds' | 'geofence' | 'telematics' | 'rebar' | 'disbursements' | 'rmc' | 'steel' | 'soil' | 'asphalt' | 'survey' | 'inspections' | 'tenders' | 'quotes' | 'invoices' | 'commitments' | 'project' | 'announcements' | 'inbox' | 'observations' | 'crews' | 'documents' | 'correspondence' | 'scheduled' | 'attendance' | 'checklists'>('all');
 
@@ -269,7 +284,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             Approved Budget Baseline
 </span>
 <span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
-            {formatKes(sampleBudget)}
+            {budgetSummary?.approvedBudget ? formatKes(budgetSummary.approvedBudget) : '—'}
 </span>
 <span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">Locked contract baseline</span>
 </div>
@@ -345,8 +360,8 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <div className="flex justify-between items-start">
 <div>
 <span className="text-xs font-bold text-slate-400 ">Assigned Project Baseline</span>
-<h3 className="text-lg font-bold text-slate-900 mt-0.5">Riverside Commercial Plaza</h3>
-<p className="text-xs text-slate-500">Riverside Drive, Nairobi • Code: RCP-2026</p>
+<h3 className="text-lg font-bold text-slate-900 mt-0.5">{projectDetail?.name || projects.find((p) => p.id === pid)?.name || '—'}</h3>
+<p className="text-xs text-slate-500">{[projectDetail?.location, projectDetail?.code || projects.find((p) => p.id === pid)?.code].filter(Boolean).join(' • ') || '—'}</p>
 </div>
 <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
             Active Project
@@ -365,34 +380,18 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100 text-slate-700">
-<tr className="hover:bg-slate-50/50">
-<td className="p-3 font-semibold text-slate-900">Section 1: Preliminaries & General</td>
-<td className="p-3 text-slate-500">EASMM Section A</td>
-<td className="p-3 font-mono font-medium">{formatKes('4500000.00')}</td>
-<td className="p-3 font-mono font-medium">{formatKes('4500000.00')}</td>
-<td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
+{(budgetSummary?.sectionBreakdown || []).length === 0 && (
+<tr><td colSpan={5} className="p-6 text-center text-sm text-slate-400">No BOQ sections yet — import a BOQ to populate this baseline.</td></tr>
+)}
+{(budgetSummary?.sectionBreakdown || []).map((sec: any) => (
+<tr key={sec.sectionId || sec.title} className="hover:bg-slate-50/50">
+<td className="p-3 font-semibold text-slate-900">{sec.title || sec.sectionTitle || 'Section'}</td>
+<td className="p-3 text-slate-500">{sec.itemCount != null ? `${sec.itemCount} items` : '—'}</td>
+<td className="p-3 font-mono font-medium">{formatKes(sec.allocatedBudget)}</td>
+<td className="p-3 font-mono font-medium">{formatKes(sec.allocatedBudget)}</td>
+<td className="p-3 font-mono text-slate-400">{formatKes(sec.actualSpent)}</td>
 </tr>
-<tr className="hover:bg-slate-50/50">
-<td className="p-3 font-semibold text-slate-900">Section 2: Substructure & Earthworks</td>
-<td className="p-3 text-slate-500">EASMM Section D</td>
-<td className="p-3 font-mono font-medium">{formatKes('12000000.00')}</td>
-<td className="p-3 font-mono font-medium">{formatKes('12000000.00')}</td>
-<td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
-</tr>
-<tr className="hover:bg-slate-50/50">
-<td className="p-3 font-semibold text-slate-900">Section 3: Reinforced Concrete Frame</td>
-<td className="p-3 text-slate-500">EASMM Section F</td>
-<td className="p-3 font-mono font-medium">{formatKes('18500000.00')}</td>
-<td className="p-3 font-mono font-medium">{formatKes('18500000.00')}</td>
-<td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
-</tr>
-<tr className="hover:bg-slate-50/50">
-<td className="p-3 font-semibold text-slate-900">Section 4: Walling, Finishes & Services</td>
-<td className="p-3 text-slate-500">EASMM Section G & V</td>
-<td className="p-3 font-mono font-medium">{formatKes('10000000.00')}</td>
-<td className="p-3 font-mono font-medium">{formatKes('10000000.00')}</td>
-<td className="p-3 font-mono text-slate-400">{formatKes(0)}</td>
-</tr>
+))}
 </tbody>
 </table>
 </div>

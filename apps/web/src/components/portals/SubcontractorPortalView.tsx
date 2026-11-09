@@ -219,10 +219,10 @@ export default function SubcontractorPortalView({
 <div>
 <div className="flex items-center gap-2">
 <span className="text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
-              Subcontractor Portal • Zero Seat Tax
+              Subcontractor Portal
 </span>
 <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
-              Active Trade Token
+              Secured project link
 </span>
 </div>
 <h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
@@ -303,6 +303,9 @@ export default function SubcontractorPortalView({
       {/* Tab 1: Defect Rectification Register */}
       {activeTab === 'DEFECTS' && (
 <div className="space-y-4">
+          {snagList.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No snagging items assigned to your trade yet.</p>
+)}
           {snagList.map((snag) => {
             const isOpen = snag.status === 'OPEN';
             const isRectified = snag.status === 'RECTIFIED_BY_CONTRACTOR';
@@ -476,6 +479,9 @@ export default function SubcontractorPortalView({
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
+                  {commercialSummary.milestones.length === 0 && (
+<tr><td colSpan={5} className="p-6 text-center text-sm text-slate-400">No valuation milestones on file yet.</td></tr>
+)}
                   {commercialSummary.milestones.map((m) => {
                     const retentionAmt = parseFloat(m.amountKes.replace(/,/g, '')) * 0.05;
                     const netAmt = parseFloat(m.amountKes.replace(/,/g, '')) * 0.95;

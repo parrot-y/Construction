@@ -136,10 +136,10 @@ export default function CompliancePortalView({
 <div>
 <div className="flex items-center gap-2">
 <span className="text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-              NCA &amp; Regulatory Compliance Portal • Zero Seat Tax
+              NCA &amp; Regulatory Compliance Portal
 </span>
 <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
-              Auditor Direct Link
+              Secured auditor link
 </span>
 </div>
 <h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
@@ -287,6 +287,9 @@ export default function CompliancePortalView({
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
+              {cubeTests.length === 0 && (
+<tr><td colSpan={7} className="p-6 text-center text-sm text-slate-400">No concrete cube tests recorded yet.</td></tr>
+)}
               {cubeTests.map((c) => {
                 const day7 = c.break_results?.find((b: any) => b.age_days === 7);
                 const day28 = c.break_results?.find((b: any) => b.age_days === 28);
@@ -331,6 +334,9 @@ export default function CompliancePortalView({
 </div>
 
 <div className="divide-y divide-slate-100 text-xs">
+          {inspections.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-6">No inspections on file yet.</p>
+)}
           {inspections.map((insp) => (
 <div key={insp.id} className="py-3 flex justify-between items-center">
 <div>

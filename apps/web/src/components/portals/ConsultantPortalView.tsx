@@ -183,15 +183,15 @@ export default function ConsultantPortalView({
 
   return (
 <div className="max-w-5xl mx-auto space-y-6" data-testid="consultant-portal-view">
-      {/* Zero Seat Tax Header */}
+      {/* Portal header */}
 <header className="bg-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
 <div className="flex items-center gap-2">
 <span className="text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2.5 py-0.5 rounded-full">
-              Zero Seat Tax • Consultant Portal
+              Consultant Portal
 </span>
 <span className="text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
-              Verified Token Access
+              Secured project link
 </span>
 </div>
 <h1 className="text-xl font-bold mt-2 text-white">{proj.name} ({proj.code})</h1>
@@ -260,6 +260,9 @@ export default function ConsultantPortalView({
       {/* TAB 1: RFIs */}
       {activeTab === 'rfis' && (
 <div className="space-y-4">
+          {rfis.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No RFIs on this project yet.</p>
+)}
           {rfis.map((rfi) => {
             const isAnswered = rfi.status === 'ANSWERED' || rfi.status === 'CLOSED';
             const isSelected = selectedRfi === rfi.id;
@@ -380,6 +383,9 @@ export default function ConsultantPortalView({
 </div>
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {cubeTests.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8 col-span-2">No concrete cube tests recorded yet.</p>
+)}
             {cubeTests.map((c) => (
 <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
 <div className="flex justify-between items-start">
@@ -426,6 +432,9 @@ export default function ConsultantPortalView({
       {/* TAB 3: Pre-Pour QA */}
       {activeTab === 'inspections' && (
 <div className="space-y-4">
+          {inspections.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No pre-pour inspections scheduled yet.</p>
+)}
           {inspections.map((insp) => (
 <div key={insp.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
 <div className="flex justify-between items-center">

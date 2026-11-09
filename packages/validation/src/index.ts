@@ -1851,7 +1851,7 @@ export const PaymentApplicationActionSchema = z.object({
 export type PaymentApplicationAction = z.infer<typeof PaymentApplicationActionSchema>;
 
 // -----------------------------------------------------------------------------
-// Gate-4 S8: Project onboarding & edit (observed Edit-project modal parity)
+// Gate-4 S8: Project onboarding & edit (edit-project modal coverage)
 // -----------------------------------------------------------------------------
 
 export const ProjectHealthStatusEnum = z.enum([

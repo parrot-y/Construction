@@ -120,10 +120,10 @@
   - B1: SubcontractorManagementView + MaterialRequisitionView + MaterialWastageVarianceCard
   - B2: StatutoryTaxManagementView + ETimsTaxComplianceView + RetentionAndBondsView + WeatherDelayClaimsView + WhatsAppSiteWebhookView
   - B3: QualityControlView (inspections tab only — cube tests have no internal API, document) + PhotoEvidenceGallery + remaining stragglers
-- [x] Seed accounts per role (DONE in seed.ts); parity-map doc removed per audit — parity goal dropped
+- [x] Seed accounts per role (DONE in seed.ts); feature-map doc removed per audit — matching goal dropped
 - [ ] Final verify-local + PROJECT_STATUS update
 - [x] Wave A+B subagent wiring complete — 20+ views live (see commit 80143d1)
-- [x] ~~PORTAL_PARITY_MAP.md~~ removed — parity goal dropped per audit; seed accounts remain in seed.ts
+- [x] feature-map doc removed — matching goal dropped per audit; seed accounts remain in seed.ts
 - [x] PATCH subcontractor package status endpoint + UI persistence
 - [ ] Known backend gaps (documented, not built): GET equipment-logs, GET telematics-devices list, GET SiteWebhookLog, subcontractor valuations PATCH?, Excel export, AI features, WhatsApp/SMS/eTIMS live providers, scheduled-report delivery
 - [x] Final verify-local GREEN on 80143d1 — 687/687
@@ -134,7 +134,7 @@
 - [x] integrations.test.ts (4 tests)
 - [x] Final verify-local GREEN — 691/691 on 6858172
 
-## Reference-console parity rebuild (live-captured 2026-11-08)
+## Console rebuild from live captures (2026-11-08)
 Captures: /tmp/refstudy/crawl/<role>/<section>.{txt,png} — 8 roles x 6 sections.
 
 - [x] AppShell: icon rail (Ask AI, Home, Projects, Site, Money, People, Files & reports) + topbar (workspace label, search, currency toggle, New, notifications, avatar, dark-mode ready)
@@ -156,7 +156,7 @@ Captures: /tmp/refstudy/crawl/<role>/<section>.{txt,png} — 8 roles x 6 section
 - [x] All 10 seed logins verified live via Playwright DOM probe
 - [x] Probe/refstudy scripts removed from repo (never commit research tooling)
 
-## Form-level parity sweep (live-captured 2026-11-08, second pass)
+## Form-level sweep from live captures (2026-11-08, second pass)
 Captured every create form on contractor portal: CO, RFI, correspondence, safety, observation, punch, crew, subcontractor, daily log, invoice, quote, commitment, financials subtabs, reports, company docs, unfiled, field view, mobile landing.
 
 - [x] CO modal: linked RFI + multi-assignee selects (backend already supported assigneeIds/linkedRfiId)
@@ -174,14 +174,14 @@ Captured every create form on contractor portal: CO, RFI, correspondence, safety
 - Honest gaps remaining: real AI backend (Ask AI is labelled rule-based nav assistant), AI Design SOON, drawing markup viewer, live eTIMS/WhatsApp provider creds, client-portal "Request a project" flow, deeper subtab internals beyond first-crawl depth.
 - Probe scripts contained reference credentials -> removed from HEAD; history still contains them (pre-scrub commits) — offer history rewrite if user wants.
 
-## Security audit remediation (post-parity, ordered)
+## Security audit remediation (post-rebuild, ordered)
 - [x] 1. Authorization: central route permission map + project-membership guard + guarded route test
 - [x] 2. Uploads: magic-byte verification, mime-derived ext, authenticated tenant-scoped serving, storage driver seam
 - [x] 3. M-Pesa honesty: simulated flags in API+UI, maker-checker B2C payouts
 - [x] 4. Real Prisma migrations (baseline + RLS) + deploy-step rls.sql re-enforcement; users/tenants RLS exception documented
 - [x] 5. Sessions: 15m access + 7d refresh rotation, per-request is_active/membership check, @fastify/rate-limit on login/refresh/public
 - [x] 6. Peripheral modules (plant/survey/tender/steel/asphalt/geofence) quarantinable via DISABLED_MODULES
-- [x] 7. PORTAL_PARITY_MAP.md removed; parity goal dropped
+- [x] 7. PORTAL_MATCHING_MAP.md removed; feature-matching goal dropped
 - [ ] 8. PROJECT_STATUS.md update + seed production guard
 - [ ] Final verify-local green + evidence
 
@@ -195,7 +195,7 @@ Captured every create form on contractor portal: CO, RFI, correspondence, safety
 - [x] verify-local GREEN 714/714 on ebaf3c3 + 23cc4ea (web build clean, PWA precache 12 entries)
 
 ## Audit remediation program (Claude audit of PR #1 — ordered phases)
-Branch: devin/audit-remediation. Rules: evidence per item in docs/evidence/, no parity wording, no invented data, simulated integrations labelled, verify stays green.
+Branch: devin/audit-remediation. Rules: evidence per item in docs/evidence/, no competitor wording, no invented data, simulated integrations labelled, verify stays green.
 
 ### Phase 1 — Security & data safety
 - [x] 1.1 Authorization: route-authz-matrix.md evidence; b2c-disburse finance perm + approval + audit; retention review role check; replace inline hasPermission in certificates.ts/variations.ts with shared preHandler

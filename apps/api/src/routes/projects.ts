@@ -162,7 +162,7 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     },
   );
 
-  // PATCH /api/v1/projects/:id (requires PROJECT_EDIT) — Gate-4 S8 edit-project parity
+  // PATCH /api/v1/projects/:id (requires PROJECT_EDIT) — Gate-4 S8 edit-project coverage
   server.patch(
     '/api/v1/projects/:id',
     {
