@@ -35,112 +35,6 @@ interface RfiManagementViewProps {
   canCreate?: boolean;
 }
 
-const DEFAULT_RFIS: RfiItemData[] = [
-  {
-    id: 'rfi-001',
-    rfiNo: 'RFI-001',
-    title: 'Clarification on Pad Footing Reinforcement in Grid C-4',
-    query:
-      'Structural drawing ST-102 Rev B indicates T16@200 for bottom reinforcement, but schedule BS-01 calls for T20@150 c/c. Ground bearing pressure test report #GT-49 confirms 220 kPa. Please clarify bottom bar diameter and spacing before blinding pour.',
-    priority: 'CRITICAL',
-    status: 'ANSWERED',
-    assignedConsultant: 'Structural Eng',
-    drawingRef: 'ST-102-REV-B / BS-01',
-    submittedBy: 'Eng. Kevin Ochieng (Site Agent)',
-    submittedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
-    daysElapsed: 5,
-    attachments: [
-      { name: 'Grid-C4-Pad-Footing-Discrepancy.pdf', size: '1.2 MB'},
-    ],
-    responses: [
-      {
-        id: 'resp-001',
-        respondentName: 'Eng. Peter Gitau, PE (EBK #A-3129)',
-        respondentRole: 'Lead Structural Engineer',
-        respondedAt: new Date(Date.now() - 86400000 * 4).toISOString(),
-        content:
-          'Approved clarification: Use T20@150 c/c both ways (B1 & B2) with 50mm nominal concrete cover to comply with crack width criteria in fractured bedrock. Revise bar bending schedule accordingly. Official revision sketch SK-ST-04 attached.',
-        attachments: [
-          { name: 'SK-ST-04-Pad-Footing-C4-Revision.pdf', size: '2.8 MB'},
-        ],
-},
-    ],
-},
-  {
-    id: 'rfi-002',
-    rfiNo: 'RFI-002',
-    title: 'Borehole Water Piping Routing Clash with Basement Lift Pit',
-    query:
-      'Proposed 100mm HDPE booster rising main clashes with 300mm reinforced concrete shear wall of Basement Lift Pit #1. Request approval to sleeve through shear wall at elevation +1450mm with puddle flange cast-in.',
-    priority: 'HIGH',
-    status: 'SUBMITTED',
-    assignedConsultant: 'Services Eng',
-    drawingRef: 'MEP-PL-204 / AR-B1-02',
-    submittedBy: 'Sammy Waweru (Site Supervisor)',
-    submittedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    daysElapsed: 3,
-    attachments: [
-      { name: 'Lift-Pit-Sleeve-Clash-Elevation.dwg', size: '3.4 MB'},
-    ],
-    responses: [],
-},
-  {
-    id: 'rfi-003',
-    rfiNo: 'RFI-003',
-    title: 'Façade Sun Louver Fixing Details & Thermal Break Mullion',
-    query:
-      'Architectural elevation shows extruded aluminium aerofoil louvers along western curtain wall. Need confirmation on anodized coating thickness (25 microns) and anchor pull-out test requirements in lightweight hollow blocks.',
-    priority: 'MEDIUM',
-    status: 'ANSWERED',
-    assignedConsultant: 'Architect',
-    drawingRef: 'AR-DET-402 Rev C',
-    submittedBy: 'Eng. Kevin Ochieng (Site Agent)',
-    submittedAt: new Date(Date.now() - 86400000 * 7).toISOString(),
-    daysElapsed: 7,
-    attachments: [
-      { name: 'Façade-Mullion-Detail-Section.pdf', size: '1.9 MB'},
-    ],
-    responses: [
-      {
-        id: 'resp-002',
-        respondentName: 'Arch. Peter M. Mwangi (BORAQS #A-742)',
-        respondentRole: 'Principal Architect',
-        respondedAt: new Date(Date.now() - 86400000 * 6).toISOString(),
-        content:
-          'Specification confirmed: 25-micron Qualicoat Class 2 natural anodized finish. Anchors must be chemical capsule M12 stainless steel Grade 316 with minimum 85mm embedment depth into solid concrete perimeter beams (not hollow blocks).',
-        attachments: [
-          { name: 'Architectural-Spec-Louver-Annex.pdf', size: '1.5 MB'},
-        ],
-},
-    ],
-},
-  {
-    id: 'rfi-004',
-    rfiNo: 'RFI-004',
-    title: 'Hardcore Filling Layer Compaction Spec & In-situ Density',
-    query:
-      'Confirm whether 300mm quarry hardcore layers require stone dust blinding before compaction with 10-ton vibratory roller per EASMM Section D.',
-    priority: 'LOW',
-    status: 'CLOSED',
-    assignedConsultant: 'QS',
-    drawingRef: 'EASMM Section D / Boq Item 1.04',
-    submittedBy: 'Faith Achieng (Lead QS)',
-    submittedAt: new Date(Date.now() - 86400000 * 12).toISOString(),
-    daysElapsed: 12,
-    attachments: [],
-    responses: [
-      {
-        id: 'resp-003',
-        respondentName: 'Faith Achieng (BORAQS #Q-819)',
-        respondentRole: 'Lead Quantity Surveyor',
-        respondedAt: new Date(Date.now() - 86400000 * 11).toISOString(),
-        content:
-          'Confirmed: 50mm quarry dust blinding is included in unit rate for Item 1.04. 95% MDD compaction test certificates required before DPM polyethylene sheeting placement.',
-},
-    ],
-},
-];
-
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const CONSULTANT_MAP: Record<string, ConsultantRole> = {
@@ -173,9 +67,9 @@ function mapApiRfi(r: any): RfiItemData {
 }
 
 export default function RfiManagementView({
-  projectId = 'project-rcp-2026',
-  projectName = 'Riverside Commercial Plaza',
-  initialRfis = DEFAULT_RFIS,
+  projectId = '',
+  projectName = '',
+  initialRfis = [],
   canCreate = true,
 }: RfiManagementViewProps): React.JSX.Element {
   const isLive = UUID_RE.test(projectId);

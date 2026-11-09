@@ -27,6 +27,7 @@ import InboxView from './InboxView';
 import AnnouncementsView from './AnnouncementsView';
 import ObservationsView from './ObservationsView';
 import CrewsView from './CrewsView';
+import { isModuleEnabled } from '../lib/modules';
 import AttendanceView from './AttendanceView';
 import ChecklistsView from './ChecklistsView';
 
@@ -42,10 +43,12 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
   const [showCostModal, setShowCostModal] = useState(false);
   const [costSuccess, setCostSuccess] = useState<string | null>(null);
-  const [todayHeadcount, setTodayHeadcount] = useState<number>(17);
+  const [todayHeadcount, setTodayHeadcount] = useState<number>(0);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string}[]>([]);
   const [section, setSection] = useState<'today' | 'messages' | 'site' | 'more'>('site');
-  const [pid, setPid] = useState('project-rcp-2026');
+  const [pid, setPid] = useState('');
+  const activeProject = projects.find((p) => p.id === pid) || projects[0];
+  const projectLabel = activeProject ? `${activeProject.name} (${activeProject.code})` : 'No project assigned';
   useEffect(() => {
     fetch('/api/v1/projects', { credentials: 'include'})
       .then((r) => r.json())
@@ -167,7 +170,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
             Assigned Sites
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">1 Project</span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">Riverside Commercial Plaza</span>
+<span className="text-[11px] text-slate-400 mt-0.5 block">{projectLabel}</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -205,8 +208,8 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
 <div className="flex justify-between items-start">
 <div>
 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Site Station</span>
-<h3 className="text-lg font-bold text-slate-900 mt-0.5">Riverside Commercial Plaza</h3>
-<p className="text-xs text-slate-500">Riverside Drive, Nairobi • Code: RCP-2026</p>
+<h3 className="text-lg font-bold text-slate-900 mt-0.5">{activeProject?.name || '—'}</h3>
+<p className="text-xs text-slate-500">{activeProject ? `${activeProject.code}` : 'Select a project'}</p>
 </div>
 <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
               ACTIVE SITE
@@ -285,91 +288,107 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
       {/* Site Store Material Purchase Requisitions */}
 <MaterialRequisitionView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         userRole="SITE_SUPERVISOR"
       />
 
       {/* Material Wastage & Theoretical Loss Engine */}
 <MaterialWastageVarianceCard
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
       />
 
-      {/* Plant, Machinery & Fuel Siphoning Audit (Milestone M16) */}
+      {/* Plant & Machinery — peripheral module */}
+{isModuleEnabled('equipment') && (
 <PlantEquipmentView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         userRole="SITE_SUPERVISOR"
       />
+)}
 
       {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
 <LaborMusterRollView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         userRole="SITE_SUPERVISOR"
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
 <SafetyAuditScorecardView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         userRole="SITE_SUPERVISOR"
       />
 
       {/* WhatsApp & SMS Site Webhook Feed (Milestone M20) */}
 <WhatsAppSiteWebhookView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         userRole="SITE_SUPERVISOR"
       />
 
-      {/* Project Geofencing & Biometric Mobile Clock-In (Milestone M23) */}
+      {/* Site Geofencing — peripheral module */}
+{isModuleEnabled('geofence') && (
 <GeofencedClockInView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
       />
+)}
 
       {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
+{isModuleEnabled('telematics') && (
 <PlantTelematicsView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
       />
+)}
 
-      {/* BS 8666 / KS 02-598 Rebar Cutting Lists & Steel-Fixing Schedules (Milestone M25) */}
+      {/* Rebar BBS Takeoff — peripheral module */}
+{isModuleEnabled('rebar') && (
 <BarBendingScheduleView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
       />
+)}
 
-      {/* BS EN 206 / KS 02-598 Ready-Mix Concrete Transit Slump Tracker (Milestone M27) */}
+      {/* RMC Transit — peripheral module */}
+{isModuleEnabled('rmc') && (
 <RmcTransitTrackerView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
       />
+)}
 
-      {/* Geotechnical Soil Compaction QA Engine (Milestone M29) */}
+      {/* Geotechnical Soil QA — peripheral module */}
+{isModuleEnabled('soil') && (
 <GeotechnicalSoilView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
       />
+)}
 
-      {/* Asphalt Pavement Quality & Thermal Tracker (Milestone M30) */}
+      {/* Asphalt Pavement QA — peripheral module */}
+{isModuleEnabled('asphalt') && (
 <AsphaltPavementView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
       />
+)}
 
-      {/* Survey & Topographic Cut/Fill Earthworks Engine (Milestone M31) */}
+      {/* Topographic Survey — peripheral module */}
+{isModuleEnabled('survey') && (
 <TopographicSurveyView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
       />
+)}
 
       {/* Quality Control: Pre-Pour Hold Points & Concrete Cube Crushing */}
       {/* Team inbox + announcements (Gate-5 G5-1/G5-3) */}
 <QualityControlView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         canApprove={true}
         defaultTab="checklists"
       />
@@ -377,7 +396,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
       {/* Practical Completion Snagging & Punch List Register */}
 <SnaggingListView
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         canAdd={true}
         canRectify={true}
         canVerify={false}
@@ -406,9 +425,9 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
         isOpen={showDiaryModal}
         onClose={() => setShowDiaryModal(false)}
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         onDiarySubmitted={(diary) => {
-          const totalCount = diary.laborHeadcounts?.reduce((acc: number, c: any) => acc + (c.headcount || 0), 0) || 17;
+          const totalCount = diary.laborHeadcounts?.reduce((acc: number, c: any) => acc + (c.headcount || 0), 0);
           setTodayHeadcount(totalCount);
           setDiarySuccess(`Daily site diary recorded successfully: ${totalCount} workers on-site, weather: ${diary.weather}`);
 }}
@@ -419,7 +438,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
         projectId={pid}
-        projectName="Riverside Commercial Plaza"
+        projectName={projectLabel}
         onProgressRecorded={(prog) => {
           const pct = prog.overallProgress ? (parseFloat(prog.overallProgress) * 100).toFixed(1) : '15.0';
           setProgressSuccess(`Physical progress recorded successfully (${pct}% cumulative completion)`);

@@ -6,18 +6,20 @@ interface LoginFormProps {
   apiBaseUrl?: string;
 }
 
-const DEMO_ACCOUNTS = [
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV === true;
+
+const DEMO_ACCOUNTS = DEMO_MODE ? [
   { label: 'Company Admin', email: 'admin@apexbuilders.co.ke', role: 'COMPANY_ADMIN', badge: 'bg-blue-100 text-blue-800'},
   { label: 'PM / QS', email: 'qs@apexbuilders.co.ke', role: 'PM_QS', badge: 'bg-purple-100 text-purple-800'},
   { label: 'Supervisor', email: 'supervisor@apexbuilders.co.ke', role: 'SITE_SUPERVISOR', badge: 'bg-amber-100 text-amber-800'},
   { label: 'Executive', email: 'executive@apexbuilders.co.ke', role: 'EXECUTIVE', badge: 'bg-indigo-100 text-indigo-800'},
   { label: 'Site Engineer', email: 'engineer@apexbuilders.co.ke', role: 'SITE_ENGINEER', badge: 'bg-orange-100 text-orange-800'},
   { label: 'Client', email: 'client@apexbuilders.co.ke', role: 'CLIENT', badge: 'bg-emerald-100 text-emerald-800'},
-];
+] : [];
 
 export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
-  const [email, setEmail] = useState('admin@apexbuilders.co.ke');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState(DEMO_MODE ? 'admin@apexbuilders.co.ke' : '');
+  const [password, setPassword] = useState(DEMO_MODE ? 'Password123!' : '');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -90,7 +92,7 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Client &amp; stakeholder portals with zero seat cost</li>
 </ul>
 </div>
-<p className="relative text-[11px] text-slate-500">Apex Builders Kenya Ltd • Riverside Commercial Plaza</p>
+<p className="relative text-[11px] text-slate-500">Sign in to your Site Safi workspace</p>
 </div>
 
       {/* Form panel */}
@@ -160,6 +162,7 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
 </button>
 </form>
 
+{DEMO_MODE && (
 <div className="mt-8 pt-6 border-t border-slate-100">
 <p className="text-xs font-semibold text-slate-500 text-center mb-3">
             Demo workspaces — pick a role
@@ -180,6 +183,7 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
 ))}
 </div>
 </div>
+)}
 </div>
 </div>
 );

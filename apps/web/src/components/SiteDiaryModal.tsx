@@ -14,7 +14,7 @@ export default function SiteDiaryModal({
   isOpen,
   onClose,
   projectId,
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
   initialDate,
   onDiarySubmitted,
 }: SiteDiaryModalProps): React.JSX.Element | null {
@@ -32,10 +32,10 @@ export default function SiteDiaryModal({
   const [casuals, setCasuals] = useState('8');
 
   // Material Delivery State
-  const [materialName, setMaterialName] = useState('Simba Portland Cement 32.5N');
+  const [materialName, setMaterialName] = useState('');
   const [quantity, setQuantity] = useState('200');
   const [unit, setUnit] = useState('BAGS');
-  const [supplierName, setSupplierName] = useState('Bamburi Cement Ltd');
+  const [supplierName, setSupplierName] = useState('');
   const [deliveryNote, setDeliveryNote] = useState('DN-90124');
 
   // Plant & Machinery Equipment State

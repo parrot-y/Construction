@@ -1,4 +1,4 @@
-import React, { useState} from 'react';
+import React, { useEffect, useState} from 'react';
 
 export interface SubcontractorValuationItem {
   id: string;
@@ -42,63 +42,44 @@ interface SubcontractorValuationViewProps {
 }
 
 export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProps> = ({
-  projectId: _projectId,
+  projectId,
   projectName = 'Current Project',
   valuations: initialValuations,
   summary: initialSummary,
-  subcontractorPackages = [
-    { id: 'sub-01', firmName: 'Amani Mechanical & Plumbing Ltd', tradeCategory: 'PLUMBING'},
-    { id: 'sub-02', firmName: 'VoltMasters Electrical Engineering Ltd', tradeCategory: 'ELECTRICAL'},
-    { id: 'sub-03', firmName: 'Rift Valley Structural Steel Erectors', tradeCategory: 'STEEL'},
-  ],
+  subcontractorPackages,  // loaded live below when not provided
   userRole = 'PM_QS',
   onCreateValuation,
   onReviewValuation,
 }) => {
-  const [valuations, setValuations] = useState<SubcontractorValuationItem[]>(
-    initialValuations || [
-      {
-        id: 'val-01',
-        certificateNo: 'SC-VAL-001',
-        subcontractorPackageId: 'sub-01',
-        subcontractorFirm: 'Amani Mechanical & Plumbing Ltd',
-        tradeCategory: 'PLUMBING',
-        valuationDate: '2026-10-31',
-        grossWorkCertifiedKes: '1500000.00',
-        retentionRatePct: '10.00',
-        retentionDeductedKes: '150000.00',
-        previousPaymentsDeductedKes: '0.00',
-        withholdingTaxPct: '3.00',
-        withholdingTaxDeductedKes: '45000.00',
-        netPayableKes: '1305000.00',
-        paymentStatus: 'PAID',
-        paymentReference: 'KCB-RTGS-20261102-88192',
-        paidAt: '2026-11-02T15:00:00Z',
-        approvedBy: 'Director P. Kamau',
-        notes: 'Valuation #1: First fix rough-in piping complete across basement and ground floor',
-        createdAt: '2026-10-31T12:00:00Z',
-},
-      {
-        id: 'val-02',
-        certificateNo: 'SC-VAL-002',
-        subcontractorPackageId: 'sub-02',
-        subcontractorFirm: 'VoltMasters Electrical Engineering Ltd',
-        tradeCategory: 'ELECTRICAL',
-        valuationDate: '2026-11-02',
-        grossWorkCertifiedKes: '2200000.00',
-        retentionRatePct: '10.00',
-        retentionDeductedKes: '220000.00',
-        previousPaymentsDeductedKes: '0.00',
-        withholdingTaxPct: '3.00',
-        withholdingTaxDeductedKes: '66000.00',
-        netPayableKes: '1914000.00',
-        paymentStatus: 'APPROVED_FOR_PAYMENT',
-        approvedBy: 'Lead QS David Kiprono',
-        notes: 'Conduit laying and main distribution board risers inspected and passed',
-        createdAt: '2026-11-02T16:00:00Z',
-},
-    ]
-);
+  const [valuations, setValuations] = useState<SubcontractorValuationItem[]>(initialValuations ?? []);
+  const [livePackages, setLivePackages] = useState<{ id: string; firmName: string; tradeCategory: string}[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const effectivePackages = subcontractorPackages ?? livePackages;
+
+  const load = async () => {
+    try {
+      const [vRes, pRes] = await Promise.all([
+        fetch(`/api/v1/projects/${projectId}/subcontractor-valuations`, { credentials: 'include'}),
+        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'}),
+      ]);
+      if (!vRes.ok) throw new Error('Failed to load valuations');
+      const vb = await vRes.json();
+      setValuations(initialValuations ?? (vb.valuations || []));
+      if (!subcontractorPackages && pRes.ok) {
+        const pb = await pRes.json();
+        const rows = pb.packages || pb.subcontractors || pb || [];
+        setLivePackages((Array.isArray(rows) ? rows : []).map((p: any) => ({
+          id: p.id, firmName: p.firm_name || p.firmName, tradeCategory: p.trade_category || p.tradeCategory,
+        })));
+      }
+      setLoadError(null);
+    } catch (e: any) {
+      setLoadError(e.message || 'Failed to load valuations');
+    }
+  };
+
+  useEffect(() => { if (projectId) load(); }, [projectId]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -107,7 +88,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form Fields
-  const [subPkgId, setSubPkgId] = useState(subcontractorPackages[0]?.id || '');
+  const [subPkgId, setSubPkgId] = useState('');
   const [valuationDate, setValuationDate] = useState(new Date().toISOString().split('T')[0]);
   const [grossWorkCertifiedKes, setGrossWorkCertifiedKes] = useState('');
   const [retentionRatePct, setRetentionRatePct] = useState('10.00');
@@ -138,7 +119,6 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 
     setIsSubmitting(true);
     const newCertNo = `SC-VAL-${String(valuations.length + 1).padStart(3, '0')}`;
-    const selectedPkg = subcontractorPackages.find((p) => p.id === subPkgId);
 
     const payload = {
       subcontractorPackageId: subPkgId,
@@ -154,25 +134,25 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
     if (onCreateValuation) {
       await onCreateValuation(payload);
 } else {
-      const newVal: SubcontractorValuationItem = {
-        id: `val-${Date.now()}`,
-        certificateNo: newCertNo,
-        subcontractorPackageId: subPkgId,
-        subcontractorFirm: selectedPkg?.firmName || 'Specialist Subcontractor',
-        tradeCategory: selectedPkg?.tradeCategory || 'GENERAL',
-        valuationDate: valuationDate || (new Date().toISOString().split('T')[0] as string),
-        grossWorkCertifiedKes,
-        retentionRatePct,
-        retentionDeductedKes: retDeducted.toFixed(2),
-        previousPaymentsDeductedKes: prevPay.toFixed(2),
-        withholdingTaxPct,
-        withholdingTaxDeductedKes: whtDeducted.toFixed(2),
-        netPayableKes: netPayable.toFixed(2),
-        paymentStatus: 'SUBMITTED',
-        notes,
-        createdAt: new Date().toISOString(),
-};
-      setValuations([newVal, ...valuations]);
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-valuations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setLoadError(err.message || 'Failed to create valuation');
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (e: any) {
+        setLoadError(e.message || 'Network error — valuation not recorded');
+        setIsSubmitting(false);
+        return;
+      }
+      await load();
 }
 
     setIsSubmitting(false);
@@ -189,18 +169,25 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
     if (onReviewValuation) {
       await onReviewValuation(selectedValId, 'PAID', paymentReference);
 } else {
-      setValuations((prev) =>
-        prev.map((v) =>
-          v.id === selectedValId
-            ? {
-                ...v,
-                paymentStatus: 'PAID',
-                paymentReference,
-                paidAt: new Date().toISOString(),
-}
-            : v
-)
-);
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-valuations/${selectedValId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ paymentStatus: 'PAID', paymentReference }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setLoadError(err.message || 'Failed to record payment');
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (e: any) {
+        setLoadError(e.message || 'Network error — payment not recorded');
+        setIsSubmitting(false);
+        return;
+      }
+      await load();
 }
 
     setIsSubmitting(false);
@@ -230,6 +217,10 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </button>
 </div>
 
+      {loadError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">{loadError}</div>
+)}
+
       {/* KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
@@ -239,7 +230,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </p>
 </div>
 <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-<p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Retention Held (10%)</p>
+<p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Retention Held</p>
 <p className="text-xl font-bold text-amber-900 mt-1">
             KES {(initialSummary?.totalRetentionHeldKes ? Number(initialSummary.totalRetentionHeldKes) : totalRetention).toLocaleString('en-KE')}
 </p>
@@ -275,6 +266,9 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
+            {valuations.length === 0 && (
+<tr><td colSpan={8} className="py-8 px-4 text-center text-sm text-slate-400">No subcontractor valuations recorded yet.</td></tr>
+)}
             {valuations.map((val) => (
 <tr key={val.id} className="hover:bg-slate-50/80 transition">
 <td className="py-3 px-4 font-mono font-semibold text-slate-900">{val.certificateNo}</td>
@@ -355,7 +349,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
                   onChange={(e) => setSubPkgId(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 >
-                  {subcontractorPackages.map((pkg) => (
+                  {effectivePackages.map((pkg) => (
 <option key={pkg.id} value={pkg.id}>
                       {pkg.firmName} ({pkg.tradeCategory})
 </option>

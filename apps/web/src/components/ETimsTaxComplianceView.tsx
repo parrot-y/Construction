@@ -55,7 +55,7 @@ interface ETimsTaxComplianceViewProps {
 
 export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
   projectId,
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
   invoices: initialInvoices,
   tccRecords: initialTcc,
   summary: initialSummary,

@@ -11,6 +11,8 @@ import SiteInventoryManagementView from '../../SiteInventoryManagementView';
 import { SubscriptionBillingView} from '../../SubscriptionBillingView';
 import { RetentionAndBondsView} from '../../RetentionAndBondsView';
 import { ProjectSCurveCashFlowCard} from '../../ProjectSCurveCashFlowCard';
+import CertificatesCloseoutView from '../../CertificatesCloseoutView';
+import { SubcontractorValuationView} from '../../SubcontractorValuationView';
 
 function EmptyProject({ what}: { what: string}): React.JSX.Element {
   return (
@@ -127,6 +129,10 @@ export default function MoneySection(): React.JSX.Element {
       return<InvoicingView />;
     case 'inventory':
       return livePid ?<SiteInventoryManagementView projectId={livePid} canManage={canManage} /> :<EmptyProject what="inventory" />;
+    case 'certificates':
+      return livePid ?<CertificatesCloseoutView projectId={livePid} canManage={canManage} /> :<EmptyProject what="certificates" />;
+    case 'subvaluations':
+      return livePid ?<SubcontractorValuationView projectId={livePid} userRole={role} /> :<EmptyProject what="subcontractor valuations" />;
     case 'billing':
       return<SubscriptionBillingView />;
     default:

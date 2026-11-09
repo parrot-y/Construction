@@ -40,7 +40,7 @@ interface SiteLaborerOption {
 }
 
 export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
-  projectId = 'project-rcp-2026',
+  projectId = '',
   projectName = 'Upper Hill Commercial Tower',
   geofences: initialGeofences,
   clockEvents: initialEvents,
@@ -139,11 +139,11 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 );
 
   // Clock In Simulator State
-  const [selectedWorker, setSelectedWorker] = useState('Juma Otieno Ochieng (WKR-102)');
+  const [selectedWorker, setSelectedWorker] = useState('');
   const [clockType, setClockType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
-  const [capturedLat, setCapturedLat] = useState('-1.292150');
-  const [capturedLng, setCapturedLng] = useState('36.821920');
-  const [selfieUrl, setSelfieUrl] = useState('https://storage.example.com/selfies/sample.jpg');
+  const [capturedLat, setCapturedLat] = useState('');
+  const [capturedLng, setCapturedLng] = useState('');
+  const [selfieUrl, setSelfieUrl] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -202,7 +202,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 
     try {
       const payload = {
-        laborerId: isLive ? selectedLaborerId : 'dummy-laborer-id',
+        laborerId: selectedLaborerId,
         clockType,
         capturedLatitude: capturedLat,
         capturedLongitude: capturedLng,

@@ -1,4 +1,4 @@
-import React, { useState} from 'react';
+import React, { useEffect, useState} from 'react';
 
 export interface ProjectDocument {
   id: string;
@@ -25,81 +25,50 @@ interface ProjectDocumentVaultViewProps {
 export default function ProjectDocumentVaultView({
   projectId,
   canUpload = true,
-  initialDocuments = [
-    {
-      id: 'doc-title-1',
-      category: 'TITLE_DEED_LAND',
-      title: 'Freehold Title Deed & ArdhiSasa Official Search Certificate',
-      document_number: 'NAIROBI/BLOCK 110/492',
-      revision_code: 'CERTIFIED',
-      file_url: '/documents/title_deed_ardhisasa_verified.pdf',
-      file_size_bytes: 4200000,
-      mime_type: 'application/pdf',
-      approval_status: 'APPROVED',
-      notes: 'ArdhiSasa Green Card verified, survey beacons confirmed, zero encumbrances.',
-      uploaded_at: '2026-01-10T10:00:00Z',
-      uploaded_by: { full_name: 'Surveyor Eng. Omondi (MISK #491)'},
-},
-    {
-      id: 'doc-1',
-      category: 'ARCHITECTURAL',
-      title: 'Detailed Ground & Typical Floor Layouts',
-      document_number: 'A-101-TYP',
-      revision_code: 'Rev C',
-      file_url: '/documents/riverside_arch_rev_c.dwg.pdf',
-      file_size_bytes: 14200000,
-      mime_type: 'application/pdf',
-      approval_status: 'APPROVED',
-      notes: 'Approved by Lead Architect and County Planning Dept.',
-      uploaded_at: '2026-02-15T09:00:00Z',
-      uploaded_by: { full_name: 'Arch. Peter Kamau (BORAQS #1192)'},
-},
-    {
-      id: 'doc-2',
-      category: 'STRUCTURAL',
-      title: 'Foundation Strip Footings & Column Schedule',
-      document_number: 'STR-FND-02',
-      revision_code: 'Rev B',
-      file_url: '/documents/riverside_fnd_str_b.pdf',
-      file_size_bytes: 8400000,
-      mime_type: 'application/pdf',
-      approval_status: 'APPROVED',
-      notes: 'Issued For Construction (IFC) with bar bending schedule',
-      uploaded_at: '2026-02-18T14:20:00Z',
-      uploaded_by: { full_name: 'Eng. Joseph Mwangi (EBK #3041)'},
-},
-    {
-      id: 'doc-3',
-      category: 'COUNTY_APPROVAL',
-      title: 'Nairobi City County Development Permit',
-      document_number: 'NCC/PLN/2026/0894',
-      revision_code: 'FINAL',
-      file_url: '/documents/ncc_building_permit.pdf',
-      file_size_bytes: 3100000,
-      mime_type: 'application/pdf',
-      approval_status: 'APPROVED',
-      notes: 'Full planning permission & architectural stamped blueprints',
-      uploaded_at: '2026-01-20T11:00:00Z',
-      uploaded_by: { full_name: 'Apex Admin'},
-},
-    {
-      id: 'doc-4',
-      category: 'NCA_COMPLIANCE',
-      title: 'National Construction Authority Project Registration Certificate',
-      document_number: 'NCA-PR-2026-90432',
-      revision_code: 'VALID',
-      file_url: '/documents/nca_compliance_cert.pdf',
-      file_size_bytes: 1900000,
-      mime_type: 'application/pdf',
-      approval_status: 'APPROVED',
-      notes: 'NCA Site registration banner & compliance permit',
-      uploaded_at: '2026-01-25T16:00:00Z',
-      uploaded_by: { full_name: 'Apex Admin'},
-},
-  ],
+  initialDocuments,
   onDocumentRegistered,
 }: ProjectDocumentVaultViewProps) {
-  const [documents, setDocuments] = useState<ProjectDocument[]>(initialDocuments);
+  const [documents, setDocuments] = useState<ProjectDocument[]>(initialDocuments ?? []);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const CAT_MAP: Record<string, ProjectDocument['category']> = {
+    ARCHITECTURAL_DRAWING: 'ARCHITECTURAL', STRUCTURAL_DRAWING: 'STRUCTURAL',
+    MEP_DRAWING: 'MEP', ELECTRICAL_DRAWING: 'MEP', CIVIL_DRAWING: 'STRUCTURAL',
+    COUNTY_APPROVAL_STAMP: 'COUNTY_APPROVAL', NEMA_LICENSE: 'NEMA_PERMIT',
+    CONTRACT_AGREEMENT: 'CONTRACT', SPECIFICATION_SHEET: 'OTHER',
+  };
+  const CAT_BACK: Record<string, string> = {
+    ARCHITECTURAL: 'ARCHITECTURAL_DRAWING', STRUCTURAL: 'STRUCTURAL_DRAWING',
+    MEP: 'MEP_DRAWING', COUNTY_APPROVAL: 'COUNTY_APPROVAL_STAMP',
+    NEMA_PERMIT: 'NEMA_LICENSE', NCA_COMPLIANCE: 'SPECIFICATION_SHEET',
+    TITLE_DEED_LAND: 'SPECIFICATION_SHEET', CONTRACT: 'CONTRACT_AGREEMENT', OTHER: 'SPECIFICATION_SHEET',
+  };
+
+  const load = async () => {
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/documents`, { credentials: 'include'});
+      if (!res.ok) throw new Error('Failed to load documents');
+      const body = await res.json();
+      setDocuments((body.documents || []).map((d: any): ProjectDocument => ({
+        id: d.id,
+        category: CAT_MAP[d.category] || 'OTHER',
+        title: d.title,
+        document_number: d.drawing_reference,
+        revision_code: d.revision_code,
+        file_url: d.storage_key ? `/uploads/${d.storage_key}` : '#',
+        mime_type: null,
+        approval_status: d.status === 'SUPERSEDED' ? 'SUPERSEDED' : d.status === 'FOR_REVIEW' ? 'SUBMITTED' : 'APPROVED',
+        notes: d.notes,
+        uploaded_at: d.created_at,
+        uploaded_by: { full_name: d.uploaded_by_name || 'Site team' },
+      })));
+      setLoadError(null);
+    } catch (e: any) {
+      setLoadError(e.message || 'Failed to load documents');
+    }
+  };
+
+  useEffect(() => { if (projectId) load(); }, [projectId]);
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -128,7 +97,7 @@ export default function ProjectDocumentVaultView({
     (d) => d.category === 'COUNTY_APPROVAL' || d.category === 'NCA_COMPLIANCE' || d.category === 'NEMA_PERMIT'
 ).length;
 
-  const handleRegisterDocument = (e: React.FormEvent) => {
+  const handleRegisterDocument = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newFileUrl.trim()) return;
 
@@ -145,7 +114,31 @@ export default function ProjectDocumentVaultView({
       uploaded_by: { full_name: 'Registered Project User'},
 };
 
-    setDocuments([created, ...documents]);
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: created.title,
+          category: CAT_BACK[created.category] || 'SPECIFICATION_SHEET',
+          drawingReference: created.document_number || undefined,
+          revisionCode: created.revision_code || 'Rev 0',
+          storageKey: created.file_url.replace(/^\/uploads\//, '') || created.file_url,
+          uploadedByName: 'Site team',
+          notes: created.notes || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setLoadError(err.message || 'Failed to register document');
+        return;
+      }
+    } catch (e: any) {
+      setLoadError(e.message || 'Network error — document not registered');
+      return;
+    }
+    await load();
     if (onDocumentRegistered) onDocumentRegistered(created);
     setShowModal(false);
     setNewTitle('');
@@ -212,7 +205,7 @@ export default function ProjectDocumentVaultView({
 <span className="text-2xl font-bold text-blue-600">{architecturalCount}</span>
 <span className="text-xs text-slate-400">sheets</span>
 </div>
-<div className="text-xs text-slate-500 mt-2">BORAQS certified</div>
+<div className="text-xs text-slate-500 mt-2">Drawings on file</div>
 </div>
 
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
@@ -221,7 +214,7 @@ export default function ProjectDocumentVaultView({
 <span className="text-2xl font-bold text-indigo-600">{structuralCount}</span>
 <span className="text-xs text-slate-400">schedules</span>
 </div>
-<div className="text-xs text-slate-500 mt-2">EBK stamped calculations</div>
+<div className="text-xs text-slate-500 mt-2">Schedules on file</div>
 </div>
 
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
@@ -230,7 +223,7 @@ export default function ProjectDocumentVaultView({
 <span className="text-2xl font-bold text-emerald-600">{approvalsCount}</span>
 <span className="text-xs text-slate-400">permits</span>
 </div>
-<div className="text-xs text-slate-500 mt-2">100% compliant</div>
+<div className="text-xs text-slate-500 mt-2">Permits &amp; licenses on file</div>
 </div>
 </div>
 </div>
@@ -267,6 +260,10 @@ export default function ProjectDocumentVaultView({
           />
 </div>
 </div>
+
+      {loadError && (
+<div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">{loadError}</div>
+)}
 
       {/* Document Grid */}
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">

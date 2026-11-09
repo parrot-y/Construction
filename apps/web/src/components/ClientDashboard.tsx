@@ -10,6 +10,7 @@ import PracticalCompletionCard from './PracticalCompletionCard';
 import SnaggingListView from './SnaggingListView';
 import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
+import { isModuleEnabled } from '../lib/modules';
 import ClientQuotesView from './ClientQuotesView';
 import AnnouncementsView from './AnnouncementsView';
 import InboxView from './InboxView';
@@ -694,12 +695,14 @@ export default function ClientDashboard({
         userRole="CLIENT"
       />
 
-      {/* Platform Contractor Tender Board & Bidding Interface (Milestone M33) */}
+      {/* Contractor Tender Board — peripheral module */}
+{isModuleEnabled('tenders') && (
 <ContractorTenderBoardView
         projectId={projectData.id}
         projectName={projectData.name}
         userRole="CLIENT"
       />
+)}
 
       {/* Quotes & Proposals addressed to this client (Gate-4 S1) */}
 <ClientQuotesView />

@@ -18,7 +18,7 @@ interface PortalAccessLinkManagerProps {
 }
 
 export default function PortalAccessLinkManager({
-  projectId = 'project-rcp-2026',
+  projectId = '',
   onPreviewPortal,
 }: PortalAccessLinkManagerProps): React.JSX.Element {
   const [links, setLinks] = useState<PortalLinkItem[]>([

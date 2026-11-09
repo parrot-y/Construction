@@ -22,37 +22,10 @@ interface MpesaDisbursementViewProps {
   onDisburse?: (payload: any) => Promise<void>;
 }
 
-const DEFAULT_DISBURSEMENTS: MpesaDisbursementItem[] = [
-  {
-    id: 'disb-001',
-    disbursementType: 'CASUAL_LABOR_WAGE',
-    referenceId: 'muster-roll-w44',
-    recipientPhone: '+254712345678',
-    recipientName: 'Kariuki Mwangi (Site Mason)',
-    amount: '12500.00',
-    status: 'COMPLETED',
-    mpesaTransactionId: 'SKL99887766',
-    completedAt: new Date(Date.now() - 3600000).toISOString(),
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-},
-  {
-    id: 'disb-002',
-    disbursementType: 'SUBCONTRACTOR_RETENTION',
-    referenceId: 'ret-moiety-01',
-    recipientPhone: '+254722998877',
-    recipientName: 'Athi River Plumbing Services (Director)',
-    amount: '50000.00',
-    status: 'COMPLETED',
-    mpesaTransactionId: 'SKL44332211',
-    completedAt: new Date(Date.now() - 86400000).toISOString(),
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-},
-];
-
 export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
-  projectId = 'project-rcp-2026',
+  projectId = '',
   projectName = 'Apex Site',
-  initialDisbursements = DEFAULT_DISBURSEMENTS,
+  initialDisbursements = [],
   onDisburse,
 }) => {
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);

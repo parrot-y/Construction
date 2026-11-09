@@ -1,4 +1,4 @@
-import React, { useState} from 'react';
+import React, { useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
 import CostCaptureModal from './CostCaptureModal';
 
@@ -29,47 +29,25 @@ export default function CostManagementView({
   projectId,
   canApprove = true,
   canCreate = true,
-  initialCosts = [
-    {
-      id: 'cost-1',
-      cost_category: 'MATERIAL',
-      amount: '45000.50',
-      vendor_name: 'Bamburi Cement Ltd',
-      invoice_ref: 'INV-BAMB-01',
-      description: '50 bags of Simba 32.5 cement for foundation blinding',
-      status: 'APPROVED',
-      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-      receipts: [{ filename: 'bamburi_receipt.pdf'}],
-      created_by: { id: 'u1', full_name: 'John Kiprono', email: 'supervisor@apexbuilders.co.ke'},
-      approvals: [{ id: 'app-1', action: 'APPROVED', comments: 'Certified against delivery note', reviewer: { full_name: 'Faith Achieng (QS)'}}],
-},
-    {
-      id: 'cost-2',
-      cost_category: 'LABOR',
-      amount: '18500.00',
-      vendor_name: 'Fundi Kazi Casuals',
-      invoice_ref: 'VOUCHER-088',
-      description: 'Site leveling and excavation labor payout for week 12',
-      status: 'PENDING',
-      created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-      created_by: { id: 'u1', full_name: 'John Kiprono', email: 'supervisor@apexbuilders.co.ke'},
-},
-    {
-      id: 'cost-3',
-      cost_category: 'PLANT',
-      amount: '75000.00',
-      vendor_name: 'Nairobi Heavy Plant Hire',
-      invoice_ref: 'INV-PLANT-99',
-      description: 'Excavator CAT 320 hire for 3 days',
-      status: 'PENDING',
-      created_at: new Date().toISOString(),
-      receipts: [{ filename: 'cat320_timesheet.jpg'}],
-      created_by: { id: 'u1', full_name: 'John Kiprono', email: 'supervisor@apexbuilders.co.ke'},
-},
-  ],
+  initialCosts = [],
   boqItems = [],
 }: CostManagementViewProps): React.JSX.Element {
   const [costs, setCosts] = useState<CostItem[]>(initialCosts);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/costs`, { credentials: 'include'});
+        if (!res.ok) throw new Error('Failed to load costs');
+        const rows = await res.json();
+        setCosts(Array.isArray(rows) ? rows : (rows.data || []));
+      } catch (e: any) {
+        setLoadError(e.message || 'Failed to load costs');
+      }
+    })();
+  }, [projectId]);
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'VOIDED'>('ALL');
   const [showCaptureModal, setShowCaptureModal] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -95,11 +73,10 @@ export default function CostManagementView({
 } else {
         // Fallback simulation
         setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED'} : c)));
-        setActionFeedback('Cost entry APPROVED (simulated)');
+        setActionFeedback('Cost entry approved.');
 }
-} catch {
-      setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED'} : c)));
-      setActionFeedback('Cost entry APPROVED (simulated)');
+} catch (e: any) {
+      setActionFeedback(e.message || 'Network error — approval not recorded.');
 }
 };
 
@@ -118,11 +95,10 @@ export default function CostManagementView({
         setActionFeedback('Cost entry marked as REJECTED');
 } else {
         setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'REJECTED'} : c)));
-        setActionFeedback('Cost entry REJECTED (simulated)');
+        setActionFeedback('Cost entry rejected.');
 }
-} catch {
-      setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'REJECTED'} : c)));
-      setActionFeedback('Cost entry REJECTED (simulated)');
+} catch (e: any) {
+      setActionFeedback(e.message || 'Network error — rejection not recorded.');
 }
 };
 
@@ -141,11 +117,10 @@ export default function CostManagementView({
         setActionFeedback('Cost entry VOIDED with immutable audit record');
 } else {
         setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'VOIDED'} : c)));
-        setActionFeedback('Cost entry VOIDED (simulated)');
+        setActionFeedback('Cost entry voided.');
 }
-} catch {
-      setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'VOIDED'} : c)));
-      setActionFeedback('Cost entry VOIDED (simulated)');
+} catch (e: any) {
+      setActionFeedback(e.message || 'Network error — void not recorded.');
 }
 };
 
@@ -174,6 +149,10 @@ export default function CostManagementView({
 </button>
 )}
 </div>
+
+      {loadError && (
+<div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium rounded-lg">{loadError}</div>
+)}
 
       {actionFeedback && (
 <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">

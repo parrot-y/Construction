@@ -20,8 +20,8 @@ export interface PracticalCompletionCardProps {
 }
 
 export default function PracticalCompletionCard({
-  projectName = 'Riverside Commercial Plaza',
-  projectCode = 'RCP-2026',
+  projectName = '',
+  projectCode = '',
   contractSum = '45000000.00',
   retentionRate = 0.05,
   practicalCompletionDate = '2026-10-15',

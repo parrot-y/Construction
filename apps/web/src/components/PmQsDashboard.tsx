@@ -52,6 +52,7 @@ import { AsphaltPavementView} from './AsphaltPavementView';
 import { TopographicSurveyView} from './TopographicSurveyView';
 import IndependentSiteReportView from './IndependentSiteReportView';
 import ContractorTenderBoardView from './ContractorTenderBoardView';
+import { isModuleEnabled } from '../lib/modules';
 import QuotesManagementView from './QuotesManagementView';
 import InvoicingView from './InvoicingView';
 
@@ -244,7 +245,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 ))}
 </div>
 <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs text-xs font-semibold">
-          {MODULE_TABS.map((tab) => (
+          {MODULE_TABS.filter((tab) => isModuleEnabled(tab.id)).map((tab) => (
 <button
               key={tab.id}
               onClick={() => { setActiveTab(tab.id as any); if (tab.group !== 'all') setTabGroup(tab.group);}}
@@ -551,7 +552,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Plant, Machinery & Fuel Siphoning Audit (Milestone M16) */}
-      {(activeTab === 'all' || activeTab === 'equipment') && (
+      {(activeTab === 'all' || activeTab === 'equipment') && isModuleEnabled('equipment') && (
 <PlantEquipmentView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -605,7 +606,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Project Geofencing & Biometric Mobile Clock-In (Milestone M23) */}
-      {(activeTab === 'all' || activeTab === 'geofence') && (
+      {(activeTab === 'all' || activeTab === 'geofence') && isModuleEnabled('geofence') && (
 <GeofencedClockInView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -613,7 +614,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Plant GPS Telematics & Remote Fuel Siphoning Anomaly Detection (Milestone M24) */}
-      {(activeTab === 'all' || activeTab === 'telematics') && (
+      {(activeTab === 'all' || activeTab === 'telematics') && isModuleEnabled('telematics') && (
 <PlantTelematicsView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -621,7 +622,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* BS 8666 / KS 02-598 Rebar Takeoff & Bar Bending Schedules (Milestone M25) */}
-      {(activeTab === 'all' || activeTab === 'rebar') && (
+      {(activeTab === 'all' || activeTab === 'rebar') && isModuleEnabled('rebar') && (
 <BarBendingScheduleView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -637,7 +638,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Ready-Mix Concrete (RMC) Batching & Transit Slump Tracker (Milestone M27) */}
-      {(activeTab === 'all' || activeTab === 'rmc') && (
+      {(activeTab === 'all' || activeTab === 'rmc') && isModuleEnabled('rmc') && (
 <RmcTransitTrackerView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -645,7 +646,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Structural Steel Framing & Fabrication Takeoff Engine (Milestone M28) */}
-      {(activeTab === 'all' || activeTab === 'steel') && (
+      {(activeTab === 'all' || activeTab === 'steel') && isModuleEnabled('steel') && (
 <StructuralSteelTakeoffView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -653,7 +654,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Geotechnical Soil Compaction QA Engine (Milestone M29) */}
-      {(activeTab === 'all' || activeTab === 'soil') && (
+      {(activeTab === 'all' || activeTab === 'soil') && isModuleEnabled('soil') && (
 <GeotechnicalSoilView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -661,7 +662,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Asphalt Pavement Quality & Thermal Tracker (Milestone M30) */}
-      {(activeTab === 'all' || activeTab === 'asphalt') && (
+      {(activeTab === 'all' || activeTab === 'asphalt') && isModuleEnabled('asphalt') && (
 <AsphaltPavementView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -669,7 +670,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Topographic Survey & Earthworks Engine (Milestone M31) */}
-      {(activeTab === 'all' || activeTab === 'survey') && (
+      {(activeTab === 'all' || activeTab === 'survey') && isModuleEnabled('survey') && (
 <TopographicSurveyView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -686,7 +687,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Platform Contractor Tender Board & Bidding Studio (Milestone M33) */}
-      {(activeTab === 'all' || activeTab === 'tenders') && (
+      {(activeTab === 'all' || activeTab === 'tenders') && isModuleEnabled('tenders') && (
 <ContractorTenderBoardView
           projectId={pid}
           projectName="Riverside Commercial Plaza"

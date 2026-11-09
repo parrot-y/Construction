@@ -16,40 +16,13 @@ interface MilestoneTimelineProps {
   ncaRegistration?: string;
 }
 
-const DEFAULT_TIMELINE_ITEMS: TimelineItem[] = [
-  {
-    id: 'step-1',
-    percentage: 100,
-    notes: 'Site hoarding, bulk earthworks, and formation blinding complete.',
-    recorded_at: '2026-01-30',
-    item_description: 'Milestone 1: Site Possession, Setting Out & Hoarding',
-    section_code: 'Section 1: Preliminaries',
-},
-  {
-    id: 'step-2',
-    percentage: 50.0,
-    notes: 'Substructure excavation in rock strata 80% done; column pad footings underway.',
-    recorded_at: '2026-02-15',
-    item_description: 'Milestone 2: Substructure Excavation & Pad Footings',
-    section_code: 'Section 1: Substructure',
-},
-  {
-    id: 'step-3',
-    percentage: 20.0,
-    notes: 'Vibrated reinforced concrete columns class 30/20 in ground floor underway.',
-    recorded_at: '2026-03-01',
-    item_description: 'Milestone 3: Ground Floor Reinforced Concrete Frame',
-    section_code: 'Section 2: Concrete Frame',
-},
-];
-
 export default function MilestoneTimeline({
-  items = DEFAULT_TIMELINE_ITEMS,
-  projectName = 'Riverside Commercial Plaza',
-  projectCode = 'RCP-2026',
-  ncaRegistration = 'NCA-PRJ-2026-0891',
+  items = [],
+  projectName = '',
+  projectCode = '',
+  ncaRegistration = '',
 }: MilestoneTimelineProps): React.JSX.Element {
-  const displayItems = items.length > 0 ? items : DEFAULT_TIMELINE_ITEMS;
+  const displayItems = items;
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
@@ -60,7 +33,7 @@ export default function MilestoneTimeline({
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">Milestone Progress Timeline</h3>
 <p className="text-xs text-slate-500">
-            {projectName} • Code: {projectCode} • NCA Reg: {ncaRegistration}
+            {[projectName, projectCode && `Code: ${projectCode}`, ncaRegistration && `NCA Reg: ${ncaRegistration}`].filter(Boolean).join(' • ')}
 </p>
 </div>
 <span className="px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg">
@@ -69,6 +42,11 @@ export default function MilestoneTimeline({
 </div>
 
 <div className="space-y-3 pt-2">
+        {displayItems.length === 0 && (
+<div className="p-6 text-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-xl">
+            No milestone progress recorded yet — entries appear here as physical progress is certified.
+</div>
+)}
         {displayItems.map((item, idx) => {
           const isComplete = item.percentage >= 100;
           const isActive = item.percentage > 0 && item.percentage< 100;

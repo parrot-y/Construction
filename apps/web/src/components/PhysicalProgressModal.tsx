@@ -14,7 +14,7 @@ export default function PhysicalProgressModal({
   isOpen,
   onClose,
   projectId,
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
   boqItems = [],
   onProgressRecorded,
 }: PhysicalProgressModalProps): React.JSX.Element | null {

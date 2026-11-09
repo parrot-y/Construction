@@ -186,8 +186,8 @@ const DEFAULT_TENDERS: TenderPackage[] = [
 ];
 
 export default function ContractorTenderBoardView({
-  projectId: _projectId = 'project-rcp-2026',
-  projectName = 'Riverside Commercial Plaza',
+  projectId: _projectId = '',
+  projectName = '',
   userRole: _userRole = 'PM_QS',
   onTenderCreated,
   onBidSubmitted,

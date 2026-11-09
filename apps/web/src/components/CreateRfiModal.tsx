@@ -14,8 +14,8 @@ interface CreateRfiModalProps {
 export default function CreateRfiModal({
   isOpen,
   onClose,
-  projectId = 'project-rcp-2026',
-  projectName = 'Riverside Commercial Plaza',
+  projectId = '',
+  projectName = '',
   onRfiCreated,
 }: CreateRfiModalProps): React.JSX.Element | null {
   const [title, setTitle] = useState('');

@@ -27,7 +27,7 @@ export default function CreateVariationModal({
   isOpen,
   onClose,
   projectId,
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
   onVariationCreated,
   boqItems = [],
 }: CreateVariationModalProps): React.JSX.Element | null {

@@ -1,5 +1,5 @@
 import { formatKes} from '../ui';
-import React, { useState} from 'react';
+import React, { useEffect, useState} from 'react';
 
 export interface SubscriptionTransactionItem {
   id: string;
@@ -25,47 +25,51 @@ interface SubscriptionBillingViewProps {
 }
 
 export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = ({
-  tenantName = 'Apex Builders Kenya Ltd',
-  subscriptionState: initialSubState = 'ACTIVE',
-  activePlan: initialActivePlan = 'PORTFOLIO_TIER',
-  monthlyFeeKes: initialFee = '25000.00',
-  daysRemaining: initialDays = 26,
-  lastPaymentRef: initialReceipt = 'NL88491023',
+  tenantName,
+  subscriptionState: initialSubState,
+  activePlan: initialActivePlan,
+  monthlyFeeKes: initialFee,
+  daysRemaining: initialDays,
+  lastPaymentRef: initialReceipt,
   transactions: initialTransactions,
   onInitiateStkPush,
 }) => {
-  const [subscriptionState] = useState(initialSubState);
-  const [activePlan] = useState(initialActivePlan);
-  const [monthlyFee] = useState(initialFee);
-  const [daysRemaining] = useState(initialDays);
-  const [lastPaymentRef] = useState(initialReceipt);
+  const [subscriptionState, setSubscriptionState] = useState(initialSubState);
+  const [activePlan, setActivePlan] = useState(initialActivePlan);
+  const [monthlyFee, setMonthlyFee] = useState(initialFee);
+  const [daysRemaining, setDaysRemaining] = useState(initialDays);
+  const [lastPaymentRef, setLastPaymentRef] = useState(initialReceipt);
+  const [tenantLabel, setTenantLabel] = useState(tenantName);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [transactions, setTransactions] = useState<SubscriptionTransactionItem[]>(
-    initialTransactions || [
-      {
-        id: 'tx-001',
-        phoneNumber: '254722123456',
-        amount: '25000.00',
-        planCode: 'PORTFOLIO_TIER',
-        mpesaReceiptNumber: 'NL88491023',
-        transactionStatus: 'SUCCESS',
-        subscriptionPeriodStart: new Date(Date.now() - 4 * 86400000).toISOString(),
-        subscriptionPeriodEnd: new Date(Date.now() + 26 * 86400000).toISOString(),
-        createdAt: new Date(Date.now() - 4 * 86400000).toISOString(),
-},
-      {
-        id: 'tx-002',
-        phoneNumber: '254722123456',
-        amount: '7500.00',
-        planCode: 'PROJECT_TIER',
-        mpesaReceiptNumber: 'MK19283746',
-        transactionStatus: 'SUCCESS',
-        subscriptionPeriodStart: new Date(Date.now() - 34 * 86400000).toISOString(),
-        subscriptionPeriodEnd: new Date(Date.now() - 4 * 86400000).toISOString(),
-        createdAt: new Date(Date.now() - 34 * 86400000).toISOString(),
-},
-    ]
-);
+  const [transactions, setTransactions] = useState<SubscriptionTransactionItem[]>(initialTransactions ?? []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [sRes, tRes] = await Promise.all([
+          fetch('/api/v1/billing/subscription-status', { credentials: 'include'}),
+          fetch('/api/v1/billing/transactions', { credentials: 'include'}),
+        ]);
+        if (sRes.ok) {
+          const sb = await sRes.json();
+          if (!initialSubState) setSubscriptionState(sb.subscriptionState);
+          if (!initialActivePlan) setActivePlan(sb.activePlan);
+          if (!initialFee) setMonthlyFee(sb.monthlyFeeKes);
+          if (initialDays === undefined) setDaysRemaining(sb.daysRemaining);
+          if (initialReceipt === undefined) setLastPaymentRef(sb.lastPaymentRef);
+          if (!tenantName) setTenantLabel(sb.tenantName);
+        }
+        if (tRes.ok) {
+          const tb = await tRes.json();
+          if (!initialTransactions) setTransactions(tb.transactions || []);
+        }
+        setLoadError(null);
+      } catch (e: any) {
+        setLoadError(e.message || 'Failed to load billing status');
+      }
+    })();
+  }, []);
 
   const [showStkModal, setShowStkModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'PROJECT_TIER' | 'PORTFOLIO_TIER'>('PORTFOLIO_TIER');
@@ -148,7 +152,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div>
 <div className="flex items-center gap-3">
 <h2 className="text-xl font-bold text-slate-800">Safaricom Daraja M-Pesa Subscription Billing</h2>
-            {getStatusBadge(subscriptionState)}
+            {subscriptionState ? getStatusBadge(subscriptionState) : 'Status unavailable'}
 </div>
 <p className="text-sm text-slate-500 mt-1">
             Enterprise Tier Billing (ADR-006): Zero Seat Tax, Lipa Na M-Pesa Online Instant STK Push & Auto-Reconciliation
@@ -174,11 +178,11 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Validity Remaining</p>
-<p className="text-xl font-bold text-slate-800 mt-1">{daysRemaining} Days</p>
+<p className="text-xl font-bold text-slate-800 mt-1">{daysRemaining ?? '—'} Days</p>
 <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
 <div
               className="bg-emerald-500 h-1.5 rounded-full"
-              style={{ width: `${Math.min(100, (daysRemaining / 30) * 100)}%`}}
+              style={{ width: `${Math.min(100, ((daysRemaining ?? 0) / 30) * 100)}%`}}
             ></div>
 </div>
 </div>
@@ -264,7 +268,8 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div className="p-4 border-b border-slate-200 flex justify-between items-center">
 <div>
 <h3 className="font-bold text-slate-800 text-sm">Daraja M-Pesa Subscription Transactions</h3>
-<p className="text-xs text-slate-500">Real-time payment audit log for tenant: {tenantName}</p>
+<p className="text-xs text-slate-500">Real-time payment audit log for tenant: {tenantLabel || 'your workspace'}</p>
+{loadError && <p className="text-xs text-rose-600 mt-1">{loadError}</p>}
 </div>
 <span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-600 rounded">
             {transactions.length} Transactions
@@ -285,7 +290,10 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
-              {transactions.map((tx) => (
+              {transactions.length === 0 && (
+<tr><td colSpan={6} className="py-6 text-center text-sm text-slate-400">No subscription payments recorded yet.</td></tr>
+)}
+{transactions.map((tx) => (
 <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
 <td className="p-3 font-mono font-bold text-slate-800">
                     {tx.mpesaReceiptNumber || 'PENDING'}

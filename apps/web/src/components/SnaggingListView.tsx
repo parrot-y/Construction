@@ -47,107 +47,10 @@ interface SnaggingListViewProps {
   canVerify?: boolean;
 }
 
-const DEFAULT_SNAGS: SnagItemData[] = [
-  {
-    id: 'snag-001',
-    snagNo: 'SNG-001',
-    block: 'Block A',
-    floor: '2nd Floor',
-    room: 'Room 204 (Master Ensuite)',
-    tradeCategory: 'Tiling',
-    description:
-      'Hollow sounding porcelain floor tiles near walk-in shower trap with cracked grout line. Re-bedding and epoxy regrouting required.',
-    severity: 'FUNCTIONAL',
-    status: 'OPEN',
-    beforePhotoUrl:
-      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=400&q=80',
-    geotag: {
-      lat: -1.268321,
-      lng: 36.804412,
-      label: 'Block A, 2nd Floor, Room 204',
-},
-    raisedBy: 'Faith Achieng (Lead QS)',
-    raisedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-},
-  {
-    id: 'snag-002',
-    snagNo: 'SNG-002',
-    block: 'Block B',
-    floor: 'Ground Floor',
-    room: 'Main Reception Lobby',
-    tradeCategory: 'Painting',
-    description:
-      'Visible paint roller flashings and brush marks on south feature wall under downlight graze. Repaint two coats silk vinyl.',
-    severity: 'COSMETIC',
-    status: 'RECTIFIED_BY_CONTRACTOR',
-    beforePhotoUrl:
-      'https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=400&q=80',
-    afterPhotoUrl:
-      'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=400&q=80',
-    geotag: {
-      lat: -1.268504,
-      lng: 36.804192,
-      label: 'Block B, Ground Floor, Lobby',
-},
-    raisedBy: 'Arch. Peter Mwangi',
-    raisedAt: new Date(Date.now() - 86400000 * 4).toISOString(),
-    rectifiedBy: 'Crown Paints Sub-Contractor Foreman',
-    rectifiedAt: new Date(Date.now() - 86400000).toISOString(),
-},
-  {
-    id: 'snag-003',
-    snagNo: 'SNG-003',
-    block: 'Block A',
-    floor: 'Basement 1',
-    room: 'Main Electrical Switchgear Room',
-    tradeCategory: 'Electrical',
-    description:
-      'Main distribution board earth continuity conductor loose at copper busbar connection. Non-compliant with IEE 18th edition.',
-    severity: 'CRITICAL_SAFETY',
-    status: 'OPEN',
-    beforePhotoUrl:
-      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80',
-    geotag: {
-      lat: -1.268112,
-      lng: 36.804615,
-      label: 'Block A, Basement 1, Plant',
-},
-    raisedBy: 'Eng. Peter Gitau (Consultant)',
-    raisedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-},
-  {
-    id: 'snag-004',
-    snagNo: 'SNG-004',
-    block: 'Block A',
-    floor: '3rd Floor',
-    room: 'Executive Suite 302',
-    tradeCategory: 'Glazing',
-    description:
-      'Deep scratch on double glazed powder-coated sliding window panel; weatherstrip seal pinched along bottom sill.',
-    severity: 'COSMETIC',
-    status: 'VERIFIED_CLOSED',
-    beforePhotoUrl:
-      'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=400&q=80',
-    afterPhotoUrl:
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80',
-    geotag: {
-      lat: -1.268421,
-      lng: 36.804355,
-      label: 'Block A, 3rd Floor, Suite 302',
-},
-    raisedBy: 'Faith Achieng (Lead QS)',
-    raisedAt: new Date(Date.now() - 86400000 * 8).toISOString(),
-    rectifiedBy: 'Apex Site Joinery Team',
-    rectifiedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    verifiedBy: 'Arch. Peter Mwangi & Client Rep',
-    verifiedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
-},
-];
-
 export default function SnaggingListView({
-  projectId = 'project-rcp-2026',
-  projectName = 'Riverside Commercial Plaza',
-  initialSnags = DEFAULT_SNAGS,
+  projectId = '',
+  projectName = '',
+  initialSnags = [],
   canAdd = true,
   canRectify = true,
   canVerify = true,
@@ -168,7 +71,7 @@ export default function SnaggingListView({
         const res = await fetch(`/api/v1/projects/${projectId}/snags`, { credentials: 'include'});
         if (!res.ok) return;
         const rows = await res.json();
-        if (!Array.isArray(rows) || rows.length === 0 || cancelled) return;
+        if (!Array.isArray(rows) || cancelled) return;
         setSnags(rows.map((s: any): SnagItemData => {
           const defectPhoto = (s.photos || []).find((p: any) => p.photo_type === 'DEFECT') || s.photos?.[0];
           const rectPhoto = (s.photos || []).find((p: any) => p.photo_type === 'RECTIFIED');

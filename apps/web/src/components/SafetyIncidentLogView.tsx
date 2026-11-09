@@ -1,4 +1,4 @@
-import React, { useState} from 'react';
+import React, { useEffect, useState} from 'react';
 
 export interface SafetyIncident {
   id: string;
@@ -29,42 +29,41 @@ export default function SafetyIncidentLogView({
   projectId,
   canLog = true,
   canInvestigate = true,
-  initialIncidents = [
-    {
-      id: 'inc-1',
-      incident_date: '2026-03-01T14:30:00Z',
-      location_on_site: 'Grid B-4 Second Floor Deck Shuttering',
-      incident_type: 'NEAR_MISS',
-      severity: 'MEDIUM',
-      description: 'Loose scaffolding clamp slipped during timber prop adjustment. Dropped 3 meters into exclusion zone, no personnel struck.',
-      affected_person: null,
-      immediate_action: 'Exclusion tape verified, prop tightened with double clamp and certified by safety officer.',
-      corrective_action: 'Full toolbox talk held with carpenters on double-clamping procedure before live loading.',
-      is_osha_reportable: false,
-      status: 'CORRECTED',
-      reported_at: '2026-03-01T15:00:00Z',
-      recorded_by: { full_name: 'Peter Kimani (Site Safety Officer)'},
-},
-    {
-      id: 'inc-2',
-      incident_date: '2026-02-27T11:15:00Z',
-      location_on_site: 'Steel Cutting & Bending Yard',
-      incident_type: 'FIRST_AID',
-      severity: 'LOW',
-      description: 'Steel fixer helper sustained superficial abrasion on right forearm from cut end of Y16 bar during stockpiling.',
-      affected_person: 'John Omondi (Casual helper)',
-      immediate_action: 'Wound irrigated with sterile saline, antiseptic applied, bandaged in site first aid clinic.',
-      corrective_action: 'Mandated high-dexterity Kevlar cut-resistant gloves for all steel handling gang members.',
-      is_osha_reportable: false,
-      status: 'CLOSED',
-      reported_at: '2026-02-27T11:45:00Z',
-      recorded_by: { full_name: 'Peter Kimani (Site Safety Officer)'},
-},
-  ],
+  initialIncidents,
   onIncidentLogged,
   onStatusUpdated,
 }: SafetyIncidentLogViewProps) {
-  const [incidents, setIncidents] = useState<SafetyIncident[]>(initialIncidents);
+  const [incidents, setIncidents] = useState<SafetyIncident[]>(initialIncidents ?? []);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = async () => {
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/safety-incidents`, { credentials: 'include'});
+      if (!res.ok) throw new Error('Failed to load safety incidents');
+      const body = await res.json();
+      const sevMap: Record<string, SafetyIncident['severity']> = { MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' };
+      setIncidents((body.incidents || []).map((i: any): SafetyIncident => ({
+        id: i.id,
+        incident_date: i.incident_date,
+        location_on_site: i.exact_location,
+        incident_type: i.incident_type,
+        severity: sevMap[i.severity] || 'MEDIUM',
+        description: i.description,
+        affected_person: i.affected_person_name,
+        immediate_action: i.immediate_action,
+        corrective_action: i.preventative_action,
+        is_osha_reportable: !!i.is_osha_reportable,
+        status: 'OPEN',
+        recorded_by: { full_name: i.investigated_by || 'Site team' },
+        reported_at: i.created_at,
+      })));
+      setLoadError(null);
+    } catch (e: any) {
+      setLoadError(e.message || 'Failed to load safety incidents');
+    }
+  };
+
+  useEffect(() => { if (projectId) load(); }, [projectId]);
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [severityFilter, setSeverityFilter] = useState<string>('ALL');
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -257,6 +256,10 @@ export default function SafetyIncidentLogView({
 </select>
 </div>
 </div>
+
+      {loadError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">{loadError}</div>
+)}
 
       {/* Incident List */}
 <div className="divide-y divide-slate-100">

@@ -17,8 +17,8 @@ export interface CreateSnagModalProps {
 export default function CreateSnagModal({
   isOpen,
   onClose,
-  projectId = 'project-rcp-2026',
-  projectName = 'Riverside Commercial Plaza',
+  projectId = '',
+  projectName = '',
   onSnagCreated,
 }: CreateSnagModalProps): React.JSX.Element | null {
   const [block, setBlock] = useState('Block A');

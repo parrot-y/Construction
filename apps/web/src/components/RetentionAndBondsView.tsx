@@ -51,7 +51,7 @@ interface RetentionAndBondsViewProps {
 
 export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   projectId,
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
   releases: initialReleases,
   bonds: initialBonds,
   summary: initialSummary,

@@ -77,187 +77,6 @@ const STAGE_LABELS: Record<InspectionStage, string> = {
   borehole: 'Borehole (Drilling, Casing & Solar Pump)',
 };
 
-const DEFAULT_INSPECTIONS: SiteInspectionReport[] = [
-  {
-    id: 'insp-2026-003',
-    reportRef: 'BDS-INSP-2026-0891-SLAB',
-    stage: 'slab',
-    stageLabel: 'Slab (Suspended Slab Casting & Reinforcement)',
-    inspectionDate: '2026-11-04',
-    status: 'COMPLETED',
-    urgency: 'UNANNOUNCED_48HR',
-    inspector: {
-      name: 'Eng. Francis Omondi, PE, BORAQS',
-      ncaRegistration: 'NCA-INSP-2024-9982',
-      phone: '+254 722 890 123',
-      email: 'f.omondi@kenyaengineers.or.ke',
-      latitude: -1.264850,
-      longitude: 36.802140,
-      accuracyMeters: 3.2,
-      arrivalTimestamp: '2026-11-04 09:15 EAT',
-},
-    contractorReportedPct: 45.0,
-    inspectorVerifiedPct: 32.0,
-    variancePct: -13.0,
-    structuralNotes:
-      'Beam deflection complies with BS 8110. Overlapping rebar ties comply with 40d anchorage length. However, bottom cover blocks on southern cantilever beam are only 20mm instead of the specified 35mm precast concrete spacers.',
-    materialsAudit: {
-      cementBrand: 'Bamburi PowerPlus 42.5N (Batch #BMB-2026-091 - dry storage confirmed on pallets 150mm above ground)',
-      rebarGrade: 'Apex TMT 500+ D16 & D12 (KEBS certified KS-573, clean ribs, zero surface rust pitting)',
-      aggregateCleanliness: 'Kinatwa 20mm Blue Stone Ballast (Washed, silt content verified at 1.1% by volume)',
-      batchMix: 'Class 25 concrete (1:1.5:3 volumetric ratio; batch box measured, slump verified at 85mm)',
-},
-    safetyObservations:
-      'Perimeter safety guardrails missing along north-eastern cantilever slab bay. 3 steel fixers observed without safety harness tie-offs. Scaffold baseplates stable on timber soleboards.',
-    discrepanciesFlagged:
-      'Contractor reported 45.0% cumulative completion on Interim Claim #3. Physical site verification confirms only 32.0% genuine verified progress. First floor suspended slab reinforcement only 65% tied and MEP conduits incomplete.',
-    recommendations:
-      'Reject contractor Interim Claim #3 until bottom spacers are upgraded to 35mm and northern perimeter fall protection is installed. Withhold 13.0% contractor progress claim until re-inspection.',
-    photos: [
-      {
-        id: 'p-str-1',
-        title: 'Suspended Slab Rebar Spacing & Top Mat Tie Check',
-        category: 'Structural',
-        url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18615f3?w=800',
-        caption: 'Top mat reinforcement ties at 200mm centers; cover blocks on southern beam deficient.',
-        gpsCoords: '-1.264850, 36.802140 (±3.2m)',
-        timestamp: '2026-11-04 09:35 EAT',
-},
-      {
-        id: 'p-mat-1',
-        title: 'Bamburi PowerPlus 42.5N Cement Stack Audit',
-        category: 'Materials',
-        url: 'https://images.unsplash.com/photo-1590496793929-36417d3117de?w=800',
-        caption: 'Cement batch stacks elevated on wooden pallets and covered with waterproof heavy tarpaulins.',
-        gpsCoords: '-1.264852, 36.802138 (±2.9m)',
-        timestamp: '2026-11-04 09:50 EAT',
-},
-      {
-        id: 'p-fin-1',
-        title: 'Electrical Conduit & Drop-box Embedment',
-        category: 'Finishes',
-        url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800',
-        caption: 'Heavy gauge PVC conduits routed through slab mesh; 4 drop-boxes missing tying wires.',
-        gpsCoords: '-1.264855, 36.802142 (±3.4m)',
-        timestamp: '2026-11-04 10:15 EAT',
-},
-      {
-        id: 'p-saf-1',
-        title: 'North Elevation Edge Fall Hazard Observation',
-        category: 'Safety',
-        url: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800',
-        caption: 'Edge protection handrails missing across a 12-meter stretch along edge of suspended deck.',
-        gpsCoords: '-1.264858, 36.802145 (±3.1m)',
-        timestamp: '2026-11-04 10:32 EAT',
-},
-    ],
-    clientReview: null,
-},
-  {
-    id: 'insp-2026-002',
-    reportRef: 'BDS-INSP-2026-0891-SUB',
-    stage: 'substructure',
-    stageLabel: 'Substructure (Excavation, Hardcore & Footings)',
-    inspectionDate: '2026-10-18',
-    status: 'CLIENT_REVIEWED',
-    urgency: 'UNANNOUNCED_48HR',
-    inspector: {
-      name: 'Arch. David Muthomi, BORAQS A/114',
-      ncaRegistration: 'NCA-INSP-2023-4412',
-      phone: '+254 733 456 789',
-      email: 'muthomi@boraqs.or.ke',
-      latitude: -1.264848,
-      longitude: 36.802135,
-      accuracyMeters: 2.8,
-      arrivalTimestamp: '2026-10-18 11:00 EAT',
-},
-    contractorReportedPct: 20.0,
-    inspectorVerifiedPct: 19.5,
-    variancePct: -0.5,
-    structuralNotes:
-      'Pad foundation depths reached solid coffee-brown decomposed rock at 2.4m depth. Blinding concrete Class 15 poured at 50mm thickness. BRC mesh A142 aligned.',
-    materialsAudit: {
-      cementBrand: 'Savannah 42.5R (Stored dry in lockable site store container)',
-      rebarGrade: 'Apex TMT 500+ D20 starter bars (Ribbed, bent per BS 8666)',
-      aggregateCleanliness: '20mm crushed granite ballast (clean, zero loam soil contamination)',
-      batchMix: 'Class 20 foundation concrete (1:2:4 mix, machine mixed with calibrated water tank)',
-},
-    safetyObservations:
-      'Trench shoring properly installed on deep pits. High-visibility perimeter warning tape erected around open excavations.',
-    discrepanciesFlagged: 'None. Contractor physical progress matches ground truth within 0.5% tolerance.',
-    recommendations: 'Authorized pouring of strip footing and foundation walling up to damp-proof course (DPC).',
-    photos: [
-      {
-        id: 'p-sub-1',
-        title: 'Foundation Trench Compaction & Blinding',
-        category: 'Structural',
-        url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18615f3?w=800',
-        caption: 'Solid foundation bedrock reached and blinded with 50mm Class 15 mass concrete.',
-        gpsCoords: '-1.264848, 36.802135 (±2.8m)',
-        timestamp: '2026-10-18 11:30 EAT',
-},
-    ],
-    clientReview: {
-      rating: 5,
-      feedbackNotes:
-        'Diaspora review from London: Independent inspection confirmed foundation bed before contractor backfilled. Gave 100% confidence to release milestone payment.',
-      signedOffAt: '2026-10-19 14:20 EAT',
-      clientName: 'Dr. Evans Kiprop (UK Diaspora Owner)',
-},
-},
-  {
-    id: 'insp-2026-001',
-    reportRef: 'BDS-INSP-2026-0891-BHOLE',
-    stage: 'borehole',
-    stageLabel: 'Borehole (Drilling, Casing & Solar Pump)',
-    inspectionDate: '2026-09-25',
-    status: 'CLIENT_REVIEWED',
-    urgency: 'SCHEDULED_7DAY',
-    inspector: {
-      name: 'Hydrogeologist Peter Karanja, WARMA',
-      ncaRegistration: 'WARMA-EXP-2022-771',
-      phone: '+254 710 234 567',
-      email: 'karanja@water-audit.co.ke',
-      latitude: -1.264840,
-      longitude: 36.802130,
-      accuracyMeters: 3.5,
-      arrivalTimestamp: '2026-09-25 14:00 EAT',
-},
-    contractorReportedPct: 100.0,
-    inspectorVerifiedPct: 100.0,
-    variancePct: 0.0,
-    structuralNotes:
-      'Borehole drilled to 220 meters depth. 8-inch steel casing grouted with cement slurry to prevent shallow aquifer seepage.',
-    materialsAudit: {
-      cementBrand: 'Blue Triangle 32.5N (Used for sanitary seal grouting)',
-      rebarGrade: 'N/A',
-      aggregateCleanliness: '3-6mm rounded gravel pack installed around slotted screen pipe',
-      batchMix: 'Neat cement grout 0.45 w/c ratio',
-},
-    safetyObservations: 'Wellhead sealed with lockable heavy steel cap. Earthing spike installed for solar lightning protection.',
-    discrepanciesFlagged: 'None. Test pumping verified continuous yield of 12,500 Liters/hour over 24 hours constant draw.',
-    recommendations: 'Borehole water approved for construction batching and domestic consumption subject to RO filtration.',
-    photos: [
-      {
-        id: 'p-bhole-1',
-        title: 'Borehole Wellhead & 15kW Solar Inverter Array',
-        category: 'Materials',
-        url: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800',
-        caption: 'Solar submersible pump connected and producing clear water with dynamic head verified.',
-        gpsCoords: '-1.264840, 36.802130 (±3.5m)',
-        timestamp: '2026-09-25 15:15 EAT',
-},
-    ],
-    clientReview: {
-      rating: 5,
-      feedbackNotes:
-        'Yield test certified by third-party hydrogeologist. Site now has independent water supply eliminating water bowser costs.',
-      signedOffAt: '2026-09-26 10:15 EAT',
-      clientName: 'Dr. Evans Kiprop (UK Diaspora Owner)',
-},
-},
-];
-
 const mapApiStatus = (s?: string | null): InspectionStatus => {
   switch (s) {
     case 'SUBMITTED':
@@ -386,15 +205,15 @@ const applyInspectionDetail = (insp: SiteInspectionReport, d: any): SiteInspecti
 };
 
 export default function IndependentSiteReportView({
-  projectId = 'project-rcp-2026',
-  projectName = 'Riverside Commercial Plaza',
+  projectId = '',
+  projectName = '',
   userRole: _userRole = 'CLIENT',
   onBookInspection,
   onReviewSubmit,
 }: IndependentSiteReportViewProps): React.JSX.Element {
-  const [inspections, setInspections] = useState<SiteInspectionReport[]>(DEFAULT_INSPECTIONS);
+  const [inspections, setInspections] = useState<SiteInspectionReport[]>([]);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string>(
-    DEFAULT_INSPECTIONS[0]?.id ?? 'insp-2026-003'
+    ''
 );
   const [selectedPhotoCategory, setSelectedPhotoCategory] = useState<PhotoCategory>('All');
   const [showBookingModal, setShowBookingModal] = useState(false);

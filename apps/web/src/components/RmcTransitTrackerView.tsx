@@ -185,7 +185,7 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
 
   // New Delivery Form State
   const [ticketNo, setTicketNo] = useState('');
-  const [supplierName, setSupplierName] = useState('Bamburi Special Products Ltd');
+  const [supplierName, setSupplierName] = useState('');
   const [truckReg, setTruckReg] = useState('');
   const [driverName, setDriverName] = useState('');
   const [driverPhone, setDriverPhone] = useState('');

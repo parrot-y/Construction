@@ -47,7 +47,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
       {
         id: 'w-01',
         periodName: 'Week 43 Ground Floor Slab Pour',
-        materialName: 'Simba Portland Cement 42.5N',
+        materialName: '',
         unitOfMeasure: 'BAGS',
         theoreticalQuantity: '500.00',
         actualConsumedQuantity: '515.00',

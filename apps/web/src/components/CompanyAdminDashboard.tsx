@@ -8,6 +8,7 @@ import StatutoryTaxManagementView from './StatutoryTaxManagementView';
 import { ProjectSCurveCashFlowCard} from './ProjectSCurveCashFlowCard';
 import { SubcontractorValuationView} from './SubcontractorValuationView';
 import { PlantEquipmentView} from './PlantEquipmentView';
+import { isModuleEnabled } from '../lib/modules';
 import { LaborMusterRollView} from './LaborMusterRollView';
 import { SafetyAuditScorecardView} from './SafetyAuditScorecardView';
 import { ETimsTaxComplianceView} from './ETimsTaxComplianceView';
@@ -222,8 +223,8 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
             Team & Invites
 </span>
-<span className="text-2xl font-bold text-slate-900 mt-1 block">{metrics ? `${metrics.teamMembersCount} Members` : '4 Members'}</span>
-<span className="text-[11px] text-amber-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingInvitesCount ?? 0} pending invites` : '0 pending invites'}</span>
+<span className="text-2xl font-bold text-slate-900 mt-1 block">{metrics ? `${metrics.teamMembersCount} Members` : '—'}</span>
+<span className="text-[11px] text-amber-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingInvitesCount ?? 0} pending invites` : ''}</span>
 </div>
 </div>
 
@@ -410,12 +411,14 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 
 </div>
 <div className={panelCls('field')}>
-      {/* Heavy Machinery & Fuel Siphoning Audit (Milestone M16) */}
+      {/* Plant & Machinery — peripheral module */}
+{isModuleEnabled('equipment') && (
 <PlantEquipmentView
         projectId={pid}
         projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
+)}
 
       {/* Site Casual Labor Muster Roll & Artisan Payroll (Milestone M17) */}
 <LaborMusterRollView

@@ -38,7 +38,7 @@ interface WhatsAppSiteWebhookViewProps {
 
 export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = ({
   projectId,
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
   webhookLogs: initialLogs,
   siteAlerts: initialAlerts,
   userRole: _userRole,

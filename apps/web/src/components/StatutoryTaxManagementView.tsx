@@ -30,42 +30,7 @@ interface StatutoryTaxManagementViewProps {
 export default function StatutoryTaxManagementView({
   projectId,
   canIssue = true,
-  initialCertificates = [
-    {
-      id: 'tax-1',
-      certificate_no: 'KRA-WHT-2026-0081',
-      payee_type: 'MAIN_CONTRACTOR',
-      payee_name: 'Apex Builders Kenya Ltd',
-      payee_kra_pin: 'P051234567Z',
-      invoice_or_ipc_ref: 'IPC-RCP-001',
-      gross_amount: '4500000.00',
-      wht_rate_pct: '3.00',
-      wht_deducted: '135000.00',
-      whvat_rate_pct: '2.00',
-      whvat_deducted: '90000.00',
-      net_payable: '4275000.00',
-      status: 'ACKNOWLEDGED',
-      itax_acknowledgement_receipt: 'ITAX-ACK-9021882',
-      created_at: '2026-02-28T14:00:00Z',
-},
-    {
-      id: 'tax-2',
-      certificate_no: 'KRA-WHT-2026-0094',
-      payee_type: 'TRADE_SUBCONTRACTOR',
-      payee_name: 'Simba Plumbing Works Ltd',
-      payee_kra_pin: 'P058899112K',
-      invoice_or_ipc_ref: 'SUB-INV-PLUMB-01',
-      gross_amount: '850000.00',
-      wht_rate_pct: '3.00',
-      wht_deducted: '25500.00',
-      whvat_rate_pct: '2.00',
-      whvat_deducted: '17000.00',
-      net_payable: '807500.00',
-      status: 'GENERATED',
-      itax_acknowledgement_receipt: null,
-      created_at: '2026-03-05T09:30:00Z',
-},
-  ],
+  initialCertificates = [],
   onCertificateIssued,
   onRemitted,
 }: StatutoryTaxManagementViewProps) {
@@ -334,6 +299,9 @@ export default function StatutoryTaxManagementView({
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100 bg-white">
+            {filtered.length === 0 && (
+<tr><td colSpan={9} className="py-8 px-4 text-center text-sm text-slate-400">No withholding certificates recorded yet.</td></tr>
+)}
             {filtered.map((cert) => (
 <tr key={cert.id} className="hover:bg-slate-50">
 <td className="py-3 px-4 font-mono font-bold text-slate-900">

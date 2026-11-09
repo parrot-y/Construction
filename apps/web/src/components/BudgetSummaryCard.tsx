@@ -45,7 +45,7 @@ export default function BudgetSummaryCard({
       message: null,
 },
 },
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
 }: BudgetSummaryCardProps): React.JSX.Element {
   const percent = parseFloat(summary.consumptionPercentage) || 0;
   const isHighConsumption = percent > 80;

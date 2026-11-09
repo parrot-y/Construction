@@ -12,7 +12,7 @@ export default function ConcreteCubeTestModal({
   isOpen,
   onClose,
   projectId = 'project-rcp-2026',
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
   onTestCreated,
 }: ConcreteCubeTestModalProps): React.JSX.Element | null {
   const [pourLocation, setPourLocation] = useState('');
@@ -66,7 +66,7 @@ export default function ConcreteCubeTestModal({
       concreteClass: concreteClass.split(' ')[0], // e.g."Class 25/20"
       targetStrengthMpa: targetMpa,
       pourDate,
-      batchTicket: batchTicket.trim() || 'Bamburi ReadyMix #BRM-9104',
+      batchTicket: batchTicket.trim(),
       slumpMm: parseInt(slumpMm, 10) || 100,
       sevenDayBreakDate: day7,
       sevenDayStrengthMpa: sevenDayParsed,

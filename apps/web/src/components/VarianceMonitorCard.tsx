@@ -48,7 +48,7 @@ export interface VarianceMonitorCardProps {
 }
 
 export default function VarianceMonitorCard({
-  projectName = 'Riverside Commercial Plaza',
+  projectName = '',
   approvedBudget = '45,000,000.00',
   approvedCost = '12,450,200.00',
   pendingCost = '1,850,000.00',
