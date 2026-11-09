@@ -414,6 +414,29 @@ describe('External Stakeholder Portals Suite: Token-Based Zero Seat Tax Access',
   // ===========================================================================
 
   it('renders regulatory compliance pack with NCA registration and concrete cube pass rate', async () => {
+    // Record + remit a statutory tax certificate so levy clearance is real
+    const taxCertRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectAId}/tax-certificates`,
+      headers: { cookie: adminCookie, 'content-type': 'application/json' },
+      payload: {
+        payeeType: 'MAIN_CONTRACTOR',
+        payeeName: 'Apex Builders Kenya Ltd',
+        payeeKraPin: 'P051234567Z',
+        invoiceOrIpcRef: 'CERT-E2E-001',
+        grossAmount: '500000.00',
+      },
+    });
+    expect(taxCertRes.statusCode).toBe(201);
+    const taxCert = JSON.parse(taxCertRes.body);
+    const remitRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectAId}/tax-certificates/${taxCert.id}/remit`,
+      headers: { cookie: adminCookie, 'content-type': 'application/json' },
+      payload: { status: 'REMITTED_TO_KRA', itaxAcknowledgementReceipt: 'ITAX-E2E-002' },
+    });
+    expect(remitRes.statusCode).toBe(200);
+
     const res = await server.inject({
       method: 'GET',
       url: `/api/v1/portals/compliance/${complianceToken}`,

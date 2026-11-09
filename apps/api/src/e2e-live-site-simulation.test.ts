@@ -1005,6 +1005,29 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   // STEP 15: NCA Regulatory Compliance Portal Audit
   // ---------------------------------------------------------------------------
   it('Step 15: NCA Regulatory Auditor accesses Compliance Portal link, verifies 100% concrete cube pass rate, statutory levy clearance, and accredited supervisor presence', async () => {
+    // 0. Record + remit a statutory tax certificate so levy clearance is real
+    const taxCertRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/tax-certificates`,
+      headers: { cookie: adminCookie, 'content-type': 'application/json' },
+      payload: {
+        payeeType: 'MAIN_CONTRACTOR',
+        payeeName: 'Apex Builders Kenya Ltd',
+        payeeKraPin: 'P051234567Z',
+        invoiceOrIpcRef: 'IPC-E2E-001',
+        grossAmount: '1000000.00',
+      },
+    });
+    expect(taxCertRes.statusCode).toBe(201);
+    const taxCert = JSON.parse(taxCertRes.body);
+    const remitRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/tax-certificates/${taxCert.id}/remit`,
+      headers: { cookie: adminCookie, 'content-type': 'application/json' },
+      payload: { status: 'REMITTED_TO_KRA', itaxAcknowledgementReceipt: 'ITAX-E2E-001' },
+    });
+    expect(remitRes.statusCode).toBe(200);
+
     // 1. Generate Compliance Portal Link
     const linkRes = await server.inject({
       method: 'POST',
