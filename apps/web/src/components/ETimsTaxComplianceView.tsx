@@ -113,7 +113,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 
   // Default state for invoices
   const [invoices, setInvoices] = useState<ETimsInvoiceItem[]>(
-    initialInvoices || [
+    initialInvoices || (import.meta.env.DEV ? [
       {
         id: 'etims-1',
         invoiceNumber: 'INV-2026-001',
@@ -154,12 +154,12 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
         transmittedAt: '2026-11-04T08:15:00Z',
         createdAt: '2026-11-04T08:10:00Z',
 },
-    ]
+    ] : [])
 );
 
   // Default state for Subcontractor TCC
   const [tccRecords, setTccRecords] = useState<SubcontractorTccItem[]>(
-    initialTcc || [
+    initialTcc || (import.meta.env.DEV ? [
       {
         id: 'tcc-1',
         subcontractorPackageId: 'sub-pkg-1',
@@ -186,7 +186,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
         withholdingTaxRate: '5.00', // Non-compliant elevated rate
         withholdingVatRate: '2.00',
 },
-    ]
+    ] : [])
 );
 
   // Computations

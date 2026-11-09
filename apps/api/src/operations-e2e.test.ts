@@ -621,9 +621,9 @@ describe('Operations E2E Integration Suite', () => {
   });
 
   // ===========================================================================
-  // AUDIT AREA 1: Zero Seat Tax Stakeholder Portals & Multi-Currency Support
+  // AUDIT AREA 1: Tokenized Stakeholder Portals & Multi-Currency Support
   // ===========================================================================
-  it('PORTAL-01: Zero Seat Tax tokenized link access for all 4 external stakeholder roles without user licensing fees', async () => {
+  it('PORTAL-01: Tokenized link access for all 4 external stakeholder roles without user licensing fees', async () => {
     const rolesToTest = ['CONSULTANT', 'SUBCONTRACTOR', 'SUPPLIER', 'COMPLIANCE'] as const;
 
     // SUBCONTRACTOR links must bind to a work package on the project

@@ -545,7 +545,7 @@ export const CreateDefectsCertificateSchema = z.object({
 export type CreateDefectsCertificate = z.infer<typeof CreateDefectsCertificateSchema>;
 
 // -------------------------------------------------------------
-// STAKEHOLDER PORTAL LINKS (ZERO SEAT TAX)
+// STAKEHOLDER PORTAL LINKS
 // -------------------------------------------------------------
 export const PortalTypeEnum = z.enum([
   'CLIENT',

@@ -176,7 +176,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 
 <div className="space-y-3">
         {data.changeOrders.length === 0 && (
-<p className="text-sm text-slate-500 text-center py-8">No change orders on this project yet.</p>
+<p className="text-sm text-slate-500 text-center py-8">No change orders on this project yet — when the contractor raises a variation, it will appear here for your approval.</p>
 )}
         {data.changeOrders.map((co) => {
           const isNegative = co.net_amount.trim().startsWith('-');

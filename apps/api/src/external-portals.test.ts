@@ -3,7 +3,7 @@ import { prisma, withTenantTx, hashPassword } from '@construction/db';
 import { buildServer } from './index';
 import { enrollAllTenantUsers } from './test-members';
 
-describe('External Stakeholder Portals Suite: Token-Based Zero Seat Tax Access', () => {
+describe('External Stakeholder Portals Suite: Token-Based Access', () => {
   const server = buildServer();
 
   let adminCookie: string;

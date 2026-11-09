@@ -61,7 +61,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
   onRecordLog,
 }) => {
   const [equipmentList, setEquipmentList] = useState<PlantEquipmentItem[]>(
-    initialEquipment || [
+    initialEquipment || (import.meta.env.DEV ? [
       {
         id: 'eq-1',
         equipmentCode: 'EXC-001',
@@ -104,11 +104,11 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
         status: 'OPERATIONAL',
         createdAt: '2026-10-20T10:00:00Z',
 },
-    ]
+    ] : [])
 );
 
   const [logsList, setLogsList] = useState<EquipmentDailyLogItem[]>(
-    initialLogs || [
+    initialLogs || (import.meta.env.DEV ? [
       {
         id: 'log-1',
         equipmentId: 'eq-1',
@@ -143,7 +143,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
         activitiesPerformed: 'Idle standby with light soil shifting',
         verifiedBySupervisor: 'Eng. John Mwangi',
 },
-    ]
+    ] : [])
 );
 
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);

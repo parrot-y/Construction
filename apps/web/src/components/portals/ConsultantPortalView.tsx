@@ -272,7 +272,7 @@ export default function ConsultantPortalView({
       {activeTab === 'rfis' && (
 <div className="space-y-4">
           {rfis.length === 0 && (
-<p className="text-sm text-slate-500 text-center py-8">No RFIs on this project yet.</p>
+<p className="text-sm text-slate-500 text-center py-8">No RFIs on this project yet — the project team raises design and coordination questions here, and your reply is recorded against the drawing.</p>
 )}
           {rfis.map((rfi) => {
             const isAnswered = rfi.status === 'ANSWERED' || rfi.status === 'CLOSED';
@@ -395,7 +395,7 @@ export default function ConsultantPortalView({
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {cubeTests.length === 0 && (
-<p className="text-sm text-slate-500 text-center py-8 col-span-2">No concrete cube tests recorded yet.</p>
+<p className="text-sm text-slate-500 text-center py-8 col-span-2">No concrete cube tests recorded yet — results appear here once the contractor logs batch tests.</p>
 )}
             {cubeTests.map((c) => (
 <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
@@ -444,7 +444,7 @@ export default function ConsultantPortalView({
       {activeTab === 'inspections' && (
 <div className="space-y-4">
           {inspections.length === 0 && (
-<p className="text-sm text-slate-500 text-center py-8">No pre-pour inspections scheduled yet.</p>
+<p className="text-sm text-slate-500 text-center py-8">No pre-pour inspections scheduled yet — the site team schedules QA inspections here before each concrete pour.</p>
 )}
           {inspections.map((insp) => (
 <div key={insp.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">

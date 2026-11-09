@@ -1,6 +1,6 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState, useMemo} from 'react';
-import { calculateLineTotal, toCurrencyString, Decimal} from '@construction/money';
+import { calculateLineTotal, Decimal} from '@construction/money';
 
 export interface VariationItemDraft {
   id: string;
@@ -211,31 +211,7 @@ export default function CreateVariationModal({
 }
       onClose();
 } catch (err: any) {
-      // In offline/demo environment where fetch fails, provide simulated fallback
-      if (err.message.includes('fetch') || err.message.includes('NetworkError')) {
-        const simulatedVariation = {
-          id: `sim-vo-${Date.now()}`,
-          variation_no: 1,
-          title: title.trim(),
-          reason: reason.trim(),
-          status: 'SUBMITTED',
-          net_amount: toCurrencyString(itemCalculations.netAmount),
-          time_extension_days: parsedDays,
-          created_at: new Date().toISOString(),
-          items: items.map((it, idx) => ({
-            id: `sim-item-${idx}`,
-            description: it.description,
-            unit: it.unit,
-            quantity: it.type === 'OMISSION' ? `-${it.quantity}` : it.quantity,
-            unit_rate: it.unitRate,
-            total_amount: toCurrencyString(itemCalculations.lineTotals[idx]?.lineTotal || 0),
-})),
-};
-        if (onVariationCreated) onVariationCreated(simulatedVariation);
-        onClose();
-} else {
-        setError(err.message || 'Failed to submit variation order');
-}
+      setError(err.message || 'Failed to submit variation order');
 } finally {
       setIsSubmitting(false);
 }

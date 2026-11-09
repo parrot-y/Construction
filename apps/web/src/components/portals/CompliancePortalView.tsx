@@ -174,7 +174,9 @@ export default function CompliancePortalView({
 )}
 <div className="text-right">
 <p className="text-[11px] text-slate-400">Statutory Mandate</p>
-<p className="text-xs font-bold text-emerald-400">NCA Cap 499A Verified</p>
+<p className={`text-xs font-bold ${complianceSummary.ncaSiteRegistration ? 'text-emerald-400' : 'text-slate-400'}`}>
+            {complianceSummary.ncaSiteRegistration ? 'NCA Registered' : 'NCA Registration Not Recorded'}
+</p>
 </div>
 </div>
 </header>
@@ -184,11 +186,13 @@ export default function CompliancePortalView({
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
 <p className="text-[11px] font-semibold text-slate-500">NCA Registration</p>
 <p className="text-xs font-mono font-bold text-slate-900 truncate">
-            {complianceSummary.ncaSiteRegistration}
+            {complianceSummary.ncaSiteRegistration || 'Not recorded'}
 </p>
+{complianceSummary.ncaSiteRegistration && (
 <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded mt-1">
             Registered Site
 </span>
+)}
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
@@ -296,7 +300,7 @@ export default function CompliancePortalView({
 </thead>
 <tbody className="divide-y divide-slate-100">
               {cubeTests.length === 0 && (
-<tr><td colSpan={7} className="p-6 text-center text-sm text-slate-400">No concrete cube tests recorded yet.</td></tr>
+<tr><td colSpan={7} className="p-6 text-center text-sm text-slate-400">No concrete cube tests recorded yet — cube results appear here once the contractor logs batch tests.</td></tr>
 )}
               {cubeTests.map((c) => {
                 const day7 = c.break_results?.find((b: any) => b.age_days === 7);
@@ -343,7 +347,7 @@ export default function CompliancePortalView({
 
 <div className="divide-y divide-slate-100 text-xs">
           {inspections.length === 0 && (
-<p className="text-sm text-slate-500 text-center py-6">No inspections on file yet.</p>
+<p className="text-sm text-slate-500 text-center py-6">No inspections on file yet — inspection requests and results will appear here once the site team schedules them.</p>
 )}
           {inspections.map((insp) => (
 <div key={insp.id} className="py-3 flex justify-between items-center">
@@ -384,7 +388,7 @@ export default function CompliancePortalView({
 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3">
 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">NCA Registration:</span>
-<span className="font-bold text-slate-900 font-mono">{complianceSummary.ncaSiteRegistration}</span>
+<span className="font-bold text-slate-900 font-mono">{complianceSummary.ncaSiteRegistration || 'Not recorded'}</span>
 </div>
 {statutoryPermits.length === 0 ? (
 <div className="text-slate-500">No statutory permits on file — the contractor has not uploaded NEMA, county, DOSHS or NCWSC documents for this project.</div>

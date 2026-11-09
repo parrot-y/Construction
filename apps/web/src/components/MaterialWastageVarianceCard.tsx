@@ -43,7 +43,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
   onRecordWastage,
 }) => {
   const [reconciliations, setReconciliations] = useState<MaterialWastageItem[]>(
-    initialReconciliations || [
+    initialReconciliations || (import.meta.env.DEV ? [
       {
         id: 'w-01',
         periodName: 'Week 43 Ground Floor Slab Pour',
@@ -78,7 +78,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
         createdBy: 'Project Manager O. Odhiambo',
         createdAt: '2026-11-03T09:30:00Z',
 },
-    ]
+    ] : [])
 );
 
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);

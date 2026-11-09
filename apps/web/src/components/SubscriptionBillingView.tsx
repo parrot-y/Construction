@@ -155,7 +155,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
             {subscriptionState ? getStatusBadge(subscriptionState) : 'Status unavailable'}
 </div>
 <p className="text-sm text-slate-500 mt-1">
-            Enterprise Tier Billing (ADR-006): Zero Seat Tax, Lipa Na M-Pesa Online Instant STK Push & Auto-Reconciliation
+            Enterprise Tier Billing (ADR-006): External stakeholder portals included, Lipa Na M-Pesa Online STK Push & Auto-Reconciliation
 </p>
 </div>
 <button
@@ -218,7 +218,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 </div>
 <ul className="mt-4 space-y-2 text-xs text-slate-600">
 <li className="flex items-center gap-2"> 1 Active Construction Project</li>
-<li className="flex items-center gap-2"> Zero Seat Tax: Free External Subcontractors & Clients</li>
+<li className="flex items-center gap-2"> External stakeholder portals: subcontractors, suppliers, consultants & clients at no seat cost</li>
 <li className="flex items-center gap-2"> JBC 1999 IPC & BORAQS BoQ Valuation Engine</li>
 <li className="flex items-center gap-2"> Offline-First PWA Site Attendance & Muster Roll</li>
 <li className="flex items-center gap-2"> M-Pesa Casual Wage Disbursements</li>

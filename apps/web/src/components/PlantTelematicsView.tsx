@@ -86,7 +86,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   onAcknowledgeAlert,
 }) => {
   const [devices, setDevices] = useState<TelematicsDeviceItem[]>(
-    initialDevices || [
+    initialDevices || (import.meta.env.DEV ? [
       {
         id: 'dev-001',
         equipmentId: 'eq-001',
@@ -117,11 +117,11 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
         status: 'ONLINE',
         lastHeartbeatAt: new Date(Date.now() - 300000).toISOString(),
 },
-    ]
+    ] : [])
 );
 
   const [pings, setPings] = useState<TelematicsPingItem[]>(
-    initialPings || [
+    initialPings || (import.meta.env.DEV ? [
       {
         id: 'png-01',
         equipmentCode: 'EXC-001',
@@ -194,7 +194,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
         anomalySeverity: 'NONE',
         pingTimestamp: new Date(Date.now() - 120000).toISOString(),
 },
-    ]
+    ] : [])
 );
 
   const defaultAlerts: PlantMaintenanceAlertItem[] = [
@@ -231,7 +231,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 },
   ];
 
-  const effectiveAlerts = initialAlerts || defaultAlerts;
+  const effectiveAlerts = initialAlerts || (import.meta.env.DEV ? defaultAlerts : []);
   const [alerts, setAlerts] = useState<PlantMaintenanceAlertItem[]>(effectiveAlerts);
 
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
@@ -514,9 +514,14 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 }
 }
 
+      const resolvedEquipmentId = equipmentIdByCode[newEquipCode] || Object.values(equipmentIdByCode)[0] || '';
       if (onRegisterDevice) {
+        if (!resolvedEquipmentId) {
+          setFeedback('Select equipment registered on this project before registering a telematics device.');
+          return;
+        }
         await onRegisterDevice({
-          equipmentId: 'dummy-equip-id',
+          equipmentId: resolvedEquipmentId,
           deviceImei: newImei,
           protocol: newProtocol,
           canBusBaudRate: newBaudRate,

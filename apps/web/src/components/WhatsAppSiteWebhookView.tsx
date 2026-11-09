@@ -101,7 +101,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 
   // Default logs state
   const [logs, setLogs] = useState<WebhookLogItem[]>(
-    initialLogs || [
+    initialLogs || (import.meta.env.DEV ? [
       {
         id: 'wh-1',
         senderPhone: '+254712345678',
@@ -138,12 +138,12 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         replyMessage: 'Platform SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: CRITICAL STOP-WORK.',
         createdAt: '2026-11-04T09:15:00Z',
 },
-    ]
+    ] : [])
 );
 
   // Default alerts state
   const [alerts, setAlerts] = useState<SiteAlertItem[]>(
-    initialAlerts || [
+    initialAlerts || (import.meta.env.DEV ? [
       {
         id: 'alt-1',
         recipientPhone: '+254733445566',
@@ -168,7 +168,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
         sentAt: '2026-11-04T09:40:00Z',
         createdAt: '2026-11-04T09:39:40Z',
 },
-    ]
+    ] : [])
 );
 
   const handleSimulateSubmit = async (e: React.FormEvent) => {

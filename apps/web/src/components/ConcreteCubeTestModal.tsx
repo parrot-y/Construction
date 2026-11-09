@@ -11,7 +11,7 @@ export interface ConcreteCubeTestModalProps {
 export default function ConcreteCubeTestModal({
   isOpen,
   onClose,
-  projectId = 'project-rcp-2026',
+  projectId = '',
   projectName = '',
   onTestCreated,
 }: ConcreteCubeTestModalProps): React.JSX.Element | null {

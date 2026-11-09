@@ -237,7 +237,7 @@ export default function SupplierPortalView({
 <div className="space-y-4">
         {filteredDeliveries.length === 0 && (
 <div className="bg-white p-8 rounded-xl border border-slate-200 text-center text-sm text-slate-400">
-            No deliveries recorded for this project yet.
+            No deliveries recorded for this project yet — purchase orders and site deliveries will appear here for confirmation.
 </div>
 )}
         {filteredDeliveries.map((del) => (

@@ -247,13 +247,16 @@ Plan per auditor items 1-13, failing test first each:
 - [x] E2E green: e-portals.spec.ts 12/12 (chromium + mobile-390) — two-sub isolation, revoked, expired (real expires_at mutation), role-restricted create, rectify w/ real upload. Fixed e2e infra: rls.sql functions must be owned by RLS-bypassing role (E2E_ADMIN_DATABASE_URL), psql URL schema-param strip, RLS-safe fixture UPDATE.
 - [x] Evidence: docs/evidence/portal-hardening.md; PROJECT_STATUS update; verify-local 730/730 (API 525, web 118, money 63, db 15, permissions 9)
 
-## NEXT TASK (queued after portal hardening — branch devin/portal-hardening @ 7b521cc)
-Auditor punch list from PR #2 review, evidence required per item:
-- [ ] Landing page: remove stale mock/gradient/"100%"/"0 Seat Tax" imagery; use real console screenshots (docs/evidence/shots/* captured — wire into LandingPortalHub)
-- [ ] Portals UI: remove remaining "ZERO SEAT TAX"/"Verified Token" copy + uppercase pill badges; empty states on every (0) tab
-- [ ] grep sweep: sampleBudget=45000000 and remaining fabricated defaults (sample|demo|mock|dummy)
-- [ ] ci.yml: confirm `prisma migrate deploy` from empty DB + RLS tests run in CI (verify-local does; check ci.yml parity)
-- [ ] route-guard: document the authenticate-only route inventory + where each checks permission (route-authz-matrix.md exists — reconcile count)
-- [ ] Scrub "parity"/"reference console" wording from todo.md + PROJECT_STATUS.md history entries
-- [ ] font-mono: codes/numbers only — produce before/after counts
-- [ ] Fresh portal screenshots @1440 + @390 after wording changes (shots/ has pre-change set)
+## Auditor punch list (PR #2 review) — DONE, evidence: docs/evidence/auditor-punch-list.md
+- [x] Landing page verified clean; real console screenshots wired
+- [x] Portals UI: ZERO SEAT TAX/Verified Token/uppercase pills removed; next-step empty states on every (0) tab; fabricated NCA badge + hardcoded 5% retention math fixed
+- [x] Fabricated defaults: all initialX fixture fallbacks DEV-gated; sim-success fallbacks removed (variation/cost/inspection booking); fake project/equipment IDs removed
+- [x] ci.yml confirmed: migrate deploy from empty DB + rls.sql + RLS tests as db_app
+- [x] route-authz-matrix.md regenerated: 279 routes, 255 authenticated all permission-guarded, 24 allowlisted, 0 violations
+- [x] "parity"/"reference console" scrubbed from todo/STATUS/research summary
+- [x] font-mono: 472 uses, codes/numbers only (unchanged — prior pass already cleaned)
+- [x] Fresh screenshots: 16 files @1440+@390 via real seeded stack + UI login
+
+## NEXT TASK
+- Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM) → wire real integrations
+- Production deploy per docs/DEPLOY.md (DISABLED_MODULES, object storage, domain/TLS)

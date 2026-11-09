@@ -92,7 +92,7 @@ const DEFAULT_SOIL_TESTS: SoilTestRecord[] = [
 export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
   projectId,
   projectName = 'Kilimani Commercial Complex',
-  initialTests = DEFAULT_SOIL_TESTS,
+  initialTests = import.meta.env.DEV ? DEFAULT_SOIL_TESTS : [],
   onRecordTest,
 }) => {
   const [tests, setTests] = useState<SoilTestRecord[]>(initialTests);

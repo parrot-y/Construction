@@ -208,7 +208,6 @@ export default function IndependentSiteReportView({
   projectId = '',
   projectName = '',
   userRole: _userRole = 'CLIENT',
-  onBookInspection,
   onReviewSubmit,
 }: IndependentSiteReportViewProps): React.JSX.Element {
   const [inspections, setInspections] = useState<SiteInspectionReport[]>([]);
@@ -218,6 +217,7 @@ export default function IndependentSiteReportView({
   const [selectedPhotoCategory, setSelectedPhotoCategory] = useState<PhotoCategory>('All');
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   // New Inspection Booking Form State
   const [bookStage, setBookStage] = useState<InspectionStage>('slab');
@@ -321,50 +321,13 @@ export default function IndependentSiteReportView({
 }
         const errBody = await res.json().catch(() => null);
         throw new Error(errBody?.message || `Booking failed (${res.status})`);
-} catch { /* fall through to local demo booking */}
+} catch (err: any) {
+          setBookingError(err?.message || 'Booking failed — check your connection and try again.');
+          return;
 }
-    const newReport: SiteInspectionReport = {
-      id: `insp-2026-${String(inspections.length + 1).padStart(3, '0')}`,
-      reportRef: `BDS-INSP-2026-0891-${bookStage.toUpperCase()}`,
-      stage: bookStage,
-      stageLabel: STAGE_LABELS[bookStage],
-      inspectionDate: new Date().toISOString().split('T')[0] ?? '2026-11-04',
-      status: 'REQUESTED',
-      urgency: bookUrgency,
-      inspector: {
-        name: 'Clerk of Works Dispatching...',
-        ncaRegistration: 'NCA Independent Inspector Registry',
-        phone: bookContactPhone,
-        email: 'dispatch@example.com',
-        latitude: -1.264850,
-        longitude: 36.802140,
-        accuracyMeters: 3.0,
-        arrivalTimestamp: 'Pending Dispatch within 48 Hours',
-},
-      contractorReportedPct: 48.0,
-      inspectorVerifiedPct: 0.0,
-      variancePct: 0.0,
-      structuralNotes: `Unannounced audit queued for ${STAGE_LABELS[bookStage]}. Focus: ${bookSpecialFocus}`,
-      materialsAudit: {
-        cementBrand: 'Pending on-site batch verification',
-        rebarGrade: 'Pending tensile and diameter calibration',
-        aggregateCleanliness: 'Pending silt & organic matter check',
-        batchMix: 'Pending slump test & cube casting witness',
-},
-      safetyObservations: 'Pending site safety inspection',
-      discrepanciesFlagged: 'Will be compared against contractor reported progress upon arrival',
-      recommendations: 'Awaiting independent inspector site findings',
-      photos: [],
-      clientReview: null,
-};
-
-    setInspections([newReport, ...inspections]);
-    setSelectedInspectionId(newReport.id);
-    setShowBookingModal(false);
-    setBookingSuccess(`Neutral inspection successfully booked for ${STAGE_LABELS[bookStage]}! Dispatch notification dispatched to neutral Clerk of Works.`);
-    if (onBookInspection) {
-      onBookInspection(newReport);
 }
+    // Non-live/demo contexts have no backend — refuse to fabricate a booking.
+    setBookingError('Inspection booking requires a live project connection.');
 };
 
   const handleSignOffReview = async (e: React.FormEvent) => {
@@ -555,6 +518,13 @@ export default function IndependentSiteReportView({
 <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs rounded-lg flex justify-between items-center shadow-sm">
 <span> {whatsappStatus}</span>
 <button onClick={() => setWhatsappStatus(null)} className="font-bold text-emerald-900 ml-2">×</button>
+</div>
+)}
+
+      {bookingError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex justify-between items-center">
+<span> {bookingError}</span>
+<button onClick={() => setBookingError(null)} className="font-bold text-rose-900 ml-2">×</button>
 </div>
 )}
 

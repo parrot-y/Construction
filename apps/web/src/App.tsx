@@ -81,7 +81,7 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
     }
   };
 
-  // 1. If an external stakeholder accessed via token link (Zero Seat Tax)
+  // 1. If an external stakeholder accessed via token link
   if (externalPortal) {
     const handleExitPortal = () => setExternalPortal(null);
 

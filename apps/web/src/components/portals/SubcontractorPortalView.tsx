@@ -24,7 +24,9 @@ export interface SubcontractMilestone {
   id: string;
   milestoneName: string;
   pct: number;
-  amountKes: string;
+  grossKes: string;
+  retentionKes: string;
+  netKes: string;
   status: 'PAID' | 'CERTIFIED' | 'UNDER_REVIEW' | 'PENDING_CLAIM';
   certifiedDate?: string;
 }
@@ -134,14 +136,20 @@ export default function SubcontractorPortalView({
       .reduce((a: number, v: any) => a + Number(v.grossWorkCertifiedKes || 0), 0);
     const retention = allVals.reduce((a: number, v: any) => a + Number(v.retentionDeductedKes || 0), 0);
     const milestones: SubcontractMilestone[] = packages.flatMap((p: any) =>
-      (p.valuations || []).map((v: any) => ({
-        id: v.id,
-        milestoneName: `${p.tradeCategory} — ${v.certificateNo}`,
-        pct: 0,
-        amountKes: String(v.netPayableKes),
-        status: v.paymentStatus === 'PAID' ? 'PAID' : v.paymentStatus === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
-        certifiedDate: v.valuationDate ? String(v.valuationDate).split('T')[0] : undefined,
-      })),
+      (p.valuations || []).map((v: any) => {
+        const pkgSum = Number(p.subcontractSum || 0);
+        const gross = Number(v.grossWorkCertifiedKes || 0);
+        return {
+          id: v.id,
+          milestoneName: `${p.tradeCategory} — ${v.certificateNo}`,
+          pct: pkgSum > 0 ? Math.round((gross / pkgSum) * 1000) / 10 : 0,
+          grossKes: v.grossWorkCertifiedKes,
+          retentionKes: v.retentionDeductedKes,
+          netKes: v.netPayableKes,
+          status: v.paymentStatus === 'PAID' ? 'PAID' : v.paymentStatus === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
+          certifiedDate: v.valuationDate ? String(v.valuationDate).split('T')[0] : undefined,
+        };
+      }),
     );
     return {
       contractSumKes: String(contractSum),
@@ -310,7 +318,7 @@ export default function SubcontractorPortalView({
       {activeTab === 'DEFECTS' && (
 <div className="space-y-4">
           {snagList.length === 0 && (
-<p className="text-sm text-slate-500 text-center py-8">No snagging items assigned to your trade yet.</p>
+<p className="text-sm text-slate-500 text-center py-8">No snagging items assigned to your trade yet — snags raised against your scope appear here; rectify with photo proof to close them.</p>
 )}
           {snagList.map((snag) => {
             const isOpen = snag.status === 'OPEN';
@@ -500,20 +508,16 @@ export default function SubcontractorPortalView({
 <th className="p-3">Milestone Scope of Work</th>
 <th className="p-3">Weight (%)</th>
 <th className="p-3">Contract Value</th>
-<th className="p-3">5% Retention</th>
+<th className="p-3">{commercialSummary.retentionRatePct}% Retention</th>
 <th className="p-3">Net Payable</th>
 <th className="p-3">Claim Status</th>
 </tr>
 </thead>
 <tbody className="divide-y divide-slate-100">
                   {commercialSummary.milestones.length === 0 && (
-<tr><td colSpan={5} className="p-6 text-center text-sm text-slate-400">No valuation milestones on file yet.</td></tr>
+<tr><td colSpan={6} className="p-6 text-center text-sm text-slate-400">No valuation claims certified yet — submit a milestone claim below and the QS will certify it here.</td></tr>
 )}
-                  {commercialSummary.milestones.map((m) => {
-                    const retentionAmt = parseFloat(m.amountKes.replace(/,/g, '')) * 0.05;
-                    const netAmt = parseFloat(m.amountKes.replace(/,/g, '')) * 0.95;
-
-                    return (
+                  {commercialSummary.milestones.map((m) => (
 <tr key={m.id} className="hover:bg-slate-50">
 <td className="p-3 font-medium text-slate-900">
                           {m.milestoneName}
@@ -522,9 +526,9 @@ export default function SubcontractorPortalView({
 )}
 </td>
 <td className="p-3 font-bold text-slate-700">{m.pct}%</td>
-<td className="p-3 font-mono font-bold text-slate-900">{formatKes(m.amountKes)}</td>
-<td className="p-3 font-mono text-purple-700">{formatKes(retentionAmt)}</td>
-<td className="p-3 font-mono font-bold text-emerald-700">{formatKes(netAmt)}</td>
+<td className="p-3 font-mono font-bold text-slate-900">{formatKes(m.grossKes)}</td>
+<td className="p-3 font-mono text-purple-700">{formatKes(m.retentionKes)}</td>
+<td className="p-3 font-mono font-bold text-emerald-700">{formatKes(m.netKes)}</td>
 <td className="p-3">
 <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -539,8 +543,7 @@ export default function SubcontractorPortalView({
 </span>
 </td>
 </tr>
-);
-})}
+))}
 </tbody>
 </table>
 </div>

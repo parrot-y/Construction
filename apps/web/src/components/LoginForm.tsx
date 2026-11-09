@@ -89,7 +89,7 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
 <ul className="space-y-2 text-xs text-slate-300">
 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />KES-first money, KRA e-TIMS &amp; M-Pesa ready</li>
 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Offline-capable field app for engineers &amp; foremen</li>
-<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Client &amp; stakeholder portals with zero seat cost</li>
+<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Client &amp; stakeholder portals — external guests never consume paid seats</li>
 </ul>
 </div>
 <p className="relative text-[11px] text-slate-500">Sign in to your Site Safi workspace</p>

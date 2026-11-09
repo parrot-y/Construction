@@ -69,7 +69,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressSuccess, setProgressSuccess] = useState<string | null>(null);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string}[]>([]);
-  const [pid, setPid] = useState('project-rcp-2026');
+  const [pid, setPid] = useState('');
   useEffect(() => {
     fetch('/api/v1/projects', { credentials: 'include'})
       .then((r) => r.json())
@@ -449,7 +449,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
         />
 )}
 
-      {/* External Stakeholder Portals Manager (Zero Seat Tax) */}
+      {/* External Stakeholder Portals Manager */}
       {(activeTab === 'all' || activeTab === 'portals') && (
 <PortalAccessLinkManager
           projectId={pid}

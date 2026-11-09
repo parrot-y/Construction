@@ -1110,7 +1110,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 });
 });
 
-  describe('External Stakeholder Portals (Zero Seat Tax Architecture)', () => {
+  describe('External Stakeholder Portals (Token Architecture)', () => {
     it('renders ConsultantPortalView with token access, pending RFIs, cube strength tests, and pre-pour QA', () => {
       const rawHtml = renderToString(
 <ConsultantPortalView

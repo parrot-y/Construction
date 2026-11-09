@@ -36,7 +36,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [projectSuccess, setProjectSuccess] = useState<string | null>(null);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string}[]>([]);
-  const [pid, setPid] = useState('project-rcp-2026');
+  const [pid, setPid] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'money' | 'field' | 'compliance' | 'people'>('overview');
   const panelCls = (t: string) => (activeTab === t ? 'space-y-6' : 'hidden');
   const TABS = [
@@ -369,7 +369,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 
 </div>
 <div className={panelCls('people')}>
-      {/* External Stakeholder Portals Manager (Zero Seat Tax) */}
+      {/* External Stakeholder Portals Manager */}
 <PortalAccessLinkManager
         projectId={pid}
         onPreviewPortal={onPreviewPortal}
