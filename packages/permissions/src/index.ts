@@ -26,6 +26,48 @@ export const Roles = {
 
 export type Role = (typeof Roles)[keyof typeof Roles];
 
+/**
+ * Invitation seniority ladder. Only COMPANY_ADMIN may invite ADMIN or
+ * COMPANY_ADMIN; every other inviter may only invite roles ranked strictly
+ * below their own. External/portal-facing roles sit at the bottom — they are
+ * normally reached through token portals, not seats.
+ */
+export const INVITE_ROLE_RANK: Record<Role, number> = {
+  [Roles.COMPANY_ADMIN]: 60,
+  [Roles.EXECUTIVE]: 50,
+  [Roles.OWNER]: 50,
+  [Roles.ADMIN]: 45,
+  [Roles.PM_QS]: 40,
+  [Roles.SUPERINTENDENT]: 35,
+  [Roles.SITE_ENGINEER]: 34,
+  [Roles.SITE_SUPERVISOR]: 33,
+  [Roles.ARCHITECT]: 32,
+  [Roles.QA_QC]: 31,
+  [Roles.CONSULTANT]: 30,
+  [Roles.COMPLIANCE]: 25,
+  [Roles.TRADE_LEAD]: 20,
+  [Roles.FOREMAN]: 15,
+  [Roles.WORKER]: 10,
+  [Roles.VIEWER]: 5,
+  [Roles.CLIENT]: 5,
+  [Roles.SUBCONTRACTOR]: 5,
+  [Roles.SUPPLIER]: 5,
+};
+
+const PROTECTED_INVITE_ROLES: ReadonlySet<string> = new Set([Roles.ADMIN, Roles.COMPANY_ADMIN]);
+
+/** Whether `inviterRole` may create an invitation for `targetRole`. */
+export function canInviteRole(inviterRole: string, targetRole: string): boolean {
+  if (!Object.prototype.hasOwnProperty.call(INVITE_ROLE_RANK, targetRole)) return false;
+  if (PROTECTED_INVITE_ROLES.has(targetRole)) {
+    return inviterRole === Roles.COMPANY_ADMIN;
+  }
+  const inviterRank = INVITE_ROLE_RANK[inviterRole as Role];
+  const targetRank = INVITE_ROLE_RANK[targetRole as Role];
+  if (inviterRank === undefined || targetRank === undefined) return false;
+  return targetRank < inviterRank;
+}
+
 export const Permissions = {
   // Projects
   PROJECT_CREATE: 'project.create',

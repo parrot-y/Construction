@@ -436,7 +436,7 @@ export default function ContractorTenderBoardView({
 ))}
 </div>
 
-<span className="text-xs text-slate-500 font-mono">
+<span className="text-xs text-slate-500">
           Showing {filteredTenders.length} Tender Package{filteredTenders.length !== 1 ? 's' : ''}
 </span>
 </div>
@@ -597,7 +597,7 @@ export default function ContractorTenderBoardView({
 </td>
 <td className="py-3 px-3">
 <span className="font-bold text-slate-900 block">{bid.contractorName}</span>
-<span className="text-[11px] text-slate-500 font-mono">
+<span className="text-[11px] text-slate-500">
                             {bid.ncaCategory} • {bid.contactPerson} ({bid.contactPhone})
 </span>
 </td>

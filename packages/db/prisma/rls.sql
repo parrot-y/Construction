@@ -215,6 +215,30 @@ $$;
 REVOKE ALL ON FUNCTION lookup_invitation_by_token(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_invitation_by_token(TEXT) TO db_app;
 
+-- Narrow SECURITY DEFINER lookup for password-reset tokens. The reset flow is
+-- unauthenticated, so the caller has no tenant context; the function returns
+-- only the fields needed to validate + consume the token (hash-only storage).
+DROP FUNCTION IF EXISTS lookup_password_reset_token(TEXT);
+CREATE OR REPLACE FUNCTION lookup_password_reset_token(p_token_hash TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  user_id UUID,
+  expires_at TIMESTAMPTZ,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id, user_id, expires_at, used_at, created_at
+  FROM public.password_reset_tokens
+  WHERE token_hash = p_token_hash
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_password_reset_token(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_password_reset_token(TEXT) TO db_app;
+
 -- Narrow SECURITY DEFINER lookup function for Stakeholder Portal by SHA-256 Hash (H4, H5, 2c, 2d)
 DROP FUNCTION IF EXISTS lookup_portal_link_by_hash(TEXT);
 CREATE OR REPLACE FUNCTION lookup_portal_link_by_hash(p_token_hash TEXT)

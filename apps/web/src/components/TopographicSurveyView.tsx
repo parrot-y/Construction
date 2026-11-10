@@ -934,7 +934,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 <span></span>
 <span>Cross-Section Stations Takeoff Table</span>
 </h3>
-<span className="text-xs text-slate-500 font-mono">
+<span className="text-xs text-slate-500">
             {stations.length} Station{stations.length === 1 ? '' : 's'} Computed
 </span>
 </div>

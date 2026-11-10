@@ -60,6 +60,12 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
       },
     });
     expect(reg.status(), await reg.text()).toBe(201);
+    // New accounts are gated: verify the admin email (simulated token) first.
+    const regBody = await reg.json();
+    const verifyToken = regBody.data?.verificationToken;
+    expect(verifyToken, 'register-company must issue a verification token').toBeTruthy();
+    const verify = await request.post(`${API}/api/v1/auth/verify-email`, { data: { token: verifyToken } });
+    expect(verify.status(), await verify.text()).toBe(200);
 
     const sess = await login(request, email, password);
     const projectsRes = await apiGet(request, sess, '/api/v1/projects');
@@ -92,7 +98,8 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     });
     expect(invRes.status(), await invRes.text()).toBe(201);
     const invite = unwrap(await invRes.json());
-    const token = invite.token;
+    // The API returns a copy-and-send link, not a bare usable token.
+    const token = new URL(invite.inviteUrl, API).searchParams.get('invite')!;
     expect(token).toBeTruthy();
     state.inviteId = invite.id;
 
@@ -109,7 +116,21 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     await page.locator('#invite-name').fill('E2E Invitee');
     await page.locator('#invite-password').fill(invitePassword);
     await page.locator('#invite-confirm').fill(invitePassword);
-    await page.getByRole('button', { name: 'Accept invitation & sign in' }).click();
+    await page.getByRole('button', { name: 'Accept invitation' }).click();
+
+    // New accounts land on the verification gate, not the console.
+    await expect(page.getByText('Invitation accepted')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/verify your email/i)).toBeVisible();
+
+    // Follow the real verify link → auto-verifies → continue to sign-in form.
+    const verifyHref = await page.locator('a[href*="verify="]').first().getAttribute('href');
+    expect(verifyHref, 'verification link must be rendered').toBeTruthy();
+    await page.goto(verifyHref!);
+    await expect(page.getByText('email is verified', { exact: false })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: 'Continue to sign in' }).click();
+    await page.locator('#email').fill(inviteEmail);
+    await page.locator('#password').fill(invitePassword);
+    await page.getByRole('button', { name: 'Sign in to workspace' }).click();
 
     // Lands inside the console as the new member
     await expect(page.getByRole('button', { name: 'Projects' }).first()).toBeVisible({ timeout: 20_000 });
@@ -226,14 +247,29 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     state.invoiceId = invoice.id;
     expect(invoice.certificateId ?? invoice.certificate_id).toBeTruthy();
 
-    // VAT + WHT math from tenant settings (no hard-coded rates)
-    const subtotal = 49000;
+    // VAT + WHT math from tenant settings (no hard-coded rates).
+    // The invoice bills net-of-retention: read the certified certificate's
+    // actual retention deduction (capped by the contract retention ceiling,
+    // which earlier certs on this shared seeded project may have consumed).
+    const certListRes = await apiGet(request, admin, `/api/v1/projects/${projectId}/payment-certificates`);
+    expect(certListRes.status()).toBe(200);
+    const certListBody = unwrap(await certListRes.json());
+    const certListRows = Array.isArray(certListBody) ? certListBody : certListBody.items || certListBody.data || certListBody.certificates || [];
+    const certDetail = certListRows.find((c: any) => (c.id ?? c.certificate_id) === certId);
+    expect(certDetail, 'certified certificate must be listed').toBeTruthy();
+    const retentionDeduction = Number(certDetail.retention_deduction ?? certDetail.retentionDeduction ?? 0);
+    const certVat = Number(certDetail.vat_amount ?? certDetail.vatAmount ?? 0);
+    const certWht = Number(certDetail.wht_amount ?? certDetail.whtAmount ?? 0);
+    const subtotal = 49000 - retentionDeduction;
     const vat = subtotal * state.vatPct / 100;
     const wht = (subtotal + vat) * state.whtContractorPct / 100;
     const expectedTotal = subtotal + vat - wht;
     expect(Number(invoice.subtotal ?? invoice.subtotal_amount)).toBeCloseTo(subtotal, 0);
     expect(Number(invoice.taxAmount ?? invoice.tax_amount ?? invoice.vat_amount)).toBeCloseTo(vat, 0);
     expect(Number(invoice.total ?? invoice.total_amount)).toBeCloseTo(expectedTotal, 0);
+    // Invoice tax lines must match what the certificate actually certified.
+    expect(certVat).toBeCloseTo(vat, 0);
+    expect(certWht).toBeCloseTo(wht, 0);
 
     const invDetailRes = await apiGet(request, admin, `/api/v1/invoices/${invoice.id}`);
     expect(invDetailRes.status()).toBe(200);

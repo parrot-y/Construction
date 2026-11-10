@@ -50,8 +50,8 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
       body: JSON.stringify({ email: invite.email, role: invite.role}),
 });
     const j = await r.json().catch(() => ({}));
-    const link = r.ok && j.data?.token ? ` Invite link: ${window.location.origin}/?invite=${j.data.token}` : '';
-    setMsg(r.ok ? `Invitation sent to ${invite.email}.${link}` : (j.message || 'Invite failed'));
+    const link = r.ok && j.data?.inviteUrl ? ` Copy and send this link to ${invite.email}: ${j.data.inviteUrl}` : '';
+    setMsg(r.ok ? `Invitation created for ${invite.email}.${link}` : (j.message || 'Invite failed'));
     if (r.ok) { setInvite({ email: '', role: 'SITE_ENGINEER', open: false}); loadInvites();}
 };
 
@@ -66,14 +66,33 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 };
   useEffect(loadInvites, []);
 
-  const copyInviteLink = async (token: string) => {
-    const url = `${window.location.origin}/?invite=${token}`;
+  const copyInviteLink = async (inviteUrl: string) => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteMsg('Invite link copied to clipboard — send it to the invitee.');
+    } catch {
+      setInviteMsg(inviteUrl);
+    }
+};
+
+  const resetMemberPassword = async (userId: string, email: string) => {
+    const r = await fetch(`/api/v1/company/members/${userId}/password-reset`, { method: 'POST', credentials: 'include'});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { setMsg(j.message || 'Could not generate reset link'); return; }
+    const url = j.data?.resetUrl;
     try {
       await navigator.clipboard.writeText(url);
-      setInviteMsg('Invite link copied to clipboard.');
+      setMsg(`One-time reset link for ${email} copied — send it to them. It expires in 30 minutes.`);
     } catch {
-      setInviteMsg(url);
+      setMsg(`Reset link for ${email}: ${url}`);
     }
+};
+
+  const activateMember = async (userId: string, email: string) => {
+    const r = await fetch(`/api/v1/company/members/${userId}/activate`, { method: 'POST', credentials: 'include'});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { setMsg(`${email} activated — they can sign in now.`); load(); }
+    else setMsg(j.message || 'Activation failed');
 };
 
   const revokeInvite = async (id: string) => {
@@ -143,6 +162,9 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <td className="px-5 py-3 font-semibold">{m.user?.full_name || '—'}</td>
 <td className="px-3 py-3">{m.user?.email}</td>
 <td className="px-3 py-3">
+                      {m.verificationPending && (
+<span className="mr-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold align-middle">PENDING ACTIVATION</span>
+)}
                       {canInvite && !isSelf ? (
 <select value={m.role} onChange={(e) => changeRole(m.membershipId, e.target.value)}
                           className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 text-[11px] font-bold">
@@ -152,9 +174,15 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[10px] font-bold">{ROLE_LABELS[m.role] || m.role}</span>
 )}
 </td>
-<td className="px-5 py-3 text-right">
+<td className="px-5 py-3 text-right whitespace-nowrap">
                       {canInvite && !isSelf && (
+<span className="inline-flex items-center gap-2">
 <button onClick={() => revoke(m.membershipId)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
+<button onClick={() => resetMemberPassword(m.user?.id, m.user?.email)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Reset link</button>
+{m.verificationPending && (
+<button onClick={() => activateMember(m.user?.id, m.user?.email)} className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700">Activate</button>
+)}
+</span>
 )}
 </td>
 </tr>
@@ -188,12 +216,12 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
                 {inv.status}
 </span>
 <span className="text-[10px] text-slate-400">
-                expires {new Date(inv.expires_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
+                expires {new Date(inv.expiresAt).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
 </span>
 <div className="ml-auto flex items-center gap-3">
                   {inv.status === 'PENDING' && (
 <>
-<button onClick={() => copyInviteLink(inv.token)} className="text-[11px] font-bold text-brand-600 hover:text-brand-700">Copy link</button>
+<button onClick={() => copyInviteLink(inv.inviteUrl)} className="text-[11px] font-bold text-brand-600 hover:text-brand-700">Copy link</button>
 <button onClick={() => regenerateInvite(inv.id)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Regenerate</button>
 <button onClick={() => revokeInvite(inv.id)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
 </>

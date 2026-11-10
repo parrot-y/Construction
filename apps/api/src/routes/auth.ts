@@ -1,8 +1,22 @@
 import crypto from 'node:crypto';
 import { hashPassword, prisma, recordAuditLog, verifyPassword, withTenantTx } from '@construction/db';
 import { getPermissionsForRole, Role } from '@construction/permissions';
-import { AuthUserResponse, LoginRequestSchema, RegisterCompanySchema } from '@construction/validation';
+import {
+  AuthUserResponse,
+  LoginRequestSchema,
+  RegisterCompanySchema,
+  RequestPasswordResetSchema,
+  ResetPasswordSchema,
+  VerifyEmailSchema,
+} from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import {
+  consumeEmailVerificationToken,
+  issueEmailVerificationToken,
+  issuePasswordResetToken,
+  lookupPasswordResetToken,
+  passwordResetUrl,
+} from '../lib/accountTokens';
 
 interface LoginAttempt {
   count: number;
@@ -127,6 +141,18 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     // Reset failed login counter on successful authentication
     failedLoginsMap.delete(clientIp);
 
+    // Account verification gate: self-serve accounts (register-company,
+    // invite accept) cannot sign in until email/phone is verified or a company
+    // admin activates them. Credentials were valid — this is not a failed
+    // login attempt and must not feed the lockout counter.
+    if (!user.email_verified_at && !user.phone_verified_at) {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        code: 'ACCOUNT_NOT_VERIFIED',
+        message: 'Verify your email address, or ask your company administrator to activate your account.',
+      });
+    }
+
     // Retrieve tenant memberships via narrow SECURITY DEFINER lookup function without auth_context bypasses (2c)
     const membershipRows = await prisma.$queryRaw<any[]>`
       SELECT * FROM lookup_user_memberships_for_login(${user.id}::uuid);
@@ -227,8 +253,8 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
   // POST /api/v1/auth/register-company
   // Self-serve tenant onboarding: creates tenant + first COMPANY_ADMIN user +
-  // membership atomically. Email/phone verification is a placeholder (columns
-  // exist, verification provider not yet wired — see docs/DEPLOY.md).
+  // membership atomically. The account is NOT usable until the email is
+  // verified (or an admin activates it) — see the login verification gate.
   server.post(
     '/api/v1/auth/register-company',
     {
@@ -304,6 +330,10 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         return { tenant, user, membership };
       });
 
+      // Issue the single-use verification token. Email delivery is simulated
+      // for the pilot, so the raw token is returned outside production.
+      const verificationToken = await issueEmailVerificationToken(created.user.id);
+
       return reply.status(201).send({
         data: {
           tenant: {
@@ -321,10 +351,149 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
           verification: {
             email: 'PENDING',
             phone: 'PENDING',
-            note: 'Verification provider not yet configured — you can sign in now.',
+            note: 'Verify your email address before signing in, or ask your administrator to activate the account.',
           },
+          ...(process.env.NODE_ENV !== 'production' ? { verificationToken } : {}),
         },
       });
+    },
+  );
+
+  // POST /api/v1/auth/verify-email — consume a single-use verification token.
+  server.post(
+    '/api/v1/auth/verify-email',
+    {
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const parseResult = VerifyEmailSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Invalid verification payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+      const result = await consumeEmailVerificationToken(parseResult.data.token);
+      if (result === 'ok') {
+        return reply.status(200).send({ data: { verified: true } });
+      }
+      if (result === 'expired') {
+        return reply.status(410).send({ error: 'Gone', message: 'This verification link has expired' });
+      }
+      return reply.status(400).send({ error: 'Bad Request', message: 'Invalid or already used verification link' });
+    },
+  );
+
+  // POST /api/v1/auth/request-password-reset — self-serve reset request.
+  // Always returns the same shape so the endpoint cannot enumerate accounts.
+  // Email delivery is simulated; outside production the raw token is returned
+  // so the flow is exercisable before a provider is configured.
+  server.post(
+    '/api/v1/auth/request-password-reset',
+    {
+      config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const parseResult = RequestPasswordResetSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Invalid reset request payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const email = parseResult.data.email.toLowerCase().trim();
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      let resetToken: string | null = null;
+      let resetUrl: string | null = null;
+      if (user && user.is_active) {
+        // The token is tenant-scoped for RLS; use the user's first membership.
+        const membershipRows = await prisma.$queryRaw<{ tenant_id: string }[]>`
+          SELECT tenant_id FROM lookup_user_memberships_for_login(${user.id}::uuid) LIMIT 1;
+        `;
+        const tenantId = membershipRows[0]?.tenant_id;
+        if (tenantId) {
+          resetToken = await issuePasswordResetToken(user.id, tenantId);
+          resetUrl = passwordResetUrl(resetToken);
+        }
+      }
+
+      return reply.status(200).send({
+        data: {
+          ok: true,
+          // Simulated delivery: expose the link only outside production.
+          ...(process.env.NODE_ENV !== 'production' && resetToken
+            ? { resetToken, resetUrl }
+            : {}),
+        },
+      });
+    },
+  );
+
+  // POST /api/v1/auth/reset-password — consume a single-use reset token.
+  server.post(
+    '/api/v1/auth/reset-password',
+    {
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const parseResult = ResetPasswordSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Invalid reset payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const row = await lookupPasswordResetToken(parseResult.data.token);
+      if (!row || row.used_at) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Invalid or already used reset link' });
+      }
+      if (row.expires_at < new Date()) {
+        return reply.status(410).send({ error: 'Gone', message: 'This reset link has expired' });
+      }
+
+      const passwordHash = await hashPassword(parseResult.data.password);
+
+      // Consume atomically: a concurrent replay sees used_at already set.
+      const consumed = await withTenantTx(prisma, row.tenant_id, async (tx) => {
+        const res = await tx.passwordResetToken.updateMany({
+          where: { id: row.id, used_at: null },
+          data: { used_at: new Date() },
+        });
+        if (res.count === 0) return false;
+        await tx.user.update({ where: { id: row.user_id }, data: { password_hash: passwordHash } });
+        await tx.refreshToken.deleteMany({ where: { user_id: row.user_id, tenant_id: row.tenant_id } });
+        await recordAuditLog(tx, {
+          tenantId: row.tenant_id,
+          actorId: row.user_id,
+          action: 'PASSWORD_RESET_COMPLETED',
+          entityType: 'User',
+          entityId: row.user_id,
+          changes: { via: 'self-serve token' },
+        });
+        return true;
+      });
+      if (!consumed) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Invalid or already used reset link' });
+      }
+
+      // Revoke refresh sessions in the user's other tenants too.
+      const memberships = await prisma.$queryRaw<{ tenant_id: string }[]>`
+        SELECT tenant_id FROM lookup_user_memberships_for_login(${row.user_id}::uuid);
+      `;
+      for (const m of memberships) {
+        if (m.tenant_id === row.tenant_id) continue;
+        await withTenantTx(prisma, m.tenant_id, (tx) =>
+          tx.refreshToken.deleteMany({ where: { user_id: row.user_id, tenant_id: m.tenant_id } }),
+        );
+      }
+
+      return reply.status(200).send({ data: { ok: true } });
     },
   );
 

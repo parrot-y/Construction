@@ -66,12 +66,13 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     });
     const userB = await prisma.user.upsert({
       where: { email: 'admin@invoices-isolation.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@invoices-isolation.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Test Admin B',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
     await withTenantTx(prisma, tenantB.id, async (tx) => {

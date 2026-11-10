@@ -70,12 +70,13 @@ describe('Milestone M5: Budget, Append-Only Costs & Approvals Suite', () => {
 
     const userB = await prisma.user.upsert({
       where: { email: 'admin@kilimanjarobuilders.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@kilimanjarobuilders.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Juma Bakari',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 

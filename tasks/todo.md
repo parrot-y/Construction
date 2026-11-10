@@ -323,3 +323,24 @@ RegisterCompanySchema — documented in spec header). Failing test first → fix
 - [x] SiteDiaryModal: card now scrolls internally (max-h-90vh overflow-y-auto), header sticky top, action bar sticky bottom → submit always reachable at 390px
 - [x] g-contractor-journey test 9 back to a REAL .click() (requestSubmit workaround removed) — 14/14 green both viewports
 - [x] verify-local.sh GREEN 6/6 on fresh ephemeral cluster (commit 83d8665): lint 6/6, typecheck 8/8, build 3/3, tests 6/6 — API 549/549 → docs/evidence/verify-83d8665.log
+
+## Stage-1 closure punch list (auditor-requested, failing tests first) — IN PROGRESS
+- [x] 1. Password reset: POST /auth/request-password-reset (non-enumerating, rate-limited) + POST /auth/reset-password (single-use, expiring, hashed tokens in accountTokens.ts); admin-assisted one-time reset link POST /company/members/:id/reset-link; "Forgot password?" on LoginForm + PasswordResetViews
+- [x] 2. Account verification gate: register-company + invite-accept accounts cannot log in until email_verified/phone_verified/admin-activated; POST /auth/verify-email; admin activation endpoint; invite token no longer returned to inviter — inviteUrl copy-and-send only; invitee must set own password at accept
+- [x] 3. Invite role limits: packages/permissions role-hierarchy — only COMPANY_ADMIN invites ADMIN/COMPANY_ADMIN; others only below own role; tested per role in account-lifecycle.test.ts
+- [x] 4. Existing-account invite: requires account password confirm before membership; response reports company+role; existing password untouched
+- [x] 5. font-mono audit: before 454 → after 450 (4 prose usages removed; remainder are codes/numbers/data values per audit)
+- [x] 6. UI click tests: e2e/tests/i-stage1-ui-clicks.spec.ts — cert builder→draft→submit, invoice create→send→record payment, valuation claim — real .click() on chromium + mobile-390 (2/2 green)
+- [x] Real bug found by click tests: InvoicingView row "Record payment" set showPayForm(true) then openDetail() reset it to false → payment form never opened; fixed by awaiting openDetail then setting flag
+- [ ] Full API vitest + verify-local.sh + evidence refresh — running
+- [ ] Stage 2 (client/owner): WAIT for auditor spec — do not build
+
+## Review (stage-1 closure punch list)
+- OBSERVED: account-lifecycle.test.ts 9/9 — reset non-enumeration/single-use/expiry/rate-limit, admin reset link, register+invite verification gate, verify-email, admin activation, per-role invite limits, existing-account password confirm
+- OBSERVED: 11 tenant-isolation suites regressed by verification gate → fixture tenant-B users now email_verified_at (they model pre-existing accounts, not the verification flow); 171/171 re-run green
+- OBSERVED: i-stage1-ui-clicks.spec.ts 2/2 (chromium + mobile-390) — real clicks: IPC builder→draft→submit, invoice create→send→record payment, valuation claim; no sideways scroll
+- OBSERVED: real bug fixed — InvoicingView row "Record payment" never opened pay form (openDetail reset showPayForm); g-spec stale net-of-retention expectation corrected to read cert's actual retention_deduction (cap exhaustion made it order-dependent/flaky)
+- OBSERVED: font-mono 454 → 450 (4 prose removals; remainder codes/numbers/data values)
+- OBSERVED: verify-local GREEN — API 558/558 (61 files), lint/typecheck/build/tests 6/6 → docs/evidence/verify-4e948b7.log (pre-commit hash; re-run after commit for final evidence)
+- OBSERVED: full Playwright suite 57/58 then g-spec fix → chromium g 7/7; mobile g was already green
+- Stage 2 (client/owner): NOT STARTED — awaiting auditor spec

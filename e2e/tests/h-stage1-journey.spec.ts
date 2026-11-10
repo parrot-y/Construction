@@ -73,6 +73,13 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
     const res = await request.post(`${API}${CONTRACT.registerCompany}`, { data: company });
     expect(res.status(), `register-company must exist and return 201. Body: ${await res.text()}`).toBe(201);
 
+    // Account verification gate: the admin must verify email before sign-in.
+    const regData = unwrap(await res.json());
+    const verifyToken = regData.verificationToken;
+    expect(verifyToken, 'register-company must issue a verification token').toBeTruthy();
+    const verify = await request.post(`${API}/api/v1/auth/verify-email`, { data: { token: verifyToken } });
+    expect(verify.status(), await verify.text()).toBe(200);
+
     // Duplicate sign-up with the same email must be refused (no tenant takeover).
     const dup = await request.post(`${API}${CONTRACT.registerCompany}`, { data: company });
     expect([400, 409]).toContain(dup.status());
@@ -103,8 +110,11 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
       const res = await apiPost(request, admin, '/api/v1/invitations', { email, role: m.role });
       expect(res.status(), await res.text()).toBe(201);
       const inv = unwrap(await res.json());
-      expect(inv.token).toBeTruthy();
-      state.invites[m.key] = { token: inv.token, email, role: m.role };
+      // Copy-and-send link contract: no bare token field in the response.
+      const token = new URL(inv.inviteUrl, API).searchParams.get('invite')!;
+      expect(token).toBeTruthy();
+      expect(inv.token).toBeUndefined();
+      state.invites[m.key] = { token, email, role: m.role };
     }
 
     // Admin can see the pending invites.
@@ -129,6 +139,11 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
         data: { token: inv.token, fullName: m.name, password: PASSWORD },
       });
       expect(acc.status(), await acc.text()).toBeLessThan(300);
+      const accData = unwrap(await acc.json());
+      expect(accData.pendingVerification).toBe(true);
+      // Invite-accepted accounts verify email before first sign-in.
+      const invVerify = await request.post(`${API}/api/v1/auth/verify-email`, { data: { token: accData.verificationToken } });
+      expect(invVerify.status(), await invVerify.text()).toBe(200);
       state.sessions[m.key] = await asUser(request, inv.email);
       expect(state.sessions[m.key].user.role).toBe(m.role);
 

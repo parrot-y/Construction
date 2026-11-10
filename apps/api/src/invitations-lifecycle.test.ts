@@ -4,6 +4,10 @@ import { prisma, withTenantTx } from '@construction/db';
 
 const RUN = Date.now().toString(36);
 
+// Invite responses expose a copy-and-send link, not a bare token.
+const inviteTokenOf = (data: any): string =>
+  new URL(data.inviteUrl, 'http://x').searchParams.get('invite')!;
+
 async function adminToken(server: any): Promise<string> {
   const res = await server.inject({
     method: 'POST',
@@ -36,7 +40,7 @@ describe('Invitation lifecycle — lookup, accept, admin management', () => {
       payload: { email, role: 'SITE_ENGINEER' },
     });
     expect(inv.statusCode).toBe(201);
-    const inviteToken = JSON.parse(inv.payload).data.token;
+    const inviteToken = inviteTokenOf(JSON.parse(inv.payload).data);
 
     const res = await server.inject({ method: 'GET', url: `/api/v1/invitations/lookup/${inviteToken}` });
     expect(res.statusCode).toBe(200);
@@ -63,7 +67,7 @@ describe('Invitation lifecycle — lookup, accept, admin management', () => {
       headers: { authorization: `Bearer ${token}` },
       payload: { email: `right-${RUN}@example.co.ke`, role: 'PM_QS' },
     });
-    const inviteToken = JSON.parse(inv.payload).data.token;
+    const inviteToken = inviteTokenOf(JSON.parse(inv.payload).data);
 
     const res = await server.inject({
       method: 'POST',
@@ -87,7 +91,7 @@ describe('Invitation lifecycle — lookup, accept, admin management', () => {
       headers: { authorization: `Bearer ${token}` },
       payload: { email, role: 'SITE_SUPERVISOR' },
     });
-    const inviteToken = JSON.parse(inv.payload).data.token;
+    const inviteToken = inviteTokenOf(JSON.parse(inv.payload).data);
 
     const res = await server.inject({
       method: 'POST',
@@ -95,6 +99,14 @@ describe('Invitation lifecycle — lookup, accept, admin management', () => {
       payload: { token: inviteToken, email, fullName: 'Accepted User', password: 'Str0ng!Pass' },
     });
     expect(res.statusCode).toBe(200);
+    // New accounts must verify email (simulated token) before first login.
+    const verificationToken = JSON.parse(res.payload).data.verificationToken;
+    expect(verificationToken).toBeTruthy();
+    await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { token: verificationToken },
+    });
 
     const login = await server.inject({
       method: 'POST',
@@ -129,7 +141,7 @@ describe('Invitation lifecycle — lookup, accept, admin management', () => {
       method: 'POST',
       url: '/api/v1/invitations/accept',
       payload: {
-        token: toAccept.token,
+        token: inviteTokenOf(toAccept),
         email: `list-accept-${RUN}@example.co.ke`,
         fullName: 'List Acceptor',
         password: 'Str0ng!Pass',
@@ -166,14 +178,14 @@ describe('Invitation lifecycle — lookup, accept, admin management', () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(regen.statusCode).toBe(200);
-    const newToken = JSON.parse(regen.payload).data.token;
-    expect(newToken).not.toBe(invite.token);
+    const newToken = inviteTokenOf(JSON.parse(regen.payload).data);
+    expect(newToken).not.toBe(inviteTokenOf(invite));
 
     // Old token must fail
     const oldAccept = await server.inject({
       method: 'POST',
       url: '/api/v1/invitations/accept',
-      payload: { token: invite.token, email: `regen-${RUN}@example.co.ke`, fullName: 'R', password: 'Str0ng!Pass' },
+      payload: { token: inviteTokenOf(invite), email: `regen-${RUN}@example.co.ke`, fullName: 'R', password: 'Str0ng!Pass' },
     });
     expect(oldAccept.statusCode).toBe(400);
 
@@ -202,7 +214,7 @@ describe('Invitation lifecycle — lookup, accept, admin management', () => {
     const acc = await server.inject({
       method: 'POST',
       url: '/api/v1/invitations/accept',
-      payload: { token: invite2.token, email: `revoked-${RUN}@example.co.ke`, fullName: 'X', password: 'Str0ng!Pass' },
+      payload: { token: inviteTokenOf(invite2), email: `revoked-${RUN}@example.co.ke`, fullName: 'X', password: 'Str0ng!Pass' },
     });
     expect(acc.statusCode).toBe(400);
   });
@@ -230,7 +242,7 @@ describe('Invitation lifecycle — lookup, accept, admin management', () => {
     const res = await server.inject({
       method: 'POST',
       url: '/api/v1/invitations/accept',
-      payload: { token: invite.token, email, fullName: 'Late', password: 'Str0ng!Pass' },
+      payload: { token: inviteTokenOf(invite), email, fullName: 'Late', password: 'Str0ng!Pass' },
     });
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.payload).message).toMatch(/expired/i);

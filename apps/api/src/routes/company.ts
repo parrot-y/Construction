@@ -1,5 +1,6 @@
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { getTaxSettings } from '../lib/tax';
+import { issuePasswordResetToken, passwordResetUrl } from '../lib/accountTokens';
 import { TaxSettingsSchema } from '@construction/validation';
 import { Permissions, Roles } from '@construction/permissions';
 import { toDecimal, Decimal } from '@construction/money';
@@ -96,6 +97,8 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
                 full_name: true,
                 phone_number: true,
                 is_active: true,
+                email_verified_at: true,
+                phone_verified_at: true,
                 created_at: true,
               },
             },
@@ -110,6 +113,7 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
         coApprovalLimit: m.co_approval_limit ? m.co_approval_limit.toFixed(2) : null,
         joinedAt: m.created_at,
         user: m.user,
+        verificationPending: !m.user.email_verified_at && !m.user.phone_verified_at,
       }));
 
       return reply.status(200).send({ data: formatted });
@@ -346,6 +350,100 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           error: 'Internal Server Error',
           message: 'Failed to revoke membership',
         });
+      }
+    },
+  );
+
+  // POST /api/v1/company/members/:userId/password-reset — admin-assisted
+  // reset: mints a one-time reset link the admin copies and sends to the
+  // member out-of-band (email delivery is simulated for the pilot).
+  server.post(
+    '/api/v1/company/members/:userId/password-reset',
+    {
+      preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_MANAGE)],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { userId } = request.params as { userId: string };
+
+      const membership = await withTenantTx(prisma, tenantId, (tx) =>
+        tx.membership.findFirst({
+          where: { tenant_id: tenantId, user_id: userId },
+          include: { user: { select: { id: true, email: true, is_active: true } } },
+        }),
+      );
+      if (!membership) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Member not found in this company' });
+      }
+      if (!membership.user.is_active) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Cannot issue a reset link for a deactivated account' });
+      }
+
+      const token = await issuePasswordResetToken(userId, tenantId, sub);
+      await withTenantTx(prisma, tenantId, (tx) =>
+        recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          action: 'MEMBER_PASSWORD_RESET_LINK_GENERATED',
+          entityType: 'User',
+          entityId: userId,
+          changes: { memberEmail: membership.user.email },
+        }),
+      );
+
+      return reply.status(201).send({
+        data: {
+          resetUrl: passwordResetUrl(token),
+          expiresInMinutes: 30,
+          memberEmail: membership.user.email,
+        },
+      });
+    },
+  );
+
+  // POST /api/v1/company/members/:userId/activate — admin-approved activation
+  // for accounts whose email/phone verification cannot complete yet (pilot
+  // path while delivery providers are unconfigured).
+  server.post(
+    '/api/v1/company/members/:userId/activate',
+    {
+      preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_MANAGE)],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { userId } = request.params as { userId: string };
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const membership = await tx.membership.findFirst({
+            where: { tenant_id: tenantId, user_id: userId },
+            include: { user: { select: { id: true, email: true, email_verified_at: true, phone_verified_at: true } } },
+          });
+          if (!membership) throw { status: 404, message: 'Member not found in this company' };
+
+          const alreadyVerified = !!(membership.user.email_verified_at || membership.user.phone_verified_at);
+          if (!alreadyVerified) {
+            await tx.user.update({
+              where: { id: userId },
+              data: { email_verified_at: new Date() },
+            });
+          }
+          await recordAuditLog(tx, {
+            tenantId,
+            actorId: sub,
+            action: 'MEMBER_ACTIVATED',
+            entityType: 'User',
+            entityId: userId,
+            changes: { memberEmail: membership.user.email, alreadyVerified },
+          });
+          return { activated: true, alreadyVerified, memberEmail: membership.user.email };
+        });
+        return reply.status(200).send({ data: result });
+      } catch (err: any) {
+        if (err?.status) {
+          return reply.status(err.status).send({ error: 'Not Found', message: err.message });
+        }
+        throw err;
       }
     },
   );

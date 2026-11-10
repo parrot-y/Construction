@@ -137,11 +137,18 @@ describe('Contractor lifecycle — money integrity', () => {
       },
     });
     expect(reg.statusCode).toBe(201);
+    const verificationToken = JSON.parse(reg.payload).data.verificationToken;
+    await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { token: verificationToken },
+    });
     const loginRes = await server.inject({
       method: 'POST',
       url: '/api/v1/auth/login',
       payload: { email, password: 'Str0ng!Pass' },
     });
+    expect(loginRes.statusCode).toBe(200);
     const freshToken = JSON.parse(loginRes.payload).token;
     const freshGet = await server.inject({
       method: 'GET',

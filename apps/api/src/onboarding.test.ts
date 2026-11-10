@@ -55,10 +55,26 @@ describe('Company onboarding — POST /api/v1/auth/register-company', () => {
     );
     expect(audit).not.toBeNull();
 
-    // Verification placeholder columns exist and are unset
+    // Account starts unverified — login is gated until verification.
     expect((user as any).email_verified_at).toBeNull();
+    const blockedLogin = await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email, password: 'Str0ng!Pass' },
+    });
+    expect(blockedLogin.statusCode).toBe(403);
 
-    // New admin can log in through the normal flow
+    // Simulated delivery returns the verification token; consume it once.
+    const verificationToken = body.data.verificationToken;
+    expect(verificationToken).toBeTruthy();
+    const verify = await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { token: verificationToken },
+    });
+    expect(verify.statusCode).toBe(200);
+
+    // New admin can now log in through the normal flow
     const login = await server.inject({
       method: 'POST',
       url: '/api/v1/auth/login',

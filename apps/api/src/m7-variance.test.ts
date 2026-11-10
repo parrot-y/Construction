@@ -78,12 +78,13 @@ describe('Milestone M7: Variance Flags, Section Breakdown & Project Dashboard Su
 
     const userB = await prisma.user.upsert({
       where: { email: 'auditor@kilimanjarovariance.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'auditor@kilimanjarovariance.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'David Omondi',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 

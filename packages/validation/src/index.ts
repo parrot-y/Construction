@@ -272,9 +272,28 @@ export const AcceptInvitationSchema = z.object({
   // match the invitation (wrong-email tokens are still rejected).
   email: z.string().email({ message: 'Must be the invited email address' }).optional(),
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters long' }).max(255),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128).optional(),
+  // Required: the invitee always sets/confirms their own password. For an
+  // existing account this must be their CURRENT password (identity proof);
+  // for a new account it becomes their password.
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128),
 });
 export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
+
+export const RequestPasswordResetSchema = z.object({
+  email: z.string().email({ message: 'Must be a valid email address' }),
+});
+export type RequestPasswordReset = z.infer<typeof RequestPasswordResetSchema>;
+
+export const ResetPasswordSchema = z.object({
+  token: z.string().min(16, { message: 'Invalid reset token' }).max(128),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128),
+});
+export type ResetPassword = z.infer<typeof ResetPasswordSchema>;
+
+export const VerifyEmailSchema = z.object({
+  token: z.string().min(16, { message: 'Invalid verification token' }).max(128),
+});
+export type VerifyEmail = z.infer<typeof VerifyEmailSchema>;
 
 export type AuthUserResponse = z.infer<typeof AuthUserResponseSchema>;
 

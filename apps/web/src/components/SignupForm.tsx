@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { AuthSession } from '../types/auth';
 
 interface SignupFormProps {
-  onLoginSuccess: (session: AuthSession) => void;
+  onLoginSuccess?: (session: AuthSession) => void;
   apiBaseUrl?: string;
 }
 
-export default function SignupForm({ onLoginSuccess, apiBaseUrl = '' }: SignupFormProps): React.JSX.Element {
+export default function SignupForm({ apiBaseUrl = '' }: SignupFormProps): React.JSX.Element {
   const [companyName, setCompanyName] = useState('');
   const [adminFullName, setAdminFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -15,6 +15,7 @@ export default function SignupForm({ onLoginSuccess, apiBaseUrl = '' }: SignupFo
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [registered, setRegistered] = useState<{ companyName: string; email: string; verifyUrl: string | null } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,18 +36,14 @@ export default function SignupForm({ onLoginSuccess, apiBaseUrl = '' }: SignupFo
       if (!res.ok) {
         throw new Error(data.message || 'Registration failed. Please try again.');
       }
-      // Registration does not issue a session — sign in through the normal flow.
-      const loginRes = await fetch(`${apiBaseUrl}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
+      // Account created but gated: the admin must verify their email (or be
+      // activated) before the first sign-in.
+      const verificationToken = data.data?.verificationToken;
+      setRegistered({
+        companyName: data.data?.tenant?.name || companyName,
+        email,
+        verifyUrl: verificationToken ? `${window.location.origin}/?verify=${verificationToken}` : null,
       });
-      const session = await loginRes.json();
-      if (!loginRes.ok) {
-        throw new Error('Account created — please sign in.');
-      }
-      onLoginSuccess(session as AuthSession);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Registration failed.');
     } finally {
@@ -57,6 +54,37 @@ export default function SignupForm({ onLoginSuccess, apiBaseUrl = '' }: SignupFo
   const inputCls =
     'w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[44px]';
   const labelCls = 'block text-sm font-medium text-slate-700 mb-1';
+
+  if (registered) {
+    return (
+      <div className="w-full max-w-md mx-auto">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-bold text-slate-900">Workspace created</h1>
+          <div className="mt-4 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800" role="status">
+            {registered.companyName} is ready. Verify your email address to activate your admin account.
+          </div>
+          {registered.verifyUrl && (
+            <p className="mt-3 text-xs text-slate-500">
+              Verification link (simulated delivery — production sends this by email):{' '}
+              <a href={registered.verifyUrl} className="font-semibold text-brand-600 hover:underline break-all">
+                {registered.verifyUrl}
+              </a>
+            </p>
+          )}
+          <p className="mt-3 text-xs text-slate-500">
+            Until then you cannot sign in. If email delivery is not configured, ask your onboarding contact to activate the account.
+          </p>
+          <button
+            type="button"
+            onClick={() => { window.location.href = '/'; }}
+            className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]"
+          >
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -113,7 +141,7 @@ export default function SignupForm({ onLoginSuccess, apiBaseUrl = '' }: SignupFo
           </button>
         </form>
         <p className="mt-4 text-xs text-slate-500">
-          Email and phone verification is not yet enabled — you can sign in immediately after signup.
+          You will verify your email address before your first sign-in.
         </p>
       </div>
     </div>

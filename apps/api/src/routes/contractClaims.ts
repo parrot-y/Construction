@@ -217,7 +217,7 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
   // MODULE 2: KRA STATUTORY WITHHOLDING TAX (CAP 470) & WHVAT CERTIFICATES
   // ===========================================================================
 
-  // 2.1 Generate Statutory Tax Certificate (3% WHT, 2% WHVAT)
+  // 2.1 Generate Statutory Tax Certificate (WHT + WHVAT rates from tenant tax settings)
   server.post(
     '/api/v1/projects/:projectId/tax-certificates',
     { preHandler: [server.authenticate] },

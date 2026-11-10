@@ -72,12 +72,13 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
 
     const userB = await prisma.user.upsert({
       where: { email: 'supervisor@kilimanjaroops.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'supervisor@kilimanjaroops.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Peter Rotich',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 

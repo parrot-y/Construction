@@ -596,7 +596,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 </span>
 )}
 </td>
-<td className="p-3 font-mono text-[11px] text-slate-400 truncate max-w-[150px]">
+<td className="p-3 text-[11px] text-slate-400 truncate max-w-[150px]">
                     {evt.photoSelfieUrl ? 'Photo Verified' : 'No Photo'}
 </td>
 <td className="p-3 text-slate-400">

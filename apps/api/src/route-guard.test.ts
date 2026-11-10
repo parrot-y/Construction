@@ -22,6 +22,9 @@ const ROUTES_DIR = join(__dirname, 'routes');
 const UNAUTHENTICATED_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/auth/login': 'Credential exchange — issues the session',
   'POST /api/v1/auth/register-company': 'Self-serve tenant signup — creates tenant+admin, issues no session, rate limited',
+  'POST /api/v1/auth/verify-email': 'Single-use email verification token (hash lookup, rate limited)',
+  'POST /api/v1/auth/request-password-reset': 'Uniform-response reset request — cannot enumerate users, rate limited',
+  'POST /api/v1/auth/reset-password': 'Single-use expiring reset token (hash lookup, rate limited)',
   'POST /api/v1/auth/refresh': 'Refresh-token rotation via refresh cookie',
   'POST /api/v1/auth/logout': 'Clears session cookies — safe unauthenticated',
   'POST /api/v1/webhooks/site-ops': 'HMAC-signed site-ops webhook (verified in-handler)',

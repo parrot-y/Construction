@@ -136,6 +136,8 @@ export async function seed() {
         where: { email: u.email },
         update: {
           password_hash: defaultPasswordHash,
+          // Seeded demo accounts are pre-verified so they remain usable.
+          email_verified_at: new Date(),
         },
         create: {
           email: u.email,
@@ -143,6 +145,7 @@ export async function seed() {
           full_name: u.full_name,
           phone_number: u.phone_number,
           is_active: true,
+          email_verified_at: new Date(),
         },
       });
 

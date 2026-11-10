@@ -4,6 +4,7 @@ import { AuthSession} from '../types/auth';
 interface LoginFormProps {
   onLoginSuccess: (session: AuthSession) => void;
   onOpenSignup?: () => void;
+  onForgotPassword?: () => void;
   apiBaseUrl?: string;
 }
 
@@ -18,7 +19,7 @@ const DEMO_ACCOUNTS = DEMO_MODE ? [
   { label: 'Client', email: 'client@apexbuilders.co.ke', role: 'CLIENT', badge: 'bg-emerald-100 text-emerald-800'},
 ] : [];
 
-export default function LoginForm({ onLoginSuccess, onOpenSignup, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
+export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPassword, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
   const [email, setEmail] = useState(DEMO_MODE ? 'admin@apexbuilders.co.ke' : '');
   const [password, setPassword] = useState(DEMO_MODE ? 'Password123!' : '');
   const [isLoading, setIsLoading] = useState(false);
@@ -161,6 +162,15 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, apiBaseUrl = '
           >
             {isLoading ? 'Signing in…' : 'Sign in to workspace'}
 </button>
+{onForgotPassword && (
+<button
+            type="button"
+            onClick={onForgotPassword}
+            className="w-full text-center text-xs font-semibold text-slate-500 hover:text-brand-600 transition min-h-[44px] flex items-center justify-center"
+          >
+            Forgot password?
+</button>
+)}
 </form>
 
 {onOpenSignup && (

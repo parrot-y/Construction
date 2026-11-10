@@ -42,6 +42,7 @@ export default function InviteAcceptView({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingVerification, setPendingVerification] = useState<{ verifyUrl: string | null; companyName: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +91,17 @@ export default function InviteAcceptView({
       if (!res.ok) {
         throw new Error(data.message || 'Could not accept invitation');
       }
-      // Sign in immediately with the credentials just set.
+      const acceptData = data.data || {};
+      // New accounts must verify their email before first sign-in.
+      if (acceptData.pendingVerification) {
+        const verificationToken = acceptData.verificationToken;
+        setPendingVerification({
+          verifyUrl: verificationToken ? `${window.location.origin}/?verify=${verificationToken}` : null,
+          companyName: acceptData.companyName || invite.companyName,
+        });
+        return;
+      }
+      // Sign in immediately with the credentials just confirmed/set.
       const loginRes = await fetch(`${apiBaseUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,10 +110,10 @@ export default function InviteAcceptView({
       });
       const session = await loginRes.json();
       if (!loginRes.ok) {
-        // Invite accepted but this email already had an account with a
-        // different password — direct the user to sign in normally.
+        // Invite accepted but sign-in is still gated (e.g. verification
+        // pending on an existing unverified account).
         setErrorMessage(
-          'Invitation accepted. This email already has an account — please sign in with your existing password.',
+          'Invitation accepted. Your account still needs verification — check your email or ask your administrator to activate it, then sign in.',
         );
         return;
       }
@@ -138,6 +149,33 @@ export default function InviteAcceptView({
           <div className="h-6 w-2/3 rounded bg-slate-200 animate-pulse" />
           <div className="mt-3 h-4 w-full rounded bg-slate-100 animate-pulse" />
           <div className="mt-2 h-4 w-5/6 rounded bg-slate-100 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (pendingVerification) {
+    return (
+      <div className="w-full max-w-md mx-auto">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-bold text-slate-900">Invitation accepted</h1>
+          <div className="mt-4 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800" role="status">
+            You joined {pendingVerification.companyName}. Verify your email address to activate your account.
+          </div>
+          {pendingVerification.verifyUrl && (
+            <p className="mt-3 text-xs text-slate-500">
+              Verification link (simulated delivery — production sends this by email):{' '}
+              <a href={pendingVerification.verifyUrl} className="font-semibold text-brand-600 hover:underline break-all">
+                {pendingVerification.verifyUrl}
+              </a>
+            </p>
+          )}
+          <p className="mt-3 text-xs text-slate-500">
+            Until then you cannot sign in. If email delivery is not configured, ask your administrator to activate the account.
+          </p>
+          <button onClick={onBack} className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
+            Back to Site Safi
+          </button>
         </div>
       </div>
     );
@@ -183,10 +221,13 @@ export default function InviteAcceptView({
                   placeholder="e.g. Jane Wanjiru" autoComplete="name" />
               </div>
               <div>
-                <label htmlFor="invite-password" className={labelCls}>Set a password</label>
+                <label htmlFor="invite-password" className={labelCls}>Password</label>
                 <input id="invite-password" type="password" required minLength={8} value={password}
                   onChange={(e) => setPassword(e.target.value)} className={inputCls}
                   placeholder="At least 8 characters" autoComplete="new-password" />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  New to Site Safi? Choose a password. Already have an account with this email? Enter your existing password to confirm it is you.
+                </p>
               </div>
               <div>
                 <label htmlFor="invite-confirm" className={labelCls}>Confirm password</label>
@@ -196,7 +237,7 @@ export default function InviteAcceptView({
               </div>
               <button type="submit" disabled={isLoading}
                 className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 min-h-[44px]">
-                {isLoading ? 'Accepting…' : 'Accept invitation & sign in'}
+                {isLoading ? 'Accepting…' : 'Accept invitation'}
               </button>
             </form>
           </>

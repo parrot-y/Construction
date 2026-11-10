@@ -63,12 +63,13 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
 
     const userB = await prisma.user.upsert({
       where: { email: 'admin@kilimanjarodev-m9.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@kilimanjarodev-m9.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Daniel Kiptoo',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 

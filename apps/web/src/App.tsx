@@ -2,6 +2,7 @@ import React, { useState, useEffect} from 'react';
 import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
 import InviteAcceptView from './components/InviteAcceptView';
+import { RequestPasswordResetView, ResetPasswordView, VerifyEmailView } from './components/PasswordResetViews';
 import Dashboard from './components/Dashboard';
 import LandingPortalHub from './components/LandingPortalHub';
 import ConsultantPortalView from './components/portals/ConsultantPortalView';
@@ -28,7 +29,10 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
 } | null>(initialPortal || null);
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [showSignupForm, setShowSignupForm] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [verifyToken, setVerifyToken] = useState<string | null>(null);
 
   useEffect(() => {
     // One-time migration of the legacy `mjengo_*` offline queue to `sitesafi_*`
@@ -46,6 +50,14 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
       const invite = params.get('invite');
       if (invite) {
         setInviteToken(invite);
+}
+      const reset = params.get('reset');
+      if (reset) {
+        setResetToken(reset);
+}
+      const verify = params.get('verify');
+      if (verify) {
+        setVerifyToken(verify);
 }
 }
 }, [externalPortal]);
@@ -157,13 +169,37 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
 );
 }
 
+  // 3a-i. Password reset link (?reset=<token>) — single-use, expiring.
+  if (resetToken) {
+    return (
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<ResetPasswordView
+        token={resetToken}
+        onDone={() => { setResetToken(null); window.history.replaceState({}, '', '/'); setShowLoginForm(true); }}
+      />
+</main>
+);
+}
+
+  // 3a-ii. Email verification link (?verify=<token>) — single-use.
+  if (verifyToken) {
+    return (
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<VerifyEmailView
+        token={verifyToken}
+        onDone={() => { setVerifyToken(null); window.history.replaceState({}, '', '/'); setShowLoginForm(true); }}
+      />
+</main>
+);
+}
+
   // 3. Login form view toggle
   if (showLoginForm) {
     return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
 <div className="w-full max-w-md mx-auto mb-4">
 <button
-            onClick={() => setShowLoginForm(false)}
+            onClick={() => { setShowLoginForm(false); setShowPasswordReset(false); }}
             data-testid="back-to-landing-btn"
             className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition"
           >
@@ -171,10 +207,15 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
 <span>Back to Site Safi Landing Portal Hub</span>
 </button>
 </div>
+{showPasswordReset ? (
+<RequestPasswordResetView onBack={() => setShowPasswordReset(false)} />
+) : (
 <LoginForm
           onLoginSuccess={(newSession) => setSession(newSession)}
           onOpenSignup={() => { setShowLoginForm(false); setShowSignupForm(true); }}
+          onForgotPassword={() => setShowPasswordReset(true)}
         />
+)}
 </main>
 );
 }

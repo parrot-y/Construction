@@ -541,7 +541,7 @@ export default function InvoicingView(): React.JSX.Element {
 </button>
 )}
                       {(inv.status === 'SENT' || inv.status === 'PART_PAID' || inv.status === 'OVERDUE') && (
-<button onClick={() => { setExpandedId(inv.id); setShowPayForm(true); openDetail(inv.id);}}
+<button onClick={async () => { await openDetail(inv.id); setShowPayForm(true); }}
                           className="px-2 py-1 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded">
                           Record payment
 </button>
