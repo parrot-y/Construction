@@ -206,16 +206,22 @@ export const VariationQuantitySchema = z
     message: 'Variation quantity must be a decimal with up to 4 decimal places (positive for additions, negative for omissions)',
   });
 
+const decimalOrNumber = (schema: z.ZodString) =>
+  z
+    .union([schema, z.number().finite()])
+    .transform((v) => (typeof v === 'number' ? String(v) : v));
+
 export const VariationItemInputSchema = z.object({
   boqItemId: z.string().uuid().optional().nullable(),
   description: z.string().min(2).max(1000),
   unit: z.string().min(1).max(20),
-  quantity: VariationQuantitySchema,
-  unitRate: UnitRateSchema,
+  quantity: decimalOrNumber(VariationQuantitySchema),
+  unitRate: decimalOrNumber(UnitRateSchema),
 });
 export type VariationItemInput = z.infer<typeof VariationItemInputSchema>;
 
 export const VariationTriggerTypeSchema = z.enum([
+  'CLIENT_REQUEST',
   'DESIGN_CLARIFICATION',
   'OWNER_REQUEST',
   'UNFORESEEN_CONDITION',
@@ -262,7 +268,9 @@ export type ClientVariationRespond = z.infer<typeof ClientVariationRespondSchema
 
 export const AcceptInvitationSchema = z.object({
   token: z.string().min(16, { message: 'Invalid invitation token' }).max(128),
-  email: z.string().email({ message: 'Must be the invited email address' }),
+  // Optional: when omitted the invited email is used. When supplied it must
+  // match the invitation (wrong-email tokens are still rejected).
+  email: z.string().email({ message: 'Must be the invited email address' }).optional(),
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters long' }).max(255),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128).optional(),
 });
@@ -1840,7 +1848,8 @@ export const UpdatePaymentCertificateSchema = z.object({
 export type UpdatePaymentCertificate = z.infer<typeof UpdatePaymentCertificateSchema>;
 
 export const CreateInvoiceFromCertificateSchema = z.object({
-  clientName: z.string().min(2).max(255),
+  // Optional — falls back to the accepted quote's client, then the project name.
+  clientName: z.string().min(2).max(255).optional(),
   clientEmail: z.string().email().optional().nullable(),
   clientPhone: z.string().max(50).optional().nullable(),
   billTo: z.string().max(2000).optional().nullable(),

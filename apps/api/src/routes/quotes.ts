@@ -503,6 +503,15 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
             const depositPctNum = Number(quote.deposit_pct ?? 0);
             const depositAmt = toDecimal(quote.deposit_amount?.toString() ?? '0');
             if (depositPctNum > 0 && depositAmt.gt(0)) {
+              // deposit_amount is a percentage of the quote TOTAL (VAT-inclusive).
+              // Split it back into net + VAT at the quote's tax rate so the
+              // invoice carries a real tax_pct instead of a silent 0%.
+              const quoteVatPct = toDecimal(quote.tax_pct?.toString() ?? '0');
+              const vatDivisor = new Decimal(1).plus(quoteVatPct.dividedBy(100));
+              const depositNet = vatDivisor.gt(0)
+                ? depositAmt.dividedBy(vatDivisor).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+                : depositAmt;
+              const depositVat = depositAmt.minus(depositNet).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
               const invAgg = await tx.invoice.aggregate({
                 where: { tenant_id: tenantId },
                 _max: { invoice_no: true },
@@ -522,9 +531,9 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
                   quote_id: quote.id,
                   currency: quote.currency,
                   status: 'DRAFT',
-                  subtotal: depositAmt,
-                  tax_pct: 0,
-                  tax_amount: 0,
+                  subtotal: depositNet,
+                  tax_pct: quoteVatPct.toDecimalPlaces(2).toFixed(2),
+                  tax_amount: depositVat,
                   total: depositAmt,
                   balance_due: depositAmt,
                   issue_date: issueDate,
@@ -538,10 +547,23 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
                         description: `Mobilization deposit (${depositPctNum}% of contract sum) — ${quote.title}`,
                         unit: 'sum',
                         quantity: 1,
-                        unit_rate: depositAmt,
-                        total_amount: depositAmt,
+                        unit_rate: depositNet,
+                        total_amount: depositNet,
                         sort_order: 0,
                       },
+                      ...(depositVat.gt(0)
+                        ? [
+                            {
+                              tenant_id: tenantId,
+                              description: `VAT @ ${quoteVatPct.toDecimalPlaces(2).toFixed(2)}% (included in deposit)`,
+                              unit: 'item',
+                              quantity: 1,
+                              unit_rate: depositVat,
+                              total_amount: depositVat,
+                              sort_order: 1,
+                            },
+                          ]
+                        : []),
                     ],
                   },
                 },

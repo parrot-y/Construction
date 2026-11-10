@@ -236,8 +236,9 @@ describe('Contractor lifecycle — money integrity', () => {
     const invoice = JSON.parse(inv.payload).data.invoice ?? JSON.parse(inv.payload).data;
     expect(invoice.certificateId ?? invoice.certificate_id).toBeTruthy();
 
-    // VAT = 8% (tenant setting), WHT contractor = 2%
-    const subtotal = toDecimal('49000.00');
+    // Invoice bills net-of-retention: 49000 - 5% retention (2450) = 46550.
+    // VAT = 8% (tenant setting) on that base; WHT contractor = 2% on base+VAT.
+    const subtotal = toDecimal('49000.00').minus(toDecimal('49000.00').times('0.05'));
     const vat = subtotal.times('0.08');
     const whtBase = subtotal.plus(vat);
     const wht = whtBase.times('0.02');

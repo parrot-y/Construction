@@ -60,6 +60,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const TRIGGER_LABELS: Record<string, string> = {
+  CLIENT_REQUEST: 'Client request',
   DESIGN_CLARIFICATION: 'Design clarification',
   OWNER_REQUEST: 'Owner request',
   UNFORESEEN_CONDITION: 'Unforeseen condition',

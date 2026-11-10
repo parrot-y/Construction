@@ -88,6 +88,60 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     },
   );
 
+  // GET /api/v1/projects/:id/checklist — guided onboarding checklist computed
+  // from real project data. Each step reports done/not-done and deep-links to
+  // the console section that completes it.
+  server.get(
+    '/api/v1/projects/:id/checklist',
+    {
+      preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { id } = request.params as { id: string };
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const steps = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findUnique({ where: { id }, select: { id: true, closeout_stage: true } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const [acceptedQuote, activeBoq, memberCount, diaryCount, certCount, paidInvoiceCount] = await Promise.all([
+            tx.quote.findFirst({
+              where: { OR: [{ converted_project_id: id }, { project_id: id }] },
+              select: { id: true },
+            }),
+            tx.bOQ.findFirst({ where: { project_id: id, status: { in: ['ACTIVE', 'APPROVED'] } }, select: { id: true } }),
+            tx.projectMember.count({ where: { project_id: id } }),
+            tx.siteDiary.count({ where: { project_id: id } }),
+            tx.paymentCertificate.count({ where: { project_id: id, status: { in: ['CERTIFIED', 'PAID'] } } }),
+            tx.invoice.count({ where: { project_id: id, status: 'PAID' } }),
+          ]);
+
+          const closeoutDone = !['IN_PROGRESS', 'NOT_STARTED'].includes(project.closeout_stage ?? 'IN_PROGRESS');
+
+          return [
+            { key: 'quote', label: 'Quote accepted', done: !!acceptedQuote, href: 'quotes' },
+            { key: 'boq', label: 'BoQ imported', done: !!activeBoq, href: 'boq' },
+            { key: 'team', label: 'Team assigned', done: memberCount >= 2, href: 'team' },
+            { key: 'diary', label: 'First site diary filed', done: diaryCount > 0, href: 'site' },
+            { key: 'certificate', label: 'First payment certificate certified', done: certCount > 0, href: 'certificates' },
+            { key: 'invoice', label: 'First invoice paid', done: paidInvoiceCount > 0, href: 'invoices' },
+            { key: 'closeout', label: 'Project closeout', done: closeoutDone, href: 'closeout' },
+          ];
+        });
+
+        return reply.status(200).send({ data: { steps } });
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ error: 'Error', message: err.message });
+        server.log.error(err);
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to load project checklist' });
+      }
+    },
+  );
+
   // POST /api/v1/projects (requires PROJECT_CREATE) — Gate-4 S8 full onboarding payload
   server.post(
     '/api/v1/projects',

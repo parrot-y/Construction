@@ -1294,6 +1294,8 @@ model SubcontractorValuation {
   paid_at                        DateTime?            @db.Timestamptz
   prepared_by_id                 String?              @db.Uuid
   submitted_at                   DateTime?            @db.Timestamptz
+  reviewed_by_id                 String?              @db.Uuid
+  reviewed_at                    DateTime?            @db.Timestamptz
   approved_by_id                 String?              @db.Uuid
   approved_at                    DateTime?            @db.Timestamptz
   rejected_by_id                 String?              @db.Uuid

@@ -287,7 +287,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
       });
     }
 
-    if (email.toLowerCase() !== invitation.email.toLowerCase()) {
+    if (email && email.toLowerCase() !== invitation.email.toLowerCase()) {
       return reply.status(403).send({
         error: 'Forbidden',
         message: 'This invitation was issued to a different email address',

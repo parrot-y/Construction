@@ -295,3 +295,26 @@ Failing test first → fix → evidence per item. verify-local green at end.
 - Full API vitest: 544/549 — 4 failures are m10-backup-restore hardcoded port 54329 (env mismatch, pre-existing; verify-local cluster passes them), 1 was the tax-settings pollution now fixed
 - Web: 118/118; E2E: 38/38 (chromium + mobile-390)
 - Honestly unfinished: mobile diary modal submit hit-target quirk worked around via requestSubmit (real layout fix still open); live provider keys + production deploy remain owner-gated
+
+## Auditor stage-1 acceptance spec (e2e/tests/h-stage1-journey.spec.ts) — DONE
+Auditor-written 9-step contract spec run verbatim (CONTRACT constants adjusted for
+route names only: create-invoice + /api/v1/inbox; payload field names aligned to
+RegisterCompanySchema — documented in spec header). Failing test first → fix → evidence.
+
+- [x] Run 1 baseline: register-company 400 (field names), then per-step failures collected
+- [x] AcceptInvitationSchema.email → optional (invitee need not re-type invited email; wrong-email still 403)
+- [x] Cert create with no amount/lines → DERIVES from BoQ progress (deriveProgressCertificate shared with /preview)
+- [x] Cert VAT/WHT base → this-period net of retention (matches invoiced amount); PATCH path same
+- [x] create-invoice: clientName optional (falls back to converted quote client → project name); invoice subtotal = net-of-retention; retention shown as explicit negative line; snake_case aliases added to response
+- [x] Deposit invoice on quote convert now carries real VAT split (was silent tax_pct=0)
+- [x] Valuation segregation: reviewed_by_id/reviewed_at columns (migration 0010); approver must differ from preparer AND reviewer
+- [x] Client portal CO respond accepts PM_REVIEW or OWNER_REVIEW (client IS owner-side authority)
+- [x] VariationItemInputSchema quantity/unitRate accept numbers; triggerType + CLIENT_REQUEST
+- [x] GET /api/v1/projects/:id/checklist — 7 steps from real data (quote/BoQ/team/diary/cert/paid invoice/closeout)
+- [x] Result: 9/9 chromium + 9/9 mobile-390; focused API suites green; quotes.test.ts updated for VAT deposit
+
+## Review (stage-1 spec)
+- OBSERVED: h-stage1-journey 18/18 (9 tests × 2 viewports) on real API+DB
+- OBSERVED: lifecycle-money 6/6, s4-certificates, notifications 5/5, projects-visibility 2/2,
+  portal-hardening 14/14, commercial-operations 11/11, m8-variations, s3-change-orders, quotes 24/24
+- Contract deviations documented in spec header (route names + register payload field names only)

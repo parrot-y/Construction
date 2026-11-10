@@ -1421,7 +1421,11 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         }
 
         const currentStatus = normalizeCoStatus(variation.status);
-        if (currentStatus !== 'OWNER_REVIEW') {
+        // The client portal IS the owner-side decision channel: the owner may
+        // approve or reject a change order at either pending stage — directly
+        // from PM_REVIEW (their instruction, their call) or after staff
+        // escalation to OWNER_REVIEW.
+        if (currentStatus !== 'OWNER_REVIEW' && currentStatus !== 'PM_REVIEW') {
           throw {
             status: 400,
             message: `This change order is not awaiting owner approval (status: ${currentStatus})`,
@@ -1432,7 +1436,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         const newStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
         let newBudget = project.current_approved_budget.toString();
 
-        // Atomic claim on OWNER_REVIEW — prevents double decisions via
+        // Atomic claim on the pending status — prevents double decisions via
         // concurrent portal submissions or a parallel contractor review.
         const claimed = await claimCoTransition(
           tx,

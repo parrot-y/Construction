@@ -954,12 +954,18 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
             };
           }
 
-          // Segregation of duties: approver must differ from preparer.
-          if (target === 'APPROVED_FOR_PAYMENT' && val.prepared_by_id && val.prepared_by_id === sub) {
-            throw {
-              status: 409,
-              message: 'The person who prepared this valuation cannot approve it — a different approver is required',
-            };
+          // Segregation of duties: approver must differ from whoever prepared
+          // or reviewed (moved to UNDER_REVIEW) the valuation.
+          if (target === 'APPROVED_FOR_PAYMENT') {
+            const conflict =
+              (val.prepared_by_id && val.prepared_by_id === sub) ||
+              (val.reviewed_by_id && val.reviewed_by_id === sub);
+            if (conflict) {
+              throw {
+                status: 409,
+                message: 'The person who prepared or reviewed this valuation cannot approve it — a different approver is required',
+              };
+            }
           }
 
           const now = new Date();
@@ -970,6 +976,8 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           };
           if (target === 'UNDER_REVIEW') {
             updateData.submitted_at = val.submitted_at ?? now;
+            updateData.reviewed_by_id = sub;
+            updateData.reviewed_at = now;
           }
           if (target === 'APPROVED_FOR_PAYMENT') {
             updateData.approved_by_id = sub;
