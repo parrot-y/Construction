@@ -339,7 +339,8 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.PROJECT_VIEW,
     Permissions.BOQ_VIEW,
     Permissions.COST_VIEW,
-    Permissions.CERTIFICATE_MANAGE,
+    // Stage-2: owners read and acknowledge — they do NOT create or certify
+    // payment certificates (CERTIFICATE_MANAGE removed; COST_APPROVE never held).
     Permissions.SITE_DIARY_VIEW,
     Permissions.PROGRESS_VIEW,
     Permissions.VARIATION_REVIEW,

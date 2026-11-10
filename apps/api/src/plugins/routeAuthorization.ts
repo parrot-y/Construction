@@ -195,6 +195,10 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/client/project-requests': 'Client self-service intake; CLIENT role enforced in-handler',
   'GET /api/v1/client/quotes': 'Returns only quotes addressed to the caller',
   'POST /api/v1/client/quotes/:id/respond': 'Client accept/decline on own quote (e-signature in-handler)',
+  'GET /api/v1/fx-rates': 'Reference FX rates — dated/sourced tenant-level data for any member',
+  'GET /api/v1/me/invoices': 'Caller-scoped invoice list (CLIENT/OWNER scope enforced in-handler)',
+  'GET /api/v1/me/approvals': 'Caller-scoped "waiting for you" approval feed',
+  'POST /api/v1/client/invoices/:invoiceId/payment-notice': 'Client self-service payment notice on own invoice (non-mutating, notifies staff)',
   'GET /api/v1/billing/subscription-status': 'Caller\u2019s tenant subscription status',
 };
 

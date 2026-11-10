@@ -18,6 +18,9 @@ model Tenant {
   kra_pin        String?      @db.VarChar(20)
   nca_category   String?      @db.VarChar(50) // e.g. "NCA 4"
   currency       String       @default("KES") @db.VarChar(3)
+  // Stage-2: tenant-configured client-facing terms (no hard-coded percentages)
+  retention_terms       Json?   @db.JsonB
+  payment_instructions  Json?   @db.JsonB
   created_at     DateTime     @default(now()) @db.Timestamptz
   updated_at     DateTime     @updatedAt @db.Timestamptz
 
@@ -197,6 +200,7 @@ model Project {
   tender_bids           TenderBid[]
   quotes                Quote[]
   invoices              Invoice[]
+  purchase_orders       PurchaseOrder[]
   payment_certificates  PaymentCertificate[]
   commitments           Commitment[]
   payment_applications  PaymentApplication[]
@@ -354,7 +358,10 @@ model MaterialDelivery {
   material_name String     @db.VarChar(255) // e.g. "Machine-Cut Stone 9x9"
   quantity      Decimal    @db.Decimal(12, 4)
   unit          String     @db.VarChar(20)
-  supplier_name String?    @db.VarChar(255)
+  supplier_name String?    @db.VarChar(255) // legacy free-text; prefer supplier_id
+  supplier_id   String?    @db.Uuid
+  purchase_order_id       String? @db.Uuid
+  purchase_order_item_id  String? @db.Uuid
   delivery_note String?    @db.VarChar(100)
   delivery_status String   @default("RECORDED") @db.VarChar(20) // RECORDED | CONFIRMED | DISPUTED
   confirmed_at   DateTime? @db.Timestamptz
@@ -363,8 +370,12 @@ model MaterialDelivery {
   dispute_reason String?  @db.VarChar(500)
 
   site_diary    SiteDiary  @relation(fields: [site_diary_id], references: [id], onDelete: Cascade)
+  supplier      Supplier?  @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+  purchase_order      PurchaseOrder?      @relation(fields: [purchase_order_id], references: [id], onDelete: SetNull)
+  purchase_order_item PurchaseOrderItem?  @relation(fields: [purchase_order_item_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id, site_diary_id])
+  @@index([tenant_id, supplier_id])
   @@map("material_deliveries")
 }
 
@@ -939,8 +950,11 @@ model PortalAccessLink {
   // SUBCONTRACTOR links are scoped to exactly one work package — a link
   // without this field sees nothing (audit: no cross-subs visibility).
   subcontractor_package_id String? @db.Uuid
+  // SUPPLIER links are bound to a Supplier record — never free-text names.
+  supplier_id String? @db.Uuid
 
   project          Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  supplier         Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id, project_id, portal_type])
   @@map("portal_access_links")
@@ -1309,6 +1323,10 @@ model SubcontractorValuation {
   rejection_reason               String?              @db.Text
   cost_entry_id                  String?              @db.Uuid
   approved_by                    String?              @db.VarChar(255)
+  // Resubmission link: a corrected claim replaces a REJECTED valuation.
+  replaces_valuation_id          String?              @db.Uuid
+  replaces_valuation             SubcontractorValuation?  @relation("ValuationResubmission", fields: [replaces_valuation_id], references: [id], onDelete: SetNull)
+  replaced_by                    SubcontractorValuation[] @relation("ValuationResubmission")
   notes                          String?              @db.Text
   created_at                     DateTime             @default(now()) @db.Timestamptz
   updated_at                     DateTime             @updatedAt @db.Timestamptz
@@ -2430,6 +2448,7 @@ model Invoice {
   certificate PaymentCertificate? @relation(fields: [certificate_id], references: [id], onDelete: SetNull)
   items    InvoiceLineItem[]
   payments InvoicePayment[]
+  payment_notices ClientPaymentNotice[]
 
   @@unique([tenant_id, invoice_no])
   @@index([tenant_id, status])
@@ -3095,4 +3114,121 @@ model TenantTaxSetting {
   tenant                  Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@map("tenant_tax_settings")
+}
+
+// =============================================================
+// STAGE 3 — SUPPLIERS & PURCHASE ORDERS (record-bound portals)
+// =============================================================
+
+model Supplier {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenant_id      String    @db.Uuid
+  name           String    @db.VarChar(255)
+  contact_person String?   @db.VarChar(255)
+  phone          String?   @db.VarChar(50)
+  email          String?   @db.VarChar(255)
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+
+  deliveries     MaterialDelivery[]
+  portal_links   PortalAccessLink[]
+  purchase_orders PurchaseOrder[]
+
+  @@index([tenant_id])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id                      String    @id @default(uuid()) @db.Uuid
+  tenant_id               String    @db.Uuid
+  project_id              String    @db.Uuid
+  po_number               String    @db.VarChar(50)
+  supplier_id             String    @db.Uuid
+  status                  String    @default("DRAFT") @db.VarChar(30) // DRAFT | ISSUED | ACCEPTED | PART_DELIVERED | DELIVERED | CLOSED | CANCELLED
+  order_date              DateTime  @default(now()) @db.Date
+  expected_delivery_date  DateTime? @db.Date
+  notes                   String?   @db.Text
+  total_amount_kes        Decimal   @default(0) @db.Decimal(15, 2)
+  commitment_id           String?   @db.Uuid
+  issued_at               DateTime? @db.Timestamptz
+  created_by_id           String?   @db.Uuid
+  created_at              DateTime  @default(now()) @db.Timestamptz
+  updated_at              DateTime  @updatedAt @db.Timestamptz
+
+  project       Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  supplier      Supplier               @relation(fields: [supplier_id], references: [id], onDelete: Restrict)
+  items         PurchaseOrderItem[]
+  invoices      PurchaseOrderInvoice[]
+  deliveries    MaterialDelivery[]
+
+  @@unique([project_id, po_number])
+  @@index([tenant_id, project_id, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenant_id        String   @db.Uuid
+  purchase_order_id String  @db.Uuid
+  description      String   @db.VarChar(500)
+  unit             String   @db.VarChar(20)
+  quantity         Decimal  @db.Decimal(14, 4)
+  rate             Decimal  @db.Decimal(15, 2)
+  created_at       DateTime @default(now()) @db.Timestamptz
+
+  purchase_order   PurchaseOrder       @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+  deliveries       MaterialDelivery[]
+  invoices         PurchaseOrderInvoice[]
+
+  @@index([tenant_id, purchase_order_id])
+  @@map("purchase_order_items")
+}
+
+model PurchaseOrderInvoice {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenant_id              String    @db.Uuid
+  purchase_order_id      String    @db.Uuid
+  purchase_order_item_id String?   @db.Uuid // optional line allocation for three-way match
+  reference              String    @db.VarChar(100)
+  amount            Decimal   @db.Decimal(15, 2)
+  status            String    @default("SUBMITTED") @db.VarChar(30) // SUBMITTED | REVIEW_REQUIRED | ACCEPTED | REJECTED
+  note              String?   @db.Text
+  submitted_by_name String?   @db.VarChar(255) // portal stakeholder name
+  reviewed_by_id    String?   @db.Uuid
+  reviewed_at       DateTime? @db.Timestamptz
+  review_reason     String?   @db.Text
+  cost_entry_id     String?   @db.Uuid
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+
+  purchase_order    PurchaseOrder      @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+  purchase_order_item PurchaseOrderItem? @relation(fields: [purchase_order_item_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, purchase_order_id, status])
+  @@map("purchase_order_invoices")
+}
+
+// =============================================================
+// STAGE 2 — CLIENT PAYMENT NOTICES (non-mutating)
+// =============================================================
+
+model ClientPaymentNotice {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenant_id    String    @db.Uuid
+  invoice_id   String    @db.Uuid
+  user_id      String    @db.Uuid // the client who submitted it
+  amount       Decimal   @db.Decimal(15, 2)
+  method       String    @db.VarChar(30)
+  reference    String?   @db.VarChar(100)
+  note         String?   @db.Text
+  status       String    @default("PENDING") @db.VarChar(20) // PENDING | CONFIRMED | REJECTED
+  confirmed_at DateTime? @db.Timestamptz
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+
+  invoice      Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, invoice_id])
+  @@map("client_payment_notices")
 }

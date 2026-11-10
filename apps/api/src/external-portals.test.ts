@@ -20,6 +20,7 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
   let supplierToken: string;
   let complianceToken: string;
   let subcontractorPackageId: string;
+  let supplierId: string;
 
   beforeAll(async () => {
     await server.ready();
@@ -177,6 +178,21 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
     });
     expect(pkgRes.statusCode).toBe(201);
     subcontractorPackageId = JSON.parse(pkgRes.body).id || JSON.parse(pkgRes.body).data?.id;
+
+    // Supplier record — SUPPLIER portal links must bind to a Supplier row
+    // (stage-3: no free-text supplier names).
+    const supCreate = await server.inject({
+      method: 'POST',
+      url: '/api/v1/suppliers',
+      headers: { cookie: adminCookie },
+      payload: {
+        name: 'Bamburi Ready-Mix Nairobi',
+        contactPerson: 'Plant Manager',
+        phone: '+254700000001',
+      },
+    });
+    expect(supCreate.statusCode).toBe(201);
+    supplierId = JSON.parse(supCreate.body).data.id;
   });
 
   // ===========================================================================
@@ -243,6 +259,7 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
         stakeholderName: 'Bamburi Ready-Mix Nairobi',
         stakeholderRole: 'Concrete Batching Plant',
         expiresInDays: 90,
+        supplierId,
       },
     });
     expect(supplierRes.statusCode).toBe(201);

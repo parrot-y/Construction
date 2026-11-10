@@ -103,6 +103,19 @@ describe('Contractor lifecycle — money integrity', () => {
       });
       packageId = pkg.id;
 
+      // Stage-3: APPROVED_FOR_PAYMENT requires a valid TCC on file.
+      await tx.subcontractorTaxCompliance.create({
+        data: {
+          tenant_id: tenantId,
+          subcontractor_package_id: packageId,
+          pin_number: 'P051234567X',
+          taxpayer_name: 'FlowFit Plumbing Ltd',
+          tcc_number: 'TCC-FLOWFIT-2026',
+          tcc_expiry_date: new Date(Date.now() + 365 * 864e5),
+          compliance_status: 'COMPLIANT',
+        },
+      });
+
       const commitment = await tx.commitment.create({
         data: {
           tenant_id: tenantId,
@@ -383,8 +396,8 @@ describe('Contractor lifecycle — money integrity', () => {
     const approvedVal = approvedBody.data ?? approvedBody.valuation ?? approvedBody;
     expect(approvedVal.approvedById ?? approvedVal.approved_by_id ?? approvedVal.paymentStatus).toBeTruthy();
 
-    // APPROVED_FOR_PAYMENT -> PAID
-    const paid = await patch('PAID', { paymentReference: 'KCB-RTGS-1' }, adminCookie);
+    // APPROVED_FOR_PAYMENT -> PAID (reference + paid date mandatory)
+    const paid = await patch('PAID', { paymentReference: 'KCB-RTGS-1', paidAt: '2026-03-20T10:00:00Z' }, adminCookie);
     expect(paid.statusCode).toBe(200);
 
     // PAID is terminal: further transitions -> 409

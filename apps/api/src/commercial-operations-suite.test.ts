@@ -89,6 +89,22 @@ describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-
     });
     expect(subRes.statusCode).toBe(201);
     subPackageId = JSON.parse(subRes.body).id;
+
+    // Stage-3: APPROVED_FOR_PAYMENT requires a valid TCC on file.
+    const tccRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/subcontractor-tcc`,
+      headers: { cookie: adminCookie },
+      payload: {
+        subcontractorPackageId: subPackageId,
+        pinNumber: 'P051234567X',
+        taxpayerName: 'Amani Mechanical & Plumbing Contractors Ltd',
+        tccNumber: 'TCC-AMANI-2026',
+        tccExpiryDate: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10),
+        complianceStatus: 'COMPLIANT',
+      },
+    });
+    expect(tccRes.statusCode).toBeLessThan(300);
   });
 
   afterAll(async () => {

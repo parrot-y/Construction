@@ -181,8 +181,27 @@ None.
 - E2E infra fix: `rls.sql` SECURITY DEFINER functions must be owned by an RLS-bypassing role — `global-setup.ts` now applies rls.sql/grants via `E2E_ADMIN_DATABASE_URL` (superuser) and re-owns functions; CI passes the postgres URL.
 - Evidence: `docs/evidence/portal-hardening.md`; tests `portal-hardening.test.ts` (14) + `external-portals.test.ts` (13); `verify-local` fresh-cluster run: API 525, web 118, money 63, db 15, permissions 9 = 730/730 (`docs/evidence/verify-portal-hardening-final.log`).
 
+### Stage-2 client & owner portals (2026-11-10, branch `devin/contractor-lifecycle`)
+- Client-safe diary DTOs: CLIENT/OWNER never receive internal notes or non-client-visible photos from list, detail, or direct `/uploads/*` URLs; staff DTO unchanged.
+- Tenant-configured retention terms + payment instructions via `PATCH /api/v1/company/settings`; client portal returns canonical snake_case terms (camelCase/snake_case stored JSON both normalised); ClientDashboard renders tenant values with honest "Not specified" fallback — no hard-coded percentages.
+- `GET /api/v1/fx-rates`: dated, sourced manual reference rates ("Rates as of <date> (source)").
+- `GET /api/v1/me/invoices`: caller-scoped invoices + balances + payment history + notices + payment instructions; `POST /api/v1/client/invoices/:id/payment-notice` notifies contractor inbox without mutating the invoice (confirmed only when staff record payment).
+- `GET /api/v1/me/approvals` feeds a "Waiting for you" card on ClientDashboard and the new read-mostly `OwnerDashboard` (OWNER blocked from certificate create/certify).
+- `POST/GET /api/v1/client/project-requests`: client intake surfaces in contractor inbox + staff list.
+- Spec `e2e/tests/i-stage2-client-owner.spec.ts`: **18/18 (9 tests × chromium + mobile-390)**. Evidence: `docs/evidence/stage2-client-owner.md`.
+
+### Stage-3 subcontractor & supplier portals (2026-11-10, same branch)
+- SUPPLIER links require a `supplierId` record FK — deliveries/POs scoped by record, never free-text name; confirm/dispute verify ownership; 30-day cap removed, deliveries paginated.
+- SUBCONTRACTOR links require `subcontractorPackageId`; portal limited to the bound package.
+- TCC gate: `APPROVED_FOR_PAYMENT` → 409 `TCC_INVALID` without valid TCC; COMPANY_ADMIN override needs non-empty reason, audit-logged. `PAID` requires `paymentReference` + `paidAt`.
+- Portal shows valuation breakdown (gross/retention/WHT/net), package summary, retention release status, rejection reasons + resubmit (`replacesValuationId`); rejected claims excluded from cap.
+- Procurement: `purchase_orders`/`items`/`invoices` (migrations 0012+0013) — full status lifecycle, supplier accept/invoice via portal, PO-line deliveries, three-way match view (ordered/delivered/invoiced, MATCHED|PART_DELIVERED|OVER_INVOICED|MISMATCH), over-invoice blocks cost posting, commitment on ISSUED + actuals on invoice acceptance.
+- ADR-008 records SubcontractorValuation as the sole subcontract payment model.
+- Spec `e2e/tests/j-stage3-subcontractor-supplier.spec.ts`: **16/16 (8 tests × chromium + mobile-390)**. Evidence: `docs/evidence/stage3-sub-supplier.md`.
+
 ### What remains OPEN
 - Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM).
 - Second seeded tenant for a stronger two-tenant isolation e2e (current proof uses membership/RLS on nonexistent + non-member projects).
 - Phase 2 remainder: full legacy-view migration to the design system.
+- Stage-2/3 UI depth: supplier/subcontractor portal pages and the PO match view are API-complete but lack dedicated click tests / a web screen for the match view.
 - Production deployment itself (runbook: `docs/DEPLOY.md`).

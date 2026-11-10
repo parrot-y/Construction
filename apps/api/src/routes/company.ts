@@ -1,7 +1,7 @@
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { getTaxSettings } from '../lib/tax';
 import { issuePasswordResetToken, passwordResetUrl } from '../lib/accountTokens';
-import { TaxSettingsSchema } from '@construction/validation';
+import { TaxSettingsSchema, UpdateCompanySettingsSchema } from '@construction/validation';
 import { Permissions, Roles } from '@construction/permissions';
 import { toDecimal, Decimal } from '@construction/money';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
@@ -41,6 +41,44 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
 
       return reply.status(200).send({ data: tenant });
+    },
+  );
+
+  // PATCH /api/v1/company/settings - Tenant-facing terms (retention, payment
+  // instructions). Stage-2: replaces hard-coded client-dashboard values.
+  server.patch(
+    '/api/v1/company/settings',
+    {
+      preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_MANAGE)],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const parsed = UpdateCompanySettingsSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid company settings', details: parsed.error.flatten() });
+      }
+      const d = parsed.data;
+      const data: Record<string, unknown> = {};
+      if (d.retentionTerms !== undefined) data.retention_terms = d.retentionTerms;
+      if (d.paymentInstructions !== undefined) data.payment_instructions = d.paymentInstructions;
+      if (Object.keys(data).length === 0) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No settings provided' });
+      }
+
+      const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+        const tenant = await tx.tenant.update({ where: { id: tenantId }, data });
+        await recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          action: 'COMPANY_SETTINGS_UPDATED',
+          entityType: 'Tenant',
+          entityId: tenantId,
+          changes: data,
+        });
+        return tenant;
+      });
+
+      return reply.status(200).send({ data: updated });
     },
   );
 

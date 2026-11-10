@@ -144,6 +144,10 @@ export const MaterialDeliverySchema = z.object({
   quantity: QuantitySchema,
   unit: z.string().min(1).max(20),
   supplierName: z.string().max(255).optional().nullable(),
+  // Stage 3: record-bound supplier + optional PO line linkage.
+  supplierId: z.string().uuid().optional().nullable(),
+  purchaseOrderId: z.string().uuid().optional().nullable(),
+  purchaseOrderItemId: z.string().uuid().optional().nullable(),
   deliveryNote: z.string().max(100).optional().nullable(),
 });
 export type MaterialDelivery = z.infer<typeof MaterialDeliverySchema>;
@@ -600,6 +604,8 @@ export const CreatePortalLinkSchema = z.object({
   expiresInDays: z.number().int().min(1).max(365).default(30),
   // SUBCONTRACTOR links must bind to one work package (audit: no cross-subs visibility)
   subcontractorPackageId: z.string().uuid().optional().nullable(),
+  // SUPPLIER links must bind to a Supplier record — never free-text names.
+  supplierId: z.string().uuid().optional().nullable(),
 });
 
 // Consultant portal RFI reply (external, unauthenticated token scope)
@@ -970,6 +976,8 @@ export const ReviewSubcontractorValuationSchema = z.object({
   approvedBy: z.string().min(2).max(255).optional().nullable(),
   paymentReference: z.string().max(100).optional().nullable(),
   paidAt: z.string().optional().nullable(),
+  // Stage 3: COMPANY_ADMIN-only TCC override — mandatory reason, audit-logged.
+  tccOverrideReason: z.string().max(500).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 export type ReviewSubcontractorValuation = z.infer<typeof ReviewSubcontractorValuationSchema>;
@@ -2316,3 +2324,74 @@ export const ReviewChecklistAssignmentSchema = z.object({
   notes: z.string().max(5000).optional().nullable(),
 });
 export type ReviewChecklistAssignment = z.infer<typeof ReviewChecklistAssignmentSchema>;
+
+// -------------------------------------------------------------
+// STAGE 2 — tenant settings, client payment notices, me feeds
+// -------------------------------------------------------------
+
+export const UpdateCompanySettingsSchema = z.object({
+  retentionTerms: z.record(z.unknown()).optional().nullable(),
+  paymentInstructions: z.record(z.unknown()).optional().nullable(),
+});
+export type UpdateCompanySettings = z.infer<typeof UpdateCompanySettingsSchema>;
+
+export const ClientPaymentNoticeSchema = z.object({
+  amount: z.number().positive(),
+  method: z.enum(['CASH', 'BANK', 'M_PESA', 'CHEQUE', 'CARD', 'OTHER']),
+  reference: z.string().max(100).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
+});
+export type ClientPaymentNotice = z.infer<typeof ClientPaymentNoticeSchema>;
+
+// -------------------------------------------------------------
+// STAGE 3 — suppliers & purchase orders
+// -------------------------------------------------------------
+
+export const CreateSupplierSchema = z.object({
+  name: z.string().min(2).max(255),
+  contactPerson: z.string().max(255).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable(),
+});
+export type CreateSupplier = z.infer<typeof CreateSupplierSchema>;
+
+export const PurchaseOrderStatusEnum = z.enum([
+  'DRAFT', 'ISSUED', 'ACCEPTED', 'PART_DELIVERED', 'DELIVERED', 'CLOSED', 'CANCELLED',
+]);
+export type PurchaseOrderStatus = z.infer<typeof PurchaseOrderStatusEnum>;
+
+export const PurchaseOrderItemInputSchema = z.object({
+  description: z.string().min(2).max(500),
+  unit: z.string().min(1).max(20),
+  quantity: z.number().positive(),
+  rate: z.number().min(0),
+});
+
+export const CreatePurchaseOrderSchema = z.object({
+  supplierId: z.string().uuid(),
+  orderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  items: z.array(PurchaseOrderItemInputSchema).min(1),
+});
+export type CreatePurchaseOrder = z.infer<typeof CreatePurchaseOrderSchema>;
+
+export const SupplierPoAcceptSchema = z.object({
+  expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+export type SupplierPoAccept = z.infer<typeof SupplierPoAcceptSchema>;
+
+export const SupplierPoInvoiceSchema = z.object({
+  reference: z.string().min(2).max(100),
+  amount: z.number().positive(),
+  purchaseOrderItemId: z.string().uuid().optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
+});
+export type SupplierPoInvoice = z.infer<typeof SupplierPoInvoiceSchema>;
+
+export const PoInvoiceReviewSchema = z.object({
+  action: z.enum(['ACCEPT', 'REJECT']),
+  reason: z.string().max(1000).optional().nullable(),
+  approveOverInvoice: z.boolean().optional(),
+});
+export type PoInvoiceReview = z.infer<typeof PoInvoiceReviewSchema>;

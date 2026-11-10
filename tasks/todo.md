@@ -1,6 +1,32 @@
 # tasks/todo.md — active plan
 
-## Current: Claude re-audit remediation + Gate-4 S1 completion + S2 invoicing (2026-11-07)
+## Current: Stage 2 (client/owner) + Stage 3 (subcontractor/supplier) — 2026-11-10
+
+Auditor specs were never provided; user directed "work on all above requests" → authoring
+`e2e/tests/i-stage2-client-owner.spec.ts` and `e2e/tests/j-stage3-subcontractor-supplier.spec.ts`
+from the numbered requirements, failing-first, then implementing.
+
+### Stage 2
+- [ ] Spec: client diary/photo privacy (notes redacted, hidden photos blocked on list/detail/`/uploads`), tenant retention_terms + payment instructions, `GET /api/v1/fx-rates` (asOf+source), client invoices/balance/payment-history via `/api/v1/me/invoices`, `POST /api/v1/client/invoices/:id/payment-notice` (non-mutating, notifies contractor inbox), `GET /api/v1/me/approvals` + "Waiting for you" cards, read-mostly OWNER dashboard (no CERTIFICATE_MANAGE create/certify), client project requests → contractor inbox, 390px no sideways scroll
+- [ ] Schema: Tenant.retention_terms + payment_instructions; ClientPaymentNotice model
+- [ ] API: client-safe site-diary DTO for CLIENT/OWNER, files.ts client_visible gate, company settings fields, fx-rates, me/invoices, payment-notice, me/approvals, request→inbox notify
+- [ ] Web: ClientDashboard retention/FX/invoices/notice/approvals, OwnerDashboard read-mostly, plain-language statuses
+- [ ] Evidence: docs/evidence/stage2-client-owner.md
+
+### Stage 3
+- [ ] Spec: Supplier record required on supplier links + deliveries (no free-text match), pagination (no 30-day cap), sub link requires package, TCC gate on APPROVED_FOR_PAYMENT (409 TCC_INVALID + admin override w/ reason → audit), PAID requires paymentReference+paidAt, portal payment/package summary + rejection reasons + resubmit (replacesValuationId) + rejected excluded from cap, retention release status, PO lifecycle + supplier accept/invoice + delivery↔PO-line links + match view + over-invoice block + ledger posting, plain statuses, 390px, honest revoked/expired
+- [ ] Schema: Supplier, PurchaseOrder/PurchaseOrderItem/PurchaseOrderInvoice, MaterialDelivery.supplier_id + purchaseOrderItemId, PortalAccessLink.supplier_id, SubcontractorValuation.replaces_valuation_id
+- [ ] API: suppliers CRUD, portal link supplierId enforcement, supplier portal scoping+pagination+PO actions, diary delivery supplierId, TCC gate + override audit, PAID guards, resubmit, retention status, PO routes + match + ledger posting, rejected-excluded aggregates
+- [ ] ADR: sole subcontract payment model = SubcontractorValuation; PaymentApplication stays client-direction; hide duplicate from nav
+- [ ] Web: supplier/sub portal UX (POs, breakdowns, plain statuses, pagination, revoked/expired), PO management screens
+- [ ] Update existing specs broken by new contracts (e-portals supplier link, h-stage1 TCC/PAID)
+- [ ] Evidence: docs/evidence/stage3-sub-supplier.md, PROJECT_STATUS.md
+
+### Verify
+- [ ] Both new specs green on chromium + mobile-390
+- [ ] Full API vitest + web tests + scripts/verify-local.sh
+
+## Prior: Claude re-audit remediation + Gate-4 S1 completion + S2 invoicing (2026-11-07)
 
 ### Security remediation (Claude items 1-2)
 - [x] Purge `docs/research/console-audit/screenshots/` from ALL git history (filter-repo); dir absent from tree
@@ -344,3 +370,33 @@ RegisterCompanySchema — documented in spec header). Failing test first → fix
 - OBSERVED: verify-local GREEN — API 558/558 (61 files), lint/typecheck/build/tests 6/6 → docs/evidence/verify-4e948b7.log (pre-commit hash; re-run after commit for final evidence)
 - OBSERVED: full Playwright suite 57/58 then g-spec fix → chromium g 7/7; mobile g was already green
 - Stage 2 (client/owner): NOT STARTED — awaiting auditor spec
+
+## Stage-2 client/owner + Stage-3 subcontractor/supplier (auditor specs authored from requirements) — DONE pending commit
+Auditor spec files were never delivered; authored `i-stage2-client-owner.spec.ts`
+(9 tests) and `j-stage3-subcontractor-supplier.spec.ts` (8 tests) from the numbered
+requirements, failing-test-first, then built.
+
+- [x] Stage-2 API: client-safe diary DTO + photo gating (site.ts), PATCH /company/settings,
+      /me/invoices + payment-notice + /me/approvals + /fx-rates (me.ts), client-portal
+      retention_terms normalisation, OWNER cert restrictions
+- [x] Stage-2 web: ClientDashboard (tenant retention/FX/invoices/notices/approvals card,
+      no hard-coded %), OwnerDashboard.tsx read-mostly
+- [x] Stage-3 API: supplier-record binding + pagination (externalPortals.ts), supplier PO
+      accept/invoice portal routes, subcontractor package binding, TCC gate + audited
+      admin override, PAID ref/paidAt, rejection/resubmit + cap exclusion, retention
+      release status, plain-language labels
+- [x] Stage-3 procurement: purchase_orders/items/invoices (procurement.ts), PO lifecycle,
+      commitment-on-issue + actuals-on-accept, three-way match view with per-line
+      invoiced qty/amount (purchase_order_item_id link, migration 0013), over-invoice
+      PM flag + cost-posting block
+- [x] Migration 0012_stage2_stage3 + 0013_po_invoice_item_link applied; RLS auto-covers
+- [x] Stale-contract test updates: e-portals, g/h specs, commercial-operations,
+      lifecycle-money (TCC + paidAt), external-portals/portal-hardening/operations-e2e
+      (supplierId), m9 (retention reset), route-guard maps, ClientDashboard fallback copy
+- [x] Result: stage-2 18/18 + stage-3 16/16 (chromium + mobile-390); API vitest 558/558
+      (route-guard + m10 env fixed and re-verified)
+
+## Review (stage-2/3)
+- OBSERVED: i-stage2 9/9 ×2 viewports; j-stage3 8/8 ×2 viewports — docs/evidence/stage2-client-owner.md, stage3-sub-supplier.md
+- OBSERVED: full API vitest 552+6 fixed → route-guard 8/8, m10 4/4 after provisioning construction_test
+- Honestly unfinished: supplier/subcontractor portal pages + PO match view are API-only (no web screen/click tests); FX is manual dated rates not a live feed; verify-local.sh full run pending on final tree

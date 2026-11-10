@@ -685,6 +685,8 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           let totalNetPayable = toDecimal('0.00');
 
           for (const v of valuations) {
+            // Stage-3: rejected claims never count toward certified totals.
+            if (v.payment_status === 'REJECTED') continue;
             totalGross = totalGross.plus(toDecimal(v.gross_work_certified_kes.toString()));
             totalRetention = totalRetention.plus(toDecimal(v.retention_deducted_kes.toString()));
             totalWht = totalWht.plus(toDecimal(v.withholding_tax_deducted_kes.toString()));
@@ -906,7 +908,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
     '/api/v1/projects/:projectId/subcontractor-valuations/:valuationId',
     { preHandler: [server.authenticate] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId, valuationId } = request.params as { projectId: string; valuationId: string };
 
       if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(valuationId)) {
@@ -923,7 +925,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
         });
       }
 
-      const { paymentStatus, approvedBy, paymentReference, paidAt, notes } = parseResult.data;
+      const { paymentStatus, approvedBy, paymentReference, paidAt, notes, tccOverrideReason } = parseResult.data;
 
       // State machine: SUBMITTED -> UNDER_REVIEW -> APPROVED_FOR_PAYMENT -> PAID
       // with REJECTED reachable from SUBMITTED/UNDER_REVIEW. Legacy QS_VERIFIED
@@ -965,6 +967,51 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
                 status: 409,
                 message: 'The person who prepared or reviewed this valuation cannot approve it — a different approver is required',
               };
+            }
+          }
+
+          // Stage-3 TCC gate: APPROVED_FOR_PAYMENT requires a valid Tax
+          // Compliance Certificate on file for the subcontractor package —
+          // COMPLIANT/EXEMPT and unexpired. COMPANY_ADMIN may override only
+          // with a mandatory reason, which is written to the audit log.
+          let tccOverride: string | null = null;
+          if (target === 'APPROVED_FOR_PAYMENT') {
+            const tcc = await tx.subcontractorTaxCompliance.findFirst({
+              where: { subcontractor_package_id: val.subcontractor_package_id },
+              orderBy: { last_verified_at: 'desc' },
+            });
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tccValid = !!tcc
+              && ['COMPLIANT', 'EXEMPT'].includes(tcc.compliance_status)
+              && tcc.tcc_expiry_date >= today;
+            if (!tccValid) {
+              const reason = (tccOverrideReason || '').trim();
+              const overrideAttempted = tccOverrideReason !== undefined && tccOverrideReason !== null;
+              if (overrideAttempted && role === 'COMPANY_ADMIN') {
+                if (reason.length === 0) {
+                  throw { status: 400, message: 'tccOverrideReason is required for a TCC override' };
+                }
+                tccOverride = reason;
+              } else {
+                throw {
+                  status: 409,
+                  code: 'TCC_INVALID',
+                  message: 'A valid (unexpired) Tax Compliance Certificate is required before approving this valuation for payment',
+                };
+              }
+            }
+          }
+
+          // PAID requires a payment reference and payment date — a claim can
+          // never be marked paid without proof of disbursement.
+          if (target === 'PAID') {
+            const effectiveRef = paymentReference || val.payment_reference;
+            if (!effectiveRef || !String(effectiveRef).trim()) {
+              throw { status: 400, message: 'paymentReference is required before marking a valuation PAID' };
+            }
+            if (!paidAt) {
+              throw { status: 400, message: 'paidAt is required before marking a valuation PAID' };
             }
           }
 
@@ -1066,8 +1113,20 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               approvedAt: updatedVal.approved_at?.toISOString() ?? null,
               paymentReference: updatedVal.payment_reference,
               costEntryId: updatedVal.cost_entry_id,
+              tccOverrideReason: tccOverride,
             },
           });
+          if (tccOverride) {
+            await recordAuditLog(tx, {
+              tenantId,
+              actorId: sub,
+              action: 'SUBCONTRACTOR_VALUATION_TCC_OVERRIDE',
+              entityType: 'SUBCONTRACTOR_VALUATION',
+              entityId: updatedVal.id,
+              projectId,
+              changes: { overrideReason: tccOverride, approvedBy: sub },
+            });
+          }
 
           return updatedVal;
         });
@@ -1089,7 +1148,10 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: err.message });
         }
         if (err.status === 409) {
-          return reply.status(409).send({ statusCode: 409, error: 'Conflict', message: err.message });
+          return reply.status(409).send({ statusCode: 409, error: 'Conflict', code: err.code, message: err.message });
+        }
+        if (err.status === 400) {
+          return reply.status(400).send({ statusCode: 400, error: 'Bad Request', code: err.code, message: err.message });
         }
         request.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update subcontractor valuation' });

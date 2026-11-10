@@ -66,3 +66,12 @@ The live dev API uses `construction_demo`, tests/verify use `construction_test` 
 - Enum-vs-action naming: storing the raw action string ('CONFIRM') into a status column ('CONFIRMED') passed typecheck but broke state-machine guards — map explicitly and assert via DB row in tests.
 - Test fixtures must match real response envelopes: `.id || .data?.id` — a wrong assumption produced 'undefined' UUID → Prisma P2023, not a clean 400.
 - Ephemeral /tmp Postgres clusters get wiped between sessions — construction_test/demo/e2e DBs must be rebuilt (initdb + migrate deploy + rls.sql + grants + seed) before API tests.
+
+## 2026-11-10 — stage-2/3 build lessons
+- Auditor "exactly as provided" specs may never arrive — authoring them from numbered requirements is acceptable IF documented as authored (spec header + evidence), never claimed as auditor-written.
+- Prisma relation edits: adding a FK on model B requires the inverse relation on model A — validate (`prisma validate`) IMMEDIATELY after schema edits, before generate/migrate.
+- Match/envelope shapes: verify the real response key (e.g. `deliveries`, `data`) before writing assertions — don't guess array shapes.
+- Stale API processes serve old code — kill them before rerunning Playwright (reuseExistingServer picks up whatever is on the port).
+- Shared e2e DB persists mutations across runs (PATCH /company/settings) — tests asserting defaults must reset state in beforeAll (m9 retention_terms).
+- Route-guard test enforces authz maps — every new route needs UNAUTHENTICATED_ALLOWLIST (token routes) or SELF_SERVICE_ALLOWLIST/ROUTE_PERMISSIONS entries.
+- Playwright browsers live in ~/.cache/ms-playwright — /tmp wipes don't affect them, but cache wipes do; `playwright install chromium` needed for headless-shell on mobile-390.

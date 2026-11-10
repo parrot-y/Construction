@@ -34,11 +34,6 @@ export const fileRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       if (!filePath) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'File not found' });
       }
-      const body = await getStorageDriver().get(storageKey);
-      if (!body) {
-        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'File not found' });
-      }
-
       if (!TENANT_WIDE.has(user.role as Role)) {
         const member = await withTenantTx(prisma, user.tenantId, (tx) =>
           tx.projectMember.findFirst({
@@ -49,6 +44,26 @@ export const fileRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         if (!member) {
           return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'Not a project member' });
         }
+      }
+
+      // Stage-2 privacy: CLIENT/OWNER may only fetch files that are either
+      // not site-diary photos at all, or photos explicitly marked
+      // client-visible. Internal photo keys are refused even for members.
+      if (user.role === Roles.CLIENT || user.role === Roles.OWNER) {
+        const photo = await withTenantTx(prisma, user.tenantId, (tx) =>
+          tx.sitePhoto.findFirst({
+            where: { storage_key: storageKey },
+            select: { client_visible: true },
+          }),
+        );
+        if (photo && photo.client_visible !== true) {
+          return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'File not shared with you' });
+        }
+      }
+
+      const body = await getStorageDriver().get(storageKey);
+      if (!body) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'File not found' });
       }
 
       const contentType = contentTypeForKey(storageKey);

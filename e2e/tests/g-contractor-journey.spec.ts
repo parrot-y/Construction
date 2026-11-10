@@ -327,6 +327,17 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     expect(pkgId).toBeTruthy();
     state.packageId = pkgId;
 
+    // Stage-3: APPROVED_FOR_PAYMENT requires a valid TCC on file.
+    const tccRes = await apiPost(request, admin, `/api/v1/projects/${projectId}/subcontractor-tcc`, {
+      subcontractorPackageId: pkgId,
+      pinNumber: 'P051234567X',
+      taxpayerName: 'E2E FlowFit',
+      tccNumber: `TCC-${stamp}`,
+      tccExpiryDate: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10),
+      complianceStatus: 'COMPLIANT',
+    });
+    expect(tccRes.status(), await tccRes.text()).toBeLessThan(300);
+
     const valRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/subcontractor-valuations`, {
       subcontractorPackageId: pkgId,
       certificateNo: `E2E-VAL-${stamp}`,
@@ -362,8 +373,11 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     const approveRes = await patchVal(admin, 'APPROVED_FOR_PAYMENT');
     expect(approveRes.status(), await approveRes.text()).toBe(200);
 
-    // APPROVED_FOR_PAYMENT → PAID
-    const paidRes = await patchVal(admin, 'PAID', { paymentReference: `E2E-PAY-${stamp}` });
+    // APPROVED_FOR_PAYMENT → PAID (reference + paid date are mandatory)
+    const paidRes = await patchVal(admin, 'PAID', {
+      paymentReference: `E2E-PAY-${stamp}`,
+      paidAt: new Date().toISOString(),
+    });
     expect(paidRes.status(), await paidRes.text()).toBe(200);
 
     // Budget summary AFTER — approved actuals must have increased

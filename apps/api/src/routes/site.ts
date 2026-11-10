@@ -13,6 +13,19 @@ import {
 import { requirePermission } from '../plugins/rbac';
 import { notifyTeam } from '../lib/notify';
 
+/**
+ * Stage-2 privacy: CLIENT and OWNER never receive internal diary notes or
+ * photos that were not explicitly marked client-visible. Everything else
+ * (weather, status, headcounts, deliveries, visible photos) is shared.
+ */
+function toClientSafeDiary<T extends { general_notes?: string | null; photos?: any[] }>(diary: T): T {
+  return {
+    ...diary,
+    general_notes: null,
+    photos: (diary.photos || []).filter((p: any) => p.client_visible === true),
+  };
+}
+
 export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ---------------------------------------------------------------------------
   // 0. POST /api/v1/projects/:projectId/uploads - Real file upload (photos, docs)
@@ -202,6 +215,9 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 quantity: d.quantity,
                 unit: d.unit,
                 supplier_name: d.supplierName || null,
+                supplier_id: d.supplierId || null,
+                purchase_order_id: d.purchaseOrderId || null,
+                purchase_order_item_id: d.purchaseOrderItemId || null,
                 delivery_note: d.deliveryNote || null,
               })),
             });
@@ -338,8 +354,9 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         });
       });
 
+      const clientSafe = request.user.role === 'CLIENT' || request.user.role === 'OWNER';
       return reply.status(200).send({
-        data: diaries,
+        data: diaries.map((d) => (clientSafe ? toClientSafeDiary(d) : d)),
         count: diaries.length,
       });
     },
@@ -382,7 +399,8 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         });
       }
 
-      return reply.status(200).send({ data: diary });
+      const clientSafe = request.user.role === 'CLIENT' || request.user.role === 'OWNER';
+      return reply.status(200).send({ data: clientSafe ? toClientSafeDiary(diary) : diary });
     },
   );
 

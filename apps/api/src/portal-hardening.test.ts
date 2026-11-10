@@ -21,6 +21,7 @@ describe('Portal hardening', () => {
   let subBToken: string;
   let consultantToken: string;
   let supplierToken: string;
+  let supplierId: string;
   let linkIdA: string;
 
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
@@ -74,8 +75,18 @@ describe('Portal hardening', () => {
     const subB = await mkLink('SUBCONTRACTOR', { stakeholderName: 'Volt Electrical Contractors', stakeholderRole: 'Electrical', subcontractorPackageId: pkgBId });
     subBToken = JSON.parse(subB.body).data.token;
 
+    // Supplier links must bind to a Supplier record (stage-3 contract).
+    const supRes = await server.inject({
+      method: 'POST', url: '/api/v1/suppliers', headers: { cookie: adminCookie },
+      payload: { name: 'Bamburi Ready-Mix', contactPerson: 'Plant Manager' },
+    });
+    expect(supRes.statusCode).toBe(201);
+    supplierId = JSON.parse(supRes.body).data.id;
+
     consultantToken = JSON.parse((await mkLink('CONSULTANT', { stakeholderName: 'Arch. Test' })).body).data.token;
-    supplierToken = JSON.parse((await mkLink('SUPPLIER', { stakeholderName: 'Bamburi Ready-Mix' })).body).data.token;
+    const supLink = await mkLink('SUPPLIER', { stakeholderName: 'Bamburi Ready-Mix', supplierId });
+    expect(supLink.statusCode).toBe(201);
+    supplierToken = JSON.parse(supLink.body).data.token;
   });
 
   // ---- Item 1: package-scoped subcontractor isolation ----
@@ -271,7 +282,7 @@ describe('Portal hardening', () => {
         entryDate: '2026-11-09',
         weather: 'SUNNY_CLEAR',
         siteStatus: 'OPERATIONAL',
-        deliveries: [{ materialName: 'Cement 50kg', quantity: '100', unit: 'BAGS', supplierName: 'Bamburi Ready-Mix' }],
+        deliveries: [{ materialName: 'Cement 50kg', quantity: '100', unit: 'BAGS', supplierName: 'Bamburi Ready-Mix', supplierId }],
       },
     });
     expect(diary.statusCode).toBeLessThan(300);

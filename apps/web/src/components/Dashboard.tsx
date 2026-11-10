@@ -1,6 +1,7 @@
 import React, { useState} from 'react';
 import { AuthSession} from '../types/auth';
 import ClientDashboard from './ClientDashboard';
+import OwnerDashboard from './OwnerDashboard';
 import AppShell from './console/AppShell';
 import ConsultantPortalView from './portals/ConsultantPortalView';
 import SubcontractorPortalView from './portals/SubcontractorPortalView';
@@ -93,14 +94,19 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
     if (user.role === 'CLIENT') {
       return<ClientDashboard session={session} />;
 }
+    // Stage-2: OWNER gets a dedicated read-mostly dashboard — no contractor
+    // actions, no billing admin, approvals + financial visibility only.
+    if (user.role === 'OWNER') {
+      return<OwnerDashboard session={session} />;
+}
     // All internal workspace roles render inside the console shell
     // (icon rail + section router per role nav matrix).
     return<AppShell session={session} onLogout={onLogout} />;
 };
 
   // Internal workspace roles use the console shell (own chrome).
-  // CLIENT keeps the legacy dashboard layout below.
-  if (user.role !== 'CLIENT' && !previewPortal) {
+  // CLIENT and OWNER keep their dedicated read-mostly dashboards.
+  if (user.role !== 'CLIENT' && user.role !== 'OWNER' && !previewPortal) {
     return<AppShell session={session} onLogout={onLogout} />;
 }
 

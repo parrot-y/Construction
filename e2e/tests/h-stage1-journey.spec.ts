@@ -363,6 +363,18 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
     expect(pkg.status(), await pkg.text()).toBeLessThan(300);
     state.packageId = idOf(unwrap(await pkg.json()));
 
+    // Stage-3: APPROVED_FOR_PAYMENT requires a valid TCC on file.
+    const expiry = new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10);
+    const tcc = await apiPost(request, admin, `/api/v1/projects/${projectId}/subcontractor-tcc`, {
+      subcontractorPackageId: state.packageId,
+      pinNumber: 'P051234567X',
+      taxpayerName: 'Umeme Sparks Ltd',
+      tccNumber: `TCC-${RUN}`,
+      tccExpiryDate: expiry,
+      complianceStatus: 'COMPLIANT',
+    });
+    expect(tcc.status(), await tcc.text()).toBeLessThan(300);
+
     const link = await apiPost(request, admin, `/api/v1/projects/${projectId}/portals/links`, {
       portalType: 'SUBCONTRACTOR', stakeholderName: 'Umeme Sparks Ltd', stakeholderRole: 'Electrical',
       subcontractorPackageId: state.packageId, expiresInDays: 14,

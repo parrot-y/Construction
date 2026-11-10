@@ -75,13 +75,31 @@ test.describe('E. External portals', () => {
     const sup = await login(request, 'qs@apexbuilders.co.ke');
     const projectId = await firstProjectId(request, sup);
 
-    const linkRes = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
+    // Stage-3: supplier links must bind to a Supplier record.
+    const badLink = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
       portalType: 'SUPPLIER',
       stakeholderName: 'E2E Supplier',
       stakeholderRole: 'Cement supplier',
       expiresInDays: 7,
     });
-    expect(linkRes.status()).toBe(201);
+    expect(badLink.status(), await badLink.text()).toBe(400);
+
+    const supRes = await apiPost(request, sup, '/api/v1/suppliers', {
+      name: `E2E Cement Co ${Date.now()}`,
+      phone: '+254700000001',
+    });
+    expect(supRes.status(), await supRes.text()).toBe(201);
+    const supplier = unwrap(await supRes.json());
+    const supplierId = supplier.id || supplier.data?.id;
+
+    const linkRes = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
+      portalType: 'SUPPLIER',
+      stakeholderName: 'E2E Supplier',
+      stakeholderRole: 'Cement supplier',
+      expiresInDays: 7,
+      supplierId,
+    });
+    expect(linkRes.status(), await linkRes.text()).toBe(201);
     const link = unwrap(await linkRes.json());
     const token = link.token || link.rawToken;
 

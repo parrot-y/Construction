@@ -33,6 +33,14 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
     tenantAId = adminBody.user.tenant.id;
     adminAId = adminBody.user.id;
 
+    // The retention-terms test asserts the standard Kenyan default schedule;
+    // other suites may have configured tenant terms on this shared DB, so
+    // reset to the unconfigured state for determinism.
+    await prisma.tenant.update({
+      where: { id: tenantAId },
+      data: { retention_terms: null },
+    });
+
     // 2. Login as Client (Tenant A)
     const clientRes = await server.inject({
       method: 'POST',

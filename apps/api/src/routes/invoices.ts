@@ -484,6 +484,13 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             });
           }
 
+          // Stage-2: client payment notices are confirmed ONLY when the
+          // contractor records the actual payment — never before.
+          await tx.clientPaymentNotice.updateMany({
+            where: { invoice_id: id, status: 'PENDING' },
+            data: { status: 'CONFIRMED', confirmed_at: paidAt },
+          });
+
           await recordAuditLog(tx, {
             tenantId,
             projectId: existing.project_id,
