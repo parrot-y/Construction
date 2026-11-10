@@ -69,7 +69,7 @@ import InvoicingView from './components/InvoicingView';
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
   it('renders the login screen by default with demo accounts and title', () => {
     const html = renderToString(<LoginForm onLoginSuccess={() => {}} />);
-        expect(html).toContain('Site Safi');
+        expect(html).toContain('BuildSasa');
     expect(html).toContain('admin@apexbuilders.co.ke');
     expect(html).toContain('COMPANY_ADMIN');
     expect(html).toContain('PM_QS');
@@ -79,7 +79,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
   it('renders the App component root unauthenticated', () => {
     const html = renderToString(<App />);
-    expect(html).toContain('Site Safi');
+    expect(html).toContain('BuildSasa');
     expect(html).toContain('Sign in to your workspace');
 });
 
@@ -201,8 +201,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('Physical Progress');
     expect(html).toContain('Approved Contract Sum');
     expect(html).toContain('Total Certified Cost');
-    expect(html).toContain('Contract Retention Terms (Kenyan Standard)');
-    expect(html).toContain('10% of Gross Certified Work');
+    expect(html).toContain('Contract Retention Terms');
+    expect(html).toContain('Not specified by contractor'); // tenant terms unset in fixture — honest fallback, no hard-coded 10%
     expect(html).toContain('Verified Photo Evidence');
 });
 

@@ -40,7 +40,7 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
       url: '/api/v1/projects',
       headers: { cookie: authCookie },
       payload: {
-        name: 'Enterprise Mjengo Tower Test',
+        name: 'Enterprise Site Tower Test',
         code: `ENT-${Date.now().toString().slice(-4)}`,
         location: 'Upper Hill, Nairobi',
         originalContractSum: 250000000,

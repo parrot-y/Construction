@@ -2,9 +2,9 @@
  * Client-Side Offline Storage & Synchronization Engine (ADR-004)
  * Manages IndexedDB queue, client-side photo compression, and idempotent sync.
  *
- * Storage keys were renamed from the legacy `mjengo_*` names to `sitesafi_*`.
- * `migrateOfflineStorage()` copies any queued mutations forward once —
- * pending offline work is never dropped by the rename.
+ * Storage keys are brand-neutral (`buildsasa_*`). `migrateOfflineStorage()`
+ * copies queued mutations forward from the legacy `sitesafi_*`/`mjengo_*`
+ * names once — pending offline work is never dropped by the rename.
  */
 
 export interface OfflineMutationRecord {
@@ -20,17 +20,19 @@ export interface OfflineMutationRecord {
   last_error?: string;
 }
 
-const DB_NAME = 'sitesafi_offline_db';
+const DB_NAME = 'buildsasa_offline_db';
 const LEGACY_DB_NAME = 'mjengo_offline_db';
+const PREV_DB_NAME = 'sitesafi_offline_db';
 const STORE_NAME = 'mutations_queue';
 const DB_VERSION = 1;
 
-const LS_KEY = 'sitesafi_offline_queue';
+const LS_KEY = 'buildsasa_offline_queue';
 const LEGACY_LS_KEY = 'mjengo_offline_queue';
+const PREV_LS_KEY = 'sitesafi_offline_queue';
 
 function readLsQueue(): OfflineMutationRecord[] {
   try {
-    const raw = localStorage.getItem(LS_KEY) ?? localStorage.getItem(LEGACY_LS_KEY);
+    const raw = localStorage.getItem(LS_KEY) ?? localStorage.getItem(PREV_LS_KEY) ?? localStorage.getItem(LEGACY_LS_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -42,40 +44,49 @@ function writeLsQueue(records: OfflineMutationRecord[]): void {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(records));
     localStorage.removeItem(LEGACY_LS_KEY);
+    localStorage.removeItem(PREV_LS_KEY);
   } catch {
     // Storage unavailable — queue lives in IndexedDB anyway
   }
 }
 
 /**
- * One-time migration: copies legacy `mjengo_*` offline queue data into the
- * `sitesafi_*` keys. Safe to call repeatedly — dedupes by record id.
+ * One-time migration: copies legacy `sitesafi_*`/`mjengo_*` offline queue
+ * data into the `buildsasa_*` keys. Safe to call repeatedly — dedupes by id.
  */
 export async function migrateOfflineStorage(): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  // 1. localStorage queue
+  // 1. localStorage queues (both legacy generations)
   try {
-    const legacy = localStorage.getItem(LEGACY_LS_KEY);
-    if (legacy) {
+    const legacyRecords: OfflineMutationRecord[] = [];
+    for (const key of [LEGACY_LS_KEY, PREV_LS_KEY]) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) legacyRecords.push(...parsed);
+      } catch { /* corrupt payload — skip this key */ }
+      localStorage.removeItem(key);
+    }
+    if (legacyRecords.length > 0) {
       const merged = new Map<string, OfflineMutationRecord>();
-      for (const r of [...readLsQueue(), ...JSON.parse(legacy)]) {
+      for (const r of [...readLsQueue(), ...legacyRecords]) {
         if (r?.id) merged.set(r.id, r);
       }
       writeLsQueue([...merged.values()]);
     }
   } catch {
-    // Corrupt legacy payload — drop it rather than block the app
-    try { localStorage.removeItem(LEGACY_LS_KEY); } catch { /* ignore */ }
+    // Storage unavailable — IndexedDB migration below still applies
   }
 
-  // 2. IndexedDB store
-  try {
-    const legacyRecords = await new Promise<OfflineMutationRecord[]>((resolve) => {
+  // 2. IndexedDB stores (both legacy generations)
+  const readLegacyDb = (dbName: string): Promise<OfflineMutationRecord[]> =>
+    new Promise((resolve) => {
       let settled = false;
       const done = (v: OfflineMutationRecord[]) => { if (!settled) { settled = true; resolve(v); } };
       try {
-        const req = window.indexedDB.open(LEGACY_DB_NAME);
+        const req = window.indexedDB.open(dbName);
         req.onsuccess = () => {
           const oldDb = req.result;
           try {
@@ -91,6 +102,12 @@ export async function migrateOfflineStorage(): Promise<void> {
       } catch { done([]); }
     });
 
+  try {
+    const legacyRecords = [
+      ...(await readLegacyDb(LEGACY_DB_NAME)),
+      ...(await readLegacyDb(PREV_DB_NAME)),
+    ];
+
     if (legacyRecords.length > 0) {
       const db = await openDB();
       await new Promise<void>((resolve, reject) => {
@@ -103,7 +120,7 @@ export async function migrateOfflineStorage(): Promise<void> {
         tx.onerror = () => reject(tx.error);
       });
       db.close();
-      // Legacy DB left in place (read-only); new writes go to sitesafi_offline_db.
+      // Legacy DBs left in place (read-only); new writes go to buildsasa_offline_db.
     }
   } catch {
     // IndexedDB unavailable — localStorage migration above still applies

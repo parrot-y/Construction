@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Site Safi',
-        short_name: 'Site Safi',
+        name: process.env.VITE_PRODUCT_NAME || 'BuildSasa',
+        short_name: process.env.VITE_PRODUCT_NAME || 'BuildSasa',
         description: 'Kenya-first construction management — sites, crews, money, clients',
         theme_color: '#EA580C',
         background_color: '#ffffff',

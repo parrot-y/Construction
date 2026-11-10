@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
-import { prisma, withTenantTx, hashPassword } from '@construction/db';
+import { prisma, withTenantTx, hashPassword, Prisma } from '@construction/db';
 import { toDecimal } from '@construction/money';
 import { enrollAllTenantUsersTx } from './test-members';
 
@@ -38,7 +38,7 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
     // reset to the unconfigured state for determinism.
     await prisma.tenant.update({
       where: { id: tenantAId },
-      data: { retention_terms: null },
+      data: { retention_terms: Prisma.JsonNull },
     });
 
     // 2. Login as Client (Tenant A)

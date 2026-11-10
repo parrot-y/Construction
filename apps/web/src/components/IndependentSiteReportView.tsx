@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState} from 'react';
+import { PRODUCT_NAME } from '../lib/product';
 
 export type InspectionStage = 'substructure' | 'framing' | 'slab' | 'roofing' | 'finishes' | 'borehole';
 export type InspectionStatus = 'REQUESTED' | 'DISPATCHED' | 'COMPLETED' | 'CLIENT_REVIEWED';
@@ -465,7 +466,7 @@ export default function IndependentSiteReportView({
 </span>
 </div>
 <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Site Safi Independent Site Inspection Reports
+            {PRODUCT_NAME} Independent Site Inspection Reports
 </h2>
 <p className="text-xs text-slate-500 mt-0.5">
             Unannounced third-party Clerk of Works audits, GPS-verified progress reality, and material quality assurance for {projectName}.

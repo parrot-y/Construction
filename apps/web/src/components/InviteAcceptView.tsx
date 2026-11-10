@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AuthSession } from '../types/auth';
+import { PRODUCT_NAME } from '../lib/product';
 
 interface InviteInfo {
   email: string;
@@ -135,7 +136,7 @@ export default function InviteAcceptView({
             The link may be invalid, expired, revoked, or already used. Ask your administrator to send a new invitation.
           </p>
           <button onClick={onBack} className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
-            Back to Site Safi
+            Back to {PRODUCT_NAME}
           </button>
         </div>
       </div>
@@ -174,7 +175,7 @@ export default function InviteAcceptView({
             Until then you cannot sign in. If email delivery is not configured, ask your administrator to activate the account.
           </p>
           <button onClick={onBack} className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
-            Back to Site Safi
+            Back to {PRODUCT_NAME}
           </button>
         </div>
       </div>
@@ -226,7 +227,7 @@ export default function InviteAcceptView({
                   onChange={(e) => setPassword(e.target.value)} className={inputCls}
                   placeholder="At least 8 characters" autoComplete="new-password" />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  New to Site Safi? Choose a password. Already have an account with this email? Enter your existing password to confirm it is you.
+                  New to {PRODUCT_NAME}? Choose a password. Already have an account with this email? Enter your existing password to confirm it is you.
                 </p>
               </div>
               <div>
@@ -243,7 +244,7 @@ export default function InviteAcceptView({
           </>
         )}
         <button onClick={onBack} className="mt-4 text-sm font-semibold text-slate-600 hover:text-slate-900 min-h-[44px]">
-          Back to Site Safi
+          Back to {PRODUCT_NAME}
         </button>
       </div>
     </div>

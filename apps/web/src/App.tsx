@@ -13,6 +13,7 @@ import ClientPortalView from './components/portals/ClientPortalView';
 import PublicQuoteView from './components/PublicQuoteView';
 import { AuthSession} from './types/auth';
 import { migrateOfflineStorage } from './services/offline-sync';
+import { PRODUCT_NAME } from './lib/product';
 
 interface AppProps {
   initialPortal?: {
@@ -35,7 +36,7 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
   const [verifyToken, setVerifyToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // One-time migration of the legacy `mjengo_*` offline queue to `sitesafi_*`
+    // One-time migration of the legacy offline queue keys to `buildsasa_*`
     void migrateOfflineStorage();
     if (!externalPortal && typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
@@ -204,7 +205,7 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
             className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition"
           >
 <span>←</span>
-<span>Back to Site Safi Landing Portal Hub</span>
+<span>Back to {PRODUCT_NAME} Landing Portal Hub</span>
 </button>
 </div>
 {showPasswordReset ? (
@@ -244,7 +245,7 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
           className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition"
         >
 <span>←</span>
-<span>Back to Site Safi Landing Portal Hub</span>
+<span>Back to {PRODUCT_NAME} Landing Portal Hub</span>
 </button>
 </div>
 <SignupForm onLoginSuccess={(newSession) => setSession(newSession)} />

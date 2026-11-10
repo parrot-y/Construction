@@ -1,5 +1,6 @@
 import React, { useState, useEffect} from 'react';
 import { getQueuedMutations, flushSyncQueue, OfflineMutationRecord} from '../services/offline-sync';
+import { PRODUCT_NAME } from '../lib/product';
 
 export default function OfflineSyncBanner(): React.JSX.Element | null {
   const [isOnline, setIsOnline] = useState<boolean>(
@@ -66,7 +67,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
 <div className="flex items-center gap-2">
 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
 <span className="font-semibold">Online & Synchronized</span>
-<span className="text-emerald-600 hidden sm:inline">• Real-time connection to Site Safi Cloud</span>
+<span className="text-emerald-600 hidden sm:inline">• Real-time connection to {PRODUCT_NAME} Cloud</span>
 </div>
 <span className="text-[10px] px-2 py-0.5 bg-emerald-100 rounded border border-emerald-200 font-semibold">
           IndexedDB Offline Queue Active

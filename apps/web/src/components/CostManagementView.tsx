@@ -191,7 +191,7 @@ export default function CostManagementView({
               {canApprove &&<th className="py-2.5 px-3 font-semibold text-center">Actions</th>}
 </tr>
 </thead>
-<tbody className="divide-y divide-slate-100 font-mono">
+<tbody className="divide-y divide-slate-100">
             {filteredCosts.length === 0 ? (
 <tr>
 <td colSpan={canApprove ? 6 : 5} className="py-6 text-center text-slate-400 font-sans">

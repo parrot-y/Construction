@@ -244,7 +244,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
               taxBreakdown0: '0.00',
               taxBreakdownExempt: '0.00',
               // Server assigns the sandbox QR/signature; schema requires the fields.
-              qrCodeUrl: 'urn:mjengo:pending-kra-transmission',
+              qrCodeUrl: 'urn:etims:pending-kra-transmission',
               cryptographicSignature: 'PENDING',
 }),
 });

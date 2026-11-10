@@ -12,6 +12,7 @@ import {
   ReviewSubcontractorRetentionReleaseSchema,
   CreateContractorBondSchema,
 } from '@construction/validation';
+import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -146,7 +147,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
 
           // Development Sandbox Mock Signature (C2 Remediation: strictly non-production)
           const mockSignature = 'MOCK_SANDBOX_SIMULATION_ONLY_NOT_OFFICIAL_KRA_SIGNATURE';
-          const mockQrUrl = 'urn:mjengo:sandbox:simulation-non-official-tax-invoice';
+          const mockQrUrl = 'urn:etims:sandbox:simulation-non-official-tax-invoice';
 
           const invoice = await tx.eTimsInvoice.create({
             data: {
@@ -456,7 +457,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         extractedData.isSafetyCritical = upperMsg.includes('STOP') || upperMsg.includes('COLLAPSE') || upperMsg.includes('INJURY') || upperMsg.includes('FALL');
         extractedData.incidentDetails = rawMessage.replace(/^[#]INCIDENT[:\s]*/i, '').trim();
 
-        replyMessage = `Site Safi SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: ${extractedData.isSafetyCritical ? 'CRITICAL STOP-WORK' : 'INCIDENT LOGGED'}.`;
+        replyMessage = `${PRODUCT_NAME} SAFETY ALERT: Taarifa ya dharura imetumwa kwa Safety Officer na Project Manager mara moja! Hali: ${extractedData.isSafetyCritical ? 'CRITICAL STOP-WORK' : 'INCIDENT LOGGED'}.`;
       } else if (upperMsg.startsWith('#FUEL') || upperMsg.startsWith('#PLANT') || upperMsg.startsWith('FUEL:')) {
         detectedCommand = 'PLANT_FUEL';
         const litersMatch = rawMessage.match(/(\d+(?:\.\d+)?)\s*(?:l|liters?|litres?)/i);
@@ -464,9 +465,9 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         if (litersMatch && litersMatch[1]) extractedData.liters = litersMatch[1];
         if (hoursMatch && hoursMatch[1]) extractedData.hours = hoursMatch[1];
 
-        replyMessage = `Site Safi Fuel Audit: Mafuta (${extractedData.liters || 0}L) yamerekodiwa kwa masaa (${extractedData.hours || 0} hrs). Siphoning verification active.`;
+        replyMessage = `${PRODUCT_NAME} Fuel Audit: Mafuta (${extractedData.liters || 0}L) yamerekodiwa kwa masaa (${extractedData.hours || 0} hrs). Siphoning verification active.`;
       } else {
-        replyMessage = `Site Safi Bot: Karibu! Tuma ujumbe ukitumia #DIARY, #DELIVERY, #INCIDENT, au #FUEL kurekodi shughuli za tovuti moja kwa moja.`;
+        replyMessage = `${PRODUCT_NAME} Bot: Karibu! Tuma ujumbe ukitumia #DIARY, #DELIVERY, #INCIDENT, au #FUEL kurekodi shughuli za tovuti moja kwa moja.`;
       }
 
       try {

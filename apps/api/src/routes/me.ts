@@ -6,6 +6,7 @@ import {
   ClientPaymentNoticeSchema,
 } from '@construction/validation';
 import { notifyTeam } from '../lib/notify';
+import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TENANT_WIDE = new Set<Role>([Roles.COMPANY_ADMIN, Roles.ADMIN, Roles.EXECUTIVE]);
@@ -20,6 +21,11 @@ async function memberProjectIds(tx: any, userId: string): Promise<string[]> {
 }
 
 export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // Product name — single configurable value (PRODUCT_NAME env, Stage 4).
+  server.get('/api/v1/product', { preHandler: [server.authenticate] }, async (_request, reply) => {
+    return reply.send({ data: { productName: PRODUCT_NAME } });
+  });
+
   // -------------------------------------------------------------------------
   // GET /api/v1/fx-rates — dated, sourced exchange rates for client display.
   // Pilot: rates are manually maintained reference rates (no live provider
@@ -40,7 +46,7 @@ export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
         base: 'KES',
         rates,
         asOf,
-        source: 'Site Safi reference rates (manual entry — not a live feed)',
+        source: `${PRODUCT_NAME} reference rates (manual entry — not a live feed)`,
         simulated: true,
       },
     });

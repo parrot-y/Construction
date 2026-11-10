@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { PaymentCertificateData } from './types';
+import { PRODUCT_NAME } from '../lib/product';
 
 const styles = StyleSheet.create({
   page: {
@@ -458,7 +459,7 @@ export const PaymentCertificatePdf: React.FC<{ data: PaymentCertificateData }> =
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>Site Safi Immutable Financial System • Certificate: {certificateNo}</Text>
+          <Text>{PRODUCT_NAME} Immutable Financial System • Certificate: {certificateNo}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

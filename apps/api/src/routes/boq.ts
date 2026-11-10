@@ -5,6 +5,7 @@ import { toCurrencyString, Decimal } from '@construction/money';
 import { requirePermission } from '../plugins/rbac';
 import { parseBOQWorkbook, ParsedBOQSection } from '../services/boq-parser';
 import ExcelJS from 'exceljs';
+import { PRODUCT_NAME } from '../lib/product';
 
 export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/projects/:projectId/boq/preview - Staged Excel BOQ Parser & Validator
@@ -297,7 +298,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       }
 
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'Site Safi';
+      workbook.creator = PRODUCT_NAME;
       const sheet = workbook.addWorksheet('BOQ');
 
       sheet.columns = [

@@ -92,6 +92,11 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'PUT /api/v1/projects/:projectId/snags/:snagId/status': Permissions.PROGRESS_RECORD,
   'GET /api/v1/projects/:projectId/snags/:snagId': Permissions.SITE_DIARY_VIEW,
   'POST /api/v1/projects/:projectId/snags/:snagId/comments': Permissions.SITE_DIARY_CREATE,
+  'POST /api/v1/projects/:projectId/snags/:snagId/photos': Permissions.SITE_DIARY_CREATE,
+  // Stage 4 — permits register + compliance visits (contractor view)
+  'GET /api/v1/projects/:projectId/permits': Permissions.SITE_DIARY_VIEW,
+  'POST /api/v1/projects/:projectId/permits': Permissions.DOCUMENT_MANAGE,
+  'GET /api/v1/projects/:projectId/compliance-visits': Permissions.SITE_DIARY_VIEW,
   'POST /api/v1/projects/:projectId/snags/:snagId/distributions': Permissions.PROGRESS_RECORD,
 
   // Lifecycle: certificates
@@ -198,6 +203,7 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
   'GET /api/v1/fx-rates': 'Reference FX rates — dated/sourced tenant-level data for any member',
   'GET /api/v1/me/invoices': 'Caller-scoped invoice list (CLIENT/OWNER scope enforced in-handler)',
   'GET /api/v1/me/approvals': 'Caller-scoped "waiting for you" approval feed',
+  'GET /api/v1/product': 'Product metadata for any authenticated member',
   'POST /api/v1/client/invoices/:invoiceId/payment-notice': 'Client self-service payment notice on own invoice (non-mutating, notifies staff)',
   'GET /api/v1/billing/subscription-status': 'Caller\u2019s tenant subscription status',
 };

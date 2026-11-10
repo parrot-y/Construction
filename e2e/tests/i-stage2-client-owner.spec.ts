@@ -123,14 +123,14 @@ test.describe('Stage 2 — client & owner portals', () => {
     expect(state.diaryId, 'diary id').toBeTruthy();
 
     // Staff view keeps everything.
-    const staffDetail = await apiGet(request, admin, CONTRACT.siteDiary(pid, state.diaryId));
+    const staffDetail = await apiGet(request, admin, CONTRACT.siteDiary(pid, state.diaryId!));
     expect(staffDetail.status()).toBe(200);
     const staffBody = await staffDetail.text();
     expect(staffBody).toContain(SECRET);
     expect(staffBody).toContain(hiddenKey);
 
     // Client list + detail must be client-safe.
-    for (const path of [CONTRACT.siteDiaries(pid), CONTRACT.siteDiary(pid, state.diaryId)]) {
+    for (const path of [CONTRACT.siteDiaries(pid), CONTRACT.siteDiary(pid, state.diaryId!)]) {
       const res = await apiGet(request, client, path);
       expect(res.status(), `${path} for CLIENT`).toBe(200);
       const text = await res.text();
@@ -208,7 +208,7 @@ test.describe('Stage 2 — client & owner portals', () => {
     const inv = unwrap(await invRes.json());
     state.invoiceId = idOf(inv) || inv.invoice?.id;
     expect(state.invoiceId).toBeTruthy();
-    await apiPost(request, admin, CONTRACT.sendInvoice(state.invoiceId), {});
+    await apiPost(request, admin, CONTRACT.sendInvoice(state.invoiceId!), {});
 
     const mine = await apiGet(request, client, CONTRACT.meInvoices);
     expect(mine.status(), await mine.text()).toBe(200);

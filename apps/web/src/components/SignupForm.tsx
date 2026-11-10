@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthSession } from '../types/auth';
+import { PRODUCT_NAME } from '../lib/product';
 
 interface SignupFormProps {
   onLoginSuccess?: (session: AuthSession) => void;
@@ -91,7 +92,7 @@ export default function SignupForm({ apiBaseUrl = '' }: SignupFormProps): React.
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-bold text-slate-900">Create your company workspace</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Set up your contracting company on Site Safi. You will be the company admin.
+          Set up your contracting company on {PRODUCT_NAME}. You will be the company admin.
         </p>
         {errorMessage && (
           <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700" role="alert">

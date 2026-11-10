@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { SiteDiaryReportData } from './types';
+import { PRODUCT_NAME } from '../lib/product';
 
 const styles = StyleSheet.create({
   page: {
@@ -491,7 +492,7 @@ export const SiteDiaryReportPdf: React.FC<{ data: SiteDiaryReportData }> = ({ da
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>Site Safi Daily Site Diary • Project: {project.code}</Text>
+          <Text>{PRODUCT_NAME} Daily Site Diary • Project: {project.code}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

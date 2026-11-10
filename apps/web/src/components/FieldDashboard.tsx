@@ -11,8 +11,16 @@ import ProjectScheduleGanttView from './ProjectScheduleGanttView';
 import TendersView from './TendersView';
 import CrewsView from './CrewsView';
 import ObservationsView from './ObservationsView';
+import SiteDiaryModal from './SiteDiaryModal';
+import SafetyIncidentLogView from './SafetyIncidentLogView';
+import SnaggingListView from './SnaggingListView';
 
 interface ProjectOpt { id: string; name: string; code: string}
+
+interface DiaryRow {
+  id: string; entry_date: string; weather?: string; site_status?: string;
+  general_notes?: string; recorded_by_id?: string;
+}
 
 type FieldSection = 'today' | 'messages' | 'site' | 'more';
 
@@ -28,11 +36,17 @@ const SECTIONS: { id: FieldSection; label: string; icon: string}[] = [
  * foreman / worker day-to-day. Mobile-first: bottom tab bar on small
  * screens, pill tabs on desktop. Sections group the same live views.
  */
-export default function FieldDashboard({ session, readOnly = false}: { session: AuthSession; readOnly?: boolean}): React.JSX.Element {
-  const { user} = session;
+export default function FieldDashboard({ session, readOnly = false, onLogout}: { session: AuthSession; readOnly?: boolean; onLogout?: () => void}): React.JSX.Element {
+  const { user, permissions = []} = session;
   const [projects, setProjects] = useState<ProjectOpt[]>([]);
   const [projectId, setProjectId] = useState('');
   const [section, setSection] = useState<FieldSection>('today');
+  const [diaryOpen, setDiaryOpen] = useState(false);
+  const [diaries, setDiaries] = useState<DiaryRow[]>([]);
+
+  const can = (p: string) => permissions.includes(p);
+  const canDiary = can('SITE_DIARY_CREATE') || can('SITE_DIARY_VIEW');
+  const canTenders = can('TENDER_VIEW');
 
   useEffect(() => {
     fetch('/api/v1/projects', { credentials: 'include'})
@@ -44,6 +58,17 @@ export default function FieldDashboard({ session, readOnly = false}: { session: 
 })
       .catch(() => setProjects([]));
 }, []);
+
+  useEffect(() => {
+    if (!projectId || !canDiary) { setDiaries([]); return; }
+    fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'})
+      .then((r) => r.ok ? r.json() : { data: [] })
+      .then((j) => {
+        const rows = j.data || j.diaries || j.rows || (Array.isArray(j) ? j : []);
+        setDiaries(rows.slice(0, 10));
+      })
+      .catch(() => setDiaries([]));
+  }, [projectId, canDiary]);
 
   const projectName = projects.find((p) => p.id === projectId)?.name || '';
 
@@ -74,6 +99,48 @@ export default function FieldDashboard({ session, readOnly = false}: { session: 
       {section === 'today' && (
 <>
           {projectPicker}
+          {canDiary && projectId && (
+<div className="bg-white rounded-xl border border-slate-200 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-900">Site Diary</h3>
+                {!readOnly && can('SITE_DIARY_CREATE') && (
+                  <button onClick={() => setDiaryOpen(true)}
+                    className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg">
+                    Record diary
+                  </button>
+                )}
+              </div>
+              {diaries.length === 0 ? (
+                <p className="text-xs text-slate-500">No diary entries yet.</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {diaries.map((d) => (
+                    <li key={d.id} className="py-2 text-xs">
+                      <span className="font-semibold text-slate-800">{d.entry_date}</span>
+                      <span className="text-slate-500"> — {d.weather || '—'} • {d.site_status || '—'}</span>
+                      {d.general_notes && <p className="text-slate-500 mt-0.5 truncate">{d.general_notes}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <SiteDiaryModal
+                isOpen={diaryOpen}
+                onClose={() => setDiaryOpen(false)}
+                projectId={projectId}
+                projectName={projectName}
+                onDiarySubmitted={() => {
+                  setDiaryOpen(false);
+                  fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'})
+                    .then((r) => r.ok ? r.json() : { data: [] })
+                    .then((j) => {
+                      const rows = j.data || j.diaries || j.rows || (Array.isArray(j) ? j : []);
+                      setDiaries(rows.slice(0, 10));
+                    })
+                    .catch(() => {});
+                }}
+              />
+</div>
+          )}
 <AttendanceView canManage={!readOnly} />
 <ChecklistsView canManage={!readOnly} />
 </>
@@ -95,6 +162,8 @@ export default function FieldDashboard({ session, readOnly = false}: { session: 
           {projectId &&<RfiManagementView projectId={projectId} projectName={projectName} canCreate={!readOnly} />}
           {projectId &&<ObservationsView projectId={projectId} canManage={!readOnly} />}
           {projectId &&<CorrespondenceView canManage={!readOnly} />}
+          {projectId &&<SafetyIncidentLogView projectId={projectId} canLog={!readOnly} canInvestigate={!readOnly} />}
+          {projectId &&<SnaggingListView projectId={projectId} />}
           {!projectId &&<p className="text-sm text-slate-500">Select a project to view site workflows.</p>}
 </>
 )}
@@ -103,7 +172,14 @@ export default function FieldDashboard({ session, readOnly = false}: { session: 
 <>
           {projectPicker}
 <CrewsView canManage={!readOnly} />
-          {projectId &&<TendersView projectId={projectId} canManage={!readOnly} />}
+          {canTenders && projectId &&<TendersView projectId={projectId} canManage={!readOnly} />}
+          {onLogout && (
+            <div className="flex justify-end">
+              <button onClick={onLogout} className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-700 hover:bg-red-50 border border-slate-200 rounded-lg">
+                Sign out
+              </button>
+            </div>
+          )}
 </>
 )}
 

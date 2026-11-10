@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState} from 'react';
 import { formatKes, CopyWhatsAppButton } from '../ui';
+import { PRODUCT_NAME } from '../lib/product';
 
 interface PaymentCertificate {
   id: string;
@@ -572,7 +573,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 <span className="text-[11px] text-slate-500">Awaiting invoice payment</span>
 )}
 <CopyWhatsAppButton
-                        message={`Payment certificate IPC-${String(c.certificate_no).padStart(3, '0')} (${c.period_start} → ${c.period_end}) is ${c.status.replace(/_/g, ' ').toLowerCase()} — net payable ${formatKes(c.net_payable)}${c.invoice_id ? ' (invoice raised, awaiting payment)' : c.status === 'CERTIFIED' ? ' — invoice can now be raised' : ''}. — Site Safi`}
+                        message={`Payment certificate IPC-${String(c.certificate_no).padStart(3, '0')} (${c.period_start} → ${c.period_end}) is ${c.status.replace(/_/g, ' ').toLowerCase()} — net payable ${formatKes(c.net_payable)}${c.invoice_id ? ' (invoice raised, awaiting payment)' : c.status === 'CERTIFIED' ? ' — invoice can now be raised' : ''}. — ${PRODUCT_NAME}`}
                       />
 </div>
 </div>

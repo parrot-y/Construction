@@ -3,6 +3,7 @@ import { AuthSession} from '../types/auth';
 import ClientDashboard from './ClientDashboard';
 import OwnerDashboard from './OwnerDashboard';
 import AppShell from './console/AppShell';
+import FieldDashboard from './FieldDashboard';
 import ConsultantPortalView from './portals/ConsultantPortalView';
 import SubcontractorPortalView from './portals/SubcontractorPortalView';
 import SupplierPortalView from './portals/SupplierPortalView';
@@ -99,14 +100,23 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
     if (user.role === 'OWNER') {
       return<OwnerDashboard session={session} />;
 }
+    // Stage 4: field roles get the mobile-first field workspace —
+    // diary, attendance, checklists, inbox, drawings, RFIs, safety
+    // incidents and snagging, all permission-filtered.
+    if (['FOREMAN', 'WORKER', 'SITE_ENGINEER', 'TRADE_LEAD'].includes(user.role)) {
+      return<FieldDashboard session={session} onLogout={onLogout} />;
+}
     // All internal workspace roles render inside the console shell
     // (icon rail + section router per role nav matrix).
     return<AppShell session={session} onLogout={onLogout} />;
 };
 
   // Internal workspace roles use the console shell (own chrome).
-  // CLIENT and OWNER keep their dedicated read-mostly dashboards.
-  if (user.role !== 'CLIENT' && user.role !== 'OWNER' && !previewPortal) {
+  // CLIENT and OWNER keep their dedicated read-mostly dashboards;
+  // field roles use the mobile-first FieldDashboard (Stage 4).
+  if (user.role !== 'CLIENT' && user.role !== 'OWNER'
+      && !['FOREMAN', 'WORKER', 'SITE_ENGINEER', 'TRADE_LEAD'].includes(user.role)
+      && !previewPortal) {
     return<AppShell session={session} onLogout={onLogout} />;
 }
 
@@ -167,7 +177,7 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
           {permissions.slice(0, 8).map((p) => (
 <span
               key={p}
-              className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded border border-slate-100 whitespace-nowrap"
+              className="text-[10px] px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded border border-slate-100 whitespace-nowrap"
             >
               {p}
 </span>

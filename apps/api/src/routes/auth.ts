@@ -3,6 +3,7 @@ import { hashPassword, prisma, recordAuditLog, verifyPassword, withTenantTx } fr
 import { getPermissionsForRole, Role } from '@construction/permissions';
 import {
   AuthUserResponse,
+  FieldLoginSchema,
   LoginRequestSchema,
   RegisterCompanySchema,
   RequestPasswordResetSchema,
@@ -17,6 +18,7 @@ import {
   lookupPasswordResetToken,
   passwordResetUrl,
 } from '../lib/accountTokens';
+import { normalizeKenyaPhone } from './invitations';
 
 interface LoginAttempt {
   count: number;
@@ -64,6 +66,101 @@ const clearSessionCookies = (reply: any) => {
   reply.clearCookie('access_token', { path: '/' });
   reply.clearCookie('refresh_token', { path: '/api/v1/auth' });
 };
+
+/**
+ * Shared post-credential session issuance: resolves memberships, picks the
+ * target tenant, signs access+refresh JWTs, sets cookies, returns the
+ * AuthUserResponse payload. Used by password login and phone+PIN field login.
+ */
+type SessionIssueResult =
+  | { __error: { status: number; message: string } }
+  | { response: AuthUserResponse };
+
+async function issueSessionForUser(
+  server: FastifyInstance,
+  reply: any,
+  user: { id: string; email: string; full_name: string; phone_number: string | null },
+  requestedTenantId?: string,
+): Promise<SessionIssueResult> {
+  // Retrieve tenant memberships via narrow SECURITY DEFINER lookup function without auth_context bypasses (2c)
+  const membershipRows = await prisma.$queryRaw<any[]>`
+    SELECT * FROM lookup_user_memberships_for_login(${user.id}::uuid);
+  `;
+
+  const memberships = membershipRows.map((m) => ({
+    id: m.id,
+    tenant_id: m.tenant_id,
+    role: m.role,
+    tenant: {
+      id: m.tenant_id,
+      name: m.tenant_name,
+      slug: m.tenant_slug,
+      currency: m.tenant_currency || 'KES',
+    },
+  }));
+
+  if (memberships.length === 0) {
+    return { __error: { status: 403, message: 'User does not belong to any active company tenant' } };
+  }
+
+  const activeMembership = requestedTenantId
+    ? memberships.find((m) => m.tenant_id === requestedTenantId)
+    : memberships[0];
+
+  if (!activeMembership) {
+    return { __error: { status: 403, message: 'User is not authorized for the requested company tenant' } };
+  }
+
+  const tokenPayloadBase = {
+    sub: user.id,
+    email: user.email,
+    fullName: user.full_name,
+    tenantId: activeMembership.tenant_id,
+    role: activeMembership.role,
+  };
+
+  const token = server.jwt.sign({ ...tokenPayloadBase, typ: 'access' as const }, { expiresIn: ACCESS_TTL });
+  const refreshJti = crypto.randomUUID();
+  const refreshToken = server.jwt.sign(
+    { ...tokenPayloadBase, typ: 'refresh' as const, jti: refreshJti },
+    { expiresIn: REFRESH_TTL },
+  );
+
+  await withTenantTx(prisma, activeMembership.tenant_id, (tx) =>
+    tx.refreshToken.create({
+      data: {
+        jti: refreshJti,
+        tenant_id: activeMembership.tenant_id,
+        user_id: user.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    }),
+  );
+
+  setSessionCookies(reply, token, refreshToken);
+
+  const permissions = getPermissionsForRole(activeMembership.role as Role);
+
+  const response: AuthUserResponse = {
+    user: {
+      id: user.id,
+      email: user.email,
+      fullName: user.full_name,
+      phoneNumber: user.phone_number,
+      role: activeMembership.role,
+      tenant: {
+        id: activeMembership.tenant.id,
+        name: activeMembership.tenant.name,
+        slug: activeMembership.tenant.slug,
+        currency: activeMembership.tenant.currency,
+      },
+    },
+    permissions: [...permissions],
+    token,
+  };
+
+  return { response };
+}
 
 export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/auth/login
@@ -153,102 +250,97 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       });
     }
 
-    // Retrieve tenant memberships via narrow SECURITY DEFINER lookup function without auth_context bypasses (2c)
-    const membershipRows = await prisma.$queryRaw<any[]>`
-      SELECT * FROM lookup_user_memberships_for_login(${user.id}::uuid);
-    `;
+    const session = await issueSessionForUser(server, reply, user, tenantId);
+    if ('__error' in session) {
+      return reply.status(session.__error.status).send({
+        error: session.__error.status === 403 ? 'Forbidden' : 'Error',
+        message: session.__error.message,
+      });
+    }
+    return reply.status(200).send(session.response);
+  });
 
-    const memberships = membershipRows.map((m) => ({
-      id: m.id,
-      tenant_id: m.tenant_id,
-      role: m.role,
-      tenant: {
-        id: m.tenant_id,
-        name: m.tenant_name,
-        slug: m.tenant_slug,
-        currency: m.tenant_currency || 'KES',
-      },
-    }));
+  // POST /api/v1/auth/field-login — phone + PIN sign-in for field roles
+  // (FOREMAN, WORKER, SITE_ENGINEER, TRADE_LEAD). PINs are stored hashed;
+  // failed attempts lock the account PIN for 15 minutes after 5 failures,
+  // independent of the password lockout.
+  server.post('/api/v1/auth/field-login', {
+    config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const clientIp = request.ip || '127.0.0.1';
+    const parsed = FieldLoginSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: 'Bad Request',
+        message: 'Invalid field login payload — phone and 6-digit PIN required',
+      });
+    }
+    const { phone, pin } = parsed.data;
+    const normalized = normalizeKenyaPhone(phone);
 
-    if (memberships.length === 0) {
-      return reply.status(403).send({
-        error: 'Forbidden',
-        message: 'User does not belong to any active company tenant',
+    const user = await prisma.user.findFirst({
+      where: { phone_number: normalized },
+    });
+
+    const invalid = () => reply.status(401).send({
+      error: 'Unauthorized',
+      message: 'Invalid phone number or PIN',
+    });
+
+    if (!user || !user.is_active || !user.pin_hash) {
+      server.log.warn({ ip: clientIp, reason: 'FIELD_USER_NOT_FOUND' }, 'Security Audit: Failed field login');
+      return invalid();
+    }
+
+    // Per-account PIN lockout (independent of IP rate limiting)
+    if (user.pin_locked_until && new Date(user.pin_locked_until) > new Date()) {
+      reply.header('Retry-After', Math.ceil((new Date(user.pin_locked_until).getTime() - Date.now()) / 1000));
+      return reply.status(429).send({
+        error: 'Too Many Requests',
+        message: 'Too many failed PIN attempts. Try again later.',
       });
     }
 
-    // Select target membership
-    const activeMembership = tenantId
-      ? memberships.find((m) => m.tenant_id === tenantId)
-      : memberships[0];
-
-    if (!activeMembership) {
-      return reply.status(403).send({
-        error: 'Forbidden',
-        message: 'User is not authorized for the requested company tenant',
-      });
-    }
-
-    const tokenPayloadBase = {
-      sub: user.id,
-      email: user.email,
-      fullName: user.full_name,
-      tenantId: activeMembership.tenant_id,
-      role: activeMembership.role,
-    };
-
-    const tokenPayload = { ...tokenPayloadBase, typ: 'access' as const };
-    const token = server.jwt.sign(tokenPayload, { expiresIn: ACCESS_TTL });
-    const refreshJti = crypto.randomUUID();
-    const refreshToken = server.jwt.sign(
-      {
-        sub: user.id,
-        email: user.email,
-        fullName: user.full_name,
-        tenantId: activeMembership.tenant_id,
-        role: activeMembership.role,
-        typ: 'refresh' as const,
-        jti: refreshJti,
-      },
-      { expiresIn: REFRESH_TTL },
-    );
-
-    // Track the refresh token server-side for rotation + reuse detection.
-    await withTenantTx(prisma, activeMembership.tenant_id, (tx) =>
-      tx.refreshToken.create({
+    const pinOk = await verifyPassword(pin, user.pin_hash);
+    if (!pinOk) {
+      const attempts = user.pin_failed_attempts + 1;
+      const lock = attempts >= 5;
+      await prisma.user.update({
+        where: { id: user.id },
         data: {
-          jti: refreshJti,
-          tenant_id: activeMembership.tenant_id,
-          user_id: user.id,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          pin_failed_attempts: lock ? 0 : attempts,
+          pin_locked_until: lock ? new Date(Date.now() + 15 * 60 * 1000) : null,
         },
-      }),
-    );
+      });
+      server.log.warn({ ip: clientIp, userId: user.id, reason: 'INVALID_PIN', attempts }, 'Security Audit: Failed field login');
+      return invalid();
+    }
 
-    // Short-lived access cookie + rotating refresh cookie (audit S-01)
-    setSessionCookies(reply, token, refreshToken);
+    if (user.pin_failed_attempts > 0 || user.pin_locked_until) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { pin_failed_attempts: 0, pin_locked_until: null },
+      });
+    }
 
-    const permissions = getPermissionsForRole(activeMembership.role as Role);
+    // Field accounts are phone-verified at invite-accept; the standard
+    // verification gate still applies for any account lacking both.
+    if (!user.email_verified_at && !user.phone_verified_at) {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        code: 'ACCOUNT_NOT_VERIFIED',
+        message: 'This account is not verified — ask your company administrator to activate it.',
+      });
+    }
 
-    const response: AuthUserResponse = {
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.full_name,
-        phoneNumber: user.phone_number,
-        role: activeMembership.role,
-        tenant: {
-          id: activeMembership.tenant.id,
-          name: activeMembership.tenant.name,
-          slug: activeMembership.tenant.slug,
-          currency: activeMembership.tenant.currency,
-        },
-      },
-      permissions: [...permissions],
-      token,
-    };
-
-    return reply.status(200).send(response);
+    const session = await issueSessionForUser(server, reply, user);
+    if ('__error' in session) {
+      return reply.status(session.__error.status).send({
+        error: 'Forbidden',
+        message: session.__error.message,
+      });
+    }
+    return reply.status(200).send(session.response);
   });
 
   // POST /api/v1/auth/register-company

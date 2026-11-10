@@ -2,12 +2,12 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { getTaxSettings, whtRateFor } from '../lib/tax';
 import { Permissions } from '@construction/permissions';
-import { CreatePortalLinkSchema, ClientVariationRespondSchema, ConsultantRfiReplySchema, SupplierDeliveryActionSchema } from '@construction/validation';
+import { CreatePortalLinkSchema, ClientVariationRespondSchema, ConsultantRfiReplySchema, SupplierDeliveryActionSchema, CreateComplianceVisitSchema } from '@construction/validation';
 import { randomBytes, createHash } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
 import { toDecimal } from '@construction/money';
 import { randomUUID } from 'node:crypto';
-import { verifyUpload } from '../lib/uploadSecurity';
+import { contentTypeForKey, verifyUpload } from '../lib/uploadSecurity';
 import { notifyTeam } from '../lib/notify';
 import { getStorageDriver } from '../lib/storage';
 import {
@@ -92,7 +92,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         });
       }
 
-      const { portalType, stakeholderName, stakeholderRole, expiresInDays, subcontractorPackageId, supplierId } = parseResult.data as any;
+      const { portalType, stakeholderName, stakeholderRole, expiresInDays, subcontractorPackageId, supplierId, scope } = parseResult.data as any;
       const rawToken = randomBytes(32).toString('hex');
       const tokenHash = createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
@@ -145,6 +145,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
               expires_at: expiresAt,
               subcontractor_package_id: portalType === 'SUBCONTRACTOR' ? subcontractorPackageId : null,
               supplier_id: portalType === 'SUPPLIER' ? supplierId : null,
+              scope: portalType === 'CONSULTANT' ? (scope || 'ALL') : null,
             },
           });
 
@@ -182,6 +183,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             expiresAt: link.expires_at.toISOString(),
             subcontractorPackageId: link.subcontractor_package_id ?? null,
             supplierId: link.supplier_id ?? null,
+            scope: link.scope ?? null,
             createdAt: link.created_at.toISOString(),
           },
         });
@@ -233,6 +235,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           portalType: l.portal_type,
           stakeholderName: l.stakeholder_name,
           stakeholderRole: l.stakeholder_role,
+          scope: l.scope ?? null,
           token: null, // Tokens stored as SHA-256 hashes; never exposed in listings (2d, H5)
           linkUrl: null,
           isActive: l.is_active && new Date() < l.expires_at,
@@ -412,48 +415,84 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       });
     }
 
+    // Consultant link scopes (Stage 4): a scoped link only ever receives the
+    // sections it was issued for — unscoped sections are not fetched at all.
+    const scope = (link.scope || 'ALL').toUpperCase();
+    const wantRfis = scope === 'ALL' || scope === 'RFI';
+    const wantInspections = scope === 'ALL' || scope === 'INSPECTIONS';
+    const wantCertificates = scope === 'ALL' || scope === 'CERTIFICATES';
+    const wantDrawings = scope === 'ALL';
+
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, rfis, inspections, cubeTests, certificates] = await Promise.all([
+      const [project, rfis, inspections, cubeTests, certificates, drawingDocs] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
           select: { id: true, name: true, code: true, status: true },
         }),
-        tx.rFI.findMany({
-          where: { project_id: link.project_id },
-          include: {
-            responses: { orderBy: { created_at: 'asc' } },
-            attachments: true,
-          },
-          orderBy: { rfi_number: 'desc' },
-        }),
-        tx.inspectionChecklist.findMany({
-          where: { project_id: link.project_id },
-          include: {
-            items: { orderBy: { order_idx: 'asc' } },
-          },
-          orderBy: { scheduled_date: 'desc' },
-        }),
-        tx.concreteCubeTest.findMany({
-          where: { project_id: link.project_id },
-          include: {
-            break_results: { orderBy: { break_age_days: 'asc' } },
-          },
-          orderBy: { pour_date: 'desc' },
-        }),
-        tx.defectsLiabilityCertificate.findMany({
-          where: { project_id: link.project_id },
-          orderBy: { issue_date: 'desc' },
-        }),
+        wantRfis
+          ? tx.rFI.findMany({
+              where: { project_id: link.project_id },
+              include: {
+                responses: { orderBy: { created_at: 'asc' } },
+                attachments: true,
+              },
+              orderBy: { rfi_number: 'desc' },
+            })
+          : Promise.resolve([]),
+        wantInspections
+          ? tx.inspectionChecklist.findMany({
+              where: { project_id: link.project_id },
+              include: {
+                items: { orderBy: { order_idx: 'asc' } },
+              },
+              orderBy: { scheduled_date: 'desc' },
+            })
+          : Promise.resolve([]),
+        wantInspections
+          ? tx.concreteCubeTest.findMany({
+              where: { project_id: link.project_id },
+              include: {
+                break_results: { orderBy: { break_age_days: 'asc' } },
+              },
+              orderBy: { pour_date: 'desc' },
+            })
+          : Promise.resolve([]),
+        wantCertificates
+          ? tx.defectsLiabilityCertificate.findMany({
+              where: { project_id: link.project_id },
+              orderBy: { issue_date: 'desc' },
+            })
+          : Promise.resolve([]),
+        wantDrawings
+          ? tx.projectDocument.findMany({
+              where: {
+                project_id: link.project_id,
+                OR: [
+                  { drawing_reference: { not: null } },
+                  { category: { contains: 'DRAWING' } },
+                ],
+              },
+              include: { acknowledgements: true },
+              orderBy: { created_at: 'desc' },
+            })
+          : Promise.resolve([]),
       ]);
 
-      return {
+      const now = new Date();
+      const isOpenRfi = (s: string) => !['ANSWERED', 'CLOSED', 'VOID'].includes(s);
+
+      const out: Record<string, any> = {
         stakeholder: {
           name: link.stakeholder_name,
           role: link.stakeholder_role || 'Consultant',
         },
+        scope,
         linkExpiresAt: link.expires_at.toISOString(),
         project: project ?? null,
-        rfis: (rfis || []).map((r: any) => ({
+      };
+
+      if (wantRfis) {
+        out.rfis = (rfis || []).map((r: any) => ({
           id: r.id,
           rfiNumber: r.rfi_number,
           title: r.title,
@@ -477,8 +516,12 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           attachments: (r.attachments || []).map((a: any) => ({
             id: a.id, filename: a.filename, fileSize: a.file_size, mimeType: a.mime_type, storageKey: a.storage_key,
           })),
-        })),
-        inspections: (inspections || []).map((i: any) => ({
+          isOverdue: isOpenRfi(r.status) && !!r.due_date && new Date(r.due_date) < now,
+        }));
+      }
+
+      if (wantInspections) {
+        out.inspections = (inspections || []).map((i: any) => ({
           id: i.id,
           title: i.title,
           checklistType: i.checklist_type,
@@ -494,8 +537,9 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             id: it.id, orderIdx: it.order_idx, checkPoint: it.check_point,
             isMandatory: it.is_mandatory, result: it.result, deficiencyNotes: it.deficiency_notes,
           })),
-        })),
-        cubeTests: (cubeTests || []).map((c: any) => ({
+        }));
+
+        out.cubeTests = (cubeTests || []).map((c: any) => ({
           id: c.id,
           pourLocation: c.pour_location,
           pourDate: c.pour_date,
@@ -508,15 +552,47 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             id: b.id, cubeNumber: b.cube_number, breakAgeDays: b.break_age_days,
             compressiveMpa: b.compressive_mpa?.toString(), isPass: b.is_pass, labName: b.lab_name,
           })),
-        })),
-        certificates: (certificates || []).map((c: any) => ({
+        }));
+      }
+
+      if (wantCertificates) {
+        out.certificates = (certificates || []).map((c: any) => ({
           id: c.id, certificateType: c.certificate_type, certificateReference: c.certificate_reference,
           issueDate: c.issue_date, effectiveDate: c.effective_date,
           dlpDurationMonths: c.dlp_duration_months, dlpExpiryDate: c.dlp_expiry_date,
           retentionAmountReleased: c.retention_amount_released?.toString(),
           architectName: c.architect_name, qsName: c.qs_name,
-        })),
-      };
+        }));
+      }
+
+      if (wantDrawings) {
+        out.drawings = (drawingDocs || []).map((d: any) => {
+          const acks = d.acknowledgements || [];
+          const mine = acks.find((a: any) => a.portal_link_id === link.id);
+          return {
+            id: d.id,
+            documentId: d.id,
+            drawingNumber: d.drawing_reference,
+            drawingReference: d.drawing_reference,
+            title: d.title,
+            revision: d.revision_code,
+            revisionCode: d.revision_code,
+            issuedDate: (d.issued_date || d.created_at),
+            status: d.status,
+            // A drawing is overdue for this consultant when a newer revision
+            // superseded it or it was never issued for construction.
+            isOverdue: d.status === 'SUPERSEDED' || d.status === 'FOR_REVIEW',
+            acknowledged: !!mine,
+            acknowledgedAt: mine?.acknowledged_at ?? null,
+            acknowledgedBy: acks.map((a: any) => ({
+              stakeholderName: a.stakeholder_name,
+              acknowledgedAt: a.acknowledged_at,
+            })),
+          };
+        });
+      }
+
+      return out;
     });
 
     return reply.status(200).send({
@@ -538,6 +614,16 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         statusCode: 404,
         error: 'Not Found',
         message: 'Invalid or expired consultant access token',
+      });
+    }
+
+    // Scoped links may only act on sections they were issued for.
+    const replyScope = (link.scope || 'ALL').toUpperCase();
+    if (!['ALL', 'RFI'].includes(replyScope)) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: `This consultant link is scoped to ${replyScope} and cannot reply to RFIs`,
       });
     }
 
@@ -575,6 +661,29 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           is_accepted: true,
         },
       });
+
+      // Reply attachments: only keys issued by THIS link's upload endpoint
+      // (tenant+project namespaced) are accepted — arbitrary keys rejected.
+      const attachmentKeys = body.attachmentStorageKeys || [];
+      const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
+      for (const key of attachmentKeys) {
+        if (!key.startsWith(expectedPrefix) || key.includes('..')) {
+          throw { status: 400, message: 'attachmentStorageKeys must be uploaded via the consultant portal uploads endpoint first' };
+        }
+      }
+      for (const key of attachmentKeys) {
+        const stored = await getStorageDriver().get(key).catch(() => null);
+        await tx.rFIAttachment.create({
+          data: {
+            tenant_id: link.tenant_id,
+            rfi_id: rfiId,
+            storage_key: key,
+            filename: key.split('/').pop() || 'attachment',
+            file_size: stored?.length ?? 0,
+            mime_type: contentTypeForKey(key),
+          },
+        });
+      }
 
       await tx.rFI.update({
         where: { id: rfiId },
@@ -622,6 +731,115 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       data: response,
     });
   });
+
+  // POST /api/v1/portals/consultant/:token/uploads — verified file upload.
+  // Same content/magic-byte checks as authenticated site uploads; the key is
+  // namespaced to this link's tenant+project so reply attachments and the
+  // drawings register can reference it safely.
+  server.post(
+    '/api/v1/portals/consultant/:token/uploads',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { token } = request.params as { token: string };
+      const link = await resolvePortalLink(token, 'CONSULTANT');
+      if (!link) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Invalid or expired consultant access token',
+        });
+      }
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No file uploaded' });
+      }
+      const buffer = await file.toBuffer();
+      const spec = verifyUpload(buffer, file.mimetype);
+      if (!spec) {
+        return reply.status(415).send({
+          statusCode: 415,
+          error: 'Unsupported Media Type',
+          message: `File type ${file.mimetype} not allowed or content failed verification (images, PDF, MP4/MOV only)`,
+        });
+      }
+      const storageKey = `${link.tenant_id}/${link.project_id}/${randomUUID()}${spec.ext}`;
+      await getStorageDriver().put(storageKey, buffer);
+      await withTenantTx(prisma, link.tenant_id, (tx) =>
+        recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          actorId: link.id,
+          action: 'CONSULTANT_PORTAL_UPLOAD',
+          entityType: 'PortalAccessLink',
+          entityId: link.id,
+          projectId: link.project_id,
+          changes: { storageKey, filename: file.filename, mimetype: spec.contentType, sizeBytes: buffer.length },
+        }),
+      );
+      return reply.status(201).send({
+        statusCode: 201,
+        data: { storageKey, url: `/uploads/${storageKey}`, mimetype: spec.contentType, sizeBytes: buffer.length },
+      });
+    },
+  );
+
+  // POST /api/v1/portals/consultant/:token/drawings/:documentId/acknowledge
+  // Per-link drawing acknowledgement — the contractor sees who acknowledged
+  // which revision on the project drawings register.
+  server.post(
+    '/api/v1/portals/consultant/:token/drawings/:documentId/acknowledge',
+    {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { token, documentId } = request.params as { token: string; documentId: string };
+      const link = await resolvePortalLink(token, 'CONSULTANT');
+      if (!link) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Invalid or expired consultant access token',
+        });
+      }
+      // Drawings are only visible to ALL-scoped consultant links.
+      if ((link.scope || 'ALL').toUpperCase() !== 'ALL') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'This consultant link is not scoped for drawings',
+        });
+      }
+      const ack = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const doc = await tx.projectDocument.findFirst({
+          where: { id: documentId, project_id: link.project_id },
+          select: { id: true },
+        });
+        if (!doc) throw { status: 404, message: 'Drawing not found on this project' };
+        return tx.drawingAcknowledgement.upsert({
+          where: {
+            document_id_portal_link_id: { document_id: documentId, portal_link_id: link.id },
+          },
+          update: {},
+          create: {
+            tenant_id: link.tenant_id,
+            project_id: link.project_id,
+            document_id: documentId,
+            portal_link_id: link.id,
+            stakeholder_name: link.stakeholder_name,
+          },
+        });
+      }).catch((err: any) => {
+        if (err?.status) return { __portalError: { status: err.status, message: err.message } };
+        throw err;
+      });
+      if ((ack as any)?.__portalError) {
+        const e = (ack as any).__portalError;
+        return reply.status(e.status).send({ statusCode: e.status, error: 'Not Found', message: e.message });
+      }
+      return reply.status(200).send({ statusCode: 200, data: ack });
+    },
+  );
 
   // ===========================================================================
   // 4. SUBCONTRACTOR & SPECIALIST TRADE PORTAL
@@ -1483,7 +1701,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     }
 
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, cubeTests, inspections, certificates, remittedLevyCount, supervisorMemberCount] = await Promise.all([
+      const [project, cubeTests, inspections, certificates, permits, visits] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
         }),
@@ -1505,16 +1723,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           where: { project_id: link.project_id },
           orderBy: { issue_date: 'desc' },
         }),
-        // Statutory levy clearance = at least one WHT certificate remitted to KRA.
-        tx.statutoryTaxCertificate.count({
-          where: {
-            project_id: link.project_id,
-            status: { in: ['REMITTED_TO_KRA', 'ACKNOWLEDGED'] },
-          },
+        tx.projectPermit.findMany({
+          where: { project_id: link.project_id },
+          orderBy: { created_at: 'desc' },
         }),
-        // Accredited site supervisor = an assigned SITE_SUPERVISOR project member.
-        tx.projectMember.count({
-          where: { project_id: link.project_id, role: 'SITE_SUPERVISOR' },
+        tx.complianceVisit.findMany({
+          where: { project_id: link.project_id },
+          include: { actions: { orderBy: { created_at: 'asc' } } },
+          orderBy: { visit_date: 'desc' },
         }),
       ]);
 
@@ -1524,6 +1740,22 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       const totalBreaks = allBreaks.length;
       const passedBreaks = allBreaks.filter((b) => b.is_pass === true).length;
       const passRate = totalBreaks > 0 ? `${((passedBreaks / totalBreaks) * 100).toFixed(1)}%` : null;
+
+      // Permit status is DERIVED from the real expiry date at read time —
+      // never stored, so it cannot drift from the register record.
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const in30 = new Date(today.getTime() + 30 * 86400e3);
+      const permitStatus = (p: any): string => {
+        if (!p.expiry_date) return 'VALID';
+        const exp = new Date(p.expiry_date);
+        exp.setHours(0, 0, 0, 0);
+        if (exp < today) return 'EXPIRED';
+        if (exp <= in30) return 'EXPIRING_SOON';
+        return 'VALID';
+      };
+      const statusLabel = (s: string) =>
+        s === 'VALID' ? 'Valid' : s === 'EXPIRING_SOON' ? 'Expiring within 30 days' : 'Expired';
 
       return {
         regulatoryAuditor: {
@@ -1538,16 +1770,42 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           status: project?.status,
         },
         complianceSummary: {
-          // No NCA registration record exists in the schema — report honestly.
-          ncaSiteRegistration: null,
-          // No statutory-levy or supervisor-certification records exist yet —
-          // return null so the portal shows "Not tracked" instead of inventing compliance.
-          statutoryLevyPaid: remittedLevyCount > 0,
-          certifiedSiteSupervisorPresent: supervisorMemberCount > 0,
+          // Only record-backed figures: cube-test pass rate, inspection count.
+          // NCA registration / levy clearance / supervisor certification are
+          // NOT derived here — they live in the permits register and visit
+          // records below (Stage 4: no invented indicators).
           concreteCubePassRate: passRate,
           totalBatchesSampled: cubeTests.length,
           prePourInspectionsConducted: inspections.length,
         },
+        permits: (permits || []).map((p: any) => {
+          const s = permitStatus(p);
+          return {
+            id: p.id,
+            permitType: p.permit_type,
+            permitNumber: p.permit_number,
+            issuer: p.issuer,
+            issuedDate: p.issued_date,
+            expiryDate: p.expiry_date,
+            notes: p.notes,
+            status: s,
+            statusLabel: statusLabel(s),
+          };
+        }),
+        visits: (visits || []).map((v: any) => ({
+          id: v.id,
+          visitDate: v.visit_date,
+          outcome: v.outcome,
+          notes: v.notes,
+          recordedByName: v.recorded_by_name,
+          createdAt: v.created_at,
+          actions: (v.actions || []).map((a: any) => ({
+            id: a.id,
+            description: a.description,
+            dueDate: a.due_date,
+            status: a.status,
+          })),
+        })),
         cubeTests: (cubeTests || []).map((c: any) => ({
           id: c.id,
           pourLocation: c.pour_location,
@@ -1588,6 +1846,109 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     return reply.status(200).send({
       statusCode: 200,
       data: payload,
+    });
+  });
+
+  // POST /api/v1/portals/compliance/:token/visits — inspector records a site
+  // visit with outcome, notes and required actions. The visit is bound to
+  // this portal link + project, audit-logged, and notifies the contractor.
+  server.post('/api/v1/portals/compliance/:token/visits', {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'COMPLIANCE');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired regulatory compliance access token',
+      });
+    }
+
+    const parsed = CreateComplianceVisitSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid compliance visit payload',
+        details: parsed.error.flatten(),
+      });
+    }
+    const body = parsed.data;
+
+    const visit = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+      const project = await tx.project.findFirst({ where: { id: link.project_id }, select: { id: true, name: true } });
+      if (!project) throw { status: 404, message: 'Project not found' };
+
+      const created = await tx.complianceVisit.create({
+        data: {
+          tenant_id: link.tenant_id,
+          project_id: link.project_id,
+          portal_link_id: link.id,
+          visit_date: new Date(`${body.visitDate}T00:00:00.000Z`),
+          outcome: body.outcome,
+          notes: body.notes || null,
+          recorded_by_name: link.stakeholder_name,
+          actions: body.actions.length
+            ? {
+                create: body.actions.map((a) => ({
+                  tenant_id: link.tenant_id,
+                  description: a.description,
+                  due_date: a.dueDate ? new Date(`${a.dueDate}T00:00:00.000Z`) : null,
+                })),
+              }
+            : undefined,
+        },
+        include: { actions: true },
+      });
+
+      await recordAuditLog(tx, {
+        tenantId: link.tenant_id,
+        actorId: link.id,
+        action: 'COMPLIANCE_VISIT_RECORDED',
+        entityType: 'ComplianceVisit',
+        entityId: created.id,
+        projectId: link.project_id,
+        changes: {
+          inspector: link.stakeholder_name,
+          outcome: body.outcome,
+          actionCount: body.actions.length,
+        },
+      });
+
+      await notifyTeam(tx, {
+        tenantId: link.tenant_id,
+        projectId: link.project_id,
+        senderId: link.id,
+        senderName: `${link.stakeholder_name} (compliance portal)`,
+        body: `Compliance inspection visit recorded for ${project.name} — outcome: ${body.outcome}${body.actions.length ? ` with ${body.actions.length} required action(s)` : ''}.`,
+      });
+
+      return created;
+    }).catch((err: any) => {
+      if (err?.status) return { __portalError: { status: err.status, message: err.message } };
+      throw err;
+    }) as any;
+
+    if (visit?.__portalError) {
+      const e = visit.__portalError;
+      return reply.status(e.status).send({ statusCode: e.status, error: 'Not Found', message: e.message });
+    }
+
+    return reply.status(201).send({
+      statusCode: 201,
+      data: {
+        id: visit.id,
+        visitDate: visit.visit_date,
+        outcome: visit.outcome,
+        notes: visit.notes,
+        recordedByName: visit.recorded_by_name,
+        actions: visit.actions.map((a: any) => ({
+          id: a.id, description: a.description, dueDate: a.due_date, status: a.status,
+        })),
+      },
     });
   });
 

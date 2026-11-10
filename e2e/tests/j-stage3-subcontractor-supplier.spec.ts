@@ -317,7 +317,7 @@ test.describe('Stage 3 — subcontractor & supplier portals', () => {
     const val2 = unwrap(await submit2.json());
     state.rejectedValId = val2.id || val2.valuation?.id;
 
-    const reject = await apiPatch(request, pm, CONTRACT.valuation(pid, state.rejectedValId), {
+    const reject = await apiPatch(request, pm, CONTRACT.valuation(pid, state.rejectedValId!), {
       paymentStatus: 'REJECTED', notes: 'Duplicate of certified works — resubmit corrected',
     });
     expect(reject.status(), await reject.text()).toBeLessThan(300);
@@ -379,7 +379,7 @@ test.describe('Stage 3 — subcontractor & supplier portals', () => {
     // DRAFT -> ISSUED posts the commitment to the cost ledger.
     const costsBefore = await apiGet(request, pm, CONTRACT.costs(pid));
     const beforeRows = await rowsOf(costsBefore);
-    const issue = await apiPost(request, pm, CONTRACT.poIssue(pid, state.poId), {});
+    const issue = await apiPost(request, pm, CONTRACT.poIssue(pid, state.poId!), {});
     expect(issue.status(), await issue.text()).toBeLessThan(300);
     const issued = unwrap(await issue.json());
     expect(issued.status || issued.purchaseOrder?.status).toMatch(/ISSUED/);

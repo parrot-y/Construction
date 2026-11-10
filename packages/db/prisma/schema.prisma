@@ -71,6 +71,12 @@ model User {
   email_verify_token_hash       String?   @db.VarChar(64)
   email_verify_token_expires_at DateTime? @db.Timestamptz
   email_verify_token_used_at    DateTime? @db.Timestamptz
+  // Field-role (phone+PIN) accounts: PIN is stored hashed (same KDF as
+  // passwords); raw PINs are never persisted. Failed-attempt counter +
+  // lockout timestamp rate-limit PIN logins independently of passwords.
+  pin_hash            String?   @db.VarChar(255)
+  pin_failed_attempts Int       @default(0)
+  pin_locked_until    DateTime? @db.Timestamptz
   created_at     DateTime     @default(now()) @db.Timestamptz
   updated_at     DateTime     @updatedAt @db.Timestamptz
 
@@ -109,6 +115,9 @@ model Invitation {
   phone      String?    @db.VarChar(30)
   role       String     @db.VarChar(50) // "COMPANY_ADMIN", "PM_QS", "SITE_SUPERVISOR", "CLIENT"
   token      String     @unique @db.VarChar(255)
+  // Phone+PIN field invites carry a hashed PIN (copied to the user at
+  // accept); email invites leave this null.
+  pin_hash   String?    @db.VarChar(255)
   status     String     @default("PENDING") @db.VarChar(50) // "PENDING", "ACCEPTED", "EXPIRED", "REVOKED"
   expires_at DateTime   @db.Timestamptz
   created_at DateTime   @default(now()) @db.Timestamptz
@@ -213,6 +222,9 @@ model Project {
   daily_attendances     DailyAttendance[]
   checklist_assignments ChecklistAssignment[]
   scheduled_reports     ScheduledReport[]
+  permits               ProjectPermit[]
+  compliance_visits     ComplianceVisit[]
+  drawing_acknowledgements DrawingAcknowledgement[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -952,6 +964,9 @@ model PortalAccessLink {
   subcontractor_package_id String? @db.Uuid
   // SUPPLIER links are bound to a Supplier record — never free-text names.
   supplier_id String? @db.Uuid
+  // CONSULTANT links may be scope-limited: ALL | RFI | INSPECTIONS |
+  // CERTIFICATES. NULL/'ALL' returns every consultant section.
+  scope String? @db.VarChar(30)
 
   project          Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
   supplier         Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
@@ -1081,10 +1096,13 @@ model ProjectDocument {
   status               String    @default("APPROVED_FOR_CONSTRUCTION") @db.VarChar(50) // "APPROVED_FOR_CONSTRUCTION", "FOR_REVIEW", "SUPERSEDED", "INFORMATION_ONLY"
   uploaded_by_name     String    @db.VarChar(255)
   notes                String?   @db.Text
+  // Drawings register: date the revision was issued to the project.
+  issued_date          DateTime? @db.Date
   created_at           DateTime  @default(now()) @db.Timestamptz
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
   annotations          DrawingAnnotation[]
+  acknowledgements     DrawingAcknowledgement[]
 
   @@index([tenant_id, project_id, category])
   @@map("project_documents")
@@ -3231,4 +3249,87 @@ model ClientPaymentNotice {
 
   @@index([tenant_id, invoice_id])
   @@map("client_payment_notices")
+}
+
+// =============================================================
+// STAGE 4 — DRAWING ACKNOWLEDGEMENTS, PERMITS, COMPLIANCE VISITS
+// =============================================================
+
+// Per-link acknowledgement of a drawing revision by a consultant portal
+// link — visible to the contractor on the drawings register.
+model DrawingAcknowledgement {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenant_id        String   @db.Uuid
+  project_id       String   @db.Uuid
+  document_id      String   @db.Uuid
+  portal_link_id   String   @db.Uuid
+  stakeholder_name String   @db.VarChar(255)
+  acknowledged_at  DateTime @default(now()) @db.Timestamptz
+
+  document         ProjectDocument @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  project          Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([document_id, portal_link_id])
+  @@index([tenant_id, project_id])
+  @@map("drawing_acknowledgements")
+}
+
+// Permits & licences register (NCA registration, NEMA licence, county
+// approval, other). Status is DERIVED from expiry_date at read time —
+// never stored, so it cannot drift from the real record.
+model ProjectPermit {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenant_id     String    @db.Uuid
+  project_id    String    @db.Uuid
+  permit_type   String    @db.VarChar(40) // "NCA_REGISTRATION", "NEMA_LICENSE", "COUNTY_APPROVAL", "OTHER"
+  permit_number String    @db.VarChar(100)
+  issuer        String    @db.VarChar(255)
+  issued_date   DateTime? @db.Date
+  expiry_date   DateTime? @db.Date
+  notes         String?   @db.Text
+  created_by_id String?   @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @updatedAt @db.Timestamptz
+
+  project       Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id])
+  @@map("project_permits")
+}
+
+// Inspector visit recorded through the compliance portal — bound to the
+// portal link that recorded it, notified to the contractor, and surfaced
+// on the project with its required actions.
+model ComplianceVisit {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenant_id        String   @db.Uuid
+  project_id       String   @db.Uuid
+  portal_link_id   String   @db.Uuid
+  visit_date       DateTime @db.Date
+  outcome          String   @db.VarChar(40) // "COMPLIANT", "CONDITIONAL", "NON_COMPLIANT", "FOLLOW_UP_REQUIRED"
+  notes            String?  @db.Text
+  recorded_by_name String   @db.VarChar(255)
+  created_at       DateTime @default(now()) @db.Timestamptz
+
+  project          Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  actions          ComplianceAction[]
+
+  @@index([tenant_id, project_id])
+  @@map("compliance_visits")
+}
+
+model ComplianceAction {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenant_id    String    @db.Uuid
+  visit_id     String    @db.Uuid
+  description  String    @db.Text
+  due_date     DateTime? @db.Date
+  status       String    @default("OPEN") @db.VarChar(20) // OPEN | DONE | OVERDUE (derived at read)
+  completed_at DateTime? @db.Timestamptz
+  created_at   DateTime  @default(now()) @db.Timestamptz
+
+  visit        ComplianceVisit @relation(fields: [visit_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, visit_id])
+  @@map("compliance_actions")
 }

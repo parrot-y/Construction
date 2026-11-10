@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { toCurrencyString} from '@construction/money';
+import { PRODUCT_NAME } from '../lib/product';
 
 export type TenderStatus = 'OPEN' | 'UNDER_REVIEW' | 'AWARDED';
 
@@ -272,7 +273,7 @@ export default function ContractorTenderBoardView({
     setTenders([newTender, ...tenders]);
     setSelectedTenderId(newTender.id);
     setShowPostTenderModal(false);
-    setActionSuccess(`Tender package"${newTender.title}" successfully posted to Site Safi Tender Board!`);
+    setActionSuccess(`Tender package"${newTender.title}" successfully posted to ${PRODUCT_NAME} Tender Board!`);
     setNewTitle('');
     setNewScope('');
     if (onTenderCreated) onTenderCreated(newTender);
@@ -385,7 +386,7 @@ export default function ContractorTenderBoardView({
 </span>
 </div>
 <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Site Safi Contractor Tender Board &amp; Bidding Studio
+            {PRODUCT_NAME} Contractor Tender Board &amp; Bidding Studio
 </h2>
 <p className="text-xs text-slate-500 mt-0.5">
             Transparent e-tendering, automated combined score ranking, and contractor contract awards for {projectName}.

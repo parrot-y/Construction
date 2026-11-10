@@ -9,6 +9,7 @@ import {
   CreateSafetyIncidentSchema,
   CreateProjectDocumentSchema,
   CreateSubcontractorPackageSchema,
+  CreatePermitSchema,
 } from '@construction/validation';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -475,6 +476,7 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const idempotencyKey = (request.headers['idempotency-key'] as string | undefined)?.trim();
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -493,7 +495,18 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
       const data = parseResult.data;
 
       try {
-        const incident = await withTenantTx(prisma, tenantId, async (tx) => {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          // Offline-queue replay: same idempotency key returns the cached
+          // incident instead of writing a duplicate (ADR-004 pattern).
+          if (idempotencyKey) {
+            const cached = await tx.idempotencyKey.findUnique({
+              where: { tenant_id_idempotency_key: { tenant_id: tenantId, idempotency_key: idempotencyKey } },
+            });
+            if (cached) {
+              return { isCached: true as const, status: cached.response_status, body: cached.response_body };
+            }
+          }
+
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
@@ -525,10 +538,28 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
             projectId,
           });
 
-          return created;
+          // Keep the historical response shape (the incident object itself)
+          // so existing consumers/tests are unaffected; the idempotency
+          // cache stores exactly what was returned.
+          const responsePayload = created as any;
+          if (idempotencyKey) {
+            await tx.idempotencyKey.create({
+              data: {
+                tenant_id: tenantId,
+                idempotency_key: idempotencyKey,
+                response_status: 201,
+                response_body: responsePayload as any,
+              },
+            });
+          }
+
+          return { isCached: false as const, status: 201, body: responsePayload };
         });
 
-        return reply.status(201).send(incident);
+        if (result.isCached) {
+          return reply.header('X-Cache-Lookup', 'HIT').status(result.status).send(result.body);
+        }
+        return reply.header('X-Cache-Lookup', 'MISS').status(result.status).send(result.body);
       } catch (err: any) {
         if (err.status === 404) {
           return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: err.message });
@@ -562,11 +593,22 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
           const documents = await tx.projectDocument.findMany({
             where: { project_id: projectId },
+            include: { acknowledgements: { orderBy: { acknowledged_at: 'asc' } } },
             orderBy: [{ category: 'asc' }, { created_at: 'desc' }],
           });
 
           return {
-            documents,
+            documents: documents.map((d) => ({
+              ...d,
+              // Per-link drawing acknowledgements visible to the contractor
+              // (Stage 4): who acknowledged which revision via which portal.
+              acknowledgements: (d.acknowledgements || []).map((a) => ({
+                id: a.id,
+                portalLinkId: a.portal_link_id,
+                stakeholderName: a.stakeholder_name,
+                acknowledgedAt: a.acknowledged_at,
+              })),
+            })),
             summary: {
               totalDocuments: documents.length,
               architecturalCount: documents.filter((d) => d.category === 'ARCHITECTURAL_DRAWING').length,
@@ -628,6 +670,7 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
               status: data.status,
               uploaded_by_name: data.uploadedByName,
               notes: data.notes,
+              issued_date: data.issuedDate ? new Date(`${data.issuedDate}T00:00:00.000Z`) : null,
             },
           });
 
@@ -892,6 +935,148 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       });
       return reply.status(200).send(updated);
+    },
+  );
+
+  // ===========================================================================
+  // MODULE 6: PERMITS & COMPLIANCE VISITS REGISTER (STAGE 4)
+  // ===========================================================================
+
+  // Permit status is DERIVED from the real expiry date — never stored.
+  const permitStatusOf = (expiry: Date | null | undefined): { status: string; statusLabel: string } => {
+    if (!expiry) return { status: 'VALID', statusLabel: 'Valid' };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const in30 = new Date(today.getTime() + 30 * 86400e3);
+    const exp = new Date(expiry); exp.setHours(0, 0, 0, 0);
+    if (exp < today) return { status: 'EXPIRED', statusLabel: 'Expired' };
+    if (exp <= in30) return { status: 'EXPIRING_SOON', statusLabel: 'Expiring within 30 days' };
+    return { status: 'VALID', statusLabel: 'Valid' };
+  };
+
+  // 6.1 List permits register
+  server.get(
+    '/api/v1/projects/:projectId/permits',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      const permits = await withTenantTx(prisma, tenantId, async (tx) => {
+        const project = await tx.project.findFirst({ where: { id: projectId }, select: { id: true } });
+        if (!project) throw { status: 404, message: 'Project not found' };
+        return tx.projectPermit.findMany({
+          where: { project_id: projectId },
+          orderBy: [{ permit_type: 'asc' }, { expiry_date: 'asc' }],
+        });
+      }).catch((err: any) => {
+        if (err?.status) return { __err: err };
+        throw err;
+      });
+      if ((permits as any)?.__err) {
+        return reply.status((permits as any).__err.status).send({ statusCode: (permits as any).__err.status, error: 'Not Found', message: (permits as any).__err.message });
+      }
+      return reply.status(200).send({
+        data: (permits as any[]).map((p) => ({
+          ...p,
+          ...permitStatusOf(p.expiry_date),
+        })),
+      });
+    },
+  );
+
+  // 6.2 Register a permit/licence
+  server.post(
+    '/api/v1/projects/:projectId/permits',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      const parsed = CreatePermitSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          statusCode: 400, error: 'Bad Request', message: 'Invalid permit payload', details: parsed.error.flatten(),
+        });
+      }
+      const body = parsed.data;
+      const permit = await withTenantTx(prisma, tenantId, async (tx) => {
+        const project = await tx.project.findFirst({ where: { id: projectId }, select: { id: true } });
+        if (!project) throw { status: 404, message: 'Project not found' };
+        const created = await tx.projectPermit.create({
+          data: {
+            tenant_id: tenantId,
+            project_id: projectId,
+            permit_type: body.permitType,
+            permit_number: body.permitNumber,
+            issuer: body.issuer,
+            issued_date: body.issuedDate ? new Date(`${body.issuedDate}T00:00:00.000Z`) : null,
+            expiry_date: body.expiryDate ? new Date(`${body.expiryDate}T00:00:00.000Z`) : null,
+            notes: body.notes || null,
+            created_by_id: sub,
+          },
+        });
+        await recordAuditLog(tx, {
+          tenantId, actorId: sub, action: 'PERMIT_REGISTERED',
+          entityType: 'ProjectPermit', entityId: created.id, projectId,
+          changes: { permitType: body.permitType, permitNumber: body.permitNumber, issuer: body.issuer },
+        });
+        return created;
+      }).catch((err: any) => {
+        if (err?.status) return { __err: err };
+        throw err;
+      });
+      if ((permit as any)?.__err) {
+        return reply.status((permit as any).__err.status).send({ statusCode: (permit as any).__err.status, error: 'Not Found', message: (permit as any).__err.message });
+      }
+      return reply.status(201).send({ data: { ...(permit as any), ...permitStatusOf((permit as any).expiry_date) } });
+    },
+  );
+
+  // 6.3 Compliance visits + required actions on the project (contractor view)
+  server.get(
+    '/api/v1/projects/:projectId/compliance-visits',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      const visits = await withTenantTx(prisma, tenantId, async (tx) => {
+        const project = await tx.project.findFirst({ where: { id: projectId }, select: { id: true } });
+        if (!project) throw { status: 404, message: 'Project not found' };
+        return tx.complianceVisit.findMany({
+          where: { project_id: projectId },
+          include: { actions: { orderBy: { created_at: 'asc' } } },
+          orderBy: { visit_date: 'desc' },
+        });
+      }).catch((err: any) => {
+        if (err?.status) return { __err: err };
+        throw err;
+      });
+      if ((visits as any)?.__err) {
+        return reply.status((visits as any).__err.status).send({ statusCode: (visits as any).__err.status, error: 'Not Found', message: (visits as any).__err.message });
+      }
+      return reply.status(200).send({
+        data: (visits as any[]).map((v) => ({
+          id: v.id,
+          visitDate: v.visit_date,
+          outcome: v.outcome,
+          notes: v.notes,
+          recordedByName: v.recorded_by_name,
+          createdAt: v.created_at,
+          actions: (v.actions || []).map((a: any) => ({
+            id: a.id,
+            description: a.description,
+            dueDate: a.due_date,
+            status: a.status,
+          })),
+        })),
+      });
     },
   );
 };

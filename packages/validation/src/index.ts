@@ -276,12 +276,31 @@ export const AcceptInvitationSchema = z.object({
   // match the invitation (wrong-email tokens are still rejected).
   email: z.string().email({ message: 'Must be the invited email address' }).optional(),
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters long' }).max(255),
-  // Required: the invitee always sets/confirms their own password. For an
-  // existing account this must be their CURRENT password (identity proof);
-  // for a new account it becomes their password.
-  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128),
+  // Required for email/password invites: the invitee always sets/confirms
+  // their own password. Phone+PIN field invites (pin_hash on the invitation)
+  // skip this — the invitee authenticates with their PIN instead.
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128).optional(),
 });
 export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
+
+// Field-role phone + PIN login (rate-limited server-side)
+export const FieldLoginSchema = z.object({
+  phone: z.string().min(9).max(30),
+  pin: z.string().regex(/^\d{6}$/, { message: 'PIN must be exactly 6 digits' }),
+});
+export type FieldLogin = z.infer<typeof FieldLoginSchema>;
+
+// Invite member — either email+role (password account) or phone+pin+field role
+export const InviteMemberSchema = z.object({
+  email: z.string().email().optional(),
+  phone: z.string().min(9).max(30).optional(),
+  pin: z.string().regex(/^\d{6}$/).optional(),
+  role: z.string().min(2).max(50),
+  fullName: z.string().min(2).max(255).optional(),
+}).refine((v) => v.email || (v.phone && v.pin), {
+  message: 'Provide either email, or phone + pin for a field-role invite',
+});
+export type InviteMember = z.infer<typeof InviteMemberSchema>;
 
 export const RequestPasswordResetSchema = z.object({
   email: z.string().email({ message: 'Must be a valid email address' }),
@@ -532,6 +551,9 @@ export const CreateSnagItemSchema = z.object({
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
   identifiedByName: z.string().min(2).max(255),
   photos: z.array(SnagPhotoInputSchema).optional(),
+  // Optional inline defect photo as base64 — verified by magic bytes
+  // server-side; lets the offline queue carry photo+snag in one mutation.
+  photoBase64: z.string().min(32).max(8 * 1024 * 1024).optional().nullable(),
   distributions: z.array(z.object({
     recipientName: z.string().min(1).max(255),
     recipientContact: z.string().max(255).optional().nullable(),
@@ -606,6 +628,9 @@ export const CreatePortalLinkSchema = z.object({
   subcontractorPackageId: z.string().uuid().optional().nullable(),
   // SUPPLIER links must bind to a Supplier record — never free-text names.
   supplierId: z.string().uuid().optional().nullable(),
+  // CONSULTANT links may be scope-limited so a link only returns the
+  // sections it was issued for (Stage 4).
+  scope: z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES']).optional().nullable(),
 });
 
 // Consultant portal RFI reply (external, unauthenticated token scope)
@@ -613,6 +638,9 @@ export const ConsultantRfiReplySchema = z.object({
   officialAnswer: z.string().min(3).max(5000),
   consultantName: z.string().max(255).optional().nullable(),
   consultantBoraqsNo: z.string().max(50).optional().nullable(),
+  // Storage keys of files the consultant uploaded via the portal uploads
+  // endpoint — each must belong to this project/tenant (verified server-side).
+  attachmentStorageKeys: z.array(z.string().min(3).max(500)).max(10).optional(),
 });
 export type ConsultantRfiReply = z.infer<typeof ConsultantRfiReplySchema>;
 
@@ -763,6 +791,7 @@ export const CreateProjectDocumentSchema = z.object({
   status: DocumentStatusEnum.default('APPROVED_FOR_CONSTRUCTION'),
   uploadedByName: z.string().min(2).max(255),
   notes: z.string().optional().nullable(),
+  issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
 });
 export type CreateProjectDocument = z.infer<typeof CreateProjectDocumentSchema>;
 
@@ -2395,3 +2424,67 @@ export const PoInvoiceReviewSchema = z.object({
   approveOverInvoice: z.boolean().optional(),
 });
 export type PoInvoiceReview = z.infer<typeof PoInvoiceReviewSchema>;
+
+// -------------------------------------------------------------
+// STAGE 4 — PERMITS, COMPLIANCE VISITS, FIELD & SNAG PHOTOS
+// -------------------------------------------------------------
+
+export const PermitTypeEnum = z.enum([
+  'NCA_REGISTRATION',
+  'NEMA_LICENSE',
+  'COUNTY_APPROVAL',
+  'OTHER',
+]);
+export type PermitType = z.infer<typeof PermitTypeEnum>;
+
+export const CreatePermitSchema = z.object({
+  permitType: PermitTypeEnum,
+  permitNumber: z.string().min(2).max(100),
+  issuer: z.string().min(2).max(255),
+  issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreatePermit = z.infer<typeof CreatePermitSchema>;
+
+export const ComplianceVisitOutcomeEnum = z.enum([
+  'COMPLIANT',
+  'CONDITIONAL',
+  'NON_COMPLIANT',
+  'FOLLOW_UP_REQUIRED',
+]);
+export type ComplianceVisitOutcome = z.infer<typeof ComplianceVisitOutcomeEnum>;
+
+export const ComplianceActionInputSchema = z.object({
+  description: z.string().min(3).max(1000),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+export type ComplianceActionInput = z.infer<typeof ComplianceActionInputSchema>;
+
+export const CreateComplianceVisitSchema = z.object({
+  visitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  outcome: ComplianceVisitOutcomeEnum,
+  notes: z.string().max(4000).optional().nullable(),
+  actions: z.array(ComplianceActionInputSchema).max(50).default([]),
+});
+export type CreateComplianceVisit = z.infer<typeof CreateComplianceVisitSchema>;
+
+// Snag photo upload via JSON base64 (offline-queue friendly). The bytes are
+// magic-byte verified server-side before storage — same checks as site
+// uploads, just transported as base64 instead of multipart.
+export const SnagPhotoUploadSchema = z.object({
+  photoBase64: z.string().min(32).max(8 * 1024 * 1024),
+  caption: z.string().max(255).optional().nullable(),
+  photoType: z.enum(['DEFECT', 'RECTIFIED']).default('DEFECT'),
+  gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
+  gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+});
+export type SnagPhotoUpload = z.infer<typeof SnagPhotoUploadSchema>;
+
+// Stage 4 — platform-operator first-admin activation (x-operator-key guarded).
+export const OperatorAdminAccountSchema = z.object({
+  companySlug: z.string().min(1).max(100),
+  mode: z.enum(['activate', 'reset-password']),
+  newPassword: z.string().min(8).max(200).optional(),
+});
+export type OperatorAdminAccountInput = z.infer<typeof OperatorAdminAccountSchema>;

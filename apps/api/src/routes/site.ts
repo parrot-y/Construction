@@ -339,12 +339,14 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       ],
     },
     async (request, reply) => {
-      const { tenantId } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId } = request.params as { projectId: string };
 
+      // WORKER field role sees only their own diary entries (Stage 4).
+      const ownOnly = role === 'WORKER';
       const diaries = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.siteDiary.findMany({
-          where: { project_id: projectId },
+          where: { project_id: projectId, ...(ownOnly ? { recorded_by_id: sub } : {}) },
           include: {
             labor_headcounts: true,
             deliveries: true,
@@ -374,7 +376,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       ],
     },
     async (request, reply) => {
-      const { tenantId } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId, diaryId } = request.params as { projectId: string; diaryId: string };
 
       const diary = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -382,6 +384,8 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
           where: {
             id: diaryId,
             project_id: projectId,
+            // WORKER field role can only open their own entries (Stage 4).
+            ...(role === 'WORKER' ? { recorded_by_id: sub } : {}),
           },
           include: {
             labor_headcounts: true,

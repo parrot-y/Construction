@@ -1,10 +1,47 @@
 import { hashPassword, prisma, recordAuditLog, verifyPassword, withTenantTx } from '@construction/db';
 import { canInviteRole, Permissions, Roles } from '@construction/permissions';
-import { AcceptInvitationSchema } from '@construction/validation';
+import { AcceptInvitationSchema, InviteMemberSchema } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { randomBytes } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
 import { issueEmailVerificationToken } from '../lib/accountTokens';
+
+/** Field roles that can be onboarded by phone + PIN (no email account). */
+const PIN_FIELD_ROLES = new Set(['FOREMAN', 'WORKER', 'SITE_ENGINEER', 'TRADE_LEAD']);
+
+/** Kenyan phone normalization: accepts 07…, 7…, 254…, +254… → +254XXXXXXXXX. */
+export function normalizeKenyaPhone(raw: string): string {
+  const digits = raw.replace(/[^\d+]/g, '');
+  if (digits.startsWith('+254')) return digits;
+  if (digits.startsWith('254')) return `+${digits}`;
+  if (digits.startsWith('0') && digits.length === 10) return `+254${digits.slice(1)}`;
+  if (/^[17]\d{8}$/.test(digits)) return `+254${digits}`;
+  return digits.startsWith('+') ? digits : `+${digits}`;
+}
+
+/** Weak-PIN rejection: all-same digits, keyboard walks, or common sequences. */
+export function isWeakPin(pin: string): boolean {
+  if (!/^\d{6}$/.test(pin)) return true;
+  if (/^(\d)\1{5}$/.test(pin)) return true; // 111111, 000000…
+  const seq = '0123456789';
+  const d = pin.split('').map(Number);
+  const asc = d.every((v, i) => i === 0 || v === ((d[i - 1] ?? 0) + 1) % 10);
+  const desc = d.every((v, i) => i === 0 || v === ((d[i - 1] ?? 0) + 9) % 10);
+  if (asc || desc) return true;
+  // repeated 2- or 3-digit blocks (121212, 123123…)
+  if (pin.slice(0, 2) === pin.slice(2, 4) && pin.slice(2, 4) === pin.slice(4, 6)) return true;
+  if (pin.slice(0, 3) === pin.slice(3, 6)) return true;
+  void seq;
+  return false;
+}
+
+/** Synthetic login email for phone+PIN field accounts — `.local` can never
+ * receive mail; uniqueness is per-tenant so the same worker phone can be
+ * invited by different companies without colliding. */
+const fieldEmailFor = (tenantId: string, phone: string): string => {
+  const digits = phone.replace(/\D/g, '');
+  return `field-${tenantId}-${digits}@pin.local`;
+};
 
 const inviteUrlFor = (token: string): string => {
   const base = (process.env.WEB_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '');
@@ -31,20 +68,40 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
     },
     async (request, reply) => {
       const { tenantId, sub, role: inviterRole } = request.user;
-      const body = request.body as { email: string; phone?: string; role: string };
-
-      if (!body.email || !body.role) {
+      const parsed = InviteMemberSchema.safeParse(request.body);
+      if (!parsed.success) {
         return reply.status(400).send({
           error: 'Bad Request',
-          message: 'Email and role are required',
+          message: parsed.error.issues[0]?.message || 'Invalid invitation payload',
+          details: parsed.error.flatten(),
         });
       }
+      const body = parsed.data;
+      const isPinInvite = !!(body.phone && body.pin);
 
       const validRoles = Object.values(Roles);
       if (!validRoles.includes(body.role as (typeof Roles)[keyof typeof Roles])) {
         return reply.status(400).send({
           error: 'Bad Request',
           message: `Invalid role "${body.role}". Allowed roles: ${validRoles.join(', ')}`,
+        });
+      }
+
+      // PIN invites are only for field roles — office roles need an email
+      // account for password + verification flows.
+      if (isPinInvite && !PIN_FIELD_ROLES.has(body.role)) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: `Phone+PIN invites are only available for field roles (${[...PIN_FIELD_ROLES].join(', ')})`,
+        });
+      }
+      if (!isPinInvite && !body.email) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Email and role are required' });
+      }
+      if (isPinInvite && isWeakPin(body.pin!)) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'PIN is too weak — use 6 digits that are not a repeated, sequential or common pattern',
         });
       }
 
@@ -57,12 +114,17 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       }
 
+      const inviteEmail = isPinInvite
+        ? fieldEmailFor(tenantId, normalizeKenyaPhone(body.phone!))
+        : body.email!.toLowerCase();
+      const invitePhone = isPinInvite ? normalizeKenyaPhone(body.phone!) : (body.phone ?? null);
+
       // Check if user is already an active member of this tenant
       const existingMember = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.membership.findFirst({
           where: {
             tenant_id: tenantId,
-            user: { email: body.email.toLowerCase() },
+            user: { email: inviteEmail },
           },
         });
       });
@@ -74,17 +136,35 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       }
 
+      // A pending PIN invite for the same phone already covers this worker.
+      if (isPinInvite) {
+        const pendingDup = await withTenantTx(prisma, tenantId, async (tx) =>
+          tx.invitation.findFirst({
+            where: { tenant_id: tenantId, phone: invitePhone, status: 'PENDING' },
+            select: { id: true },
+          }),
+        );
+        if (pendingDup) {
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: 'A pending invitation already exists for this phone number',
+          });
+        }
+      }
+
       const token = randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      const pinHash = isPinInvite ? await hashPassword(body.pin!) : null;
 
       const invite = await withTenantTx(prisma, tenantId, async (tx) => {
         const created = await tx.invitation.create({
           data: {
             tenant_id: tenantId,
-            email: body.email.toLowerCase(),
-            phone: body.phone,
+            email: inviteEmail,
+            phone: invitePhone,
             role: body.role,
             token,
+            pin_hash: pinHash,
             status: 'PENDING',
             expires_at: expiresAt,
           },
@@ -96,13 +176,19 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
           action: 'MEMBER_INVITED',
           entityType: 'Invitation',
           entityId: created.id,
-          changes: { email: body.email, role: body.role },
+          changes: { email: isPinInvite ? undefined : inviteEmail, phone: invitePhone, role: body.role, authMethod: isPinInvite ? 'PIN' : 'PASSWORD' },
         });
 
         return created;
       });
 
-      return reply.status(201).send({ data: invitePayload(invite) });
+      return reply.status(201).send({
+        data: {
+          ...invitePayload(invite),
+          phone: invitePhone,
+          authMethod: isPinInvite ? 'PIN' : 'PASSWORD',
+        },
+      });
     },
   );
 
@@ -309,6 +395,17 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       }
 
+      // PIN (field-role) invites authenticate with the invited PIN copied
+      // onto the account — no password is set or required. Email invites
+      // still require the invitee's own password.
+      const pinInvite = !!invitation.pin_hash;
+      if (!pinInvite && !password) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Password is required to accept this invitation',
+        });
+      }
+
       const tenant = await prisma.tenant.findUnique({ where: { id: invitation.tenant_id } });
 
       let outcome: { userId: string; existingAccount: boolean };
@@ -322,23 +419,49 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
           let existingAccount = false;
 
           if (existingUser) {
-            // Existing account: the token holder must prove they control the
-            // account by confirming its current password. The password is
-            // never overwritten and fullName is not changed.
-            if (!existingUser.is_active) {
-              throw { status: 403, message: 'This account has been deactivated' };
+            if (pinInvite) {
+              // Re-invited field worker: rotate the PIN on the existing
+              // account — the invite token is the authorization.
+              await tx.user.update({
+                where: { id: existingUser.id },
+                data: { pin_hash: invitation.pin_hash, is_active: true },
+              });
+              userId = existingUser.id;
+              existingAccount = true;
+            } else {
+              // Existing account: the token holder must prove they control the
+              // account by confirming its current password. The password is
+              // never overwritten and fullName is not changed.
+              if (!existingUser.is_active) {
+                throw { status: 403, message: 'This account has been deactivated' };
+              }
+              const passwordOk = await verifyPassword(password!, existingUser.password_hash);
+              if (!passwordOk) {
+                throw {
+                  status: 403,
+                  message: 'This email already has an account — confirm your existing password to accept',
+                };
+              }
+              userId = existingUser.id;
+              existingAccount = true;
             }
-            const passwordOk = await verifyPassword(password, existingUser.password_hash);
-            if (!passwordOk) {
-              throw {
-                status: 403,
-                message: 'This email already has an account — confirm your existing password to accept',
-              };
-            }
-            userId = existingUser.id;
-            existingAccount = true;
+          } else if (pinInvite) {
+            // Field account: unusable random password (PIN is the credential),
+            // phone marked verified — the company admin vouches for it.
+            const created = await tx.user.create({
+              data: {
+                email: invitation.email,
+                full_name: fullName,
+                password_hash: await hashPassword(randomBytes(32).toString('hex')),
+                phone_number: invitation.phone,
+                phone_verified_at: new Date(),
+                pin_hash: invitation.pin_hash,
+                is_active: true,
+              },
+            });
+            userId = created.id;
           } else {
-            const passwordHash = await hashPassword(password);
+            const passwordHash = await hashPassword(password!);
             const created = await tx.user.create({
               data: {
                 email: invitation.email,

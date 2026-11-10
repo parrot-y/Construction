@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { ProjectSummaryData } from './types';
+import { PRODUCT_NAME } from '../lib/product';
 
 const styles = StyleSheet.create({
   page: {
@@ -475,7 +476,7 @@ export const ProjectSummaryPdf: React.FC<{ data: ProjectSummaryData }> = ({ data
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>Site Safi Executive Project Summary • Project: {project.code}</Text>
+          <Text>{PRODUCT_NAME} Executive Project Summary • Project: {project.code}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

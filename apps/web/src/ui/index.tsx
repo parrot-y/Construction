@@ -1,6 +1,6 @@
 import React from 'react';
 
-/** Site Safi UI kit — see docs/DESIGN_SYSTEM.md. */
+/** Product UI kit — see docs/DESIGN_SYSTEM.md. */
 
 // ---------------------------------------------------------------- formatKes
 const kesFormatter = new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0});

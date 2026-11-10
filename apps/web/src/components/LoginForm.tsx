@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { AuthSession} from '../types/auth';
+import { PRODUCT_NAME } from '../lib/product';
 
 interface LoginFormProps {
   onLoginSuccess: (session: AuthSession) => void;
@@ -74,7 +75,7 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPasswo
               S
 </div>
 <div>
-<p className="text-lg font-extrabold ">Site Safi</p>
+<p className="text-lg font-extrabold ">{PRODUCT_NAME}</p>
 <p className="text-[11px] text-slate-400 font-medium">Kenya Construction OS</p>
 </div>
 </div>
@@ -94,7 +95,7 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPasswo
 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Client &amp; stakeholder portals — external guests never consume paid seats</li>
 </ul>
 </div>
-<p className="relative text-[11px] text-slate-500">Sign in to your Site Safi workspace</p>
+<p className="relative text-[11px] text-slate-500">Sign in to your {PRODUCT_NAME} workspace</p>
 </div>
 
       {/* Form panel */}
@@ -104,7 +105,7 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPasswo
             S
 </div>
 <div>
-<p className="text-base font-extrabold text-slate-900">Site Safi</p>
+<p className="text-base font-extrabold text-slate-900">{PRODUCT_NAME}</p>
 <p className="text-[11px] text-slate-500">Kenya Construction OS</p>
 </div>
 </div>

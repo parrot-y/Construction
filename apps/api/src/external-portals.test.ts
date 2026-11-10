@@ -495,9 +495,11 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body).data;
     expect(body.regulatoryAuditor.agency).toBe('NCA Regional Auditor');
-    expect(body.complianceSummary.ncaSiteRegistration).toBeNull();
-    expect(body.complianceSummary.statutoryLevyPaid).toBe(true);
-    expect(body.complianceSummary.certifiedSiteSupervisorPresent).toBe(true);
+    // Stage 4: derived indicators removed — complianceSummary carries only
+    // record-backed figures; permits/visits live in their own registers.
+    expect(body.complianceSummary.ncaSiteRegistration).toBeUndefined();
+    expect(body.complianceSummary.statutoryLevyPaid).toBeUndefined();
+    expect(body.complianceSummary.certifiedSiteSupervisorPresent).toBeUndefined();
     expect(body.cubeTests.length).toBeGreaterThan(0);
   });
 

@@ -200,6 +200,7 @@ RETURNS TABLE (
   email VARCHAR,
   phone VARCHAR,
   role VARCHAR,
+  pin_hash VARCHAR,
   status VARCHAR,
   expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ
@@ -207,7 +208,7 @@ RETURNS TABLE (
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE sql AS $$
-  SELECT id, tenant_id, email, phone, role, status, expires_at, created_at
+  SELECT id, tenant_id, email, phone, role, pin_hash, status, expires_at, created_at
   FROM public.invitations
   WHERE token = p_token
   LIMIT 1;
@@ -251,6 +252,7 @@ RETURNS TABLE (
   stakeholder_role VARCHAR,
   subcontractor_package_id UUID,
   supplier_id UUID,
+  scope VARCHAR,
   is_active BOOLEAN,
   expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ
@@ -258,7 +260,7 @@ RETURNS TABLE (
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE sql AS $$
-  SELECT id, tenant_id, project_id, portal_type, stakeholder_name, stakeholder_role, subcontractor_package_id, supplier_id, is_active, expires_at, created_at
+  SELECT id, tenant_id, project_id, portal_type, stakeholder_name, stakeholder_role, subcontractor_package_id, supplier_id, scope, is_active, expires_at, created_at
   FROM public.portal_access_links
   WHERE token_hash = p_token_hash
   LIMIT 1;

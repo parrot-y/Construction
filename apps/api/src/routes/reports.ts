@@ -25,6 +25,7 @@ import {
   SiteDiaryReportData,
   SiteDiaryReportPdf,
 } from '../reports';
+import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -844,7 +845,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
 
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Site Safi';
+      wb.creator = PRODUCT_NAME;
       const money = (v: any) => Number(v ?? 0);
 
       const cash = wb.addWorksheet('Cash flow');
@@ -930,7 +931,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
 
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Site Safi';
+      wb.creator = PRODUCT_NAME;
       const money = (v: any) => Number(v ?? 0);
 
       const ws = wb.addWorksheet('Costs');

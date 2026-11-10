@@ -52,6 +52,7 @@ import {
 } from '@construction/validation';
 import * as crypto from 'crypto';
 import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
+import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -4487,8 +4488,8 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
           const isCritical = variance <= -10.0;
 
           const digestMessage = isCritical
-            ? `Site Safi ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
-            : `Site Safi UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
+            ? `${PRODUCT_NAME} ALERT: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitisha tofauti kubwa (Claim: ${reported.toFixed(1)}%, Verified: ${verified.toFixed(1)}%, Variance: ${variance.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`
+            : `${PRODUCT_NAME} UPDATE: Ukaguzi rasmi ${inspection.inspection_code} kwa mradi wa ${inspection.project.name} umethibitishwa kwa mafanikio (Verified: ${verified.toFixed(1)}%). Cheti cha ukaguzi: /api/v1/projects/${projectId}/reports/independent-inspections/${inspection.id}`;
 
           await recordAuditLog(tx, {
             tenantId,

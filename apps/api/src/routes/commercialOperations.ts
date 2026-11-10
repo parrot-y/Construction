@@ -11,6 +11,7 @@ import {
   CreateSubcontractorValuationSchema,
   ReviewSubcontractorValuationSchema,
 } from '@construction/validation';
+import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -869,7 +870,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
             },
           });
 
-          const preparerName = (request.user as any).full_name || (request.user as any).email || 'Site Safi';
+          const preparerName = (request.user as any).full_name || (request.user as any).email || PRODUCT_NAME;
           await notifyTeam(tx, {
             tenantId,
             projectId,

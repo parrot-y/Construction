@@ -9,6 +9,7 @@ import {
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 import { notifyTeam } from '../lib/notify';
+import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -340,7 +341,7 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
             changes: { poNumber: existing.po_number, commitmentId: commitment.id, costEntryId: costEntry.id, total: existing.total_amount_kes.toString() },
           });
           await notifyTeam(tx, {
-            tenantId, projectId, senderId: sub, senderName: 'Site Safi',
+            tenantId, projectId, senderId: sub, senderName: PRODUCT_NAME,
             body: `PO ${existing.po_number} issued to ${existing.supplier.name} — committed ${toCurrencyString(toDecimal(existing.total_amount_kes.toString()))}. Awaiting supplier acceptance.`,
           });
           return updated;
@@ -553,7 +554,7 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
           });
           if (isOver) {
             await notifyTeam(tx, {
-              tenantId, projectId, senderId: sub, senderName: 'Site Safi',
+              tenantId, projectId, senderId: sub, senderName: PRODUCT_NAME,
               body: `Over-invoice on PO ${po.po_number} (${invoice.reference}) reviewed by PM — ${d.action === 'ACCEPT' ? 'approved with override' : 'rejected'}.`,
             });
           }

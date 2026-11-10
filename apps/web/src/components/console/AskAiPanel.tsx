@@ -3,11 +3,12 @@ import { formatKes } from '../../ui';
 import { useConsole} from './ConsoleContext';
 import { IconSend, IconSpark, IconX} from './icons';
 import { SUBTAB_LABELS} from './navConfig';
+import { PRODUCT_NAME } from '../../lib/product';
 
 interface Msg { role: 'user' | 'bot'; text: string; link?: { section: string; tab: string; label: string}}
 
 /**
- * Site Safi Assistant — deterministic navigation assistant.
+ * Product assistant — deterministic navigation assistant.
  * Routes intents to the right workspace section. NOT an LLM; clearly
  * labelled so it never pretends to be AI. API-key LLM hookup lands here later.
  */
@@ -85,7 +86,7 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
 export default function AskAiPanel(): React.JSX.Element {
   const { aiOpen, setAiOpen, setSection, setTab, nav, projectId} = useConsole();
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: 'bot', text: 'Hi — I\u2019m the Site Safi assistant. Tell me what you need and I\u2019ll take you to the right workspace section.'},
+    { role: 'bot', text: 'Hi — I\u2019m the product assistant. Tell me what you need and I\u2019ll take you to the right workspace section.'},
   ]);
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
@@ -148,7 +149,7 @@ export default function AskAiPanel(): React.JSX.Element {
 <div className="flex items-center gap-2">
 <span className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center"><IconSpark className="w-4 h-4" /></span>
 <div>
-<p className="text-sm font-bold text-slate-900 dark:text-slate-100">Site Safi Assistant</p>
+<p className="text-sm font-bold text-slate-900 dark:text-slate-100">{PRODUCT_NAME} Assistant</p>
 <p className="text-[10px] text-slate-400">Navigation assistant — beta</p>
 </div>
 </div>
@@ -197,7 +198,7 @@ export default function AskAiPanel(): React.JSX.Element {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about projects, invoices, site…"
-          aria-label="Ask the Site Safi assistant"
+          aria-label="Ask the product assistant"
           className="flex-1 text-sm border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
 <button type="submit" aria-label="Send" className="w-11 h-11 rounded-xl bg-orange-600 text-white flex items-center justify-center hover:bg-orange-700 transition">

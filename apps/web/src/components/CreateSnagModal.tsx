@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { SNAG_TRADE_CATEGORIES} from '@construction/validation';
+import { queueOfflineMutation } from '../services/offline-sync';
 
 export type SnagSeverity = 'COSMETIC' | 'FUNCTIONAL' | 'CRITICAL_SAFETY';
 export type SnagPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -42,6 +43,8 @@ export default function CreateSnagModal({
   const [latitude, setLatitude] = useState('-1.2683');
   const [longitude, setLongitude] = useState('36.8044');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoName, setPhotoName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -68,40 +71,52 @@ export default function CreateSnagModal({
     setError(null);
 
     // Gate-4 S6: real API submission — server assigns snag_number & status.
-    try {
-      const distributions = distributionText
+    const payload = {
+      locationBlock: block,
+      locationFloor: floor,
+      locationRoom: room.trim(),
+      tradeCategory: effectiveTrade,
+      description: description.trim(),
+      severity,
+      priority,
+      itemType,
+      isPrivate,
+      managerName: managerName || undefined,
+      finalApproverName: finalApproverName || undefined,
+      costImpactKes: costImpactKes || undefined,
+      scheduleImpactDays: scheduleImpactDays ? parseInt(scheduleImpactDays, 10) : undefined,
+      costCode: costCode || undefined,
+      referenceDoc: referenceDoc || undefined,
+      dueDate: dueDate || undefined,
+      identifiedByName: 'Site Team',
+      photos: photoUrl.trim()
+        ? [{ photoType: 'DEFECT', storageKey: photoUrl.trim(), caption: 'Before evidence', gpsLatitude: parseFloat(latitude) || null, gpsLongitude: parseFloat(longitude) || null}]
+        : undefined,
+      photoBase64: photoBase64 || undefined,
+      distributions: distributionText
         .split(',')
         .map((d) => d.trim())
         .filter(Boolean)
-        .map((name) => ({ recipientName: name}));
+        .map((name) => ({ recipientName: name})),
+};
+
+    try {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        // Queue the whole snag (photo included as verified base64) — the sync
+        // engine replays it with an Idempotency-Key exactly once.
+        await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/snags`, payload);
+        if (onSnagCreated) onSnagCreated({ queuedOffline: true });
+        setRoom(''); setDescription(''); setPhotoUrl(''); setPhotoBase64(null); setPhotoName('');
+        onClose();
+        return;
+      }
 
       const res = await fetch(`/api/v1/projects/${projectId}/snags`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          locationBlock: block,
-          locationFloor: floor,
-          locationRoom: room.trim(),
-          tradeCategory: effectiveTrade,
-          description: description.trim(),
-          severity,
-          priority,
-          itemType,
-          isPrivate,
-          managerName: managerName || undefined,
-          finalApproverName: finalApproverName || undefined,
-          costImpactKes: costImpactKes || undefined,
-          scheduleImpactDays: scheduleImpactDays ? parseInt(scheduleImpactDays, 10) : undefined,
-          costCode: costCode || undefined,
-          referenceDoc: referenceDoc || undefined,
-          dueDate: dueDate || undefined,
-          identifiedByName: 'Site Team',
-          photos: photoUrl.trim()
-            ? [{ photoType: 'DEFECT', storageKey: photoUrl.trim(), caption: 'Before evidence', gpsLatitude: parseFloat(latitude) || null, gpsLongitude: parseFloat(longitude) || null}]
-            : undefined,
-          distributions: distributions.length ? distributions : undefined,
-}),
+        body: JSON.stringify(payload),
 });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || `Failed to log snag (${res.status})`);
@@ -113,12 +128,27 @@ export default function CreateSnagModal({
       setRoom('');
       setDescription('');
       setPhotoUrl('');
+      setPhotoBase64(null);
+      setPhotoName('');
       onClose();
 } catch (err: any) {
       setError(err?.message || 'Failed to log snag item');
 } finally {
       setIsSubmitting(false);
 }
+};
+
+  const handlePhotoFile = (file: File | null) => {
+    if (!file) { setPhotoBase64(null); setPhotoName(''); return; }
+    if (file.size > 6 * 1024 * 1024) { setError('Photo must be under 6 MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      setPhotoBase64(dataUrl.includes(',') ? (dataUrl.split(',')[1] ?? null) : dataUrl);
+      setPhotoName(file.name);
+      setError(null);
+    };
+    reader.readAsDataURL(file);
 };
 
   return (
@@ -368,14 +398,22 @@ export default function CreateSnagModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Before Photo Evidence URL / Filename
+              Before Photo Evidence
 </label>
+<input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => handlePhotoFile(e.target.files?.[0] || null)}
+              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-rose-50 file:text-rose-800 file:text-xs file:font-semibold"
+            />
+{photoName && <p className="mt-1 text-[11px] text-emerald-700 font-medium">Attached: {photoName} (verified on upload)</p>}
 <input
               type="text"
               value={photoUrl}
               onChange={(e) => setPhotoUrl(e.target.value)}
-              placeholder="e.g. photo-crack-tile-204.jpg or leave blank for sample photo"
-              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 placeholder-slate-400"
+              placeholder="…or paste an existing storage key/filename"
+              className="mt-2 w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 placeholder-slate-400"
             />
 </div>
 

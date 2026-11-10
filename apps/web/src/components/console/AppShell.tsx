@@ -161,7 +161,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 )}
 </div>
 
-<button onClick={() => setAiOpen(true)} aria-label="Ask Site Safi AI"
+<button onClick={() => setAiOpen(true)} aria-label="Ask product AI"
           className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:opacity-90">
 <IconSpark className="w-3.5 h-3.5" /> Ask AI
 </button>
@@ -225,7 +225,7 @@ function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
     : `${cls} transition ${active ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`;
   return (
 <>
-<button onClick={() => setAiOpen(true)} aria-label="Ask Site Safi AI" className={itemCls(false)}>
+<button onClick={() => setAiOpen(true)} aria-label="Ask product AI" className={itemCls(false)}>
 <IconSpark className="w-5 h-5" />
         {mobile &&<span>AI</span>}
 </button>

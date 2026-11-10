@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CopyWhatsAppButton } from '../ui';
+import { PRODUCT_NAME } from '../lib/product';
 
 export interface PortalLinkItem {
   id: string;
@@ -122,7 +123,7 @@ export default function PortalAccessLinkManager({
   };
 
   const whatsappMessage = (link: PortalLinkItem) =>
-    `Hi ${link.stakeholderName}, here is your ${link.portalType.toLowerCase()} portal link${link.stakeholderRole ? ` for ${link.stakeholderRole}` : ''}: ${portalUrl(link)} — Site Safi`;
+    `Hi ${link.stakeholderName}, here is your ${link.portalType.toLowerCase()} portal link${link.stakeholderRole ? ` for ${link.stakeholderRole}` : ''}: ${portalUrl(link)} — ${PRODUCT_NAME}`;
 
   const handleRegenerate = async (link: PortalLinkItem) => {
     setBusyId(link.id);

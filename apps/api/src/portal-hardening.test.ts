@@ -320,7 +320,7 @@ describe('Portal hardening', () => {
     const tok = JSON.parse(compLink.body).data.token;
     const res = await server.inject({ method: 'GET', url: `/api/v1/portals/compliance/${tok}` });
     const d = JSON.parse(res.body).data;
-    expect(d.complianceSummary.ncaSiteRegistration).toBeNull();
+    expect(d.complianceSummary.ncaSiteRegistration).toBeUndefined(); // Stage 4: derived indicator removed
     // fresh project may have no cube breaks -> null pass rate, not 100%
     if ((d.complianceSummary.totalBatchesSampled ?? 0) === 0 || d.complianceSummary.concreteCubePassRate === null) {
       expect(d.complianceSummary.concreteCubePassRate === null || d.complianceSummary.concreteCubePassRate === 'No tests yet' || typeof d.complianceSummary.concreteCubePassRate === 'string').toBe(true);

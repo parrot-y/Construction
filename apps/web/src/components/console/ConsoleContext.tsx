@@ -71,9 +71,9 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
 }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem('sitesafi-currency');
+    const stored = localStorage.getItem('buildsasa-currency') ?? localStorage.getItem('sitesafi-currency');
     if (stored === 'KES' || stored === 'USD') setCurrencyState(stored);
-    if (localStorage.getItem('sitesafi-dark') === '1') {
+    if ((localStorage.getItem('buildsasa-dark') ?? localStorage.getItem('sitesafi-dark')) === '1') {
       setDark(true);
       document.documentElement.classList.add('dark');
 }
@@ -81,13 +81,13 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
 
   const setCurrency = (c: 'KES' | 'USD') => {
     setCurrencyState(c);
-    localStorage.setItem('sitesafi-currency', c);
+    localStorage.setItem('buildsasa-currency', c); localStorage.removeItem('sitesafi-currency');
 };
   const toggleDark = () => {
     setDark((d) => {
       const next = !d;
       document.documentElement.classList.toggle('dark', next);
-      localStorage.setItem('sitesafi-dark', next ? '1' : '0');
+      localStorage.setItem('buildsasa-dark', next ? '1' : '0'); localStorage.removeItem('sitesafi-dark');
       return next;
 });
 };

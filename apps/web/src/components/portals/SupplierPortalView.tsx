@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { PRODUCT_NAME } from '../../lib/product';
 
 export interface SupplierDelivery {
   id: string;
@@ -360,7 +361,7 @@ export default function SupplierPortalView({
 
 <div className="text-xs text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-200 leading-relaxed">
             Purchase orders, GRN valuations and invoice settlement are issued and managed by the
-            contractor's quantity surveyor and finance team inside Site Safi. Your confirmed
+            contractor's quantity surveyor and finance team inside {PRODUCT_NAME}. Your confirmed
             deliveries above form the GRN record used for certification.
 </div>
 

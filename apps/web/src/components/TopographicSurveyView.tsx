@@ -957,7 +957,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 <th className="py-3 px-3 text-right">Cum. Mass (m³)</th>
 </tr>
 </thead>
-<tbody className="divide-y divide-slate-100 font-mono">
+<tbody className="divide-y divide-slate-100">
               {stations.map((st) => {
                 const depth = Number(st.depthCutOrFillM ?? 0);
                 const isCut = depth >= 0;
