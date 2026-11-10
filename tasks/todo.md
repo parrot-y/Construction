@@ -318,3 +318,8 @@ RegisterCompanySchema — documented in spec header). Failing test first → fix
 - OBSERVED: lifecycle-money 6/6, s4-certificates, notifications 5/5, projects-visibility 2/2,
   portal-hardening 14/14, commercial-operations 11/11, m8-variations, s3-change-orders, quotes 24/24
 - Contract deviations documented in spec header (route names + register payload field names only)
+
+## Mobile diary modal hit-target — FIXED (was test workaround)
+- [x] SiteDiaryModal: card now scrolls internally (max-h-90vh overflow-y-auto), header sticky top, action bar sticky bottom → submit always reachable at 390px
+- [x] g-contractor-journey test 9 back to a REAL .click() (requestSubmit workaround removed) — 14/14 green both viewports
+- [x] verify-local.sh GREEN 6/6 on fresh ephemeral cluster (commit 83d8665): lint 6/6, typecheck 8/8, build 3/3, tests 6/6 — API 549/549 → docs/evidence/verify-83d8665.log

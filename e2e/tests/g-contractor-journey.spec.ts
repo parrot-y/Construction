@@ -375,12 +375,9 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     await expect(notesArea).toBeVisible({ timeout: 15_000 });
     await notesArea.fill(notes);
     // Go offline and submit — the app must queue locally, not fail.
-    // requestSubmit() fires the same React onSubmit handler; a plain click
-    // is unreliable here because the tall modal's footer sits at the
-    // scroll edge on a 390px viewport.
+    // The modal footer is sticky, so a plain click reaches the real button.
     await page.context().setOffline(true);
-    await page.getByRole('button', { name: 'Record Daily Site Diary' })
-      .evaluate((el) => (el as HTMLButtonElement).closest('form')?.requestSubmit());
+    await page.getByRole('button', { name: 'Record Daily Site Diary' }).click();
     // Modal closes and the offline banner reports queued work
     await expect(page.getByText(/Offline Mode|Queued/i).first()).toBeVisible({ timeout: 15_000 });
 

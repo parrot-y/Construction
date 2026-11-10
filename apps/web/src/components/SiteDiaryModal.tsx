@@ -191,9 +191,9 @@ export default function SiteDiaryModal({
 
   return (
 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-<div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
+<div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh] my-8 animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-<div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+<div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center sticky top-0 z-10">
 <div>
 <div className="flex items-center gap-2">
 <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
@@ -480,7 +480,7 @@ export default function SiteDiaryModal({
 </div>
 
           {/* Actions */}
-<div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+<div className="pt-2 flex justify-end gap-2 border-t border-slate-100 sticky bottom-0 bg-white pb-1">
 <button
               type="button"
               onClick={onClose}
