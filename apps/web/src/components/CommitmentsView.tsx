@@ -55,7 +55,9 @@ interface Props {
 
 const emptyCommitment = {
   vendorName: '',
-  vendorType: 'SUBCONTRACTOR',
+  // ADR-011: SUBCONTRACTOR progress payments go through Subcontractor
+  // Valuations only — commitments are for supplier/consultant/other vendors.
+  vendorType: 'SUPPLIER',
   scopeDescription: '',
   contractValue: '',
   retentionPct: '5',
@@ -250,8 +252,9 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <label className="space-y-1">
 <span className="font-semibold text-slate-600">Type</span>
 <select value={commitmentForm.vendorType} onChange={(e) => setCommitmentForm({ ...commitmentForm, vendorType: e.target.value})} className="w-full border border-slate-300 rounded-lg px-2 py-1.5">
-              {['SUBCONTRACTOR', 'SUPPLIER', 'CONSULTANT', 'OTHER'].map((t) =><option key={t} value={t}>{t}</option>)}
+              {['SUPPLIER', 'CONSULTANT', 'OTHER'].map((t) =><option key={t} value={t}>{t}</option>)}
 </select>
+<p className="text-[10px] text-slate-400 col-span-2 sm:col-span-4 -mt-1">Subcontractor progress payments are managed under Subcontractor Valuations (ADR-011).</p>
 </label>
 <label className="space-y-1">
 <span className="font-semibold text-slate-600">Contract value (KES) *</span>

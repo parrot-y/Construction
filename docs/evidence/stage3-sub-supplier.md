@@ -31,8 +31,13 @@ localhost:54329; API :4199.
    paid, remaining, retention held). Rejection reasons surface with a
    resubmit action via `replacesValuationId` (same-package, rejected-only);
    rejected claims are excluded from the certified-to-date cap.
-5. **Single payment model** — ADR-008 records SubcontractorValuation as the
-   sole subcontract payment model; only it posts to the cost ledger.
+5. **Single payment model** — `docs/adr/ADR-011-subcontract-payment-model.md`
+   decides `SubcontractorValuation` is the sole subcontract payment model for
+   the pilot (TCC gate, portal claims, cap, ledger posting); Commitment/
+   PaymentApplication is retained for SUPPLIER/CONSULTANT/OTHER vendors only —
+   SUBCONTRACTOR removed from the commitment creation UI with a pointer to
+   Subcontractor Valuations. Verified: `commitments.ts` has no `costEntry`
+   writes, so only SubcontractorValuation posts subcontract work to the ledger.
 6. **Retention release** — portal exposes held/released/pending status.
 7. **Procurement** — `purchase_orders` + `purchase_order_items` +
    `purchase_order_invoices` (migration `0012`, line link `0013`):

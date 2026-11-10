@@ -400,3 +400,10 @@ requirements, failing-test-first, then built.
 - OBSERVED: i-stage2 9/9 ×2 viewports; j-stage3 8/8 ×2 viewports — docs/evidence/stage2-client-owner.md, stage3-sub-supplier.md
 - OBSERVED: full API vitest 552+6 fixed → route-guard 8/8, m10 4/4 after provisioning construction_test
 - Honestly unfinished: supplier/subcontractor portal pages + PO match view are API-only (no web screen/click tests); FX is manual dated rates not a live feed; verify-local.sh full run pending on final tree
+
+## Stage-3 req-5 completion (ADR-011 + nav hiding) — DONE
+- [x] docs/adr/ADR-011-subcontract-payment-model.md: SubcontractorValuation = sole
+      subcontract payment model; Commitment/PaymentApplication retained for
+      SUPPLIER/CONSULTANT/OTHER only; verified commitments.ts has no costEntry writes
+- [x] CommitmentsView: SUBCONTRACTOR removed from vendor-type select + ADR-011 pointer
+- [x] j-stage3 ADR test re-run green; web tsc clean

@@ -196,7 +196,7 @@ None.
 - TCC gate: `APPROVED_FOR_PAYMENT` → 409 `TCC_INVALID` without valid TCC; COMPANY_ADMIN override needs non-empty reason, audit-logged. `PAID` requires `paymentReference` + `paidAt`.
 - Portal shows valuation breakdown (gross/retention/WHT/net), package summary, retention release status, rejection reasons + resubmit (`replacesValuationId`); rejected claims excluded from cap.
 - Procurement: `purchase_orders`/`items`/`invoices` (migrations 0012+0013) — full status lifecycle, supplier accept/invoice via portal, PO-line deliveries, three-way match view (ordered/delivered/invoiced, MATCHED|PART_DELIVERED|OVER_INVOICED|MISMATCH), over-invoice blocks cost posting, commitment on ISSUED + actuals on invoice acceptance.
-- ADR-008 records SubcontractorValuation as the sole subcontract payment model.
+- ADR-011 records SubcontractorValuation as the sole subcontract payment model; SUBCONTRACTOR removed from the Commitments UI (supplier/consultant/other only); only SubcontractorValuation posts to the cost ledger.
 - Spec `e2e/tests/j-stage3-subcontractor-supplier.spec.ts`: **16/16 (8 tests × chromium + mobile-390)**. Evidence: `docs/evidence/stage3-sub-supplier.md`.
 
 ### What remains OPEN
