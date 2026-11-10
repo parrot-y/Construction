@@ -71,11 +71,11 @@ operator above first admin; (B) font-mono still ~450. Plus stage-4 spec
 ### Verify
 - [x] k-stage4 spec: 8/8 chromium + 8/8 mobile-390 (16/16)
 - [x] operator-activation.test.ts 3/3
-- [ ] Full API vitest suite (running)
-- [ ] Web vitest + typecheck all packages
-- [ ] scripts/verify-local.sh
-- [ ] docs/evidence/stage4-consultant-compliance-field.md
-- [ ] docs/PROJECT_STATUS.md update + unfinished list
+- [x] Full API vitest suite — 561/561 (62 files)
+- [x] Web vitest 118/118 + turbo typecheck 8/8
+- [x] scripts/verify-local.sh — 6/6 green (docs/evidence/verify-c53e406.log)
+- [x] docs/evidence/stage4-consultant-compliance-field.md
+- [x] docs/PROJECT_STATUS.md update + unfinished list
 
 
 ## Prior: Stage 2 (client/owner) + Stage 3 (subcontractor/supplier) — 2026-11-10 (DONE — see docs/evidence/)
