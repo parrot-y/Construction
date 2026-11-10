@@ -3,6 +3,7 @@ import { AuthSession} from '../types/auth';
 
 interface LoginFormProps {
   onLoginSuccess: (session: AuthSession) => void;
+  onOpenSignup?: () => void;
   apiBaseUrl?: string;
 }
 
@@ -17,7 +18,7 @@ const DEMO_ACCOUNTS = DEMO_MODE ? [
   { label: 'Client', email: 'client@apexbuilders.co.ke', role: 'CLIENT', badge: 'bg-emerald-100 text-emerald-800'},
 ] : [];
 
-export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
+export default function LoginForm({ onLoginSuccess, onOpenSignup, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
   const [email, setEmail] = useState(DEMO_MODE ? 'admin@apexbuilders.co.ke' : '');
   const [password, setPassword] = useState(DEMO_MODE ? 'Password123!' : '');
   const [isLoading, setIsLoading] = useState(false);
@@ -161,6 +162,15 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
             {isLoading ? 'Signing in…' : 'Sign in to workspace'}
 </button>
 </form>
+
+{onOpenSignup && (
+<p className="mt-4 text-center text-sm text-slate-600">
+            New contractor?{' '}
+<button type="button" onClick={onOpenSignup} className="font-semibold text-brand-600 hover:text-brand-700">
+              Create your company workspace
+</button>
+</p>
+)}
 
 {DEMO_MODE && (
 <div className="mt-8 pt-6 border-t border-slate-100">

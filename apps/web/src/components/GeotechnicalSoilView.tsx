@@ -381,7 +381,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 <div className="text-xs text-gray-500 font-mono mt-0.5">
                         {new Date(test.testDate).toLocaleDateString()}
 </div>
-<span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">
+<span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
                         {test.testMethod.replace('_', ' ')}
 </span>
 </td>

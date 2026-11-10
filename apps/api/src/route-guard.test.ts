@@ -21,6 +21,7 @@ const ROUTES_DIR = join(__dirname, 'routes');
  */
 const UNAUTHENTICATED_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/auth/login': 'Credential exchange — issues the session',
+  'POST /api/v1/auth/register-company': 'Self-serve tenant signup — creates tenant+admin, issues no session, rate limited',
   'POST /api/v1/auth/refresh': 'Refresh-token rotation via refresh cookie',
   'POST /api/v1/auth/logout': 'Clears session cookies — safe unauthenticated',
   'POST /api/v1/webhooks/site-ops': 'HMAC-signed site-ops webhook (verified in-handler)',
@@ -38,6 +39,7 @@ const UNAUTHENTICATED_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/portals/subcontractor/:token/snags/:snagId/upload': 'Token-scoped rectification photo upload',
   'POST /api/v1/portals/client/:token/change-orders/:coId/respond': 'Token-scoped client CO approval (ADR-010)',
   'POST /api/v1/invitations/accept': 'Invitation token acceptance flow',
+  'GET /api/v1/invitations/lookup/:token': 'Token-scoped invite preview (32-byte random token, rate limited)',
   'POST /api/v1/billing/mpesa-callback': 'Safaricom Daraja STK callback (checkout-request-id lookup)',
   'POST /api/v1/billing/mpesa-b2c-callback': 'Safaricom Daraja B2C callback (result lookup)',
   'POST /api/v1/telematics/ping': 'Device ingest endpoint (device-token auth in-handler)',

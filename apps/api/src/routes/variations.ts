@@ -7,6 +7,7 @@ import {
   ReviewVariationOrderSchema,
 } from '@construction/validation';
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
+import { notifyTeam } from '../lib/notify';
 import {
   applyCoBudgetRollup,
   claimCoTransition,
@@ -424,6 +425,14 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
           const actorName = await getActorName(tx, sub);
           await recordCoEvent(tx, tenantId, variationId, 'USER', actorName, 'SUBMITTED', `CO-${String(variation.variation_no).padStart(4, '0')} submitted for PM review`);
+
+          await notifyTeam(tx, {
+            tenantId,
+            projectId,
+            senderId: sub,
+            senderName: actorName,
+            body: `Change order CO-${String(variation.variation_no).padStart(4, '0')} "${variation.title}" submitted — awaiting review. Net value: ${toCurrencyString(variation.net_amount?.toString() ?? '0')}.`,
+          });
 
           await recordAuditLog(tx, {
             tenantId,

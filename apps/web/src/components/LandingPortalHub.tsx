@@ -4,6 +4,7 @@ import { Button} from '../ui';
 export interface LandingPortalHubProps {
   onSelectRolePreview: (role: string) => void;
   onOpenLogin: () => void;
+  onOpenSignup?: () => void;
 }
 
 /**
@@ -14,6 +15,7 @@ export interface LandingPortalHubProps {
 export default function LandingPortalHub({
   onSelectRolePreview,
   onOpenLogin,
+  onOpenSignup,
 }: LandingPortalHubProps): React.JSX.Element {
   const isDev = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -66,6 +68,9 @@ export default function LandingPortalHub({
 </p>
 <div className="flex flex-wrap gap-3">
 <Button variant="primary" size="md" onClick={onOpenLogin}>Sign in to your workspace</Button>
+{onOpenSignup && (
+<Button variant="secondary" size="md" onClick={onOpenSignup}>Create company workspace</Button>
+)}
 <Button variant="secondary" size="md" onClick={() => document.getElementById('product')?.scrollIntoView({ behavior: 'smooth'})}>
             See what it does
 </Button>

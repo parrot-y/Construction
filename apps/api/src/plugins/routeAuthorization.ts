@@ -223,7 +223,7 @@ export const IN_HANDLER_GUARDED: Record<string, string> = {
 };
 
 // Roles that see every project in the tenant without a ProjectMember row.
-const TENANT_WIDE_ROLES = new Set<Role>([Roles.COMPANY_ADMIN, Roles.ADMIN, Roles.EXECUTIVE]);
+export const TENANT_WIDE_ROLES = new Set<Role>([Roles.COMPANY_ADMIN, Roles.ADMIN, Roles.EXECUTIVE]);
 
 const PROJECT_PATH_RE = /\/api\/v1\/projects\/(?::projectId|:id)\//;
 const PROJECT_DETAIL_RE = /^\/api\/v1\/projects\/:id$/;

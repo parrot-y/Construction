@@ -33,6 +33,15 @@ export const LoginRequestSchema = z.object({
 
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
+export const RegisterCompanySchema = z.object({
+  companyName: z.string().min(2, { message: 'Company name must be at least 2 characters' }).max(255),
+  adminFullName: z.string().min(2, { message: 'Full name must be at least 2 characters' }).max(255),
+  email: z.string().email({ message: 'Must be a valid email address' }),
+  phone: KenyanPhoneSchema.optional().or(z.literal('')),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128),
+});
+export type RegisterCompany = z.infer<typeof RegisterCompanySchema>;
+
 export const AuthUserResponseSchema = z.object({
   user: z.object({
     id: z.string().uuid(),
@@ -253,6 +262,7 @@ export type ClientVariationRespond = z.infer<typeof ClientVariationRespondSchema
 
 export const AcceptInvitationSchema = z.object({
   token: z.string().min(16, { message: 'Invalid invitation token' }).max(128),
+  email: z.string().email({ message: 'Must be the invited email address' }),
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters long' }).max(255),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128).optional(),
 });
@@ -807,8 +817,8 @@ export const CreateTaxCertificateSchema = z.object({
   payeeKraPin: z.string().regex(/^[A-Z]\d{9}[A-Z]$/, { message: 'Must be a valid Kenyan KRA PIN (e.g. P051234567Z)' }),
   invoiceOrIpcRef: z.string().min(2).max(100),
   grossAmount: CurrencyAmountSchema,
-  whtRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).default('3.00'),
-  whvatRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).default('2.00'),
+  whtRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).optional().nullable(),
+  whvatRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).optional().nullable(),
 });
 export type CreateTaxCertificate = z.infer<typeof CreateTaxCertificateSchema>;
 
@@ -906,7 +916,8 @@ export type CreateCashFlowForecast = z.infer<typeof CreateCashFlowForecastSchema
 // -------------------------------------------------------------
 export const SubcontractorValuationStatusEnum = z.enum([
   'SUBMITTED',
-  'QS_VERIFIED',
+  'UNDER_REVIEW',
+  'QS_VERIFIED', // legacy alias of UNDER_REVIEW — kept for backward compatibility
   'APPROVED_FOR_PAYMENT',
   'PAID',
   'REJECTED',
@@ -920,7 +931,9 @@ export const CreateSubcontractorValuationSchema = z.object({
   grossWorkCertifiedKes: CurrencyAmountSchema,
   retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid retention percentage' }).default('10.00'),
   previousPaymentsDeductedKes: CurrencyAmountSchema.default('0.00'),
-  withholdingTaxPct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid WHT percentage' }).default('3.00'),
+  // Optional override — when omitted the route applies the tenant's configured
+  // WHT rate for the SUBCONTRACTOR category (no hard-coded default).
+  withholdingTaxPct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid WHT percentage' }).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 export type CreateSubcontractorValuation = z.infer<typeof CreateSubcontractorValuationSchema>;
@@ -1792,10 +1805,21 @@ export type VoidInvoice = z.infer<typeof VoidInvoiceSchema>;
 // Gate-4 S4: Payment Certificates & Closeout (ADR-008)
 // -----------------------------------------------------------------------------
 
+export const PaymentCertificateLineInputSchema = z.object({
+  boqItemId: z.string().uuid().optional().nullable(),
+  description: z.string().min(1).max(500),
+  unit: z.string().max(20).optional().nullable(),
+  progressPct: z.string().regex(/^\d+(\.\d{1,4})?$/, 'Valid progress percentage').optional().nullable(),
+  unitRate: z.string().regex(/^\d+(\.\d{1,4})?$/, 'Valid unit rate').optional().nullable(),
+  amount: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount'),
+});
+export type PaymentCertificateLineInput = z.infer<typeof PaymentCertificateLineInputSchema>;
+
 export const CreatePaymentCertificateSchema = z.object({
   periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart must be YYYY-MM-DD'),
   periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd must be YYYY-MM-DD'),
   thisPeriodAmount: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  lines: z.array(PaymentCertificateLineInputSchema).max(500).optional().nullable(),
   retentionPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
   retentionReleased: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
   advanceRecovery: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
@@ -1803,6 +1827,39 @@ export const CreatePaymentCertificateSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 export type CreatePaymentCertificate = z.infer<typeof CreatePaymentCertificateSchema>;
+
+export const UpdatePaymentCertificateSchema = z.object({
+  thisPeriodAmount: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  lines: z.array(PaymentCertificateLineInputSchema).max(500).optional().nullable(),
+  retentionPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  retentionReleased: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  advanceRecovery: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  amountDuePrevious: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type UpdatePaymentCertificate = z.infer<typeof UpdatePaymentCertificateSchema>;
+
+export const CreateInvoiceFromCertificateSchema = z.object({
+  clientName: z.string().min(2).max(255),
+  clientEmail: z.string().email().optional().nullable(),
+  clientPhone: z.string().max(50).optional().nullable(),
+  billTo: z.string().max(2000).optional().nullable(),
+  poNumber: z.string().max(100).optional().nullable(),
+  dueDays: z.number().int().min(0).max(365).default(30),
+  terms: z.string().max(2000).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateInvoiceFromCertificate = z.infer<typeof CreateInvoiceFromCertificateSchema>;
+
+export const TaxSettingsSchema = z.object({
+  vatPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid VAT percentage').optional(),
+  whtContractorPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHT percentage').optional(),
+  whtSubcontractorPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHT percentage').optional(),
+  whtConsultantPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHT percentage').optional(),
+  whtSupplierPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHT percentage').optional(),
+  whvatPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHVAT percentage').optional(),
+});
+export type TaxSettings = z.infer<typeof TaxSettingsSchema>;
 
 export const PaymentCertificateActionSchema = z.object({
   action: z.enum(['SUBMIT', 'REVIEW', 'CERTIFY', 'REJECT', 'MARK_PAID']),

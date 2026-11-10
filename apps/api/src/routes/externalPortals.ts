@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
+import { getTaxSettings, whtRateFor } from '../lib/tax';
 import { Permissions } from '@construction/permissions';
 import { CreatePortalLinkSchema, ClientVariationRespondSchema, ConsultantRfiReplySchema, SupplierDeliveryActionSchema } from '@construction/validation';
 import { randomBytes, createHash } from 'node:crypto';
@@ -7,6 +8,7 @@ import { requirePermission } from '../plugins/rbac';
 import { toDecimal } from '@construction/money';
 import { randomUUID } from 'node:crypto';
 import { verifyUpload } from '../lib/uploadSecurity';
+import { notifyTeam } from '../lib/notify';
 import { getStorageDriver } from '../lib/storage';
 import {
   applyCoBudgetRollup,
@@ -160,6 +162,9 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             stakeholderRole: link.stakeholder_role,
             token: rawToken,
             linkUrl: `/?portal=${link.portal_type.toLowerCase()}&token=${rawToken}`,
+            isActive: true,
+            useCount: 0,
+            lastUsedAt: null,
             expiresAt: link.expires_at.toISOString(),
             createdAt: link.created_at.toISOString(),
           },
@@ -278,9 +283,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             id: link.id,
             portalType: link.portal_type,
             stakeholderName: link.stakeholder_name,
+            stakeholderRole: link.stakeholder_role,
             token: rawToken,
             linkUrl: `/?portal=${link.portal_type.toLowerCase()}&token=${rawToken}`,
+            isActive: true,
+            useCount: 0,
+            lastUsedAt: null,
             expiresAt: link.expires_at.toISOString(),
+            createdAt: link.created_at?.toISOString?.() ?? null,
           },
         });
       } catch (err: any) {
@@ -570,6 +580,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         },
       });
 
+      await notifyTeam(tx, {
+        tenantId: link.tenant_id,
+        projectId: link.project_id,
+        senderId: link.id,
+        senderName: `${body.consultantName || link.stakeholder_name} (portal)`,
+        body: `Consultant replied to an RFI via portal — the RFI is now ANSWERED and ready for the project team.`,
+      });
+
       return created;
     }).catch((err: any) => {
       if (err?.status) {
@@ -820,6 +838,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         },
       });
 
+      await notifyTeam(tx, {
+        tenantId: link.tenant_id,
+        projectId: link.project_id,
+        senderId: link.id,
+        senderName: `${link.stakeholder_name} (portal)`,
+        body: `Snag item rectified via portal by ${link.stakeholder_name} — photo proof uploaded, awaiting inspection.`,
+      });
+
       return updatedSnag;
     });
 
@@ -857,7 +883,6 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     if (gross.lte(0)) {
       return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'grossWorkCertifiedKes must be a positive amount' });
     }
-    const WHT_RATE_PCT = toDecimal(process.env.PORTAL_WHT_RATE_PCT || '3.00');
     try {
       const valuation = await withTenantTx(prisma, link.tenant_id, async (tx) => {
         const pkg = await tx.subcontractorPackage.findFirst({
@@ -885,6 +910,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           throw new Error(`Gross work certified must exceed certified-to-date (${certifiedToDate.toFixed(2)})`);
         }
 
+        // WHT from the tenant's central tax settings — no env/hard-coded rate.
+        const taxSettings = await getTaxSettings(tx, link.tenant_id);
+        const WHT_RATE_PCT = whtRateFor(taxSettings, 'SUBCONTRACTOR');
+
         const count = prior.length;
         const retentionRate = toDecimal(pkg.retention_rate_pct.toString());
         const retention = gross.times(retentionRate.dividedBy(100));
@@ -907,6 +936,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             withholding_tax_deducted_kes: wht.toFixed(2),
             net_payable_kes: netPayable.toFixed(2),
             payment_status: 'SUBMITTED',
+            submitted_at: new Date(),
             notes: `[Portal submission by ${link.stakeholder_name}] ${body.notes || ''}`.trim(),
           },
         });
@@ -918,6 +948,13 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           entityType: 'SubcontractorValuation',
           entityId: created.id,
           changes: { via: 'external_portal', gross, submittedBy: link.stakeholder_name },
+        });
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${link.stakeholder_name} (portal)`,
+          body: `Subcontractor valuation ${created.certificate_no} submitted via portal by ${link.stakeholder_name} — gross ${gross.toFixed(2)} KES. Awaiting review.`,
         });
         return created;
       });
@@ -1038,16 +1075,27 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       if (delivery.delivery_status === 'CONFIRMED' || delivery.delivery_status === 'DISPUTED') {
         throw { status: 409, message: `Delivery is already ${delivery.delivery_status.toLowerCase()} — contact the site team to reopen it` };
       }
-      return tx.materialDelivery.update({
+      const action = body.action === 'CONFIRM' ? 'CONFIRMED' : 'DISPUTED';
+      const updatedDelivery = await tx.materialDelivery.update({
         where: { id: deliveryId },
         data: {
-          delivery_status: body.action === 'CONFIRM' ? 'CONFIRMED' : 'DISPUTED',
+          delivery_status: action,
           confirmed_at: body.action === 'CONFIRM' ? new Date() : null,
           confirmed_by_name: link.stakeholder_name,
           supplier_invoice_ref: body.invoiceRef || delivery.supplier_invoice_ref,
           dispute_reason: body.action === 'DISPUTE' ? body.note!.trim() : delivery.dispute_reason,
         },
       });
+      await notifyTeam(tx, {
+        tenantId: link.tenant_id,
+        projectId: link.project_id,
+        senderId: link.id,
+        senderName: `${link.stakeholder_name} (portal)`,
+        body: body.action === 'CONFIRM'
+          ? `Supplier ${link.stakeholder_name} confirmed a delivery via portal${body.invoiceRef ? ` — invoice ref ${body.invoiceRef}` : ''}.`
+          : `Supplier ${link.stakeholder_name} disputed a delivery via portal: ${body.note!.trim()}`,
+      });
+      return updatedDelivery;
     }).catch((err: any) => ({ __err: err }));
     const uerr = (updated as any).__err;
     if (uerr) {
@@ -1430,6 +1478,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           },
           ipAddress: request.ip,
           userAgent: (request.headers['user-agent'] as string) || null,
+        });
+
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${actorName} (client portal)`,
+          body: `Client ${actorName} ${newStatus === 'APPROVED' ? 'approved' : 'rejected'} change order CO-${String(variation.variation_no).padStart(4, '0')} via portal${newStatus === 'APPROVED' ? ' — contract budget updated' : ''}.`,
         });
 
         return { ...updated, status: normalizeCoStatus(updated.status) };

@@ -1,6 +1,10 @@
 /**
  * Client-Side Offline Storage & Synchronization Engine (ADR-004)
  * Manages IndexedDB queue, client-side photo compression, and idempotent sync.
+ *
+ * Storage keys were renamed from the legacy `mjengo_*` names to `sitesafi_*`.
+ * `migrateOfflineStorage()` copies any queued mutations forward once —
+ * pending offline work is never dropped by the rename.
  */
 
 export interface OfflineMutationRecord {
@@ -16,9 +20,95 @@ export interface OfflineMutationRecord {
   last_error?: string;
 }
 
-const DB_NAME = 'mjengo_offline_db';
+const DB_NAME = 'sitesafi_offline_db';
+const LEGACY_DB_NAME = 'mjengo_offline_db';
 const STORE_NAME = 'mutations_queue';
 const DB_VERSION = 1;
+
+const LS_KEY = 'sitesafi_offline_queue';
+const LEGACY_LS_KEY = 'mjengo_offline_queue';
+
+function readLsQueue(): OfflineMutationRecord[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY) ?? localStorage.getItem(LEGACY_LS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLsQueue(records: OfflineMutationRecord[]): void {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(records));
+    localStorage.removeItem(LEGACY_LS_KEY);
+  } catch {
+    // Storage unavailable — queue lives in IndexedDB anyway
+  }
+}
+
+/**
+ * One-time migration: copies legacy `mjengo_*` offline queue data into the
+ * `sitesafi_*` keys. Safe to call repeatedly — dedupes by record id.
+ */
+export async function migrateOfflineStorage(): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  // 1. localStorage queue
+  try {
+    const legacy = localStorage.getItem(LEGACY_LS_KEY);
+    if (legacy) {
+      const merged = new Map<string, OfflineMutationRecord>();
+      for (const r of [...readLsQueue(), ...JSON.parse(legacy)]) {
+        if (r?.id) merged.set(r.id, r);
+      }
+      writeLsQueue([...merged.values()]);
+    }
+  } catch {
+    // Corrupt legacy payload — drop it rather than block the app
+    try { localStorage.removeItem(LEGACY_LS_KEY); } catch { /* ignore */ }
+  }
+
+  // 2. IndexedDB store
+  try {
+    const legacyRecords = await new Promise<OfflineMutationRecord[]>((resolve) => {
+      let settled = false;
+      const done = (v: OfflineMutationRecord[]) => { if (!settled) { settled = true; resolve(v); } };
+      try {
+        const req = window.indexedDB.open(LEGACY_DB_NAME);
+        req.onsuccess = () => {
+          const oldDb = req.result;
+          try {
+            if (!oldDb.objectStoreNames.contains(STORE_NAME)) { oldDb.close(); done([]); return; }
+            const tx = oldDb.transaction(STORE_NAME, 'readonly');
+            const getAll = tx.objectStore(STORE_NAME).getAll();
+            getAll.onsuccess = () => { oldDb.close(); done(getAll.result || []); };
+            getAll.onerror = () => { oldDb.close(); done([]); };
+          } catch { oldDb.close(); done([]); }
+        };
+        req.onerror = () => done([]);
+        req.onblocked = () => done([]);
+      } catch { done([]); }
+    });
+
+    if (legacyRecords.length > 0) {
+      const db = await openDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        for (const r of legacyRecords) {
+          if (r?.id) store.put(r);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+      // Legacy DB left in place (read-only); new writes go to sitesafi_offline_db.
+    }
+  } catch {
+    // IndexedDB unavailable — localStorage migration above still applies
+  }
+}
 
 /**
  * Initializes IndexedDB storage for offline field mutations.
@@ -93,9 +183,9 @@ export async function queueOfflineMutation(
   } catch (err) {
     // Fallback to localStorage if IndexedDB is blocked
     try {
-      const existing = JSON.parse(localStorage.getItem('mjengo_offline_queue') || '[]');
+      const existing = readLsQueue();
       existing.push(mutation);
-      localStorage.setItem('mjengo_offline_queue', JSON.stringify(existing));
+      writeLsQueue(existing);
     } catch {
       // Ignored in purely simulated contexts
     }
@@ -122,8 +212,7 @@ export async function getQueuedMutations(): Promise<OfflineMutationRecord[]> {
     });
   } catch {
     try {
-      const existing = JSON.parse(localStorage.getItem('mjengo_offline_queue') || '[]');
-      return existing.filter((r: OfflineMutationRecord) => r.status === 'PENDING' || r.status === 'FAILED');
+      return readLsQueue().filter((r) => r.status === 'PENDING' || r.status === 'FAILED');
     } catch {
       return [];
     }
@@ -144,6 +233,7 @@ export async function flushSyncQueue(): Promise<{ syncedCount: number; failedCou
     try {
       const res = await fetch(item.endpoint, {
         method: item.method,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Idempotency-Key': item.idempotency_key,
@@ -180,9 +270,8 @@ export async function removeMutation(id: string): Promise<void> {
     });
   } catch {
     try {
-      const existing = JSON.parse(localStorage.getItem('mjengo_offline_queue') || '[]');
-      const filtered = existing.filter((r: OfflineMutationRecord) => r.id !== id);
-      localStorage.setItem('mjengo_offline_queue', JSON.stringify(filtered));
+      const filtered = readLsQueue().filter((r) => r.id !== id);
+      writeLsQueue(filtered);
     } catch {
       // Ignored
     }

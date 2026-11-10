@@ -9,6 +9,7 @@ import RfiManagementView from '../../RfiManagementView';
 import CorrespondenceView from '../../CorrespondenceView';
 import { IconPlus} from '../icons';
 import PortalAccessLinkManager from '../../PortalAccessLinkManager';
+import ProjectChecklist from '../../ProjectChecklist';
 
 const FILTERS = ['All', 'Active', 'At Risk', 'Planning', 'Closing', 'Archived'];
 
@@ -123,7 +124,10 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 )}
 
       {livePidCheck && (
+<div className="space-y-5">
+<ProjectChecklist projectId={livePidCheck} />
 <PortalAccessLinkManager projectId={livePidCheck} onPreviewPortal={(t, token, name, role) => setPortalPreview({ type: t, token, name, role})} />
+</div>
 )}
 
       {recentCos.length > 0 && (

@@ -11,6 +11,7 @@ import {
   UpdateSitePhotoVisibilitySchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { notifyTeam } from '../lib/notify';
 
 export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ---------------------------------------------------------------------------
@@ -240,6 +241,16 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             },
             ipAddress: request.ip,
             userAgent: request.headers['user-agent'] || null,
+          });
+
+          // Team notification: diary filed (in-app inbox)
+          const recorderName = (request.user as any).full_name || (request.user as any).email || 'Site team';
+          await notifyTeam(tx, {
+            tenantId,
+            projectId,
+            senderId: sub,
+            senderName: recorderName,
+            body: `Site diary filed for ${project.name} — ${data.entryDate}: ${data.weather}, ${data.siteStatus}.`,
           });
 
           const createdDiary = await tx.siteDiary.findUnique({

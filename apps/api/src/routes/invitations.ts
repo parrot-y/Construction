@@ -89,7 +89,47 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
     },
   );
 
-  // GET /api/v1/invitations - List pending invitations
+  // GET /api/v1/invitations/lookup/:token - Public invite preview for the
+  // acceptance screen. The token is a 32-byte random secret; the response only
+  // reveals what the invitee needs (company, role, invited email, expiry).
+  server.get(
+    '/api/v1/invitations/lookup/:token',
+    {
+      config: {
+        rateLimit: { max: 30, timeWindow: '1 minute' },
+      },
+    },
+    async (request, reply) => {
+      const { token } = request.params as { token: string };
+      if (!token || token.length < 16 || token.length > 128) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Invalid invitation token' });
+      }
+
+      const rows = await prisma.$queryRaw<any[]>`
+        SELECT * FROM lookup_invitation_by_token(${token}::text);
+      `;
+      const invitation = rows[0] || null;
+      if (!invitation) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Invitation not found' });
+      }
+
+      const tenant = await prisma.tenant.findUnique({ where: { id: invitation.tenant_id } });
+      const expired = invitation.status === 'PENDING' && new Date() > invitation.expires_at;
+
+      return reply.status(200).send({
+        data: {
+          email: invitation.email,
+          phone: invitation.phone,
+          role: invitation.role,
+          status: expired ? 'EXPIRED' : invitation.status,
+          expiresAt: invitation.expires_at,
+          companyName: tenant?.name ?? 'Unknown company',
+        },
+      });
+    },
+  );
+
+  // GET /api/v1/invitations - List all invitations (pending, accepted, revoked, expired)
   server.get(
     '/api/v1/invitations',
     {
@@ -97,15 +137,114 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
     },
     async (request, reply) => {
       const { tenantId } = request.user;
+      const { status } = request.query as { status?: string };
 
       const invitations = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.invitation.findMany({
-          where: { tenant_id: tenantId, status: 'PENDING' },
+          where: {
+            tenant_id: tenantId,
+            ...(status ? { status } : {}),
+          },
           orderBy: { created_at: 'desc' },
         });
       });
 
       return reply.status(200).send({ data: invitations });
+    },
+  );
+
+  // POST /api/v1/invitations/:id/revoke - Revoke a pending invitation
+  server.post(
+    '/api/v1/invitations/:id/revoke',
+    {
+      preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_INVITE)],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { id } = request.params as { id: string };
+
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const invite = await tx.invitation.findFirst({ where: { id, tenant_id: tenantId } });
+        if (!invite) return { error: 404 as const };
+        if (invite.status !== 'PENDING') return { error: 409 as const, status: invite.status };
+        const updated = await tx.invitation.update({ where: { id }, data: { status: 'REVOKED' } });
+        await recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          action: 'INVITATION_REVOKED',
+          entityType: 'Invitation',
+          entityId: id,
+          changes: { email: invite.email, role: invite.role },
+        });
+        return { invite: updated };
+      });
+
+      if ('error' in result) {
+        if (result.error === 404) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Invitation not found' });
+        }
+        return reply.status(409).send({
+          error: 'Conflict',
+          message: `Cannot revoke an invitation that is already ${result.status}`,
+        });
+      }
+      return reply.status(200).send({ data: result.invite });
+    },
+  );
+
+  // POST /api/v1/invitations/:id/regenerate - Issue a fresh token for a
+  // pending (or revoked) invitation; the old token stops working immediately.
+  server.post(
+    '/api/v1/invitations/:id/regenerate',
+    {
+      preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_INVITE)],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { id } = request.params as { id: string };
+
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const invite = await tx.invitation.findFirst({ where: { id, tenant_id: tenantId } });
+        if (!invite) return { error: 404 as const };
+        if (!['PENDING', 'REVOKED'].includes(invite.status)) {
+          return { error: 409 as const, status: invite.status };
+        }
+        const token = randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const updated = await tx.invitation.update({
+          where: { id },
+          data: { token, status: 'PENDING', expires_at: expiresAt },
+        });
+        await recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          action: 'INVITATION_REGENERATED',
+          entityType: 'Invitation',
+          entityId: id,
+          changes: { email: invite.email, role: invite.role },
+        });
+        return { invite: updated };
+      });
+
+      if ('error' in result) {
+        if (result.error === 404) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Invitation not found' });
+        }
+        return reply.status(409).send({
+          error: 'Conflict',
+          message: `Cannot regenerate an invitation that is ${result.status}`,
+        });
+      }
+      return reply.status(200).send({
+        data: {
+          id: result.invite.id,
+          email: result.invite.email,
+          role: result.invite.role,
+          status: result.invite.status,
+          token: result.invite.token,
+          expiresAt: result.invite.expires_at,
+        },
+      });
     },
   );
 
@@ -120,7 +259,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
       });
     }
 
-    const { token, fullName, password } = parseResult.data;
+    const { token, email, fullName, password } = parseResult.data;
 
     // Retrieve invitation via narrow SECURITY DEFINER lookup function without auth_context bypasses (2c)
     const invitationRows = await prisma.$queryRaw<any[]>`
@@ -145,6 +284,13 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
       return reply.status(400).send({
         error: 'Bad Request',
         message: 'This invitation has expired',
+      });
+    }
+
+    if (email.toLowerCase() !== invitation.email.toLowerCase()) {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: 'This invitation was issued to a different email address',
       });
     }
 

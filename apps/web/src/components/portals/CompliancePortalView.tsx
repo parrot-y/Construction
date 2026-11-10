@@ -189,7 +189,7 @@ export default function CompliancePortalView({
 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
 <p className="text-[11px] font-semibold text-slate-500">NCA Registration</p>
-<p className="text-xs font-mono font-bold text-slate-900 truncate">
+<p className="text-xs font-bold text-slate-900 truncate">
             {complianceSummary.ncaSiteRegistration || 'Not recorded'}
 </p>
 {complianceSummary.ncaSiteRegistration && (
@@ -392,7 +392,7 @@ export default function CompliancePortalView({
 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3">
 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">NCA Registration:</span>
-<span className="font-bold text-slate-900 font-mono">{complianceSummary.ncaSiteRegistration || 'Not recorded'}</span>
+<span className="font-bold text-slate-900">{complianceSummary.ncaSiteRegistration || 'Not recorded'}</span>
 </div>
 {statutoryPermits.length === 0 ? (
 <div className="text-slate-500">No statutory permits on file — the contractor has not uploaded NEMA, county, DOSHS or NCWSC documents for this project.</div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect} from 'react';
 import LoginForm from './components/LoginForm';
+import SignupForm from './components/SignupForm';
+import InviteAcceptView from './components/InviteAcceptView';
 import Dashboard from './components/Dashboard';
 import LandingPortalHub from './components/LandingPortalHub';
 import ConsultantPortalView from './components/portals/ConsultantPortalView';
@@ -9,6 +11,7 @@ import CompliancePortalView from './components/portals/CompliancePortalView';
 import ClientPortalView from './components/portals/ClientPortalView';
 import PublicQuoteView from './components/PublicQuoteView';
 import { AuthSession} from './types/auth';
+import { migrateOfflineStorage } from './services/offline-sync';
 
 interface AppProps {
   initialPortal?: {
@@ -24,14 +27,25 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
     token: string;
 } | null>(initialPortal || null);
   const [showLoginForm, setShowLoginForm] = useState(false);
+  const [showSignupForm, setShowSignupForm] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   useEffect(() => {
+    // One-time migration of the legacy `mjengo_*` offline queue to `sitesafi_*`
+    void migrateOfflineStorage();
     if (!externalPortal && typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
       const portal = params.get('portal');
       const token = params.get('token');
       if (portal && token) {
         setExternalPortal({ type: portal.toLowerCase(), token});
+}
+      if (params.get('signup') === '1') {
+        setShowSignupForm(true);
+}
+      const invite = params.get('invite');
+      if (invite) {
+        setInviteToken(invite);
 }
 }
 }, [externalPortal]);
@@ -157,7 +171,42 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
 <span>Back to Site Safi Landing Portal Hub</span>
 </button>
 </div>
-<LoginForm onLoginSuccess={(newSession) => setSession(newSession)} />
+<LoginForm
+          onLoginSuccess={(newSession) => setSession(newSession)}
+          onOpenSignup={() => { setShowLoginForm(false); setShowSignupForm(true); }}
+        />
+</main>
+);
+}
+
+  // 3a. Invitation acceptance view (?invite=<token>)
+  if (inviteToken) {
+    return (
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<InviteAcceptView
+        token={inviteToken}
+        onLoginSuccess={(newSession) => setSession(newSession)}
+        onBack={() => { setInviteToken(null); window.history.replaceState({}, '', '/'); }}
+      />
+</main>
+);
+}
+
+  // 3b. Company signup view
+  if (showSignupForm) {
+    return (
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<div className="w-full max-w-md mx-auto mb-4">
+<button
+          onClick={() => { setShowSignupForm(false); setShowLoginForm(false); }}
+          data-testid="back-to-landing-btn"
+          className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition"
+        >
+<span>←</span>
+<span>Back to Site Safi Landing Portal Hub</span>
+</button>
+</div>
+<SignupForm onLoginSuccess={(newSession) => setSession(newSession)} />
 </main>
 );
 }
@@ -168,6 +217,7 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
 <LandingPortalHub
         onSelectRolePreview={handleSelectRolePreview}
         onOpenLogin={() => setShowLoginForm(true)}
+        onOpenSignup={() => setShowSignupForm(true)}
       />
 </main>
 );

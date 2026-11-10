@@ -1,4 +1,6 @@
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
+import { getTaxSettings } from '../lib/tax';
+import { TaxSettingsSchema } from '@construction/validation';
 import { Permissions, Roles } from '@construction/permissions';
 import { toDecimal, Decimal } from '@construction/money';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
@@ -345,6 +347,80 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           message: 'Failed to revoke membership',
         });
       }
+    },
+  );
+
+  // GET /api/v1/company/tax-settings - Central tenant tax configuration
+  server.get(
+    '/api/v1/company/tax-settings',
+    { preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_MANAGE)] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const settings = await withTenantTx(prisma, tenantId, async (tx) => getTaxSettings(tx, tenantId));
+      return reply.status(200).send({
+        data: {
+          vatPct: settings.vatPct.toFixed(2),
+          whtContractorPct: settings.whtContractorPct.toFixed(2),
+          whtSubcontractorPct: settings.whtSubcontractorPct.toFixed(2),
+          whtConsultantPct: settings.whtConsultantPct.toFixed(2),
+          whtSupplierPct: settings.whtSupplierPct.toFixed(2),
+          whvatPct: settings.whvatPct.toFixed(2),
+        },
+      });
+    },
+  );
+
+  // PUT /api/v1/company/tax-settings - Update tenant tax configuration
+  server.put(
+    '/api/v1/company/tax-settings',
+    { preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_MANAGE)] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const parsed = TaxSettingsSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid tax settings', details: parsed.error.flatten() });
+      }
+      const d = parsed.data;
+      const data: Record<string, string> = {};
+      if (d.vatPct !== undefined) data.vat_pct = d.vatPct;
+      if (d.whtContractorPct !== undefined) data.wht_contractor_pct = d.whtContractorPct;
+      if (d.whtSubcontractorPct !== undefined) data.wht_subcontractor_pct = d.whtSubcontractorPct;
+      if (d.whtConsultantPct !== undefined) data.wht_consultant_pct = d.whtConsultantPct;
+      if (d.whtSupplierPct !== undefined) data.wht_supplier_pct = d.whtSupplierPct;
+      if (d.whvatPct !== undefined) data.whvat_pct = d.whvatPct;
+      if (Object.keys(data).length === 0) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No tax settings provided' });
+      }
+
+      const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+        const row = await tx.tenantTaxSetting.upsert({
+          where: { tenant_id: tenantId },
+          update: { ...data, updated_by: sub },
+          create: { tenant_id: tenantId, ...data, updated_by: sub },
+        });
+        await recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          action: 'TAX_SETTINGS_UPDATED',
+          entityType: 'TenantTaxSetting',
+          entityId: tenantId,
+          changes: data,
+        });
+        return row;
+      });
+
+      const settings = await withTenantTx(prisma, tenantId, async (tx) => getTaxSettings(tx, tenantId));
+      void updated;
+      return reply.status(200).send({
+        data: {
+          vatPct: settings.vatPct.toFixed(2),
+          whtContractorPct: settings.whtContractorPct.toFixed(2),
+          whtSubcontractorPct: settings.whtSubcontractorPct.toFixed(2),
+          whtConsultantPct: settings.whtConsultantPct.toFixed(2),
+          whtSupplierPct: settings.whtSupplierPct.toFixed(2),
+          whvatPct: settings.whvatPct.toFixed(2),
+        },
+      });
     },
   );
 };

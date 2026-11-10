@@ -269,3 +269,29 @@ Plan per auditor items 1-13, failing test first each:
 ## NEXT TASK
 - Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM) → wire real integrations
 - Production deploy per docs/DEPLOY.md (DISABLED_MODULES, object storage, domain/TLS)
+
+## Contractor-lifecycle gaps (branch devin/contractor-lifecycle) — auditor walkthrough
+Failing test first → fix → evidence per item. verify-local green at end.
+- [x] 1. POST /auth/register-company: tenant + first COMPANY_ADMIN + membership in one tx; email/phone verification placeholder; rate limit; audit log; seed stays prod-disabled; signup page; test: new company signs up → logs in → empty console (onboarding.test.ts 4/4; journey step 1 green both viewports)
+- [x] 2. /?invite=<token> acceptance (company+role shown, name+password, login); expired/used/wrong-email handled; admin list pending/accepted/revoked + regenerate + revoke; 390px test (invitations-lifecycle.test.ts; journey step 2 green)
+- [x] 3. Certificate built from BoQ progress % × rate − previous certified, editable review; CERTIFY → "Create invoice" linked both ways (invoice.certificate_id); paid status derives from linked invoice payments (MARK_PAID → 409); VAT (config, default 16%) + client WHT lines on cert + invoice (lifecycle-money.test.ts; journey steps 3-6 green)
+- [x] 4. Valuation state machine SUBMITTED→UNDER_REVIEW→APPROVED_FOR_PAYMENT→PAID (+REJECTED); illegal → 409; approver ≠ preparer; who/when recorded (lifecycle-money + commercial-operations-suite green)
+- [x] 5. Approved valuations post to cost ledger (commitment-linked, append-only trigger respected); certified/paid/outstanding per package; budget summary reflects ledger amount (tested delta)
+- [x] 6. Tenant tax settings via GET/PUT /api/v1/company/tax-settings + TenantTaxSetting; defaults VAT16/WHT3/WHVAT2; no hard-coded rates in cert/invoice/valuation math; eTIMS stays simulated+labelled
+- [x] 7. Real inbox notifications via notifyTeam() in same tx (diary/progress, cert certified, valuation submitted/approved, portal actions: RFI reply, delivery confirm/dispute, snag rectify, CO respond); CopyWhatsAppButton on portal links + certificates (notifications.test.ts 5/5)
+- [x] 8. ProjectChecklist on project overview — 7 steps from real API data, done/Go states, deep links (journey step 8 green)
+- [x] 9. mjengo_offline_queue/mjengo_offline_db → sitesafi_offline_queue/sitesafi_offline_db w/ one-time migration of existing queue data; flushSyncQueue sends credentials:'include' + idempotency key; font-mono limited to codes/numbers
+- [x] EVIDENCE: Playwright g-contractor-journey.spec.ts — 14/14 (7 scenarios × chromium + mobile-390); full suite 38/38; docs/evidence/contractor-journey.md
+
+### Bugs found & fixed during journey verification
+- [x] flushSyncQueue missing credentials:'include' → queued mutations could never authenticate (offline-sync.ts)
+- [x] Portal link create/regenerate responses omitted isActive → fresh rows rendered "Revoked" (externalPortals.ts)
+- [x] GET /api/v1/projects listed ALL tenant projects to restricted roles while requireProjectMembership 403s non-member project routes → console picker defaulted to an inaccessible project; now membership-filtered for non-tenant-wide roles (projects-visibility.test.ts 2/2)
+- [x] lifecycle-money.test.ts mutated shared tenant tax settings without restoring → portal-hardening WHT assertion polluted; afterAll restores documented defaults
+- [x] Login rate limit (30/min/IP) 429'd the E2E suite's real logins → LOGIN_RATE_LIMIT_MAX env knob, E2E sets 1000 (production default unchanged)
+
+## Review
+- API lifecycle suites: onboarding 4/4, invitations 24/24 (incl. regressions), lifecycle-money 6/6, notifications 5/5, projects-visibility 2/2, portal-hardening 14/14
+- Full API vitest: 544/549 — 4 failures are m10-backup-restore hardcoded port 54329 (env mismatch, pre-existing; verify-local cluster passes them), 1 was the tax-settings pollution now fixed
+- Web: 118/118; E2E: 38/38 (chromium + mobile-390)
+- Honestly unfinished: mobile diary modal submit hit-target quirk worked around via requestSubmit (real layout fix still open); live provider keys + production deploy remain owner-gated

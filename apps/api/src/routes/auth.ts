@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
-import { prisma, verifyPassword, withTenantTx } from '@construction/db';
+import { hashPassword, prisma, recordAuditLog, verifyPassword, withTenantTx } from '@construction/db';
 import { getPermissionsForRole, Role } from '@construction/permissions';
-import { AuthUserResponse, LoginRequestSchema } from '@construction/validation';
+import { AuthUserResponse, LoginRequestSchema, RegisterCompanySchema } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
 interface LoginAttempt {
@@ -27,6 +27,15 @@ setInterval(() => {
 const ACCESS_TTL = '15m';
 const REFRESH_TTL = '7d';
 
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+
 const setSessionCookies = (reply: any, accessToken: string, refreshToken: string) => {
   const isProd = process.env.NODE_ENV === 'production';
   reply.setCookie('access_token', accessToken, {
@@ -45,7 +54,7 @@ const clearSessionCookies = (reply: any) => {
 export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/auth/login
   server.post('/api/v1/auth/login', {
-    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    config: { rateLimit: { max: Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 30), timeWindow: '1 minute' } },
   }, async (request, reply) => {
     const clientIp = request.ip || '127.0.0.1';
     const now = Date.now();
@@ -215,6 +224,109 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     return reply.status(200).send(response);
   });
+
+  // POST /api/v1/auth/register-company
+  // Self-serve tenant onboarding: creates tenant + first COMPANY_ADMIN user +
+  // membership atomically. Email/phone verification is a placeholder (columns
+  // exist, verification provider not yet wired — see docs/DEPLOY.md).
+  server.post(
+    '/api/v1/auth/register-company',
+    {
+      config: {
+        rateLimit: { max: 5, timeWindow: '1 minute' },
+      },
+    },
+    async (request, reply) => {
+      const parseResult = RegisterCompanySchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Invalid registration payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+
+      const { companyName, adminFullName, email, phone, password } = parseResult.data;
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+      if (existingUser) {
+        return reply.status(409).send({
+          error: 'Conflict',
+          message: 'An account with this email already exists',
+        });
+      }
+
+      const baseSlug = slugify(companyName) || 'company';
+      let slug = baseSlug;
+      for (let i = 2; ; i++) {
+        const clash = await prisma.tenant.findUnique({ where: { slug } });
+        if (!clash) break;
+        slug = `${baseSlug}-${i}`.slice(0, 100);
+      }
+
+      const passwordHash = await hashPassword(password);
+
+      const created = await prisma.$transaction(async (tx) => {
+        const tenant = await tx.tenant.create({
+          data: { name: companyName.trim(), slug, currency: 'KES' },
+        });
+        // Bind tenant context so RLS-covered inserts (memberships, audit_logs)
+        // pass the tenant check inside this same transaction.
+        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, TRUE)`;
+        const user = await tx.user.create({
+          data: {
+            email: normalizedEmail,
+            password_hash: passwordHash,
+            full_name: adminFullName.trim(),
+            phone_number: phone && phone.trim() ? phone.trim() : null,
+            country: 'Kenya',
+          },
+        });
+        const membership = await tx.membership.create({
+          data: { tenant_id: tenant.id, user_id: user.id, role: 'COMPANY_ADMIN' },
+        });
+        await recordAuditLog(tx, {
+          tenantId: tenant.id,
+          actorId: user.id,
+          action: 'COMPANY_REGISTERED',
+          entityType: 'Tenant',
+          entityId: tenant.id,
+          changes: {
+            companyName: companyName.trim(),
+            slug,
+            adminEmail: normalizedEmail,
+            verification: 'PENDING — email/phone verification provider not yet configured',
+          },
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'] ?? null,
+        });
+        return { tenant, user, membership };
+      });
+
+      return reply.status(201).send({
+        data: {
+          tenant: {
+            id: created.tenant.id,
+            name: created.tenant.name,
+            slug: created.tenant.slug,
+            currency: created.tenant.currency,
+          },
+          user: {
+            id: created.user.id,
+            email: created.user.email,
+            fullName: created.user.full_name,
+            role: created.membership.role,
+          },
+          verification: {
+            email: 'PENDING',
+            phone: 'PENDING',
+            note: 'Verification provider not yet configured — you can sign in now.',
+          },
+        },
+      });
+    },
+  );
 
   // POST /api/v1/auth/logout
   // List the caller's active refresh sessions (audit S-01 self-service).

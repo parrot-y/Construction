@@ -27,6 +27,7 @@ model Tenant {
   idempotency    IdempotencyKey[]
   audit_logs     AuditLog[]
   subscription_plans   SubscriptionPlan[]
+  tax_settings         TenantTaxSetting?
   mpesa_subscriptions  MpesaSubscriptionTransaction[]
   bar_bending_schedules BarBendingSchedule[]
   mpesa_disbursements   MpesaDisbursementTransaction[]
@@ -59,6 +60,8 @@ model User {
   phone_number   String?      @db.VarChar(30)
   country        String?      @db.VarChar(60)
   is_active      Boolean      @default(true)
+  email_verified_at DateTime? @db.Timestamptz
+  phone_verified_at DateTime? @db.Timestamptz
   created_at     DateTime     @default(now()) @db.Timestamptz
   updated_at     DateTime     @updatedAt @db.Timestamptz
 
@@ -404,6 +407,7 @@ model CostEntry {
   project_id     String         @db.Uuid
   boq_item_id    String?        @db.Uuid
   cost_category  String         @db.VarChar(50) // "MATERIAL", "LABOR", "PLANT", "SUBCONTRACT", "PRELIMINARY"
+  commitment_id  String?        @db.Uuid
   amount         Decimal        @db.Decimal(15, 2)
   vendor_name    String?        @db.VarChar(255)
   invoice_ref    String?        @db.VarChar(100)
@@ -414,11 +418,13 @@ model CostEntry {
 
   project        Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
   boq_item       BOQItem?       @relation(fields: [boq_item_id], references: [id])
+  commitment     Commitment?    @relation(fields: [commitment_id], references: [id], onDelete: SetNull)
   created_by     User           @relation("CostCreator", fields: [created_by_id], references: [id])
   receipts       CostReceipt[]
   approvals      CostApproval[]
 
   @@index([tenant_id, project_id, status])
+  @@index([tenant_id, commitment_id])
   @@map("cost_entries")
 }
 
@@ -1283,9 +1289,17 @@ model SubcontractorValuation {
   withholding_tax_pct            Decimal              @default(3.00) @db.Decimal(5, 2)
   withholding_tax_deducted_kes   Decimal              @db.Decimal(15, 2)
   net_payable_kes                Decimal              @db.Decimal(15, 2)
-  payment_status                 String               @default("SUBMITTED") @db.VarChar(50) // "SUBMITTED", "QS_VERIFIED", "APPROVED_FOR_PAYMENT", "PAID", "REJECTED"
+  payment_status                 String               @default("SUBMITTED") @db.VarChar(50) // "SUBMITTED", "UNDER_REVIEW", "APPROVED_FOR_PAYMENT", "PAID", "REJECTED" (legacy "QS_VERIFIED" normalizes to UNDER_REVIEW)
   payment_reference              String?              @db.VarChar(100) // e.g. "KCB-RTGS-98124"
   paid_at                        DateTime?            @db.Timestamptz
+  prepared_by_id                 String?              @db.Uuid
+  submitted_at                   DateTime?            @db.Timestamptz
+  approved_by_id                 String?              @db.Uuid
+  approved_at                    DateTime?            @db.Timestamptz
+  rejected_by_id                 String?              @db.Uuid
+  rejected_at                    DateTime?            @db.Timestamptz
+  rejection_reason               String?              @db.Text
+  cost_entry_id                  String?              @db.Uuid
   approved_by                    String?              @db.VarChar(255)
   notes                          String?              @db.Text
   created_at                     DateTime             @default(now()) @db.Timestamptz
@@ -2373,6 +2387,7 @@ model Invoice {
   title        String    @db.VarChar(255)
   project_id   String?   @db.Uuid
   quote_id     String?   @db.Uuid
+  certificate_id String? @db.Uuid
   client_name  String    @db.VarChar(255)
   client_email String?   @db.VarChar(255)
   client_phone String?   @db.VarChar(50)
@@ -2383,6 +2398,8 @@ model Invoice {
   subtotal     Decimal   @default(0) @db.Decimal(15, 2)
   tax_pct      Decimal   @default(0) @db.Decimal(5, 2)
   tax_amount   Decimal   @default(0) @db.Decimal(15, 2)
+  wht_pct      Decimal   @default(0) @db.Decimal(5, 2)
+  wht_amount   Decimal   @default(0) @db.Decimal(15, 2)
   total        Decimal   @default(0) @db.Decimal(15, 2)
   amount_paid  Decimal   @default(0) @db.Decimal(15, 2)
   balance_due  Decimal   @default(0) @db.Decimal(15, 2)
@@ -2402,6 +2419,7 @@ model Invoice {
   tenant   Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   project  Project?          @relation(fields: [project_id], references: [id], onDelete: SetNull)
   quote    Quote?            @relation(fields: [quote_id], references: [id], onDelete: SetNull)
+  certificate PaymentCertificate? @relation(fields: [certificate_id], references: [id], onDelete: SetNull)
   items    InvoiceLineItem[]
   payments InvoicePayment[]
 
@@ -2409,6 +2427,7 @@ model Invoice {
   @@index([tenant_id, status])
   @@index([tenant_id, project_id])
   @@index([tenant_id, due_date])
+  @@index([tenant_id, certificate_id])
   @@map("invoices")
 }
 
@@ -2473,6 +2492,11 @@ model PaymentCertificate {
   advance_recovery     Decimal   @default(0) @db.Decimal(15, 2)
   amount_due_previous  Decimal   @default(0) @db.Decimal(15, 2)
   net_payable          Decimal   @db.Decimal(15, 2)
+  invoice_id           String?   @db.Uuid
+  vat_pct              Decimal   @default(0) @db.Decimal(5, 2)
+  vat_amount           Decimal   @default(0) @db.Decimal(15, 2)
+  wht_pct              Decimal   @default(0) @db.Decimal(5, 2)
+  wht_amount           Decimal   @default(0) @db.Decimal(15, 2)
   status               String    @default("DRAFT") @db.VarChar(30)
   submitted_at         DateTime? @db.Timestamptz
   certified_at         DateTime? @db.Timestamptz
@@ -2485,10 +2509,31 @@ model PaymentCertificate {
   updated_at           DateTime  @updatedAt @db.Timestamptz
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  invoices             Invoice[]
+  lines                PaymentCertificateLine[]
 
   @@unique([project_id, certificate_no])
   @@index([tenant_id, project_id, status])
   @@map("payment_certificates")
+}
+
+model PaymentCertificateLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String   @db.Uuid
+  certificate_id String   @db.Uuid
+  boq_item_id    String?  @db.Uuid
+  description    String   @db.Text
+  unit           String?  @db.VarChar(20)
+  progress_pct   Decimal? @db.Decimal(7, 4) // cumulative completion fraction e.g. 0.6500
+  unit_rate      Decimal? @db.Decimal(15, 4)
+  amount         Decimal  @db.Decimal(15, 2) // amount certified this period for this line
+  sort_order     Int      @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  certificate    PaymentCertificate @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, certificate_id])
+  @@map("payment_certificate_lines")
 }
 
 // -------------------------------------------------------------
@@ -2522,6 +2567,7 @@ model Commitment {
 
   project                Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
   applications           PaymentApplication[]
+  cost_entries           CostEntry[]
 
   @@unique([project_id, commitment_no])
   @@index([tenant_id, project_id, status])
@@ -2999,4 +3045,26 @@ model RefreshToken {
 
   @@index([tenant_id, user_id])
   @@map("refresh_tokens")
+}
+
+// -------------------------------------------------------------
+// TENANT TAX SETTINGS (VAT + withholding tax by vendor category)
+// Central per-tenant configuration; no hard-coded rates in routes.
+// -------------------------------------------------------------
+
+model TenantTaxSetting {
+  tenant_id               String   @id @db.Uuid
+  vat_pct                 Decimal  @default(16.00) @db.Decimal(5, 2)
+  wht_contractor_pct      Decimal  @default(3.00) @db.Decimal(5, 2)
+  wht_subcontractor_pct   Decimal  @default(3.00) @db.Decimal(5, 2)
+  wht_consultant_pct      Decimal  @default(3.00) @db.Decimal(5, 2)
+  wht_supplier_pct        Decimal  @default(0.00) @db.Decimal(5, 2)
+  whvat_pct               Decimal  @default(2.00) @db.Decimal(5, 2)
+  updated_by              String?  @db.Uuid
+  created_at              DateTime @default(now()) @db.Timestamptz
+  updated_at              DateTime @updatedAt @db.Timestamptz
+
+  tenant                  Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@map("tenant_tax_settings")
 }

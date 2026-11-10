@@ -4,10 +4,14 @@ import { Permissions, hasPermission, Role } from '@construction/permissions';
 import { toDecimal, toCurrencyString, Decimal } from '@construction/money';
 import {
   CreatePaymentCertificateSchema,
+  UpdatePaymentCertificateSchema,
   PaymentCertificateActionSchema,
+  CreateInvoiceFromCertificateSchema,
   CloseoutTransitionSchema,
 } from '@construction/validation';
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
+import { getTaxSettings } from '../lib/tax';
+import { notifyTeam } from '../lib/notify';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -43,6 +47,11 @@ function formatCert(c: any) {
     advance_recovery: toCurrencyString(c.advance_recovery?.toString() ?? '0'),
     amount_due_previous: toCurrencyString(c.amount_due_previous?.toString() ?? '0'),
     net_payable: toCurrencyString(c.net_payable?.toString() ?? '0'),
+    invoice_id: c.invoice_id ?? null,
+    vat_pct: c.vat_pct?.toString() ?? '0.00',
+    vat_amount: toCurrencyString(c.vat_amount?.toString() ?? '0'),
+    wht_pct: c.wht_pct?.toString() ?? '0.00',
+    wht_amount: toCurrencyString(c.wht_amount?.toString() ?? '0'),
     submitted_at: c.submitted_at?.toISOString() ?? null,
     certified_at: c.certified_at?.toISOString() ?? null,
     paid_at: c.paid_at?.toISOString() ?? null,
@@ -80,6 +89,58 @@ async function latestRetentionHeld(tx: any, projectId: string): Promise<Decimal>
   return last ? toDecimal(last.retention_held.toString()) : new Decimal(0);
 }
 
+interface CertMathInput {
+  retentionPct?: string | null;
+  retentionReleased?: string | null;
+  advanceRecovery?: string | null;
+  amountDuePrevious?: string | null;
+}
+
+/** Shared JBC retention/net-payable math used by create, patch and preview. */
+async function computeCertMath(
+  tx: any,
+  project: any,
+  projectId: string,
+  thisPeriod: Decimal,
+  opts: CertMathInput,
+) {
+  const previousCertified = await certifiedTotal(tx, projectId);
+  const cumulative = previousCertified.plus(thisPeriod);
+
+  const contractSum = await resolveContractSum(tx, project);
+  const retentionCap = contractSum.times(5).dividedBy(100);
+  const pct = toDecimal(opts.retentionPct ?? '5').dividedBy(100);
+  const prevHeld = await latestRetentionHeld(tx, projectId);
+  const desiredDeduction = thisPeriod.times(pct);
+  const room = Decimal.max(new Decimal(0), retentionCap.minus(prevHeld));
+  const retentionDeduction = Decimal.min(desiredDeduction, room).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const released = toDecimal(opts.retentionReleased ?? '0');
+  const retentionHeld = Decimal.max(
+    new Decimal(0),
+    prevHeld.plus(retentionDeduction).minus(released),
+  ).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  const advanceRecovery = toDecimal(opts.advanceRecovery ?? '0');
+  const amountDuePrevious = toDecimal(opts.amountDuePrevious ?? '0');
+  const netPayable = thisPeriod
+    .minus(retentionDeduction)
+    .minus(advanceRecovery)
+    .plus(amountDuePrevious)
+    .plus(released)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+  return { previousCertified, cumulative, retentionDeduction, retentionHeld, advanceRecovery, amountDuePrevious, netPayable, pct };
+}
+
+/** VAT + client-side WHT for a certificate gross amount, from tenant tax settings. */
+async function computeCertTax(tx: any, tenantId: string, gross: Decimal) {
+  const tax = await getTaxSettings(tx, tenantId);
+  const vatAmount = gross.times(tax.vatPct).dividedBy(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  const whtBase = gross.plus(vatAmount);
+  const whtAmount = whtBase.times(tax.whtContractorPct).dividedBy(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  return { vatPct: tax.vatPct, vatAmount, whtPct: tax.whtContractorPct, whtAmount };
+}
+
 export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // =========================================================================
   // PAYMENT CERTIFICATES (IPC)
@@ -109,6 +170,101 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list payment certificates' });
+      }
+    },
+  );
+
+  // GET .../payment-certificates/preview — certificate built from real progress:
+  // per BOQ item, cumulative completion% x (qty x rate) minus amount already
+  // certified on prior CERTIFIED/PAID certificates. Reviewers may edit amounts
+  // before creating the DRAFT certificate.
+  server.get(
+    '/api/v1/projects/:projectId/payment-certificates/preview',
+    { preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      try {
+        const preview = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const activeBoq = await tx.bOQ.findFirst({
+            where: { project_id: projectId, status: { in: ['ACTIVE', 'APPROVED'] } },
+            orderBy: { version: 'desc' },
+            include: { sections: { include: { items: true } } },
+          });
+          if (!activeBoq) return { lines: [], thisPeriodAmount: '0.00', previousCertified: '0.00' };
+
+          const items = activeBoq.sections.flatMap((sec: any) => sec.items);
+
+          // Latest cumulative progress per BOQ item
+          const progressRows = await tx.progressItem.findMany({
+            where: { tenant_id: tenantId, boq_item_id: { in: items.map((i: any) => i.id) } },
+            include: { progress_record: { select: { record_date: true } } },
+            orderBy: { progress_record: { record_date: 'desc' } },
+          });
+          const latestPct = new Map<string, { pct: Decimal; qty: Decimal }>();
+          for (const row of progressRows) {
+            if (latestPct.has(row.boq_item_id)) continue; // first = latest by date desc
+            latestPct.set(row.boq_item_id, {
+              pct: toDecimal(row.completion_pct.toString()),
+              qty: toDecimal(row.completed_quantity.toString()),
+            });
+          }
+
+          // Previously certified amount per BOQ item (CERTIFIED/PAID certs only)
+          const priorLines = await tx.paymentCertificateLine.findMany({
+            where: {
+              tenant_id: tenantId,
+              certificate: { project_id: projectId, status: { in: ['CERTIFIED', 'PAID'] } },
+              boq_item_id: { not: null },
+            },
+            select: { boq_item_id: true, amount: true },
+          });
+          const priorByItem = new Map<string, Decimal>();
+          for (const l of priorLines) {
+            const key = l.boq_item_id as string;
+            priorByItem.set(key, (priorByItem.get(key) ?? new Decimal(0)).plus(toDecimal(l.amount.toString())));
+          }
+
+          const lines: any[] = [];
+          let total = new Decimal(0);
+          for (const item of items) {
+            const prog = latestPct.get(item.id);
+            if (!prog || prog.pct.lte(0)) continue;
+            const itemValue = toDecimal(item.quantity.toString()).times(toDecimal(item.unit_rate.toString()));
+            const earned = itemValue.times(prog.pct);
+            const prior = priorByItem.get(item.id) ?? new Decimal(0);
+            const thisPeriod = earned.minus(prior);
+            if (thisPeriod.lte(new Decimal('0.005'))) continue;
+            const rounded = thisPeriod.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+            total = total.plus(rounded);
+            lines.push({
+              boqItemId: item.id,
+              description: item.description,
+              unit: item.unit,
+              progressPct: prog.pct.toFixed(4),
+              unitRate: item.unit_rate.toString(),
+              amount: rounded.toFixed(2),
+            });
+          }
+
+          const previousCertified = await certifiedTotal(tx, projectId);
+          return {
+            lines,
+            thisPeriodAmount: total.toFixed(2),
+            previousCertified: previousCertified.toFixed(2),
+          };
+        });
+        return reply.status(200).send({ data: preview });
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to build certificate preview' });
       }
     },
   );
@@ -143,32 +299,20 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           });
           const certificateNo = (latest?.certificate_no ?? 0) + 1;
 
-          const thisPeriod = toDecimal(data.thisPeriodAmount ?? '0');
-          const previousCertified = await certifiedTotal(tx, projectId);
-          const cumulative = previousCertified.plus(thisPeriod);
+          // Editable review: explicit lines win; thisPeriodAmount may override.
+          const lineInputs = data.lines ?? null;
+          const thisPeriod = lineInputs
+            ? lineInputs.reduce((acc: Decimal, l: any) => acc.plus(toDecimal(l.amount)), new Decimal(0)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+            : toDecimal(data.thisPeriodAmount ?? '0');
+          if (lineInputs && data.thisPeriodAmount != null) {
+            const explicit = toDecimal(data.thisPeriodAmount);
+            if (!explicit.equals(thisPeriod)) {
+              throw { status: 400, message: 'thisPeriodAmount must equal the sum of line amounts' };
+            }
+          }
 
-          // JBC 1999: retention fund capped at 5% of contract sum.
-          const contractSum = await resolveContractSum(tx, project);
-          const retentionCap = contractSum.times(5).dividedBy(100);
-          const pct = toDecimal(data.retentionPct ?? '5').dividedBy(100);
-          const prevHeld = await latestRetentionHeld(tx, projectId);
-          const desiredDeduction = thisPeriod.times(pct);
-          const room = Decimal.max(new Decimal(0), retentionCap.minus(prevHeld));
-          const retentionDeduction = Decimal.min(desiredDeduction, room).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-          const released = toDecimal(data.retentionReleased ?? '0');
-          const retentionHeld = Decimal.max(
-            new Decimal(0),
-            prevHeld.plus(retentionDeduction).minus(released),
-          ).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-
-          const advanceRecovery = toDecimal(data.advanceRecovery ?? '0');
-          const amountDuePrevious = toDecimal(data.amountDuePrevious ?? '0');
-          const netPayable = thisPeriod
-            .minus(retentionDeduction)
-            .minus(advanceRecovery)
-            .plus(amountDuePrevious)
-            .plus(released)
-            .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+          const math = await computeCertMath(tx, project, projectId, thisPeriod, data);
+          const tax = await computeCertTax(tx, tenantId, thisPeriod);
 
           const created = await tx.paymentCertificate.create({
             data: {
@@ -178,18 +322,37 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
               period_start: new Date(`${data.periodStart}T00:00:00.000Z`),
               period_end: new Date(`${data.periodEnd}T00:00:00.000Z`),
               this_period_amount: thisPeriod.toFixed(2),
-              previous_certified: previousCertified.toFixed(2),
-              cumulative_certified: cumulative.toFixed(2),
-              retention_pct: pct.times(100).toDecimalPlaces(2).toFixed(2),
-              retention_deduction: retentionDeduction.toFixed(2),
-              retention_held: retentionHeld.toFixed(2),
-              retention_released: released.toFixed(2),
-              advance_recovery: advanceRecovery.toFixed(2),
-              amount_due_previous: amountDuePrevious.toFixed(2),
-              net_payable: netPayable.toFixed(2),
+              previous_certified: math.previousCertified.toFixed(2),
+              cumulative_certified: math.cumulative.toFixed(2),
+              retention_pct: math.pct.times(100).toDecimalPlaces(2).toFixed(2),
+              retention_deduction: math.retentionDeduction.toFixed(2),
+              retention_held: math.retentionHeld.toFixed(2),
+              retention_released: toDecimal(data.retentionReleased ?? '0').toFixed(2),
+              advance_recovery: math.advanceRecovery.toFixed(2),
+              amount_due_previous: math.amountDuePrevious.toFixed(2),
+              net_payable: math.netPayable.toFixed(2),
+              vat_pct: tax.vatPct.toFixed(2),
+              vat_amount: tax.vatAmount.toFixed(2),
+              wht_pct: tax.whtPct.toFixed(2),
+              wht_amount: tax.whtAmount.toFixed(2),
               submitted_by_id: sub,
               notes: data.notes ?? null,
+              lines: lineInputs
+                ? {
+                    create: lineInputs.map((l: any, idx: number) => ({
+                      tenant_id: tenantId,
+                      boq_item_id: l.boqItemId ?? null,
+                      description: l.description,
+                      unit: l.unit ?? null,
+                      progress_pct: l.progressPct ?? null,
+                      unit_rate: l.unitRate ?? null,
+                      amount: toDecimal(l.amount).toFixed(2),
+                      sort_order: idx,
+                    })),
+                  }
+                : undefined,
             },
+            include: { lines: { orderBy: { sort_order: 'asc' } } },
           });
 
           await recordAuditLog(tx, {
@@ -202,9 +365,9 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             changes: {
               certificateNo,
               thisPeriod: thisPeriod.toFixed(2),
-              cumulative: cumulative.toFixed(2),
-              retentionHeld: retentionHeld.toFixed(2),
-              netPayable: netPayable.toFixed(2),
+              cumulative: math.cumulative.toFixed(2),
+              retentionHeld: math.retentionHeld.toFixed(2),
+              netPayable: math.netPayable.toFixed(2),
             },
             ipAddress: request.ip,
             userAgent: (request.headers['user-agent'] as string) || null,
@@ -218,6 +381,270 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to create payment certificate' });
+      }
+    },
+  );
+
+  // PATCH .../payment-certificates/:certId — editable review while DRAFT
+  server.patch(
+    '/api/v1/projects/:projectId/payment-certificates/:certId',
+    { preHandler: [server.authenticate, requirePermission(Permissions.CERTIFICATE_MANAGE)] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId, certId } = request.params as { projectId: string; certId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(certId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Payment certificate not found' });
+      }
+      const parsed = UpdatePaymentCertificateSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid certificate update', details: parsed.error.errors });
+      }
+      const data = parsed.data;
+
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const cert = await tx.paymentCertificate.findFirst({ where: { id: certId, project_id: projectId } });
+          if (!cert) throw { status: 404, message: 'Payment certificate not found' };
+          if (cert.status !== 'DRAFT') {
+            throw { status: 409, message: `Only DRAFT certificates can be edited (current: ${cert.status})` };
+          }
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const lineInputs = data.lines ?? null;
+          const thisPeriod = lineInputs
+            ? lineInputs.reduce((acc: Decimal, l: any) => acc.plus(toDecimal(l.amount)), new Decimal(0)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+            : data.thisPeriodAmount != null
+              ? toDecimal(data.thisPeriodAmount)
+              : toDecimal(cert.this_period_amount.toString());
+
+          const math = await computeCertMath(tx, project, projectId, thisPeriod, {
+            retentionPct: data.retentionPct ?? cert.retention_pct.toString(),
+            retentionReleased: data.retentionReleased,
+            advanceRecovery: data.advanceRecovery,
+            amountDuePrevious: data.amountDuePrevious,
+          });
+          const tax = await computeCertTax(tx, tenantId, thisPeriod);
+
+          if (lineInputs) {
+            await tx.paymentCertificateLine.deleteMany({ where: { certificate_id: certId } });
+            await tx.paymentCertificateLine.createMany({
+              data: lineInputs.map((l: any, idx: number) => ({
+                tenant_id: tenantId,
+                certificate_id: certId,
+                boq_item_id: l.boqItemId ?? null,
+                description: l.description,
+                unit: l.unit ?? null,
+                progress_pct: l.progressPct ?? null,
+                unit_rate: l.unitRate ?? null,
+                amount: toDecimal(l.amount).toFixed(2),
+                sort_order: idx,
+              })),
+            });
+          }
+
+          const row = await tx.paymentCertificate.update({
+            where: { id: certId },
+            data: {
+              this_period_amount: thisPeriod.toFixed(2),
+              previous_certified: math.previousCertified.toFixed(2),
+              cumulative_certified: math.cumulative.toFixed(2),
+              retention_pct: math.pct.times(100).toDecimalPlaces(2).toFixed(2),
+              retention_deduction: math.retentionDeduction.toFixed(2),
+              retention_held: math.retentionHeld.toFixed(2),
+              retention_released: toDecimal(data.retentionReleased ?? cert.retention_released.toString()).toFixed(2),
+              advance_recovery: math.advanceRecovery.toFixed(2),
+              amount_due_previous: math.amountDuePrevious.toFixed(2),
+              net_payable: math.netPayable.toFixed(2),
+              vat_pct: tax.vatPct.toFixed(2),
+              vat_amount: tax.vatAmount.toFixed(2),
+              wht_pct: tax.whtPct.toFixed(2),
+              wht_amount: tax.whtAmount.toFixed(2),
+              notes: data.notes ?? cert.notes,
+            },
+            include: { lines: { orderBy: { sort_order: 'asc' } } },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: request.user.sub,
+            action: 'PAYMENT_CERTIFICATE_UPDATED',
+            entityType: 'PaymentCertificate',
+            entityId: certId,
+            changes: { thisPeriod: thisPeriod.toFixed(2), lines: lineInputs?.length ?? null },
+          });
+          return formatCert(row);
+        });
+        return reply.status(200).send({ message: 'Certificate updated', data: updated });
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Bad Request', message: err.message });
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update certificate' });
+      }
+    },
+  );
+
+  // POST .../payment-certificates/:certId/create-invoice — issue a client
+  // invoice from a CERTIFIED certificate. Links both ways; VAT + WHT lines.
+  server.post(
+    '/api/v1/projects/:projectId/payment-certificates/:certId/create-invoice',
+    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, certId } = request.params as { projectId: string; certId: string };
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(certId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Payment certificate not found' });
+      }
+      const parsed = CreateInvoiceFromCertificateSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid invoice payload', details: parsed.error.errors });
+      }
+      const data = parsed.data;
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const cert = await tx.paymentCertificate.findFirst({
+            where: { id: certId, project_id: projectId },
+            include: { lines: { orderBy: { sort_order: 'asc' } } },
+          });
+          if (!cert) throw { status: 404, message: 'Payment certificate not found' };
+          if (cert.status !== 'CERTIFIED') {
+            throw { status: 409, message: `Only CERTIFIED certificates can be invoiced (current: ${cert.status})` };
+          }
+          if (cert.invoice_id) {
+            const existing = await tx.invoice.findUnique({ where: { id: cert.invoice_id } });
+            if (existing) return { invoice: existing, alreadyExisted: true };
+          }
+
+          const project = await tx.project.findFirst({ where: { id: projectId } });
+          const gross = toDecimal(cert.this_period_amount.toString());
+          const vatAmount = toDecimal(cert.vat_amount.toString());
+          const whtAmount = toDecimal(cert.wht_amount.toString());
+          const vatPct = toDecimal(cert.vat_pct.toString());
+          const whtPct = toDecimal(cert.wht_pct.toString());
+          const total = gross.plus(vatAmount).minus(whtAmount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
+          const latest = await tx.invoice.findFirst({
+            where: { tenant_id: tenantId },
+            orderBy: { invoice_no: 'desc' },
+            select: { invoice_no: true },
+          });
+          const invoiceNo = (latest?.invoice_no ?? 0) + 1;
+          const issueDate = new Date();
+          const dueDate = new Date(Date.now() + data.dueDays * 24 * 60 * 60 * 1000);
+
+          const invoice = await tx.invoice.create({
+            data: {
+              tenant_id: tenantId,
+              invoice_no: invoiceNo,
+              title: `Payment Certificate IPC-${projectId.slice(0, 8)}-${cert.certificate_no} — ${project?.name ?? 'Project'}`,
+              project_id: projectId,
+              certificate_id: certId,
+              client_name: data.clientName,
+              client_email: data.clientEmail ?? null,
+              client_phone: data.clientPhone ?? null,
+              bill_to: data.billTo ?? null,
+              po_number: data.poNumber ?? null,
+              status: 'SENT',
+              currency: 'KES',
+              subtotal: gross.toFixed(2),
+              tax_pct: vatPct.toFixed(2),
+              tax_amount: vatAmount.toFixed(2),
+              wht_pct: whtPct.toFixed(2),
+              wht_amount: whtAmount.toFixed(2),
+              total: total.toFixed(2),
+              amount_paid: '0.00',
+              balance_due: total.toFixed(2),
+              issue_date: issueDate,
+              due_date: dueDate,
+              terms: data.terms ?? null,
+              notes: data.notes ?? cert.notes,
+              sent_at: issueDate,
+              created_by: sub,
+              items: {
+                create: [
+                  ...cert.lines.map((l: any, idx: number) => ({
+                    tenant_id: tenantId,
+                    section: `Certificate line ${idx + 1}`,
+                    description: l.description,
+                    unit: l.unit ?? 'item',
+                    quantity: '1',
+                    unit_rate: l.amount.toString(),
+                    total_amount: l.amount.toString(),
+                    sort_order: idx,
+                  })),
+                  ...(vatAmount.gt(0)
+                    ? [{
+                        tenant_id: tenantId,
+                        section: 'Tax',
+                        description: `VAT @ ${vatPct.toFixed(2)}%`,
+                        unit: 'item',
+                        quantity: '1',
+                        unit_rate: vatAmount.toFixed(2),
+                        total_amount: vatAmount.toFixed(2),
+                        sort_order: 1000,
+                      }]
+                    : []),
+                  ...(whtAmount.gt(0)
+                    ? [{
+                        tenant_id: tenantId,
+                        section: 'Tax',
+                        description: `Withholding tax @ ${whtPct.toFixed(2)}% (deducted)`,
+                        unit: 'item',
+                        quantity: '1',
+                        unit_rate: whtAmount.negated().toFixed(2),
+                        total_amount: whtAmount.negated().toFixed(2),
+                        sort_order: 1001,
+                      }]
+                    : []),
+                ],
+              },
+            },
+            include: { items: true, payments: true },
+          });
+
+          await tx.paymentCertificate.update({
+            where: { id: certId },
+            data: { invoice_id: invoice.id },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId,
+            actorId: sub,
+            action: 'INVOICE_CREATED_FROM_CERTIFICATE',
+            entityType: 'Invoice',
+            entityId: invoice.id,
+            changes: { certificateId: certId, certificateNo: cert.certificate_no, total: total.toFixed(2) },
+          });
+
+          return { invoice, alreadyExisted: false };
+        });
+
+        const inv = result.invoice as any;
+        return reply.status(result.alreadyExisted ? 200 : 201).send({
+          message: result.alreadyExisted ? 'Invoice already exists for this certificate' : 'Invoice created from certificate',
+          data: {
+            invoice: {
+              id: inv.id,
+              invoiceNo: inv.invoice_no,
+              certificateId: inv.certificate_id,
+              status: inv.status,
+              subtotal: inv.subtotal?.toString(),
+              taxPct: inv.tax_pct?.toString(),
+              taxAmount: inv.tax_amount?.toString(),
+              whtPct: inv.wht_pct?.toString(),
+              whtAmount: inv.wht_amount?.toString(),
+              total: inv.total?.toString(),
+              balanceDue: inv.balance_due?.toString(),
+            },
+          },
+        });
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Bad Request', message: err.message });
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to create invoice from certificate' });
       }
     },
   );
@@ -281,6 +708,14 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           if (!t.from.includes(cert.status)) {
             throw { status: 400, message: `Cannot ${action.toLowerCase()} a certificate in ${cert.status} status` };
           }
+          // Paid state derives from linked invoice payments — a certificate
+          // with an invoice must be settled through /invoices/:id/payments.
+          if (action === 'MARK_PAID' && cert.invoice_id) {
+            throw {
+              status: 409,
+              message: 'This certificate has a linked invoice — record the payment on the invoice instead',
+            };
+          }
 
           const now = new Date();
           const data: any = {
@@ -320,6 +755,15 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             ipAddress: request.ip,
             userAgent: (request.headers['user-agent'] as string) || null,
           });
+
+          if (action === 'CERTIFY') {
+            await notifyTeam(tx, {
+              tenantId,
+              projectId,
+              senderId: sub,
+              body: `IPC-${String(cert.certificate_no).padStart(3, '0')} certified — net payable ${toCurrencyString(cert.net_payable.toString())}. Create the client invoice from the certificate to get paid.`,
+            });
+          }
 
           return formatCert(updated);
         });

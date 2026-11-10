@@ -283,7 +283,7 @@ export default function SiteDiaryModal({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
 <div className="flex justify-between items-center">
 <span className="font-bold text-slate-800"> On-Site Trade Headcount</span>
-<span className="font-mono font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[11px]">
+<span className="font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[11px]">
                 Total: {totalHeadcount} workers
 </span>
 </div>

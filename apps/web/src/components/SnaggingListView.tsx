@@ -484,7 +484,7 @@ export default function SnaggingListView({
 </div>
 
                   {/* Geotag GPS Pin */}
-<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-600 rounded-md text-[11px] font-mono border border-slate-200">
+<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-600 rounded-md text-[11px] border border-slate-200">
 <span className="text-rose-600"></span>
 <span>Geotag Pin:</span>
 <span className="text-slate-800 font-semibold">

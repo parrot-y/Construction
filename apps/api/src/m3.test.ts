@@ -112,6 +112,7 @@ describe('Milestone M3: Company, Users, Invites, Projects & Role Dashboards', ()
         url: '/api/v1/invitations/accept',
         payload: {
           token,
+          email: newEmail,
           fullName: 'Alice Wangari',
           password: 'Password123!',
         },

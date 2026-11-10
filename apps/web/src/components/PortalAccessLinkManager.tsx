@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyWhatsAppButton } from '../ui';
 
 export interface PortalLinkItem {
   id: string;
@@ -108,15 +109,20 @@ export default function PortalAccessLinkManager({
     }
   };
 
-  const handleCopy = (link: PortalLinkItem) => {
-    // Canonical URL returned by the API at creation time.
-    const url = link.linkUrl
+  const portalUrl = (link: PortalLinkItem) =>
+    link.linkUrl
       ? `${window.location.origin}${link.linkUrl}`
       : `${window.location.origin}/?portal=${link.portalType.toLowerCase()}&token=${link.token}`;
-    navigator.clipboard?.writeText(url);
+
+  const handleCopy = (link: PortalLinkItem) => {
+    // Canonical URL returned by the API at creation time.
+    navigator.clipboard?.writeText(portalUrl(link));
     setCopiedId(link.id);
     setTimeout(() => setCopiedId(null), 2500);
   };
+
+  const whatsappMessage = (link: PortalLinkItem) =>
+    `Hi ${link.stakeholderName}, here is your ${link.portalType.toLowerCase()} portal link${link.stakeholderRole ? ` for ${link.stakeholderRole}` : ''}: ${portalUrl(link)} — Site Safi`;
 
   const handleRegenerate = async (link: PortalLinkItem) => {
     setBusyId(link.id);
@@ -240,12 +246,15 @@ export default function PortalAccessLinkManager({
                   <td className="p-3 text-slate-600">{fmt(link.expiresAt)}</td>
                   <td className="p-3 text-right space-x-1.5 whitespace-nowrap">
                     {link.token && link.isActive && (
-                      <button
-                        onClick={() => handleCopy(link)}
-                        className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition"
-                      >
-                        {copiedId === link.id ? 'Copied!' : 'Copy Link'}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleCopy(link)}
+                          className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition"
+                        >
+                          {copiedId === link.id ? 'Copied!' : 'Copy Link'}
+                        </button>
+                        <CopyWhatsAppButton message={whatsappMessage(link)} />
+                      </>
                     )}
                     {link.isActive ? (
                       <>

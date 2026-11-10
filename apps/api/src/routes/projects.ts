@@ -1,5 +1,5 @@
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
-import { Permissions } from '@construction/permissions';
+import { Permissions, Role } from '@construction/permissions';
 import { toDecimal, Decimal } from '@construction/money';
 import {
   CreateProjectDetailsSchema,
@@ -8,6 +8,7 @@ import {
 } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { requirePermission } from '../plugins/rbac';
+import { TENANT_WIDE_ROLES } from '../plugins/routeAuthorization';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,10 +24,15 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)],
     },
     async (request, reply) => {
-      const { tenantId } = request.user;
+      const { tenantId, sub, role } = request.user;
 
+      // Non-tenant-wide roles can only act on projects they belong to —
+      // requireProjectMembership 403s everything else, so the picker must
+      // not offer projects the caller can't open.
+      const tenantWide = TENANT_WIDE_ROLES.has(role as Role);
       const projects = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.project.findMany({
+          where: tenantWide ? {} : { members: { some: { user_id: sub } } },
           include: {
             members: {
               include: {

@@ -10,6 +10,7 @@ import SiteSection from './sections/SiteSection';
 import MoneySection from './sections/MoneySection';
 import PeopleSection from './sections/PeopleSection';
 import FilesSection from './sections/FilesSection';
+import OfflineSyncBanner from '../OfflineSyncBanner';
 import ConsultantPortalView from '../portals/ConsultantPortalView';
 import SubcontractorPortalView from '../portals/SubcontractorPortalView';
 import SupplierPortalView from '../portals/SupplierPortalView';
@@ -377,6 +378,7 @@ function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <div className="sm:pl-16 pb-20 sm:pb-0 flex flex-col min-h-screen">
 <TopBar onLogout={onLogout} />
 <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 pb-24 sm:pb-5 max-w-[1400px] w-full mx-auto space-y-4">
+<OfflineSyncBanner />
 <div className="flex items-center justify-between gap-4 flex-wrap">
 <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">{SECTION_LABELS[section as keyof typeof SECTION_LABELS] || 'Home'}</h1>
 <SectionPrompt />

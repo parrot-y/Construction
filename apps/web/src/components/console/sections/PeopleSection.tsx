@@ -50,8 +50,43 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
       body: JSON.stringify({ email: invite.email, role: invite.role}),
 });
     const j = await r.json().catch(() => ({}));
-    setMsg(r.ok ? `Invitation sent to ${invite.email}` : (j.message || 'Invite failed'));
-    if (r.ok) { setInvite({ email: '', role: 'SITE_ENGINEER', open: false});}
+    const link = r.ok && j.data?.token ? ` Invite link: ${window.location.origin}/?invite=${j.data.token}` : '';
+    setMsg(r.ok ? `Invitation sent to ${invite.email}.${link}` : (j.message || 'Invite failed'));
+    if (r.ok) { setInvite({ email: '', role: 'SITE_ENGINEER', open: false}); loadInvites();}
+};
+
+  const [invites, setInvites] = useState<any[] | null>(null);
+  const [inviteMsg, setInviteMsg] = useState('');
+
+  const loadInvites = () => {
+    fetch('/api/v1/invitations', { credentials: 'include'})
+      .then((r) => (r.ok ? r.json() : { data: []}))
+      .then((j) => setInvites(j.data || []))
+      .catch(() => setInvites([]));
+};
+  useEffect(loadInvites, []);
+
+  const copyInviteLink = async (token: string) => {
+    const url = `${window.location.origin}/?invite=${token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setInviteMsg('Invite link copied to clipboard.');
+    } catch {
+      setInviteMsg(url);
+    }
+};
+
+  const revokeInvite = async (id: string) => {
+    const r = await fetch(`/api/v1/invitations/${id}/revoke`, { method: 'POST', credentials: 'include'});
+    if (r.ok) loadInvites();
+    else { const j = await r.json().catch(() => ({})); setInviteMsg(j.message || 'Revoke failed');}
+};
+
+  const regenerateInvite = async (id: string) => {
+    const r = await fetch(`/api/v1/invitations/${id}/regenerate`, { method: 'POST', credentials: 'include'});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { setInviteMsg('New invite link generated — the old link no longer works.'); loadInvites();}
+    else setInviteMsg(j.message || 'Regenerate failed');
 };
 
   return (
@@ -132,6 +167,46 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 </table>
 </div>
 </div>
+
+      {/* Invitations — pending / accepted / revoked with link actions */}
+      {canInvite && invites !== null && invites.length > 0 && (
+<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800">
+<h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Invitations</h4>
+</div>
+{inviteMsg &&<p className="px-5 py-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800">{inviteMsg}</p>}
+<div className="divide-y divide-slate-50 dark:divide-slate-800/60">
+            {invites.map((inv: any) => (
+<div key={inv.id} className="px-5 py-3 flex flex-wrap items-center gap-3 text-xs">
+<span className="font-semibold text-slate-800 dark:text-slate-200 w-56 truncate">{inv.email}</span>
+<span className="text-slate-500">{ROLE_LABELS[inv.role] || inv.role}</span>
+<span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  inv.status === 'PENDING' ? 'bg-amber-100 text-amber-800'
+                  : inv.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-slate-200 text-slate-600'
+                }`}>
+                {inv.status}
+</span>
+<span className="text-[10px] text-slate-400">
+                expires {new Date(inv.expires_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
+</span>
+<div className="ml-auto flex items-center gap-3">
+                  {inv.status === 'PENDING' && (
+<>
+<button onClick={() => copyInviteLink(inv.token)} className="text-[11px] font-bold text-brand-600 hover:text-brand-700">Copy link</button>
+<button onClick={() => regenerateInvite(inv.id)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Regenerate</button>
+<button onClick={() => revokeInvite(inv.id)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
+</>
+)}
+                  {inv.status === 'REVOKED' && (
+<button onClick={() => regenerateInvite(inv.id)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Regenerate</button>
+)}
+</div>
+</div>
+))}
+</div>
+</div>
+)}
 </div>
 );
 }

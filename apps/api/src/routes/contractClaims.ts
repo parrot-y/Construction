@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { prisma, withTenantTx, recordAuditLog } from '@construction/db';
+import { getTaxSettings } from '../lib/tax';
 import {
   CreateDelayEventSchema,
   ReviewDelayEventSchema,
@@ -240,8 +241,10 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
 
       const data = parseResult.data;
       const grossDecimal = toDecimal(data.grossAmount);
-      const whtRateDecimal = toDecimal(data.whtRatePct || '3.00');
-      const whvatRateDecimal = toDecimal(data.whvatRatePct || '2.00');
+      // Rates resolve from tenant tax settings unless explicitly overridden.
+      const taxSettings = await withTenantTx(prisma, tenantId, async (tx) => getTaxSettings(tx, tenantId));
+      const whtRateDecimal = data.whtRatePct != null ? toDecimal(data.whtRatePct) : taxSettings.whtContractorPct;
+      const whvatRateDecimal = data.whvatRatePct != null ? toDecimal(data.whvatRatePct) : taxSettings.whvatPct;
 
       // Kenyan KRA Cap 470 Mathematical Formulation:
       // WHT = Gross * (whtRate / 100)

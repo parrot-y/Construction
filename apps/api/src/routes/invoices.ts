@@ -54,6 +54,10 @@ function formatInvoice(inv: any) {
     subtotal: toCurrencyString(MONEY(inv.subtotal)),
     tax_pct: inv.tax_pct ? inv.tax_pct.toString() : '0',
     tax_amount: toCurrencyString(MONEY(inv.tax_amount)),
+    certificate_id: inv.certificate_id ?? null,
+    certificateId: inv.certificate_id ?? null,
+    wht_pct: inv.wht_pct ? inv.wht_pct.toString() : '0',
+    wht_amount: toCurrencyString(MONEY(inv.wht_amount)),
     total: toCurrencyString(MONEY(inv.total)),
     amount_paid: toCurrencyString(MONEY(inv.amount_paid)),
     balance_due: toCurrencyString(MONEY(inv.balance_due)),
@@ -471,6 +475,14 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             },
             include: { items: true, payments: { orderBy: { paid_at: 'asc' } } },
           });
+
+          // Certificate paid state derives from linked invoice payments.
+          if (newStatus === 'PAID' && existing.certificate_id) {
+            await tx.paymentCertificate.updateMany({
+              where: { id: existing.certificate_id, status: 'CERTIFIED' },
+              data: { status: 'PAID', paid_at: paidAt },
+            });
+          }
 
           await recordAuditLog(tx, {
             tenantId,
