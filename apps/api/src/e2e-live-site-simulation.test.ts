@@ -392,11 +392,12 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(costData.receipts[0].filename).toBe('bamburi_cement_invoice_8901.pdf');
     costEntryId = costData.id;
 
-    // 4.2 PM/QS approves the pending cost entry
+    // 4.2 A DIFFERENT authorised user approves the pending cost entry —
+    // maker-checker (Stage 5) forbids the creator approving their own cost.
     const approveCostRes = await server.inject({
       method: 'POST',
       url: `/api/v1/projects/${projectId}/costs/${costEntryId}/approve`,
-      headers: { cookie: qsCookie },
+      headers: { cookie: adminCookie },
       payload: {
         action: 'APPROVED',
         comments: 'Verified against Bamburi delivery note DN-BAMBURI-2026-0891 and on-site supervisor count.',

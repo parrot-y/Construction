@@ -376,6 +376,16 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
       // WORKER field role sees only their own diary entries (Stage 4).
       const ownOnly = role === 'WORKER';
+
+      // Tenant-scoped project check — foreign/unknown project ids 404 rather
+      // than silently returning an empty diary list.
+      const project = await withTenantTx(prisma, tenantId, (tx) =>
+        tx.project.findFirst({ where: { id: projectId }, select: { id: true } }),
+      );
+      if (!project) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
       const diaries = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.siteDiary.findMany({
           where: { project_id: projectId, ...(ownOnly ? { recorded_by_id: sub } : {}) },

@@ -1,0 +1,54 @@
+# Stage 5 — internal roles auditor acceptance
+
+Date: 2026-11-12 · Branch: `devin/contractor-lifecycle` · Spec: `e2e/tests/aud-stage5-internal-roles.spec.ts` (immutable, sha256 `491070f7a6f468bea3504da7852431d6ef6bfd50ee91f9983170c769fa200235`)
+
+## Result
+
+| Spec | chromium | mobile-390 |
+|---|---|---|
+| aud-stage1 contractor journey | 9/9 | 9/9 |
+| aud-stage2 client/owner | 10/10 | 10/10 |
+| aud-stage3 subcontractor/supplier | 9/9 | 9/9 |
+| aud-stage4 consultant/compliance/field | 8/8 | 8/8 |
+| **aud-stage5 internal roles** | **11/11** | **11/11** |
+| dev-tcc-all-paths (non-aud regression) | 5/5 | 5/5 |
+
+**Combined run: 104/104 tests passed, zero skips** (single `playwright test`
+invocation covering all six spec files on both projects).
+
+## Product work the spec forced
+
+1. **Per-request role refresh** (`apps/api/src/plugins/auth.ts`): the JWT
+   role claim is now overwritten from the live `memberships.role` row on
+   every authenticated request. Demotion (SUPERINTENDENT→VIEWER) and removal
+   take effect on already-issued access tokens immediately — no token-lifetime
+   workaround. Removed members also fail fresh login (membership lookup
+   returns none).
+2. **Maker-checker on costs** (`apps/api/src/routes/costs.ts`): the user who
+   created a `CostEntry` cannot approve/reject it (409); an already
+   APPROVED/REJECTED entry cannot be decided again (409).
+3. **Numeric cost amounts** (`packages/validation`): `CreateCostEntrySchema.amount`
+   accepts JSON numbers as well as decimal strings (normalised to the
+   canonical 2-dp string).
+4. **Cross-tenant 404s**: `GET /projects/:id/costs` and
+   `GET /projects/:id/site-diaries` now verify the project exists inside the
+   caller's tenant before listing — previously they returned `200 []` for a
+   foreign project id (silent probe surface).
+5. **Bodiless DELETE** (`apps/api/src/index.ts`): tolerant JSON parser treats
+   `Content-Type: application/json` with an empty body as no body instead of
+   Fastify's default 400 — required for `DELETE /company/members/:id`.
+6. **E2E rate-limit knob**: `REGISTER_COMPANY_RATE_LIMIT_MAX` env var
+   (production default stays 5/min; Playwright config sets 1000) — the
+   combined-suite run exceeded the register limit mid-run.
+
+Already-correct behaviour confirmed by the spec (no changes needed):
+project scoping per role, VIEWER read-only + no money, invite hierarchy
+(EXECUTIVE→PM_QS ok, →ADMIN/COMPANY_ADMIN/EXECUTIVE refused), QA/QC
+inspection create + item FAIL, SITE_ENGINEER blocked from inspections and
+announcement posting, cross-company isolation on projects/costs/
+inspections/diaries/members/cost-approval.
+
+## Verify-local
+
+`verify-local.sh` result committed alongside this file
+(`docs/evidence/verify-<commit>.log`).

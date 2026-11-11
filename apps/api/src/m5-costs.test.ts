@@ -510,9 +510,9 @@ describe('Milestone M5: Budget, Append-Only Costs & Approvals Suite', () => {
       url: `/api/v1/projects/${projectAId}/costs`,
       headers: { cookie: tenantBCookie },
     });
-    // Due to RLS, query for projectAId returns 0 items for Tenant B
-    expect(listRes.statusCode).toBe(200);
-    expect(JSON.parse(listRes.body).data).toHaveLength(0);
+    // Stage 5: foreign project ids 404 (no silent empty list) — RLS still
+    // guarantees Tenant B sees nothing either way (dbCrossCheck below).
+    expect(listRes.statusCode).toBe(404);
 
     // 5. Direct DB query using withTenantTx under Tenant B context returns 0 rows
     const dbCrossCheck = await withTenantTx(prisma, tenantBId, async (tx) => {

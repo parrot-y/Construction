@@ -362,7 +362,7 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     '/api/v1/auth/register-company',
     {
       config: {
-        rateLimit: { max: 5, timeWindow: '1 minute' },
+        rateLimit: { max: Number(process.env.REGISTER_COMPANY_RATE_LIMIT_MAX ?? 5), timeWindow: '1 minute' },
       },
     },
     async (request, reply) => {

@@ -2,3 +2,4 @@
 36f2d05f1de6bd4b512e690d08371e7f0e6f465075c0f0d24faa75d1fbaaba71  aud-stage2-client-owner.spec.ts
 b1caafe1fc931d0bac12a6653174f47d90e63cc208919112ae03fe7bd2f6aa0d  aud-stage3-subcontractor-supplier.spec.ts
 6a53afa74cf96c2c6ba0ab065c8a978b6d6e5a45d87ed17880d05e851c23d45a  aud-stage4-consultant-compliance-field.spec.ts
+491070f7a6f468bea3504da7852431d6ef6bfd50ee91f9983170c769fa200235  aud-stage5-internal-roles.spec.ts

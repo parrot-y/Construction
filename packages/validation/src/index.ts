@@ -96,7 +96,11 @@ export const CreateCostEntrySchema = z.object({
   projectId: z.string().uuid(),
   boqItemId: z.string().uuid().optional().nullable(),
   costCategory: CostCategoryEnum,
-  amount: CurrencyAmountSchema,
+  // Accept JSON numbers as well as decimal strings; normalised to the
+  // canonical "1234.50" string the Decimal columns expect.
+  amount: z
+    .union([CurrencyAmountSchema, z.number().finite().nonnegative()])
+    .transform((v) => (typeof v === 'number' ? v.toFixed(2) : v)),
   vendorName: z.string().max(255).optional().nullable(),
   invoiceRef: z.string().max(100).optional().nullable(),
   description: z.string().min(3).max(2000),

@@ -399,8 +399,8 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
       url: `/api/v1/projects/${projectAId}/site-diaries`,
       headers: { cookie: tenantBCookie },
     });
-    expect(tenantBList.statusCode).toBe(200);
-    expect(JSON.parse(tenantBList.body).data).toHaveLength(0);
+    // Stage 5: foreign project ids 404 rather than returning an empty list.
+    expect(tenantBList.statusCode).toBe(404);
 
     // 4. Direct DB lookup under Tenant B context returns 0 rows
     const dbCross = await withTenantTx(prisma, tenantBId, async (tx) => {

@@ -81,8 +81,8 @@ jobs:
         run: |
           set -e
           count=$(ls e2e/tests/aud-*.spec.ts 2>/dev/null | wc -l)
-          if [ "$count" -lt 4 ]; then
-            echo "FAIL: expected at least 4 aud-*.spec.ts files, found $count"
+          if [ "$count" -lt 5 ]; then
+            echo "FAIL: expected at least 5 aud-*.spec.ts files, found $count"
             exit 1
           fi
           if grep -nE 'test\.(skip|fixme|only)\s*\(' e2e/tests/aud-*.spec.ts; then

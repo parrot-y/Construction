@@ -196,6 +196,15 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         boqItemId?: string;
       };
 
+      // Tenant-scoped project check — a foreign/unknown project id must 404,
+      // not silently return an empty list (cross-tenant probing).
+      const project = await withTenantTx(prisma, tenantId, (tx) =>
+        tx.project.findFirst({ where: { id: projectId }, select: { id: true } }),
+      );
+      if (!project) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+
       const result = await withTenantTx(prisma, tenantId, async (tx) => {
         const whereClause: any = {
           project_id: projectId,
@@ -345,6 +354,16 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
           if (entry.status === 'VOIDED') {
             throw { status: 400, message: 'Cannot approve or reject a voided cost entry' };
+          }
+
+          // Maker-checker: the person who logged the cost cannot decide it.
+          if (entry.created_by_id === sub) {
+            throw { status: 409, message: 'The person who entered this cost cannot approve it — a different approver is required' };
+          }
+
+          // A decided cost cannot be decided again (no double-posting).
+          if (entry.status === 'APPROVED' || entry.status === 'REJECTED') {
+            throw { status: 409, message: `Cost entry is already ${entry.status.toLowerCase()} — a decided cost cannot be decided again` };
           }
 
           // Update cost entry status

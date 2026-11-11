@@ -59,6 +59,21 @@ export function buildServer(): FastifyInstance {
     },
   });
 
+  // Tolerant JSON body parser: DELETE/other bodiless requests may still carry
+  // `Content-Type: application/json` with an empty payload — treat that as
+  // "no body" instead of Fastify's default 400.
+  server.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    const raw = typeof body === 'string' ? body : String(body ?? '');
+    if (!raw.trim()) return done(null, undefined);
+    try {
+      done(null, JSON.parse(raw));
+    } catch {
+      const err = new Error('Invalid JSON payload') as Error & { statusCode?: number };
+      err.statusCode = 400;
+      done(err);
+    }
+  });
+
   // Secure HTTP Headers (OWASP A05 Security Misconfiguration defense)
   server.register(helmet, {
     contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
