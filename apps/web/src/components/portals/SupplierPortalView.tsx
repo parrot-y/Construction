@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
 import { PRODUCT_NAME } from '../../lib/product';
+import { formatKes } from '../../ui';
 
 export interface SupplierDelivery {
   id: string;
@@ -27,6 +28,35 @@ export interface SupplierPoSummary {
   pendingPaymentKes: string;
   remainingCommitmentKes: string;
   paymentTerms: string;
+}
+
+interface SupplierPoItem {
+  id: string;
+  description: string;
+  unit: string;
+  quantity: string;
+  rate: string;
+}
+
+interface SupplierPoInvoice {
+  id: string;
+  reference: string;
+  amount: string;
+  status: string;
+  note?: string | null;
+  createdAt: string;
+}
+
+interface SupplierPurchaseOrder {
+  id: string;
+  poNumber: string;
+  status: string;
+  statusLabel: string;
+  orderDate: string | null;
+  expectedDeliveryDate: string | null;
+  totalAmount: string;
+  items: SupplierPoItem[];
+  invoices: SupplierPoInvoice[];
 }
 
 interface SupplierPortalViewProps {
@@ -57,6 +87,10 @@ export default function SupplierPortalView({
   const [actionInputs, setActionInputs] = useState<Record<string, { invoiceRef: string; note: string }>>({});
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [purchaseOrders, setPurchaseOrders] = useState<SupplierPurchaseOrder[]>([]);
+  const [poBusy, setPoBusy] = useState<string | null>(null);
+  const [acceptDate, setAcceptDate] = useState<Record<string, string>>({});
+  const [invForm, setInvForm] = useState<Record<string, { reference: string; amount: string; itemId: string; note: string; open: boolean }>>({});
 
   const load = async () => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
@@ -83,6 +117,7 @@ export default function SupplierPortalView({
         supplier_invoice_ref: m.supplierInvoiceRef,
         dispute_reason: m.disputeReason,
       })));
+      setPurchaseOrders(d.purchaseOrders || []);
     } catch (e: any) {
       setLoadError(e.message || 'Failed to load portal');
     } finally {
@@ -113,6 +148,56 @@ export default function SupplierPortalView({
       setFeedback(e.message || 'Network error — action not recorded.');
     } finally {
       setActionBusy(null);
+    }
+  };
+
+  const acceptPo = async (poId: string) => {
+    const expectedDeliveryDate = acceptDate[poId];
+    if (!expectedDeliveryDate) { setFeedback('Pick an expected delivery date first.'); return; }
+    setPoBusy(poId);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/v1/portals/supplier/${token}/purchase-orders/${poId}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedDeliveryDate }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Accept failed');
+      setFeedback('Purchase order accepted — the contractor has been notified.');
+      await load();
+    } catch (e: any) {
+      setFeedback(e.message || 'Network error — acceptance not recorded.');
+    } finally {
+      setPoBusy(null);
+    }
+  };
+
+  const submitPoInvoice = async (poId: string) => {
+    const f = invForm[poId];
+    if (!f?.reference?.trim() || !f?.amount) { setFeedback('Invoice reference and amount are required.'); return; }
+    setPoBusy(poId);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/v1/portals/supplier/${token}/purchase-orders/${poId}/invoices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reference: f.reference.trim(),
+          amount: Number(f.amount),
+          purchaseOrderItemId: f.itemId || null,
+          note: f.note || null,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Invoice submission failed');
+      setFeedback('Invoice submitted — the contractor will review it against deliveries.');
+      setInvForm((prev) => ({ ...prev, [poId]: { reference: '', amount: '', itemId: '', note: '', open: false } }));
+      await load();
+    } catch (e: any) {
+      setFeedback(e.message || 'Network error — invoice not submitted.');
+    } finally {
+      setPoBusy(null);
     }
   };
 
@@ -216,9 +301,153 @@ export default function SupplierPortalView({
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg">{feedback}</div>
 )}
 
+      {/* Purchase orders — supplier accept + invoice submission (Stage 3/4) */}
+      {purchaseOrders.length > 0 && (
+        <div className="space-y-3" data-testid="supplier-po-list">
+          <h2 className="text-sm font-bold text-slate-800">Your purchase orders</h2>
+          {purchaseOrders.map((po) => {
+            const f = invForm[po.id] || { reference: '', amount: '', itemId: '', note: '', open: false };
+            const canInvoice = ['ISSUED', 'ACCEPTED', 'PART_DELIVERED', 'DELIVERED'].includes(po.status);
+            const canAccept = po.status === 'ISSUED';
+            return (
+              <div key={po.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4" data-testid={`supplier-po-${po.poNumber}`}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-slate-900">{po.poNumber}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{po.statusLabel}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Ordered {po.orderDate ? String(po.orderDate).slice(0, 10) : '—'}
+                      {po.expectedDeliveryDate ? ` · expected ${String(po.expectedDeliveryDate).slice(0, 10)}` : ''}
+                    </p>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900">{formatKes(po.totalAmount)}</span>
+                </div>
+
+                <ul className="mt-3 space-y-1">
+                  {po.items.map((it) => (
+                    <li key={it.id} className="text-xs text-slate-600 flex justify-between gap-3">
+                      <span>{it.description} <span className="text-slate-400">({it.unit})</span></span>
+                      <span className="font-mono">{it.quantity} × {formatKes(it.rate)}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {po.invoices.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
+                    {po.invoices.map((iv) => (
+                      <div key={iv.id} className="flex items-center justify-between text-[11px]">
+                        <span className="font-mono text-slate-700">{iv.reference}</span>
+                        <span className="text-slate-500">
+                          {formatKes(iv.amount)} · {iv.status === 'ACCEPTED' ? 'Accepted' : iv.status === 'REJECTED' ? 'Rejected' : iv.status === 'REVIEW_REQUIRED' ? 'Under review' : 'Submitted'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {canAccept && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-end gap-2" data-testid={`po-accept-${po.poNumber}`}>
+                    <label className="text-[11px] font-semibold text-slate-600">
+                      Expected delivery date
+                      <input
+                        type="date"
+                        className="mt-1 block px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                        value={acceptDate[po.id] || ''}
+                        onChange={(e) => setAcceptDate((prev) => ({ ...prev, [po.id]: e.target.value }))}
+                        data-testid={`po-accept-date-${po.poNumber}`}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={poBusy === po.id}
+                      onClick={() => void acceptPo(po.id)}
+                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-50"
+                      data-testid={`po-accept-submit-${po.poNumber}`}
+                    >
+                      {poBusy === po.id ? 'Accepting…' : 'Accept PO'}
+                    </button>
+                  </div>
+                )}
+
+                {canInvoice && !canAccept && (
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    {!f.open ? (
+                      <button
+                        type="button"
+                        onClick={() => setInvForm((prev) => ({ ...prev, [po.id]: { reference: '', amount: '', itemId: '', note: '', open: true } }))}
+                        className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50"
+                        data-testid={`po-invoice-open-${po.poNumber}`}
+                      >
+                        Submit invoice
+                      </button>
+                    ) : (
+                      <div className="space-y-2" data-testid={`po-invoice-form-${po.poNumber}`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <input
+                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                            placeholder="Invoice reference *"
+                            value={f.reference}
+                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, reference: e.target.value } }))}
+                            data-testid={`po-invoice-ref-${po.poNumber}`}
+                          />
+                          <input
+                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                            type="number" min="0" step="0.01"
+                            placeholder="Amount (KES) *"
+                            value={f.amount}
+                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, amount: e.target.value } }))}
+                            data-testid={`po-invoice-amount-${po.poNumber}`}
+                          />
+                          <select
+                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                            value={f.itemId}
+                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, itemId: e.target.value } }))}
+                            data-testid={`po-invoice-item-${po.poNumber}`}
+                          >
+                            <option value="">Whole PO (unallocated)</option>
+                            {po.items.map((it) => <option key={it.id} value={it.id}>{it.description}</option>)}
+                          </select>
+                        </div>
+                        <input
+                          className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                          placeholder="Note (optional)"
+                          value={f.note}
+                          onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, note: e.target.value } }))}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={poBusy === po.id}
+                            onClick={() => void submitPoInvoice(po.id)}
+                            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-blue-700 hover:bg-blue-800 text-white disabled:opacity-50"
+                            data-testid={`po-invoice-submit-${po.poNumber}`}
+                          >
+                            {poBusy === po.id ? 'Submitting…' : 'Submit invoice'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, open: false } }))}
+                            className="px-3 py-1.5 text-[11px] font-bold text-slate-500"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <p className="text-[11px] text-slate-400">
-        Purchase orders and invoice settlement are managed by the contractor's finance team.
-        Confirm each delivery below so the site diary stays accurate.
+        Accept each purchase order and submit invoices against it above — the contractor's
+        quantity surveyor reviews them against confirmed deliveries. Confirm each delivery
+        below so the site diary stays accurate.
       </p>
 
       {/* Filter and stats */}
@@ -360,9 +589,10 @@ export default function SupplierPortalView({
 </div>
 
 <div className="text-xs text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-200 leading-relaxed">
-            Purchase orders, GRN valuations and invoice settlement are issued and managed by the
-            contractor's quantity surveyor and finance team inside {PRODUCT_NAME}. Your confirmed
-            deliveries above form the GRN record used for certification.
+            Your purchase orders appear above — accept them and submit invoices there.
+            GRN valuations and payment settlement are managed by the contractor's quantity
+            surveyor and finance team inside {PRODUCT_NAME}. Your confirmed deliveries
+            above form the GRN record used for certification.
 </div>
 
 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">

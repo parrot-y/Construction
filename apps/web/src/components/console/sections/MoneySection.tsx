@@ -6,6 +6,7 @@ import CostManagementView from '../../CostManagementView';
 import BudgetSummaryCard from '../../BudgetSummaryCard';
 import VarianceMonitorCard from '../../VarianceMonitorCard';
 import CommitmentsView from '../../CommitmentsView';
+import ProcurementView from '../../ProcurementView';
 import QuotesManagementView from '../../QuotesManagementView';
 import InvoicingView from '../../InvoicingView';
 import SiteInventoryManagementView from '../../SiteInventoryManagementView';
@@ -123,6 +124,8 @@ export default function MoneySection(): React.JSX.Element {
       return livePid ?<FinancialsView projectId={livePid} projectName={projectName} /> :<EmptyProject what="financials" />;
     case 'commitments':
       return livePid ?<CommitmentsView projectId={livePid} canManage={canManage} /> :<EmptyProject what="commitments" />;
+    case 'procurement':
+      return livePid ?<ProcurementView projectId={livePid} canManage={canManage} /> :<EmptyProject what="procurement" />;
     case 'quotes':
       if (!canManage) return<NoAccess what="quotes" />;
       return<QuotesManagementView />;

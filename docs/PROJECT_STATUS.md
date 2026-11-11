@@ -209,10 +209,15 @@ None.
 - **RLS lookup fixes**: `lookup_portal_link_by_hash` now projects `scope`; `lookup_invitation_by_token` now projects `pin_hash` (both were silently dropping new columns).
 - Spec `e2e/tests/k-stage4-consultant-compliance-field.spec.ts`: **16/16 (8 tests × chromium + mobile-390)**. Evidence: `docs/evidence/stage4-consultant-compliance-field.md`.
 
+### Procurement UI gap closure (2026-11-11, same branch)
+- New `ProcurementView` console screen (Money → Procurement): PO list with plain-language statuses, create-draft form (supplier + dynamic lines + live total), issue-to-supplier, three-way match panel (ordered/delivered/invoiced per line + MATCHED|PART_DELIVERED|OVER_INVOICED|MISMATCH), supplier-invoice review with reason + explicit over-invoice approval (accept posts actuals).
+- `SupplierPortalView` PO section: own POs rendered (payload was already returned but unused), ISSUED → accept with expected date, invoice submission (reference/amount/optional line allocation/note), invoice status list.
+- Spec `e2e/tests/l-procurement-ui.spec.ts`: **10/10 (5 tests × chromium + mobile-390)** — real clicks end-to-end. Evidence: `docs/evidence/procurement-ui.md`.
+
 ### What remains OPEN
 - Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM).
 - Second seeded tenant for a stronger two-tenant isolation e2e (current proof uses membership/RLS on nonexistent + non-member projects).
 - Phase 2 remainder: full legacy-view migration to the design system.
-- Stage-2/3/4 UI depth: supplier/subcontractor portal pages, the PO match view, consultant drawings-ack UI, and compliance permits/visits UI are API-complete; FieldDashboard has no dedicated Playwright click spec yet.
+- Stage-2/3/4 UI depth: subcontractor portal page has no dedicated click spec for package-summary/retention/resubmit; consultant drawings-ack and compliance permits/visits UI controls are API + portal-payload only (no dedicated click spec); FieldDashboard has no dedicated Playwright click spec yet. (PO match view + supplier-portal PO accept/invoice now have UI + click coverage — see procurement-ui.md.)
 - `PRODUCT_NAME` is env-configured (`PRODUCT_NAME`/`VITE_PRODUCT_NAME`, default `BuildSasa`) — no tenant-level override UI; final brand undecided.
 - Production deployment itself (runbook: `docs/DEPLOY.md`).

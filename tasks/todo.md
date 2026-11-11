@@ -1,82 +1,18 @@
 # tasks/todo.md — active plan
 
-## Current: Stage 4 + auditor fixes A/B — 2026-11-11
+#### Current: Procurement UI gap closure — 2026-11-11
 
-Auditor review of 4c5c8b5: (A) production self-serve signup unusable — no
-operator above first admin; (B) font-mono still ~450. Plus stage-4 spec
-(consultant/compliance/field) authored from numbered requirements
-(`e2e/tests/k-stage4-consultant-compliance-field.spec.ts`).
+Stage-4 verified. Remaining honest gaps (PROJECT_STATUS): PO match view +
+supplier/sub portal pages API-only; FieldDashboard no click spec.
 
-### Auditor fix A — operator activation
-- [x] `POST /api/v1/operator/admin-account` — x-operator-key (OPERATOR_KEY env,
-      timing-safe), activate | reset-password on earliest COMPANY_ADMIN,
-      audit-logged (OPERATOR_ADMIN_ACTIVATED / OPERATOR_ADMIN_PASSWORD_RESET)
-- [x] Disabled (503) when OPERATOR_KEY unset; wrong key 401
-- [x] `apps/api/src/operator-activation.test.ts` — 3/3 green (unverified
-      signup → operator activate → login 200; reset rotates password)
-- [x] docs/DEPLOY.md §7 operator procedure + env table (OPERATOR_KEY, PRODUCT_NAME)
+### Procurement UI — DONE
+- [x] ProcurementView + Money 'procurement' tab (create/issue/match/review)
+- [x] SupplierPortalView PO section (accept + invoice submit)
+- [x] e2e/tests/l-procurement-ui.spec.ts — 10/10 (chromium + mobile-390)
 
-### Auditor fix B — font-mono
-- [x] Audit: 458 → 455 occurrences; removed 2 whole-`<tbody>` wrappers
-      (CostManagementView, TopographicSurveyView) + Dashboard permission chips.
-      Remainder verified as codes/numbers/tabular figures only
-      (project/cert/invoice/PO/RFI/SNG/OBS refs, KES amounts, PINs, GPS,
-      dates, worker/equipment codes, phone numbers, URLs, units).
-
-### Stage 4 — consultant portal
-- [x] Link `scope` column (ALL|RFI|INSPECTIONS|CERTIFICATES) on
-      PortalAccessLink + rls.sql lookup returns scope (bug found: function
-      didn't project the column → scoped links silently became ALL)
-- [x] Scoped GET returns only permitted sections (unfetched sections absent)
-- [x] Drawings register: issuedDate + drawing acknowledgements per link,
-      isOverdue flag, POST .../drawings/:id/acknowledge, contractor-visible acks
-- [x] Verified uploads POST .../uploads (magic bytes) + reply attachments
-      bound to uploaded storage keys; reply returns 200 (existing contract)
-
-### Stage 4 — compliance portal
-- [x] Removed derived statutoryLevyPaid / certifiedSiteSupervisorPresent /
-      ncaSiteRegistration indicators — only real permit/visit/action records
-- [x] Permits register (NCA_REGISTRATION|NEMA_LICENSE|COUNTY_APPROVAL|OTHER):
-      number/issuer/issued/expiry + derived VALID|EXPIRING_30D|EXPIRED status
-- [x] Inspector visit POST .../visits (date/outcome/notes/actions+dueDates)
-      → ComplianceVisit + ComplianceAction rows, contractor notified,
-      GET /projects/:id/compliance-visits for staff
-
-### Stage 4 — field roles
-- [x] Phone+PIN invites (field roles only), weak-PIN rejection
-      (isWeakPin: repeats/sequences/blocks), PIN stored hashed
-- [x] lookup_invitation_by_token returns pin_hash (rls.sql fix — same class
-      of bug as portal scope)
-- [x] POST /api/v1/auth/field-login — phone+PIN, failed-attempt lockout
-      (15 min after threshold), session issuance shared with password login
-- [x] WORKER diary scoping: GET site-diaries returns only own entries
-- [x] FieldDashboard wired: FOREMAN/WORKER/SITE_ENGINEER/TRADE_LEAD →
-      mobile-first dashboard (diary list+modal, attendance, checklists,
-      inbox, drawings, RFIs, observations, correspondence, safety incidents,
-      snagging; permission-filtered sections); navConfig role filtering kept
-- [x] Offline queue: safety incidents POST real API w/ offline fallback to
-      queueOfflineMutation (idempotency key); snag creation + inline
-      photoBase64 (magic-byte verified) queued same way; POST /snags and
-      POST /snags/:id/photos both Idempotency-Key cached
-
-### Stage 4 — product name purge
-- [x] PRODUCT_NAME (env PRODUCT_NAME / VITE_PRODUCT_NAME, default BuildSasa)
-      in apps/api/src/lib/product.ts + apps/web/src/lib/product.ts
-- [x] All 'Site Safi'/'Mjengo' literals removed from API strings, PDFs,
-      notification sender names, web UI, PWA manifest, workbook creators,
-      webhook-secret dev defaults, docs; offline-storage keys renamed to
-      buildsasa_* with legacy sitesafi_*/mjengo_* migration kept
-- [x] GET /api/v1/product returns configured name
-
-### Verify
-- [x] k-stage4 spec: 8/8 chromium + 8/8 mobile-390 (16/16)
-- [x] operator-activation.test.ts 3/3
-- [x] Full API vitest suite — 561/561 (62 files)
-- [x] Web vitest 118/118 + turbo typecheck 8/8
-- [x] scripts/verify-local.sh — 6/6 green (docs/evidence/verify-c53e406.log)
-- [x] docs/evidence/stage4-consultant-compliance-field.md
-- [x] docs/PROJECT_STATUS.md update + unfinished list
-
+### Verify — DONE
+- [x] web vitest 118/118, tsc clean; evidence/procurement-ui.md;
+      PROJECT_STATUS updated
 
 ## Prior: Stage 2 (client/owner) + Stage 3 (subcontractor/supplier) — 2026-11-10 (DONE — see docs/evidence/)
 
