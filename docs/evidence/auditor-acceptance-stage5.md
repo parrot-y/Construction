@@ -50,5 +50,6 @@ inspections/diaries/members/cost-approval.
 
 ## Verify-local
 
-`verify-local.sh` result committed alongside this file
-(`docs/evidence/verify-<commit>.log`).
+`verify-local.sh` → **LOCAL CI VERIFICATION COMPLETED SUCCESSFULLY**
+(561/561 API, 118/118 web, lint/typecheck/build/audit clean) —
+`docs/evidence/verify-9fb784d.log`.
