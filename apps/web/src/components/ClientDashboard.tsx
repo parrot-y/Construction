@@ -821,7 +821,11 @@ export default function ClientDashboard({
 <div className="space-y-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
 <span className="text-slate-500 block text-[11px]">Interim Certificate Deduction:</span>
-<span className="font-bold text-slate-800 text-sm">{interim ? `${String(interim)} of Gross Certified Work` : 'Not specified by contractor'}</span>
+<span className="font-bold text-slate-800 text-sm">
+                  {interim
+                    ? `${String(interim)} per certificate${capRate ? `, capped at ${String(capRate)} of the contract sum` : ''}`
+                    : 'Not specified by contractor'}
+</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">

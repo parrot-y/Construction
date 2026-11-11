@@ -17,7 +17,25 @@ weakened, skipped, or rewritten.
 | `aud-stage3-subcontractor-supplier.spec.ts` | 9/9 | 9/9 |
 | `aud-stage4-consultant-compliance-field.spec.ts` | 8/8 | 8/8 |
 
-Total: **36/36 tests × 2 viewports = 72 green runs**, zero skips.
+Total at time of writing: **36/36 tests × 2 viewports = 72 green runs**,
+zero skips.
+
+> **Update (post `0d38faf` auditor review, re-run 2026-11-11):** the TCC
+> gate was extended to every `APPROVED_FOR_PAYMENT` transition. Results:
+>
+> | Spec | chromium | mobile-390 |
+> |---|---|---|
+> | aud-stage1 | 6 pass, 1 fail (test 7 `409 TCC_INVALID`), 2 serial-skipped | identical |
+> | aud-stage2 | 10/10 | 10/10 |
+> | aud-stage3 | 9/9 | 9/9 |
+> | aud-stage4 | 8/8 | 8/8 |
+> | dev-tcc-all-paths (new) | 5/5 | 5/5 |
+>
+> `aud-stage1` test 7 contradicts `aud-stage3` test 2 under identical inputs
+> (approve with empty TCC table); strict gate kept — see
+> `auditor-spec-conflicts.md` (CONFLICT-1, needs auditor spec amendment).
+> Immutability: `aud-specs.sha256` verified (`sha256sum -c` → all OK);
+> one-char tamper test → `FAILED`/exit 1; CI enforces hash + spec-set checks.
 
 API regression: `route-guard`, `account-lifecycle`, `invitations-lifecycle`,
 `auth`, `external-portals`, `client-requests`, `commercial-operations-suite`,
@@ -43,10 +61,11 @@ fixed by splitting the multi-method snag-status route into scanner-visible
   resubmitted via `replacesValuationId`; TCC gate — missing **or expired**
   TCC blocks `APPROVED_FOR_PAYMENT` with `TCC_INVALID` (proven in
   `aud-stage3` test 2: no-TCC → 409, expired → 409, valid → approve);
-  `QS_VERIFIED` is now a real stored state on the QS sign-off track whose
-  approvals carry the QS's compliance diligence (the system TCC gate guards
-  the standard `UNDER_REVIEW` track) — this reconciles stage-1's
-  QS-verified flow with stage-3's TCC contract.
+  `QS_VERIFIED` is a real stored state on the QS sign-off track (quantity/
+  value verification). Per auditor review of `0d38faf` the TCC gate now
+  applies to **every** transition into `APPROVED_FOR_PAYMENT` — the earlier
+  QS-track exemption was removed. This conflicts with `aud-stage1` test 7;
+  see `auditor-spec-conflicts.md` (CONFLICT-1, open — needs spec amendment).
 - **Supplier portal/procurement**: `supplierName`/`unitRate` PO aliases with
   supplier-record resolution; supplier-scoped POs, deliveries, invoices;
   accept requires `ISSUED` + `expectedDeliveryDate`; delivery
@@ -91,7 +110,7 @@ fixed by splitting the multi-method snag-status route into scanner-visible
 
 - FX rates remain `simulated: true` with manual `asOf`/`source` metadata —
   no live rate feed is wired yet.
-- `QS_VERIFIED` approvals bypass the system TCC gate by design (QS sign-off
-  track); the standard `UNDER_REVIEW` track enforces it. Documented in
-  `commercialOperations.ts`.
+- ~~`QS_VERIFIED` TCC-gate bypass~~ — REMOVED per auditor review; the gate
+  now covers every approval path. The resulting `aud-stage1` test-7 conflict
+  is documented in `docs/evidence/auditor-spec-conflicts.md`.
 - Portal UIs render plain-language statuses; raw enums are not shown.

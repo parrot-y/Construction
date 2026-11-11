@@ -938,9 +938,11 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
         });
       }
 
-      // State machine: SUBMITTED -> UNDER_REVIEW -> APPROVED_FOR_PAYMENT -> PAID
-      // with REJECTED reachable from SUBMITTED/UNDER_REVIEW. Legacy QS_VERIFIED
-      // normalizes to UNDER_REVIEW.
+      // State machine: SUBMITTED -> UNDER_REVIEW|QS_VERIFIED -> APPROVED_FOR_PAYMENT -> PAID
+      // with REJECTED reachable from SUBMITTED/UNDER_REVIEW/QS_VERIFIED.
+      // QS_VERIFIED is the QS quantity/value sign-off track (stored literally,
+      // read-side normalized to UNDER_REVIEW for display); APPROVED_FOR_PAYMENT
+      // always requires a valid TCC regardless of which review track was used.
       const TRANSITIONS: Record<string, string[]> = {
         SUBMITTED: ['UNDER_REVIEW', 'REJECTED'],
         UNDER_REVIEW: ['APPROVED_FOR_PAYMENT', 'REJECTED', 'SUBMITTED'],
@@ -958,10 +960,10 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           if (!val) throw { status: 404, message: 'Subcontractor valuation not found' };
 
           const current = val.payment_status;
-          // QS_VERIFIED is a real stored state on the QS sign-off track:
-          // the QS's verification carries their compliance diligence, so the
-          // system TCC gate guards the standard UNDER_REVIEW track instead
-          // (auditor stage-1 vs stage-3 contract reconciliation).
+          // QS_VERIFIED is a real stored state on the QS sign-off track —
+          // a quantity/value verification distinct from UNDER_REVIEW. It
+          // confers NO tax-compliance exemption: the TCC gate below applies
+          // to every transition into APPROVED_FOR_PAYMENT.
           const target = paymentStatus;
           // Transition validation treats QS_VERIFIED like UNDER_REVIEW for
           // reachability (SUBMITTED -> verify), while the stored status keeps
@@ -994,9 +996,10 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           // COMPLIANT/EXEMPT and unexpired. COMPANY_ADMIN may override only
           // with a mandatory reason, which is written to the audit log.
           let tccOverride: string | null = null;
-          // QS_VERIFIED-origin approvals carry the QS's own compliance
-          // sign-off; the system TCC gate guards the standard review track.
-          if (target === 'APPROVED_FOR_PAYMENT' && current !== 'QS_VERIFIED') {
+          // TCC gate applies to EVERY transition into APPROVED_FOR_PAYMENT —
+          // QS_VERIFIED is a quantity/value sign-off, not tax compliance, so
+          // it carries no exemption (auditor review 0d38faf).
+          if (target === 'APPROVED_FOR_PAYMENT') {
             const tcc = await tx.subcontractorTaxCompliance.findFirst({
               where: { subcontractor_package_id: val.subcontractor_package_id },
               orderBy: { last_verified_at: 'desc' },

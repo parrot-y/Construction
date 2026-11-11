@@ -221,6 +221,12 @@ None.
 - Audit fixes: `ClientDashboard` FX fallback removed (dated/sourced rates only, honest `simulated` label); font-mono **469 → 69** (identifiers/codes/tabular only, `tabular-nums` elsewhere — see `docs/DESIGN_SYSTEM.md`); `.github/workflows/e2e.yml` runs every spec on both viewports and fails on any skip; expired-TCC payment block proven in `aud-stage3` test 2.
 - API regression: route-guard + lifecycle/auth/portal/commercial suites green (86 tests); multi-method snag-status route split into scanner-visible PUT/PATCH with `PROGRESS_RECORD`.
 
+### TCC gate closed on all approval paths + aud-* immutability (2026-11-11, same branch)
+- `APPROVED_FOR_PAYMENT` now requires a valid TCC on **every** review track (`UNDER_REVIEW` and `QS_VERIFIED`) — the QS-track exemption was removed per auditor review of `0d38faf`. QS_VERIFIED remains a stored quantity/value sign-off state.
+- New `e2e/tests/dev-tcc-all-paths.spec.ts` (non-aud): SUBMITTED/UNDER_REVIEW/QS_VERIFIED × missing/expired/valid TCC → 409 `TCC_INVALID` / success; PAID unreachable without approval; blocked claims post nothing to the ledger. **5/5 chromium + mobile-390.**
+- **OPEN CONFLICT**: `aud-stage1` test 7 approves without a TCC and contradicts `aud-stage3` test 2 under identical inputs — documented in `docs/evidence/auditor-spec-conflicts.md` (CONFLICT-1); strict gate kept, spec amendment needed from the auditor.
+- Immutability: `e2e/tests/aud-specs.sha256` + CI `sha256sum -c` gate, aud-set completeness/no-skip check, `.github/CODEOWNERS` owner review for aud-* + hash + workflow; AGENTS.md requires calling out hash changes in PR descriptions. One-char tamper test verified locally: `FAILED`/exit 1.
+
 ### What remains OPEN
 - Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM).
 - Second seeded tenant for a stronger two-tenant isolation e2e (current proof uses membership/RLS on nonexistent + non-member projects).
