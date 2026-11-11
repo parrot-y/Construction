@@ -20,22 +20,22 @@ weakened, skipped, or rewritten.
 Total at time of writing: **36/36 tests × 2 viewports = 72 green runs**,
 zero skips.
 
-> **Update (post `0d38faf` auditor review, re-run 2026-11-11):** the TCC
-> gate was extended to every `APPROVED_FOR_PAYMENT` transition. Results:
+> **Update (2026-11-12, auditor amended `aud-stage1` test 7):** the TCC
+> gate covers every `APPROVED_FOR_PAYMENT` transition and the amended
+> stage-1 spec now asserts the `409 TCC_INVALID` block before recording a
+> valid TCC. Re-run results:
 >
 > | Spec | chromium | mobile-390 |
 > |---|---|---|
-> | aud-stage1 | 6 pass, 1 fail (test 7 `409 TCC_INVALID`), 2 serial-skipped | identical |
+> | aud-stage1 | 9/9 | 9/9 |
 > | aud-stage2 | 10/10 | 10/10 |
 > | aud-stage3 | 9/9 | 9/9 |
 > | aud-stage4 | 8/8 | 8/8 |
-> | dev-tcc-all-paths (new) | 5/5 | 5/5 |
+> | dev-tcc-all-paths | 5/5 | 5/5 |
 >
-> `aud-stage1` test 7 contradicts `aud-stage3` test 2 under identical inputs
-> (approve with empty TCC table); strict gate kept — see
-> `auditor-spec-conflicts.md` (CONFLICT-1, needs auditor spec amendment).
-> Immutability: `aud-specs.sha256` verified (`sha256sum -c` → all OK);
-> one-char tamper test → `FAILED`/exit 1; CI enforces hash + spec-set checks.
+> **36/36 × 2 viewports, zero skips.** CONFLICT-1 resolved — see
+> `auditor-spec-conflicts.md`. `aud-specs.sha256` updated for the amended
+> stage-1 spec (hash `93e7a188…`); `sha256sum -c` → all OK.
 
 API regression: `route-guard`, `account-lifecycle`, `invitations-lifecycle`,
 `auth`, `external-portals`, `client-requests`, `commercial-operations-suite`,

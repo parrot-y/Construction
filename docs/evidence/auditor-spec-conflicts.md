@@ -1,6 +1,6 @@
 # Auditor spec conflicts — unresolved contract contradictions
 
-## CONFLICT-1: TCC gate vs `aud-stage1` test 7 (OPEN — needs auditor decision)
+## CONFLICT-1: TCC gate vs `aud-stage1` test 7 (RESOLVED 2026-11-12)
 
 **Status:** strict TCC gate is enforced (per auditor review of `0d38faf`);
 `aud-stage1-contractor-journey.spec.ts` test 7 cannot pass under it.
@@ -32,11 +32,9 @@ The **strict gate wins**: `APPROVED_FOR_PAYMENT` requires a valid
 (unexpired, COMPLIANT/EXEMPT) TCC on **every** review track —
 `UNDER_REVIEW` and `QS_VERIFIED` alike — per the auditor's explicit
 instruction that QS sign-off is a quantity/value check, not tax compliance.
-`aud-stage1` test 7 therefore fails at line 384 with `409 TCC_INVALID`
-(observed 2026-11-11, chromium).
 
-### What the auditor needs to decide
-
-Either amend `aud-stage1` test 7 to record a valid TCC before the approve
-step (matching the stage-3 contract), or accept `aud-stage1` at 8/9 with
-this conflict documented. The product will not reintroduce a bypass.
+**Auditor amendment (2026-11-12):** `aud-stage1` test 7 was amended by the
+auditor — it now asserts `409` on approve with no TCC, records a valid TCC,
+then approves. Installed byte-for-byte; sha256
+`93e7a188c061032737bb791352166666e54d5a7d2691b149d6017e3aef77d6ef`
+recorded in `e2e/tests/aud-specs.sha256`. Conflict closed; no bypass exists.

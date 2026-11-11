@@ -380,6 +380,18 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
     const selfApprove = await apiPatch(request, pm, valPath, { paymentStatus: 'APPROVED_FOR_PAYMENT' });
     expect(selfApprove.status(), 'same user must not verify and approve').toBeGreaterThanOrEqual(400);
 
+    // AMENDED 2026-11-12 (auditor): approval for payment requires a valid TCC on every
+    // review track (aud-stage3 contract). No TCC on file must be refused, then record a
+    // current TCC and approve.
+    const noTcc = await apiPatch(request, admin, valPath, { paymentStatus: 'APPROVED_FOR_PAYMENT' });
+    expect(noTcc.status(), 'no TCC on file must block approval').toBe(409);
+    const tccExpiry = new Date(Date.now() + 200 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const tcc = await apiPost(request, pm, `/api/v1/projects/${projectId}/subcontractor-tcc`, {
+      subcontractorPackageId: state.packageId, pinNumber: 'P051234567A', taxpayerName: 'Umeme Sparks Ltd',
+      tccNumber: `TCC-S1-${Date.now()}`, tccExpiryDate: tccExpiry, complianceStatus: 'COMPLIANT',
+    });
+    expect(tcc.status(), await tcc.text()).toBeLessThan(300);
+
     const approve = await apiPatch(request, admin, valPath, { paymentStatus: 'APPROVED_FOR_PAYMENT' });
     expect(approve.status(), await approve.text()).toBeLessThan(300);
 
