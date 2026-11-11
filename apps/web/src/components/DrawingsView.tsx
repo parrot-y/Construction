@@ -232,7 +232,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <div className="flex items-start justify-between gap-2">
 <div className="min-w-0">
 <p className="text-xs font-bold text-slate-900 truncate">{d.title}</p>
-<p className="text-[10px] text-slate-400 font-mono mt-0.5">
+<p className="text-[10px] text-slate-400 tabular-nums mt-0.5">
                     {d.drawing_reference || '—'} · {d.revision_code}
 </p>
 </div>
@@ -257,7 +257,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
 <div>
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{preview.title}</p>
-<p className="text-[11px] text-slate-400 font-mono">{preview.drawing_reference || '—'} · {preview.revision_code} · {preview.category.replace(/_/g, ' ')}</p>
+<p className="text-[11px] text-slate-400 font-mono tabular-nums">{preview.drawing_reference || '—'} · {preview.revision_code} · {preview.category.replace(/_/g, ' ')}</p>
 </div>
 <div className="flex items-center gap-2">
                 {canManage && /\.(png|jpe?g|webp)$/i.test(preview.storage_key || '') && (

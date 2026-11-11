@@ -436,7 +436,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 <span className="text-xs font-semibold text-gray-500 ">
             Total Wages Disbursed
 </span>
-<p className="text-2xl font-bold text-emerald-600 mt-1 font-mono">
+<p className="text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
             {formatKes(totalDisbursedKes)}
 </p>
 <span className="text-xs text-emerald-700 font-medium">M-Pesa B2C Bulk Mobile Payroll</span>
@@ -494,13 +494,13 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 <td className="px-4 py-3 text-gray-700">
 <span className="font-semibold text-gray-900">{roll.totalWorkers}</span> artisans
 </td>
-<td className="px-4 py-3 font-mono text-gray-900 font-bold">
+<td className="px-4 py-3 tabular-nums text-gray-900 font-bold">
                       {roll.totalManDays} days
 </td>
-<td className="px-4 py-3 font-mono text-gray-700">
+<td className="px-4 py-3 tabular-nums text-gray-700">
                       {formatKes(roll.grossWagesKes)}
 </td>
-<td className="px-4 py-3 font-mono font-bold text-gray-900">
+<td className="px-4 py-3 tabular-nums font-bold text-gray-900">
                       {formatKes(roll.netWagesPayableKes)}
 </td>
 <td className="px-4 py-3">
@@ -521,7 +521,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 <td className="px-4 py-3 text-xs text-gray-600">
                       {roll.disbursementReference ? (
 <div>
-<span className="font-mono font-semibold text-emerald-700">{roll.disbursementReference}</span>
+<span className="tabular-nums font-semibold text-emerald-700">{roll.disbursementReference}</span>
 <span className="block text-gray-400">Disbursed on {roll.disbursedAt?.split('T')[0]}</span>
 </div>
 ) : roll.approvedBy ? (
@@ -570,14 +570,14 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 <tr key={worker.id} className="hover:bg-gray-50 transition">
 <td className="px-4 py-3 font-medium text-gray-900">
 <div>{worker.fullName}</div>
-<div className="text-xs text-gray-500 font-mono">{worker.workerCode}</div>
+<div className="text-xs text-gray-500 font-mono tabular-nums">{worker.workerCode}</div>
 </td>
-<td className="px-4 py-3 font-mono font-medium text-gray-900">
+<td className="px-4 py-3 tabular-nums font-medium text-gray-900">
 <span className="px-2 py-0.5 rounded bg-gray-100 border text-xs">
                         ID: {worker.nationalIdNo}
 </span>
 </td>
-<td className="px-4 py-3 font-mono text-gray-700 text-xs">
+<td className="px-4 py-3 tabular-nums text-gray-700 text-xs">
                       {worker.phoneNumber}
 </td>
 <td className="px-4 py-3">
@@ -588,7 +588,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                         {worker.skillLevel.replace(/_/g, ' ')}
 </span>
 </td>
-<td className="px-4 py-3 font-mono font-bold text-gray-900">
+<td className="px-4 py-3 tabular-nums font-bold text-gray-900">
                       {formatKes(worker.dailyRateKes)} / day
 </td>
 <td className="px-4 py-3">
@@ -660,7 +660,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                     value={nationalIdNo}
                     onChange={(e) => setNationalIdNo(e.target.value)}
                     placeholder="e.g. 29841520"
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -673,7 +673,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="+2547XXXXXXXX"
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 </div>
@@ -726,7 +726,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                   required
                   value={dailyRateKes}
                   onChange={(e) => setDailyRateKes(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                  className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                 />
 </div>
 
@@ -776,7 +776,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                     required
                     value={payrollNo}
                     onChange={(e) => setPayrollNo(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -845,7 +845,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                               setAttendanceEntries(updated);
 }
 }}
-                          className="w-full px-2 py-1.5 border rounded font-mono"
+                          className="w-full px-2 py-1.5 border rounded tabular-nums"
                         />
 </div>
 <div className="col-span-2">
@@ -860,7 +860,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                               setAttendanceEntries(updated);
 }
 }}
-                          className="w-full px-2 py-1.5 border rounded font-mono"
+                          className="w-full px-2 py-1.5 border rounded tabular-nums"
                         />
 </div>
 <div className="col-span-4">
@@ -926,7 +926,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 </div>
 <div>
 <span className="font-semibold text-gray-700">Net Payable:</span>{' '}
-<span className="font-bold text-emerald-700 font-mono">
+<span className="font-bold text-emerald-700 tabular-nums">
                     {formatKes(selectedRollForReview.netWagesPayableKes)}
 </span>
 </div>
@@ -960,7 +960,7 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
                     required
                     value={disbursementRef}
                     onChange={(e) => setDisbursementRef(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 )}

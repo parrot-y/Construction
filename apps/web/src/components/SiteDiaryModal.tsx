@@ -230,7 +230,7 @@ export default function SiteDiaryModal({
                 required
                 value={entryDate}
                 onChange={(e) => setEntryDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-hidden font-mono"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-hidden tabular-nums"
               />
 </div>
 
@@ -295,7 +295,7 @@ export default function SiteDiaryModal({
                   min="0"
                   value={masons}
                   onChange={(e) => setMasons(e.target.value)}
-                  className="w-full p-1.5 text-xs font-mono font-bold border border-slate-300 rounded-md bg-white text-center"
+                  className="w-full p-1.5 text-xs tabular-nums font-bold border border-slate-300 rounded-md bg-white text-center"
                 />
 </div>
 <div>
@@ -305,7 +305,7 @@ export default function SiteDiaryModal({
                   min="0"
                   value={carpenters}
                   onChange={(e) => setCarpenters(e.target.value)}
-                  className="w-full p-1.5 text-xs font-mono font-bold border border-slate-300 rounded-md bg-white text-center"
+                  className="w-full p-1.5 text-xs tabular-nums font-bold border border-slate-300 rounded-md bg-white text-center"
                 />
 </div>
 <div>
@@ -315,7 +315,7 @@ export default function SiteDiaryModal({
                   min="0"
                   value={steelFixers}
                   onChange={(e) => setSteelFixers(e.target.value)}
-                  className="w-full p-1.5 text-xs font-mono font-bold border border-slate-300 rounded-md bg-white text-center"
+                  className="w-full p-1.5 text-xs tabular-nums font-bold border border-slate-300 rounded-md bg-white text-center"
                 />
 </div>
 <div>
@@ -325,7 +325,7 @@ export default function SiteDiaryModal({
                   min="0"
                   value={casuals}
                   onChange={(e) => setCasuals(e.target.value)}
-                  className="w-full p-1.5 text-xs font-mono font-bold border border-slate-300 rounded-md bg-white text-center"
+                  className="w-full p-1.5 text-xs tabular-nums font-bold border border-slate-300 rounded-md bg-white text-center"
                 />
 </div>
 </div>
@@ -350,14 +350,14 @@ export default function SiteDiaryModal({
                   placeholder="Qty"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  className="w-20 p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
+                  className="w-20 p-1.5 text-xs border border-slate-300 rounded-md bg-white tabular-nums"
                 />
 <input
                   type="text"
                   placeholder="Unit"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="w-16 p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono "
+                  className="w-16 p-1.5 text-xs border border-slate-300 rounded-md bg-white tabular-nums "
                 />
 </div>
 </div>
@@ -402,7 +402,7 @@ export default function SiteDiaryModal({
                   placeholder="Hours"
                   value={equipmentHours}
                   onChange={(e) => setEquipmentHours(e.target.value)}
-                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
+                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white tabular-nums"
                 />
 <span className="text-[11px] text-slate-500">hrs</span>
 </div>
@@ -412,7 +412,7 @@ export default function SiteDiaryModal({
                   placeholder="Fuel"
                   value={fuelLitres}
                   onChange={(e) => setFuelLitres(e.target.value)}
-                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
+                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white tabular-nums"
                 />
 <span className="text-[11px] text-slate-500">L</span>
 </div>
@@ -438,7 +438,7 @@ export default function SiteDiaryModal({
 <div className="pt-1 flex flex-col sm:flex-row justify-between items-start sm:items-center text-[11px] text-slate-600 gap-1">
 <span> {photoFile.name}</span>
                 {compressedInfo && (
-<span className="text-emerald-700 font-mono font-semibold">
+<span className="text-emerald-700 tabular-nums font-semibold">
                     Compressed: {compressedInfo.originalKB} KB → {compressedInfo.compressedKB} KB (Saved{' '}
                     {Math.round((1 - compressedInfo.compressedKB / compressedInfo.originalKB) * 100)}%)
 </span>

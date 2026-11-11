@@ -303,7 +303,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs space-y-2">
 <p className="font-semibold text-blue-900">Share link (shown once — copy now):</p>
 <div className="flex flex-col sm:flex-row gap-2">
-<code className="flex-1 bg-white border border-blue-200 rounded px-2 py-1.5 text-[11px] font-mono break-all">{shareInfo.url}</code>
+<code className="flex-1 bg-white border border-blue-200 rounded px-2 py-1.5 text-[11px] font-mono tabular-nums break-all">{shareInfo.url}</code>
 <button onClick={copyShare} className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg shrink-0">
               Copy link
 </button>
@@ -453,8 +453,8 @@ export default function QuotesManagementView(): React.JSX.Element {
 <span className="font-medium text-slate-800">{q.client_name}</span>
                       {q.client_email &&<span className="block text-[10px] text-slate-400">{q.client_email}</span>}
 </td>
-<td className="py-2.5 pr-3 font-mono font-semibold text-slate-800">{q.currency} {toCurrencyString(q.total)}</td>
-<td className="py-2.5 pr-3 font-mono text-slate-600">{q.currency} {toCurrencyString(q.deposit_amount)}</td>
+<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{q.currency} {toCurrencyString(q.total)}</td>
+<td className="py-2.5 pr-3 tabular-nums text-slate-600">{q.currency} {toCurrencyString(q.deposit_amount)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[q.status] ?? STATUS_STYLES.DRAFT}`}>
                         {q.status}
@@ -509,18 +509,18 @@ export default function QuotesManagementView(): React.JSX.Element {
                                         {it.description}
 </td>
 <td className="py-1 pr-2 text-slate-500">{it.unit}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.quantity}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.unit_rate}</td>
-<td className="py-1 text-right font-mono font-semibold">{toCurrencyString(it.total_amount ?? '0')}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{it.quantity}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{it.unit_rate}</td>
+<td className="py-1 text-right tabular-nums font-semibold">{toCurrencyString(it.total_amount ?? '0')}</td>
 </tr>
 ))}
 </tbody>
 </table>
 <div className="text-right space-y-0.5 pt-1">
-<p className="text-slate-600">Subtotal:<span className="font-mono">{detail.currency} {toCurrencyString(detail.subtotal)}</span></p>
-<p className="text-slate-600">Tax ({detail.tax_pct}%):<span className="font-mono">{detail.currency} {toCurrencyString(detail.tax_amount)}</span></p>
-<p className="font-bold text-slate-900">Total:<span className="font-mono">{detail.currency} {toCurrencyString(detail.total)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit due ({detail.deposit_pct}%):<span className="font-mono">{detail.currency} {toCurrencyString(detail.deposit_amount)}</span></p>
+<p className="text-slate-600">Subtotal:<span className="tabular-nums">{detail.currency} {toCurrencyString(detail.subtotal)}</span></p>
+<p className="text-slate-600">Tax ({detail.tax_pct}%):<span className="tabular-nums">{detail.currency} {toCurrencyString(detail.tax_amount)}</span></p>
+<p className="font-bold text-slate-900">Total:<span className="tabular-nums">{detail.currency} {toCurrencyString(detail.total)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit due ({detail.deposit_pct}%):<span className="tabular-nums">{detail.currency} {toCurrencyString(detail.deposit_amount)}</span></p>
 </div>
 </div>
 <div>

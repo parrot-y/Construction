@@ -175,9 +175,25 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 is_non_work_day: data.isNonWorkDay ?? false,
               },
             });
-            // Clean up existing headcounts & deliveries for replacement
+            // Clean up existing headcounts for replacement. Deliveries merge
+            // instead: rows matching an incoming delivery's natural key are
+            // replaced, unrelated deliveries recorded earlier the same day are
+            // kept (a second diary submission must not erase the first).
             await tx.laborHeadcount.deleteMany({ where: { site_diary_id: diary.id } });
-            await tx.materialDelivery.deleteMany({ where: { site_diary_id: diary.id } });
+            const incomingKeys = new Set(
+              (data.deliveries ?? []).map((d) =>
+                [d.materialName, d.unit, String(d.quantity), d.deliveryNote ?? '', d.supplierName ?? ''].join('|')),
+            );
+            const existingDeliveries = await tx.materialDelivery.findMany({
+              where: { site_diary_id: diary.id },
+              select: { id: true, material_name: true, unit: true, quantity: true, delivery_note: true, supplier_name: true },
+            });
+            const replaceIds = existingDeliveries
+              .filter((e) => incomingKeys.has([e.material_name, e.unit, e.quantity.toString(), e.delivery_note ?? '', e.supplier_name ?? ''].join('|')))
+              .map((e) => e.id);
+            if (replaceIds.length > 0) {
+              await tx.materialDelivery.deleteMany({ where: { id: { in: replaceIds } } });
+            }
           } else {
             diary = await tx.siteDiary.create({
               data: {
@@ -207,6 +223,22 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
           // Insert material deliveries
           if (data.deliveries && data.deliveries.length > 0) {
+            // Resolve supplier names to Supplier records so portal scoping by
+            // supplier_id works even when the diary only carried a name.
+            const unnamed = data.deliveries.filter((d) => !d.supplierId && d.supplierName);
+            const nameToId = new Map<string, string>();
+            if (unnamed.length > 0) {
+              const names = [...new Set(unnamed.map((d) => d.supplierName!.trim().toLowerCase()))];
+              // Match names case-insensitively in memory (collation-safe).
+              const all = await tx.supplier.findMany({
+                where: { is_active: true },
+                select: { id: true, name: true },
+              });
+              for (const sup of all) {
+                const key = sup.name.trim().toLowerCase();
+                if (names.includes(key) && !nameToId.has(key)) nameToId.set(key, sup.id);
+              }
+            }
             await tx.materialDelivery.createMany({
               data: data.deliveries.map((d) => ({
                 tenant_id: tenantId,
@@ -215,7 +247,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 quantity: d.quantity,
                 unit: d.unit,
                 supplier_name: d.supplierName || null,
-                supplier_id: d.supplierId || null,
+                supplier_id: d.supplierId || (d.supplierName ? nameToId.get(d.supplierName.trim().toLowerCase()) ?? null : null),
                 purchase_order_id: d.purchaseOrderId || null,
                 purchase_order_item_id: d.purchaseOrderItemId || null,
                 delivery_note: d.deliveryNote || null,

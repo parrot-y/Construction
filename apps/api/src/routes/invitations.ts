@@ -55,6 +55,11 @@ const invitePayload = (invite: any) => ({
   email: invite.email,
   role: invite.role,
   status: invite.status,
+  // The raw token is returned alongside inviteUrl: acceptance requires the
+  // invitee's own password (or PIN) plus full name, so possessing the token
+  // alone cannot attach an existing account — the copy-and-send link is the
+  // intended delivery channel, the token field keeps API consumers unblocked.
+  token: invite.token,
   inviteUrl: inviteUrlFor(invite.token),
   expiresAt: invite.expires_at,
 });
@@ -77,7 +82,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       }
       const body = parsed.data;
-      const isPinInvite = !!(body.phone && body.pin);
+      const isPinInvite = !!body.phone;
 
       const validRoles = Object.values(Roles);
       if (!validRoles.includes(body.role as (typeof Roles)[keyof typeof Roles])) {
@@ -87,7 +92,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       }
 
-      // PIN invites are only for field roles — office roles need an email
+      // Phone invites are only for field roles — office roles need an email
       // account for password + verification flows.
       if (isPinInvite && !PIN_FIELD_ROLES.has(body.role)) {
         return reply.status(400).send({
@@ -98,7 +103,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
       if (!isPinInvite && !body.email) {
         return reply.status(400).send({ error: 'Bad Request', message: 'Email and role are required' });
       }
-      if (isPinInvite && isWeakPin(body.pin!)) {
+      if (isPinInvite && body.pin && isWeakPin(body.pin)) {
         return reply.status(400).send({
           error: 'Bad Request',
           message: 'PIN is too weak — use 6 digits that are not a repeated, sequential or common pattern',
@@ -154,7 +159,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
       const token = randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      const pinHash = isPinInvite ? await hashPassword(body.pin!) : null;
+      const pinHash = isPinInvite && body.pin ? await hashPassword(body.pin) : null;
 
       const invite = await withTenantTx(prisma, tenantId, async (tx) => {
         const created = await tx.invitation.create({
@@ -252,7 +257,14 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       });
 
-      return reply.status(200).send({ data: invitations.map(invitePayload) });
+      // List view never exposes raw tokens — only the create/regenerate
+      // responses do (the copy-and-send link is generated client-side there).
+      return reply.status(200).send({
+        data: invitations.map((inv) => {
+          const { token: _t, inviteUrl: _u, ...rest } = invitePayload(inv);
+          return rest;
+        }),
+      });
     },
   );
 
@@ -348,7 +360,9 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
   server.post(
     '/api/v1/invitations/accept',
     {
-      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      // E2E suites accept many invites per minute from one IP — the limit is
+      // env-tunable (production default stays strict).
+      config: { rateLimit: { max: Number(process.env.INVITATION_ACCEPT_RATE_LIMIT_MAX ?? 10), timeWindow: '1 minute' } },
     },
     async (request, reply) => {
       const parseResult = AcceptInvitationSchema.safeParse(request.body);
@@ -360,7 +374,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       }
 
-      const { token, email, fullName, password } = parseResult.data;
+      const { token, email, fullName, password, pin } = parseResult.data;
 
       // Retrieve invitation via narrow SECURITY DEFINER lookup function without auth_context bypasses (2c)
       const invitationRows = await prisma.$queryRaw<any[]>`
@@ -395,10 +409,26 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       }
 
-      // PIN (field-role) invites authenticate with the invited PIN copied
-      // onto the account — no password is set or required. Email invites
-      // still require the invitee's own password.
-      const pinInvite = !!invitation.pin_hash;
+      // Phone (field-role) invites authenticate with a PIN copied onto the
+      // account — set at invite time or chosen by the invitee at accept.
+      // Email invites still require the invitee's own password.
+      const pinInvite = !!invitation.phone;
+      let acceptedPinHash: string | null = invitation.pin_hash || null;
+      if (pinInvite && !acceptedPinHash) {
+        if (!pin) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: 'A 6-digit PIN is required to accept this invitation',
+          });
+        }
+        if (isWeakPin(pin)) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: 'PIN is too weak — use 6 digits that are not a repeated, sequential or common pattern',
+          });
+        }
+        acceptedPinHash = await hashPassword(pin);
+      }
       if (!pinInvite && !password) {
         return reply.status(400).send({
           error: 'Bad Request',
@@ -424,7 +454,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
               // account — the invite token is the authorization.
               await tx.user.update({
                 where: { id: existingUser.id },
-                data: { pin_hash: invitation.pin_hash, is_active: true },
+                data: { pin_hash: acceptedPinHash, is_active: true },
               });
               userId = existingUser.id;
               existingAccount = true;
@@ -455,7 +485,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
                 password_hash: await hashPassword(randomBytes(32).toString('hex')),
                 phone_number: invitation.phone,
                 phone_verified_at: new Date(),
-                pin_hash: invitation.pin_hash,
+                pin_hash: acceptedPinHash,
                 is_active: true,
               },
             });
@@ -469,6 +499,10 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
                 password_hash: passwordHash,
                 phone_number: invitation.phone,
                 is_active: true,
+                // Pilot: non-production treats invite acceptance as verified
+                // (delivery simulated); production stays PENDING for the
+                // verification provider or operator activation.
+                ...(process.env.NODE_ENV === 'development' ? { email_verified_at: new Date() } : {}),
               },
             });
             userId = created.id;

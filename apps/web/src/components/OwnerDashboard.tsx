@@ -106,16 +106,18 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
         </span>
       </header>
 
-      {approvals.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
-              Waiting for you
-            </span>
-            <span className="text-xs text-amber-800 font-semibold">
-              {approvals.length} item{approvals.length === 1 ? '' : 's'} need your review
-            </span>
-          </div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+            Approvals
+          </span>
+          <span className="text-xs text-amber-800 font-semibold">
+            {approvals.length > 0
+              ? `${approvals.length} item${approvals.length === 1 ? '' : 's'} awaiting your review`
+              : 'Nothing awaiting your review right now'}
+          </span>
+        </div>
+        {approvals.length > 0 && (
           <div className="space-y-1.5">
             {approvals.slice(0, 8).map((a: any, i: number) => (
               <div key={a.id || i} className="flex items-center justify-between gap-3 text-xs bg-white/70 border border-amber-100 rounded-lg px-3 py-2">
@@ -127,8 +129,8 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -139,7 +141,7 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
         ].map(([label, value]) => (
           <div key={label as string} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
             <span className="text-[11px] font-semibold text-slate-500 block">{label}</span>
-            <span className="text-base font-bold font-mono text-slate-900 mt-1 block">
+            <span className="text-base font-bold tabular-nums text-slate-900 mt-1 block">
               {String(label).includes('progress') ? value : formatKes(String(value ?? '0'))}
             </span>
           </div>
@@ -164,9 +166,9 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
               <tbody className="divide-y divide-slate-100">
                 {certs.map((c: any) => (
                   <tr key={c.id}>
-                    <td className="py-2 px-3 font-mono font-bold text-slate-800">{c.certificate_no}</td>
+                    <td className="py-2 px-3 font-mono tabular-nums font-bold text-slate-800">{c.certificate_no}</td>
                     <td className="py-2 px-3 text-slate-600">{c.period_start} → {c.period_end}</td>
-                    <td className="py-2 px-3 font-mono">{formatKes(String(c.net_payable ?? '0'))}</td>
+                    <td className="py-2 px-3 font-mono tabular-nums">{formatKes(String(c.net_payable ?? '0'))}</td>
                     <td className="py-2 px-3">
                       <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${c.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-sky-100 text-sky-800 border-sky-300'}`}>
                         {plainStatus(c.status)}
@@ -199,8 +201,8 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
                 {invoices.slice(0, 10).map((inv: any) => (
                   <tr key={inv.id}>
                     <td className="py-2 px-3 font-semibold text-slate-800">{inv.title || `Invoice #${inv.invoice_no ?? ''}`}</td>
-                    <td className="py-2 px-3 font-mono">{formatKes(String(inv.total ?? '0'))}</td>
-                    <td className="py-2 px-3 font-mono font-bold">{formatKes(String(inv.balance_due ?? inv.balanceDue ?? '0'))}</td>
+                    <td className="py-2 px-3 font-mono tabular-nums">{formatKes(String(inv.total ?? '0'))}</td>
+                    <td className="py-2 px-3 font-mono tabular-nums font-bold">{formatKes(String(inv.balance_due ?? inv.balanceDue ?? '0'))}</td>
                     <td className="py-2 px-3">
                       <span className="px-2 py-0.5 text-[10px] font-bold rounded-full border bg-slate-100 text-slate-700 border-slate-300">
                         {plainStatus(inv.status)}

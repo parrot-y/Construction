@@ -410,7 +410,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
               <div className="p-4 flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-bold text-slate-900">{po.poNumber}</span>
+                    <span className="tabular-nums font-bold text-slate-900">{po.poNumber}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PO_STATUS_STYLES[po.status] || 'bg-slate-100 text-slate-600'}`}>{po.statusLabel}</span>
                   </div>
                   <p className="text-sm text-slate-700 mt-1">{po.supplierName || 'Unknown supplier'}</p>
@@ -426,7 +426,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-mono font-bold text-slate-900">{po.totalAmount ? formatKes(po.totalAmount) : '—'}</p>
+                  <p className="tabular-nums font-bold text-slate-900">{po.totalAmount ? formatKes(po.totalAmount) : '—'}</p>
                   <div className="flex gap-2 mt-2 justify-end">
                     <button
                       type="button"
@@ -485,12 +485,12 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
                             {match.lines.map((l) => (
                               <tr key={l.itemId}>
                                 <td className="py-1.5 pr-3 font-medium text-slate-800">{l.description}</td>
-                                <td className="py-1.5 pr-3 font-mono">{l.orderedQuantity} {l.unit}</td>
-                                <td className="py-1.5 pr-3 font-mono">{l.deliveredQuantity} {l.unit}</td>
-                                <td className="py-1.5 pr-3 font-mono">{l.invoicedQuantity} {l.unit}</td>
-                                <td className="py-1.5 pr-3 font-mono">{l.orderedAmount}</td>
-                                <td className="py-1.5 pr-3 font-mono">{l.deliveredAmount}</td>
-                                <td className="py-1.5 pr-3 font-mono">{l.invoicedAmount}</td>
+                                <td className="py-1.5 pr-3 tabular-nums">{l.orderedQuantity} {l.unit}</td>
+                                <td className="py-1.5 pr-3 tabular-nums">{l.deliveredQuantity} {l.unit}</td>
+                                <td className="py-1.5 pr-3 tabular-nums">{l.invoicedQuantity} {l.unit}</td>
+                                <td className="py-1.5 pr-3 tabular-nums">{l.orderedAmount}</td>
+                                <td className="py-1.5 pr-3 tabular-nums">{l.deliveredAmount}</td>
+                                <td className="py-1.5 pr-3 tabular-nums">{l.invoicedAmount}</td>
                                 <td className="py-1.5 text-slate-600">{LINE_STATUS_LABELS[l.status] || l.status}</td>
                               </tr>
                             ))}
@@ -508,12 +508,12 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
                               <div key={inv.id} className="bg-white rounded-lg border border-slate-200 p-3" data-testid={`po-invoice-${inv.reference}`}>
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-mono text-xs font-bold text-slate-800">{inv.reference}</span>
+                                    <span className="font-mono tabular-nums text-xs font-bold text-slate-800">{inv.reference}</span>
                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${INV_STATUS_STYLES[full?.status || inv.status] || 'bg-slate-100'}`}>
                                       {full?.statusLabel || inv.status}
                                     </span>
                                   </div>
-                                  <span className="font-mono text-sm font-bold text-slate-900">{formatKes(inv.amount)}</span>
+                                  <span className="tabular-nums text-sm font-bold text-slate-900">{formatKes(inv.amount)}</span>
                                 </div>
                                 {full?.reviewReason && <p className="text-[11px] text-rose-600 mt-1">Review note: {full.reviewReason}</p>}
                                 {full?.note && <p className="text-[11px] text-slate-500 mt-1">{full.note}</p>}

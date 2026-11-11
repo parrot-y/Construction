@@ -347,7 +347,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Perimeter Centroid</p>
-<p className="text-sm font-mono font-bold text-slate-800 mt-1">
+<p className="text-sm tabular-nums font-bold text-slate-800 mt-1">
             {activeGeofence ? `${activeGeofence.centerLatitude}, ${activeGeofence.centerLongitude}` : 'None'}
 </p>
 <p className="text-xs text-slate-500 mt-1">Radius: {activeGeofence?.radiusMeters} meters</p>
@@ -483,7 +483,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                 type="text"
                 value={capturedLat}
                 onChange={(e) => setCapturedLat(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                 required
               />
 </div>
@@ -493,7 +493,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                 type="text"
                 value={capturedLng}
                 onChange={(e) => setCapturedLng(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                 required
               />
 </div>
@@ -512,7 +512,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-2">
 <div>
 <span className="text-slate-600 font-medium">Calculated Haversine Distance:</span>
-<span className="font-mono font-bold text-slate-900">{previewDistance.toFixed(2)} meters</span>
+<span className="tabular-nums font-bold text-slate-900">{previewDistance.toFixed(2)} meters</span>
 <span className="text-slate-400"> (Allowed: {activeGeofence?.radiusMeters} m)</span>
 </div>
 <div>
@@ -572,7 +572,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <div>{evt.workerName}</div>
 <div className="text-[10px] text-slate-400">{evt.tradeCategory || 'ARTISAN'}</div>
 </td>
-<td className="p-3 font-mono font-bold text-slate-700">{evt.workerCode}</td>
+<td className="p-3 tabular-nums font-bold text-slate-700">{evt.workerCode}</td>
 <td className="p-3">
 <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -582,7 +582,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                       {evt.clockType}
 </span>
 </td>
-<td className="p-3 font-mono font-bold text-slate-800">
+<td className="p-3 tabular-nums font-bold text-slate-800">
                     {evt.calculatedDistanceMeters} m
 </td>
 <td className="p-3">
@@ -642,7 +642,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                     type="text"
                     value={geoLat}
                     onChange={(e) => setGeoLat(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -652,7 +652,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                     type="text"
                     value={geoLng}
                     onChange={(e) => setGeoLng(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -664,7 +664,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                   type="text"
                   value={geoRadius}
                   onChange={(e) => setGeoRadius(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                   required
                 />
 <p className="text-[11px] text-slate-400 mt-1">Recommended: 100m - 250m for commercial high-rises</p>

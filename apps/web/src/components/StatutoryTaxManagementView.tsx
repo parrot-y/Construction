@@ -226,7 +226,7 @@ export default function StatutoryTaxManagementView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Total Gross Certified</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-xl font-bold text-slate-900 font-mono">
+<span className="text-xl font-bold text-slate-900 tabular-nums">
                 {formatKes(totalGross)}
 </span>
 </div>
@@ -236,7 +236,7 @@ export default function StatutoryTaxManagementView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">3% WHT Withheld</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-xl font-bold text-red-700 font-mono">
+<span className="text-xl font-bold text-red-700 tabular-nums">
                 {formatKes(totalWht)}
 </span>
 </div>
@@ -246,7 +246,7 @@ export default function StatutoryTaxManagementView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">2% WHVAT Withheld</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-xl font-bold text-amber-700 font-mono">
+<span className="text-xl font-bold text-amber-700 tabular-nums">
                 {formatKes(totalWhvat)}
 </span>
 </div>
@@ -256,7 +256,7 @@ export default function StatutoryTaxManagementView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Net Disbursed</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-xl font-bold text-emerald-700 font-mono">
+<span className="text-xl font-bold text-emerald-700 tabular-nums">
                 {formatKes(totalNet)}
 </span>
 </div>
@@ -304,32 +304,32 @@ export default function StatutoryTaxManagementView({
 )}
             {filtered.map((cert) => (
 <tr key={cert.id} className="hover:bg-slate-50">
-<td className="py-3 px-4 font-mono font-bold text-slate-900">
+<td className="py-3 px-4 font-mono tabular-nums font-bold text-slate-900">
                   {cert.certificate_no}
 </td>
 <td className="py-3 px-4">
 <span className="font-semibold text-slate-900 block">{cert.payee_name}</span>
-<span className="font-mono text-slate-500 text-[11px]">PIN: {cert.payee_kra_pin}</span>
+<span className="font-mono tabular-nums text-slate-500 text-[11px]">PIN: {cert.payee_kra_pin}</span>
 </td>
-<td className="py-3 px-4 font-mono text-slate-700">
+<td className="py-3 px-4 font-mono tabular-nums text-slate-700">
                   {cert.invoice_or_ipc_ref}
 </td>
-<td className="py-3 px-4 text-right font-mono text-slate-800">
+<td className="py-3 px-4 text-right tabular-nums text-slate-800">
                   {formatKes(cert.gross_amount)}
 </td>
-<td className="py-3 px-4 text-right font-mono text-red-700 font-medium">
+<td className="py-3 px-4 text-right tabular-nums text-red-700 font-medium">
                   -{formatKes(cert.wht_deducted)}
 </td>
-<td className="py-3 px-4 text-right font-mono text-amber-700 font-medium">
+<td className="py-3 px-4 text-right tabular-nums text-amber-700 font-medium">
                   -{formatKes(cert.whvat_deducted)}
 </td>
-<td className="py-3 px-4 text-right font-mono font-extrabold text-emerald-800">
+<td className="py-3 px-4 text-right tabular-nums font-extrabold text-emerald-800">
                   {formatKes(cert.net_payable)}
 </td>
 <td className="py-3 px-4 text-center">
                   {getStatusBadge(cert.status)}
                   {cert.itax_acknowledgement_receipt && (
-<span className="block font-mono text-[10px] text-slate-500 mt-0.5">
+<span className="block font-mono tabular-nums text-[10px] text-slate-500 mt-0.5">
                       {cert.itax_acknowledgement_receipt}
 </span>
 )}
@@ -382,7 +382,7 @@ export default function StatutoryTaxManagementView({
                     placeholder="P051234567Z"
                     value={payeePin}
                     onChange={(e) => setPayeePin(e.target.value.toUpperCase())}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2 tabular-nums"
                   />
 </div>
 </div>
@@ -408,7 +408,7 @@ export default function StatutoryTaxManagementView({
                     placeholder="e.g. IPC-002 / INV-04"
                     value={invoiceRef}
                     onChange={(e) => setInvoiceRef(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2 tabular-nums"
                   />
 </div>
 <div>
@@ -418,7 +418,7 @@ export default function StatutoryTaxManagementView({
                     required
                     value={grossAmount}
                     onChange={(e) => setGrossAmount(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2 tabular-nums"
                   />
 </div>
 </div>
@@ -430,7 +430,7 @@ export default function StatutoryTaxManagementView({
                     type="text"
                     value={whtRate}
                     onChange={(e) => setWhtRate(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2 tabular-nums"
                   />
 </div>
 <div>
@@ -439,7 +439,7 @@ export default function StatutoryTaxManagementView({
                     type="text"
                     value={whvatRate}
                     onChange={(e) => setWhvatRate(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2 tabular-nums"
                   />
 </div>
 </div>
@@ -448,19 +448,19 @@ export default function StatutoryTaxManagementView({
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-1.5">
 <div className="flex justify-between text-slate-600">
 <span>Gross Valuation:</span>
-<span className="font-mono font-bold text-slate-900">{formatKes(grossNum)}</span>
+<span className="font-mono tabular-nums font-bold text-slate-900">{formatKes(grossNum)}</span>
 </div>
 <div className="flex justify-between text-red-700">
 <span>Less 3% KRA Withholding Tax (WHT):</span>
-<span className="font-mono font-bold">-{formatKes(whtNum)}</span>
+<span className="font-mono tabular-nums font-bold">-{formatKes(whtNum)}</span>
 </div>
 <div className="flex justify-between text-amber-700">
 <span>Less 2% Withholding VAT (WHVAT):</span>
-<span className="font-mono font-bold">-{formatKes(whvatNum)}</span>
+<span className="tabular-nums font-bold">-{formatKes(whvatNum)}</span>
 </div>
 <div className="flex justify-between text-emerald-800 pt-1 border-t border-slate-200 font-bold text-sm">
 <span>Net Payable Amount:</span>
-<span className="font-mono">{formatKes(netNum)}</span>
+<span className="tabular-nums">{formatKes(netNum)}</span>
 </div>
 </div>
 
@@ -501,7 +501,7 @@ export default function StatutoryTaxManagementView({
                   placeholder="e.g. ITAX-PRN-2026-90432"
                   value={receiptInput}
                   onChange={(e) => setReceiptInput(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono"
+                  className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono tabular-nums"
                 />
 </div>
 

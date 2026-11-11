@@ -443,7 +443,7 @@ export default function SiteInventoryManagementView({
 <td className="py-2.5 px-3 font-semibold text-slate-800">
                       {item?.material_name || 'Material Item'}
 </td>
-<td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+<td className="py-2.5 px-3 text-right tabular-nums font-bold text-slate-900">
                       {isDelivery ? `+${m.quantity}` : `-${m.quantity}`} {item?.unit || ''}
 </td>
 <td className="py-2.5 px-3 text-slate-600">

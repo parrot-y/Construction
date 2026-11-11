@@ -90,6 +90,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'GET /api/v1/projects/:projectId/snags/export': Permissions.REPORT_VIEW,
   'POST /api/v1/projects/:projectId/snags': Permissions.SITE_DIARY_CREATE,
   'PUT /api/v1/projects/:projectId/snags/:snagId/status': Permissions.PROGRESS_RECORD,
+  'PATCH /api/v1/projects/:projectId/snags/:snagId/status': Permissions.PROGRESS_RECORD,
   'GET /api/v1/projects/:projectId/snags/:snagId': Permissions.SITE_DIARY_VIEW,
   'POST /api/v1/projects/:projectId/snags/:snagId/comments': Permissions.SITE_DIARY_CREATE,
   'POST /api/v1/projects/:projectId/snags/:snagId/photos': Permissions.SITE_DIARY_CREATE,
@@ -114,7 +115,9 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'POST /api/v1/projects/:projectId/safety-incidents': Permissions.SITE_DIARY_CREATE,
   'GET /api/v1/projects/:projectId/documents': Permissions.REPORT_VIEW,
   'POST /api/v1/projects/:projectId/documents': Permissions.DOCUMENT_MANAGE,
-  'GET /api/v1/projects/:projectId/subcontractors': Permissions.PROJECT_VIEW,
+  'GET /api/v1/projects/:projectId/drawings': Permissions.REPORT_VIEW,
+  'POST /api/v1/projects/:projectId/drawings': Permissions.DOCUMENT_MANAGE,
+  'GET /api/v1/projects/:projectId/subcontractors': Permissions.COST_VIEW,
   'POST /api/v1/projects/:projectId/subcontractors': Permissions.COST_CREATE,
   'PATCH /api/v1/projects/:projectId/subcontractors/:packageId': Permissions.COST_APPROVE,
 
@@ -204,6 +207,7 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
   'GET /api/v1/me/invoices': 'Caller-scoped invoice list (CLIENT/OWNER scope enforced in-handler)',
   'GET /api/v1/me/approvals': 'Caller-scoped "waiting for you" approval feed',
   'GET /api/v1/product': 'Product metadata for any authenticated member',
+  'GET /api/v1/company/payment-instructions': 'Payment instructions any member (incl. CLIENT) may read to pay the contractor',
   'POST /api/v1/client/invoices/:invoiceId/payment-notice': 'Client self-service payment notice on own invoice (non-mutating, notifies staff)',
   'GET /api/v1/billing/subscription-status': 'Caller\u2019s tenant subscription status',
 };

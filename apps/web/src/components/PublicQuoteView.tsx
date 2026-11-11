@@ -154,19 +154,19 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
                   {it.description}
 </td>
 <td className="py-2 pr-3 text-slate-500">{it.unit}</td>
-<td className="py-2 pr-3 text-right font-mono">{it.quantity}</td>
-<td className="py-2 pr-3 text-right font-mono">{it.unit_rate}</td>
-<td className="py-2 text-right font-mono font-semibold">{quote.currency} {toCurrencyString(it.total_amount)}</td>
+<td className="py-2 pr-3 text-right tabular-nums">{it.quantity}</td>
+<td className="py-2 pr-3 text-right tabular-nums">{it.unit_rate}</td>
+<td className="py-2 text-right tabular-nums font-semibold">{quote.currency} {toCurrencyString(it.total_amount)}</td>
 </tr>
 ))}
 </tbody>
 </table>
 
 <div className="text-right space-y-1 text-xs ml-auto max-w-xs">
-<p className="text-slate-600">Subtotal:<span className="font-mono">{quote.currency} {toCurrencyString(quote.subtotal)}</span></p>
-<p className="text-slate-600">Tax ({quote.tax_pct}%):<span className="font-mono">{quote.currency} {toCurrencyString(quote.tax_amount)}</span></p>
-<p className="text-base font-bold text-slate-900">Total:<span className="font-mono">{quote.currency} {toCurrencyString(quote.total)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit required ({quote.deposit_pct}%):<span className="font-mono">{quote.currency} {toCurrencyString(quote.deposit_amount)}</span></p>
+<p className="text-slate-600">Subtotal:<span className="tabular-nums">{quote.currency} {toCurrencyString(quote.subtotal)}</span></p>
+<p className="text-slate-600">Tax ({quote.tax_pct}%):<span className="tabular-nums">{quote.currency} {toCurrencyString(quote.tax_amount)}</span></p>
+<p className="text-base font-bold text-slate-900">Total:<span className="tabular-nums">{quote.currency} {toCurrencyString(quote.total)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit required ({quote.deposit_pct}%):<span className="tabular-nums">{quote.currency} {toCurrencyString(quote.deposit_amount)}</span></p>
           {quote.valid_until && (
 <p className="text-[11px] text-slate-400 pt-1">Valid until {new Date(quote.valid_until).toLocaleDateString()}</p>
 )}

@@ -348,11 +348,11 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 </label>
 <label className="space-y-1">
 <span className={label}>Map pin latitude</span>
-<input type="text" value={form.mapLatitude} onChange={(e) => setForm({ ...form, mapLatitude: e.target.value})} placeholder="-1.286389" className={`${input} font-mono`} />
+<input type="text" value={form.mapLatitude} onChange={(e) => setForm({ ...form, mapLatitude: e.target.value})} placeholder="-1.286389" className={`${input} tabular-nums`} />
 </label>
 <label className="space-y-1">
 <span className={label}>Map pin longitude</span>
-<input type="text" value={form.mapLongitude} onChange={(e) => setForm({ ...form, mapLongitude: e.target.value})} placeholder="36.817223" className={`${input} font-mono`} />
+<input type="text" value={form.mapLongitude} onChange={(e) => setForm({ ...form, mapLongitude: e.target.value})} placeholder="36.817223" className={`${input} tabular-nums`} />
 </label>
 </div>
 </div>

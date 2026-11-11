@@ -292,13 +292,13 @@ export default function SubcontractorPortalView({
 {Number(commercialSummary.contractSumKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Subcontract Sum</p>
-<p className="text-base font-bold text-slate-900 mt-1 font-mono">{formatKes(commercialSummary.contractSumKes)}</p>
+<p className="text-base font-bold text-slate-900 mt-1 tabular-nums">{formatKes(commercialSummary.contractSumKes)}</p>
 </div>
 )}
 {Number(commercialSummary.retentionWithheldKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">{commercialSummary.retentionRatePct}% Retention Held</p>
-<p className="text-base font-bold text-purple-700 mt-1 font-mono">{formatKes(commercialSummary.retentionWithheldKes)}</p>
+<p className="text-base font-bold text-purple-700 mt-1 tabular-nums">{formatKes(commercialSummary.retentionWithheldKes)}</p>
 </div>
 )}
 </div>
@@ -355,7 +355,7 @@ export default function SubcontractorPortalView({
               >
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                       {snag.snag_number}
 </span>
 <span className="text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
@@ -400,7 +400,7 @@ export default function SubcontractorPortalView({
 <span className="font-bold text-slate-600 text-[10px]">
                           [{p.photo_type} Photo]:
 </span>
-<span className="text-slate-500 font-mono text-[10px] truncate max-w-xs">{p.storage_key}</span>
+<span className="text-slate-500 font-mono tabular-nums text-[10px] truncate max-w-xs">{p.storage_key}</span>
 </div>
 ))}
 </div>
@@ -548,9 +548,9 @@ export default function SubcontractorPortalView({
 )}
 </td>
 <td className="p-3 font-bold text-slate-700">{m.pct}%</td>
-<td className="p-3 font-mono font-bold text-slate-900">{formatKes(m.grossKes)}</td>
-<td className="p-3 font-mono text-purple-700">{formatKes(m.retentionKes)}</td>
-<td className="p-3 font-mono font-bold text-emerald-700">{formatKes(m.netKes)}</td>
+<td className="p-3 tabular-nums font-bold text-slate-900">{formatKes(m.grossKes)}</td>
+<td className="p-3 tabular-nums text-purple-700">{formatKes(m.retentionKes)}</td>
+<td className="p-3 tabular-nums font-bold text-emerald-700">{formatKes(m.netKes)}</td>
 <td className="p-3">
 <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -619,15 +619,15 @@ export default function SubcontractorPortalView({
 <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-center">
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Package value</p>
-<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(packageSum))}</p>
+<p className="text-xs font-bold text-slate-900 tabular-nums">{formatKes(String(packageSum))}</p>
 </div>
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Certified to date</p>
-<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(certifiedToDate))}</p>
+<p className="text-xs font-bold text-slate-900 tabular-nums">{formatKes(String(certifiedToDate))}</p>
 </div>
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Remaining</p>
-<p className="text-xs font-bold text-emerald-700 font-mono">{formatKes(String(remaining))}</p>
+<p className="text-xs font-bold text-emerald-700 tabular-nums">{formatKes(String(remaining))}</p>
 </div>
 </div>
 );
@@ -642,7 +642,7 @@ export default function SubcontractorPortalView({
                   required
                   value={claimAmount}
                   onChange={(e) => setClaimAmount(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 tabular-nums"
                 />
 <p className="text-[10px] text-slate-500 mt-0.5">
                   Contract retention and 3% WHT are calculated automatically on submission.

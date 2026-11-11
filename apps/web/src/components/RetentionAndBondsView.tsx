@@ -427,7 +427,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
                 {releases.map((rel) => (
 <tr key={rel.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-white">
+<td className="py-3 px-4 font-mono tabular-nums font-semibold text-slate-900 dark:text-white">
                       {rel.releaseNo}
 </td>
 <td className="py-3 px-4 font-bold">{rel.firmName}</td>
@@ -468,7 +468,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                           Disburse M-Pesa B2C
 </button>
 ) : (
-<span className="text-[10px] font-mono text-slate-500">
+<span className="text-[10px] tabular-nums text-slate-500">
                           {rel.disbursementRef}
 </span>
 )}
@@ -508,7 +508,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
                 {bonds.map((bnd) => (
 <tr key={bnd.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
+<td className="py-3 px-4 font-mono tabular-nums font-bold text-slate-900 dark:text-white">
                       {bnd.bondReferenceNo}
 </td>
 <td className="py-3 px-4 text-xs">
@@ -520,8 +520,8 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
                       {formatKes(bnd.bondAmount)}
 </td>
-<td className="py-3 px-4 font-mono text-xs">{bnd.effectiveDate}</td>
-<td className="py-3 px-4 font-mono text-xs">{bnd.expiryDate}</td>
+<td className="py-3 px-4 tabular-nums text-xs">{bnd.effectiveDate}</td>
+<td className="py-3 px-4 tabular-nums text-xs">{bnd.expiryDate}</td>
 <td className="py-3 px-4 text-center">
 <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -579,7 +579,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     type="text"
                     value={releaseNo}
                     onChange={(e) => setReleaseNo(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -619,7 +619,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     step="0.01"
                     value={totalHeld}
                     onChange={(e) => setTotalHeld(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -632,7 +632,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     step="0.01"
                     value={releasePct}
                     onChange={(e) => setReleasePct(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -734,7 +734,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     type="text"
                     value={bondRef}
                     onChange={(e) => setBondRef(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -747,7 +747,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     step="0.01"
                     value={bondAmount}
                     onChange={(e) => setBondAmount(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>

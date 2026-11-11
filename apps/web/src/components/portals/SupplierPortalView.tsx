@@ -314,7 +314,7 @@ export default function SupplierPortalView({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-slate-900">{po.poNumber}</span>
+                      <span className="tabular-nums font-bold text-slate-900">{po.poNumber}</span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{po.statusLabel}</span>
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1">
@@ -322,14 +322,14 @@ export default function SupplierPortalView({
                       {po.expectedDeliveryDate ? ` · expected ${String(po.expectedDeliveryDate).slice(0, 10)}` : ''}
                     </p>
                   </div>
-                  <span className="font-mono font-bold text-slate-900">{formatKes(po.totalAmount)}</span>
+                  <span className="tabular-nums font-bold text-slate-900">{formatKes(po.totalAmount)}</span>
                 </div>
 
                 <ul className="mt-3 space-y-1">
                   {po.items.map((it) => (
                     <li key={it.id} className="text-xs text-slate-600 flex justify-between gap-3">
                       <span>{it.description} <span className="text-slate-400">({it.unit})</span></span>
-                      <span className="font-mono">{it.quantity} × {formatKes(it.rate)}</span>
+                      <span className="font-mono tabular-nums">{it.quantity} × {formatKes(it.rate)}</span>
                     </li>
                   ))}
                 </ul>
@@ -338,7 +338,7 @@ export default function SupplierPortalView({
                   <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
                     {po.invoices.map((iv) => (
                       <div key={iv.id} className="flex items-center justify-between text-[11px]">
-                        <span className="font-mono text-slate-700">{iv.reference}</span>
+                        <span className="font-mono tabular-nums text-slate-700">{iv.reference}</span>
                         <span className="text-slate-500">
                           {formatKes(iv.amount)} · {iv.status === 'ACCEPTED' ? 'Accepted' : iv.status === 'REJECTED' ? 'Rejected' : iv.status === 'REVIEW_REQUIRED' ? 'Under review' : 'Submitted'}
                         </span>
@@ -488,7 +488,7 @@ export default function SupplierPortalView({
           >
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
                   {del.delivery_note_number}
 </span>
 <span className="text-xs text-slate-500">

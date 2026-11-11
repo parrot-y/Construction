@@ -195,7 +195,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 <div key={co.id} className="border border-slate-200 rounded-xl p-4 space-y-2">
 <div className="flex items-center justify-between gap-2 flex-wrap">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
                     CO-{String(co.variation_no).padStart(4, '0')}
 </span>
 <span className="text-sm font-bold text-slate-900">{co.title}</span>
@@ -203,7 +203,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
                     {co.status.replace(/_/g, ' ')}
 </span>
 </div>
-<span className={`text-sm font-mono font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
+<span className={`text-sm tabular-nums font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
                   {isNegative ? '-' : '+'}KES {toCurrencyString(absAmount)}
 </span>
 </div>
@@ -282,7 +282,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
                 {extra.certificates.map((c) => (
                   <div key={c.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
                     <div>
-                      <span className="font-mono font-semibold text-slate-900">{c.certificateNo}</span>
+                      <span className="font-mono tabular-nums font-semibold text-slate-900">{c.certificateNo}</span>
                       <span className="text-slate-500 ml-2">{c.periodEnd ? new Date(c.periodEnd).toLocaleDateString('en-KE') : ''}</span>
                     </div>
                     <div className="text-right">
@@ -302,7 +302,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
                 {extra.invoices.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
                     <div>
-                      <span className="font-mono font-semibold text-slate-900">{inv.invoiceNo}</span>
+                      <span className="font-mono tabular-nums font-semibold text-slate-900">{inv.invoiceNo}</span>
                       <span className="text-slate-500 ml-2">{inv.title}</span>
                     </div>
                     <div className="text-right">

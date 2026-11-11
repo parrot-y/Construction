@@ -214,7 +214,7 @@ function MessageCard({ m, unread, onRead, onReply}: { m: InboxMessage; unread: b
             {unread &&<span className="w-2 h-2 rounded-full bg-indigo-500" title="Unread" />}
 <span className="text-xs font-bold text-slate-800">{m.sender_name}</span>
 <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 rounded-full">{AUDIENCE_LABEL[m.audience] || m.audience}</span>
-<span className="text-[10px] text-slate-400 font-mono">{new Date(m.created_at).toLocaleString()}</span>
+<span className="text-[10px] text-slate-400 tabular-nums">{new Date(m.created_at).toLocaleString()}</span>
 </div>
 <p className="text-xs text-slate-700 mt-1.5 whitespace-pre-wrap">{m.body}</p>
 <p className="text-[10px] text-slate-400 mt-1">{m.read_count} read{m.read_count === 1 ? '' : 's'}</p>

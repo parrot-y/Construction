@@ -300,7 +300,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-semibold text-slate-400 block">
             Total Snags
 </span>
-<span className="text-lg font-bold font-mono text-slate-800 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-slate-800 mt-0.5 block">
             {snags.length}
 </span>
 </div>
@@ -308,7 +308,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-semibold text-rose-600 block">
             Open Deficiencies
 </span>
-<span className="text-lg font-bold font-mono text-rose-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-rose-700 mt-0.5 block">
             {snags.filter((s) => s.status === 'OPEN').length}
 </span>
 </div>
@@ -316,7 +316,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-semibold text-blue-600 block">
             Rectified by Contractor
 </span>
-<span className="text-lg font-bold font-mono text-blue-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-blue-700 mt-0.5 block">
             {snags.filter((s) => s.status === 'RECTIFIED_BY_CONTRACTOR').length}
 </span>
 </div>
@@ -324,7 +324,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-semibold text-emerald-600 block">
             Verified & Closed
 </span>
-<span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-emerald-700 mt-0.5 block">
             {snags.filter((s) => s.status === 'VERIFIED_CLOSED').length}
 </span>
 </div>
@@ -413,7 +413,7 @@ export default function SnaggingListView({
             >
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div className="flex flex-wrap items-center gap-2">
-<span className="font-mono font-bold text-rose-900 bg-rose-50 px-2 py-0.5 rounded text-xs border border-rose-200">
+<span className="tabular-nums font-bold text-rose-900 bg-rose-50 px-2 py-0.5 rounded text-xs border border-rose-200">
                     {snag.snagNo}
 </span>
 

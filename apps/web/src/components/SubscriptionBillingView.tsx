@@ -197,7 +197,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Last M-Pesa Receipt</p>
-<p className="text-lg font-mono font-bold text-slate-800 mt-1">{lastPaymentRef || 'None'}</p>
+<p className="text-lg tabular-nums font-bold text-slate-800 mt-1">{lastPaymentRef || 'None'}</p>
 <p className="text-xs text-slate-400 mt-1">M-Pesa payment record — simulated until Daraja is configured</p>
 </div>
 </div>
@@ -295,7 +295,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 )}
 {transactions.map((tx) => (
 <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
-<td className="p-3 font-mono font-bold text-slate-800">
+<td className="p-3 font-mono tabular-nums font-bold text-slate-800">
                     {tx.mpesaReceiptNumber || 'PENDING'}
 </td>
 <td className="p-3">
@@ -303,8 +303,8 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
                       {tx.planCode === 'PORTFOLIO_TIER' ? 'Portfolio Tier' : 'Project Tier'}
 </span>
 </td>
-<td className="p-3 font-mono">{tx.phoneNumber}</td>
-<td className="p-3 font-mono font-bold text-slate-800">{formatKes(tx.amount)}</td>
+<td className="p-3 tabular-nums">{tx.phoneNumber}</td>
+<td className="p-3 tabular-nums font-bold text-slate-800">{formatKes(tx.amount)}</td>
 <td className="p-3">
                     {tx.transactionStatus === 'SUCCESS' ? (
 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">SUCCESS</span>
@@ -359,7 +359,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 }`}
                   >
 <p className="font-bold text-slate-800">Project Tier</p>
-<p className="text-emerald-700 font-mono font-semibold mt-0.5">{formatKes(7500)}/mo</p>
+<p className="text-emerald-700 tabular-nums font-semibold mt-0.5">{formatKes(7500)}/mo</p>
 </button>
 <button
                     type="button"
@@ -369,7 +369,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 }`}
                   >
 <p className="font-bold text-slate-800">Portfolio Tier</p>
-<p className="text-emerald-700 font-mono font-semibold mt-0.5">{formatKes(25000)}/mo</p>
+<p className="text-emerald-700 tabular-nums font-semibold mt-0.5">{formatKes(25000)}/mo</p>
 </button>
 </div>
 </div>
@@ -381,7 +381,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="0712345678"
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
                 />
 <p className="text-[11px] text-slate-400 mt-1">Enter Kenyan phone registered for M-Pesa</p>

@@ -69,7 +69,7 @@ export default function MilestoneTimeline({
                       {item.item_description}
 </span>
                     {item.section_code && (
-<span className="px-2 py-0.5 text-[10px] font-mono bg-white text-slate-600 border border-slate-200 rounded">
+<span className="px-2 py-0.5 text-[10px] tabular-nums bg-white text-slate-600 border border-slate-200 rounded">
                         {item.section_code}
 </span>
 )}
@@ -82,7 +82,7 @@ export default function MilestoneTimeline({
 </div>
 
 <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-<span className="text-[11px] text-slate-400 font-mono">
+<span className="text-[11px] text-slate-400 tabular-nums">
                     {item.recorded_at ? item.recorded_at.split('T')[0] : ''}
 </span>
 <span

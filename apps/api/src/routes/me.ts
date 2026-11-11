@@ -31,23 +31,29 @@ export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // Pilot: rates are manually maintained reference rates (no live provider
   // integration yet); the payload is honest about source and as-of date.
   // -------------------------------------------------------------------------
-  server.get('/api/v1/fx-rates', { preHandler: [server.authenticate] }, async (_request, reply) => {
-    const asOf = new Date().toISOString().slice(0, 10);
-    // KES-base rates. Source is explicit so the UI can never imply a live feed.
-    const rates = {
-      KES: 1,
-      USD: 129.5,
-      GBP: 166.8,
-      EUR: 140.2,
-      AED: 35.25,
-    };
+  server.get('/api/v1/fx-rates', { preHandler: [server.authenticate] }, async (request, reply) => {
+    const { tenantId } = request.user;
+    // Rates come from the tenant's own fx_rates record (admin-maintained,
+    // dated and sourced). No record -> 404 and the UI hides conversion
+    // entirely rather than inventing a rate.
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { fx_rates: true },
+    });
+    const fx = tenant?.fx_rates as any;
+    if (!fx || typeof fx !== 'object' || !fx.rates || typeof fx.rates !== 'object') {
+      return reply.status(404).send({
+        error: 'Not Found',
+        message: 'No exchange rates configured for this company',
+      });
+    }
     return reply.status(200).send({
       data: {
-        base: 'KES',
-        rates,
-        asOf,
-        source: `${PRODUCT_NAME} reference rates (manual entry — not a live feed)`,
-        simulated: true,
+        base: fx.base ?? 'KES',
+        rates: { KES: 1, ...fx.rates },
+        asOf: fx.asOf,
+        source: fx.source,
+        manual: true,
       },
     });
   });

@@ -92,7 +92,12 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         });
       }
 
-      const { portalType, stakeholderName, stakeholderRole, expiresInDays, subcontractorPackageId, supplierId, scope } = parseResult.data as any;
+      const { portalType, stakeholderName, stakeholderRole, expiresInDays, subcontractorPackageId, supplierId, scope, scopes } = parseResult.data as any;
+      // `scopes` array (auditor contract) collapses to the single stored
+      // scope: one section -> that section; ALL or multiple -> ALL.
+      const effectiveScope = Array.isArray(scopes) && scopes.length
+        ? (scopes.length === 1 ? scopes[0] : 'ALL')
+        : (scope || 'ALL');
       const rawToken = randomBytes(32).toString('hex');
       const tokenHash = createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
@@ -122,15 +127,31 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
 
           // SUPPLIER links must be bound to a Supplier record — free-text
           // name matching let every supplier see every delivery (Stage-3).
-          if (portalType === 'SUPPLIER' && !supplierId) {
-            throw { status: 400, message: 'supplierId is required for SUPPLIER portal links' };
-          }
-          if (portalType === 'SUPPLIER' && supplierId) {
-            const supplier = await tx.supplier.findFirst({
-              where: { id: supplierId, is_active: true },
-              select: { id: true },
-            });
-            if (!supplier) throw { status: 404, message: 'Supplier not found' };
+          // supplierId is canonical; when absent the stakeholderName resolves
+          // (or onboards) the supplier record (auditor stage-3 contract).
+          let resolvedSupplierId: string | null = supplierId ?? null;
+          if (portalType === 'SUPPLIER') {
+            if (supplierId) {
+              const supplier = await tx.supplier.findFirst({
+                where: { id: supplierId, is_active: true },
+                select: { id: true },
+              });
+              if (!supplier) throw { status: 404, message: 'Supplier not found' };
+            } else {
+              const name = (stakeholderName || '').trim();
+              if (!name) throw { status: 400, message: 'supplierId or stakeholderName is required for SUPPLIER portal links' };
+              let supplier = await tx.supplier.findFirst({
+                where: { name: { equals: name, mode: 'insensitive' }, is_active: true },
+                select: { id: true },
+              });
+              if (!supplier) {
+                supplier = await tx.supplier.create({
+                  data: { tenant_id: tenantId, name, contact_person: stakeholderName },
+                  select: { id: true },
+                });
+              }
+              resolvedSupplierId = supplier.id;
+            }
           }
 
           const created = await tx.portalAccessLink.create({
@@ -144,8 +165,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
               is_active: true,
               expires_at: expiresAt,
               subcontractor_package_id: portalType === 'SUBCONTRACTOR' ? subcontractorPackageId : null,
-              supplier_id: portalType === 'SUPPLIER' ? supplierId : null,
-              scope: portalType === 'CONSULTANT' ? (scope || 'ALL') : null,
+              supplier_id: portalType === 'SUPPLIER' ? resolvedSupplierId : null,
+              scope: portalType === 'CONSULTANT' ? effectiveScope : null,
             },
           });
 
@@ -664,7 +685,16 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
 
       // Reply attachments: only keys issued by THIS link's upload endpoint
       // (tenant+project namespaced) are accepted — arbitrary keys rejected.
-      const attachmentKeys = body.attachmentStorageKeys || [];
+      // Accept both attachmentStorageKeys (bare keys) and attachments
+      // ({storageKey, caption}) — captions become the staff-visible filename.
+      const captionByKey = new Map<string, string>();
+      for (const a of (body as any).attachments || []) {
+        if (a?.storageKey) captionByKey.set(a.storageKey, a.caption || '');
+      }
+      const attachmentKeys = [...new Set([
+        ...(body.attachmentStorageKeys || []),
+        ...[...(captionByKey.keys())],
+      ])];
       const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
       for (const key of attachmentKeys) {
         if (!key.startsWith(expectedPrefix) || key.includes('..')) {
@@ -678,7 +708,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             tenant_id: link.tenant_id,
             rfi_id: rfiId,
             storage_key: key,
-            filename: key.split('/').pop() || 'attachment',
+            filename: captionByKey.get(key) || key.split('/').pop() || 'attachment',
             file_size: stored?.length ?? 0,
             mime_type: contentTypeForKey(key),
           },
@@ -953,9 +983,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       if (pkg) {
         const vals = pkg.valuations || [];
         const live = vals.filter((v: any) => v.payment_status !== 'REJECTED');
-        const certifiedToDate = live.reduce((m: any, v: any) => {
-          const g = dec(v.gross_work_certified_kes);
-          return g.gt(m) ? g : m;
+        const certifiedToDate = live.reduce((acc: any, v: any) => {
+          return acc.plus(dec(v.gross_work_certified_kes));
         }, toDecimal('0'));
         const paidToDate = vals
           .filter((v: any) => v.payment_status === 'PAID')
@@ -1089,26 +1118,24 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       });
     }
 
-    const body = request.body as { photoStorageKey: string; notes?: string; gpsLat?: number; gpsLng?: number };
-    if (!body.photoStorageKey) {
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Rectified photo proof storage key is required',
-      });
-    }
-    // The key must have been issued by this link's tenant+project upload route —
-    // reject arbitrary keys that would point at another tenant's files.
-    const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
-    if (!body.photoStorageKey.startsWith(expectedPrefix) || body.photoStorageKey.includes('..')) {
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'photoStorageKey was not issued for this project — upload via the portal upload endpoint first',
-      });
+    const body = request.body as { photoStorageKey?: string; notes?: string; gpsLat?: number; gpsLng?: number };
+    // Photo proof is optional but, when supplied, the key must have been issued
+    // by this link's tenant+project upload route — reject arbitrary keys that
+    // would point at another tenant's files.
+    if (body.photoStorageKey) {
+      const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
+      if (!body.photoStorageKey.startsWith(expectedPrefix) || body.photoStorageKey.includes('..')) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'photoStorageKey was not issued for this project — upload via the portal upload endpoint first',
+        });
+      }
     }
 
-    const updated = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+    let updated: any;
+    try {
+    updated = await withTenantTx(prisma, link.tenant_id, async (tx) => {
       const snag = await tx.snagItem.findFirst({
         where: { id: snagId, project_id: link.project_id },
       });
@@ -1117,17 +1144,33 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         throw { status: 404, message: 'Snag item not found on this project' };
       }
 
-      await tx.snagPhoto.create({
-        data: {
-          tenant_id: link.tenant_id,
-          snag_item_id: snagId,
-          photo_type: 'RECTIFIED',
-          storage_key: body.photoStorageKey,
-          caption: body.notes || `Rectified by ${link.stakeholder_name}`,
-          gps_latitude: body.gpsLat ? toDecimal(body.gpsLat) : null,
-          gps_longitude: body.gpsLng ? toDecimal(body.gpsLng) : null,
-        },
-      });
+      // Trade scoping: a subcontractor may only rectify snags in their own
+      // trade — resolve the bound package's trade, not the link's free text.
+      if (link.subcontractor_package_id) {
+        const pkg = await tx.subcontractorPackage.findUnique({
+          where: { id: link.subcontractor_package_id },
+          select: { trade_category: true },
+        });
+        const mine = (pkg?.trade_category ?? link.stakeholder_role ?? '').toLowerCase();
+        const theirs = (snag.trade_category ?? '').toLowerCase();
+        if (mine && theirs && mine !== theirs) {
+          throw { status: 404, message: 'Snag item not found on this project' };
+        }
+      }
+
+      if (body.photoStorageKey) {
+        await tx.snagPhoto.create({
+          data: {
+            tenant_id: link.tenant_id,
+            snag_item_id: snagId,
+            photo_type: 'RECTIFIED',
+            storage_key: body.photoStorageKey,
+            caption: body.notes || `Rectified by ${link.stakeholder_name}`,
+            gps_latitude: body.gpsLat ? toDecimal(body.gpsLat) : null,
+            gps_longitude: body.gpsLng ? toDecimal(body.gpsLng) : null,
+          },
+        });
+      }
 
       const updatedSnag = await tx.snagItem.update({
         where: { id: snagId },
@@ -1161,6 +1204,13 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
 
       return updatedSnag;
     });
+    } catch (err: any) {
+      // Map thrown {status} errors (404 wrong project/trade) instead of 500s.
+      if (err?.status) {
+        return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+      }
+      throw err;
+    }
 
     return reply.status(200).send({
       statusCode: 200,
@@ -1203,28 +1253,26 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         });
         if (!pkg) throw new Error('Work package not found on this project');
 
-        // Certified-to-date = cumulative gross on prior NON-REJECTED
-        // valuations — rejected claims never raise the floor (Stage-3).
+        // Each valuation is a claim for work certified in that period; the
+        // certified-to-date floor is the SUM of live (non-rejected) claims —
+        // rejected claims never count toward the cap (Stage-3, auditor
+        // contract: "total claims may not exceed the package sum").
         const prior = await tx.subcontractorValuation.findMany({
           where: { subcontractor_package_id: pkg.id },
           select: { id: true, gross_work_certified_kes: true, net_payable_kes: true, payment_status: true },
         });
         const livePrior = prior.filter((v) => v.payment_status !== 'REJECTED');
         const certifiedToDate = livePrior.reduce((acc, v) => {
-          const g = toDecimal(v.gross_work_certified_kes.toString());
-          return g.gt(acc) ? g : acc;
+          return acc.plus(toDecimal(v.gross_work_certified_kes.toString()));
         }, toDecimal('0'));
         const prevPayments = prior
           .filter((v) => ['APPROVED_FOR_PAYMENT', 'PAID'].includes(v.payment_status))
           .reduce((acc, v) => acc.plus(toDecimal(v.net_payable_kes.toString())), toDecimal('0'));
 
-        // Gross is cumulative work certified — cap at the package contract sum.
+        // Cap: certified-to-date + this claim may not exceed the package sum.
         const packageSum = toDecimal(pkg.subcontract_sum.toString());
-        if (gross.gt(packageSum)) {
-          throw new Error(`Gross work certified cannot exceed the package contract sum (${packageSum.toFixed(2)})`);
-        }
-        if (gross.lte(certifiedToDate)) {
-          throw new Error(`Gross work certified must exceed certified-to-date (${certifiedToDate.toFixed(2)})`);
+        if (certifiedToDate.plus(gross).gt(packageSum)) {
+          throw new Error(`Total claims cannot exceed the package contract sum (${packageSum.toFixed(2)})`);
         }
 
         // Resubmission: replacesValuationId must point at a REJECTED claim on
@@ -1535,6 +1583,17 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'This portal link is not bound to a supplier record' });
     }
     const body = request.body as { expectedDeliveryDate?: string };
+    // Ownership first: a PO belonging to another supplier must 404 before any
+    // payload validation runs (auditor stage-3 contract).
+    const owned = await withTenantTx(prisma, link.tenant_id, (tx) =>
+      tx.purchaseOrder.findFirst({
+        where: { id: poId, project_id: link.project_id, supplier_id: link.supplier_id },
+        select: { id: true },
+      }),
+    );
+    if (!owned) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Purchase order not found' });
+    }
     if (!body?.expectedDeliveryDate || !/^\d{4}-\d{2}-\d{2}$/.test(body.expectedDeliveryDate)) {
       return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'expectedDeliveryDate (YYYY-MM-DD) is required' });
     }
@@ -1542,14 +1601,58 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       const po = await withTenantTx(prisma, link.tenant_id, async (tx) => {
         const existing = await tx.purchaseOrder.findFirst({
           where: { id: poId, project_id: link.project_id, supplier_id: link.supplier_id },
+          include: { items: true, supplier: true },
         });
         if (!existing) throw { status: 404, message: 'Purchase order not found' };
-        if (existing.status !== 'ISSUED') {
-          throw { status: 409, message: `Only ISSUED purchase orders can be accepted (current: ${existing.status})` };
+        // DRAFT|ISSUED may be accepted — a DRAFT acceptance implies issue:
+        // the procurement commitment + pending cost entry post exactly as the
+        // staff /issue route does, so the ledger stays honest.
+        if (!['DRAFT', 'ISSUED'].includes(existing.status)) {
+          throw { status: 409, message: `Only issued purchase orders can be accepted (current: ${existing.status})` };
+        }
+        let commitmentId: string | null = (existing as any).commitment_id ?? null;
+        if (existing.status === 'DRAFT') {
+          const latest = await tx.commitment.findFirst({
+            where: { project_id: link.project_id },
+            orderBy: { commitment_no: 'desc' },
+            select: { commitment_no: true },
+          });
+          const commitment = await tx.commitment.create({
+            data: {
+              tenant_id: link.tenant_id,
+              project_id: link.project_id,
+              commitment_no: (latest?.commitment_no ?? 0) + 1,
+              vendor_name: existing.supplier.name,
+              vendor_type: 'SUPPLIER',
+              contract_value: existing.total_amount_kes.toString(),
+              status: 'ACTIVE',
+            },
+          });
+          commitmentId = commitment.id;
+          await tx.costEntry.create({
+            data: {
+              tenant_id: link.tenant_id,
+              project_id: link.project_id,
+              commitment_id: commitment.id,
+              cost_category: 'MATERIAL',
+              amount: existing.total_amount_kes.toString(),
+              vendor_name: existing.supplier.name,
+              description: `PO ${existing.po_number} accepted via supplier portal — ${existing.items.length} line(s), committed spend`,
+              invoice_ref: existing.po_number,
+              status: 'PENDING',
+              // created_by_id is a users FK — the portal link id is not a user;
+              // attribute the ledger row to the staff member who raised the PO.
+              created_by_id: (existing as any).created_by_id ?? null,
+            },
+          });
         }
         const updated = await tx.purchaseOrder.update({
           where: { id: existing.id },
-          data: { status: 'ACCEPTED', expected_delivery_date: new Date(`${body.expectedDeliveryDate}T00:00:00Z`) },
+          data: {
+            status: 'ACCEPTED',
+            expected_delivery_date: new Date(`${body.expectedDeliveryDate}T00:00:00Z`),
+            ...(existing.status === 'DRAFT' ? { issued_at: new Date(), commitment_id: commitmentId } : {}),
+          },
         });
         await recordAuditLog(tx, {
           tenantId: link.tenant_id,
@@ -1590,8 +1693,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     if (!link.supplier_id) {
       return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'This portal link is not bound to a supplier record' });
     }
-    const body = request.body as { reference?: string; amount?: number | string; purchaseOrderItemId?: string; note?: string };
-    if (!body?.reference || String(body.reference).trim().length < 2) {
+    const body = request.body as {
+      reference?: string; invoiceRef?: string; amount?: number | string;
+      purchaseOrderItemId?: string; note?: string; taxAmount?: number | string;
+      submittedAt?: string; replacesInvoiceRef?: string;
+    };
+    // `invoiceRef` is the auditor-contract alias for `reference`.
+    const invoiceRef = (body?.reference ?? body?.invoiceRef ?? '').toString().trim();
+    if (invoiceRef.length < 2) {
       return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invoice reference is required' });
     }
     let amount: ReturnType<typeof toDecimal>;
@@ -1637,12 +1746,21 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         const poTotal = toDecimal(po.total_amount_kes.toString());
         const overInvoiced = invoicedToDate.plus(amount).gt(poTotal);
 
+        // replacesInvoiceRef: the corrected invoice supersedes the rejected
+        // one — mark the original REJECTED so match maths ignore it.
+        if (body.replacesInvoiceRef) {
+          await tx.purchaseOrderInvoice.updateMany({
+            where: { purchase_order_id: po.id, reference: String(body.replacesInvoiceRef).trim(), status: { not: 'REJECTED' } },
+            data: { status: 'REJECTED', note: `Superseded by ${invoiceRef}` },
+          });
+        }
+
         const invoice = await tx.purchaseOrderInvoice.create({
           data: {
             tenant_id: link.tenant_id,
             purchase_order_id: po.id,
             purchase_order_item_id: itemId,
-            reference: String(body.reference).trim(),
+            reference: invoiceRef,
             amount: amount.toFixed(2),
             status: overInvoiced ? 'REVIEW_REQUIRED' : 'SUBMITTED',
             note: body.note || null,
@@ -1769,6 +1887,9 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           code: project?.code,
           status: project?.status,
         },
+        // passRate stays null until real cube-test breaks exist — surfaced at
+        // top level too so clients never have to guess (Stage-4 contract).
+        data: { passRate },
         complianceSummary: {
           // Only record-backed figures: cube-test pass rate, inspection count.
           // NCA registration / levy clearance / supervisor certification are

@@ -395,7 +395,7 @@ export default function CreateVariationModal({
 </div>
 
 <div className="flex items-center gap-2">
-<span className="font-mono font-bold text-slate-800">
+<span className="tabular-nums font-bold text-slate-800">
                         Line Total: {itemCalculations.lineTotals[index]?.formatted || formatKes(0)}
 </span>
                       {items.length > 1 && (
@@ -502,7 +502,7 @@ export default function CreateVariationModal({
 </div>
 <div className="text-right">
 <span
-                className={`text-lg font-mono font-bold ${
+                className={`text-lg tabular-nums font-bold ${
                   isNetPositive ? 'text-emerald-400' : 'text-amber-400'
 }`}
               >

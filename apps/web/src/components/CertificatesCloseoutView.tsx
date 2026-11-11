@@ -517,7 +517,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 <div key={c.id} className="border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 <div className="space-y-1">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">IPC-{String(c.certificate_no).padStart(3, '0')}</span>
+<span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">IPC-{String(c.certificate_no).padStart(3, '0')}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${CERT_STATUS_STYLES[c.status] || CERT_STATUS_STYLES.DRAFT}`}>
                     {c.status.replace(/_/g, ' ')}
 </span>
@@ -538,7 +538,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 </div>
 </div>
 <div className="flex items-center gap-3">
-<span className="text-sm font-mono font-bold text-emerald-700">{formatKes(c.net_payable)}</span>
+<span className="text-sm tabular-nums font-bold text-emerald-700">{formatKes(c.net_payable)}</span>
                 {canManage && (
 <div className="flex gap-1.5 flex-wrap">
                     {c.status === 'DRAFT' && (

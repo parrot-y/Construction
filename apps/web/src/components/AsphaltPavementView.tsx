@@ -475,7 +475,7 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 <tr key={batch.id} className="hover:bg-gray-50 transition">
 <td className="px-4 py-3">
 <div className="font-semibold text-gray-900">{batch.ticketNumber}</div>
-<div className="text-xs text-gray-500 font-mono mt-0.5">{batch.truckRegNo}</div>
+<div className="text-xs text-gray-500 font-mono tabular-nums mt-0.5">{batch.truckRegNo}</div>
 <div className="text-[11px] text-gray-400">{batch.supplierName}</div>
 </td>
 <td className="px-4 py-3">

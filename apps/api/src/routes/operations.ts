@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
+import { notifyTeam } from '../lib/notify';
 import {
   CreateScheduleTaskSchema,
   UpdateScheduleTaskSchema,
@@ -474,7 +475,7 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
     '/api/v1/projects/:projectId/safety-incidents',
     { preHandler: [server.authenticate] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, fullName } = request.user as any;
       const { projectId } = request.params as { projectId: string };
       const idempotencyKey = (request.headers['idempotency-key'] as string | undefined)?.trim();
 
@@ -525,7 +526,7 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
               immediate_action: data.immediateAction,
               preventative_action: data.preventativeAction,
               is_osha_reportable: data.isOshaReportable,
-              investigated_by: data.investigatedBy,
+              investigated_by: data.investigatedBy ?? fullName ?? 'Site team',
             },
           });
 
@@ -536,6 +537,15 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
             entityType: 'SafetyIncident',
             entityId: created.id,
             projectId,
+          });
+
+          // Supervisor/PM must hear about a safety incident immediately.
+          await notifyTeam(tx, {
+            tenantId,
+            projectId,
+            senderId: sub,
+            senderName: fullName || 'Site team',
+            body: `Safety incident reported${data.incidentType ? ` (${String(data.incidentType).replace(/_/g, ' ').toLowerCase()})` : ''}${data.exactLocation ? ` at ${data.exactLocation}` : ''}: ${String(data.description).slice(0, 140)}`,
           });
 
           // Keep the historical response shape (the incident object itself)
@@ -694,6 +704,104 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
         request.log.error(err, 'Failed to register project document');
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to register document' });
       }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // Drawings register aliases — the auditor contract path is /drawings; it is
+  // the same ProjectDocument register filtered to drawing categories, with
+  // auditor field names mapped onto the canonical document columns.
+  // ---------------------------------------------------------------------------
+  server.get(
+    '/api/v1/projects/:projectId/drawings',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const project = await tx.project.findFirst({ where: { id: projectId } });
+        if (!project) throw { status: 404, message: 'Project not found' };
+        const documents = await tx.projectDocument.findMany({
+          where: {
+            project_id: projectId,
+            OR: [{ drawing_reference: { not: null } }, { category: { contains: 'DRAWING' } }],
+          },
+          include: { acknowledgements: { orderBy: { acknowledged_at: 'asc' } } },
+          orderBy: { created_at: 'desc' },
+        });
+        return documents.map((d) => ({
+          ...d,
+          drawingNo: d.drawing_reference,
+          revision: d.revision_code,
+          issuedAt: d.issued_date,
+          acknowledgements: (d.acknowledgements || []).map((a) => ({
+            id: a.id,
+            portalLinkId: a.portal_link_id,
+            stakeholderName: a.stakeholder_name,
+            acknowledgedAt: a.acknowledged_at,
+          })),
+        }));
+      }).catch((err: any) => {
+        if (err?.status) return { __err: err };
+        throw err;
+      });
+      if ((result as any)?.__err) {
+        return reply.status((result as any).__err.status).send({ statusCode: (result as any).__err.status, error: 'Not Found', message: (result as any).__err.message });
+      }
+      return reply.status(200).send({ data: result });
+    },
+  );
+
+  server.post(
+    '/api/v1/projects/:projectId/drawings',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub, fullName } = request.user as any;
+      const { projectId } = request.params as { projectId: string };
+      if (!UUID_REGEX.test(projectId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
+      const body = (request.body || {}) as Record<string, any>;
+      const title = String(body.title || '').trim();
+      const storageKey = String(body.storageKey || '').trim();
+      if (title.length < 2 || storageKey.length < 3) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'title and storageKey are required' });
+      }
+      const drawing = await withTenantTx(prisma, tenantId, async (tx) => {
+        const project = await tx.project.findFirst({ where: { id: projectId } });
+        if (!project) throw { status: 404, message: 'Project not found' };
+        const created = await tx.projectDocument.create({
+          data: {
+            tenant_id: tenantId,
+            project_id: projectId,
+            title,
+            category: body.category || 'ARCHITECTURAL_DRAWING',
+            drawing_reference: body.drawingNo ?? body.drawingReference ?? null,
+            revision_code: body.revision ?? body.revisionCode ?? 'Rev 0',
+            storage_key: storageKey,
+            status: body.status || 'APPROVED_FOR_CONSTRUCTION',
+            uploaded_by_name: body.uploadedByName || fullName || 'Project team',
+            notes: body.notes || null,
+            issued_date: (body.issuedAt ?? body.issuedDate) ? new Date(`${body.issuedAt ?? body.issuedDate}T00:00:00.000Z`) : null,
+          },
+        });
+        await recordAuditLog(tx, {
+          tenantId, actorId: sub, action: 'PROJECT_DRAWING_REGISTERED',
+          entityType: 'ProjectDocument', entityId: created.id, projectId,
+          changes: { drawingNo: created.drawing_reference, revision: created.revision_code },
+        });
+        return created;
+      }).catch((err: any) => {
+        if (err?.status) return { __err: err };
+        throw err;
+      });
+      if ((drawing as any)?.__err) {
+        return reply.status((drawing as any).__err.status).send({ statusCode: (drawing as any).__err.status, error: 'Not Found', message: (drawing as any).__err.message });
+      }
+      return reply.status(201).send({ data: drawing });
     },
   );
 

@@ -457,7 +457,7 @@ export default function ContractorTenderBoardView({
           >
 <div>
 <div className="flex justify-between items-start gap-2">
-<span className="font-mono text-xs font-bold text-slate-700">{tender.tenderRef}</span>
+<span className="tabular-nums text-xs font-bold text-slate-700">{tender.tenderRef}</span>
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(tender.status)}`}>
                   {tender.status}
 </span>
@@ -469,7 +469,7 @@ export default function ContractorTenderBoardView({
 <div className="mt-3 pt-2 border-t border-slate-200/60 text-xs">
 <div className="flex justify-between items-center text-[11px]">
 <span className="text-slate-500">Est. Budget:</span>
-<span className="font-mono font-bold text-slate-900">KES {toCurrencyString(tender.estimatedBudgetKes)}</span>
+<span className="tabular-nums font-bold text-slate-900">KES {toCurrencyString(tender.estimatedBudgetKes)}</span>
 </div>
 <div className="flex justify-between items-center text-[10px] text-slate-500 mt-0.5">
 <span>Deadline: {tender.submissionDeadline}</span>
@@ -487,7 +487,7 @@ export default function ContractorTenderBoardView({
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
 <div className="flex items-center gap-2">
-<span className="font-mono text-sm font-bold text-purple-800">{activeTender.tenderRef}</span>
+<span className="tabular-nums text-sm font-bold text-purple-800">{activeTender.tenderRef}</span>
 <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${getStatusBadge(activeTender.status)}`}>
                   {activeTender.status}
 </span>
@@ -500,7 +500,7 @@ export default function ContractorTenderBoardView({
 <span className="text-[10px] font-semibold text-slate-400 block">
                 Estimated Project Budget
 </span>
-<span className="text-base font-mono font-bold text-slate-900">
+<span className="text-base tabular-nums font-bold text-slate-900">
                 KES {toCurrencyString(activeTender.estimatedBudgetKes)}
 </span>
 <span className="text-[11px] text-slate-500 block">Deadline: {activeTender.submissionDeadline}</span>
@@ -520,10 +520,10 @@ export default function ContractorTenderBoardView({
 <div className="flex items-center gap-2">
 <span className="text-base"></span>
 <span className="font-bold text-emerald-900">Official Tender Award Notice</span>
-<span className="text-[10px] font-mono text-emerald-700 ml-auto">{activeTender.awardedAt}</span>
+<span className="text-[10px] tabular-nums text-emerald-700 ml-auto">{activeTender.awardedAt}</span>
 </div>
 <p className="text-emerald-800">
-                Contract officially awarded to<strong className="font-bold">{awardedBid.contractorName}</strong> ({awardedBid.ncaCategory}) at the competitively evaluated sum of<strong className="font-mono font-bold">KES {toCurrencyString(awardedBid.bidAmountKes)}</strong>.
+                Contract officially awarded to<strong className="font-bold">{awardedBid.contractorName}</strong> ({awardedBid.ncaCategory}) at the competitively evaluated sum of<strong className="tabular-nums font-bold">KES {toCurrencyString(awardedBid.bidAmountKes)}</strong>.
 </p>
 </div>
 )}
@@ -602,7 +602,7 @@ export default function ContractorTenderBoardView({
                             {bid.ncaCategory} • {bid.contactPerson} ({bid.contactPhone})
 </span>
 </td>
-<td className="py-3 px-3 font-mono font-bold text-slate-900">
+<td className="py-3 px-3 tabular-nums font-bold text-slate-900">
                           KES {toCurrencyString(bid.bidAmountKes)}
 </td>
 <td className="py-3 px-3 font-medium text-slate-700">
@@ -610,18 +610,18 @@ export default function ContractorTenderBoardView({
 </td>
 <td className="py-3 px-3">
 <span className="font-bold text-blue-700">{bid.technicalScore.toFixed(1)} / 100</span>
-<span className="text-[10px] text-slate-400 block font-mono">
+<span className="text-[10px] text-slate-400 block tabular-nums">
                             Weighted: {(bid.technicalScore * 0.7).toFixed(1)}
 </span>
 </td>
 <td className="py-3 px-3">
 <span className="font-bold text-emerald-700">{bid.financialScore.toFixed(1)} / 100</span>
-<span className="text-[10px] text-slate-400 block font-mono">
+<span className="text-[10px] text-slate-400 block tabular-nums">
                             Weighted: {(bid.financialScore * 0.3).toFixed(1)}
 </span>
 </td>
 <td className="py-3 px-3">
-<span className="text-sm font-bold font-mono text-purple-900">
+<span className="text-sm font-bold tabular-nums text-purple-900">
                             {bid.combinedScore.toFixed(2)} pts
 </span>
 </td>
@@ -666,19 +666,19 @@ export default function ContractorTenderBoardView({
 <div className="space-y-1 text-[11px] pt-1">
 <div className="flex justify-between text-slate-600">
 <span>Direct Labor:</span>
-<span className="font-mono">KES {toCurrencyString(b.tradeBreakdown.labor)}</span>
+<span className="tabular-nums">KES {toCurrencyString(b.tradeBreakdown.labor)}</span>
 </div>
 <div className="flex justify-between text-slate-600">
 <span>Materials Supply:</span>
-<span className="font-mono">KES {toCurrencyString(b.tradeBreakdown.materials)}</span>
+<span className="tabular-nums">KES {toCurrencyString(b.tradeBreakdown.materials)}</span>
 </div>
 <div className="flex justify-between text-slate-600">
 <span>Plant &amp; Equipment:</span>
-<span className="font-mono">KES {toCurrencyString(b.tradeBreakdown.plantEquipment)}</span>
+<span className="tabular-nums">KES {toCurrencyString(b.tradeBreakdown.plantEquipment)}</span>
 </div>
 <div className="flex justify-between text-slate-600">
 <span>Preliminaries &amp; Overheads:</span>
-<span className="font-mono">KES {toCurrencyString(b.tradeBreakdown.preliminaries)}</span>
+<span className="tabular-nums">KES {toCurrencyString(b.tradeBreakdown.preliminaries)}</span>
 </div>
 </div>
 </div>
@@ -934,7 +934,7 @@ export default function ContractorTenderBoardView({
                       type="text"
                       value={bidLabor}
                       onChange={(e) => setBidLabor(e.target.value)}
-                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-900 font-mono"
+                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-900 tabular-nums"
                     />
 </div>
 <div>
@@ -943,7 +943,7 @@ export default function ContractorTenderBoardView({
                       type="text"
                       value={bidMaterials}
                       onChange={(e) => setBidMaterials(e.target.value)}
-                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-900 font-mono"
+                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-900 tabular-nums"
                     />
 </div>
 <div>
@@ -952,7 +952,7 @@ export default function ContractorTenderBoardView({
                       type="text"
                       value={bidPlant}
                       onChange={(e) => setBidPlant(e.target.value)}
-                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-900 font-mono"
+                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-900 tabular-nums"
                     />
 </div>
 <div>
@@ -961,7 +961,7 @@ export default function ContractorTenderBoardView({
                       type="text"
                       value={bidPrelims}
                       onChange={(e) => setBidPrelims(e.target.value)}
-                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-900 font-mono"
+                      className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-slate-900 tabular-nums"
                     />
 </div>
 </div>

@@ -281,7 +281,7 @@ export default function VariationManagementView({
               >
 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
                       CO-{String(vo.variation_no).padStart(4, '0')}
 </span>
 <h4 className="text-xs font-bold text-slate-900">{vo.title}</h4>
@@ -300,7 +300,7 @@ export default function VariationManagementView({
 <div className="flex items-center gap-3">
 <div className="text-right">
 <span
-                        className={`text-xs font-mono font-bold block ${
+                        className={`text-xs tabular-nums font-bold block ${
                           isPositive ? 'text-emerald-700' : 'text-amber-700'
 }`}
                       >
@@ -362,12 +362,12 @@ export default function VariationManagementView({
                                       {isAddition ? 'ADDITION' : 'OMISSION'}
 </span>
 </td>
-<td className="p-2.5 font-mono">
+<td className="p-2.5 tabular-nums">
                                     {isAddition ? `+${item.quantity}` : `${item.quantity}`} {item.unit}
 </td>
-<td className="p-2.5 font-mono">{formatKes(item.unit_rate)}</td>
+<td className="p-2.5 tabular-nums">{formatKes(item.unit_rate)}</td>
 <td
-                                    className={`p-2.5 font-mono font-bold text-right ${
+                                    className={`p-2.5 tabular-nums font-bold text-right ${
                                       itemTotalNum >= 0 ? 'text-emerald-700' : 'text-rose-700'
 }`}
                                   >
@@ -388,7 +388,7 @@ export default function VariationManagementView({
 <ul className="space-y-1.5">
                           {vo.events.map((ev) => (
 <li key={ev.id} className="flex items-start gap-2 text-[11px] text-slate-600">
-<span className="font-mono text-slate-400 shrink-0">
+<span className="font-mono tabular-nums text-slate-400 shrink-0">
                                 {new Date(ev.created_at).toLocaleString()}
 </span>
 <span>

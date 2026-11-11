@@ -1278,7 +1278,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               reference_doc: data.referenceDoc ?? null,
               assigned_trade_firm: data.assignedTradeFirm,
               due_date: data.dueDate ? new Date(`${data.dueDate}T00:00:00.000Z`) : null,
-              identified_by_name: data.identifiedByName,
+              identified_by_name: data.identifiedByName ?? (request.user as any).full_name ?? (request.user as any).email ?? 'Field reporter',
               photos: data.photos?.length
                 ? {
                     create: data.photos.map((p) => ({
@@ -1399,11 +1399,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     },
   );
 
-  // 4.3 PUT /api/v1/projects/:projectId/snags/:snagId/status - Update Snag Status
-  server.put(
-    '/api/v1/projects/:projectId/snags/:snagId/status',
-    { preHandler: [server.authenticate] },
-    async (request, reply) => {
+  // 4.3 PUT|PATCH /api/v1/projects/:projectId/snags/:snagId/status - Update Snag Status
+  const snagStatusHandler = async (request: any, reply: any) => {
       const { tenantId, sub, fullName } = request.user;
       const { projectId, snagId } = request.params as { projectId: string; snagId: string };
 
@@ -1543,8 +1540,11 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           message: err.message,
         });
       }
-    },
-  );
+  };
+
+  server.put('/api/v1/projects/:projectId/snags/:snagId/status', { preHandler: [server.authenticate] }, snagStatusHandler);
+
+  server.patch('/api/v1/projects/:projectId/snags/:snagId/status', { preHandler: [server.authenticate] }, snagStatusHandler);
 
   // 4.4 GET /api/v1/projects/:projectId/snags/:snagId - Snag detail (comments + distributions)
   server.get(

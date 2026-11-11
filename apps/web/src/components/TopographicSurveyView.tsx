@@ -677,7 +677,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           x={padLeft - 10}
           y={zeroY + 4}
           textAnchor="end"
-          className="text-[10px] font-mono fill-slate-700 font-bold"
+          className="text-[10px] tabular-nums fill-slate-700 font-bold"
         >
           0 m³ (Datum)
 </text>
@@ -687,7 +687,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           x={padLeft - 10}
           y={padTop + 10}
           textAnchor="end"
-          className="text-[10px] font-mono fill-emerald-600 font-semibold"
+          className="text-[10px] tabular-nums fill-emerald-600 font-semibold"
         >
           +{Math.round(maxY)} m³
 </text>
@@ -695,7 +695,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           x={padLeft - 10}
           y={svgHeight - padBottom}
           textAnchor="end"
-          className="text-[10px] font-mono fill-rose-600 font-semibold"
+          className="text-[10px] tabular-nums fill-rose-600 font-semibold"
         >
           {Math.round(minY)} m³
 </text>
@@ -713,7 +713,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
               x={pt.x}
               y={svgHeight - padBottom + 18}
               textAnchor="middle"
-              className="text-[10px] font-mono fill-slate-600"
+              className="text-[10px] tabular-nums fill-slate-600"
             >
               {pt.label}
 </text>
@@ -728,7 +728,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
               x={bp.x}
               y={bp.y - 10}
               textAnchor="middle"
-              className="text-[9px] font-bold font-mono fill-amber-700 bg-white"
+              className="text-[9px] font-bold tabular-nums fill-amber-700 bg-white"
             >
               BP Ch {Math.round(bp.chainageApprox)}m
 </text>
@@ -796,7 +796,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 <span className="font-semibold text-slate-900">{projectName}</span>
 <span className="mx-2 text-slate-300">|</span>
 <span className="text-slate-500 font-medium">Survey Code:</span>{' '}
-<span className="font-mono font-semibold text-indigo-700">{activeSurvey.surveyCode}</span>
+<span className="tabular-nums font-semibold text-indigo-700">{activeSurvey.surveyCode}</span>
 <span className="mx-2 text-slate-300">|</span>
 <span className="text-slate-500 font-medium">Title:</span>{' '}
 <span className="font-medium text-slate-800">{activeSurvey.title}</span>
@@ -824,7 +824,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 <span className="text-xs font-semibold ">Total Cut Volume</span>
 <span className="text-lg"></span>
 </div>
-<p className="text-xl font-bold font-mono text-emerald-950">
+<p className="text-xl font-bold tabular-nums text-emerald-950">
               {Number(activeSurvey.totalCutVolumeM3).toLocaleString('en-KE', { minimumFractionDigits: 3})}
 <span className="text-xs font-sans font-normal text-emerald-700 ml-1">m³ bank</span>
 </p>
@@ -837,7 +837,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 <span className="text-xs font-semibold ">Total Fill Volume</span>
 <span className="text-lg"></span>
 </div>
-<p className="text-xl font-bold font-mono text-rose-950">
+<p className="text-xl font-bold tabular-nums text-rose-950">
               {Number(activeSurvey.totalFillVolumeM3).toLocaleString('en-KE', { minimumFractionDigits: 3})}
 <span className="text-xs font-sans font-normal text-rose-700 ml-1">m³ compact</span>
 </p>
@@ -856,7 +856,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 </span>
 <span className="text-lg">{isCutSurplus ? '' : ''}</span>
 </div>
-<p className={`text-xl font-bold font-mono ${
+<p className={`text-xl font-bold tabular-nums ${
               isCutSurplus ? 'text-amber-950' : 'text-indigo-950'
 }`}>
               {netBalanceNum > 0 ? `+${netBalanceNum.toLocaleString('en-KE', { minimumFractionDigits: 3})}` : netBalanceNum.toLocaleString('en-KE', { minimumFractionDigits: 3})}
@@ -873,7 +873,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 <span className="text-xs font-semibold ">Economic Haul Limit</span>
 <span className="text-lg"></span>
 </div>
-<p className="text-xl font-bold font-mono text-blue-950">
+<p className="text-xl font-bold tabular-nums text-blue-950">
               {Number(activeSurvey.economicHaulLimitMeters).toFixed(2)}
 <span className="text-xs font-sans font-normal text-blue-700 ml-1">m</span>
 </p>
@@ -886,7 +886,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 <span className="text-xs font-semibold ">Total Overhaul Cost</span>
 <span className="text-lg"></span>
 </div>
-<p className="text-xl font-bold font-mono text-slate-900">
+<p className="text-xl font-bold tabular-nums text-slate-900">
               KES {Number(activeSurvey.totalOverhaulCostKes).toLocaleString('en-KE', { minimumFractionDigits: 2})}
 </p>
 <p className="text-[11px] text-slate-500">Rate: KES {activeSurvey.overhaulUnitRateKes}/m³-km</p>
@@ -1236,14 +1236,14 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 <tbody className="divide-y divide-slate-100">
                       {formStations.map((st, idx) => (
 <tr key={idx} className="hover:bg-slate-50">
-<td className="p-2 font-mono text-slate-400">{idx}</td>
+<td className="p-2 tabular-nums text-slate-400">{idx}</td>
 <td className="p-2">
 <input
                               type="number"
                               step="0.01"
                               value={st.chainageMeters}
                               onChange={(e) => handleStationFieldChange(idx, 'chainageMeters', e.target.value)}
-                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg font-mono focus:ring-1 focus:ring-indigo-500"
+                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg tabular-nums focus:ring-1 focus:ring-indigo-500"
                             />
 </td>
 <td className="p-2">
@@ -1251,7 +1251,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
                               type="text"
                               value={st.chainageLabel}
                               onChange={(e) => handleStationFieldChange(idx, 'chainageLabel', e.target.value)}
-                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg font-mono focus:ring-1 focus:ring-indigo-500"
+                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg tabular-nums focus:ring-1 focus:ring-indigo-500"
                             />
 </td>
 <td className="p-2">
@@ -1260,7 +1260,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
                               step="0.001"
                               value={st.existingGroundLevelM}
                               onChange={(e) => handleStationFieldChange(idx, 'existingGroundLevelM', e.target.value)}
-                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg font-mono focus:ring-1 focus:ring-indigo-500"
+                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg tabular-nums focus:ring-1 focus:ring-indigo-500"
                             />
 </td>
 <td className="p-2">
@@ -1269,7 +1269,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
                               step="0.001"
                               value={st.proposedFormationLevelM}
                               onChange={(e) => handleStationFieldChange(idx, 'proposedFormationLevelM', e.target.value)}
-                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg font-mono focus:ring-1 focus:ring-indigo-500"
+                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg tabular-nums focus:ring-1 focus:ring-indigo-500"
                             />
 </td>
 <td className="p-2">
@@ -1279,7 +1279,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
                               min="0"
                               value={st.cutAreaM2}
                               onChange={(e) => handleStationFieldChange(idx, 'cutAreaM2', e.target.value)}
-                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg font-mono text-emerald-700 font-semibold focus:ring-1 focus:ring-indigo-500"
+                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg tabular-nums text-emerald-700 font-semibold focus:ring-1 focus:ring-indigo-500"
                             />
 </td>
 <td className="p-2">
@@ -1289,7 +1289,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
                               min="0"
                               value={st.fillAreaM2}
                               onChange={(e) => handleStationFieldChange(idx, 'fillAreaM2', e.target.value)}
-                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg font-mono text-rose-700 font-semibold focus:ring-1 focus:ring-indigo-500"
+                              className="w-24 px-2 py-1 text-xs border border-slate-200 rounded-lg tabular-nums text-rose-700 font-semibold focus:ring-1 focus:ring-indigo-500"
                             />
 </td>
 <td className="p-2">
@@ -1300,7 +1300,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
                               placeholder="Opt. Am"
                               value={st.midCutAreaM2}
                               onChange={(e) => handleStationFieldChange(idx, 'midCutAreaM2', e.target.value)}
-                              className="w-20 px-2 py-1 text-xs border border-slate-200 rounded-lg font-mono text-slate-600 focus:ring-1 focus:ring-indigo-500"
+                              className="w-20 px-2 py-1 text-xs border border-slate-200 rounded-lg tabular-nums text-slate-600 focus:ring-1 focus:ring-indigo-500"
                             />
 </td>
 <td className="p-2">

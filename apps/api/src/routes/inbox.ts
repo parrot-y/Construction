@@ -84,6 +84,26 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     },
   );
 
+  // GET /api/v1/notifications — alias of the inbox feed under the name the
+  // auditor contract uses for "in-app notifications for the logged-in user".
+  server.get(
+    '/api/v1/notifications',
+    { preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      try {
+        const data = await withTenantTx(prisma, tenantId, async (tx) => {
+          const msgs = await visibleWhere(tx, tenantId, sub, role);
+          return msgs.map(format);
+        });
+        return reply.status(200).send({ data, count: data.length });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load notifications' });
+      }
+    },
+  );
+
   // POST /api/v1/inbox — send message
   server.post(
     '/api/v1/inbox',

@@ -360,7 +360,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 </span>
 <div>
 <div className="text-sm font-bold text-slate-900 dark:text-white">
-                      {log.senderName}<span className="font-mono text-xs font-normal text-slate-500">({log.senderPhone})</span>
+                      {log.senderName}<span className="tabular-nums text-xs font-normal text-slate-500">({log.senderPhone})</span>
 </div>
 <div className="text-[11px] text-slate-400">
                       {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})} • Via Meta WhatsApp Cloud API
@@ -446,7 +446,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                         {alt.recipientRole}
 </span>
 </td>
-<td className="py-3 px-4 font-mono text-xs">{alt.recipientPhone}</td>
+<td className="py-3 px-4 tabular-nums text-xs">{alt.recipientPhone}</td>
 <td className="py-3 px-4">
 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
                          {alt.alertType.replace(/_/g, ' ')}
@@ -500,7 +500,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                     type="text"
                     value={senderPhone}
                     onChange={(e) => setSenderPhone(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -573,7 +573,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                     type="text"
                     value={recipientPhone}
                     onChange={(e) => setRecipientPhone(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>

@@ -602,7 +602,9 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     {
       preHandler: [
         server.authenticate,
-        requirePermission(Permissions.PROJECT_VIEW),
+        // Budget vs actuals is contractor financial data — clients and other
+        // portal roles must never read it (auditor stage-2 contract).
+        requirePermission(Permissions.COST_VIEW),
       ],
     },
     async (request, reply) => {

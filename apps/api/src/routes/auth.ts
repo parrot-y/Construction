@@ -194,6 +194,12 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       }
     };
 
+    // Field workers sign in with { phone, pin } on the standard login endpoint.
+    const body0 = request.body as { phone?: string; pin?: string } | undefined;
+    if (body0 && typeof body0.phone === 'string' && typeof body0.pin === 'string') {
+      return handleFieldLogin(request, reply);
+    }
+
     const parseResult = LoginRequestSchema.safeParse(request.body);
     if (!parseResult.success) {
       return reply.status(400).send({
@@ -260,13 +266,10 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.status(200).send(session.response);
   });
 
-  // POST /api/v1/auth/field-login — phone + PIN sign-in for field roles
-  // (FOREMAN, WORKER, SITE_ENGINEER, TRADE_LEAD). PINs are stored hashed;
-  // failed attempts lock the account PIN for 15 minutes after 5 failures,
-  // independent of the password lockout.
-  server.post('/api/v1/auth/field-login', {
-    config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
-  }, async (request, reply) => {
+  // Shared phone + PIN sign-in used by both /auth/field-login and /auth/login
+  // (field workers authenticate with { phone, pin } on the standard login
+  // endpoint too — a basic phone has no email/password form).
+  const handleFieldLogin = async (request: any, reply: any) => {
     const clientIp = request.ip || '127.0.0.1';
     const parsed = FieldLoginSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -341,7 +344,15 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       });
     }
     return reply.status(200).send(session.response);
-  });
+  };
+
+  // POST /api/v1/auth/field-login — phone + PIN sign-in for field roles
+  // (FOREMAN, WORKER, SITE_ENGINEER, TRADE_LEAD). PINs are stored hashed;
+  // failed attempts lock the account PIN for 15 minutes after 5 failures,
+  // independent of the password lockout.
+  server.post('/api/v1/auth/field-login', {
+    config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+  }, handleFieldLogin);
 
   // POST /api/v1/auth/register-company
   // Self-serve tenant onboarding: creates tenant + first COMPANY_ADMIN user +
@@ -399,6 +410,16 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             full_name: adminFullName.trim(),
             phone_number: phone && phone.trim() ? phone.trim() : null,
             country: 'Kenya',
+            // Pilot behaviour: outside production, self-serve sign-up is
+            // treated as verified (delivery is simulated). In production the
+            // account stays PENDING until a provider confirms or an operator
+            // activates it (docs/DEPLOY.md §7).
+            ...(process.env.NODE_ENV === 'development'
+              ? {
+                  email_verified_at: new Date(),
+                  ...(phone && phone.trim() ? { phone_verified_at: new Date() } : {}),
+                }
+              : {}),
           },
         });
         const membership = await tx.membership.create({

@@ -321,7 +321,8 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
           });
           const maxCapAmountDec = originalBudgetDec.times(0.05);
           const defaultRetentionTerms = {
-            interim_deduction_rate: '10%',
+            retention_pct: 5,
+            interim_deduction_rate: '5%',
             max_cap_rate: '5%',
             max_cap_amount: toCurrencyString(maxCapAmountDec),
             release_schedule: [
@@ -355,9 +356,12 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
                   description: s.description ?? null,
                 }))
               : scheduleRaw;
+            const interim = pct(src.interim_deduction_rate ?? src.interimDeductionRatePct) ?? defaultRetentionTerms.interim_deduction_rate;
             return {
               ...src,
-              interim_deduction_rate: pct(src.interim_deduction_rate ?? src.interimDeductionRatePct) ?? defaultRetentionTerms.interim_deduction_rate,
+              // Convenience numeric mirror for API consumers (e.g. "5%" -> 5).
+              retention_pct: src.retention_pct ?? src.retentionPct ?? (interim ? parseFloat(String(interim)) : undefined),
+              interim_deduction_rate: interim,
               max_cap_rate: pct(src.max_cap_rate ?? src.maxCapRatePct) ?? defaultRetentionTerms.max_cap_rate,
               max_cap_amount: src.max_cap_amount ?? src.maxCapAmount ?? defaultRetentionTerms.max_cap_amount,
               release_schedule: schedule ?? defaultRetentionTerms.release_schedule,
@@ -366,6 +370,38 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
           const retention_terms = tenantRow?.retention_terms
             ? normalizeRetentionTerms(tenantRow.retention_terms)
             : defaultRetentionTerms;
+
+          // Client-visible invoices with balances and payment history —
+          // mirrors what the token portal shows (Stage-2 contract).
+          const invoicesRaw = await tx.invoice.findMany({
+            where: { project_id: projectId },
+            orderBy: { created_at: 'desc' },
+            include: { payments: { orderBy: { paid_at: 'desc' } } },
+          });
+          const invoices = invoicesRaw.map((inv: any) => ({
+            id: inv.id,
+            invoice_id: inv.id,
+            invoice_no: inv.invoice_no,
+            title: inv.title,
+            status: inv.status,
+            currency: inv.currency,
+            subtotal: toCurrencyString(inv.subtotal?.toString()),
+            tax_amount: toCurrencyString(inv.tax_amount?.toString()),
+            total: toCurrencyString(inv.total?.toString()),
+            amount_paid: toCurrencyString(inv.amount_paid?.toString()),
+            paid: toCurrencyString(inv.amount_paid?.toString()),
+            balance_due: toCurrencyString(inv.balance_due?.toString()),
+            balance: toCurrencyString(inv.balance_due?.toString()),
+            issue_date: inv.issue_date ? inv.issue_date.toISOString().split('T')[0] : null,
+            due_date: inv.due_date ? inv.due_date.toISOString().split('T')[0] : null,
+            payments: (inv.payments ?? []).map((pay: any) => ({
+              id: pay.id,
+              amount: toCurrencyString(pay.amount?.toString()),
+              method: pay.method,
+              reference: pay.reference,
+              paid_at: pay.paid_at ? pay.paid_at.toISOString() : null,
+            })),
+          }));
 
           return {
             project: {
@@ -396,6 +432,13 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             timeline,
             pending_variations,
             payment_certificates,
+            invoices,
+            // Top-level budget mirrors (auditor contract reads them directly,
+            // not nested under financials).
+            original_agreed_budget: toCurrencyString(originalBudgetDec),
+            approved_variations_total: toCurrencyString(approvedVariationsTotalDec),
+            current_approved_budget: toCurrencyString(currentApprovedBudgetDec),
+            total_spent_to_date: toCurrencyString(totalSpentDec),
             retention_terms,
             payment_instructions: tenantRow?.payment_instructions ?? null,
           };
@@ -428,6 +471,8 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
   // Client-initiated project requests ("Request a project" portal flow)
   // ---------------------------------------------------------------------------
   const PROJECT_TYPES = [
+    // Auditor contract sends enum-style types; keep both vocabularies.
+    'RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'INSTITUTIONAL', 'OTHER_WORKS',
     'New house / bungalow', 'Maisonette or villa', 'Apartments / flats',
     'Commercial building', 'Renovation / remodeling', 'Kitchen or bathroom remodel',
     'Interior design & finishes', 'Fencing & gates', 'Borehole / water works',
@@ -447,8 +492,10 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
       }
       const body = (request.body || {}) as Record<string, unknown>;
       const projectType = String(body.projectType || '').trim();
-      const locationText = String(body.locationText || '').trim();
-      const description = String(body.description || '').trim();
+      // Accept both field vocabularies: locationText/siteLocation and
+      // description/workDescription (auditor contract uses the latter).
+      const locationText = String(body.locationText || body.siteLocation || '').trim();
+      const description = String(body.description || body.workDescription || '').trim();
       if (!PROJECT_TYPES.includes(projectType)) {
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid project type' });
       }

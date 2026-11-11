@@ -144,7 +144,7 @@ export default function ClientQuotesView(): React.JSX.Element {
                         {it.description}
 </td>
 <td className="py-1.5 pr-2 text-slate-500 text-right">{it.quantity} {it.unit}</td>
-<td className="py-1.5 text-right font-mono font-semibold text-slate-800">
+<td className="py-1.5 text-right tabular-nums font-semibold text-slate-800">
                         {q.currency} {toCurrencyString(it.total_amount)}
 </td>
 </tr>
@@ -153,10 +153,10 @@ export default function ClientQuotesView(): React.JSX.Element {
 </table>
 
 <div className="text-right space-y-0.5 text-xs">
-<p className="text-slate-600">Subtotal:<span className="font-mono">{q.currency} {toCurrencyString(q.subtotal)}</span></p>
-<p className="text-slate-600">Tax ({q.tax_pct}%):<span className="font-mono">{q.currency} {toCurrencyString(q.tax_amount)}</span></p>
-<p className="font-bold text-slate-900">Total:<span className="font-mono">{q.currency} {toCurrencyString(q.total)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit required ({q.deposit_pct}%):<span className="font-mono">{q.currency} {toCurrencyString(q.deposit_amount)}</span></p>
+<p className="text-slate-600">Subtotal:<span className="tabular-nums">{q.currency} {toCurrencyString(q.subtotal)}</span></p>
+<p className="text-slate-600">Tax ({q.tax_pct}%):<span className="tabular-nums">{q.currency} {toCurrencyString(q.tax_amount)}</span></p>
+<p className="font-bold text-slate-900">Total:<span className="tabular-nums">{q.currency} {toCurrencyString(q.total)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit required ({q.deposit_pct}%):<span className="tabular-nums">{q.currency} {toCurrencyString(q.deposit_amount)}</span></p>
 </div>
 
               {q.terms &&<p className="text-[11px] text-slate-500 whitespace-pre-wrap border-t border-slate-100 pt-2">{q.terms}</p>}

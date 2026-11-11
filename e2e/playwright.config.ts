@@ -44,6 +44,7 @@ export default defineConfig({
         // The suite performs dozens of real logins per minute from one IP;
         // the production default (30/min) would 429 mid-run. E2E only.
         LOGIN_RATE_LIMIT_MAX: process.env.E2E_LOGIN_RATE_LIMIT_MAX || '1000',
+        INVITATION_ACCEPT_RATE_LIMIT_MAX: process.env.E2E_INVITATION_ACCEPT_RATE_LIMIT_MAX || '1000',
         LOG_LEVEL: 'warn',
         UPLOAD_DIR: process.env.E2E_UPLOAD_DIR || '/tmp/e2e-uploads',
       },

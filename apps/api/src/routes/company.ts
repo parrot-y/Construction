@@ -27,6 +27,28 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     },
   );
 
+  // GET /api/v1/company/payment-instructions - Where clients/owners should pay
+  // (paybill, till, bank). Any authenticated member may read it — clients need
+  // it to pay; it contains no internal data.
+  server.get(
+    '/api/v1/company/payment-instructions',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { payment_instructions: true, currency: true, name: true },
+      });
+      return reply.status(200).send({
+        data: {
+          paymentInstructions: tenant?.payment_instructions ?? null,
+          currency: tenant?.currency ?? 'KES',
+          companyName: tenant?.name ?? null,
+        },
+      });
+    },
+  );
+
   // GET /api/v1/company/settings - Get company settings (Admin only)
   server.get(
     '/api/v1/company/settings',
@@ -61,6 +83,7 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       const data: Record<string, unknown> = {};
       if (d.retentionTerms !== undefined) data.retention_terms = d.retentionTerms;
       if (d.paymentInstructions !== undefined) data.payment_instructions = d.paymentInstructions;
+      if (d.fxRates !== undefined) data.fx_rates = d.fxRates;
       if (Object.keys(data).length === 0) {
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No settings provided' });
       }

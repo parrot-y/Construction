@@ -489,14 +489,14 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 <td className="px-4 py-3 text-gray-700 text-xs">
                       {item.ownershipType.replace('_', ' ')}
 </td>
-<td className="px-4 py-3 font-mono font-medium text-gray-900">
+<td className="px-4 py-3 tabular-nums font-medium text-gray-900">
                       KES {parseFloat(item.ratePerUnitKes).toLocaleString('en-KE', { minimumFractionDigits: 2})} / {item.rateUnit.replace('PER_', '').toLowerCase()}
 </td>
 <td className="px-4 py-3 text-gray-600 text-xs">
 <div>{item.registrationNo || 'N/A'}</div>
 <div className="text-gray-400">{item.supplierName || 'Self-Owned'}</div>
 </td>
-<td className="px-4 py-3 font-mono text-gray-900 font-bold">
+<td className="px-4 py-3 tabular-nums text-gray-900 font-bold">
                       {item.currentHoursMeter} hrs
 </td>
 <td className="px-4 py-3">
@@ -551,14 +551,14 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 </td>
 <td className="px-4 py-3 text-gray-900 font-medium">
                         {machine?.name || 'Heavy Equipment'}
-<div className="text-xs text-gray-500 font-mono">
+<div className="text-xs text-gray-500 tabular-nums">
                           {machine?.equipmentCode}
 </div>
 </td>
 <td className="px-4 py-3 text-gray-700 text-xs">
                         {log.operatorName}
 </td>
-<td className="px-4 py-3 font-mono text-gray-900">
+<td className="px-4 py-3 tabular-nums text-gray-900">
 <span className="font-bold">{log.operatingHours} hrs</span>
                         {parseFloat(log.idleOrBreakdownHours) > 0 && (
 <span className="text-xs text-amber-600 block">
@@ -566,13 +566,13 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 </span>
 )}
 </td>
-<td className="px-4 py-3 font-mono text-gray-900">
+<td className="px-4 py-3 tabular-nums text-gray-900">
 <div>{log.fuelLitersIssued} L</div>
 <div className="text-xs text-gray-500">
                           KES {parseFloat(log.totalFuelCostKes).toLocaleString('en-KE')}
 </div>
 </td>
-<td className="px-4 py-3 font-mono font-bold">
+<td className="px-4 py-3 tabular-nums font-bold">
 <span
                           className={
                             isSiphon
@@ -717,7 +717,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={ratePerUnitKes}
                     onChange={(e) => setRatePerUnitKes(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -757,7 +757,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     type="text"
                     value={currentHoursMeter}
                     onChange={(e) => setCurrentHoursMeter(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 </div>
@@ -853,7 +853,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={openingHours}
                     onChange={(e) => handleHoursChange(e.target.value, closingHours)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -865,7 +865,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={closingHours}
                     onChange={(e) => handleHoursChange(openingHours, e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -876,7 +876,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     type="text"
                     readOnly
                     value={operatingHours}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono bg-gray-50 font-bold"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums bg-gray-50 font-bold"
                   />
 </div>
 </div>
@@ -890,7 +890,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     type="text"
                     value={idleHours}
                     onChange={(e) => setIdleHours(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -902,7 +902,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={fuelLiters}
                     onChange={(e) => setFuelLiters(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -914,7 +914,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={fuelCostPerLiter}
                     onChange={(e) => setFuelCostPerLiter(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 </div>

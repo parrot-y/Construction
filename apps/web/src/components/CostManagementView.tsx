@@ -203,7 +203,7 @@ export default function CostManagementView({
 <tr key={cost.id} className="hover:bg-slate-50/50 transition">
 <td className="py-3 px-3 font-sans">
 <span className="font-semibold text-slate-900 block">{cost.vendor_name || 'Direct Site Expense'}</span>
-<span className="text-[10px] text-slate-400 block font-mono">
+<span className="text-[10px] text-slate-400 block font-mono tabular-nums">
                       {new Date(cost.created_at).toLocaleDateString()} {cost.invoice_ref ? `• ${cost.invoice_ref}` : ''}
 </span>
 </td>

@@ -507,10 +507,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
 
   // POST .../payment-certificates/:certId/create-invoice — issue a client
   // invoice from a CERTIFIED certificate. Links both ways; VAT + WHT lines.
-  server.post(
-    '/api/v1/projects/:projectId/payment-certificates/:certId/create-invoice',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)] },
-    async (request, reply) => {
+  const createInvoiceFromCertificate = async (request: any, reply: any) => {
       const { tenantId, sub } = request.user;
       const { projectId, certId } = request.params as { projectId: string; certId: string };
       if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(certId)) {
@@ -699,8 +696,18 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to create invoice from certificate' });
       }
-    },
-  );
+  };
+
+  // POST .../payment-certificates/:certId/create-invoice — issue a client
+  // invoice from a CERTIFIED certificate. Links both ways; VAT + WHT lines.
+  // /invoice is an alias of the same contract (auditor acceptance route name).
+  for (const suffix of ['create-invoice', 'invoice']) {
+    server.post(
+      `/api/v1/projects/:projectId/payment-certificates/:certId/${suffix}`,
+      { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)] },
+      createInvoiceFromCertificate,
+    );
+  }
 
   // POST /api/v1/projects/:projectId/payment-certificates/:certId/action
   server.post(

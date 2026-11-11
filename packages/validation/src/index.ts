@@ -35,11 +35,26 @@ export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
 export const RegisterCompanySchema = z.object({
   companyName: z.string().min(2, { message: 'Company name must be at least 2 characters' }).max(255),
-  adminFullName: z.string().min(2, { message: 'Full name must be at least 2 characters' }).max(255),
-  email: z.string().email({ message: 'Must be a valid email address' }),
+  // Accept both naming conventions used across clients: adminFullName/email
+  // (current console) and adminName/adminEmail/adminPhone (auditor journey).
+  adminFullName: z.string().min(2).max(255).optional(),
+  adminName: z.string().min(2).max(255).optional(),
+  email: z.string().email({ message: 'Must be a valid email address' }).optional(),
+  adminEmail: z.string().email({ message: 'Must be a valid email address' }).optional(),
   phone: KenyanPhoneSchema.optional().or(z.literal('')),
+  adminPhone: KenyanPhoneSchema.optional().or(z.literal('')),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128),
-});
+}).refine((v) => !!(v.adminFullName ?? v.adminName), {
+  message: 'adminFullName (or adminName) is required',
+}).refine((v) => !!(v.email ?? v.adminEmail), {
+  message: 'email (or adminEmail) is required',
+}).transform((v) => ({
+  companyName: v.companyName,
+  adminFullName: (v.adminFullName ?? v.adminName)!,
+  email: (v.email ?? v.adminEmail)!,
+  phone: v.phone || v.adminPhone || '',
+  password: v.password,
+}));
 export type RegisterCompany = z.infer<typeof RegisterCompanySchema>;
 
 export const AuthUserResponseSchema = z.object({
@@ -280,6 +295,9 @@ export const AcceptInvitationSchema = z.object({
   // their own password. Phone+PIN field invites (pin_hash on the invitation)
   // skip this — the invitee authenticates with their PIN instead.
   password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128).optional(),
+  // Phone+PIN field invites may set the PIN at accept time instead of invite
+  // time — the admin vouches for the worker, the worker chooses their own PIN.
+  pin: z.string().regex(/^\d{6}$/, { message: 'PIN must be exactly 6 digits' }).optional(),
 });
 export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
 
@@ -290,15 +308,16 @@ export const FieldLoginSchema = z.object({
 });
 export type FieldLogin = z.infer<typeof FieldLoginSchema>;
 
-// Invite member — either email+role (password account) or phone+pin+field role
+// Invite member — either email+role (password account) or phone+role (PIN set
+// at accept time, or phone+pin when the admin chooses it)
 export const InviteMemberSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().min(9).max(30).optional(),
   pin: z.string().regex(/^\d{6}$/).optional(),
   role: z.string().min(2).max(50),
   fullName: z.string().min(2).max(255).optional(),
-}).refine((v) => v.email || (v.phone && v.pin), {
-  message: 'Provide either email, or phone + pin for a field-role invite',
+}).refine((v) => v.email || v.phone, {
+  message: 'Provide either email, or phone for a field-role invite',
 });
 export type InviteMember = z.infer<typeof InviteMemberSchema>;
 
@@ -462,7 +481,12 @@ export const RecordCubeBreakSchema = z.object({
 export type RecordCubeBreak = z.infer<typeof RecordCubeBreakSchema>;
 
 // Domain 4: Snag Items (Punch List)
-export const SnagSeverityEnum = z.enum(['COSMETIC', 'FUNCTIONAL', 'CRITICAL_SAFETY']);
+// Field crews report MAJOR/MINOR colloquially — map onto the stored scale
+// (MINOR->COSMETIC, MAJOR->FUNCTIONAL) so the DB enum stays canonical.
+export const SnagSeverityEnum = z.preprocess(
+  (v) => (v === 'MINOR' ? 'COSMETIC' : v === 'MAJOR' ? 'FUNCTIONAL' : v),
+  z.enum(['COSMETIC', 'FUNCTIONAL', 'CRITICAL_SAFETY']),
+);
 export type SnagSeverity = z.infer<typeof SnagSeverityEnum>;
 
 export const SnagStatusEnum = z.enum([
@@ -549,7 +573,8 @@ export const CreateSnagItemSchema = z.object({
   referenceDoc: z.string().max(255).optional().nullable(),
   assignedTradeFirm: z.string().max(255).optional().nullable(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
-  identifiedByName: z.string().min(2).max(255),
+  // Optional — defaults to the reporting user's name server-side.
+  identifiedByName: z.string().min(2).max(255).optional().nullable(),
   photos: z.array(SnagPhotoInputSchema).optional(),
   // Optional inline defect photo as base64 — verified by magic bytes
   // server-side; lets the offline queue carry photo+snag in one mutation.
@@ -629,8 +654,10 @@ export const CreatePortalLinkSchema = z.object({
   // SUPPLIER links must bind to a Supplier record — never free-text names.
   supplierId: z.string().uuid().optional().nullable(),
   // CONSULTANT links may be scope-limited so a link only returns the
-  // sections it was issued for (Stage 4).
+  // sections it was issued for (Stage 4). `scopes` (array) is the
+  // auditor-contract form; `scope` (single) is canonical.
   scope: z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES']).optional().nullable(),
+  scopes: z.array(z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES'])).max(4).optional().nullable(),
 });
 
 // Consultant portal RFI reply (external, unauthenticated token scope)
@@ -641,6 +668,12 @@ export const ConsultantRfiReplySchema = z.object({
   // Storage keys of files the consultant uploaded via the portal uploads
   // endpoint — each must belong to this project/tenant (verified server-side).
   attachmentStorageKeys: z.array(z.string().min(3).max(500)).max(10).optional(),
+  // Alternative shape: objects with storageKey + optional caption (auditor
+  // contract); captions surface as the attachment filename for staff.
+  attachments: z.array(z.object({
+    storageKey: z.string().min(3).max(500),
+    caption: z.string().max(255).optional().nullable(),
+  })).max(10).optional(),
 });
 export type ConsultantRfiReply = z.infer<typeof ConsultantRfiReplySchema>;
 
@@ -742,7 +775,15 @@ export type IncidentType = z.infer<typeof IncidentTypeEnum>;
 export const SeverityLevelEnum = z.enum(['MINOR', 'MODERATE', 'SERIOUS', 'CRITICAL']);
 export type SeverityLevel = z.infer<typeof SeverityLevelEnum>;
 
-export const CreateSafetyIncidentSchema = z.object({
+export const CreateSafetyIncidentSchema = z.preprocess((v) => {
+  if (v && typeof v === 'object') {
+    const o = { ...(v as Record<string, unknown>) };
+    // Field crews report `location` (auditor contract) — map to exactLocation.
+    if (o.location !== undefined && o.exactLocation === undefined) o.exactLocation = o.location;
+    return o;
+  }
+  return v;
+}, z.object({
   incidentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
   incidentTime: z.string().max(20).optional().nullable(),
   incidentType: IncidentTypeEnum,
@@ -754,8 +795,9 @@ export const CreateSafetyIncidentSchema = z.object({
   immediateAction: z.string().optional().nullable(),
   preventativeAction: z.string().optional().nullable(),
   isOshaReportable: z.boolean().default(false),
-  investigatedBy: z.string().min(2).max(255),
-});
+  // Optional — defaults to the reporting user server-side when absent.
+  investigatedBy: z.string().min(2).max(255).optional().nullable(),
+}));
 export type CreateSafetyIncident = z.infer<typeof CreateSafetyIncidentSchema>;
 
 // -------------------------------------------------------------
@@ -2358,9 +2400,18 @@ export type ReviewChecklistAssignment = z.infer<typeof ReviewChecklistAssignment
 // STAGE 2 — tenant settings, client payment notices, me feeds
 // -------------------------------------------------------------
 
+export const FxRatesInputSchema = z.object({
+  base: z.literal('KES').default('KES'),
+  rates: z.record(z.number().positive()),
+  asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  source: z.string().min(3).max(255),
+});
+export type FxRatesInput = z.infer<typeof FxRatesInputSchema>;
+
 export const UpdateCompanySettingsSchema = z.object({
   retentionTerms: z.record(z.unknown()).optional().nullable(),
   paymentInstructions: z.record(z.unknown()).optional().nullable(),
+  fxRates: FxRatesInputSchema.optional().nullable(),
 });
 export type UpdateCompanySettings = z.infer<typeof UpdateCompanySettingsSchema>;
 
@@ -2393,11 +2444,18 @@ export const PurchaseOrderItemInputSchema = z.object({
   description: z.string().min(2).max(500),
   unit: z.string().min(1).max(20),
   quantity: z.number().positive(),
-  rate: z.number().min(0),
+  // `rate` is canonical; `unitRate` accepted as an alias (auditor contract).
+  rate: z.number().min(0).optional(),
+  unitRate: z.number().min(0).optional(),
+}).refine((i) => i.rate !== undefined || i.unitRate !== undefined, {
+  message: 'rate or unitRate is required',
+  path: ['rate'],
 });
 
 export const CreatePurchaseOrderSchema = z.object({
-  supplierId: z.string().uuid(),
+  // supplierId canonical; supplierName accepted — resolved (or created) by name.
+  supplierId: z.string().uuid().optional().nullable(),
+  supplierName: z.string().min(2).max(255).optional().nullable(),
   orderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
@@ -2437,14 +2495,33 @@ export const PermitTypeEnum = z.enum([
 ]);
 export type PermitType = z.infer<typeof PermitTypeEnum>;
 
-export const CreatePermitSchema = z.object({
+// Field-name aliases used by portal/staff clients (auditor contract):
+// type/number/issuedBy/expiresOn map onto the canonical columns.
+const PERMIT_TYPE_ALIASES: Record<string, string> = {
+  NEMA_EIA_LICENCE: 'NEMA_LICENSE',
+  COUNTY_BUILDING_APPROVAL: 'COUNTY_APPROVAL',
+};
+export const CreatePermitSchema = z.preprocess((v) => {
+  if (v && typeof v === 'object') {
+    const o = { ...(v as Record<string, unknown>) };
+    if (o.type !== undefined && o.permitType === undefined) {
+      const t = String(o.type);
+      o.permitType = PERMIT_TYPE_ALIASES[t] ?? t;
+    }
+    if (o.number !== undefined && o.permitNumber === undefined) o.permitNumber = o.number;
+    if (o.issuedBy !== undefined && o.issuer === undefined) o.issuer = o.issuedBy;
+    if (o.expiresOn !== undefined && o.expiryDate === undefined) o.expiryDate = o.expiresOn;
+    return o;
+  }
+  return v;
+}, z.object({
   permitType: PermitTypeEnum,
   permitNumber: z.string().min(2).max(100),
   issuer: z.string().min(2).max(255),
   issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
-});
+}));
 export type CreatePermit = z.infer<typeof CreatePermitSchema>;
 
 export const ComplianceVisitOutcomeEnum = z.enum([
@@ -2461,12 +2538,20 @@ export const ComplianceActionInputSchema = z.object({
 });
 export type ComplianceActionInput = z.infer<typeof ComplianceActionInputSchema>;
 
-export const CreateComplianceVisitSchema = z.object({
+export const CreateComplianceVisitSchema = z.preprocess((v) => {
+  if (v && typeof v === 'object') {
+    const o = { ...(v as Record<string, unknown>) };
+    // `requiredActions` is the auditor-contract alias for `actions`.
+    if (o.requiredActions !== undefined && o.actions === undefined) o.actions = o.requiredActions;
+    return o;
+  }
+  return v;
+}, z.object({
   visitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
   outcome: ComplianceVisitOutcomeEnum,
   notes: z.string().max(4000).optional().nullable(),
   actions: z.array(ComplianceActionInputSchema).max(50).default([]),
-});
+}));
 export type CreateComplianceVisit = z.infer<typeof CreateComplianceVisitSchema>;
 
 // Snag photo upload via JSON base64 (offline-queue friendly). The bytes are

@@ -204,25 +204,28 @@ export default function ClientDashboard({
   const [fxFeed, setFxFeed] = useState<{ rates: Record<string, number>; asOf?: string; source?: string } | null>(null);
 
   // Stage-2: rates come from GET /api/v1/fx-rates (dated + sourced), never hard-coded.
-  const exchangeRates: Record<CurrencyCode, { rate: number; symbol: string; label: string}> = {
+  const exchangeRates: Record<CurrencyCode, { rate: number | undefined; symbol: string; label: string}> = {
     KES: { rate: 1.0, symbol: 'KES', label: 'Kenyan Shilling'},
-    USD: { rate: fxFeed?.rates?.USD ?? 1, symbol: '$', label: 'US Dollar'},
-    GBP: { rate: fxFeed?.rates?.GBP ?? 1, symbol: '£', label: 'British Pound'},
-    EUR: { rate: fxFeed?.rates?.EUR ?? 1, symbol: '€', label: 'Euro'},
-    AED: { rate: fxFeed?.rates?.AED ?? 1, symbol: 'AED', label: 'UAE Dirham'},
+    USD: { rate: fxFeed?.rates?.USD, symbol: '$', label: 'US Dollar'},
+    GBP: { rate: fxFeed?.rates?.GBP, symbol: '£', label: 'British Pound'},
+    EUR: { rate: fxFeed?.rates?.EUR, symbol: '€', label: 'Euro'},
+    AED: { rate: fxFeed?.rates?.AED, symbol: 'AED', label: 'UAE Dirham'},
 };
 
+  const effectiveCurrency: CurrencyCode =
+    selectedCurrency !== 'KES' && !(fxFeed?.rates?.[selectedCurrency] ?? 0) ? 'KES' : selectedCurrency;
+
   const formatWithCurrency = (kesStr: string, isAddition = false): string => {
-    const rate = exchangeRates[selectedCurrency].rate;
+    const rate = exchangeRates[effectiveCurrency].rate ?? 0;
     // Never convert without a dated, sourced rate feed — show honest KES instead.
-    if (selectedCurrency === 'KES' || !fxFeed || !(rate > 0)) {
+    if (effectiveCurrency === 'KES' || !fxFeed || !(rate > 0)) {
       return `${isAddition ? '+ ' : ''}${formatKes(kesStr)}`;
 }
     const num = parseFloat(kesStr);
-    if (isNaN(num)) return `${exchangeRates[selectedCurrency].symbol} 0.00`;
+    if (isNaN(num)) return `${exchangeRates[effectiveCurrency].symbol} 0.00`;
     const converted = num / rate;
     const formatted = converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2});
-    return `${isAddition ? '+ ' : ''}${exchangeRates[selectedCurrency].symbol} ${formatted}`;
+    return `${isAddition ? '+ ' : ''}${exchangeRates[effectiveCurrency].symbol} ${formatted}`;
 };
 
 
@@ -312,7 +315,7 @@ export default function ClientDashboard({
 <span>•</span>
 <span className="text-slate-500">{projectData.location}</span>
 <span>•</span>
-<span className="font-mono text-slate-500">NCA: {projectData.ncaRegistration}</span>
+<span className="tabular-nums text-slate-500">NCA: {projectData.ncaRegistration}</span>
 </div>
 </div>
 <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -381,8 +384,8 @@ export default function ClientDashboard({
         {paymentInstructions && (
 <div className="p-3.5 bg-sky-50 border border-sky-200 rounded-lg text-xs text-slate-700 space-y-1">
 <span className="font-semibold text-slate-900 block">Payment instructions</span>
-            {paymentInstructions.paybill && <p>Paybill: <span className="font-mono font-bold">{paymentInstructions.paybill}</span></p>}
-            {paymentInstructions.till && <p>Buy Goods Till: <span className="font-mono font-bold">{paymentInstructions.till}</span></p>}
+            {paymentInstructions.paybill && <p>Paybill: <span className="tabular-nums font-bold">{paymentInstructions.paybill}</span></p>}
+            {paymentInstructions.till && <p>Buy Goods Till: <span className="tabular-nums font-bold">{paymentInstructions.till}</span></p>}
             {paymentInstructions.bank && (
 <p>Bank: {paymentInstructions.bank.bankName} — A/C {paymentInstructions.bank.accountNumber} ({paymentInstructions.bank.accountName})</p>
 )}
@@ -424,8 +427,8 @@ export default function ClientDashboard({
                         {statusLabel[inv.status] || inv.status}
 </span>
 </td>
-<td className="py-2 px-3 font-mono">{formatKes(String(inv.total ?? '0'))}</td>
-<td className="py-2 px-3 font-mono font-bold text-slate-900">{formatKes(String(balance))}</td>
+<td className="py-2 px-3 tabular-nums">{formatKes(String(inv.total ?? '0'))}</td>
+<td className="py-2 px-3 tabular-nums font-bold text-slate-900">{formatKes(String(balance))}</td>
 <td className="py-2 px-3 text-slate-500">
                         {history.length > 0 ? `${history.length} payment${history.length === 1 ? '' : 's'} recorded` : '—'}
                         {notices.length > 0 && <span className="block text-[10px] text-sky-600">{notices.length} notice{notices.length === 1 ? '' : 's'} sent</span>}
@@ -451,17 +454,19 @@ export default function ClientDashboard({
 <div>
 <h3 className="text-sm font-bold text-slate-900">Financial Summary & Budget Control</h3>
 <p className="text-[11px] text-slate-500">
-              {selectedCurrency === 'KES'
+              {effectiveCurrency === 'KES'
                 ? 'Base contract currency: Kenyan Shilling (KES)'
                 : fxFeed
-                  ? `Diaspora converted estimate: 1 ${selectedCurrency} ≈ ${exchangeRates[selectedCurrency].rate.toFixed(2)} KES • Official valuation in KES`
+                  ? `Diaspora converted estimate: 1 ${selectedCurrency} ≈ ${exchangeRates[effectiveCurrency].rate?.toFixed(2) ?? '0'} KES • Official valuation in KES`
                   : 'Exchange rates unavailable — showing KES'}
               {fxFeed?.asOf && <span className="block text-[10px] text-slate-400 mt-0.5">Rates as of {fxFeed.asOf}{fxFeed.source ? ` (${fxFeed.source})` : ''}</span>}
 </p>
 </div>
 <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
 <span className="text-[10px] font-semibold text-slate-500 px-1">Diaspora View:</span>
-            {(['KES', 'USD', 'GBP', 'EUR', 'AED'] as CurrencyCode[]).map((c) => (
+            {(['KES', 'USD', 'GBP', 'EUR', 'AED'] as CurrencyCode[])
+              .filter((c) => c === 'KES' || (fxFeed?.rates?.[c] ?? 0) > 0)
+              .map((c) => (
 <button
                 key={c}
                 type="button"
@@ -485,11 +490,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Original Agreed Budget
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-slate-900 mt-1 block">
               {formatWithCurrency(financials.originalAgreedBudget)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.originalAgreedBudget)}
 </span>
 ) : (
@@ -502,11 +507,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Approved Variations Total
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-blue-700 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-blue-700 mt-1 block">
               {formatWithCurrency(financials.approvedVariationsTotal, true)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.approvedVariationsTotal)}
 </span>
 ) : (
@@ -519,11 +524,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Current Approved Budget
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-slate-900 mt-1 block">
               {formatWithCurrency(financials.currentApprovedBudget)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.currentApprovedBudget)}
 </span>
 ) : (
@@ -536,11 +541,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Total Spent to Date
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-emerald-700 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-emerald-700 mt-1 block">
               {formatWithCurrency(financials.totalSpentToDate)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.totalSpentToDate)}
 </span>
 ) : (
@@ -553,11 +558,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Remaining Balance
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-slate-900 mt-1 block">
               {formatWithCurrency(financials.remainingBalance)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.remainingBalance)}
 </span>
 ) : (
@@ -571,11 +576,11 @@ export default function ClientDashboard({
 <div className="flex justify-between items-center text-xs">
 <div className="flex items-center gap-2">
 <span className="font-semibold text-slate-700">Project Budget Utilization:</span>
-<span className="font-bold text-slate-900 font-mono">
+<span className="font-bold text-slate-900 tabular-nums">
                 {`${financials.budgetUsedPercentage.toFixed(1)}% Consumed`}
 </span>
 </div>
-<span className="text-slate-500 font-mono text-[11px]">
+<span className="text-slate-500 tabular-nums text-[11px]">
               {formatKes(financials.totalSpentToDate)} of {formatKes(financials.currentApprovedBudget)}
 </span>
 </div>
@@ -635,7 +640,7 @@ export default function ClientDashboard({
               Variance Delta
 </span>
 <span
-              className={`text-lg font-bold font-mono mt-0.5 block ${
+              className={`text-lg font-bold tabular-nums mt-0.5 block ${
                 progress.varianceDelta > 0 ? 'text-amber-700' : 'text-emerald-700'
 }`}
             >
@@ -675,7 +680,7 @@ export default function ClientDashboard({
                 Certified Valuations Ledger
 </span>
 <span className="text-xs text-slate-500">
-                Currency: {selectedCurrency} ({exchangeRates[selectedCurrency].label})
+                Currency: {effectiveCurrency} ({exchangeRates[effectiveCurrency].label})
 </span>
 </div>
 <h3 className="text-base font-bold text-slate-900 mt-1">
@@ -688,7 +693,7 @@ export default function ClientDashboard({
 
 <div className="text-left sm:text-right text-xs">
 <span className="text-[10px] text-slate-400 font-semibold block">Total Net Paid to Date</span>
-<span className="text-base font-mono font-bold text-emerald-700">
+<span className="text-base tabular-nums font-bold text-emerald-700">
               {formatWithCurrency(String((paymentCertificates || []).filter((c: any) => c.status === 'PAID').reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
 <span className="text-[10px] text-slate-400 block">Gross Certified: {formatWithCurrency(financials.totalSpentToDate)}</span>
@@ -699,23 +704,23 @@ export default function ClientDashboard({
 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] font-semibold block">Total Contract Sum:</span>
-<span className="text-sm font-bold font-mono text-slate-900 mt-0.5 block">
+<span className="text-sm font-bold tabular-nums text-slate-900 mt-0.5 block">
               {formatWithCurrency(financials.originalAgreedBudget)}
 </span>
-<span className="text-[10px] text-slate-400 font-mono">Base: {formatKes(financials.originalAgreedBudget)}</span>
+<span className="text-[10px] text-slate-400 tabular-nums">Base: {formatKes(financials.originalAgreedBudget)}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] font-semibold block">Gross Certified IPCs:</span>
-<span className="text-sm font-bold font-mono text-emerald-700 mt-0.5 block">
+<span className="text-sm font-bold tabular-nums text-emerald-700 mt-0.5 block">
               {formatWithCurrency(financials.totalSpentToDate)}
 </span>
-<span className="text-[10px] text-slate-400 font-mono">Base: {formatKes(financials.totalSpentToDate)}</span>
+<span className="text-[10px] text-slate-400 tabular-nums">Base: {formatKes(financials.totalSpentToDate)}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] font-semibold block">Net Payments Disbursed:</span>
-<span className="text-sm font-bold font-mono text-blue-700 mt-0.5 block">
+<span className="text-sm font-bold tabular-nums text-blue-700 mt-0.5 block">
               {formatWithCurrency(String((paymentCertificates || []).reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
 <span className="text-[10px] text-slate-400">Sum of net payable on certified IPCs</span>
@@ -724,7 +729,7 @@ export default function ClientDashboard({
 {hydrated && progress.varianceDelta !== 0 && (
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] font-semibold block">Progress vs plan:</span>
-<span className={`text-sm font-bold font-mono mt-0.5 block ${progress.varianceDelta >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+<span className={`text-sm font-bold tabular-nums mt-0.5 block ${progress.varianceDelta >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
               {progress.varianceDelta >= 0 ? '+' : ''}{progress.varianceDelta.toFixed(1)} pts
 </span>
 <span className="text-[10px] text-slate-500 font-medium">{progress.healthNotice}</span>
@@ -749,12 +754,12 @@ export default function ClientDashboard({
 <tbody className="divide-y divide-slate-100">
 {(paymentCertificates || []).map((c: any) => (
 <tr key={c.id} className="hover:bg-slate-50/60">
-<td className="py-2.5 px-3 font-mono font-bold text-slate-800">{c.certificate_no}</td>
+<td className="py-2.5 px-3 font-mono tabular-nums font-bold text-slate-800">{c.certificate_no}</td>
 <td className="py-2.5 px-3 text-slate-700">{c.period_start} → {c.period_end}</td>
-<td className="py-2.5 px-3 text-slate-500 font-mono">{c.certified_at ? c.certified_at.split('T')[0] : '—'}</td>
-<td className="py-2.5 px-3 font-mono font-bold text-slate-900">{formatWithCurrency(c.this_period_amount)}</td>
-<td className="py-2.5 px-3 font-mono text-amber-700">{formatWithCurrency(c.retention_held)}</td>
-<td className="py-2.5 px-3 font-mono font-bold text-emerald-700">{formatWithCurrency(c.net_payable)}</td>
+<td className="py-2.5 px-3 text-slate-500 font-mono tabular-nums">{c.certified_at ? c.certified_at.split('T')[0] : '—'}</td>
+<td className="py-2.5 px-3 font-mono tabular-nums font-bold text-slate-900">{formatWithCurrency(c.this_period_amount)}</td>
+<td className="py-2.5 px-3 tabular-nums text-amber-700">{formatWithCurrency(c.retention_held)}</td>
+<td className="py-2.5 px-3 tabular-nums font-bold text-emerald-700">{formatWithCurrency(c.net_payable)}</td>
 <td className="py-2.5 px-3 text-right">
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${c.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-sky-100 text-sky-800 border-sky-300'}`}>
                     {c.status === 'PAID' ? 'Paid' : 'Certified'}

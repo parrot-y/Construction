@@ -104,7 +104,7 @@ function ReportsView(): React.JSX.Element {
 <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
 <div className={`h-full rounded-full ${colors[st] || 'bg-slate-500'}`} style={{ width: `${pct}%`}} />
 </div>
-<span className="w-8 text-right text-xs font-bold font-mono text-slate-700 dark:text-slate-200">{n}</span>
+<span className="w-8 text-right text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200">{n}</span>
 </div>
 );
 })}

@@ -21,6 +21,9 @@ model Tenant {
   // Stage-2: tenant-configured client-facing terms (no hard-coded percentages)
   retention_terms       Json?   @db.JsonB
   payment_instructions  Json?   @db.JsonB
+  // Manually maintained FX rates (KES base) with asOf + source — entered by an
+  // admin; the API refuses to serve conversion without them.
+  fx_rates              Json?   @db.JsonB
   created_at     DateTime     @default(now()) @db.Timestamptz
   updated_at     DateTime     @updatedAt @db.Timestamptz
 

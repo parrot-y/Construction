@@ -258,18 +258,20 @@ describe('Portal hardening', () => {
     expect(Number(v1d.withholding_tax_deducted_kes)).toBe(30000);
     expect(Number(v1d.net_payable_kes)).toBe(920000);
     expect(Number(v1d.previous_payments_deducted_kes)).toBe(0);
-    // second valuation must exceed certified-to-date
-    const dup = await server.inject({
-      method: 'POST', url: `/api/v1/portals/subcontractor/${subAToken}/valuations`,
-      payload: { grossWorkCertifiedKes: '500000.00' },
-    });
-    expect(dup.statusCode).toBe(400);
-    // cumulative second valuation
+    // Per-claim semantics (auditor stage-3 contract): each POST is a claim for
+    // work certified in that period; live claims are summed toward the cap.
+    // 1,000,000 certified + a 400,000 claim = 1,400,000 <= 2,500,000 package.
     const v2 = await server.inject({
       method: 'POST', url: `/api/v1/portals/subcontractor/${subAToken}/valuations`,
-      payload: { grossWorkCertifiedKes: '1500000.00' },
+      payload: { grossWorkCertifiedKes: '400000.00', notes: 'Phase 2' },
     });
     expect(v2.statusCode).toBe(201);
+    // 1,400,000 certified + a 1,200,000 claim = 2,600,000 > 2,500,000 -> refused.
+    const overCap = await server.inject({
+      method: 'POST', url: `/api/v1/portals/subcontractor/${subAToken}/valuations`,
+      payload: { grossWorkCertifiedKes: '1200000.00' },
+    });
+    expect(overCap.statusCode).toBe(400);
   });
 
   // ---- Item 8: supplier confirm/dispute ----

@@ -312,7 +312,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
             >
 <div className="space-y-1">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">COM-{String(c.commitment_no).padStart(3, '0')}</span>
+<span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">COM-{String(c.commitment_no).padStart(3, '0')}</span>
 <span className="text-sm font-bold text-slate-900">{c.vendor_name}</span>
 <span className="text-[10px] font-semibold text-slate-500 ">{c.vendor_type}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${COMMITMENT_STATUS_STYLES[c.status] || COMMITMENT_STATUS_STYLES.ACTIVE}`}>
@@ -328,7 +328,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 </div>
 <div className="flex items-center gap-3">
                 {c.net_amount_owed && c.net_amount_owed !== '0.00' && (
-<span className="text-xs font-mono font-bold text-amber-700">Owed {formatKes(c.net_amount_owed)}</span>
+<span className="text-xs font-mono tabular-nums font-bold text-amber-700">Owed {formatKes(c.net_amount_owed)}</span>
 )}
 <span className="text-[11px] text-slate-400">{c.applications.length} claim{c.applications.length === 1 ? '' : 's'} {expanded === c.id ? '▾' : '▸'}</span>
 </div>
@@ -345,7 +345,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <div key={a.id} className="bg-white border border-slate-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
 <div className="space-y-0.5">
 <div className="flex items-center gap-2">
-<span className="font-mono text-[11px] font-bold">#{a.application_no}</span>
+<span className="font-mono tabular-nums text-[11px] font-bold">#{a.application_no}</span>
 <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${APP_STATUS_STYLES[a.status]}`}>{a.status}</span>
 <span className="text-[10px] text-slate-500">{a.period_start} → {a.period_end}</span>
 </div>
@@ -358,7 +358,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 </div>
 </div>
 <div className="flex items-center gap-2">
-<span className="text-xs font-mono font-bold text-emerald-700">{formatKes(a.net_payable)}</span>
+<span className="text-xs tabular-nums font-bold text-emerald-700">{formatKes(a.net_payable)}</span>
                       {canManage && (
 <div className="flex gap-1.5">
                           {a.status === 'DRAFT' && (

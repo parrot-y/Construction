@@ -422,3 +422,10 @@ requirements, failing-test-first, then built.
       SUPPLIER/CONSULTANT/OTHER only; verified commitments.ts has no costEntry writes
 - [x] CommitmentsView: SUBCONTRACTOR removed from vendor-type select + ADR-011 pointer
 - [x] j-stage3 ADR test re-run green; web tsc clean
+
+## Auditor acceptance specs restored (aud-*) — DONE 2026-11-11
+- [x] 4 immutable aud-* specs written byte-for-byte; run failing-first; product fixed only
+- [x] aud-stage1 9/9, aud-stage2 10/10, aud-stage3 9/9, aud-stage4 8/8 — chromium AND mobile-390 (72 green runs, 0 skips)
+- [x] Contract fixes: phone+PIN auth, TCC gate + QS_VERIFIED track reconciliation, per-claim valuation caps/resubmit, supplier-bound procurement + three-way match, consultant scopes/drawings acks, compliance permits/visits, field role scoping, diary delivery merge, drawings aliases, incident idempotency+notify
+- [x] Audit fixes: ClientDashboard FX fallback removed; font-mono 469→69; e2e.yml all-specs both viewports + fail-on-skip; expired-TCC proven in aud-stage3 test 2
+- [x] Evidence: docs/evidence/auditor-acceptance-2026-11-11.md; API regression 86 tests green; web+api tsc clean

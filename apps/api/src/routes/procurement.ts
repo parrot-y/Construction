@@ -197,11 +197,28 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
         const po = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({ where: { id: projectId }, select: { id: true } });
           if (!project) throw { status: 404, message: 'Project not found' };
-          const supplier = await tx.supplier.findFirst({ where: { id: d.supplierId, is_active: true }, select: { id: true, name: true } });
-          if (!supplier) throw { status: 404, message: 'Supplier not found' };
+          // Resolve the supplier by id, or by name (created on first use so a
+          // PO can be raised without a prior supplier onboarding step).
+          let supplier: { id: string; name: string } | null = null;
+          if (d.supplierId) {
+            supplier = await tx.supplier.findFirst({ where: { id: d.supplierId, is_active: true }, select: { id: true, name: true } });
+          } else if (d.supplierName) {
+            const name = d.supplierName.trim();
+            supplier = await tx.supplier.findFirst({
+              where: { name: { equals: name, mode: 'insensitive' }, is_active: true },
+              select: { id: true, name: true },
+            });
+            if (!supplier) {
+              supplier = await tx.supplier.create({
+                data: { tenant_id: tenantId, name, contact_person: 'Accounts' },
+                select: { id: true, name: true },
+              });
+            }
+          }
+          if (!supplier) throw { status: 400, message: 'supplierId or supplierName is required' };
 
           const total = d.items.reduce(
-            (acc, i) => acc.plus(toDecimal(i.quantity).times(toDecimal(i.rate))),
+            (acc, i) => acc.plus(toDecimal(i.quantity).times(toDecimal(i.rate ?? i.unitRate ?? 0))),
             toDecimal('0'),
           );
 
@@ -227,7 +244,7 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
                   description: i.description,
                   unit: i.unit,
                   quantity: i.quantity,
-                  rate: i.rate,
+                  rate: i.rate ?? i.unitRate ?? 0,
                 })),
               },
             },
@@ -415,24 +432,38 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
           };
         });
 
-        // Contract statuses: MATCHED | PART_DELIVERED | OVER_INVOICED | MISMATCH.
+        // Contract statuses: MATCHED | PARTIALLY_DELIVERED | OVER_INVOICED |
+        // MISMATCH. Billed-for-more-than-delivered is OVER_INVOICED even when
+        // the invoice total is within the PO total (auditor stage-3 contract).
         const allDelivered = lines.every((l) => l.status === 'DELIVERED');
         const someDelivered = lines.some((l) => l.deliveredQuantity !== '0');
+        const lineOverInvoiced = lines.some((l) => {
+          const invQty = toDecimal(l.invoicedQuantity);
+          const delQty = toDecimal(l.deliveredQuantity);
+          return invQty.gt(delQty.plus('0.0001'));
+        });
         let status: string;
-        if (invoicedTotal.gt(poTotal)) {
+        if (invoicedTotal.gt(poTotal) || invoicedTotal.gt(deliveredTotalDec) || lineOverInvoiced) {
           status = 'OVER_INVOICED';
         } else if (allDelivered && invoicedTotal.gt(0)) {
           status = 'MATCHED';
         } else if (someDelivered || (invoicedTotal.gt(0) && !allDelivered)) {
-          status = 'PART_DELIVERED';
+          status = 'PARTIALLY_DELIVERED';
         } else {
           status = 'MISMATCH';
         }
+
+        const totalOrderedQty = po.items.reduce((a, i) => a.plus(toDecimal(i.quantity.toString())), toDecimal('0'));
+        const totalDeliveredQty = po.items.reduce((a, i) => a.plus(delivered.get(i.id) ?? toDecimal('0')), toDecimal('0'));
 
         return {
           purchaseOrderId: po.id,
           poNumber: po.po_number,
           status,
+          // Aggregate views (auditor contract reads ordered/delivered/invoiced).
+          ordered: { quantity: totalOrderedQty.toString(), amount: toCurrencyString(poTotal) },
+          delivered: { quantity: totalDeliveredQty.toString(), amount: toCurrencyString(deliveredTotalDec) },
+          invoiced: { amount: invoicedTotal.toString(), quantity: invoicedTotal.toString() },
           poStatus: po.status,
           orderedTotal: toCurrencyString(poTotal),
           deliveredTotal: toCurrencyString(deliveredTotalDec),

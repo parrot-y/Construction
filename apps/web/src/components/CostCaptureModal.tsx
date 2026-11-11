@@ -138,7 +138,7 @@ export default function CostCaptureModal({
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full pl-12 pr-3 py-2 text-sm font-mono font-semibold border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-hidden"
+                  className="w-full pl-12 pr-3 py-2 text-sm tabular-nums font-semibold border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-hidden"
                 />
 </div>
 </div>

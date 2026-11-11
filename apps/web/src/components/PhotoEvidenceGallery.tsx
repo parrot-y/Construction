@@ -105,7 +105,7 @@ export default function PhotoEvidenceGallery({
 <span className="text-[11px] text-slate-300 font-medium line-clamp-1">{photo.caption}</span>
 </div>
 <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-[10px] text-white/90">
-<span className="bg-slate-950/70 backdrop-blur-sm px-2 py-0.5 rounded font-mono">
+<span className="bg-slate-950/70 backdrop-blur-sm px-2 py-0.5 rounded tabular-nums">
                        {lat}, {lng}
 </span>
 <span className="bg-emerald-600/90 backdrop-blur-sm px-2 py-0.5 rounded font-semibold">

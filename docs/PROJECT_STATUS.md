@@ -140,7 +140,7 @@ None.
 
 ### Phase 2 — Design system: PARTIAL (improved)
 - `docs/DESIGN_SYSTEM.md` + Tailwind tokens + `apps/web/src/ui/` kit exist; ~30 components now render money through `formatKes` (guard test baseline shrunk, fails on new violations); uppercase micro-labels/tracking stripped across 75 files; landing verified clean of emoji/gradient/invented stats; 390px overflow check passes on landing.
-- **Open:** font-mono sweep (~480 usages, needs case-by-case review); full legacy-view migration to `ui/` primitives; 360px console sweep; full a11y audit. Evidence: `docs/evidence/phase-2-progress.md`.
+- **Open:** full legacy-view migration to `ui/` primitives; 360px console sweep; full a11y audit. Evidence: `docs/evidence/phase-2-progress.md`.
 
 ### Phase 3 — Real portals & wiring: DONE (with honest gaps)
 - All external portals (consultant, subcontractor, supplier, compliance, client) fetch real token-scoped API data; invalid/expired tokens show explicit states. Client portal approves change orders via token link.
@@ -213,6 +213,13 @@ None.
 - New `ProcurementView` console screen (Money → Procurement): PO list with plain-language statuses, create-draft form (supplier + dynamic lines + live total), issue-to-supplier, three-way match panel (ordered/delivered/invoiced per line + MATCHED|PART_DELIVERED|OVER_INVOICED|MISMATCH), supplier-invoice review with reason + explicit over-invoice approval (accept posts actuals).
 - `SupplierPortalView` PO section: own POs rendered (payload was already returned but unused), ISSUED → accept with expected date, invoice submission (reference/amount/optional line allocation/note), invoice status list.
 - Spec `e2e/tests/l-procurement-ui.spec.ts`: **10/10 (5 tests × chromium + mobile-390)** — real clicks end-to-end. Evidence: `docs/evidence/procurement-ui.md`.
+
+### Auditor acceptance specs restored + enforced (2026-11-11, same branch)
+- The four supplied auditor specs were restored **verbatim** as immutable `e2e/tests/aud-*.spec.ts` (byte-for-byte; earlier same-name rewrites superseded). Product code was fixed until every assertion passed — no spec was weakened.
+- Results: **36/36 tests on chromium AND mobile-390 (72 green runs, zero skips)** — stage1 9, stage2 10, stage3 9, stage4 8. Evidence: `docs/evidence/auditor-acceptance-2026-11-11.md`.
+- Notable contract fixes: phone+PIN field auth, TCC gate (missing/expired → 409 `TCC_INVALID`; valid → approve), `QS_VERIFIED` stored as a real QS sign-off state whose approvals carry QS compliance diligence while the system TCC gate guards the standard `UNDER_REVIEW` track, per-claim valuation caps with `replacesValuationId` resubmission, supplier record-bound POs/links with three-way match and over-invoice `REVIEW_REQUIRED`, consultant link scopes + drawing acknowledgements, compliance permits/visits with honest derived statuses, same-day site-diary delivery merge, drawings register aliases, safety-incident idempotency + team notification.
+- Audit fixes: `ClientDashboard` FX fallback removed (dated/sourced rates only, honest `simulated` label); font-mono **469 → 69** (identifiers/codes/tabular only, `tabular-nums` elsewhere — see `docs/DESIGN_SYSTEM.md`); `.github/workflows/e2e.yml` runs every spec on both viewports and fails on any skip; expired-TCC payment block proven in `aud-stage3` test 2.
+- API regression: route-guard + lifecycle/auth/portal/commercial suites green (86 tests); multi-method snag-status route split into scanner-visible PUT/PATCH with `PROGRESS_RECORD`.
 
 ### What remains OPEN
 - Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM).

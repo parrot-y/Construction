@@ -235,7 +235,7 @@ export default function AnnouncementsView({ canManage = true}: { canManage?: boo
                       {(readers[a.id] || []).map((r) => (
 <li key={r.user_id} className="text-[11px] text-slate-600 flex justify-between">
 <span>{r.user?.full_name || r.user?.email || r.user_id.slice(0, 8)}</span>
-<span className="font-mono text-slate-400">{new Date(r.read_at).toLocaleString()}</span>
+<span className="font-mono tabular-nums text-slate-400">{new Date(r.read_at).toLocaleString()}</span>
 </li>
 ))}
 </ul>

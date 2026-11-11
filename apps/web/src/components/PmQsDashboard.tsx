@@ -283,7 +283,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <span className="text-[11px] font-semibold text-slate-500 block">
             Approved Budget Baseline
 </span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {budgetSummary?.approvedBudget ? formatKes(budgetSummary.approvedBudget) : '—'}
 </span>
 <span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">Locked contract baseline</span>
@@ -387,9 +387,9 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <tr key={sec.sectionId || sec.title} className="hover:bg-slate-50/50">
 <td className="p-3 font-semibold text-slate-900">{sec.title || sec.sectionTitle || 'Section'}</td>
 <td className="p-3 text-slate-500">{sec.itemCount != null ? `${sec.itemCount} items` : '—'}</td>
-<td className="p-3 font-mono font-medium">{formatKes(sec.allocatedBudget)}</td>
-<td className="p-3 font-mono font-medium">{formatKes(sec.allocatedBudget)}</td>
-<td className="p-3 font-mono text-slate-400">{formatKes(sec.actualSpent)}</td>
+<td className="p-3 tabular-nums font-medium">{formatKes(sec.allocatedBudget)}</td>
+<td className="p-3 tabular-nums font-medium">{formatKes(sec.allocatedBudget)}</td>
+<td className="p-3 tabular-nums text-slate-400">{formatKes(sec.actualSpent)}</td>
 </tr>
 ))}
 </tbody>

@@ -257,7 +257,7 @@ export default function CompliancePortalView({
               {statutoryPermits.map((p) => (
 <tr key={p.id} className="hover:bg-slate-50">
 <td className="p-3 font-semibold text-slate-900">{p.authority}</td>
-<td className="p-3 font-mono font-bold text-blue-700">{p.permitNumber}</td>
+<td className="p-3 font-mono tabular-nums font-bold text-blue-700">{p.permitNumber}</td>
 <td className="p-3 text-slate-600 max-w-xs">{p.description}</td>
 <td className="p-3 text-slate-600">{p.issueDate}</td>
 <td className="p-3 text-slate-700 font-medium">{p.leadOfficer}</td>
@@ -313,14 +313,14 @@ export default function CompliancePortalView({
 
                 return (
 <tr key={c.id} className="hover:bg-slate-50">
-<td className="p-3 font-mono font-bold text-blue-700">{c.batch_reference}</td>
+<td className="p-3 font-mono tabular-nums font-bold text-blue-700">{c.batch_reference}</td>
 <td className="p-3 text-slate-600">{c.pour_date}</td>
 <td className="p-3 font-medium text-slate-900">{c.element_location}</td>
 <td className="p-3 font-bold text-slate-800">C{c.design_grade_mpa}</td>
-<td className="p-3 font-mono">
+<td className="p-3 tabular-nums">
                       {day7 ? `${day7.compressive_strength_mpa} MPa` : '—'}
 </td>
-<td className="p-3 font-mono">
+<td className="p-3 tabular-nums">
                       {day28 ? `${day28.compressive_strength_mpa} MPa` : 'In Curing Tank'}
 </td>
 <td className="p-3">
@@ -400,7 +400,7 @@ export default function CompliancePortalView({
 statutoryPermits.map((pm) => (
 <div key={pm.id} className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">{pm.authority}:</span>
-<span className="font-bold text-slate-900"><span className="font-mono">{pm.permitNumber}</span> ({pm.status})</span>
+<span className="font-bold text-slate-900"><span className="font-mono tabular-nums">{pm.permitNumber}</span> ({pm.status})</span>
 </div>
 ))
 )}

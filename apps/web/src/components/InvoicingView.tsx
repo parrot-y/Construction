@@ -525,8 +525,8 @@ export default function InvoicingView(): React.JSX.Element {
 <span className="font-medium text-slate-800">{inv.client_name}</span>
                       {inv.client_email &&<span className="block text-[10px] text-slate-400">{inv.client_email}</span>}
 </td>
-<td className="py-2.5 pr-3 font-mono font-semibold text-slate-800">{inv.currency} {toCurrencyString(inv.total)}</td>
-<td className="py-2.5 pr-3 font-mono text-slate-600">{inv.currency} {toCurrencyString(inv.balance_due)}</td>
+<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{inv.currency} {toCurrencyString(inv.total)}</td>
+<td className="py-2.5 pr-3 tabular-nums text-slate-600">{inv.currency} {toCurrencyString(inv.balance_due)}</td>
 <td className="py-2.5 pr-3 text-slate-500">{fmtDate(inv.due_date)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.DRAFT}`}>
@@ -585,9 +585,9 @@ export default function InvoicingView(): React.JSX.Element {
 <tr key={it.id ?? i} className="border-b border-slate-100">
 <td className="py-1 pr-2">{it.section ? `[${it.section}] ` : ''}{it.description}</td>
 <td className="py-1 pr-2">{it.unit}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.quantity}</td>
-<td className="py-1 pr-2 text-right font-mono">{toCurrencyString(it.unit_rate)}</td>
-<td className="py-1 text-right font-mono font-semibold">{detail.currency} {toCurrencyString(it.total_amount ?? 0)}</td>
+<td className="py-1 pr-2 text-right font-mono tabular-nums">{it.quantity}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{toCurrencyString(it.unit_rate)}</td>
+<td className="py-1 text-right tabular-nums font-semibold">{detail.currency} {toCurrencyString(it.total_amount ?? 0)}</td>
 </tr>
 ))}
 </tbody>
@@ -606,7 +606,7 @@ export default function InvoicingView(): React.JSX.Element {
                                   {detail.payments!.map((p) => (
 <div key={p.id} className="flex justify-between text-[11px] text-slate-600">
 <span>{fmtDate(p.paid_at)} • {p.method.replace('_', ' ')}{p.reference ? ` • ${p.reference}` : ''}{p.note ? ` — ${p.note}` : ''}</span>
-<span className="font-mono font-semibold">{detail.currency} {toCurrencyString(p.amount)}</span>
+<span className="font-mono tabular-nums font-semibold">{detail.currency} {toCurrencyString(p.amount)}</span>
 </div>
 ))}
 </div>

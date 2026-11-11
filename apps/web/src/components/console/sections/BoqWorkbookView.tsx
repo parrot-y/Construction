@@ -39,7 +39,7 @@ export default function BoqWorkbookView({ projectId}: { projectId: string}): Rea
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Bill of Quantities</h3>
 <p className="text-[11px] text-slate-400">Version {boq.version} · {boq.status}</p>
 </div>
-<span className="text-sm font-bold font-mono text-slate-900 dark:text-slate-100">{fmt(boq.total_amount)}</span>
+<span className="text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100">{fmt(boq.total_amount)}</span>
 </div>
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
@@ -58,19 +58,19 @@ export default function BoqWorkbookView({ projectId}: { projectId: string}): Rea
 <React.Fragment key={sec.id}>
 <tr className="bg-slate-50 dark:bg-slate-900/60">
 <td colSpan={5} className="px-5 py-2 font-bold text-slate-800 dark:text-slate-200">{sec.title}</td>
-<td className="px-5 py-2 text-right font-bold font-mono">{fmt(sec.total_amount)}</td>
+<td className="px-5 py-2 text-right font-bold font-mono tabular-nums">{fmt(sec.total_amount)}</td>
 </tr>
                 {sec.items.map((it) => (
 <tr key={it.id} className="border-t border-slate-50 dark:border-slate-800/60 text-slate-700 dark:text-slate-300">
-<td className="px-5 py-2 font-mono text-[11px]">{it.item_code}</td>
+<td className="px-5 py-2 font-mono tabular-nums text-[11px]">{it.item_code}</td>
 <td className="px-3 py-2 max-w-[320px]">
                       {it.description}
                       {it.is_provisional &&<span className="ml-2 text-[9px] font-bold text-amber-600 ">provisional</span>}
 </td>
 <td className="px-3 py-2">{it.unit}</td>
-<td className="px-3 py-2 text-right font-mono">{Number(it.quantity).toLocaleString()}</td>
-<td className="px-3 py-2 text-right font-mono">{fmt(it.unit_rate)}</td>
-<td className="px-5 py-2 text-right font-mono font-semibold">{fmt(it.total_amount)}</td>
+<td className="px-3 py-2 text-right tabular-nums">{Number(it.quantity).toLocaleString()}</td>
+<td className="px-3 py-2 text-right tabular-nums">{fmt(it.unit_rate)}</td>
+<td className="px-5 py-2 text-right tabular-nums font-semibold">{fmt(it.total_amount)}</td>
 </tr>
 ))}
 </React.Fragment>

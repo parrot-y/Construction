@@ -187,7 +187,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
 <span className="text-[11px] font-semibold text-slate-500 block">
             Today's Headcount
 </span>
-<span className="text-2xl font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-2xl font-bold tabular-nums text-slate-900 mt-1 block">
             {todayHeadcount} Workers
 </span>
 <span className="text-[11px] text-slate-400 mt-0.5 block">Masons, fixers, casuals</span>
@@ -219,7 +219,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
 <div className="space-y-2 text-xs text-slate-600 border-t border-slate-100 pt-3">
 <div className="flex justify-between">
 <span className="text-slate-500">NCA Registration:</span>
-<span className="font-mono font-medium text-slate-800">NCA-PRJ-2026-0891</span>
+<span className="tabular-nums font-medium text-slate-800">NCA-PRJ-2026-0891</span>
 </div>
 <div className="flex justify-between">
 <span className="text-slate-500">Current Phase:</span>

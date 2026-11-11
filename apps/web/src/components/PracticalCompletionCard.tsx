@@ -88,7 +88,7 @@ export default function PracticalCompletionCard({
 <span className="px-2.5 py-0.5 bg-emerald-700 text-white text-[11px] font-bold rounded">
                 ISSUED
 </span>
-<span className="text-xs font-mono font-medium text-slate-600">
+<span className="text-xs tabular-nums font-medium text-slate-600">
                 {`Date: ${practicalCompletionDate ?? '—'}`}
 </span>
 </div>
@@ -109,7 +109,7 @@ export default function PracticalCompletionCard({
                   Lead Consultant Architect
 </span>
 <span className="font-bold text-slate-900 block">{architectName ?? '—'}</span>
-<span className="text-[11px] font-mono text-emerald-800 font-semibold">
+<span className="text-[11px] tabular-nums text-emerald-800 font-semibold">
                   {architectBoraqsNo ? `BORAQS Reg. No. ${architectBoraqsNo}` : '—'}
 </span>
 </div>
@@ -122,7 +122,7 @@ export default function PracticalCompletionCard({
                   Lead Quantity Surveyor
 </span>
 <span className="font-bold text-slate-900 block">{qsName ?? '—'}</span>
-<span className="text-[11px] font-mono text-emerald-800 font-semibold">
+<span className="text-[11px] tabular-nums text-emerald-800 font-semibold">
                   {qsBoraqsNo ? `BORAQS Reg. No. ${qsBoraqsNo}` : '—'}
 </span>
 </div>
@@ -150,7 +150,7 @@ export default function PracticalCompletionCard({
 </div>
 
 <div className="space-y-1">
-<span className="text-2xl font-bold font-mono text-emerald-700 block">
+<span className="text-2xl font-bold tabular-nums text-emerald-700 block">
                 {formatKes(firstMoietyAmount)}
 </span>
 <span className="text-[11px] text-slate-500 block">
@@ -167,7 +167,7 @@ export default function PracticalCompletionCard({
 </div>
 <div className="flex justify-between">
 <span>Payment Certificate:</span>
-<span className="font-mono text-slate-800">IPC #10-FIN-RET1</span>
+<span className="tabular-nums text-slate-800">IPC #10-FIN-RET1</span>
 </div>
 </div>
 </div>
@@ -194,7 +194,7 @@ export default function PracticalCompletionCard({
 </div>
 
 <div className="space-y-1">
-<span className="text-2xl font-bold font-mono text-slate-800 block">
+<span className="text-2xl font-bold tabular-nums text-slate-800 block">
                 {formatKes(secondMoietyAmount)}
 </span>
 <span className="text-[11px] text-slate-500 block">
@@ -209,7 +209,7 @@ export default function PracticalCompletionCard({
 </div>
 <div className="flex justify-between">
 <span>Target Release Date:</span>
-<span className="font-mono text-slate-800">{dlpExpiryDate ?? '—'}</span>
+<span className="tabular-nums text-slate-800">{dlpExpiryDate ?? '—'}</span>
 </div>
 </div>
 </div>
@@ -228,10 +228,10 @@ export default function PracticalCompletionCard({
 </div>
 
 <div className="text-right">
-<span className="text-xl font-mono font-bold text-purple-900 block">
+<span className="text-xl tabular-nums font-bold text-purple-900 block">
                 {dlpDaysRemaining != null ? `${dlpDaysRemaining} Days Remaining` : '—'}
 </span>
-<span className="text-[11px] text-slate-500 font-mono block">
+<span className="text-[11px] text-slate-500 tabular-nums block">
                 {dlpExpiryDate ? `Expires ${dlpExpiryDate}` : '—'}
 </span>
 </div>
@@ -239,7 +239,7 @@ export default function PracticalCompletionCard({
 
           {/* Progress Bar */}
 <div className="space-y-1.5">
-<div className="flex justify-between text-[11px] font-mono text-slate-600">
+<div className="flex justify-between text-[11px] tabular-nums text-slate-600">
 <span>Practical Completion ({practicalCompletionDate ?? '—'})</span>
 <span>{dlpProgressPct != null ? `${dlpProgressPct}% Elapsed` : '—'}</span>
 <span>DLP Expiry ({dlpExpiryDate ?? '—'})</span>
@@ -295,13 +295,13 @@ export default function PracticalCompletionCard({
 <span className="text-[10px] text-slate-400 font-semibold block">
                 Final Inspection Date
 </span>
-<span className="font-mono font-bold text-slate-800 mt-0.5 block">{dlpExpiryDate ?? '—'}</span>
+<span className="tabular-nums font-bold text-slate-800 mt-0.5 block">{dlpExpiryDate ?? '—'}</span>
 </div>
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] text-slate-400 font-semibold block">
                 Final Retention Release
 </span>
-<span className="font-mono font-bold text-emerald-700 mt-0.5 block">
+<span className="tabular-nums font-bold text-emerald-700 mt-0.5 block">
                 {formatKes(secondMoietyAmount)}
 </span>
 </div>

@@ -101,7 +101,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <button key={p.id} onClick={() => { setProjectId(p.id); setQ(''); setSearchOpen(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">{p.name}</span>
-<span className="ml-2 text-[10px] text-slate-400 font-mono">{p.code} · project</span>
+<span className="ml-2 text-[10px] text-slate-400 font-mono tabular-nums">{p.code} · project</span>
 </button>
 ))}
                     {memberHits.map((m: any) => (

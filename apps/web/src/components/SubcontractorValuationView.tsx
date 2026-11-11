@@ -272,7 +272,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 )}
             {valuations.map((val) => (
 <tr key={val.id} className="hover:bg-slate-50/80 transition">
-<td className="py-3 px-4 font-mono font-semibold text-slate-900">{val.certificateNo}</td>
+<td className="py-3 px-4 font-mono tabular-nums font-semibold text-slate-900">{val.certificateNo}</td>
 <td className="py-3 px-4">
 <p className="font-semibold text-slate-900">{val.subcontractorFirm}</p>
 <p className="text-xs text-slate-400">Date: {val.valuationDate}</p>
@@ -309,7 +309,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
                     {val.paymentStatus.replace(/_/g, ' ')}
 </span>
                   {val.paymentReference && (
-<p className="text-xs text-slate-400 font-mono mt-0.5">{val.paymentReference}</p>
+<p className="text-xs text-slate-400 tabular-nums mt-0.5">{val.paymentReference}</p>
 )}
 </td>
 <td className="py-3 px-4 text-right">

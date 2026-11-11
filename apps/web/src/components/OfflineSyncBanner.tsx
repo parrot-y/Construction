@@ -104,7 +104,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
 
 <div className="flex items-center gap-2">
         {queue.length > 0 && (
-<span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-200 text-amber-900 font-mono">
+<span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-200 text-amber-900 tabular-nums">
             {queue.length} Queued
 </span>
 )}

@@ -380,7 +380,7 @@ export default function CreateSnagModal({
                 type="text"
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 font-mono"
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 tabular-nums"
               />
 </div>
 <div>
@@ -391,7 +391,7 @@ export default function CreateSnagModal({
                 type="text"
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 font-mono"
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 tabular-nums"
               />
 </div>
 </div>

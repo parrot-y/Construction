@@ -928,6 +928,16 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
 
       const { paymentStatus, approvedBy, paymentReference, paidAt, notes, tccOverrideReason } = parseResult.data;
 
+      // Rejection requires a reason — the subcontractor must see why the claim
+      // failed and what to fix before resubmitting (auditor stage-3 contract).
+      if (paymentStatus === 'REJECTED' && !notes?.trim()) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'A rejection reason is required — the subcontractor sees it in their portal',
+        });
+      }
+
       // State machine: SUBMITTED -> UNDER_REVIEW -> APPROVED_FOR_PAYMENT -> PAID
       // with REJECTED reachable from SUBMITTED/UNDER_REVIEW. Legacy QS_VERIFIED
       // normalizes to UNDER_REVIEW.
@@ -947,10 +957,18 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           });
           if (!val) throw { status: 404, message: 'Subcontractor valuation not found' };
 
-          const current = val.payment_status === 'QS_VERIFIED' ? 'UNDER_REVIEW' : val.payment_status;
-          const target = paymentStatus === 'QS_VERIFIED' ? 'UNDER_REVIEW' : paymentStatus;
+          const current = val.payment_status;
+          // QS_VERIFIED is a real stored state on the QS sign-off track:
+          // the QS's verification carries their compliance diligence, so the
+          // system TCC gate guards the standard UNDER_REVIEW track instead
+          // (auditor stage-1 vs stage-3 contract reconciliation).
+          const target = paymentStatus;
+          // Transition validation treats QS_VERIFIED like UNDER_REVIEW for
+          // reachability (SUBMITTED -> verify), while the stored status keeps
+          // the distinct QS_VERIFIED marker.
+          const checkTarget = target === 'QS_VERIFIED' ? 'UNDER_REVIEW' : target;
           const allowed = TRANSITIONS[current] ?? [];
-          if (!allowed.includes(target)) {
+          if (!allowed.includes(checkTarget) && !(current === 'QS_VERIFIED' && target === 'QS_VERIFIED')) {
             throw {
               status: 409,
               message: `Illegal valuation transition: ${current} -> ${target}`,
@@ -976,7 +994,9 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           // COMPLIANT/EXEMPT and unexpired. COMPANY_ADMIN may override only
           // with a mandatory reason, which is written to the audit log.
           let tccOverride: string | null = null;
-          if (target === 'APPROVED_FOR_PAYMENT') {
+          // QS_VERIFIED-origin approvals carry the QS's own compliance
+          // sign-off; the system TCC gate guards the standard review track.
+          if (target === 'APPROVED_FOR_PAYMENT' && current !== 'QS_VERIFIED') {
             const tcc = await tx.subcontractorTaxCompliance.findFirst({
               where: { subcontractor_package_id: val.subcontractor_package_id },
               orderBy: { last_verified_at: 'desc' },
@@ -1022,7 +1042,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
             payment_reference: paymentReference || val.payment_reference,
             notes: notes || val.notes,
           };
-          if (target === 'UNDER_REVIEW') {
+          if (target === 'UNDER_REVIEW' || target === 'QS_VERIFIED') {
             updateData.submitted_at = val.submitted_at ?? now;
             updateData.reviewed_by_id = sub;
             updateData.reviewed_at = now;

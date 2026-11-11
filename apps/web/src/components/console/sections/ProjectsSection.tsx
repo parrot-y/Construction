@@ -151,10 +151,10 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
                 {recentCos.map((v: any) => (
 <tr key={v.id} className="text-slate-700 dark:text-slate-300">
 <td className="px-5 py-2.5 font-medium">{v.projectName}</td>
-<td className="px-3 py-2.5 font-mono">{v.co_number || v.id?.slice(0, 8)}</td>
+<td className="px-3 py-2.5 font-mono tabular-nums">{v.co_number || v.id?.slice(0, 8)}</td>
 <td className="px-3 py-2.5 max-w-[260px] truncate">{v.title || v.description || '—'}</td>
 <td className="px-3 py-2.5"><span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[10px] font-bold">{v.status}</span></td>
-<td className="px-5 py-2.5 text-right font-mono">{v.currency || 'KES'} {v.net_amount ?? v.amount ?? '—'}</td>
+<td className="px-5 py-2.5 text-right font-mono tabular-nums">{v.currency || 'KES'} {v.net_amount ?? v.amount ?? '—'}</td>
 </tr>
 ))}
 </tbody>
