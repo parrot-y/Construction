@@ -465,22 +465,28 @@ export default function ClientDashboard({
 <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
 <span className="text-[10px] font-semibold text-slate-500 px-1">Diaspora View:</span>
             {(['KES', 'USD', 'GBP', 'EUR', 'AED'] as CurrencyCode[])
-              .filter((c) => c === 'KES' || (fxFeed?.rates?.[c] ?? 0) > 0)
-              .map((c) => (
+              .map((c) => {
+                const rateAvailable = c === 'KES' || (fxFeed?.rates?.[c] ?? 0) > 0;
+                return (
 <button
                 key={c}
                 type="button"
-                onClick={() => setSelectedCurrency(c)}
+                disabled={!rateAvailable}
+                title={rateAvailable ? undefined : 'Exchange rate unavailable — KES only'}
+                onClick={() => rateAvailable && setSelectedCurrency(c)}
                 data-testid={`currency-toggle-${c.toLowerCase()}`}
                 className={`px-2 py-0.5 text-xs font-bold rounded transition ${
-                  selectedCurrency === c
-                    ? 'bg-emerald-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  !rateAvailable
+                    ? 'text-slate-300 cursor-not-allowed'
+                    : selectedCurrency === c
+                      ? 'bg-emerald-700 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
 }`}
               >
                 {c}
 </button>
-))}
+);
+              })}
 </div>
 </div>
 

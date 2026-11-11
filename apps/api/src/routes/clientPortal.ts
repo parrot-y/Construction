@@ -320,9 +320,12 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             select: { retention_terms: true, payment_instructions: true },
           });
           const maxCapAmountDec = originalBudgetDec.times(0.05);
+          // Kenyan standard schedule: 10% interim deduction on each
+          // certificate, capped at 5% of the contract sum (retention_pct is
+          // the effective withheld rate once the cap binds).
           const defaultRetentionTerms = {
             retention_pct: 5,
-            interim_deduction_rate: '5%',
+            interim_deduction_rate: '10%',
             max_cap_rate: '5%',
             max_cap_amount: toCurrencyString(maxCapAmountDec),
             release_schedule: [
@@ -357,12 +360,20 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
                 }))
               : scheduleRaw;
             const interim = pct(src.interim_deduction_rate ?? src.interimDeductionRatePct) ?? defaultRetentionTerms.interim_deduction_rate;
+            const capRate = pct(src.max_cap_rate ?? src.maxCapRatePct) ?? defaultRetentionTerms.max_cap_rate;
+            // Effective retention vs contract = the lower of the interim
+            // deduction rate and the max-cap rate (Kenyan 10%/5% schedule).
+            const effectivePct = (() => {
+              const i = parseFloat(String(interim).replace('%', ''));
+              const c = parseFloat(String(capRate).replace('%', ''));
+              return Number.isFinite(i) && Number.isFinite(c) ? Math.min(i, c) : undefined;
+            })();
             return {
               ...src,
               // Convenience numeric mirror for API consumers (e.g. "5%" -> 5).
-              retention_pct: src.retention_pct ?? src.retentionPct ?? (interim ? parseFloat(String(interim)) : undefined),
+              retention_pct: src.retention_pct ?? src.retentionPct ?? effectivePct,
               interim_deduction_rate: interim,
-              max_cap_rate: pct(src.max_cap_rate ?? src.maxCapRatePct) ?? defaultRetentionTerms.max_cap_rate,
+              max_cap_rate: capRate,
               max_cap_amount: src.max_cap_amount ?? src.maxCapAmount ?? defaultRetentionTerms.max_cap_amount,
               release_schedule: schedule ?? defaultRetentionTerms.release_schedule,
             };

@@ -82,7 +82,9 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       }
       const body = parsed.data;
-      const isPinInvite = !!body.phone;
+      // PIN path only when the invitee has NO email — phone+email stays a
+      // normal email invite (phone is just a contact field there).
+      const isPinInvite = !!body.phone && !body.email;
 
       const validRoles = Object.values(Roles);
       if (!validRoles.includes(body.role as (typeof Roles)[keyof typeof Roles])) {
@@ -257,11 +259,13 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         });
       });
 
-      // List view never exposes raw tokens — only the create/regenerate
-      // responses do (the copy-and-send link is generated client-side there).
+      // List view exposes inviteUrl (the copy-and-send link the admin UI's
+      // "Copy link" action needs) but never the bare token field — same
+      // COMPANY_INVITE permission gates create/regenerate which already
+      // return full tokens, so this is not a privilege escalation.
       return reply.status(200).send({
         data: invitations.map((inv) => {
-          const { token: _t, inviteUrl: _u, ...rest } = invitePayload(inv);
+          const { token: _t, ...rest } = invitePayload(inv);
           return rest;
         }),
       });
@@ -411,8 +415,10 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
       // Phone (field-role) invites authenticate with a PIN copied onto the
       // account — set at invite time or chosen by the invitee at accept.
-      // Email invites still require the invitee's own password.
-      const pinInvite = !!invitation.phone;
+      // PIN invites are identified by their synthetic field email — a phone
+      // number on an email invite is just a contact field and must not flip
+      // acceptance into the PIN flow.
+      const pinInvite = !!invitation.phone && invitation.email.endsWith('@pin.local');
       let acceptedPinHash: string | null = invitation.pin_hash || null;
       if (pinInvite && !acceptedPinHash) {
         if (!pin) {
