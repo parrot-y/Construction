@@ -69,7 +69,7 @@ import InvoicingView from './components/InvoicingView';
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
   it('renders the login screen by default with demo accounts and title', () => {
     const html = renderToString(<LoginForm onLoginSuccess={() => {}} />);
-        expect(html).toContain('BuildSasa');
+        expect(html).toContain('SiteSafi');
     expect(html).toContain('admin@apexbuilders.co.ke');
     expect(html).toContain('COMPANY_ADMIN');
     expect(html).toContain('PM_QS');
@@ -79,7 +79,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
   it('renders the App component root unauthenticated', () => {
     const html = renderToString(<App />);
-    expect(html).toContain('BuildSasa');
+    expect(html).toContain('SiteSafi');
     expect(html).toContain('Sign in to your workspace');
 });
 

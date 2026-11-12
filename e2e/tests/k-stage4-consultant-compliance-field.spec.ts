@@ -441,13 +441,13 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
   });
 
   // -------------------------------------------------------------------------
-  test('7. Product name is configurable; no Site Safi/Mjengo strings', async ({ request }) => {
+  test('7. Product name is SiteSafi; no leftover brand strings', async ({ request }) => {
     const prod = await apiGet(request, state.admin!, CONTRACT.product);
     expect(prod.status()).toBe(200);
     const pname = unwrap(await prod.json());
     const name = typeof pname === 'string' ? pname : pname?.name || pname?.productName;
     expect(name, 'product name must be configured').toBeTruthy();
-    expect(String(name)).not.toMatch(/safi|mjengo/i);
+    expect(String(name)).toBe('SiteSafi');
 
     // Sampled API payloads must not leak the old brand names
     const samples = [
@@ -458,7 +458,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     for (const res of samples) {
       if (res.status() !== 200) continue;
       const text = await res.text();
-      expect(text, 'API payload must not contain legacy brand names').not.toMatch(/site safi|mjengo/i);
+      expect(text, 'API payload must not contain leftover brand names').not.toMatch(/buildsasa|mjengo|site safi/i);
     }
   });
 });

@@ -312,12 +312,24 @@ test.describe.serial('Stage 4 — consultant, compliance, field roles', () => {
   });
 
   // ---------------------------------------------------------------------------
-  test('7. The product shows one honest name, not a leftover brand', async ({ request, page }) => {
+  test('7. The product shows one honest name (SiteSafi), not a competitor or leftover brand', async ({ request, page }) => {
+    // AMENDED 2026-11-13 (auditor): the owner named the product SiteSafi. Leftovers to purge are
+    // the benchmark competitor's name (BuildSasa / Sasa), the old placeholder Mjengo, and the
+    // spaced variant "Site Safi" (one spelling only).
+    const LEFTOVER = /BuildSasa|\bSasa\b|Mjengo|Site Safi/i;
     const inbox = JSON.stringify(await (await apiGet(request, S.admin!, '/api/v1/inbox')).json());
-    expect(inbox, 'system messages must not be signed with a placeholder brand').not.toMatch(/Site Safi|Mjengo/i);
+    expect(inbox, 'system messages must not be signed with a leftover brand').not.toMatch(LEFTOVER);
     await page.goto('/');
     const text = await page.locator('body').innerText();
-    expect(text).not.toMatch(/Site Safi|Mjengo/i);
-    expect(await page.title()).not.toMatch(/Site Safi|Mjengo/i);
+    expect(text).not.toMatch(LEFTOVER);
+    const title = await page.title();
+    expect(title).not.toMatch(LEFTOVER);
+    expect(title, 'browser tab must carry the product name').toMatch(/SiteSafi/);
+    const manifest = await page.evaluate(async () => {
+      const href = document.querySelector('link[rel="manifest"]')?.getAttribute('href');
+      if (!href) return '';
+      try { return await (await fetch(href)).text(); } catch { return ''; }
+    });
+    expect(manifest, 'installed-app name must not be a leftover brand').not.toMatch(LEFTOVER);
   });
 });
