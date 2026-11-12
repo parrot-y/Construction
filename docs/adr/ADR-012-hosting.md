@@ -1,6 +1,6 @@
 # ADR-012: Staging/production hosting for the Kenya-first SaaS
 
-**Status:** proposed · **Date:** 2026-11-13 · **Deciders:** owner + CTO
+**Status:** accepted (with amendments) · **Amended:** 2026-11-13 · **Date:** 2026-11-13 · **Deciders:** owner + CTO
 
 ## Context
 
@@ -98,12 +98,70 @@ phase.
 
 ## Consequences
 
-- One-time infra work: VPC-lite setup (default VPC ok for pilot), RDS
-  instance, ECR repos, ECS services or a single EC2 + docker-compose behind
-  an ALB, ACM cert on the domain, Route 53 records, Secrets Manager entries,
-  CloudWatch alarm → SNS topic.
+- **Infrastructure as code**: all AWS resources are defined in `infra/`
+  (Terraform, AWS provider ~> 5.x). No click-ops. Root account gets MFA;
+  day-to-day work uses a non-root deploy role/user with least-privilege IAM
+  (ECR push, ECS update, Secrets Manager read on the app secret only).
+  No secrets are stored in the repo — Terraform reads them from the platform
+  secret store or `TF_VAR_*` at plan/apply time.
+- One-time infra work: VPC-lite (default VPC ok for pilot), RDS instance,
+  ECR repos, ECS Fargate services behind an ALB, ACM cert on
+  `<product-domain>`, Route 53 records, Secrets Manager entries,
+  CloudWatch alarm → SNS topic (email/SMS alerting).
 - CI: GitHub Actions deploy job runs `prisma migrate deploy` as
   `db_migrator`, then `psql -f rls.sql`, then rolls the service.
-- Domain: need a real domain (e.g. `buildsasa.co.ke` / similar) — owner to
-  supply or approve purchase.
+- Domain: `<product-domain>` placeholder — owner supplies the real domain before
+  provisioning; no example brand names are committed.
 - Monthly run cost ≈ KES 6,500–8,400 at pilot scale.
+
+## Data protection (Kenya Data Protection Act 2019)
+
+Personal data will be hosted in `af-south-1` (South Africa) — **outside
+Kenya**. Under the DPA 2019 this is a cross-border transfer; the Act permits
+it where the destination has an adequate protection regime or via consent /
+contractual safeguards. South Africa is not currently listed as an adequate
+jurisdiction by ODPC, so we rely on processor agreements and transparency.
+
+Personal data held by the platform:
+
+- User accounts: name, email, phone (Kenyan MSISDN), password hash (bcrypt),
+  role, tenant membership.
+- Project/business data entered by tenants: client names, site addresses,
+  contacts, contract values, invoices — includes third-party personal data
+  (clients, subcontractors, suppliers).
+- Site photos/diary attachments uploaded by field staff (may incidentally
+  capture identifiable people).
+- Audit logs: actor ids, IP addresses, user agents, timestamps.
+
+**Open item — owner to obtain legal advice and confirm ODPC registration
+obligations** before onboarding real paying tenants. Privacy notice wording
+in the product should reflect the af-south-1 hosting location.
+
+## Recovery targets (pilot)
+
+| Metric | Pilot target | Mechanism |
+|---|---|---|
+| RPO | ≤ 5 minutes | RDS automated backups + transaction logs (PITR, 7-day retention on pilot tier) |
+| RTO | ≤ 4 hours | Snapshot restore to a new instance + redeploy last image; runbook-documented drill |
+
+**Single-AZ RDS is a conscious pilot trade-off**: Multi-AZ doubles the
+largest line item (~+$15/mo). We accept a brief outage window during AZ
+failure in exchange for pilot cost; Multi-AZ is the documented first prod
+upgrade. Deletion protection is ON even on staging to prevent accidents.
+
+## Staging vs production
+
+This ADR covers **staging only** for now (`<product-domain>` staging
+environment). Production differences to revisit later: Multi-AZ RDS,
+longer PITR retention (35 days), separate AWS account or at minimum separate
+VPC/subnets + roles, WAF on the ALB, budget alerts at a lower threshold,
+formal on-call rota, and the ODPC/legal sign-off above.
+
+## Rollout gates (owner-confirmed before `terraform apply`)
+
+1. `<product-domain>` confirmed and Route 53 hosted zone created.
+2. AWS account ready: root MFA enabled, deploy role created, billing alarm set.
+3. `terraform plan` output reviewed and approved.
+4. Latency from a Kenyan network measured once staging is live and logged in
+   `docs/evidence/staging-*.md`.
+
