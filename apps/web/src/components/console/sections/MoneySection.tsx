@@ -28,6 +28,7 @@ const FIN_TABS = ['overview', 'ledger', 'boq', 'applications', 'retention', 'bud
 
 /** Financial tracker — money in/out, budget vs actual, exports (reference"Financials"). */
 function FinancialsView({ projectId, projectName}: { projectId: string; projectName?: string}): React.JSX.Element {
+  const { role } = useConsole();
   const [ft, setFt] = useState<(typeof FIN_TABS)[number]>('overview');
   const [kpis, setKpis] = useState<{ cashIn: number; deposits: number; cashOut: number; net: number} | null>(null);
 
@@ -88,7 +89,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
 </div>
 </div>
 )}
-      {ft === 'ledger' &&<CostManagementView projectId={projectId} canCreate canApprove />}
+      {ft === 'ledger' &&<CostManagementView projectId={projectId} canCreate canApprove userRole={role} />}
       {ft === 'boq' &&<BoqWorkbookView projectId={projectId} />}
       {ft === 'applications' &&<CommitmentsView projectId={projectId} canManage />}
       {ft === 'retention' &&<RetentionAndBondsView projectId={projectId} projectName={projectName} userRole="PM_QS" />}

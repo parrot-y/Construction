@@ -22,6 +22,7 @@ interface CostManagementViewProps {
   projectId: string;
   canApprove?: boolean;
   canCreate?: boolean;
+  userRole?: string;
   initialCosts?: CostItem[];
   boqItems?: Array<{ id: string; item_code: string; description: string}>;
 }
@@ -30,6 +31,7 @@ export default function CostManagementView({
   projectId,
   canApprove = true,
   canCreate = true,
+  userRole,
   initialCosts = [],
   boqItems = [],
 }: CostManagementViewProps): React.JSX.Element {
@@ -75,8 +77,14 @@ export default function CostManagementView({
       let res = await postApproval(costId, comments);
       if (res.status === 409) {
         const errBody = await res.json().catch(() => null);
-        if (/selfApprovalReason/i.test(errBody?.message || '')) {
-          const reason = window.prompt('You are approving a cost you entered. Record the self-approval reason (required):');
+        const isSelfApprovalBlock = /selfApprovalReason|different approver/i.test(errBody?.message || '');
+        if (isSelfApprovalBlock) {
+          const canSelfApprove = ['COMPANY_ADMIN', 'ADMIN'].includes(userRole || '');
+          if (!canSelfApprove) {
+            setActionFeedback('A different approver is required.');
+            return;
+          }
+          const reason = window.prompt('You are approving a cost you entered. Record the self-approval reason (min 15 characters):');
           if (!reason || !reason.trim()) { setActionFeedback('Self-approval cancelled — a reason is required.'); return; }
           res = await postApproval(costId, comments, reason.trim());
         }

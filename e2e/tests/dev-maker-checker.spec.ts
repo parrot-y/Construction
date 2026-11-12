@@ -75,6 +75,8 @@ test.describe.serial('Maker-checker — costs, certificates, invoices', () => {
     const adminCostId = unwrap(await adminCost.json()).id;
     const noReason = await apiPost(request, S.admin!, `/api/v1/projects/${projectId}/costs/${adminCostId}/approve`, { action: 'APPROVED' });
     expect(noReason.status(), 'admin self-approval without reason must be refused').toBe(409);
+    const shortReason = await apiPost(request, S.admin!, `/api/v1/projects/${projectId}/costs/${adminCostId}/approve`, { action: 'APPROVED', selfApprovalReason: 'ok' });
+    expect(shortReason.status(), 'selfApprovalReason under 15 non-space chars must be refused').toBe(409);
 
     // Admin self-approves WITH a reason -> succeeds, flagged and stored.
     const withReason = await apiPost(request, S.admin!, `/api/v1/projects/${projectId}/costs/${adminCostId}/approve`, {
@@ -125,6 +127,8 @@ test.describe.serial('Maker-checker — costs, certificates, invoices', () => {
     }
     const noReason = await apiPost(request, S.admin!, `/api/v1/projects/${projectId}/payment-certificates/${cert2Id}/action`, { action: 'CERTIFY' });
     expect(noReason.status(), 'admin self-certification without reason must be refused').toBe(409);
+    const shortReason = await apiPost(request, S.admin!, `/api/v1/projects/${projectId}/payment-certificates/${cert2Id}/action`, { action: 'CERTIFY', selfApprovalReason: 'fine' });
+    expect(shortReason.status(), 'cert selfApprovalReason under 15 non-space chars must be refused').toBe(409);
 
     const withReason = await apiPost(request, S.admin!, `/api/v1/projects/${projectId}/payment-certificates/${cert2Id}/action`, {
       action: 'CERTIFY', selfApprovalReason: 'Client instructed immediate certification — call ref ABC123',
@@ -156,6 +160,11 @@ test.describe.serial('Maker-checker — costs, certificates, invoices', () => {
       headers: { ...authHeaders(S.admin!), 'content-type': 'application/json' }, data: {},
     });
     expect(noReason.status(), 'admin send without reason must be refused').toBe(409);
+    const shortReason = await request.post(`${API}/api/v1/invoices/${inv2Id}/send`, {
+      headers: { ...authHeaders(S.admin!), 'content-type': 'application/json' },
+      data: { selfApprovalReason: 'yes' },
+    });
+    expect(shortReason.status(), 'invoice selfApprovalReason under 15 non-space chars must be refused').toBe(409);
     const withReason = await request.post(`${API}/api/v1/invoices/${inv2Id}/send`, {
       headers: { ...authHeaders(S.admin!), 'content-type': 'application/json' },
       data: { selfApprovalReason: 'Client paid deposit upfront — verified bank slip' },

@@ -36,5 +36,11 @@ export function evaluateSelfApproval(opts: {
       message: `Self-approval of your own ${opts.entity} requires a selfApprovalReason`,
     };
   }
+  if (reason.replace(/\s+/g, '').length < 15) {
+    throw {
+      status: 409,
+      message: `selfApprovalReason must be at least 15 non-space characters for a self-approved ${opts.entity}`,
+    };
+  }
   return { selfApproved: true, reason };
 }

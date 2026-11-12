@@ -405,6 +405,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
         projectId={pid}
         canApprove={true}
         canCreate={true}
+        userRole={user.role}
       />
 
       {/* Variations & Scope Adjustments Workflow (Milestone M8) */}
