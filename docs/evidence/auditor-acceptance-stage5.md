@@ -90,3 +90,18 @@ cost/certificate/invoice **except** COMPANY_ADMIN/ADMIN with a non-empty
   `invoices.test.ts` updated to send admin-created invoices with
   `selfApprovalReason` (the new required admin path).
 - aud-* specs and `aud-specs.sha256` untouched.
+
+### Auditor re-review fixes (commit 87f0c0b)
+
+- `selfApprovalReason` now requires **≥15 non-space characters** (409
+  otherwise) on costs, certificates and invoices — covered by new short-
+  reason cases in `dev-maker-checker.spec.ts` for all three entities.
+- `CostManagementView`: the reason prompt appears only for
+  COMPANY_ADMIN/ADMIN; other roles see "A different approver is required."
+  (`userRole` threaded from `useConsole()` in MoneySection and
+  `session.user.role` in PmQsDashboard).
+- `dev-maker-checker.spec.ts`: **8/8** across chromium + mobile-390.
+- `verify-local.sh` on `87f0c0b` → **COMPLETED SUCCESSFULLY**:
+  API **561/561**, web **118/118**, db 15/15, money 63/63, permissions 9/9 —
+  log: `docs/evidence/verify-87f0c0b.log`.
+- aud-* specs and `aud-specs.sha256` untouched.
