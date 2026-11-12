@@ -161,7 +161,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/send`,
       headers: { cookie: adminCookie },
-      payload: {},
+      payload: { selfApprovalReason: 'Gate-4 test: admin sends own draft invoice' },
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -256,7 +256,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
       method: 'POST',
       url: `/api/v1/invoices/${oid}/send`,
       headers: { cookie: adminCookie },
-      payload: {},
+      payload: { selfApprovalReason: 'Gate-4 test: admin sends own draft invoice' },
     });
 
     const res = await server.inject({

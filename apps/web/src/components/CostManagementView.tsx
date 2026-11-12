@@ -10,6 +10,7 @@ export interface CostItem {
   invoice_ref?: string | null;
   description: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'VOIDED';
+  self_approved?: boolean;
   created_at: string;
   receipts?: Array<{ id?: string; filename: string; mime_type?: string}>;
   boq_item?: { id: string; item_code: string; description: string} | null;
@@ -57,23 +58,37 @@ export default function CostManagementView({
     setActionFeedback(`Cost entry for ${formatKes(newCost.amount)} logged successfully in PENDING status`);
 };
 
+  const postApproval = async (costId: string, comments: string, selfApprovalReason?: string) => {
+    const res = await fetch(`/api/v1/projects/${projectId}/costs/${costId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'APPROVED', comments, ...(selfApprovalReason ? { selfApprovalReason } : {}) }),
+    });
+    return res;
+  };
+
   const handleApprove = async (costId: string) => {
     const comments = window.prompt('Enter QS/PM approval comments:', 'Verified and approved against site delivery note');
     if (comments === null) return;
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/costs/${costId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: 'APPROVED', comments}),
-});
+      let res = await postApproval(costId, comments);
+      if (res.status === 409) {
+        const errBody = await res.json().catch(() => null);
+        if (/selfApprovalReason/i.test(errBody?.message || '')) {
+          const reason = window.prompt('You are approving a cost you entered. Record the self-approval reason (required):');
+          if (!reason || !reason.trim()) { setActionFeedback('Self-approval cancelled — a reason is required.'); return; }
+          res = await postApproval(costId, comments, reason.trim());
+        }
+      }
       if (res.ok) {
-        setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED'} : c)));
-        setActionFeedback('Cost entry APPROVED successfully');
+        const body = await res.json().catch(() => null);
+        const selfApproved = !!(body?.data?.updated?.selfApproved ?? body?.data?.updated?.self_approved);
+        setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED', self_approved: selfApproved || c.self_approved } : c)));
+        setActionFeedback(selfApproved ? 'Cost entry self-approved with recorded reason' : 'Cost entry APPROVED successfully');
 } else {
-        // Fallback simulation
-        setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED'} : c)));
-        setActionFeedback('Cost entry approved.');
+        const errBody = await res.json().catch(() => null);
+        setActionFeedback(errBody?.message || 'Cost entry approval failed.');
 }
 } catch (e: any) {
       setActionFeedback(e.message || 'Network error — approval not recorded.');
@@ -237,6 +252,11 @@ export default function CostManagementView({
                     >
                       {cost.status}
 </span>
+                    {cost.self_approved && (
+<span className="ml-1 inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-violet-100 text-violet-800 border border-violet-200" title="Approved by the person who entered it, with a recorded reason">
+                         Self-approved
+</span>
+)}
 </td>
                   {canApprove && (
 <td className="py-3 px-3 text-center font-sans">

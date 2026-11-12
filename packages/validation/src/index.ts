@@ -120,6 +120,7 @@ export type CreateCostEntry = z.infer<typeof CreateCostEntrySchema>;
 export const ApproveCostEntrySchema = z.object({
   action: z.enum(['APPROVED', 'REJECTED']),
   comments: z.string().max(1000).optional().nullable(),
+  selfApprovalReason: z.string().max(500).optional().nullable(),
 });
 export type ApproveCostEntry = z.infer<typeof ApproveCostEntrySchema>;
 
@@ -1976,6 +1977,7 @@ export const PaymentCertificateActionSchema = z.object({
   action: z.enum(['SUBMIT', 'REVIEW', 'CERTIFY', 'REJECT', 'MARK_PAID']),
   comments: z.string().max(2000).optional(),
   paidReference: z.string().max(100).optional().nullable(),
+  selfApprovalReason: z.string().max(500).optional().nullable(),
 }).refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
   message: 'A rejection reason (comments) is required',
   path: ['comments'],

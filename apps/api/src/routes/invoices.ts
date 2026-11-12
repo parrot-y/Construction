@@ -10,6 +10,7 @@ import {
   VoidInvoiceSchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { evaluateSelfApproval } from '../plugins/makerChecker';
 import { renderPdfToBuffer } from '../reports/renderPdf';
 import { InvoicePdf, InvoicePdfData } from '../reports/InvoicePdf';
 
@@ -50,6 +51,7 @@ function formatInvoice(inv: any) {
   return {
     ...inv,
     status: effectiveStatus(inv),
+    selfApproved: !!inv.self_approved,
     stored_status: inv.status,
     subtotal: toCurrencyString(MONEY(inv.subtotal)),
     tax_pct: inv.tax_pct ? inv.tax_pct.toString() : '0',
@@ -369,11 +371,12 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
     '/api/v1/invoices/:id/send',
     { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_SEND)] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { id } = request.params as { id: string };
       if (!UUID_REGEX.test(id)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invoice not found' });
       }
+      const sendBody = (request.body ?? {}) as { selfApprovalReason?: string | null };
 
       try {
         const invoice = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -383,9 +386,24 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             throw { status: 409, message: `Cannot send an invoice in status ${existing.status}` };
           }
 
+          // Maker-checker: the invoice creator cannot send it themselves;
+          // COMPANY_ADMIN/ADMIN only with a recorded selfApprovalReason.
+          const selfAppr = evaluateSelfApproval({
+            creatorId: existing.created_by,
+            actorId: sub,
+            actorRole: role,
+            reason: sendBody.selfApprovalReason,
+            entity: 'invoice',
+          });
+
           const updated = await tx.invoice.update({
             where: { id },
-            data: { status: 'SENT', sent_at: new Date() },
+            data: {
+              status: 'SENT',
+              sent_at: new Date(),
+              self_approved: selfAppr.selfApproved,
+              self_approval_reason: selfAppr.reason,
+            },
             include: { items: true, payments: true },
           });
 
@@ -396,7 +414,11 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             action: 'INVOICE_SENT',
             entityType: 'Invoice',
             entityId: id,
-            changes: { invoiceNo: existing.invoice_no },
+            changes: {
+              invoiceNo: existing.invoice_no,
+              selfApproved: selfAppr.selfApproved,
+              selfApprovalReason: selfAppr.reason,
+            },
             ipAddress: request.ip,
             userAgent: (request.headers['user-agent'] as string) || null,
           });

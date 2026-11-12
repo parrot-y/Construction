@@ -16,6 +16,7 @@ import {
   VoidCostEntrySchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { evaluateSelfApproval } from '../plugins/makerChecker';
 
 export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ---------------------------------------------------------------------------
@@ -327,7 +328,7 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       ],
     },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId, costId } = request.params as { projectId: string; costId: string };
 
       const bodyParse = ApproveCostEntrySchema.safeParse(request.body);
@@ -340,7 +341,7 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         });
       }
 
-      const { action, comments } = bodyParse.data;
+      const { action, comments, selfApprovalReason } = bodyParse.data;
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -356,20 +357,33 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             throw { status: 400, message: 'Cannot approve or reject a voided cost entry' };
           }
 
-          // Maker-checker: the person who logged the cost cannot decide it.
-          if (entry.created_by_id === sub) {
-            throw { status: 409, message: 'The person who entered this cost cannot approve it — a different approver is required' };
-          }
-
           // A decided cost cannot be decided again (no double-posting).
           if (entry.status === 'APPROVED' || entry.status === 'REJECTED') {
             throw { status: 409, message: `Cost entry is already ${entry.status.toLowerCase()} — a decided cost cannot be decided again` };
           }
 
+          // Maker-checker: creator cannot decide own entry; COMPANY_ADMIN/ADMIN
+          // may only with a recorded selfApprovalReason.
+          // Maker-checker applies to approval decisions; a creator may still
+          // reject/withdraw their own pending entry.
+          const selfAppr = action === 'APPROVED'
+            ? evaluateSelfApproval({
+                creatorId: entry.created_by_id,
+                actorId: sub,
+                actorRole: role,
+                reason: selfApprovalReason,
+                entity: 'cost',
+              })
+            : { selfApproved: false, reason: null };
+
           // Update cost entry status
           const updated = await tx.costEntry.update({
             where: { id: costId },
-            data: { status: action },
+            data: {
+              status: action,
+              self_approved: selfAppr.selfApproved,
+              self_approval_reason: selfAppr.reason,
+            },
           });
 
           // Create approval record
@@ -395,6 +409,8 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
               previousStatus: entry.status,
               newStatus: action,
               comments: comments || null,
+              selfApproved: selfAppr.selfApproved,
+              selfApprovalReason: selfAppr.reason,
             },
             ipAddress: request.ip,
             userAgent: request.headers['user-agent'] || null,
@@ -404,6 +420,7 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             updated: {
               ...updated,
               amount: toCurrencyString(updated.amount.toString()),
+              selfApproved: selfAppr.selfApproved,
             },
             approval,
           };

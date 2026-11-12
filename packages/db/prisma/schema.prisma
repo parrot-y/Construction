@@ -445,6 +445,8 @@ model CostEntry {
   invoice_ref    String?        @db.VarChar(100)
   description    String         @db.Text
   status         String         @default("PENDING") @db.VarChar(50) // "PENDING", "APPROVED", "REJECTED", "VOIDED"
+  self_approved        Boolean  @default(false)
+  self_approval_reason String?  @db.VarChar(500)
   created_by_id  String         @db.Uuid
   created_at     DateTime       @default(now()) @db.Timestamptz
 
@@ -2459,6 +2461,8 @@ model Invoice {
   paid_at      DateTime? @db.Timestamptz
   voided_at    DateTime? @db.Timestamptz
   void_reason  String?   @db.VarChar(255)
+  self_approved        Boolean  @default(false)
+  self_approval_reason String?  @db.VarChar(500)
   created_by   String?   @db.Uuid
   created_at   DateTime  @default(now()) @db.Timestamptz
   updated_at   DateTime  @updatedAt @db.Timestamptz
@@ -2552,6 +2556,8 @@ model PaymentCertificate {
   paid_reference       String?   @db.VarChar(100) // M-Pesa code / EFT ref / cheque no
   submitted_by_id      String?   @db.Uuid
   certified_by_id      String?   @db.Uuid
+  self_approved        Boolean   @default(false)
+  self_approval_reason String?   @db.VarChar(500)
   notes                String?   @db.Text
   created_at           DateTime  @default(now()) @db.Timestamptz
   updated_at           DateTime  @updatedAt @db.Timestamptz

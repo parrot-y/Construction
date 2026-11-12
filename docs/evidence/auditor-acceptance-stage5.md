@@ -53,3 +53,40 @@ inspections/diaries/members/cost-approval.
 `verify-local.sh` → **LOCAL CI VERIFICATION COMPLETED SUCCESSFULLY**
 (561/561 API, 118/118 web, lint/typecheck/build/audit clean) —
 `docs/evidence/verify-9fb784d.log`.
+
+---
+
+## Follow-up (2026-11-12): maker-checker self-approval rule — auditor decision
+
+Auditor refined the Stage-5 maker-checker rule: creator cannot approve own
+cost/certificate/invoice **except** COMPANY_ADMIN/ADMIN with a non-empty
+`selfApprovalReason` (stored on the row, audit-logged, flagged in response).
+
+### Implementation
+
+- Migration `0016_maker_checker_self_approval`: `self_approved` +
+  `self_approval_reason` on `cost_entries`, `payment_certificates`, `invoices`.
+- `apps/api/src/plugins/makerChecker.ts`: shared `evaluateSelfApproval` —
+  409 for non-admin creators; 409 for admin without reason; `{selfApproved,
+  reason}` otherwise.
+- Costs approve: applies to `APPROVED` decisions (creator may still reject own
+  pending entry); response returns `selfApproved`.
+- Certificates: applies to `CERTIFY` and `MARK_PAID` (creator = `submitted_by_id`).
+- Invoices: applies to `POST /invoices/:id/send` (creator = `created_by`).
+- Web: `CostManagementView` shows a "Self-approved" badge; on a 409
+  self-approval response it prompts for the reason and retries.
+
+### Runs (real output)
+
+- `dev-maker-checker.spec.ts` (new, non-aud): **4/4 chromium, 4/4 mobile-390**
+  — PM self-approve 409; admin no-reason 409; admin with-reason 200 +
+  `selfApproved`/`self_approved` + persisted reason; second decision refused;
+  same matrix for certificates (CERTIFY) and invoices (/send).
+- Full auditor+dev sweep, single invocation both projects:
+  **112/112 passed** (aud-stage1–5 = 47 tests, dev-tcc 5, dev-maker-checker 4,
+  ×2 viewports).
+- `verify-local.sh` → **LOCAL CI VERIFICATION COMPLETED SUCCESSFULLY**
+  (561/561 API, 118/118 web) — `docs/evidence/verify-86e86ac.log`.
+  `invoices.test.ts` updated to send admin-created invoices with
+  `selfApprovalReason` (the new required admin path).
+- aud-* specs and `aud-specs.sha256` untouched.

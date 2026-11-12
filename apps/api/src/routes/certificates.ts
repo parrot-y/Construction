@@ -10,6 +10,7 @@ import {
   CloseoutTransitionSchema,
 } from '@construction/validation';
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
+import { evaluateSelfApproval } from '../plugins/makerChecker';
 import { getTaxSettings } from '../lib/tax';
 import { notifyTeam } from '../lib/notify';
 
@@ -731,7 +732,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
       if (!parsed.success) {
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid action payload', details: parsed.error.errors });
       }
-      const { action, comments, paidReference } = parsed.data;
+      const { action, comments, paidReference, selfApprovalReason } = parsed.data;
 
       // Permission matrix: drafting (QS/PM) vs certification authority (COST_APPROVE)
       const needsApprove = action === 'CERTIFY' || action === 'REJECT' || action === 'MARK_PAID';
@@ -777,6 +778,18 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             };
           }
 
+          // Maker-checker: the certificate's creator cannot certify or mark it
+          // paid themselves; COMPANY_ADMIN/ADMIN only with a recorded reason.
+          const selfAppr = (action === 'CERTIFY' || action === 'MARK_PAID')
+            ? evaluateSelfApproval({
+                creatorId: cert.submitted_by_id,
+                actorId: sub,
+                actorRole: role,
+                reason: selfApprovalReason,
+                entity: 'payment certificate',
+              })
+            : { selfApproved: false, reason: null };
+
           const now = new Date();
           const data: any = {
             status: t.to,
@@ -785,6 +798,9 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             paid_at: action === 'MARK_PAID' ? now : cert.paid_at,
             paid_reference: action === 'MARK_PAID' ? (paidReference ?? cert.paid_reference) : cert.paid_reference,
             certified_by_id: action === 'CERTIFY' ? sub : cert.certified_by_id,
+            ...(action === 'CERTIFY' || action === 'MARK_PAID'
+              ? { self_approved: selfAppr.selfApproved, self_approval_reason: selfAppr.reason }
+              : {}),
           };
 
           // Atomic claim on current status — prevents double transitions.
@@ -811,6 +827,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
               comments: comments ?? null,
               paidReference: action === 'MARK_PAID' ? (paidReference ?? null) : null,
               netPayable: cert.net_payable.toString(),
+              selfApproved: selfAppr.selfApproved,
+              selfApprovalReason: selfAppr.reason,
             },
             ipAddress: request.ip,
             userAgent: (request.headers['user-agent'] as string) || null,
