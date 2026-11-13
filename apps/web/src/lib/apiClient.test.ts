@@ -30,7 +30,7 @@ describe('apiClient (C4)', () => {
     const out = await api.get('/protected');
     expect(out).toEqual({ data: 'ok' });
     expect(f).toHaveBeenCalledTimes(3);
-    expect(f.mock.calls[1][0]).toBe('/api/v1/auth/refresh');
+    expect(f.mock.calls[1]![0]).toBe('/api/v1/auth/refresh');
   });
 
   it('does not retry when refresh fails', async () => {
@@ -46,15 +46,15 @@ describe('apiClient (C4)', () => {
     const f = vi.fn().mockImplementation(() => Promise.resolve(jsonRes(200, { data: {} })));
     vi.stubGlobal('fetch', f);
     await api.post('/api/v1/invoices/1/payments', { amount: 5 });
-    const h1 = f.mock.calls[0][1].headers as Record<string, string>;
+    const h1 = f.mock.calls[0]![1]!.headers as Record<string, string>;
     expect(h1['Idempotency-Key']).toBeTruthy();
 
     await api.post('/api/v1/invoices', { title: 'x' });
-    const h2 = f.mock.calls[1][1].headers as Record<string, string>;
+    const h2 = f.mock.calls[1]![1]!.headers as Record<string, string>;
     expect(h2['Idempotency-Key']).toBeTruthy(); // money path via isMoneyPath
 
     await api.post('/api/v1/projects/1/costs', { amount: 1 });
-    const h3 = f.mock.calls[2][1].headers as Record<string, string>;
+    const h3 = f.mock.calls[2]![1]!.headers as Record<string, string>;
     expect(h3['Idempotency-Key']).toBeUndefined(); // costs not in money regex? commitments is
   });
 

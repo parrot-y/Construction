@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
-import { sendTransactionalEmail, emailDriver } from '../lib/email';
+import { sendTransactionalEmail } from '../lib/email';
 import { randomUUID } from 'node:crypto';
 
 /**

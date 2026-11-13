@@ -4,5 +4,13 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts'],
+      // D3: money math must stay ≥90% line-covered.
+      thresholds: { lines: 90 },
+    },
   },
 });

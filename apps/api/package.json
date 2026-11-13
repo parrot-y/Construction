@@ -9,7 +9,9 @@
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:money": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/routes/invoices.ts --coverage.include=src/routes/certificates.ts --coverage.include=src/routes/commitments.ts --coverage.include=src/routes/lifecycle.ts --coverage.include=src/routes/costs.ts --coverage.include=src/routes/commercialOperations.ts src/invoices.test.ts src/s4-certificates.test.ts src/lifecycle-money.test.ts src/lifecycle-extensions.test.ts src/commercial-operations-suite.test.ts src/s5-commitments.test.ts src/m5-costs.test.ts src/operations-suite.test.ts src/d3-coverage-supplement.test.ts src/f-instrumentation.test.ts src/f3-boq-intake.test.ts src/m4-boq.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1167.0",

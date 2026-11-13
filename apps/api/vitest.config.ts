@@ -20,5 +20,17 @@ export default defineConfig({
       SITE_OPS_WEBHOOK_SECRET:
         process.env.SITE_OPS_WEBHOOK_SECRET || 'test-site-ops-webhook-secret-32-chars!',
     },
+    coverage: {
+      provider: 'v8',
+      // D3: money/valuation route files must stay >=90% lines. Enforced by
+      // the `test:coverage:money` script (subset suite); other files are
+      // report-only.
+      thresholds: {
+        'src/routes/invoices.ts': { lines: 90 },
+        'src/routes/certificates.ts': { lines: 90 },
+        'src/routes/commitments.ts': { lines: 90 },
+        'src/routes/commercialOperations.ts': { lines: 90 },
+      },
+    },
   },
 });

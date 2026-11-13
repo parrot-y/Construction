@@ -34,7 +34,7 @@ describe('F1/F2: pilot instrumentation', () => {
       tx.auditLog.findMany({ where: { tenant_id: tenantId, action: 'PROBLEM_REPORT' }, orderBy: { created_at: 'desc' }, take: 1 }),
     );
     expect(logs.length).toBe(1);
-    expect((logs[0].changes as Record<string, unknown>).route).toBe('/projects/abc/costs');
+    expect((logs[0]!.changes as Record<string, unknown>).route).toBe('/projects/abc/costs');
   });
 
   it('POST /problem-reports rejects empty payloads and requires auth', async () => {

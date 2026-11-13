@@ -139,3 +139,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://db_app:app_secret@localhost:5432/construction_test?schema=public
         run: pnpm run test --force
+
+      - name: Money-route coverage thresholds (D3: certs/invoices/payments/valuations >= 90%)
+        env:
+          DATABASE_URL: postgresql://db_app:app_secret@localhost:5432/construction_test?schema=public
+        run: pnpm --filter @construction/api run test:coverage:money
