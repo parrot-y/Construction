@@ -48,7 +48,7 @@ describe('coverage supplement — money domain branches', () => {
       { id: 'c', amountKes: '0', durationWeeks: 30 },
     ], '1500000');
     expect(bids.length).toBe(3);
-    expect(bids[0].rank).toBe(1);
+    expect(bids[0]!.rank).toBe(1);
     expect(bids.some((b) => b.isLowestBid)).toBe(true);
     expect(evaluateTenderBids([], '100')).toEqual([]);
   });
