@@ -432,11 +432,13 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
+{isModuleEnabled('safety-audits') && (
 <SafetyAuditScorecardView
         projectId={pid}
         projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
+)}
 
 </div>
 <div className={panelCls('compliance')}>

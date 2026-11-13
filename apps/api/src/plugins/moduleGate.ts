@@ -42,8 +42,10 @@ export const GATED_MODULES: Record<string, RegExp[]> = {
     /\/api\/v1\/projects\/[^/]+\/reports\/independent-inspections/,
   ],
   rebar: [/\/api\/v1\/projects\/[^/]+\/bar-bending-schedules/],
-  safety: [
-    /\/api\/v1\/projects\/[^/]+\/safety-(audits|incidents)/,
+  // Safety incidents are Pilot Core (daily site safety is not optional);
+  // only the formal audit scorecards + site alerts are peripheral.
+  'safety-audits': [
+    /\/api\/v1\/projects\/[^/]+\/safety-audits/,
     /\/api\/v1\/projects\/[^/]+\/site-alerts/,
   ],
   correspondence: [/\/api\/v1\/projects\/[^/]+\/correspondence/],

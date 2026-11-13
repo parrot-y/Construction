@@ -24,7 +24,7 @@ export const PERIPHERAL_MODULES = [
   'muster',
   'independent',
   'rebar',
-  'safety',
+  'safety-audits',
   'correspondence',
   'inventory',
 ] as const;
@@ -32,6 +32,7 @@ export const PERIPHERAL_MODULES = [
 /** Legacy aliases used at call sites → canonical flag ids. */
 const ALIASES: Record<string, string> = {
   plant: 'telematics',
+  safetyaudit: 'safety-audits',
 };
 
 export type PeripheralModule = (typeof PERIPHERAL_MODULES)[number];

@@ -315,11 +315,13 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
+{isModuleEnabled('safety-audits') && (
 <SafetyAuditScorecardView
         projectId={pid}
         projectName={projectLabel}
         userRole="SITE_SUPERVISOR"
       />
+)}
 
       {/* WhatsApp & SMS Site Webhook Feed (Milestone M20) */}
 <WhatsAppSiteWebhookView

@@ -89,7 +89,7 @@ describe('Tenant module flags (B1)', () => {
     const projectsRes = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: { cookie } });
     expect(projectsRes.statusCode).toBe(200);
     // Restore seed state for subsequent suites.
-    const GATED = ['equipment','telematics','soil','survey','tenders','steel','asphalt','geofence','rmc','muster','independent','rebar','safety','correspondence','inventory'];
+    const GATED = ['equipment','telematics','soil','survey','tenders','steel','asphalt','geofence','rmc','muster','independent','rebar','safety-audits','correspondence','inventory'];
     for (const m of GATED) {
       await withTenantTx(prisma, tenantId, (tx) => tx.tenantModuleFlag.upsert({
         where: { tenant_id_module: { tenant_id: tenantId, module: m } },
@@ -105,6 +105,75 @@ describe('Tenant module flags (B1)', () => {
     const mods = JSON.parse(res.body).data.modules;
     expect(mods).toContain('tenders');
     expect(mods).toContain('telematics');
+  });
+
+  it('fresh registered company: safety-incidents core (POST+GET), flagged module 404', async () => {
+    // A brand-new tenant has zero tenant_module_flags rows → every gated
+    // module is OFF. Core routes must still work; safety-incidents is core.
+    const email = `pilot-${Date.now()}@freshbuild.co.ke`;
+    const reg = await server.inject({
+      method: 'POST', url: '/api/v1/auth/register-company',
+      payload: {
+        companyName: 'Fresh Pilot Contractors Ltd',
+        adminFullName: 'Pilot Admin',
+        email,
+        password: 'PilotPass123!',
+      },
+    });
+    expect(reg.statusCode).toBe(201);
+    // Non-production returns the single-use verification token in the body.
+    const verifyToken = JSON.parse(reg.body).data?.verificationToken;
+    expect(verifyToken).toBeTruthy();
+    await server.inject({
+      method: 'POST', url: '/api/v1/auth/verify-email',
+      payload: { token: verifyToken },
+    });
+
+    const login = await server.inject({
+      method: 'POST', url: '/api/v1/auth/login',
+      payload: { email, password: 'PilotPass123!' },
+    });
+    expect(login.statusCode).toBe(200);
+    const freshCookie = login.headers['set-cookie'] as string;
+
+    const proj = await server.inject({
+      method: 'POST', url: '/api/v1/projects', headers: { cookie: freshCookie },
+      payload: { name: 'Pilot Site One', code: 'PS1' },
+    });
+    expect(proj.statusCode).toBe(201);
+    const projectId = JSON.parse(proj.body).data.id;
+
+    // Core: safety incidents report + list work with no flags at all.
+    const post = await server.inject({
+      method: 'POST', url: `/api/v1/projects/${projectId}/safety-incidents`,
+      headers: { cookie: freshCookie },
+      payload: {
+        incidentDate: '2026-11-13',
+        incidentType: 'NEAR_MISS',
+        severity: 'MINOR',
+        location: 'Block A footing',
+        description: 'Near miss during lifting operation',
+      },
+    });
+    expect(post.statusCode).toBe(201);
+    const list = await server.inject({
+      method: 'GET', url: `/api/v1/projects/${projectId}/safety-incidents`, headers: { cookie: freshCookie },
+    });
+    expect(list.statusCode).toBe(200);
+
+    // Peripheral: flagged modules are 404 for the same fresh tenant.
+    const telematics = await server.inject({
+      method: 'GET', url: `/api/v1/projects/${projectId}/telematics-devices`, headers: { cookie: freshCookie },
+    });
+    expect(telematics.statusCode).toBe(404);
+    const audits = await server.inject({
+      method: 'GET', url: `/api/v1/projects/${projectId}/safety-audits`, headers: { cookie: freshCookie },
+    });
+    expect(audits.statusCode).toBe(404);
+    const attendance = await server.inject({
+      method: 'GET', url: `/api/v1/projects/${projectId}/attendance`, headers: { cookie: freshCookie },
+    });
+    expect(attendance.statusCode).toBe(200);
   });
 
   it('operator endpoints reject bad/missing key', async () => {

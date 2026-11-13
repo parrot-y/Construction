@@ -569,7 +569,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
-      {(activeTab === 'all' || activeTab === 'safetyaudit') && (
+      {(activeTab === 'all' || activeTab === 'safetyaudit') && isModuleEnabled('safetyaudit') && (
 <SafetyAuditScorecardView
           projectId={pid}
           projectName="Riverside Commercial Plaza"

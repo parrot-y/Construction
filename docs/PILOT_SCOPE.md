@@ -14,8 +14,8 @@ hides gated modules from dashboards/navigation once flags load.
 quotes · projects · BoQ · budget & costs · site diary · progress ·
 variations · payment certificates · invoices & payments · retention ·
 subcontractors & valuations · procurement/POs · RFIs · snags · inspections ·
-documents/drawings · notifications · members & roles · five external portals ·
-announcements · company export · attendance/clock-in · correspondence? (see below)
+safety incidents · documents/drawings · notifications · members & roles ·
+five external portals · announcements · company export · attendance
 
 ## Gated modules (default OFF for pilot tenants)
 
@@ -33,9 +33,14 @@ announcements · company export · attendance/clock-in · correspondence? (see b
 | muster     | /muster-rolls, /laborers                                         | LaborMusterRollView                          |
 | independent| /independent-inspections, /reports/independent-inspections/*    | IndependentSiteReportView                    |
 | rebar      | /bar-bending-schedules                                           | BarBendingScheduleView                       |
-| safety     | /safety-audits, /safety-incidents, /site-alerts                  | SafetyIncidentLogView                        |
+| safety-audits | /safety-audits, /site-alerts                                 | SafetyAuditScorecardView                     |
 | correspondence | /correspondence                                             | CorrespondenceView                           |
 | inventory  | /inventory, /material-requisitions, /material-wastage           | inventory/material tabs                      |
+
+Note: `/safety-incidents` and `/attendance/*` are Pilot Core (never gated);
+only the formal safety-audit scorecards and site alerts are peripheral.
+The geofenced `/clock-in` + `/clock-events` ingest stays under `geofence`
+(field check-in uses the core `/attendance/*` routes).
 
 Note: `correspondence` and `inventory` are gated conservatively (not in the
 Pilot Core list); the operator can re-enable per tenant without a deploy.

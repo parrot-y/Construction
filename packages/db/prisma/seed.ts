@@ -34,7 +34,7 @@ export async function seed() {
 
   // B1: demo/dev tenant keeps every gated module enabled so the full
   // surface stays exercisable; pilot tenants start with non-core OFF.
-  const GATED = ['equipment','telematics','soil','survey','tenders','steel','asphalt','geofence','rmc','muster','independent','rebar','safety','correspondence','inventory'];
+  const GATED = ['equipment','telematics','soil','survey','tenders','steel','asphalt','geofence','rmc','muster','independent','rebar','safety-audits','correspondence','inventory'];
   await withTenantTx(prisma, tenant.id, async (tx) => {
     for (const m of GATED) {
       await tx.tenantModuleFlag.upsert({
