@@ -2,7 +2,6 @@ import { describe, expect, it, vi, afterEach} from 'vitest';
 import { renderToString} from 'react-dom/server';
 import App from './App';
 import Dashboard from './components/Dashboard';
-import LoginForm from './components/LoginForm';
 import BoqImportModal from './components/BoqImportModal';
 import CostCaptureModal from './components/CostCaptureModal';
 import BudgetSummaryCard from './components/BudgetSummaryCard';

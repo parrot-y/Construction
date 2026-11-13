@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState} from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState} from 'react';
+import { useLocation } from 'wouter';
 import { configureRuntimeModules } from '../../lib/modules';
 import { AuthSession} from '../../types/auth';
 import { getRoleNav, RoleNav} from './navConfig';
@@ -46,9 +47,25 @@ const ROLE_LABELS: Record<string, string> = {
   ARCHITECT: 'Architect', QA_QC: 'QA/QC Officer',
 };
 
+/** Console URL scheme: /app[/:section[/:tab]]?project=<id> and /projects/:id[/:section[/:tab]]. */
+function parseConsolePath(path: string): { section?: string; tab?: string; projectId?: string } | null {
+  const seg = path.split('/').filter(Boolean);
+  if (seg[0] === 'app') return { section: seg[1], tab: seg[2] };
+  if (seg[0] === 'projects' && seg[1]) return { projectId: seg[1], section: seg[2], tab: seg[3] };
+  return null;
+}
+
+function consolePathFor(section: string, tab: string, projectId: string): string {
+  const base = section === 'home' || !section ? '/app' : `/app/${section}${tab ? `/${tab}` : ''}`;
+  return projectId ? `${base}?project=${projectId}` : base;
+}
+
 export function ConsoleProvider({ session, children}: { session: AuthSession; children: React.ReactNode}) {
   const role = session.user.role;
   const nav = getRoleNav(role);
+  const [location, navigate] = useLocation();
+  const pendingPush = useRef(false);
+  const applyingUrl = useRef(false);
   const [projects, setProjects] = useState<ProjectOpt[]>([]);
   const [projectId, setProjectId] = useState('');
   const [currency, setCurrencyState] = useState<'KES' | 'USD'>('KES');
@@ -69,7 +86,7 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status, location: p.location, original_contract_sum: p.original_contract_sum, contract_currency: p.contract_currency}));
         setProjects(list);
-        if (list.length && !projectId) setProjectId(list[0].id);
+        if (list.length) setProjectId((cur) => cur || list[0].id);
 })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,21 +114,53 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
 });
 };
 
-  // when section changes, default tab = first allowed tab
+  // when section changes, keep a still-valid tab (deep links) else default to first
   useEffect(() => {
     if (section === 'home') {
-      const first = nav.homeTabs?.[0];
-      setTab(first || 'dashboard');
+      setTab((t) => (nav.homeTabs?.includes(t) ? t : nav.homeTabs?.[0] || 'dashboard'));
       return;
 }
     const def = nav.sections.find((s) => s.id === section);
-    setTab(def?.tabs?.[0] || '');
+    const allowed = def?.tabs;
+    setTab((t) => (!allowed || allowed.includes(t) ? t : allowed[0] || ''));
 }, [section, nav]);
+
+  // User-initiated navigation pushes history; URL/programmatic sync replaces.
+  const navSection = (s: string) => { pendingPush.current = true; setSection(s); };
+  const navTab = (t: string) => { pendingPush.current = true; setTab(t); };
+  const navProject = (id: string) => { pendingPush.current = true; setProjectId(id); };
+
+  // URL → state (back/forward, deep links).
+  useEffect(() => {
+    const parsed = parseConsolePath(location.split('?')[0] ?? '/');
+    if (!parsed) return;
+    applyingUrl.current = true;
+    if (parsed.projectId) setProjectId(parsed.projectId);
+    if (parsed.section) setSection(parsed.section);
+    const qp = new URLSearchParams(location.split('?')[1] || '');
+    const qProject = qp.get('project') ?? '';
+    if (qProject) setProjectId(qProject);
+    // tab applied after section default settles — direct set is fine
+    if (parsed.tab) setTab(parsed.tab);
+    requestAnimationFrame(() => { applyingUrl.current = false; });
+  }, [location]);
+
+  // state → URL
+  useEffect(() => {
+    if (applyingUrl.current) return;
+    const target = consolePathFor(section, tab, projectId);
+    const currentPath = location.split('?')[0];
+    const currentProject = new URLSearchParams(location.split('?')[1] || '').get('project') || '';
+    const targetProject = projectId || '';
+    if (currentPath === target.split('?')[0] && currentProject === targetProject) return;
+    navigate(target, { replace: !pendingPush.current });
+    pendingPush.current = false;
+  }, [section, tab, projectId, location, navigate]);
 
   const value: ConsoleCtx = {
     session, role, roleLabel: ROLE_LABELS[role] || role,
-    nav, projects, projectId, setProjectId, currency, setCurrency,
-    section, setSection, tab, setTab, aiOpen, setAiOpen,
+    nav, projects, projectId, setProjectId: navProject, currency, setCurrency,
+    section, setSection: navSection, tab, setTab: navTab, aiOpen, setAiOpen,
     newMenuOpen, setNewMenuOpen, dark, toggleDark,
     portalPreview, setPortalPreview,
 };

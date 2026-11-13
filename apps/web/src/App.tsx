@@ -47,6 +47,16 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [verifyToken, setVerifyToken] = useState<string | null>(null);
 
+  // C1: restore the session from the HttpOnly cookie on reload/deep links.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/v1/auth/me', { credentials: 'include'})
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!cancelled && j?.user) setSession(j as AuthSession); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     // One-time migration of legacy offline queue keys to `sitesafi_*`
     void migrateOfflineStorage();
@@ -56,6 +66,8 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
       const token = params.get('token');
       if (portal && token) {
         setExternalPortal({ type: portal.toLowerCase(), token});
+        // C1: redact the bearer token from the address bar/history once consumed.
+        window.history.replaceState({}, '', `/?portal=${portal.toLowerCase()}`);
 }
       if (params.get('signup') === '1') {
         setShowSignupForm(true);
