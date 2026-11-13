@@ -2,9 +2,10 @@
  * Client-Side Offline Storage & Synchronization Engine (ADR-004)
  * Manages IndexedDB queue, client-side photo compression, and idempotent sync.
  *
- * Storage keys are brand-neutral (`buildsasa_*`). `migrateOfflineStorage()`
- * copies queued mutations forward from the legacy `sitesafi_*`/`mjengo_*`
- * names once — pending offline work is never dropped by the rename.
+ * Canonical storage keys are `sitesafi_*`. `migrateOfflineStorage()`
+ * copies queued mutations forward from the legacy `buildsasa_*`/`mjengo_*`
+ * names once (read-only sources) — pending offline work is never dropped
+ * by the rename.
  */
 
 export interface OfflineMutationRecord {
@@ -20,15 +21,15 @@ export interface OfflineMutationRecord {
   last_error?: string;
 }
 
-const DB_NAME = 'buildsasa_offline_db';
+const DB_NAME = 'sitesafi_offline_db';
 const LEGACY_DB_NAME = 'mjengo_offline_db';
-const PREV_DB_NAME = 'sitesafi_offline_db';
+const PREV_DB_NAME = 'buildsasa_offline_db';
 const STORE_NAME = 'mutations_queue';
 const DB_VERSION = 1;
 
-const LS_KEY = 'buildsasa_offline_queue';
+const LS_KEY = 'sitesafi_offline_queue';
 const LEGACY_LS_KEY = 'mjengo_offline_queue';
-const PREV_LS_KEY = 'sitesafi_offline_queue';
+const PREV_LS_KEY = 'buildsasa_offline_queue';
 
 function readLsQueue(): OfflineMutationRecord[] {
   try {
@@ -51,8 +52,9 @@ function writeLsQueue(records: OfflineMutationRecord[]): void {
 }
 
 /**
- * One-time migration: copies legacy `sitesafi_*`/`mjengo_*` offline queue
- * data into the `buildsasa_*` keys. Safe to call repeatedly — dedupes by id.
+ * One-time migration: copies legacy `buildsasa_*`/`mjengo_*` offline queue
+ * data into the `sitesafi_*` keys (read-only sources). Safe to call
+ * repeatedly — dedupes by id.
  */
 export async function migrateOfflineStorage(): Promise<void> {
   if (typeof window === 'undefined') return;
@@ -120,7 +122,7 @@ export async function migrateOfflineStorage(): Promise<void> {
         tx.onerror = () => reject(tx.error);
       });
       db.close();
-      // Legacy DBs left in place (read-only); new writes go to buildsasa_offline_db.
+      // Legacy DBs left in place (read-only); new writes go to sitesafi_offline_db.
     }
   } catch {
     // IndexedDB unavailable — localStorage migration above still applies
