@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/apiClient';
 
 /**
  * Procurement — purchase orders, three-way match and supplier-invoice review.
@@ -149,19 +150,17 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
     setLoading(true);
     setError(null);
     try {
-      const [poRes, supRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/purchase-orders`, { credentials: 'include' }),
-        fetch('/api/v1/suppliers', { credentials: 'include' }),
+      const [poBody, supBody] = await Promise.all([
+        api.get<PurchaseOrder[] | { data?: PurchaseOrder[] }>(`/api/v1/projects/${projectId}/purchase-orders`),
+        api.get<Supplier[] | { data?: Supplier[] }>('/api/v1/suppliers').catch(() => null),
       ]);
-      if (!poRes.ok) throw new Error(`Purchase orders failed (${poRes.status})`);
-      const poBody = await poRes.json();
-      setPos(poBody.data || poBody || []);
-      if (supRes.ok) {
-        const supBody = await supRes.json();
-        setSuppliers((supBody.data || supBody || []).filter((s: Supplier) => s.isActive));
+      setPos(Array.isArray(poBody) ? poBody : (poBody.data || []));
+      if (supBody) {
+        const rows = Array.isArray(supBody) ? supBody : (supBody.data || []);
+        setSuppliers(rows.filter((s) => s.isActive));
       }
-    } catch (e: any) {
-      setError(e?.message || 'Failed to load purchase orders');
+    } catch (e) {
+      setError((e as { message?: string })?.message || 'Failed to load purchase orders');
     } finally {
       setLoading(false);
     }
@@ -175,11 +174,10 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
     setMatch(null);
     setMatchLoading(true);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/purchase-orders/${poId}/match`, { credentials: 'include' });
-      if (res.ok) {
-        const body = await res.json();
-        setMatch(body.data || body);
-      }
+      try {
+        const body = await api.get<PoMatch | { data?: PoMatch }>(`/api/v1/projects/${projectId}/purchase-orders/${poId}/match`);
+        setMatch((body && 'data' in body ? body.data ?? null : body) as PoMatch | null);
+      } catch { /* match is best-effort */ }
     } finally {
       setMatchLoading(false);
     }
@@ -189,11 +187,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
     setBusyId('create');
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/purchase-orders`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await api.post(`/api/v1/projects/${projectId}/purchase-orders`, {
           supplierId,
           expectedDeliveryDate: expectedDelivery || null,
           notes: notes || null,
@@ -205,15 +199,12 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
               quantity: Number(l.quantity) || 0,
               rate: Number(l.rate) || 0,
             })),
-        }),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.message || `Create failed (${res.status})`);
       setShowCreate(false);
       setSupplierId(''); setExpectedDelivery(''); setNotes(''); setLines([emptyLine()]);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Failed to create purchase order');
+    } catch (e) {
+      setError((e as { message?: string })?.message || 'Failed to create purchase order');
     } finally {
       setBusyId(null);
     }
@@ -223,14 +214,10 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
     setBusyId(po.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/purchase-orders/${po.id}/issue`, {
-        method: 'POST', credentials: 'include',
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.message || `Issue failed (${res.status})`);
+      await api.post(`/api/v1/projects/${projectId}/purchase-orders/${po.id}/issue`);
       await load();
-    } catch (e: any) {
-      setError(e?.message || 'Failed to issue purchase order');
+    } catch (e) {
+      setError((e as { message?: string })?.message || 'Failed to issue purchase order');
     } finally {
       setBusyId(null);
     }
@@ -240,37 +227,27 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
     setBusyId(invoice.id);
     setError(null);
     try {
-      const res = await fetch(
+      await api.post(
         `/api/v1/projects/${projectId}/purchase-orders/${po.id}/invoices/${invoice.id}/review`,
         {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action,
-            reason: reviewReason || null,
-            approveOverInvoice: approveOver || undefined,
-          }),
+          action,
+          reason: reviewReason || null,
+          approveOverInvoice: approveOver || undefined,
         },
       );
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.message || `Review failed (${res.status})`);
       setReviewFor(null); setReviewReason(''); setApproveOver(false);
       await load();
       if (matchFor === po.id) {
         setMatchLoading(true);
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/purchase-orders/${po.id}/match`, { credentials: 'include' });
-          if (res.ok) {
-            const body = await res.json();
-            setMatch(body.data || body);
-          }
+          const body = await api.get<PoMatch | { data?: PoMatch }>(`/api/v1/projects/${projectId}/purchase-orders/${po.id}/match`);
+          setMatch((body && 'data' in body ? body.data ?? null : body) as PoMatch | null);
         } finally {
           setMatchLoading(false);
         }
       }
-    } catch (e: any) {
-      setError(e?.message || 'Failed to review invoice');
+    } catch (e) {
+      setError((e as { message?: string })?.message || 'Failed to review invoice');
     } finally {
       setBusyId(null);
     }

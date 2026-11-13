@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import { useAppDialog } from './AppDialog';
+import { api } from '../lib/apiClient';
 
 interface PaymentApplication {
   id: string;
@@ -96,12 +97,10 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load commitments');
-      const json = await res.json();
+      const json = await api.get<{ data?: Commitment[] }>(`/api/v1/projects/${projectId}/commitments`);
       setCommitments(json.data || []);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Load failed');
 } finally {
       setLoading(false);
 }
@@ -115,11 +114,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ data: { commitment_no: number } }>(`/api/v1/projects/${projectId}/commitments`, {
           vendorName: commitmentForm.vendorName,
           vendorType: commitmentForm.vendorType,
           scopeDescription: commitmentForm.scopeDescription || undefined,
@@ -131,16 +126,13 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
           advanceRecoverPct: commitmentForm.advanceRecoverPct || '0',
           costCode: commitmentForm.costCode || undefined,
           notes: commitmentForm.notes || undefined,
-}),
 });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
       setFeedback(`Commitment COM-${String(body.data.commitment_no).padStart(3, '0')} created`);
       setShowCommitmentForm(false);
       setCommitmentForm(emptyCommitment);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Create failed');
 } finally {
       setSaving(false);
 }
@@ -150,27 +142,20 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ data: { application_no: number } }>(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications`, {
           periodStart: appForm.periodStart,
           periodEnd: appForm.periodEnd,
           grossClaimed: appForm.grossClaimed,
           whtPct: appForm.whtPct || '0',
           previousBalance: appForm.previousBalance || '0',
           notes: appForm.notes || undefined,
-}),
 });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
       setFeedback(`Application #${body.data.application_no} drafted`);
       setAppFormFor(null);
       setAppForm(emptyApplication);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Create failed');
 } finally {
       setSaving(false);
 }
@@ -192,34 +177,20 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
       paidReference = pr || undefined;
 }
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications/${app.id}/action`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action, comments, paidReference}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
+      const body = await api.post<{ data: { status: string } }>(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications/${app.id}/action`, { action, comments, paidReference });
       setFeedback(`Application #${app.application_no} → ${body.data.status}`);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Action failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Action failed');
 }
 };
 
   const updateCommitmentStatus = async (c: Commitment, status: string) => {
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments/${c.id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
+      await api.patch(`/api/v1/projects/${projectId}/commitments/${c.id}`, { status });
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Update failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Update failed');
 }
 };
 

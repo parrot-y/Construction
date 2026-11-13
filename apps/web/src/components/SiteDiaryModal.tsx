@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { queueOfflineMutation, compressImageClientSide} from '../services/offline-sync';
+import { api } from '../lib/apiClient';
 
 interface SiteDiaryModalProps {
   isOpen: boolean;
@@ -158,19 +159,7 @@ export default function SiteDiaryModal({
 }
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/site-diaries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        credentials: 'include',
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to record diary (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData = await api.post<{ data: unknown }>(`/api/v1/projects/${projectId}/site-diaries`, payload);
       if (onDiarySubmitted) onDiarySubmitted(resData.data);
       onClose();
 } catch (err: any) {

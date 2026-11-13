@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState} from 'react';
 import { formatKes, CopyWhatsAppButton } from '../ui';
 import { useAppDialog } from './AppDialog';
 import { PRODUCT_NAME } from '../lib/product';
+import { api } from '../lib/apiClient';
 
 interface PaymentCertificate {
   id: string;
@@ -99,13 +100,10 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
     setLoading(true);
     setError(null);
     try {
-      const [cRes, xRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/payment-certificates`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/closeout`, { credentials: 'include'}),
+      const [cJson, xJson] = await Promise.all([
+        api.get<{ data?: PaymentCertificate[] }>(`/api/v1/projects/${projectId}/payment-certificates`),
+        api.get<{ data: CloseoutData }>(`/api/v1/projects/${projectId}/closeout`),
       ]);
-      if (!cRes.ok || !xRes.ok) throw new Error('Failed to load certificates & closeout');
-      const cJson = await cRes.json();
-      const xJson = await xRes.json();
       setCerts(cJson.data || []);
       setCloseout(xJson.data);
 } catch (err: any) {
@@ -124,9 +122,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
     setPreviewLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/payment-certificates/preview`, { credentials: 'include'});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Preview failed (${res.status})`);
+      const body = await api.get<{ data?: { lines?: PreviewLine[] } }>(`/api/v1/projects/${projectId}/payment-certificates/preview`);
       const data = body.data || {};
       setPreviewLines((data.lines || []).map((l: PreviewLine) => ({ ...l })));
       const today = new Date().toISOString().slice(0, 10);
@@ -170,11 +166,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
           unitRate: l.unitRate,
           amount: l.amount,
         }));
-      const res = await fetch(`/api/v1/projects/${projectId}/payment-certificates`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ data: { certificate_no: number } }>(`/api/v1/projects/${projectId}/payment-certificates`, {
           periodStart: builder.periodStart,
           periodEnd: builder.periodEnd,
           lines,
@@ -184,10 +176,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
           advanceRecovery: builder.advanceRecovery || '0',
           amountDuePrevious: builder.amountDuePrevious || '0',
           notes: builder.notes || undefined,
-}),
 });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
       setFeedback(`IPC-${String(body.data.certificate_no).padStart(3, '0')} drafted from progress`);
       setBuilderOpen(false);
       setPreviewLines([]);
@@ -224,14 +213,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 }
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/payment-certificates/${cert.id}/action`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action, comments, paidReference}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
+      const body = await api.post<{ data: { status: string } }>(`/api/v1/projects/${projectId}/payment-certificates/${cert.id}/action`, { action, comments, paidReference });
       setFeedback(`IPC-${String(cert.certificate_no).padStart(3, '0')} → ${body.data.status}`);
       await load();
 } catch (err: any) {
@@ -244,19 +226,12 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
     setInvoiceSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/payment-certificates/${invoiceFor.id}/create-invoice`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ data?: { invoice?: { invoiceNo: number } } }>(`/api/v1/projects/${projectId}/payment-certificates/${invoiceFor.id}/create-invoice`, {
           clientName: invoiceForm.clientName,
           clientEmail: invoiceForm.clientEmail || undefined,
           dueDays: Number(invoiceForm.dueDays) || 30,
           notes: invoiceForm.notes || undefined,
-}),
 });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
       const inv = body.data?.invoice;
       setFeedback(
         inv
@@ -281,14 +256,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
     });
     if (notes === null) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/closeout/transition`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ stage: closeout.nextStage, notes: notes || undefined}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
+      await api.post(`/api/v1/projects/${projectId}/closeout/transition`, { stage: closeout.nextStage, notes: notes || undefined });
       setFeedback(`Closeout → ${STAGE_LABELS[closeout.nextStage]}`);
       await load();
 } catch (err: any) {

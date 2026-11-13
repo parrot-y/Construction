@@ -143,6 +143,12 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     const invRow = page.locator('tr', { hasText: invTitle });
     await expect(invRow.getByRole('button', { name: /INV-\d{5}/ })).toBeVisible({ timeout: 20_000 });
     await invRow.getByRole('button', { name: 'Send', exact: true }).click();
+    // A4: self-approval reason is an accessible AppDialog modal, not window.prompt.
+    const reasonInput = page.locator('#app-dialog-input');
+    if (await reasonInput.waitFor({ timeout: 8_000 }).then(() => true).catch(() => false)) {
+      await reasonInput.fill('UI test self-approval reason');
+      await page.getByRole('button', { name: 'Send anyway' }).click();
+    }
     await expect(invRow.getByText('SENT').first()).toBeVisible({ timeout: 20_000 });
     await invRow.getByRole('button', { name: 'Record payment' }).click();
     await page.locator('xpath=//label[contains(., "Amount *")]/following-sibling::input').fill('11600');

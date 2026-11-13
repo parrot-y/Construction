@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
 import { useAppDialog } from './AppDialog';
+import { api } from '../lib/apiClient';
 
 export interface VariationItemData {
   id: string;
@@ -94,11 +95,8 @@ export default function VariationManagementView({
   const loadVariations = useCallback(async () => {
     if (!projectId) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/variations`, { credentials: 'include'});
-      if (res.ok) {
-        const json = await res.json();
-        setVariations(json.data || []);
-}
+      const json = await api.get<{ data?: VariationOrderData[] }>(`/api/v1/projects/${projectId}/variations`);
+      setVariations(json.data || []);
 } catch {
       // offline/demo — keep current list
 } finally {
@@ -128,19 +126,8 @@ export default function VariationManagementView({
       ? `/api/v1/projects/${projectId}/variations/${variationId}/submit`
       : `/api/v1/projects/${projectId}/variations/${variationId}/review`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify(isSubmit ? {} : { action, comments}),
-});
-
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody.message || `Request failed (${res.status})`);
-}
-    const json = await res.json();
-    return json.data as VariationOrderData;
+    const json = await api.post<{ data: VariationOrderData }>(url, isSubmit ? {} : { action, comments });
+    return json.data;
 };
 
   const handleReviewAction = async (variationId: string, action: 'EVALUATE' | 'APPROVE' | 'REJECT' | 'VOID') => {

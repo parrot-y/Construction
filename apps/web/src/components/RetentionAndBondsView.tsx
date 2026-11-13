@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/apiClient';
 
 export interface RetentionReleaseItem {
   id: string;
@@ -90,23 +91,14 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive || !projectId) return;
     try {
-      const [relRes, bondRes, pkgRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/contractor-bonds`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'}),
+      const [rj, bj, pj] = await Promise.all([
+        api.get<{ releases?: RetentionReleaseItem[] }>(`/api/v1/projects/${projectId}/subcontractor-retention-releases`).catch(() => null),
+        api.get<{ bonds?: ContractorBondItem[] }>(`/api/v1/projects/${projectId}/contractor-bonds`).catch(() => null),
+        api.get<{ packages?: Array<{ id: string; firm_name: string }> }>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => null),
       ]);
-      if (relRes.ok) {
-        const rj = await relRes.json();
-        setReleases((rj.releases || []) as RetentionReleaseItem[]);
-}
-      if (bondRes.ok) {
-        const bj = await bondRes.json();
-        setBonds((bj.bonds || []) as ContractorBondItem[]);
-}
-      if (pkgRes.ok) {
-        const pj = await pkgRes.json();
-        setSubPkgs((pj.packages || []).map((p: any) => ({ id: p.id, firm_name: p.firm_name})));
-}
+      if (rj) setReleases(rj.releases || []);
+      if (bj) setBonds(bj.bonds || []);
+      if (pj) setSubPkgs((pj.packages || []).map((p) => ({ id: p.id, firm_name: p.firm_name})));
 } catch { /* keep demo */}
     setLiveLoaded(true);
 }, [isLive, projectId]);
@@ -215,20 +207,17 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
       if (!releasePackageId) return;
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              subcontractorPackageId: releasePackageId,
-              releaseNo,
-              moietyStage,
-              totalRetentionHeld: held.toFixed(2),
-              releasePercentage: pct.toFixed(2),
-              releaseAmount: amt.toFixed(2),
-              qsRecommendationNotes: qsNotes || null,
-              defectClearanceVerified: defectVerified,
-}),
+          await api.post(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, {
+            subcontractorPackageId: releasePackageId,
+            releaseNo,
+            moietyStage,
+            totalRetentionHeld: held.toFixed(2),
+            releasePercentage: pct.toFixed(2),
+            releaseAmount: amt.toFixed(2),
+            qsRecommendationNotes: qsNotes || null,
+            defectClearanceVerified: defectVerified,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowReleaseModal(false);
@@ -247,11 +236,8 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 
     if (isLive && projectId) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ status: 'PAID', disbursementRef: ref}),
-});
-        if (res.ok) { await reload(); return;}
+        await api.post(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, { status: 'PAID', disbursementRef: ref });
+        await reload(); return;
 } catch { /* fall through to local */}
 }
 
@@ -284,20 +270,17 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
     if (isLive && projectId) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/contractor-bonds`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              bondType,
-              issuingInstitution: issuingBank,
-              bondReferenceNo: bondRef,
-              bondAmount,
-              effectiveDate,
-              expiryDate,
-              claimStatus: 'ACTIVE',
-              dischargeCertificateRef: null,
-}),
+          await api.post(`/api/v1/projects/${projectId}/contractor-bonds`, {
+            bondType,
+            issuingInstitution: issuingBank,
+            bondReferenceNo: bondRef,
+            bondAmount,
+            effectiveDate,
+            expiryDate,
+            claimStatus: 'ACTIVE',
+            dischargeCertificateRef: null,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowBondModal(false);

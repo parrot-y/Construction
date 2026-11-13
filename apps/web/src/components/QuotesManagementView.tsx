@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
+import { api } from '../lib/apiClient';
 
 interface QuoteItem {
   id?: string;
@@ -127,9 +128,7 @@ export default function QuotesManagementView(): React.JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/quotes', { credentials: 'include'});
-      if (!res.ok) throw new Error(`Failed to load quotes (${res.status})`);
-      const body = await res.json();
+      const body = await api.get<{ quotes?: Quote[] }>('/api/v1/quotes');
       setQuotes(body.quotes ?? []);
 } catch (e: any) {
       setError(e.message);
@@ -151,8 +150,10 @@ export default function QuotesManagementView(): React.JSX.Element {
     setExpandedId(id);
     setDetail(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${id}`, { credentials: 'include'});
-      if (res.ok) setDetail((await res.json()).quote);
+      try {
+        const body = await api.get<{ quote: Quote }>(`/api/v1/quotes/${id}`);
+        setDetail(body.quote);
+      } catch { /* detail is best-effort */ }
 } catch {
       // detail is best-effort
 }
@@ -176,11 +177,7 @@ export default function QuotesManagementView(): React.JSX.Element {
     setBusyId('create');
     setError(null);
     try {
-      const res = await fetch('/api/v1/quotes', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ quote: Quote }>('/api/v1/quotes', {
           ...form,
           taxPct: taxPctNum,
           depositPct: depositPctNum,
@@ -194,17 +191,14 @@ export default function QuotesManagementView(): React.JSX.Element {
               quantity: parseFloat(it.quantity) || 0,
               unitRate: parseFloat(it.unitRate) || 0,
 })),
-}),
 });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to create quote');
       setShowForm(false);
       setNotice(`Quote Q-${String(body.quote.quote_no).padStart(4, '0')} created as draft`);
       setForm({ title: '', clientName: '', clientEmail: '', clientPhone: '', siteLocation: '', currency: 'KES', taxPct: '16', depositPct: '50', validDays: '30', terms: ''});
       setItems([{ section: '', description: '', unit: 'item', quantity: '1', unitRate: ''}]);
       load();
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
 } finally {
       setBusyId(null);
 }
@@ -214,21 +208,14 @@ export default function QuotesManagementView(): React.JSX.Element {
     setBusyId(q.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${q.id}/send`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ channel: 'link'}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to send quote');
+      const body = await api.post<{ shareToken: string }>(`/api/v1/quotes/${q.id}/send`, { channel: 'link' });
       const absolute = `${window.location.origin}/?portal=quote&token=${body.shareToken}`;
       setShareInfo({ quoteId: q.id, url: absolute, token: body.shareToken});
       setNotice(`Quote Q-${String(q.quote_no).padStart(4, '0')} sent — share link ready (shown once)`);
       load();
       openDetail(q.id);
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
 } finally {
       setBusyId(null);
 }
@@ -238,22 +225,15 @@ export default function QuotesManagementView(): React.JSX.Element {
     setBusyId(q.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${q.id}/convert`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ createDepositInvoice: true}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to convert quote');
+      const body = await api.post<{ depositInvoice?: { invoice_no?: number }; project?: { id?: string; name?: string; code?: string } }>(`/api/v1/quotes/${q.id}/convert`, { createDepositInvoice: true });
       setNotice(
         body.depositInvoice
-          ? `Quote converted to project ${body.project.code} — deposit invoice INV-${String(body.depositInvoice.invoice_no).padStart(5, '0')} drafted`
-          : `Quote converted to project ${body.project.code} (${body.project.name})`,
+          ? `Quote converted to project ${body.project?.code} — deposit invoice INV-${String(body.depositInvoice.invoice_no).padStart(5, '0')} drafted`
+          : `Quote converted to project ${body.project?.code} (${body.project?.name})`,
 );
       load();
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
 } finally {
       setBusyId(null);
 }

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
 import { useAppDialog } from './AppDialog';
+import { api, ApiError } from '../lib/apiClient';
 
 interface InvoiceItem {
   id?: string;
@@ -124,9 +125,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
     setError(null);
     try {
       const qs = statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
-      const res = await fetch(`/api/v1/invoices${qs}`, { credentials: 'include'});
-      if (!res.ok) throw new Error(`Failed to load invoices (${res.status})`);
-      const body = await res.json();
+      const body = await api.get<{ invoices?: Invoice[] }>(`/api/v1/invoices${qs}`);
       setInvoices(body.invoices ?? []);
 } catch (e: any) {
       setError(e.message);
@@ -140,9 +139,8 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 }, [load]);
 
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((b) => setProjects((b.data ?? []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}))))
+    api.get<{ data?: Array<{ id: string; name: string; code?: string }> }>('/api/v1/projects')
+      .then((b) => setProjects((b.data ?? []).map((p) => ({ id: p.id, name: p.name, code: p.code ?? ''}))))
       .catch(() => setProjects([]));
 }, []);
 
@@ -157,16 +155,18 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
     setDetail(null);
     setShowPayForm(false);
     try {
-      const res = await fetch(`/api/v1/invoices/${id}`, { credentials: 'include'});
-      if (res.ok) setDetail((await res.json()).invoice);
+      const body = await api.get<{ invoice: Invoice }>(`/api/v1/invoices/${id}`);
+      setDetail(body.invoice);
 } catch {
       // detail is best-effort
 }
 };
 
   const refreshDetail = async (id: string) => {
-    const res = await fetch(`/api/v1/invoices/${id}`, { credentials: 'include'});
-    if (res.ok) setDetail((await res.json()).invoice);
+    try {
+      const body = await api.get<{ invoice: Invoice }>(`/api/v1/invoices/${id}`);
+      setDetail(body.invoice);
+    } catch { /* detail is best-effort */ }
 };
 
   const addItem = () =>
@@ -190,11 +190,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
     setBusyId('create');
     setError(null);
     try {
-      const res = await fetch('/api/v1/invoices', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ invoice: Invoice }>('/api/v1/invoices', {
           title: form.title,
           clientName: form.clientName,
           clientEmail: form.clientEmail || null,
@@ -218,10 +214,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
               quantity: parseFloat(it.quantity) || 0,
               unitRate: parseFloat(it.unitRate) || 0,
 })),
-}),
 });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to create invoice');
       setShowForm(false);
       resetForm();
       setNotice(`Invoice INV-${String(body.invoice.invoice_no).padStart(5, '0')} created as draft`);
@@ -237,28 +230,22 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
     setBusyId(inv.id);
     setError(null);
     try {
-      const sendOnce = (selfApprovalReason?: string) => fetch(`/api/v1/invoices/${inv.id}/send`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(selfApprovalReason ? { selfApprovalReason } : {}),
-      });
-      let res = await sendOnce();
-      if (res.status === 409) {
-        const errBody = await res.json().catch(() => null);
-        if (/selfApprovalReason|different approver/i.test(errBody?.message || '')) {
+      const sendOnce = (selfApprovalReason?: string) =>
+        api.post<{ invoice?: Invoice }>(`/api/v1/invoices/${inv.id}/send`, selfApprovalReason ? { selfApprovalReason } : {});
+      try {
+        await sendOnce();
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409 && /selfApprovalReason|different approver/i.test(err.message)) {
           if (!['COMPANY_ADMIN', 'ADMIN'].includes(userRole)) {
             throw new Error('A different approver is required.');
           }
           const reason = await dialog.prompt({ title: 'Self-approval reason required', inputLabel: 'Self-approval reason (min 15 characters)', confirmLabel: 'Send anyway', minLength: 15 });
           if (!reason || !reason.trim()) throw new Error('Self-approval cancelled — a reason is required.');
-          res = await sendOnce(reason.trim());
+          await sendOnce(reason.trim());
         } else {
-          throw new Error(errBody?.message || 'Failed to send invoice');
+          throw err;
         }
       }
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to send invoice');
       setNotice(`Invoice INV-${String(inv.invoice_no).padStart(5, '0')} marked as sent`);
       load();
       if (expandedId === inv.id) refreshDetail(inv.id);
@@ -275,14 +262,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/void`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ reason}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to void invoice');
+      await api.post(`/api/v1/invoices/${inv.id}/void`, { reason });
       setNotice(`Invoice INV-${String(inv.invoice_no).padStart(5, '0')} voided`);
       load();
       if (expandedId === inv.id) refreshDetail(inv.id);
@@ -297,19 +277,12 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/payments`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()},
-        body: JSON.stringify({
-          amount: parseFloat(payForm.amount),
-          method: payForm.method,
-          reference: payForm.reference || null,
-          note: payForm.note || null,
-}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to record payment');
+      const body = await api.post<{ invoice: Invoice }>(`/api/v1/invoices/${inv.id}/payments`, {
+        amount: parseFloat(payForm.amount),
+        method: payForm.method,
+        reference: payForm.reference || null,
+        note: payForm.note || null,
+      });
       setPayForm({ amount: '', method: 'M_PESA', reference: '', note: ''});
       setShowPayForm(false);
       setNotice(
