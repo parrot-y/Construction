@@ -1,6 +1,6 @@
 import React from 'react';
 
-/** Site Safi UI kit — see docs/DESIGN_SYSTEM.md. */
+/** Product UI kit — see docs/DESIGN_SYSTEM.md. */
 
 // ---------------------------------------------------------------- formatKes
 const kesFormatter = new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0});
@@ -203,5 +203,32 @@ export function Table({ head, children}: { head: string[]; children: React.React
 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">{children}</tbody>
 </table>
 </div>
+);
+}
+
+// ------------------------------------------------------- CopyWhatsAppButton
+/** Copies a prefilled WhatsApp message (link + context). Sending stays simulated — this only copies text. */
+export function CopyWhatsAppButton({
+  message, label = 'Copy WhatsApp', className = '',
+}: { message: string; label?: string; className?: string}) {
+  const [copied, setCopied] = React.useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable (insecure context) — leave button state unchanged.
+    }
+  };
+  return (
+<button
+      type="button"
+      onClick={() => void copy()}
+      title="Copies a prefilled WhatsApp message — sending is not automated"
+      className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-md transition ${className}`}
+    >
+      {copied ? 'Copied!' : label}
+</button>
 );
 }

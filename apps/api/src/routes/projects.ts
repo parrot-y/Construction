@@ -1,5 +1,5 @@
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
-import { Permissions } from '@construction/permissions';
+import { Permissions, Role } from '@construction/permissions';
 import { toDecimal, Decimal } from '@construction/money';
 import {
   CreateProjectDetailsSchema,
@@ -8,6 +8,8 @@ import {
 } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
+import { TENANT_WIDE_ROLES } from '../plugins/routeAuthorization';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -20,13 +22,20 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
   server.get(
     '/api/v1/projects',
     {
+      schema: {"tags": ["Projects"], "summary": "List projects", "security": [{"cookieAuth": []}]},
       preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)],
     },
     async (request, reply) => {
-      const { tenantId } = request.user;
+      const { tenantId, sub, role } = request.user;
 
+      // Non-tenant-wide roles can only act on projects they belong to —
+      // requireProjectMembership 403s everything else, so the picker must
+      // not offer projects the caller can't open.
+      const tenantWide = TENANT_WIDE_ROLES.has(role as Role);
+      const pg = listParams(request);
       const projects = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.project.findMany({
+          where: tenantWide ? {} : { members: { some: { user_id: sub } } },
           include: {
             members: {
               include: {
@@ -37,10 +46,12 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             },
           },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.status(200).send({ data: projects });
+      return reply.status(200).send({ ...listPage(projects, pg) });
     },
   );
 
@@ -79,6 +90,60 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       return reply.status(200).send({ data: project });
+    },
+  );
+
+  // GET /api/v1/projects/:id/checklist — guided onboarding checklist computed
+  // from real project data. Each step reports done/not-done and deep-links to
+  // the console section that completes it.
+  server.get(
+    '/api/v1/projects/:id/checklist',
+    {
+      preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { id } = request.params as { id: string };
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
+      }
+
+      try {
+        const steps = await withTenantTx(prisma, tenantId, async (tx) => {
+          const project = await tx.project.findUnique({ where: { id }, select: { id: true, closeout_stage: true } });
+          if (!project) throw { status: 404, message: 'Project not found' };
+
+          const [acceptedQuote, activeBoq, memberCount, diaryCount, certCount, paidInvoiceCount] = await Promise.all([
+            tx.quote.findFirst({
+              where: { OR: [{ converted_project_id: id }, { project_id: id }] },
+              select: { id: true },
+            }),
+            tx.bOQ.findFirst({ where: { project_id: id, status: { in: ['ACTIVE', 'APPROVED'] } }, select: { id: true } }),
+            tx.projectMember.count({ where: { project_id: id } }),
+            tx.siteDiary.count({ where: { project_id: id } }),
+            tx.paymentCertificate.count({ where: { project_id: id, status: { in: ['CERTIFIED', 'PAID'] } } }),
+            tx.invoice.count({ where: { project_id: id, status: 'PAID' } }),
+          ]);
+
+          const closeoutDone = !['IN_PROGRESS', 'NOT_STARTED'].includes(project.closeout_stage ?? 'IN_PROGRESS');
+
+          return [
+            { key: 'quote', label: 'Quote accepted', done: !!acceptedQuote, href: 'quotes' },
+            { key: 'boq', label: 'BoQ imported', done: !!activeBoq, href: 'boq' },
+            { key: 'team', label: 'Team assigned', done: memberCount >= 2, href: 'team' },
+            { key: 'diary', label: 'First site diary filed', done: diaryCount > 0, href: 'site' },
+            { key: 'certificate', label: 'First payment certificate certified', done: certCount > 0, href: 'certificates' },
+            { key: 'invoice', label: 'First invoice paid', done: paidInvoiceCount > 0, href: 'invoices' },
+            { key: 'closeout', label: 'Project closeout', done: closeoutDone, href: 'closeout' },
+          ];
+        });
+
+        return reply.status(200).send({ data: { steps } });
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ error: 'Error', message: err.message });
+        server.log.error(err);
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to load project checklist' });
+      }
     },
   );
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
-import { prisma, withTenantTx, hashPassword } from '@construction/db';
+import { prisma, withTenantTx, hashPassword, Prisma } from '@construction/db';
 import { toDecimal } from '@construction/money';
 import { enrollAllTenantUsersTx } from './test-members';
 
@@ -33,6 +33,14 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
     tenantAId = adminBody.user.tenant.id;
     adminAId = adminBody.user.id;
 
+    // The retention-terms test asserts the standard Kenyan default schedule;
+    // other suites may have configured tenant terms on this shared DB, so
+    // reset to the unconfigured state for determinism.
+    await prisma.tenant.update({
+      where: { id: tenantAId },
+      data: { retention_terms: Prisma.JsonNull },
+    });
+
     // 2. Login as Client (Tenant A)
     const clientRes = await server.inject({
       method: 'POST',
@@ -63,12 +71,13 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
 
     const userB = await prisma.user.upsert({
       where: { email: 'admin@kilimanjarodev-m9.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@kilimanjarodev-m9.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Daniel Kiptoo',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 

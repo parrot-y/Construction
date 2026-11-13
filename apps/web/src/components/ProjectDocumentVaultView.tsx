@@ -287,7 +287,7 @@ export default function ProjectDocumentVaultView({
 
 <div className="flex items-baseline gap-2 mb-1">
                   {doc.document_number && (
-<span className="font-mono text-xs font-bold text-slate-800">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-800">
                       {doc.document_number}
 </span>
 )}

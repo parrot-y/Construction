@@ -199,7 +199,7 @@ export default function AttendanceView({ projectId, canManage = true}: { project
             return (
 <div key={l.id} className="border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 flex-wrap">
 <div className="min-w-0">
-<p className="text-xs font-bold text-slate-900">{l.full_name}<span className="text-slate-400 font-mono">{l.worker_code}</span></p>
+<p className="text-xs font-bold text-slate-900">{l.full_name}<span className="text-slate-400 font-mono tabular-nums">{l.worker_code}</span></p>
 <p className="text-[10px] text-slate-500">{l.trade_category}{row?.crew ? ` · ${row.crew.name}` : ''}</p>
 </div>
 <div className="flex items-center gap-2 flex-wrap">

@@ -185,7 +185,7 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
 <div className="flex items-start justify-between gap-3">
 <div className="min-w-0">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="font-mono text-[10px] font-bold text-slate-400">{c.ref}</span>
+<span className="tabular-nums text-[10px] font-bold text-slate-400">{c.ref}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${TYPE_STYLE[c.type] || 'bg-slate-100 text-slate-600'}`}>{c.type[0] + c.type.slice(1).toLowerCase()}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${c.direction === 'OUTGOING' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700'}`}>{c.direction === 'OUTGOING' ? '→ Out' : '← In'}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLE[c.status] || 'bg-slate-100 text-slate-600'}`}>{c.status[0] + c.status.slice(1).toLowerCase()}</span>

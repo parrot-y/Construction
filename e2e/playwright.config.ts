@@ -41,6 +41,15 @@ export default defineConfig({
         JWT_SECRET: process.env.E2E_JWT_SECRET || 'e2e-test-jwt-secret-with-at-least-32-characters!!',
         WEB_ORIGIN: WEB_URL,
         NODE_ENV: 'development',
+        // The suite performs dozens of real logins per minute from one IP;
+        // the production default (30/min) would 429 mid-run. E2E only.
+        LOGIN_RATE_LIMIT_MAX: process.env.E2E_LOGIN_RATE_LIMIT_MAX || '1000',
+        // Same reasoning: the whole suite shares one source IP, so the
+        // IP+account failed-login throttle would self-DoS mid-run. The real
+        // 10/15min behaviour is covered by audit-hardening.test.ts.
+        LOGIN_THROTTLE_MAX_FAILURES: process.env.E2E_LOGIN_THROTTLE_MAX_FAILURES || '1000000',
+        INVITATION_ACCEPT_RATE_LIMIT_MAX: process.env.E2E_INVITATION_ACCEPT_RATE_LIMIT_MAX || '1000',
+        REGISTER_COMPANY_RATE_LIMIT_MAX: process.env.E2E_REGISTER_COMPANY_RATE_LIMIT_MAX || '1000',
         LOG_LEVEL: 'warn',
         UPLOAD_DIR: process.env.E2E_UPLOAD_DIR || '/tmp/e2e-uploads',
       },

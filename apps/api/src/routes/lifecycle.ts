@@ -1,6 +1,8 @@
 import React from 'react';
-import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { FastifyInstance, FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { listParams, listPage, setPageHeaders } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
+import type { Prisma } from '@construction/db';
 import { Decimal, toDecimal } from '@construction/money';
 import {
   CreateRfiSchema,
@@ -15,9 +17,14 @@ import {
   CreateSnagDistributionSchema,
   CreateDefectsCertificateSchema,
   ConsultantReviewSchema,
+  SnagPhotoUploadSchema,
 } from '@construction/validation';
 import { Permissions } from '@construction/permissions';
 import { requirePermission } from '../plugins/rbac';
+import { randomUUID } from 'node:crypto';
+import { sniffMime, verifyUpload } from '../lib/uploadSecurity';
+import { getStorageDriver } from '../lib/storage';
+import type { RouteError } from '../types/errors';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -39,7 +46,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid review', details: parsed.error.errors });
       }
       const { decision, notes } = parsed.data;
-      const reviewerName = (request.user as any).full_name || (request.user as any).email || 'Reviewer';
+      const reviewerName = (request.user as { full_name?: string; email?: string }).full_name || (request.user as { full_name?: string; email?: string }).email || 'Reviewer';
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -82,8 +89,10 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           return updated;
         });
         return reply.status(200).send(result);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         }
         request.log.error(err);
@@ -103,6 +112,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -138,11 +148,16 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               attachments: true,
             },
             orderBy: { rfi_number: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
         });
 
-        return reply.status(200).send(rfis);
-      } catch (err: any) {
+        const paged = listPage(rfis, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -261,7 +276,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(201).send(rfi);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -372,7 +388,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(201).send(result);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -420,7 +437,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           return u;
         });
         return reply.status(200).send(updated);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         request.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err.message });
@@ -435,6 +453,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -461,11 +480,16 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               },
             },
             orderBy: { scheduled_date: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
         });
 
-        return reply.status(200).send(inspections);
-      } catch (err: any) {
+        const paged = listPage(inspections, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -573,7 +597,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(201).send(checklist);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -715,7 +740,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(200).send(result);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -744,6 +770,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -770,6 +797,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               },
             },
             orderBy: { pour_date: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
 
           return records.map((t) => ({
@@ -783,8 +812,11 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           }));
         });
 
-        return reply.status(200).send(tests);
-      } catch (err: any) {
+        const paged = listPage(tests, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -881,7 +913,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(201).send(test);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1011,7 +1044,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(201).send(breakResult);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1040,6 +1074,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -1066,6 +1101,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               },
             },
             orderBy: { snag_number: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
 
           return records.map((s) => ({
@@ -1078,8 +1115,11 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           }));
         });
 
-        return reply.status(200).send(snags);
-      } catch (err: any) {
+        const paged = listPage(snags, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1142,7 +1182,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
 
         if (format === 'pdf') {
           const { SnagRegisterPdf } = await import('../reports/SnagRegisterPdf');
-          const { renderPdfToBuffer } = await import('../reports/renderPdf');
+          const { renderPdfToBufferLimited } = await import('../reports/renderPdf');
           // project already fetched inside tenant tx above
           const openStatuses = ['OPEN', 'IN_PROGRESS', 'READY_FOR_REVIEW', 'CONTESTED'];
           const docElement = React.createElement(SnagRegisterPdf, {
@@ -1151,8 +1191,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               projectCode: project.code,
               generatedAt: new Date().toISOString().slice(0, 10),
               totalCount: rows.length,
-              openCount: rows.filter((r: any) => openStatuses.includes(r.status)).length,
-              verifiedCount: rows.filter((r: any) => r.status === 'VERIFIED_CLOSED').length,
+              openCount: rows.filter((r: { status: string }) => openStatuses.includes(r.status)).length,
+              verifiedCount: rows.filter((r: { status: string }) => r.status === 'VERIFIED_CLOSED').length,
               rows: rows.map((s) => ({
                 ref: `SNAG-${String(s.snag_number).padStart(4, '0')}`,
                 location: [s.location_block, s.location_floor, s.location_room].filter(Boolean).join(' / '),
@@ -1170,7 +1210,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               })),
             },
           });
-          const pdfBuffer = await renderPdfToBuffer(docElement);
+          const pdfBuffer = await renderPdfToBufferLimited(docElement);
           return reply
             .header('Content-Type', 'application/pdf')
             .header('Content-Disposition', 'attachment; filename="snag-register.pdf"')
@@ -1184,8 +1224,10 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           .header('Content-Disposition', `attachment; filename="snag-register.csv"`)
           .status(200)
           .send(csv);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         }
         request.log.error(err);
@@ -1201,6 +1243,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const idempotencyKey = (request.headers['idempotency-key'] as string | undefined)?.trim();
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -1223,7 +1266,18 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
       const data = parseResult.data;
 
       try {
-        const snag = await withTenantTx(prisma, tenantId, async (tx) => {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          // Offline-queue replay: same idempotency key returns the cached
+          // snag instead of writing a duplicate (ADR-004 pattern).
+          if (idempotencyKey) {
+            const cached = await tx.idempotencyKey.findUnique({
+              where: { tenant_id_idempotency_key: { tenant_id: tenantId, idempotency_key: idempotencyKey } },
+            });
+            if (cached) {
+              return { isCached: true as const, status: cached.response_status, body: cached.response_body };
+            }
+          }
+
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -1262,7 +1316,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               reference_doc: data.referenceDoc ?? null,
               assigned_trade_firm: data.assignedTradeFirm,
               due_date: data.dueDate ? new Date(`${data.dueDate}T00:00:00.000Z`) : null,
-              identified_by_name: data.identifiedByName,
+              identified_by_name: data.identifiedByName ?? (request.user as { full_name?: string; email?: string }).full_name ?? (request.user as { full_name?: string; email?: string }).email ?? 'Field reporter',
               photos: data.photos?.length
                 ? {
                     create: data.photos.map((p) => ({
@@ -1312,18 +1366,61 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             },
           });
 
-          return {
+          // Inline defect photo (offline-queue friendly): decode base64 and
+          // verify magic bytes exactly like multipart/site uploads.
+          let inlinePhoto: { id: string; tenant_id: string; gps_latitude: { toString(): string } | null; gps_longitude: { toString(): string } | null; [key: string]: unknown } | null = null;
+          if (data.photoBase64) {
+            const photoBuffer = Buffer.from(data.photoBase64, 'base64');
+            const sniffed = photoBuffer.length >= 8 ? sniffMime(photoBuffer) : null;
+            const spec = sniffed ? verifyUpload(photoBuffer, sniffed) : null;
+            if (!spec) {
+              throw { status: 415, message: 'Defect photo content failed verification' };
+            }
+            const photoKey = `${tenantId}/${projectId}/${randomUUID()}${spec.ext}`;
+            await getStorageDriver().put(photoKey, photoBuffer);
+            inlinePhoto = await tx.snagPhoto.create({
+              data: {
+                tenant_id: tenantId,
+                snag_item_id: created.id,
+                photo_type: 'DEFECT',
+                storage_key: photoKey,
+                caption: 'Before evidence',
+                gps_latitude: data.photos?.[0]?.gpsLatitude != null ? toDecimal(data.photos[0].gpsLatitude).toFixed(6) : null,
+                gps_longitude: data.photos?.[0]?.gpsLongitude != null ? toDecimal(data.photos[0].gpsLongitude).toFixed(6) : null,
+              },
+            });
+          }
+
+          const allPhotos = inlinePhoto ? [...created.photos, inlinePhoto] : created.photos;
+          const responsePayload = {
             ...created,
-            photos: created.photos.map((p) => ({
+            photos: allPhotos.map((p) => ({
               ...p,
               gps_latitude: p.gps_latitude ? p.gps_latitude.toString() : null,
               gps_longitude: p.gps_longitude ? p.gps_longitude.toString() : null,
             })),
-          };
+          } as Prisma.InputJsonValue;
+
+          if (idempotencyKey) {
+            await tx.idempotencyKey.create({
+              data: {
+                tenant_id: tenantId,
+                idempotency_key: idempotencyKey,
+                response_status: 201,
+                response_body: responsePayload,
+              },
+            });
+          }
+
+          return { isCached: false as const, status: 201, body: responsePayload };
         });
 
-        return reply.status(201).send(snag);
-      } catch (err: any) {
+        if (result.isCached) {
+          return reply.header('X-Cache-Lookup', 'HIT').status(result.status).send(result.body);
+        }
+        return reply.header('X-Cache-Lookup', 'MISS').status(result.status).send(result.body);
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1341,11 +1438,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     },
   );
 
-  // 4.3 PUT /api/v1/projects/:projectId/snags/:snagId/status - Update Snag Status
-  server.put(
-    '/api/v1/projects/:projectId/snags/:snagId/status',
-    { preHandler: [server.authenticate] },
-    async (request, reply) => {
+  // 4.3 PUT|PATCH /api/v1/projects/:projectId/snags/:snagId/status - Update Snag Status
+  const snagStatusHandler = async (request: FastifyRequest, reply: FastifyReply) => {
       const { tenantId, sub, fullName } = request.user;
       const { projectId, snagId } = request.params as { projectId: string; snagId: string };
 
@@ -1470,7 +1564,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(200).send(updated);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1485,8 +1580,11 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           message: err.message,
         });
       }
-    },
-  );
+  };
+
+  server.put('/api/v1/projects/:projectId/snags/:snagId/status', { preHandler: [server.authenticate] }, snagStatusHandler);
+
+  server.patch('/api/v1/projects/:projectId/snags/:snagId/status', { preHandler: [server.authenticate] }, snagStatusHandler);
 
   // 4.4 GET /api/v1/projects/:projectId/snags/:snagId - Snag detail (comments + distributions)
   server.get(
@@ -1526,7 +1624,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           };
         });
         return reply.status(200).send(snag);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1540,6 +1639,112 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           error: 'Internal Server Error',
           message: err.message,
         });
+      }
+    },
+  );
+
+  // 4.4b POST /api/v1/projects/:projectId/snags/:snagId/photos
+  // Stage 4: snag photo upload as JSON base64 so the offline queue can carry
+  // it with an idempotency key. Bytes are magic-byte verified — the same
+  // content checks as multipart site uploads.
+  server.post(
+    '/api/v1/projects/:projectId/snags/:snagId/photos',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, snagId } = request.params as { projectId: string; snagId: string };
+      const idempotencyKey = (request.headers['idempotency-key'] as string | undefined)?.trim();
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(snagId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project or snag not found' });
+      }
+
+      const parsed = SnagPhotoUploadSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          statusCode: 400, error: 'Bad Request', message: 'Invalid snag photo payload', details: parsed.error.flatten(),
+        });
+      }
+      const data = parsed.data;
+
+      const buffer = Buffer.from(data.photoBase64, 'base64');
+      if (buffer.length < 8 || buffer.length > 8 * 1024 * 1024) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Photo payload is empty or too large' });
+      }
+      const sniffed = sniffMime(buffer);
+      const spec = sniffed ? verifyUpload(buffer, sniffed) : null;
+      if (!spec) {
+        return reply.status(415).send({
+          statusCode: 415,
+          error: 'Unsupported Media Type',
+          message: 'Photo content failed verification — images and PDF only',
+        });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          if (idempotencyKey) {
+            const cached = await tx.idempotencyKey.findUnique({
+              where: { tenant_id_idempotency_key: { tenant_id: tenantId, idempotency_key: idempotencyKey } },
+            });
+            if (cached) {
+              return { isCached: true as const, status: cached.response_status, body: cached.response_body };
+            }
+          }
+
+          const snag = await tx.snagItem.findFirst({
+            where: { id: snagId, project_id: projectId },
+            select: { id: true },
+          });
+          if (!snag) throw { status: 404, message: 'Snag item not found' };
+
+          const storageKey = `${tenantId}/${projectId}/${randomUUID()}${spec.ext}`;
+          await getStorageDriver().put(storageKey, buffer);
+
+          const photo = await tx.snagPhoto.create({
+            data: {
+              tenant_id: tenantId,
+              snag_item_id: snagId,
+              photo_type: data.photoType,
+              storage_key: storageKey,
+              caption: data.caption || null,
+              gps_latitude: data.gpsLatitude != null ? toDecimal(data.gpsLatitude).toFixed(6) : null,
+              gps_longitude: data.gpsLongitude != null ? toDecimal(data.gpsLongitude).toFixed(6) : null,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId, projectId, actorId: sub,
+            action: 'SNAG_PHOTO_ADDED', entityType: 'SnagPhoto', entityId: photo.id,
+            changes: { snagId, storageKey, photoType: data.photoType },
+          });
+
+          const responsePayload = { message: 'Snag photo recorded', data: photo } as Prisma.InputJsonValue;
+          if (idempotencyKey) {
+            await tx.idempotencyKey.create({
+              data: {
+                tenant_id: tenantId,
+                idempotency_key: idempotencyKey,
+                response_status: 201,
+                response_body: responsePayload,
+              },
+            });
+          }
+          return { isCached: false as const, status: 201, body: responsePayload };
+        });
+
+        if (result.isCached) {
+          return reply.header('X-Cache-Lookup', 'HIT').status(result.status).send(result.body);
+        }
+        return reply.header('X-Cache-Lookup', 'MISS').status(result.status).send(result.body);
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
+        if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
+          return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        }
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to record snag photo' });
       }
     },
   );
@@ -1601,7 +1806,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           return created;
         });
         return reply.status(201).send(comment);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1677,7 +1883,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           return created;
         });
         return reply.status(201).send(distribution);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1706,6 +1913,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -1727,6 +1935,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           const records = await tx.defectsLiabilityCertificate.findMany({
             where: { project_id: projectId },
             orderBy: { issue_date: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
 
           return records.map((c) => ({
@@ -1735,8 +1945,11 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           }));
         });
 
-        return reply.status(200).send(certs);
-      } catch (err: any) {
+        const paged = listPage(certs, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,
@@ -1880,7 +2093,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         });
 
         return reply.status(201).send(certificate);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) {
           return reply.status(err.status).send({
             statusCode: err.status,

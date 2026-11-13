@@ -66,3 +66,21 @@ The live dev API uses `construction_demo`, tests/verify use `construction_test` 
 - Enum-vs-action naming: storing the raw action string ('CONFIRM') into a status column ('CONFIRMED') passed typecheck but broke state-machine guards — map explicitly and assert via DB row in tests.
 - Test fixtures must match real response envelopes: `.id || .data?.id` — a wrong assumption produced 'undefined' UUID → Prisma P2023, not a clean 400.
 - Ephemeral /tmp Postgres clusters get wiped between sessions — construction_test/demo/e2e DBs must be rebuilt (initdb + migrate deploy + rls.sql + grants + seed) before API tests.
+
+## 2026-11-10 — stage-2/3 build lessons
+- Auditor "exactly as provided" specs may never arrive — authoring them from numbered requirements is acceptable IF documented as authored (spec header + evidence), never claimed as auditor-written.
+- Prisma relation edits: adding a FK on model B requires the inverse relation on model A — validate (`prisma validate`) IMMEDIATELY after schema edits, before generate/migrate.
+- Match/envelope shapes: verify the real response key (e.g. `deliveries`, `data`) before writing assertions — don't guess array shapes.
+- Stale API processes serve old code — kill them before rerunning Playwright (reuseExistingServer picks up whatever is on the port).
+- Shared e2e DB persists mutations across runs (PATCH /company/settings) — tests asserting defaults must reset state in beforeAll (m9 retention_terms).
+- Route-guard test enforces authz maps — every new route needs UNAUTHENTICATED_ALLOWLIST (token routes) or SELF_SERVICE_ALLOWLIST/ROUTE_PERMISSIONS entries.
+- Playwright browsers live in ~/.cache/ms-playwright — /tmp wipes don't affect them, but cache wipes do; `playwright install chromium` needed for headless-shell on mobile-390.
+
+## 2026-11-11 — stage-4 + auditor A/B lessons
+- SECURITY DEFINER lookup functions in rls.sql are a SECOND schema surface: adding a column to a model does NOT reach `$queryRaw` lookups — every new field used by token/portal flows must be added to the function's RETURNS TABLE + SELECT, then rls.sql re-applied to every env DB. Two silent bugs this stage (portal `scope`, invitation `pin_hash`) both manifested as "feature ignored", not errors.
+- `server.decorate` inside `server.register(plugin)` is NOT visible to routes defined at root level in index.ts — plugin-decorated helpers (`server.authenticate`) only exist inside plugin-registered route files. Put routes needing decorators inside a routes plugin.
+- zod is not a direct dep of apps/api — schemas belong in `@construction/validation`; importing 'zod' in route files fails at vitest transform.
+- Prisma migrate deploy URL for socket clusters: port goes in the authority (`localhost:54329`), socket dir in `?host=/tmp` — `?port=` is ignored.
+- Playwright `set-cookie` header joins multiple cookies — split on `,(?=[^;]+=)` like `login()` in helpers.ts before building a Session manually.
+- E2E DB accumulates rows across runs — brand-string sweeps must also purge historical rows (inbox_messages sender_name) or payload-sampling tests flake on residue.
+- Auditor font-mono rule: `<tbody className="font-mono">` wraps mixed prose+numbers — restrict at element level, not container level.

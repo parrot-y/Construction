@@ -522,7 +522,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 <div className="flex justify-between items-center text-xs text-gray-500 mt-2">
 <span> {takeoff.totalTonnage} T</span>
 <span> {takeoff.totalPaintAreaM2} m²</span>
-<span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{takeoff.steelGrade}</span>
+<span className="tabular-nums bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{takeoff.steelGrade}</span>
 </div>
 </div>
 ))

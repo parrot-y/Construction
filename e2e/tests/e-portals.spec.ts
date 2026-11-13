@@ -75,13 +75,33 @@ test.describe('E. External portals', () => {
     const sup = await login(request, 'qs@apexbuilders.co.ke');
     const projectId = await firstProjectId(request, sup);
 
+    // Stage-3 contract: a SUPPLIER link without supplierId auto-resolves (or
+    // onboards) the Supplier record from stakeholderName — never free-text.
+    const autoLink = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
+      portalType: 'SUPPLIER',
+      stakeholderName: `E2E Auto Supplier ${Date.now()}`,
+      stakeholderRole: 'Cement supplier',
+      expiresInDays: 7,
+    });
+    expect(autoLink.status(), await autoLink.text()).toBe(201);
+    expect(unwrap(await autoLink.json()).supplierId, 'link must bind a Supplier record').toBeTruthy();
+
+    const supRes = await apiPost(request, sup, '/api/v1/suppliers', {
+      name: `E2E Cement Co ${Date.now()}`,
+      phone: '+254700000001',
+    });
+    expect(supRes.status(), await supRes.text()).toBe(201);
+    const supplier = unwrap(await supRes.json());
+    const supplierId = supplier.id || supplier.data?.id;
+
     const linkRes = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
       portalType: 'SUPPLIER',
       stakeholderName: 'E2E Supplier',
       stakeholderRole: 'Cement supplier',
       expiresInDays: 7,
+      supplierId,
     });
-    expect(linkRes.status()).toBe(201);
+    expect(linkRes.status(), await linkRes.text()).toBe(201);
     const link = unwrap(await linkRes.json());
     const token = link.token || link.rawToken;
 

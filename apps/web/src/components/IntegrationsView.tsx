@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { PRODUCT_NAME } from '../lib/product';
 
 interface IntegrationStatus {
   provider: string;
@@ -40,7 +41,7 @@ export default function IntegrationsView(): React.JSX.Element {
     try {
       const res = await fetch('/api/v1/integrations/test', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ channel: it.channel, to, message: `Site Safi integration check — ${it.provider} is reachable.`}),
+        body: JSON.stringify({ channel: it.channel, to, message: `${PRODUCT_NAME} integration check — ${it.provider} is reachable.`}),
 });
       const json = await res.json();
       setResults((prev) => ({ ...prev, [it.provider]: json}));

@@ -1,6 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../../ui';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
 
 export interface SubcontractorSnag {
   id: string;
@@ -59,6 +59,7 @@ export default function SubcontractorPortalView({
 }: SubcontractorPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [stakeholder, setStakeholder] = useState({ name: subcontractorName || '', trade: subcontractorTrade || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
@@ -83,7 +84,7 @@ export default function SubcontractorPortalView({
       try {
         const res = await fetch(`/api/v1/portals/subcontractor/${token}`, { credentials: 'include' });
         const body = await res.json();
-        if (!res.ok) throw new Error(body.message || 'This portal link is invalid or has expired');
+        if (!res.ok) throw portalHttpError(body.message || 'This portal link is invalid or has expired', res.status);
         if (cancelled) return;
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', trade: d.stakeholder.trade || '' });
@@ -106,7 +107,7 @@ export default function SubcontractorPortalView({
         setPackages(d.packages || []);
         if ((d.packages || []).length > 0) setClaimPackageId(d.packages[0].id);
       } catch (e: any) {
-        if (!cancelled) setLoadError(e.message || 'Failed to load portal');
+        if (!cancelled) { setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -118,12 +119,9 @@ export default function SubcontractorPortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
-    const isExpired = /expired/i.test(loadError);
-    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
       <div className="max-w-5xl mx-auto">
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={loadError || undefined} />
       </div>
     );
   }
@@ -292,13 +290,13 @@ export default function SubcontractorPortalView({
 {Number(commercialSummary.contractSumKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Subcontract Sum</p>
-<p className="text-base font-bold text-slate-900 mt-1 font-mono">{formatKes(commercialSummary.contractSumKes)}</p>
+<p className="text-base font-bold text-slate-900 mt-1 tabular-nums">{formatKes(commercialSummary.contractSumKes)}</p>
 </div>
 )}
 {Number(commercialSummary.retentionWithheldKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">{commercialSummary.retentionRatePct}% Retention Held</p>
-<p className="text-base font-bold text-purple-700 mt-1 font-mono">{formatKes(commercialSummary.retentionWithheldKes)}</p>
+<p className="text-base font-bold text-purple-700 mt-1 tabular-nums">{formatKes(commercialSummary.retentionWithheldKes)}</p>
 </div>
 )}
 </div>
@@ -355,7 +353,7 @@ export default function SubcontractorPortalView({
               >
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                       {snag.snag_number}
 </span>
 <span className="text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
@@ -400,7 +398,7 @@ export default function SubcontractorPortalView({
 <span className="font-bold text-slate-600 text-[10px]">
                           [{p.photo_type} Photo]:
 </span>
-<span className="text-slate-500 font-mono text-[10px] truncate max-w-xs">{p.storage_key}</span>
+<span className="text-slate-500 font-mono tabular-nums text-[10px] truncate max-w-xs">{p.storage_key}</span>
 </div>
 ))}
 </div>
@@ -548,9 +546,9 @@ export default function SubcontractorPortalView({
 )}
 </td>
 <td className="p-3 font-bold text-slate-700">{m.pct}%</td>
-<td className="p-3 font-mono font-bold text-slate-900">{formatKes(m.grossKes)}</td>
-<td className="p-3 font-mono text-purple-700">{formatKes(m.retentionKes)}</td>
-<td className="p-3 font-mono font-bold text-emerald-700">{formatKes(m.netKes)}</td>
+<td className="p-3 tabular-nums font-bold text-slate-900">{formatKes(m.grossKes)}</td>
+<td className="p-3 tabular-nums text-purple-700">{formatKes(m.retentionKes)}</td>
+<td className="p-3 tabular-nums font-bold text-emerald-700">{formatKes(m.netKes)}</td>
 <td className="p-3">
 <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -619,15 +617,15 @@ export default function SubcontractorPortalView({
 <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-center">
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Package value</p>
-<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(packageSum))}</p>
+<p className="text-xs font-bold text-slate-900 tabular-nums">{formatKes(String(packageSum))}</p>
 </div>
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Certified to date</p>
-<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(certifiedToDate))}</p>
+<p className="text-xs font-bold text-slate-900 tabular-nums">{formatKes(String(certifiedToDate))}</p>
 </div>
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Remaining</p>
-<p className="text-xs font-bold text-emerald-700 font-mono">{formatKes(String(remaining))}</p>
+<p className="text-xs font-bold text-emerald-700 tabular-nums">{formatKes(String(remaining))}</p>
 </div>
 </div>
 );
@@ -642,7 +640,7 @@ export default function SubcontractorPortalView({
                   required
                   value={claimAmount}
                   onChange={(e) => setClaimAmount(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 tabular-nums"
                 />
 <p className="text-[10px] text-slate-500 mt-0.5">
                   Contract retention and 3% WHT are calculated automatically on submission.

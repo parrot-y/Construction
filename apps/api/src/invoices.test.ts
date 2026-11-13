@@ -66,12 +66,13 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     });
     const userB = await prisma.user.upsert({
       where: { email: 'admin@invoices-isolation.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@invoices-isolation.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Test Admin B',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
     await withTenantTx(prisma, tenantB.id, async (tx) => {
@@ -149,7 +150,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-1' },
       payload: { amount: 100000, method: 'M_PESA', reference: 'QGH7X2' },
     });
     expect(res.statusCode).toBe(409);
@@ -160,7 +161,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/send`,
       headers: { cookie: adminCookie },
-      payload: {},
+      payload: { selfApprovalReason: 'Gate-4 test: admin sends own draft invoice' },
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -182,7 +183,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-2' },
       payload: { amount: 300000, method: 'M_PESA', reference: 'QGH7X2ABC', note: 'Deposit via paybill' },
     });
     expect(res.statusCode).toBe(201);
@@ -199,7 +200,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-3' },
       payload: { amount: 999999, method: 'BANK' },
     });
     expect(res.statusCode).toBe(400);
@@ -209,7 +210,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-4' },
       payload: { amount: 338000, method: 'BANK', reference: 'TRF-9981' },
     });
     expect(res.statusCode).toBe(201);
@@ -225,7 +226,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-5' },
       payload: { amount: 1, method: 'CASH' },
     });
     expect(res.statusCode).toBe(409);
@@ -255,7 +256,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
       method: 'POST',
       url: `/api/v1/invoices/${oid}/send`,
       headers: { cookie: adminCookie },
-      payload: {},
+      payload: { selfApprovalReason: 'Gate-4 test: admin sends own draft invoice' },
     });
 
     const res = await server.inject({

@@ -302,14 +302,14 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 <tbody className="divide-y divide-slate-100">
             {series.map((item) => (
 <tr key={item.periodMonth} className="hover:bg-slate-50/80 transition">
-<td className="py-3 px-4 font-mono font-semibold text-slate-900">{item.periodMonth}</td>
+<td className="py-3 px-4 tabular-nums font-semibold text-slate-900">{item.periodMonth}</td>
 <td className="py-3 px-4">{formatKes(item.plannedValueKes)}</td>
 <td className="py-3 px-4 font-semibold text-emerald-700">
                   {formatKes(item.earnedValueKes)}
 </td>
 <td className="py-3 px-4 text-slate-900">{formatKes(item.actualCostKes)}</td>
-<td className="py-3 px-4 font-mono font-medium">{item.cpi}</td>
-<td className="py-3 px-4 font-mono font-medium">{item.spi}</td>
+<td className="py-3 px-4 tabular-nums font-medium">{item.cpi}</td>
+<td className="py-3 px-4 tabular-nums font-medium">{item.spi}</td>
 <td className="py-3 px-4 font-bold text-slate-900">
                   {formatKes(item.netCashFlowKes)}
 </td>

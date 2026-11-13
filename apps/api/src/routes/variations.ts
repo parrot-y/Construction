@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions, hasPermission, Role } from '@construction/permissions';
 import { calculateLineTotal, toDecimal, toCurrencyString, Decimal } from '@construction/money';
@@ -7,6 +8,7 @@ import {
   ReviewVariationOrderSchema,
 } from '@construction/validation';
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
+import { notifyTeam } from '../lib/notify';
 import {
   applyCoBudgetRollup,
   claimCoTransition,
@@ -69,6 +71,7 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -92,14 +95,18 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
             where: { project_id: projectId },
             include: VARIATION_INCLUDE,
             orderBy: { variation_no: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
 
           return records.map(formatVariation);
         });
 
+        const paged = listPage(variations, pg);
         return reply.status(200).send({
-          data: variations,
-          count: variations.length,
+          data: paged.data,
+          page: paged.page,
+          count: paged.data.length,
         });
       } catch (err: any) {
         if (err.status) {
@@ -424,6 +431,14 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
           const actorName = await getActorName(tx, sub);
           await recordCoEvent(tx, tenantId, variationId, 'USER', actorName, 'SUBMITTED', `CO-${String(variation.variation_no).padStart(4, '0')} submitted for PM review`);
+
+          await notifyTeam(tx, {
+            tenantId,
+            projectId,
+            senderId: sub,
+            senderName: actorName,
+            body: `Change order CO-${String(variation.variation_no).padStart(4, '0')} "${variation.title}" submitted — awaiting review. Net value: ${toCurrencyString(variation.net_amount?.toString() ?? '0')}.`,
+          });
 
           await recordAuditLog(tx, {
             tenantId,

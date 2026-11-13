@@ -136,7 +136,7 @@ export default function PhysicalProgressModal({
                 required
                 value={recordDate}
                 onChange={(e) => setRecordDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden font-mono"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden tabular-nums"
               />
 </div>
 
@@ -151,7 +151,7 @@ export default function PhysicalProgressModal({
                   required
                   value={overallProgressPct}
                   onChange={(e) => setOverallProgressPct(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden font-mono font-bold"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden tabular-nums font-bold"
                 />
 <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">%</span>
 </div>
@@ -184,7 +184,7 @@ export default function PhysicalProgressModal({
                       step="0.0001"
                       value={completedQty}
                       onChange={(e) => setCompletedQty(e.target.value)}
-                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md font-mono"
+                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md tabular-nums"
                     />
 </div>
 <div>
@@ -196,7 +196,7 @@ export default function PhysicalProgressModal({
                       max="100"
                       value={itemCompletionPct}
                       onChange={(e) => setItemCompletionPct(e.target.value)}
-                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md font-mono font-bold"
+                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md tabular-nums font-bold"
                     />
 </div>
 </div>

@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import {
@@ -45,6 +46,7 @@ export const announcementsRoutes: FastifyPluginAsync = async (server: FastifyIns
     async (request, reply) => {
       const { tenantId, sub, role } = request.user;
       const { projectId } = request.query as { projectId?: string };
+      const pg = listParams(request);
 
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -68,7 +70,8 @@ export const announcementsRoutes: FastifyPluginAsync = async (server: FastifyIns
             .filter((a) => isVisibleTo(a, role))
             .map((a) => format(a, a._count.reads, a.reads.length > 0));
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list announcements' });
@@ -242,6 +245,7 @@ export const announcementsRoutes: FastifyPluginAsync = async (server: FastifyIns
     async (request, reply) => {
       const { tenantId } = request.user;
       const { id } = request.params as { id: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(id)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Announcement not found' });
       }
@@ -253,6 +257,8 @@ export const announcementsRoutes: FastifyPluginAsync = async (server: FastifyIns
             where: { announcement_id: id },
             include: { announcement: { select: { id: true } } },
             orderBy: { read_at: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
         });
         // Resolve reader names
@@ -261,13 +267,12 @@ export const announcementsRoutes: FastifyPluginAsync = async (server: FastifyIns
           tx.user.findMany({ where: { id: { in: userIds } }, select: { id: true, full_name: true, email: true } }),
         );
         const map = new Map(users.map((u) => [u.id, u]));
-        return reply.status(200).send({
-          data: readers.map((r: any) => ({
-            user_id: r.user_id,
-            read_at: r.read_at.toISOString(),
-            user: map.get(r.user_id) ?? null,
-          })),
-        });
+        const pagedReaders = listPage(readers.map((r: any) => ({
+          user_id: r.user_id,
+          read_at: r.read_at.toISOString(),
+          user: map.get(r.user_id) ?? null,
+        })), pg);
+        return reply.status(200).send({ data: pagedReaders.data, page: pagedReaders.page });
       } catch (err: any) {
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);

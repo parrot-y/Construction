@@ -56,13 +56,15 @@ const authPluginAsync: FastifyPluginAsync = async (server: FastifyInstance) => {
         message: 'Invalid or missing authentication token',
       });
     }
+    let membershipRole: string | undefined;
     try {
       const membership = await withTenantTx(prisma, payload.tenantId, (tx) =>
         tx.membership.findFirst({
           where: { tenant_id: payload.tenantId, user_id: payload.sub },
-          select: { user: { select: { is_active: true } } },
+          select: { role: true, user: { select: { is_active: true } } },
         }),
       );
+      membershipRole = membership?.role;
       if (!membership?.user.is_active) {
         return reply.status(401).send({
           error: 'Unauthorized',
@@ -75,6 +77,12 @@ const authPluginAsync: FastifyPluginAsync = async (server: FastifyInstance) => {
         error: 'Unauthorized',
         message: 'Session validation failed',
       });
+    }
+
+    // The JWT role claim is a login-time snapshot — the membership row is
+    // authoritative so demotions/removals apply to already-issued tokens.
+    if (membershipRole) {
+      (request.user as { role?: string }).role = membershipRole;
     }
   });
 };

@@ -1,20 +1,27 @@
-import React, { useEffect, useRef, useState} from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState} from 'react';
 import { ConsoleProvider, useConsole} from './ConsoleContext';
 import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection} from './navConfig';
+import ReportProblemModal from '../ReportProblemModal';
 import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSun, IconMoon} from './icons';
-import AskAiPanel from './AskAiPanel';
 import SessionsModal from './SessionsModal';
-import HomeSection from './sections/HomeSection';
-import ProjectsSection from './sections/ProjectsSection';
-import SiteSection from './sections/SiteSection';
-import MoneySection from './sections/MoneySection';
-import PeopleSection from './sections/PeopleSection';
-import FilesSection from './sections/FilesSection';
-import ConsultantPortalView from '../portals/ConsultantPortalView';
-import SubcontractorPortalView from '../portals/SubcontractorPortalView';
-import SupplierPortalView from '../portals/SupplierPortalView';
-import CompliancePortalView from '../portals/CompliancePortalView';
+const ConsultantPortalView = lazy(() => import('../portals/ConsultantPortalView'));
+const SubcontractorPortalView = lazy(() => import('../portals/SubcontractorPortalView'));
+const SupplierPortalView = lazy(() => import('../portals/SupplierPortalView'));
+const CompliancePortalView = lazy(() => import('../portals/CompliancePortalView'));
+
+const SectionFallback = <div className="min-h-[40vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
+
+const HomeSection = lazy(() => import('./sections/HomeSection'));
+const ProjectsSection = lazy(() => import('./sections/ProjectsSection'));
+const SiteSection = lazy(() => import('./sections/SiteSection'));
+const MoneySection = lazy(() => import('./sections/MoneySection'));
+const PeopleSection = lazy(() => import('./sections/PeopleSection'));
+const FilesSection = lazy(() => import('./sections/FilesSection'));
+const AskAiPanel = lazy(() => import('./AskAiPanel'));
+import OfflineSyncBanner from '../OfflineSyncBanner';
+
 import { AuthSession} from '../../types/auth';
+import AppErrorBoundary from '../AppErrorBoundary';
 
 function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const { session, roleLabel, projects, projectId, setProjectId, currency, setCurrency, setAiOpen, newMenuOpen, setNewMenuOpen, dark, toggleDark, setSection, setTab} = useConsole();
@@ -24,6 +31,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const [q, setQ] = useState('');
   const [userMenu, setUserMenu] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/v1/company/members', { credentials: 'include'})
@@ -100,7 +108,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <button key={p.id} onClick={() => { setProjectId(p.id); setQ(''); setSearchOpen(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">{p.name}</span>
-<span className="ml-2 text-[10px] text-slate-400 font-mono">{p.code} · project</span>
+<span className="ml-2 text-[10px] text-slate-400 font-mono tabular-nums">{p.code} · project</span>
 </button>
 ))}
                     {memberHits.map((m: any) => (
@@ -160,7 +168,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 )}
 </div>
 
-<button onClick={() => setAiOpen(true)} aria-label="Ask Site Safi AI"
+<button onClick={() => setAiOpen(true)} aria-label="Ask product AI"
           className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:opacity-90">
 <IconSpark className="w-3.5 h-3.5" /> Ask AI
 </button>
@@ -195,6 +203,10 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user.fullName || user.email}</p>
 <p className="text-[10px] text-slate-400">{user.email} · {roleLabel}</p>
 </div>
+<button onClick={() => { setUserMenu(false); setReportOpen(true);}}
+                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  Report a problem
+</button>
 <button onClick={() => { setUserMenu(false); setSessionsOpen(true);}}
                   className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
                   Active sessions
@@ -210,6 +222,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 </div>
 </div>
       {sessionsOpen &&<SessionsModal onClose={() => setSessionsOpen(false)} />}
+      {reportOpen &&<ReportProblemModal onClose={() => setReportOpen(false)} />}
 </header>
 );
 }
@@ -224,7 +237,7 @@ function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
     : `${cls} transition ${active ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`;
   return (
 <>
-<button onClick={() => setAiOpen(true)} aria-label="Ask Site Safi AI" className={itemCls(false)}>
+<button onClick={() => setAiOpen(true)} aria-label="Ask product AI" className={itemCls(false)}>
 <IconSpark className="w-5 h-5" />
         {mobile &&<span>AI</span>}
 </button>
@@ -334,13 +347,16 @@ function SectionPrompt(): React.JSX.Element | null {
 
 function SectionBody(): React.JSX.Element {
   const { section} = useConsole();
+  const wrap = (label: string, el: React.ReactNode) => (
+    <AppErrorBoundary key={section} label={`console:${label}`}><Suspense fallback={SectionFallback}>{el}</Suspense></AppErrorBoundary>
+  );
   switch (section) {
-    case 'projects': return<ProjectsSection />;
-    case 'site': return<SiteSection />;
-    case 'money': return<MoneySection />;
-    case 'people': return<PeopleSection />;
-    case 'files': return<FilesSection />;
-    default: return<HomeSection />;
+    case 'projects': return wrap('projects', <ProjectsSection />);
+    case 'site': return wrap('site', <SiteSection />);
+    case 'money': return wrap('money', <MoneySection />);
+    case 'people': return wrap('people', <PeopleSection />);
+    case 'files': return wrap('files', <FilesSection />);
+    default: return wrap('home', <HomeSection />);
 }
 }
 
@@ -349,15 +365,18 @@ function PortalPreview(): React.JSX.Element | null {
   if (!portalPreview) return null;
   const back = () => setPortalPreview(null);
   const common = { onBackToDashboard: back};
+  const pw = (label: string, el: React.ReactNode) => (
+    <AppErrorBoundary label={`portal-preview:${label.toLowerCase()}`}><Suspense fallback={SectionFallback}>{el}</Suspense></AppErrorBoundary>
+  );
   switch (portalPreview.type.toUpperCase()) {
     case 'CONSULTANT':
-      return<ConsultantPortalView token={portalPreview.token} stakeholderName={portalPreview.name} stakeholderRole={portalPreview.role} {...common} />;
+      return pw('CONSULTANT', <ConsultantPortalView token={portalPreview.token} stakeholderName={portalPreview.name} stakeholderRole={portalPreview.role} {...common} />);
     case 'SUBCONTRACTOR':
-      return<SubcontractorPortalView token={portalPreview.token} subcontractorName={portalPreview.name} subcontractorTrade={portalPreview.role} {...common} />;
+      return pw('SUBCONTRACTOR', <SubcontractorPortalView token={portalPreview.token} subcontractorName={portalPreview.name} subcontractorTrade={portalPreview.role} {...common} />);
     case 'SUPPLIER':
-      return<SupplierPortalView token={portalPreview.token} supplierName={portalPreview.name} supplierCategory={portalPreview.role} {...common} />;
+      return pw('SUPPLIER', <SupplierPortalView token={portalPreview.token} supplierName={portalPreview.name} supplierCategory={portalPreview.role} {...common} />);
     case 'COMPLIANCE':
-      return<CompliancePortalView token={portalPreview.token} auditorName={portalPreview.name} auditorAgency={portalPreview.role} {...common} />;
+      return pw('COMPLIANCE', <CompliancePortalView token={portalPreview.token} auditorName={portalPreview.name} auditorAgency={portalPreview.role} {...common} />);
     default:
       return (
 <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-10 text-center text-sm text-slate-500">
@@ -377,6 +396,7 @@ function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <div className="sm:pl-16 pb-20 sm:pb-0 flex flex-col min-h-screen">
 <TopBar onLogout={onLogout} />
 <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 pb-24 sm:pb-5 max-w-[1400px] w-full mx-auto space-y-4">
+<OfflineSyncBanner />
 <div className="flex items-center justify-between gap-4 flex-wrap">
 <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">{SECTION_LABELS[section as keyof typeof SECTION_LABELS] || 'Home'}</h1>
 <SectionPrompt />
@@ -385,7 +405,7 @@ function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <SectionBody />
 </main>
 </div>
-<AskAiPanel />
+<Suspense fallback={null}><AskAiPanel /></Suspense>
 </div>
 );
 }

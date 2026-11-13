@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/apiClient';
 
 export interface RetentionReleaseItem {
   id: string;
@@ -90,23 +91,14 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive || !projectId) return;
     try {
-      const [relRes, bondRes, pkgRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/contractor-bonds`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'}),
+      const [rj, bj, pj] = await Promise.all([
+        api.get<{ releases?: RetentionReleaseItem[] }>(`/api/v1/projects/${projectId}/subcontractor-retention-releases`).catch(() => null),
+        api.get<{ bonds?: ContractorBondItem[] }>(`/api/v1/projects/${projectId}/contractor-bonds`).catch(() => null),
+        api.get<{ packages?: Array<{ id: string; firm_name: string }> }>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => null),
       ]);
-      if (relRes.ok) {
-        const rj = await relRes.json();
-        setReleases((rj.releases || []) as RetentionReleaseItem[]);
-}
-      if (bondRes.ok) {
-        const bj = await bondRes.json();
-        setBonds((bj.bonds || []) as ContractorBondItem[]);
-}
-      if (pkgRes.ok) {
-        const pj = await pkgRes.json();
-        setSubPkgs((pj.packages || []).map((p: any) => ({ id: p.id, firm_name: p.firm_name})));
-}
+      if (rj) setReleases(rj.releases || []);
+      if (bj) setBonds(bj.bonds || []);
+      if (pj) setSubPkgs((pj.packages || []).map((p) => ({ id: p.id, firm_name: p.firm_name})));
 } catch { /* keep demo */}
     setLiveLoaded(true);
 }, [isLive, projectId]);
@@ -215,20 +207,17 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
       if (!releasePackageId) return;
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              subcontractorPackageId: releasePackageId,
-              releaseNo,
-              moietyStage,
-              totalRetentionHeld: held.toFixed(2),
-              releasePercentage: pct.toFixed(2),
-              releaseAmount: amt.toFixed(2),
-              qsRecommendationNotes: qsNotes || null,
-              defectClearanceVerified: defectVerified,
-}),
+          await api.post(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, {
+            subcontractorPackageId: releasePackageId,
+            releaseNo,
+            moietyStage,
+            totalRetentionHeld: held.toFixed(2),
+            releasePercentage: pct.toFixed(2),
+            releaseAmount: amt.toFixed(2),
+            qsRecommendationNotes: qsNotes || null,
+            defectClearanceVerified: defectVerified,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowReleaseModal(false);
@@ -247,11 +236,8 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 
     if (isLive && projectId) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ status: 'PAID', disbursementRef: ref}),
-});
-        if (res.ok) { await reload(); return;}
+        await api.post(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, { status: 'PAID', disbursementRef: ref });
+        await reload(); return;
 } catch { /* fall through to local */}
 }
 
@@ -284,20 +270,17 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
     if (isLive && projectId) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/contractor-bonds`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              bondType,
-              issuingInstitution: issuingBank,
-              bondReferenceNo: bondRef,
-              bondAmount,
-              effectiveDate,
-              expiryDate,
-              claimStatus: 'ACTIVE',
-              dischargeCertificateRef: null,
-}),
+          await api.post(`/api/v1/projects/${projectId}/contractor-bonds`, {
+            bondType,
+            issuingInstitution: issuingBank,
+            bondReferenceNo: bondRef,
+            bondAmount,
+            effectiveDate,
+            expiryDate,
+            claimStatus: 'ACTIVE',
+            dischargeCertificateRef: null,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowBondModal(false);
@@ -427,7 +410,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
                 {releases.map((rel) => (
 <tr key={rel.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-white">
+<td className="py-3 px-4 font-mono tabular-nums font-semibold text-slate-900 dark:text-white">
                       {rel.releaseNo}
 </td>
 <td className="py-3 px-4 font-bold">{rel.firmName}</td>
@@ -468,7 +451,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                           Disburse M-Pesa B2C
 </button>
 ) : (
-<span className="text-[10px] font-mono text-slate-500">
+<span className="text-[10px] tabular-nums text-slate-500">
                           {rel.disbursementRef}
 </span>
 )}
@@ -508,7 +491,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
                 {bonds.map((bnd) => (
 <tr key={bnd.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
+<td className="py-3 px-4 font-mono tabular-nums font-bold text-slate-900 dark:text-white">
                       {bnd.bondReferenceNo}
 </td>
 <td className="py-3 px-4 text-xs">
@@ -520,8 +503,8 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
                       {formatKes(bnd.bondAmount)}
 </td>
-<td className="py-3 px-4 font-mono text-xs">{bnd.effectiveDate}</td>
-<td className="py-3 px-4 font-mono text-xs">{bnd.expiryDate}</td>
+<td className="py-3 px-4 tabular-nums text-xs">{bnd.effectiveDate}</td>
+<td className="py-3 px-4 tabular-nums text-xs">{bnd.expiryDate}</td>
 <td className="py-3 px-4 text-center">
 <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -579,7 +562,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     type="text"
                     value={releaseNo}
                     onChange={(e) => setReleaseNo(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -619,7 +602,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     step="0.01"
                     value={totalHeld}
                     onChange={(e) => setTotalHeld(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -632,7 +615,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     step="0.01"
                     value={releasePct}
                     onChange={(e) => setReleasePct(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -734,7 +717,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     type="text"
                     value={bondRef}
                     onChange={(e) => setBondRef(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -747,7 +730,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     step="0.01"
                     value={bondAmount}
                     onChange={(e) => setBondAmount(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>

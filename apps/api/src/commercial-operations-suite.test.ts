@@ -8,6 +8,7 @@ describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-
   let tenantId = 'e460c1cc-67a5-408c-841d-ed28280a44f2'; // Apex Builders Kenya Ltd
   let adminCookie: string;
   let supervisorCookie: string;
+  let qsCookie: string;
   let projectId: string;
   let subPackageId: string;
   let requisitionId: string;
@@ -43,6 +44,18 @@ describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-
     expect(superLogin.statusCode).toBe(200);
     supervisorCookie = superLogin.headers['set-cookie'] as string;
 
+    // 2b. Authenticate as PM/QS (different approver for segregation of duties)
+    const qsLogin = await server.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: 'qs@apexbuilders.co.ke',
+        password: 'Password123!',
+      },
+    });
+    expect(qsLogin.statusCode).toBe(200);
+    qsCookie = qsLogin.headers['set-cookie'] as string;
+
     // 3. Create active test project
     const projectRes = await server.inject({
       method: 'POST',
@@ -76,11 +89,34 @@ describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-
     });
     expect(subRes.statusCode).toBe(201);
     subPackageId = JSON.parse(subRes.body).id;
+
+    // Stage-3: APPROVED_FOR_PAYMENT requires a valid TCC on file.
+    const tccRes = await server.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/subcontractor-tcc`,
+      headers: { cookie: adminCookie },
+      payload: {
+        subcontractorPackageId: subPackageId,
+        pinNumber: 'P051234567X',
+        taxpayerName: 'Amani Mechanical & Plumbing Contractors Ltd',
+        tccNumber: 'TCC-AMANI-2026',
+        tccExpiryDate: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10),
+        complianceStatus: 'COMPLIANT',
+      },
+    });
+    expect(tccRes.statusCode).toBeLessThan(300);
   });
 
   afterAll(async () => {
     await withTenantTx(prisma, tenantId, async (tx) => {
-      await tx.project.deleteMany({ where: { id: projectId } });
+      // Projects with cost-ledger entries cannot be deleted: the
+      // enforce_cost_entry_immutability trigger makes the ledger append-only.
+      // Best-effort cleanup — leave ledger-backed projects in place.
+      try {
+        await tx.project.deleteMany({ where: { id: projectId } });
+      } catch {
+        // Ledger invariant blocked cascade delete; test data remains.
+      }
     });
     await server.close();
   });
@@ -329,18 +365,35 @@ describe('Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-
       expect(body.valuations[0].subcontractorFirm).toContain('Amani Mechanical');
     });
 
-    it('4.3 approves and pays subcontractor certificate via KCB RTGS / M-Pesa B2B reference', async () => {
-      const res = await server.inject({
-        method: 'PATCH',
-        url: `/api/v1/projects/${projectId}/subcontractor-valuations/${valuationId}`,
-        headers: { cookie: adminCookie },
-        payload: {
-          paymentStatus: 'PAID',
-          approvedBy: 'Director P. Kamau',
-          paymentReference: 'KCB-RTGS-20261102-88192',
-          paidAt: '2026-11-02T15:00:00Z',
-          notes: 'Settled in full via KCB corporate online banking',
-        },
+    it('4.3 walks the state machine: SUBMITTED -> UNDER_REVIEW -> APPROVED_FOR_PAYMENT -> PAID via KCB RTGS reference', async () => {
+      const patch = (status: string, cookie: string, extra: any = {}) =>
+        server.inject({
+          method: 'PATCH',
+          url: `/api/v1/projects/${projectId}/subcontractor-valuations/${valuationId}`,
+          headers: { cookie },
+          payload: { paymentStatus: status, ...extra },
+        });
+
+      // Illegal jump rejected
+      const illegal = await patch('PAID', adminCookie, { paymentReference: 'X' });
+      expect(illegal.statusCode).toBe(409);
+
+      // SUBMITTED -> UNDER_REVIEW
+      expect((await patch('UNDER_REVIEW', adminCookie)).statusCode).toBe(200);
+
+      // Preparer (admin) cannot approve own valuation
+      const selfApprove = await patch('APPROVED_FOR_PAYMENT', adminCookie);
+      expect(selfApprove.statusCode).toBe(409);
+
+      // Different approver (QS) approves
+      const approve = await patch('APPROVED_FOR_PAYMENT', qsCookie, { approvedBy: 'Director P. Kamau' });
+      expect(approve.statusCode).toBe(200);
+
+      // APPROVED_FOR_PAYMENT -> PAID
+      const res = await patch('PAID', adminCookie, {
+        paymentReference: 'KCB-RTGS-20261102-88192',
+        paidAt: '2026-11-02T15:00:00Z',
+        notes: 'Settled in full via KCB corporate online banking',
       });
 
       expect(res.statusCode).toBe(200);

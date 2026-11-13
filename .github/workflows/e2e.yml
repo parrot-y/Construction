@@ -2,16 +2,16 @@ name: E2E Workflows (Playwright)
 
 on:
   push:
-    branches: [main, devin/audit-remediation]
+    branches: [main, devin/audit-remediation, devin/contractor-lifecycle]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 jobs:
   playwright:
-    name: Playwright A–F against real API + DB
+    name: Playwright E2E — every spec, both viewports
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     services:
       postgres:
@@ -69,12 +69,49 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter @construction/e2e exec playwright install --with-deps chromium
 
-      - name: Run Playwright workflows A–F
+      - name: Verify aud-* spec integrity (sha256)
+        # The four auditor acceptance specs are immutable contracts. Any
+        # change — even one character — fails this step before tests run.
+        # Changing aud-specs.sha256 itself requires owner review (CODEOWNERS)
+        # and must be called out in the PR description (see AGENTS.md).
+        working-directory: e2e/tests
+        run: sha256sum -c aud-specs.sha256
+
+      - name: Verify aud-* spec set is complete and unskipped
+        run: |
+          set -e
+          count=$(ls e2e/tests/aud-*.spec.ts 2>/dev/null | wc -l)
+          if [ "$count" -lt 5 ]; then
+            echo "FAIL: expected at least 5 aud-*.spec.ts files, found $count"
+            exit 1
+          fi
+          if grep -nE 'test\.(skip|fixme|only)\s*\(' e2e/tests/aud-*.spec.ts; then
+            echo "FAIL: aud-* specs must not contain test.skip / test.fixme / test.only"
+            exit 1
+          fi
+          echo "aud-* spec set OK: $count files, no skips/fixmes/only"
+
+      - name: Run every Playwright spec (chromium + mobile-390)
         env:
           E2E_DATABASE_URL: postgresql://db_app:app_secret@localhost:5432/construction_e2e
           E2E_MIGRATOR_DATABASE_URL: postgresql://db_migrator:migrator_secret@localhost:5432/construction_e2e
           E2E_ADMIN_DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/construction_e2e
+        # No spec filter: `playwright test` discovers every *.spec.ts under
+        # e2e/tests and runs each on both configured projects.
         run: pnpm --filter @construction/e2e test:e2e
+
+      - name: Fail if any spec was skipped
+        if: always()
+        run: |
+          node -e "
+            const r = require('./e2e/test-results/results.json');
+            const skipped = (r.stats && r.stats.skipped) || 0;
+            if (skipped > 0) {
+              console.error('CI policy: skipped specs are not allowed — ' + skipped + ' test(s) skipped');
+              process.exit(1);
+            }
+            console.log('No skipped specs.');
+          "
 
       - name: Upload Playwright report
         if: always()

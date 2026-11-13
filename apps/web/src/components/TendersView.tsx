@@ -218,7 +218,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <div className="flex items-center justify-between gap-3 flex-wrap">
 <div className="min-w-0">
 <p className="text-xs font-bold text-slate-900">
-<span className="font-mono text-indigo-600">{t.tenderCode}</span> — {t.title}
+<span className="tabular-nums text-indigo-600">{t.tenderCode}</span> — {t.title}
 </p>
 <p className="text-[10px] text-slate-500 mt-0.5">
                       {t.tradeCategory || 'General'} · Budget {fmt(t.budgetKes)} · {t.durationWeeks}w · due {new Date(t.submissionDeadline).toLocaleDateString()}
@@ -255,7 +255,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <td className="py-1.5 pr-3 font-bold text-slate-500">{b.rank || '—'}</td>
 <td className="pr-3 font-semibold text-slate-800">{b.contractorName}</td>
 <td className="pr-3 text-slate-500">{b.contractorNcaCategory}</td>
-<td className="pr-3 font-mono">{fmt(b.amountKes)}</td>
+<td className="pr-3 tabular-nums">{fmt(b.amountKes)}</td>
 <td className="pr-3">{b.durationWeeks}</td>
 <td className="pr-3">{Number(b.technicalScore).toFixed(0)}</td>
 <td className="pr-3">{Number(b.financialScore).toFixed(0)}</td>

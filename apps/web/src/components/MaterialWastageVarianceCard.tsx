@@ -319,7 +319,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 </td>
 <td className="py-3 px-4">
 <span
-                      className={`font-mono font-bold ${
+                      className={`tabular-nums font-bold ${
                         Number(rec.actualWastagePct) > Number(rec.allowableWastagePct)
                           ? 'text-rose-600'
                           : 'text-emerald-600'
@@ -470,13 +470,13 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
 <div>
 <span className="text-slate-500">Calculated Wastage:</span>
-<span className={`font-bold font-mono ${parseFloat(actualWastagePct) > allowable ? 'text-rose-600' : 'text-emerald-600'}`}>
+<span className={`font-bold tabular-nums ${parseFloat(actualWastagePct) > allowable ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {actualWastagePct}%
 </span>
 </div>
 <div>
 <span className="text-slate-500">Financial Leakage:</span>
-<span className="font-bold text-slate-900 font-mono">{formatKes(financialLoss)}</span>
+<span className="font-bold text-slate-900 tabular-nums">{formatKes(financialLoss)}</span>
 </div>
 </div>
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { useAppDialog } from './AppDialog';
 
 interface Drawing {
   id: string; title: string; category: string; drawing_reference?: string | null;
@@ -30,6 +31,7 @@ const STATUS_STYLE: Record<string, string> = {
 const DRAWING_CATS = ['ARCHITECTURAL_DRAWING', 'STRUCTURAL_DRAWING', 'MEP_DRAWING', 'CIVIL_DRAWING', 'ELECTRICAL_DRAWING'];
 
 export default function DrawingsView({ projectId, canManage = true}: { projectId?: string; canManage?: boolean}): React.JSX.Element {
+  const dialog = useAppDialog();
   const [projects, setProjects] = useState<ProjectOpt[]>([]);
   const [pid, setPid] = useState(projectId || '');
   const [discipline, setDiscipline] = useState('ALL');
@@ -84,7 +86,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 
   const addAnnotation = async () => {
     if (!preview || !pendingPin) return;
-    const note = window.prompt('Annotation note');
+    const note = await dialog.prompt({ title: 'Add annotation', inputLabel: 'Annotation note', confirmLabel: 'Add', minLength: 2 });
     if (!note || note.trim().length< 2) { setPendingPin(null); return;}
     const res = await fetch(`/api/v1/projects/${pid}/documents/${preview.id}/annotations`, {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
@@ -232,7 +234,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <div className="flex items-start justify-between gap-2">
 <div className="min-w-0">
 <p className="text-xs font-bold text-slate-900 truncate">{d.title}</p>
-<p className="text-[10px] text-slate-400 font-mono mt-0.5">
+<p className="text-[10px] text-slate-400 tabular-nums mt-0.5">
                     {d.drawing_reference || '—'} · {d.revision_code}
 </p>
 </div>
@@ -257,7 +259,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
 <div>
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{preview.title}</p>
-<p className="text-[11px] text-slate-400 font-mono">{preview.drawing_reference || '—'} · {preview.revision_code} · {preview.category.replace(/_/g, ' ')}</p>
+<p className="text-[11px] text-slate-400 font-mono tabular-nums">{preview.drawing_reference || '—'} · {preview.revision_code} · {preview.category.replace(/_/g, ' ')}</p>
 </div>
 <div className="flex items-center gap-2">
                 {canManage && /\.(png|jpe?g|webp)$/i.test(preview.storage_key || '') && (
@@ -307,6 +309,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

@@ -281,6 +281,7 @@ export default function CreateVariationModal({
                 onChange={(e) => setTriggerType(e.target.value)}
                 className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
               >
+<option value="CLIENT_REQUEST">Client request</option>
 <option value="DESIGN_CLARIFICATION">Design clarification</option>
 <option value="OWNER_REQUEST">Owner request</option>
 <option value="UNFORESEEN_CONDITION">Unforeseen condition</option>
@@ -394,7 +395,7 @@ export default function CreateVariationModal({
 </div>
 
 <div className="flex items-center gap-2">
-<span className="font-mono font-bold text-slate-800">
+<span className="tabular-nums font-bold text-slate-800">
                         Line Total: {itemCalculations.lineTotals[index]?.formatted || formatKes(0)}
 </span>
                       {items.length > 1 && (
@@ -501,7 +502,7 @@ export default function CreateVariationModal({
 </div>
 <div className="text-right">
 <span
-                className={`text-lg font-mono font-bold ${
+                className={`text-lg tabular-nums font-bold ${
                   isNetPositive ? 'text-emerald-400' : 'text-amber-400'
 }`}
               >

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
 import { formatKes } from '../../ui';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
+import { useAppDialog } from '../AppDialog';
 
 interface CoItem {
   id: string;
@@ -61,9 +62,11 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function ClientPortalView({ token, onBackToDashboard}: ClientPortalViewProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const [data, setData] = useState<PortalPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [extra, setExtra] = useState<ClientExtra | null>(null);
@@ -75,7 +78,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
       const res = await fetch(`/api/v1/portals/client/${encodeURIComponent(token)}/change-orders`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Invalid or expired access link');
+        throw portalHttpError(body.message || 'Invalid or expired access link', res.status);
 }
       const json = await res.json();
       setData(json.data);
@@ -87,6 +90,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
         .catch(() => {});
 } catch (err: any) {
       setError(err?.message || 'Failed to load change orders');
+      setErrorKind(portalErrorKind(err));
 } finally {
       setLoading(false);
 }
@@ -98,14 +102,23 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 
   const respond = async (co: ChangeOrder, action: 'APPROVE' | 'REJECT') => {
     setFeedback(null);
-    const signedName = window.prompt('Type your full name to sign this decision:', data?.stakeholder.name || '');
+    const signedName = await dialog.prompt({
+      title: 'Sign your decision',
+      inputLabel: 'Type your full name to sign',
+      defaultValue: data?.stakeholder.name || '',
+      confirmLabel: 'Continue',
+    });
     if (!signedName || signedName.trim().length< 2) return;
 
-    const comments =
-      action === 'REJECT'
-        ? window.prompt('Reason for rejection (required):', '')
-        : window.prompt('Approval comments (optional):', '');
-    if (action === 'REJECT' && (!comments || comments.trim().length< 3)) {
+    const comments = await dialog.prompt({
+      title: action === 'REJECT' ? 'Reason for rejection' : 'Approval comments',
+      inputLabel: action === 'REJECT' ? 'Reason for rejection (required)' : 'Approval comments (optional)',
+      confirmLabel: action === 'REJECT' ? 'Reject' : 'Approve',
+      danger: action === 'REJECT',
+      minLength: action === 'REJECT' ? 3 : 0,
+    });
+    if (comments === null) return;
+    if (action === 'REJECT' && comments.trim().length< 3) {
       setFeedback('A rejection reason is required.');
       return;
 }
@@ -135,12 +148,9 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 }
 
   if (error || !data) {
-    const isExpired = /expired/i.test(error || '');
-    const isRevoked = /revoked|invalid/i.test(error || '');
     return (
       <div>
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={error || undefined} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-purple-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={error || undefined} />
       </div>
     );
   }
@@ -195,7 +205,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 <div key={co.id} className="border border-slate-200 rounded-xl p-4 space-y-2">
 <div className="flex items-center justify-between gap-2 flex-wrap">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
                     CO-{String(co.variation_no).padStart(4, '0')}
 </span>
 <span className="text-sm font-bold text-slate-900">{co.title}</span>
@@ -203,7 +213,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
                     {co.status.replace(/_/g, ' ')}
 </span>
 </div>
-<span className={`text-sm font-mono font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
+<span className={`text-sm tabular-nums font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
                   {isNegative ? '-' : '+'}KES {toCurrencyString(absAmount)}
 </span>
 </div>
@@ -282,7 +292,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
                 {extra.certificates.map((c) => (
                   <div key={c.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
                     <div>
-                      <span className="font-mono font-semibold text-slate-900">{c.certificateNo}</span>
+                      <span className="font-mono tabular-nums font-semibold text-slate-900">{c.certificateNo}</span>
                       <span className="text-slate-500 ml-2">{c.periodEnd ? new Date(c.periodEnd).toLocaleDateString('en-KE') : ''}</span>
                     </div>
                     <div className="text-right">
@@ -302,7 +312,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
                 {extra.invoices.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
                     <div>
-                      <span className="font-mono font-semibold text-slate-900">{inv.invoiceNo}</span>
+                      <span className="font-mono tabular-nums font-semibold text-slate-900">{inv.invoiceNo}</span>
                       <span className="text-slate-500 ml-2">{inv.title}</span>
                     </div>
                     <div className="text-right">
@@ -321,6 +331,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
         </>
       )}
 </div>
+{dialog.element}
 </div>
 );
 }

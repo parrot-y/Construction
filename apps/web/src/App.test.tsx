@@ -1,8 +1,6 @@
-import { describe, expect, it} from 'vitest';
+import { describe, expect, it, vi, afterEach} from 'vitest';
 import { renderToString} from 'react-dom/server';
 import App from './App';
-import Dashboard from './components/Dashboard';
-import LoginForm from './components/LoginForm';
 import BoqImportModal from './components/BoqImportModal';
 import CostCaptureModal from './components/CostCaptureModal';
 import BudgetSummaryCard from './components/BudgetSummaryCard';
@@ -67,19 +65,33 @@ import QuotesManagementView from './components/QuotesManagementView';
 import InvoicingView from './components/InvoicingView';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
-  it('renders the login screen by default with demo accounts and title', () => {
-    const html = renderToString(<LoginForm onLoginSuccess={() => {}} />);
-        expect(html).toContain('Site Safi');
+  afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+
+  it('renders the login screen without demo credentials by default (A1)', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', '');
+    vi.resetModules();
+    const { default: LF } = await import('./components/LoginForm');
+    const html = renderToString(<LF onLoginSuccess={() => {}} />);
+    expect(html).toContain('SiteSafi');
+    expect(html).not.toContain('apexbuilders.co.ke');
+    expect(html).not.toContain('Password123');
+  });
+
+  it('renders demo accounts only when VITE_DEMO_MODE=true', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', 'true');
+    vi.resetModules();
+    const { default: LF } = await import('./components/LoginForm');
+    const html = renderToString(<LF onLoginSuccess={() => {}} />);
     expect(html).toContain('admin@apexbuilders.co.ke');
     expect(html).toContain('COMPANY_ADMIN');
     expect(html).toContain('PM_QS');
     expect(html).toContain('SITE_SUPERVISOR');
     expect(html).toContain('CLIENT');
-});
+  });
 
   it('renders the App component root unauthenticated', () => {
     const html = renderToString(<App />);
-    expect(html).toContain('Site Safi');
+    expect(html).toContain('SiteSafi');
     expect(html).toContain('Sign in to your workspace');
 });
 
@@ -193,16 +205,15 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       token: 'mock-jwt-token-client',
 };
 
-    const html = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
+    const html = renderToString(<ClientDashboard session={clientSession} />);
     expect(html).toContain('Apex Builders Kenya Ltd');
-    expect(html).toContain('Sarah Wambui');
-    expect(html).toContain('CLIENT');
+    expect(html).toContain('Client / Property Developer Portal');
     expect(html).toContain('Project Visibility &amp; Progress Verification');
     expect(html).toContain('Physical Progress');
     expect(html).toContain('Approved Contract Sum');
     expect(html).toContain('Total Certified Cost');
-    expect(html).toContain('Contract Retention Terms (Kenyan Standard)');
-    expect(html).toContain('10% of Gross Certified Work');
+    expect(html).toContain('Contract Retention Terms');
+    expect(html).toContain('Not specified by contractor'); // tenant terms unset in fixture — honest fallback, no hard-coded 10%
     expect(html).toContain('Verified Photo Evidence');
 });
 
@@ -485,7 +496,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       // Cards render honest empty states until live budget/variance data loads
       expect(qsHtml).toContain('No variance data yet');
 
-      const clientHtml = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
+      const clientHtml = renderToString(<ClientDashboard session={clientSession} />);
       expect(clientHtml).toContain('No variance data yet');
 });
 });
@@ -646,7 +657,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(qsHtml).toContain('+ New Change Order');
       expect(qsHtml).toContain('PM REVIEW');
 
-      const clientHtml = renderToString(<Dashboard session={clientSession} onLogout={() => {}} />);
+      const clientHtml = renderToString(<ClientDashboard session={clientSession} />);
       expect(clientHtml).toContain('Change Orders');
       expect(clientHtml).toContain('OWNER REVIEW');
       expect(clientHtml).not.toContain('+ New Change Order');
@@ -1125,7 +1136,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       // Portal now loads real data via /api/v1/portals/consultant/:token —
       // SSR render shows the loading state; data assertions live in e2e.
-      expect(html).toContain('Loading portal');
+      expect(html).toContain('Loading');
 });
 
     it('renders SubcontractorPortalView with trade-filtered snags and defect rectification form', () => {
@@ -1140,7 +1151,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Loading portal');
+      expect(html).toContain('Loading');
 });
 
     it('renders SupplierPortalView with batch delivery schedule, docket numbers, and receiving logs', () => {
@@ -1155,7 +1166,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Loading portal');
+      expect(html).toContain('Loading');
 });
 
     it('renders CompliancePortalView with NCA registration, statutory levy, supervisor accreditation, and cube pass rate', () => {
@@ -1170,7 +1181,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Loading portal');
+      expect(html).toContain('Loading');
 });
 
     it('renders PortalAccessLinkManager shell — links load from the API, no fabricated rows', () => {
@@ -1194,7 +1205,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 );
       const html = rawHtml.replace(/<!-- -->/g, '');
 
-      expect(html).toContain('Loading portal');
+      expect(html).toContain('Loading');
       expect(html).not.toContain('Sign in to access your project workspace');
 });
 
@@ -2352,7 +2363,7 @@ it('renders ContractorTenderBoardView with active tenders, 70/30 technical/finan
 
       // Token-scoped portal: data loads via /api/v1/portals/compliance/:token;
       // SSR shows the loading state (no demo data is rendered).
-      expect(html).toContain('Loading portal');
+      expect(html).toContain('Loading');
 });
 });
 

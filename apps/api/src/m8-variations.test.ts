@@ -69,12 +69,13 @@ describe('Milestone M8: Variations Workflow Suite', () => {
 
     const userB = await prisma.user.upsert({
       where: { email: 'admin@kilimanjarocontractors-m8.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@kilimanjarocontractors-m8.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Juma Bakari',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 

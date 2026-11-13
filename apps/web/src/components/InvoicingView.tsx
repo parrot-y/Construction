@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
+import { useAppDialog } from './AppDialog';
+import { api, ApiError } from '../lib/apiClient';
 
 interface InvoiceItem {
   id?: string;
@@ -83,7 +85,8 @@ const STATUS_STYLES: Record<string, string> = {
   VOID: 'bg-slate-100 text-slate-500 border-slate-300 line-through',
 };
 
-export default function InvoicingView(): React.JSX.Element {
+export default function InvoicingView({ userRole = '' }: { userRole?: string } = {}): React.JSX.Element {
+  const dialog = useAppDialog();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,9 +125,7 @@ export default function InvoicingView(): React.JSX.Element {
     setError(null);
     try {
       const qs = statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
-      const res = await fetch(`/api/v1/invoices${qs}`, { credentials: 'include'});
-      if (!res.ok) throw new Error(`Failed to load invoices (${res.status})`);
-      const body = await res.json();
+      const body = await api.get<{ invoices?: Invoice[] }>(`/api/v1/invoices${qs}`);
       setInvoices(body.invoices ?? []);
 } catch (e: any) {
       setError(e.message);
@@ -138,9 +139,8 @@ export default function InvoicingView(): React.JSX.Element {
 }, [load]);
 
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((b) => setProjects((b.data ?? []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}))))
+    api.get<{ data?: Array<{ id: string; name: string; code?: string }> }>('/api/v1/projects')
+      .then((b) => setProjects((b.data ?? []).map((p) => ({ id: p.id, name: p.name, code: p.code ?? ''}))))
       .catch(() => setProjects([]));
 }, []);
 
@@ -155,16 +155,18 @@ export default function InvoicingView(): React.JSX.Element {
     setDetail(null);
     setShowPayForm(false);
     try {
-      const res = await fetch(`/api/v1/invoices/${id}`, { credentials: 'include'});
-      if (res.ok) setDetail((await res.json()).invoice);
+      const body = await api.get<{ invoice: Invoice }>(`/api/v1/invoices/${id}`);
+      setDetail(body.invoice);
 } catch {
       // detail is best-effort
 }
 };
 
   const refreshDetail = async (id: string) => {
-    const res = await fetch(`/api/v1/invoices/${id}`, { credentials: 'include'});
-    if (res.ok) setDetail((await res.json()).invoice);
+    try {
+      const body = await api.get<{ invoice: Invoice }>(`/api/v1/invoices/${id}`);
+      setDetail(body.invoice);
+    } catch { /* detail is best-effort */ }
 };
 
   const addItem = () =>
@@ -188,11 +190,7 @@ export default function InvoicingView(): React.JSX.Element {
     setBusyId('create');
     setError(null);
     try {
-      const res = await fetch('/api/v1/invoices', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ invoice: Invoice }>('/api/v1/invoices', {
           title: form.title,
           clientName: form.clientName,
           clientEmail: form.clientEmail || null,
@@ -216,10 +214,7 @@ export default function InvoicingView(): React.JSX.Element {
               quantity: parseFloat(it.quantity) || 0,
               unitRate: parseFloat(it.unitRate) || 0,
 })),
-}),
 });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to create invoice');
       setShowForm(false);
       resetForm();
       setNotice(`Invoice INV-${String(body.invoice.invoice_no).padStart(5, '0')} created as draft`);
@@ -235,14 +230,22 @@ export default function InvoicingView(): React.JSX.Element {
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/send`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to send invoice');
+      const sendOnce = (selfApprovalReason?: string) =>
+        api.post<{ invoice?: Invoice }>(`/api/v1/invoices/${inv.id}/send`, selfApprovalReason ? { selfApprovalReason } : {});
+      try {
+        await sendOnce();
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409 && /selfApprovalReason|different approver/i.test(err.message)) {
+          if (!['COMPANY_ADMIN', 'ADMIN'].includes(userRole)) {
+            throw new Error('A different approver is required.');
+          }
+          const reason = await dialog.prompt({ title: 'Self-approval reason required', inputLabel: 'Self-approval reason (min 15 characters)', confirmLabel: 'Send anyway', minLength: 15 });
+          if (!reason || !reason.trim()) throw new Error('Self-approval cancelled — a reason is required.');
+          await sendOnce(reason.trim());
+        } else {
+          throw err;
+        }
+      }
       setNotice(`Invoice INV-${String(inv.invoice_no).padStart(5, '0')} marked as sent`);
       load();
       if (expandedId === inv.id) refreshDetail(inv.id);
@@ -254,19 +257,12 @@ export default function InvoicingView(): React.JSX.Element {
 };
 
   const handleVoid = async (inv: Invoice) => {
-    const reason = window.prompt('Reason for voiding this invoice?');
+    const reason = await dialog.prompt({ title: 'Void invoice', inputLabel: 'Reason for voiding', confirmLabel: 'Void', danger: true });
     if (!reason) return;
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/void`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ reason}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to void invoice');
+      await api.post(`/api/v1/invoices/${inv.id}/void`, { reason });
       setNotice(`Invoice INV-${String(inv.invoice_no).padStart(5, '0')} voided`);
       load();
       if (expandedId === inv.id) refreshDetail(inv.id);
@@ -281,19 +277,12 @@ export default function InvoicingView(): React.JSX.Element {
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/payments`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          amount: parseFloat(payForm.amount),
-          method: payForm.method,
-          reference: payForm.reference || null,
-          note: payForm.note || null,
-}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to record payment');
+      const body = await api.post<{ invoice: Invoice }>(`/api/v1/invoices/${inv.id}/payments`, {
+        amount: parseFloat(payForm.amount),
+        method: payForm.method,
+        reference: payForm.reference || null,
+        note: payForm.note || null,
+      });
       setPayForm({ amount: '', method: 'M_PESA', reference: '', note: ''});
       setShowPayForm(false);
       setNotice(
@@ -525,8 +514,8 @@ export default function InvoicingView(): React.JSX.Element {
 <span className="font-medium text-slate-800">{inv.client_name}</span>
                       {inv.client_email &&<span className="block text-[10px] text-slate-400">{inv.client_email}</span>}
 </td>
-<td className="py-2.5 pr-3 font-mono font-semibold text-slate-800">{inv.currency} {toCurrencyString(inv.total)}</td>
-<td className="py-2.5 pr-3 font-mono text-slate-600">{inv.currency} {toCurrencyString(inv.balance_due)}</td>
+<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{inv.currency} {toCurrencyString(inv.total)}</td>
+<td className="py-2.5 pr-3 tabular-nums text-slate-600">{inv.currency} {toCurrencyString(inv.balance_due)}</td>
 <td className="py-2.5 pr-3 text-slate-500">{fmtDate(inv.due_date)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.DRAFT}`}>
@@ -541,7 +530,7 @@ export default function InvoicingView(): React.JSX.Element {
 </button>
 )}
                       {(inv.status === 'SENT' || inv.status === 'PART_PAID' || inv.status === 'OVERDUE') && (
-<button onClick={() => { setExpandedId(inv.id); setShowPayForm(true); openDetail(inv.id);}}
+<button onClick={async () => { await openDetail(inv.id); setShowPayForm(true); }}
                           className="px-2 py-1 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded">
                           Record payment
 </button>
@@ -585,9 +574,9 @@ export default function InvoicingView(): React.JSX.Element {
 <tr key={it.id ?? i} className="border-b border-slate-100">
 <td className="py-1 pr-2">{it.section ? `[${it.section}] ` : ''}{it.description}</td>
 <td className="py-1 pr-2">{it.unit}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.quantity}</td>
-<td className="py-1 pr-2 text-right font-mono">{toCurrencyString(it.unit_rate)}</td>
-<td className="py-1 text-right font-mono font-semibold">{detail.currency} {toCurrencyString(it.total_amount ?? 0)}</td>
+<td className="py-1 pr-2 text-right font-mono tabular-nums">{it.quantity}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{toCurrencyString(it.unit_rate)}</td>
+<td className="py-1 text-right tabular-nums font-semibold">{detail.currency} {toCurrencyString(it.total_amount ?? 0)}</td>
 </tr>
 ))}
 </tbody>
@@ -606,7 +595,7 @@ export default function InvoicingView(): React.JSX.Element {
                                   {detail.payments!.map((p) => (
 <div key={p.id} className="flex justify-between text-[11px] text-slate-600">
 <span>{fmtDate(p.paid_at)} • {p.method.replace('_', ' ')}{p.reference ? ` • ${p.reference}` : ''}{p.note ? ` — ${p.note}` : ''}</span>
-<span className="font-mono font-semibold">{detail.currency} {toCurrencyString(p.amount)}</span>
+<span className="font-mono tabular-nums font-semibold">{detail.currency} {toCurrencyString(p.amount)}</span>
 </div>
 ))}
 </div>
@@ -685,6 +674,7 @@ export default function InvoicingView(): React.JSX.Element {
 </table>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

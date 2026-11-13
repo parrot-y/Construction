@@ -1,12 +1,15 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
+import { getTaxSettings, whtRateFor } from '../lib/tax';
 import { Permissions } from '@construction/permissions';
-import { CreatePortalLinkSchema, ClientVariationRespondSchema, ConsultantRfiReplySchema, SupplierDeliveryActionSchema } from '@construction/validation';
+import { CreatePortalLinkSchema, ClientVariationRespondSchema, ConsultantRfiReplySchema, SupplierDeliveryActionSchema, CreateComplianceVisitSchema } from '@construction/validation';
 import { randomBytes, createHash } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
 import { toDecimal } from '@construction/money';
 import { randomUUID } from 'node:crypto';
-import { verifyUpload } from '../lib/uploadSecurity';
+import { contentTypeForKey, verifyUpload } from '../lib/uploadSecurity';
+import { notifyTeam } from '../lib/notify';
 import { getStorageDriver } from '../lib/storage';
 import {
   applyCoBudgetRollup,
@@ -90,7 +93,12 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         });
       }
 
-      const { portalType, stakeholderName, stakeholderRole, expiresInDays, subcontractorPackageId } = parseResult.data as any;
+      const { portalType, stakeholderName, stakeholderRole, expiresInDays, subcontractorPackageId, supplierId, scope, scopes } = parseResult.data as any;
+      // `scopes` array (auditor contract) collapses to the single stored
+      // scope: one section -> that section; ALL or multiple -> ALL.
+      const effectiveScope = Array.isArray(scopes) && scopes.length
+        ? (scopes.length === 1 ? scopes[0] : 'ALL')
+        : (scope || 'ALL');
       const rawToken = randomBytes(32).toString('hex');
       const tokenHash = createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
@@ -118,6 +126,35 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             if (!pkg) throw { status: 404, message: 'Subcontractor package not found on this project' };
           }
 
+          // SUPPLIER links must be bound to a Supplier record — free-text
+          // name matching let every supplier see every delivery (Stage-3).
+          // supplierId is canonical; when absent the stakeholderName resolves
+          // (or onboards) the supplier record (auditor stage-3 contract).
+          let resolvedSupplierId: string | null = supplierId ?? null;
+          if (portalType === 'SUPPLIER') {
+            if (supplierId) {
+              const supplier = await tx.supplier.findFirst({
+                where: { id: supplierId, is_active: true },
+                select: { id: true },
+              });
+              if (!supplier) throw { status: 404, message: 'Supplier not found' };
+            } else {
+              const name = (stakeholderName || '').trim();
+              if (!name) throw { status: 400, message: 'supplierId or stakeholderName is required for SUPPLIER portal links' };
+              let supplier = await tx.supplier.findFirst({
+                where: { name: { equals: name, mode: 'insensitive' }, is_active: true },
+                select: { id: true },
+              });
+              if (!supplier) {
+                supplier = await tx.supplier.create({
+                  data: { tenant_id: tenantId, name, contact_person: stakeholderName },
+                  select: { id: true },
+                });
+              }
+              resolvedSupplierId = supplier.id;
+            }
+          }
+
           const created = await tx.portalAccessLink.create({
             data: {
               tenant_id: tenantId,
@@ -129,6 +166,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
               is_active: true,
               expires_at: expiresAt,
               subcontractor_package_id: portalType === 'SUBCONTRACTOR' ? subcontractorPackageId : null,
+              supplier_id: portalType === 'SUPPLIER' ? resolvedSupplierId : null,
+              scope: portalType === 'CONSULTANT' ? effectiveScope : null,
             },
           });
 
@@ -160,7 +199,13 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             stakeholderRole: link.stakeholder_role,
             token: rawToken,
             linkUrl: `/?portal=${link.portal_type.toLowerCase()}&token=${rawToken}`,
+            isActive: true,
+            useCount: 0,
+            lastUsedAt: null,
             expiresAt: link.expires_at.toISOString(),
+            subcontractorPackageId: link.subcontractor_package_id ?? null,
+            supplierId: link.supplier_id ?? null,
+            scope: link.scope ?? null,
             createdAt: link.created_at.toISOString(),
           },
         });
@@ -189,6 +234,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -202,16 +248,21 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         return tx.portalAccessLink.findMany({
           where: { project_id: projectId },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
+      const pagedLinks = listPage(links, pg);
 
       return reply.status(200).send({
         statusCode: 200,
-        data: links.map((l) => ({
+        page: pagedLinks.page,
+        data: pagedLinks.data.map((l) => ({
           id: l.id,
           portalType: l.portal_type,
           stakeholderName: l.stakeholder_name,
           stakeholderRole: l.stakeholder_role,
+          scope: l.scope ?? null,
           token: null, // Tokens stored as SHA-256 hashes; never exposed in listings (2d, H5)
           linkUrl: null,
           isActive: l.is_active && new Date() < l.expires_at,
@@ -278,9 +329,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             id: link.id,
             portalType: link.portal_type,
             stakeholderName: link.stakeholder_name,
+            stakeholderRole: link.stakeholder_role,
             token: rawToken,
             linkUrl: `/?portal=${link.portal_type.toLowerCase()}&token=${rawToken}`,
+            isActive: true,
+            useCount: 0,
+            lastUsedAt: null,
             expiresAt: link.expires_at.toISOString(),
+            createdAt: link.created_at?.toISOString?.() ?? null,
           },
         });
       } catch (err: any) {
@@ -386,48 +442,84 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       });
     }
 
+    // Consultant link scopes (Stage 4): a scoped link only ever receives the
+    // sections it was issued for — unscoped sections are not fetched at all.
+    const scope = (link.scope || 'ALL').toUpperCase();
+    const wantRfis = scope === 'ALL' || scope === 'RFI';
+    const wantInspections = scope === 'ALL' || scope === 'INSPECTIONS';
+    const wantCertificates = scope === 'ALL' || scope === 'CERTIFICATES';
+    const wantDrawings = scope === 'ALL';
+
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, rfis, inspections, cubeTests, certificates] = await Promise.all([
+      const [project, rfis, inspections, cubeTests, certificates, drawingDocs] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
           select: { id: true, name: true, code: true, status: true },
         }),
-        tx.rFI.findMany({
-          where: { project_id: link.project_id },
-          include: {
-            responses: { orderBy: { created_at: 'asc' } },
-            attachments: true,
-          },
-          orderBy: { rfi_number: 'desc' },
-        }),
-        tx.inspectionChecklist.findMany({
-          where: { project_id: link.project_id },
-          include: {
-            items: { orderBy: { order_idx: 'asc' } },
-          },
-          orderBy: { scheduled_date: 'desc' },
-        }),
-        tx.concreteCubeTest.findMany({
-          where: { project_id: link.project_id },
-          include: {
-            break_results: { orderBy: { break_age_days: 'asc' } },
-          },
-          orderBy: { pour_date: 'desc' },
-        }),
-        tx.defectsLiabilityCertificate.findMany({
-          where: { project_id: link.project_id },
-          orderBy: { issue_date: 'desc' },
-        }),
+        wantRfis
+          ? tx.rFI.findMany({
+              where: { project_id: link.project_id },
+              include: {
+                responses: { orderBy: { created_at: 'asc' } },
+                attachments: true,
+              },
+              orderBy: { rfi_number: 'desc' },
+            })
+          : Promise.resolve([]),
+        wantInspections
+          ? tx.inspectionChecklist.findMany({
+              where: { project_id: link.project_id },
+              include: {
+                items: { orderBy: { order_idx: 'asc' } },
+              },
+              orderBy: { scheduled_date: 'desc' },
+            })
+          : Promise.resolve([]),
+        wantInspections
+          ? tx.concreteCubeTest.findMany({
+              where: { project_id: link.project_id },
+              include: {
+                break_results: { orderBy: { break_age_days: 'asc' } },
+              },
+              orderBy: { pour_date: 'desc' },
+            })
+          : Promise.resolve([]),
+        wantCertificates
+          ? tx.defectsLiabilityCertificate.findMany({
+              where: { project_id: link.project_id },
+              orderBy: { issue_date: 'desc' },
+            })
+          : Promise.resolve([]),
+        wantDrawings
+          ? tx.projectDocument.findMany({
+              where: {
+                project_id: link.project_id,
+                OR: [
+                  { drawing_reference: { not: null } },
+                  { category: { contains: 'DRAWING' } },
+                ],
+              },
+              include: { acknowledgements: true },
+              orderBy: { created_at: 'desc' },
+            })
+          : Promise.resolve([]),
       ]);
 
-      return {
+      const now = new Date();
+      const isOpenRfi = (s: string) => !['ANSWERED', 'CLOSED', 'VOID'].includes(s);
+
+      const out: Record<string, any> = {
         stakeholder: {
           name: link.stakeholder_name,
           role: link.stakeholder_role || 'Consultant',
         },
+        scope,
         linkExpiresAt: link.expires_at.toISOString(),
         project: project ?? null,
-        rfis: (rfis || []).map((r: any) => ({
+      };
+
+      if (wantRfis) {
+        out.rfis = (rfis || []).map((r: any) => ({
           id: r.id,
           rfiNumber: r.rfi_number,
           title: r.title,
@@ -451,8 +543,12 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           attachments: (r.attachments || []).map((a: any) => ({
             id: a.id, filename: a.filename, fileSize: a.file_size, mimeType: a.mime_type, storageKey: a.storage_key,
           })),
-        })),
-        inspections: (inspections || []).map((i: any) => ({
+          isOverdue: isOpenRfi(r.status) && !!r.due_date && new Date(r.due_date) < now,
+        }));
+      }
+
+      if (wantInspections) {
+        out.inspections = (inspections || []).map((i: any) => ({
           id: i.id,
           title: i.title,
           checklistType: i.checklist_type,
@@ -468,8 +564,9 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             id: it.id, orderIdx: it.order_idx, checkPoint: it.check_point,
             isMandatory: it.is_mandatory, result: it.result, deficiencyNotes: it.deficiency_notes,
           })),
-        })),
-        cubeTests: (cubeTests || []).map((c: any) => ({
+        }));
+
+        out.cubeTests = (cubeTests || []).map((c: any) => ({
           id: c.id,
           pourLocation: c.pour_location,
           pourDate: c.pour_date,
@@ -482,15 +579,47 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             id: b.id, cubeNumber: b.cube_number, breakAgeDays: b.break_age_days,
             compressiveMpa: b.compressive_mpa?.toString(), isPass: b.is_pass, labName: b.lab_name,
           })),
-        })),
-        certificates: (certificates || []).map((c: any) => ({
+        }));
+      }
+
+      if (wantCertificates) {
+        out.certificates = (certificates || []).map((c: any) => ({
           id: c.id, certificateType: c.certificate_type, certificateReference: c.certificate_reference,
           issueDate: c.issue_date, effectiveDate: c.effective_date,
           dlpDurationMonths: c.dlp_duration_months, dlpExpiryDate: c.dlp_expiry_date,
           retentionAmountReleased: c.retention_amount_released?.toString(),
           architectName: c.architect_name, qsName: c.qs_name,
-        })),
-      };
+        }));
+      }
+
+      if (wantDrawings) {
+        out.drawings = (drawingDocs || []).map((d: any) => {
+          const acks = d.acknowledgements || [];
+          const mine = acks.find((a: any) => a.portal_link_id === link.id);
+          return {
+            id: d.id,
+            documentId: d.id,
+            drawingNumber: d.drawing_reference,
+            drawingReference: d.drawing_reference,
+            title: d.title,
+            revision: d.revision_code,
+            revisionCode: d.revision_code,
+            issuedDate: (d.issued_date || d.created_at),
+            status: d.status,
+            // A drawing is overdue for this consultant when a newer revision
+            // superseded it or it was never issued for construction.
+            isOverdue: d.status === 'SUPERSEDED' || d.status === 'FOR_REVIEW',
+            acknowledged: !!mine,
+            acknowledgedAt: mine?.acknowledged_at ?? null,
+            acknowledgedBy: acks.map((a: any) => ({
+              stakeholderName: a.stakeholder_name,
+              acknowledgedAt: a.acknowledged_at,
+            })),
+          };
+        });
+      }
+
+      return out;
     });
 
     return reply.status(200).send({
@@ -512,6 +641,16 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         statusCode: 404,
         error: 'Not Found',
         message: 'Invalid or expired consultant access token',
+      });
+    }
+
+    // Scoped links may only act on sections they were issued for.
+    const replyScope = (link.scope || 'ALL').toUpperCase();
+    if (!['ALL', 'RFI'].includes(replyScope)) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: `This consultant link is scoped to ${replyScope} and cannot reply to RFIs`,
       });
     }
 
@@ -550,6 +689,38 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         },
       });
 
+      // Reply attachments: only keys issued by THIS link's upload endpoint
+      // (tenant+project namespaced) are accepted — arbitrary keys rejected.
+      // Accept both attachmentStorageKeys (bare keys) and attachments
+      // ({storageKey, caption}) — captions become the staff-visible filename.
+      const captionByKey = new Map<string, string>();
+      for (const a of (body as any).attachments || []) {
+        if (a?.storageKey) captionByKey.set(a.storageKey, a.caption || '');
+      }
+      const attachmentKeys = [...new Set([
+        ...(body.attachmentStorageKeys || []),
+        ...[...(captionByKey.keys())],
+      ])];
+      const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
+      for (const key of attachmentKeys) {
+        if (!key.startsWith(expectedPrefix) || key.includes('..')) {
+          throw { status: 400, message: 'attachmentStorageKeys must be uploaded via the consultant portal uploads endpoint first' };
+        }
+      }
+      for (const key of attachmentKeys) {
+        const stored = await getStorageDriver().get(key).catch(() => null);
+        await tx.rFIAttachment.create({
+          data: {
+            tenant_id: link.tenant_id,
+            rfi_id: rfiId,
+            storage_key: key,
+            filename: captionByKey.get(key) || key.split('/').pop() || 'attachment',
+            file_size: stored?.length ?? 0,
+            mime_type: contentTypeForKey(key),
+          },
+        });
+      }
+
       await tx.rFI.update({
         where: { id: rfiId },
         data: {
@@ -570,6 +741,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         },
       });
 
+      await notifyTeam(tx, {
+        tenantId: link.tenant_id,
+        projectId: link.project_id,
+        senderId: link.id,
+        senderName: `${body.consultantName || link.stakeholder_name} (portal)`,
+        body: `Consultant replied to an RFI via portal — the RFI is now ANSWERED and ready for the project team.`,
+      });
+
       return created;
     }).catch((err: any) => {
       if (err?.status) {
@@ -588,6 +767,115 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       data: response,
     });
   });
+
+  // POST /api/v1/portals/consultant/:token/uploads — verified file upload.
+  // Same content/magic-byte checks as authenticated site uploads; the key is
+  // namespaced to this link's tenant+project so reply attachments and the
+  // drawings register can reference it safely.
+  server.post(
+    '/api/v1/portals/consultant/:token/uploads',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { token } = request.params as { token: string };
+      const link = await resolvePortalLink(token, 'CONSULTANT');
+      if (!link) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Invalid or expired consultant access token',
+        });
+      }
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No file uploaded' });
+      }
+      const buffer = await file.toBuffer();
+      const spec = verifyUpload(buffer, file.mimetype);
+      if (!spec) {
+        return reply.status(415).send({
+          statusCode: 415,
+          error: 'Unsupported Media Type',
+          message: `File type ${file.mimetype} not allowed or content failed verification (images, PDF, MP4/MOV only)`,
+        });
+      }
+      const storageKey = `${link.tenant_id}/${link.project_id}/${randomUUID()}${spec.ext}`;
+      await getStorageDriver().put(storageKey, buffer);
+      await withTenantTx(prisma, link.tenant_id, (tx) =>
+        recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          actorId: link.id,
+          action: 'CONSULTANT_PORTAL_UPLOAD',
+          entityType: 'PortalAccessLink',
+          entityId: link.id,
+          projectId: link.project_id,
+          changes: { storageKey, filename: file.filename, mimetype: spec.contentType, sizeBytes: buffer.length },
+        }),
+      );
+      return reply.status(201).send({
+        statusCode: 201,
+        data: { storageKey, url: `/uploads/${storageKey}`, mimetype: spec.contentType, sizeBytes: buffer.length },
+      });
+    },
+  );
+
+  // POST /api/v1/portals/consultant/:token/drawings/:documentId/acknowledge
+  // Per-link drawing acknowledgement — the contractor sees who acknowledged
+  // which revision on the project drawings register.
+  server.post(
+    '/api/v1/portals/consultant/:token/drawings/:documentId/acknowledge',
+    {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { token, documentId } = request.params as { token: string; documentId: string };
+      const link = await resolvePortalLink(token, 'CONSULTANT');
+      if (!link) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Invalid or expired consultant access token',
+        });
+      }
+      // Drawings are only visible to ALL-scoped consultant links.
+      if ((link.scope || 'ALL').toUpperCase() !== 'ALL') {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'This consultant link is not scoped for drawings',
+        });
+      }
+      const ack = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const doc = await tx.projectDocument.findFirst({
+          where: { id: documentId, project_id: link.project_id },
+          select: { id: true },
+        });
+        if (!doc) throw { status: 404, message: 'Drawing not found on this project' };
+        return tx.drawingAcknowledgement.upsert({
+          where: {
+            document_id_portal_link_id: { document_id: documentId, portal_link_id: link.id },
+          },
+          update: {},
+          create: {
+            tenant_id: link.tenant_id,
+            project_id: link.project_id,
+            document_id: documentId,
+            portal_link_id: link.id,
+            stakeholder_name: link.stakeholder_name,
+          },
+        });
+      }).catch((err: any) => {
+        if (err?.status) return { __portalError: { status: err.status, message: err.message } };
+        throw err;
+      });
+      if ((ack as any)?.__portalError) {
+        const e = (ack as any).__portalError;
+        return reply.status(e.status).send({ statusCode: e.status, error: 'Not Found', message: e.message });
+      }
+      return reply.status(200).send({ statusCode: 200, data: ack });
+    },
+  );
 
   // ===========================================================================
   // 4. SUBCONTRACTOR & SPECIALIST TRADE PORTAL
@@ -645,29 +933,102 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         : [];
 
       // Explicit DTO — no internal ids beyond what the portal needs.
+      const VALUATION_STATUS_LABELS: Record<string, string> = {
+        SUBMITTED: 'Submitted — awaiting review',
+        UNDER_REVIEW: 'Under review',
+        QS_VERIFIED: 'Under review',
+        APPROVED_FOR_PAYMENT: 'Approved for payment',
+        PAID: 'Paid',
+        REJECTED: 'Rejected',
+      };
+      const normStatus = (s: string) => (s === 'QS_VERIFIED' ? 'UNDER_REVIEW' : s);
+      const dec = (v: any) => toDecimal(String(v ?? '0'));
+
       const packages = pkg
-        ? [{
-            id: pkg.id,
-            tradeCategory: pkg.trade_category,
-            firmName: pkg.firm_name,
-            scopeDescription: pkg.scope_description,
-            subcontractSum: pkg.subcontract_sum.toString(),
-            retentionRatePct: pkg.retention_rate_pct.toString(),
-            status: pkg.status,
-            valuations: (pkg.valuations || []).map((v: any) => ({
-              id: v.id,
-              certificateNo: v.certificate_no,
-              valuationDate: v.valuation_date,
-              grossWorkCertifiedKes: v.gross_work_certified_kes.toString(),
-              retentionDeductedKes: v.retention_deducted_kes.toString(),
-              previousPaymentsDeductedKes: v.previous_payments_deducted_kes.toString(),
-              withholdingTaxDeductedKes: v.withholding_tax_deducted_kes.toString(),
-              netPayableKes: v.net_payable_kes.toString(),
-              paymentStatus: v.payment_status,
-              notes: v.notes,
-            })),
-          }]
+        ? [(() => {
+            const vals = pkg.valuations || [];
+            return {
+              id: pkg.id,
+              tradeCategory: pkg.trade_category,
+              firmName: pkg.firm_name,
+              scopeDescription: pkg.scope_description,
+              subcontractSum: pkg.subcontract_sum.toString(),
+              retentionRatePct: pkg.retention_rate_pct.toString(),
+              status: pkg.status,
+              valuations: vals.map((v: any) => ({
+                id: v.id,
+                certificateNo: v.certificate_no,
+                valuationDate: v.valuation_date,
+                grossWorkCertifiedKes: v.gross_work_certified_kes.toString(),
+                retentionRatePct: v.retention_rate_pct.toString(),
+                retentionDeductedKes: v.retention_deducted_kes.toString(),
+                previousPaymentsDeductedKes: v.previous_payments_deducted_kes.toString(),
+                withholdingTaxPct: v.withholding_tax_pct?.toString() ?? null,
+                withholdingTaxDeductedKes: v.withholding_tax_deducted_kes.toString(),
+                netPayableKes: v.net_payable_kes.toString(),
+                // Plain breakdown aliases (portal UX contract).
+                grossWorkCertified: v.gross_work_certified_kes.toString(),
+                retention: v.retention_deducted_kes.toString(),
+                withholdingTax: v.withholding_tax_deducted_kes.toString(),
+                netPayable: v.net_payable_kes.toString(),
+                paymentStatus: normStatus(v.payment_status),
+                statusLabel: VALUATION_STATUS_LABELS[normStatus(v.payment_status)] || 'Submitted',
+                paymentReference: v.payment_reference,
+                paidAt: v.paid_at ? v.paid_at.toISOString() : null,
+                rejectionReason: v.rejection_reason,
+                replacesValuationId: v.replaces_valuation_id,
+                notes: v.notes,
+              })),
+            };
+          })()]
         : [];
+
+      // Package summary + retention release status (Stage-3).
+      let packageSummary = null;
+      let retentionRelease = null;
+      if (pkg) {
+        const vals = pkg.valuations || [];
+        const live = vals.filter((v: any) => v.payment_status !== 'REJECTED');
+        const certifiedToDate = live.reduce((acc: any, v: any) => {
+          return acc.plus(dec(v.gross_work_certified_kes));
+        }, toDecimal('0'));
+        const paidToDate = vals
+          .filter((v: any) => v.payment_status === 'PAID')
+          .reduce((acc: any, v: any) => acc.plus(dec(v.net_payable_kes)), toDecimal('0'));
+        const retentionHeld = vals
+          .filter((v: any) => ['APPROVED_FOR_PAYMENT', 'PAID'].includes(v.payment_status))
+          .reduce((acc: any, v: any) => acc.plus(dec(v.retention_deducted_kes)), toDecimal('0'));
+        const releases = await tx.subcontractorRetentionRelease.findMany({
+          where: { subcontractor_package_id: pkg.id },
+          select: { release_amount: true, status: true },
+        });
+        const releasedAmt = releases
+          .filter((r: any) => r.status === 'PAID')
+          .reduce((acc: any, r: any) => acc.plus(dec(r.release_amount)), toDecimal('0'));
+        const pendingAmt = releases
+          .filter((r: any) => ['PENDING_QS_REVIEW', 'APPROVED_BY_DIRECTOR', 'PENDING_DISBURSEMENT'].includes(r.status))
+          .reduce((acc: any, r: any) => acc.plus(dec(r.release_amount)), toDecimal('0'));
+        const contractSum = dec(pkg.subcontract_sum);
+        packageSummary = {
+          contractSum: contractSum.toFixed(2),
+          certifiedToDate: certifiedToDate.toFixed(2),
+          paidToDate: paidToDate.toFixed(2),
+          remaining: contractSum.minus(certifiedToDate).toFixed(2),
+          retentionHeld: retentionHeld.toFixed(2),
+        };
+        retentionRelease = {
+          held: retentionHeld.toFixed(2),
+          released: releasedAmt.toFixed(2),
+          pending: pendingAmt.toFixed(2),
+          status: retentionHeld.lte(0)
+            ? 'NONE'
+            : releasedAmt.gte(retentionHeld) && pendingAmt.lte(0)
+              ? 'RELEASED'
+              : releasedAmt.gt(0) || pendingAmt.gt(0)
+                ? 'PENDING'
+                : 'HELD',
+        };
+      }
 
       return {
         stakeholder: {
@@ -697,6 +1058,11 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           })),
         })),
         packages,
+        // Flat claim list — same DTOs as packages[].valuations, for portal UIs
+        // and integrations that don't want to walk the package tree.
+        valuations: packages.flatMap((p: any) => p.valuations || []),
+        packageSummary,
+        retentionRelease,
       };
     });
 
@@ -758,26 +1124,24 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       });
     }
 
-    const body = request.body as { photoStorageKey: string; notes?: string; gpsLat?: number; gpsLng?: number };
-    if (!body.photoStorageKey) {
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Rectified photo proof storage key is required',
-      });
-    }
-    // The key must have been issued by this link's tenant+project upload route —
-    // reject arbitrary keys that would point at another tenant's files.
-    const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
-    if (!body.photoStorageKey.startsWith(expectedPrefix) || body.photoStorageKey.includes('..')) {
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'photoStorageKey was not issued for this project — upload via the portal upload endpoint first',
-      });
+    const body = request.body as { photoStorageKey?: string; notes?: string; gpsLat?: number; gpsLng?: number };
+    // Photo proof is optional but, when supplied, the key must have been issued
+    // by this link's tenant+project upload route — reject arbitrary keys that
+    // would point at another tenant's files.
+    if (body.photoStorageKey) {
+      const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
+      if (!body.photoStorageKey.startsWith(expectedPrefix) || body.photoStorageKey.includes('..')) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'photoStorageKey was not issued for this project — upload via the portal upload endpoint first',
+        });
+      }
     }
 
-    const updated = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+    let updated: any;
+    try {
+    updated = await withTenantTx(prisma, link.tenant_id, async (tx) => {
       const snag = await tx.snagItem.findFirst({
         where: { id: snagId, project_id: link.project_id },
       });
@@ -786,17 +1150,33 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         throw { status: 404, message: 'Snag item not found on this project' };
       }
 
-      await tx.snagPhoto.create({
-        data: {
-          tenant_id: link.tenant_id,
-          snag_item_id: snagId,
-          photo_type: 'RECTIFIED',
-          storage_key: body.photoStorageKey,
-          caption: body.notes || `Rectified by ${link.stakeholder_name}`,
-          gps_latitude: body.gpsLat ? toDecimal(body.gpsLat) : null,
-          gps_longitude: body.gpsLng ? toDecimal(body.gpsLng) : null,
-        },
-      });
+      // Trade scoping: a subcontractor may only rectify snags in their own
+      // trade — resolve the bound package's trade, not the link's free text.
+      if (link.subcontractor_package_id) {
+        const pkg = await tx.subcontractorPackage.findUnique({
+          where: { id: link.subcontractor_package_id },
+          select: { trade_category: true },
+        });
+        const mine = (pkg?.trade_category ?? link.stakeholder_role ?? '').toLowerCase();
+        const theirs = (snag.trade_category ?? '').toLowerCase();
+        if (mine && theirs && mine !== theirs) {
+          throw { status: 404, message: 'Snag item not found on this project' };
+        }
+      }
+
+      if (body.photoStorageKey) {
+        await tx.snagPhoto.create({
+          data: {
+            tenant_id: link.tenant_id,
+            snag_item_id: snagId,
+            photo_type: 'RECTIFIED',
+            storage_key: body.photoStorageKey,
+            caption: body.notes || `Rectified by ${link.stakeholder_name}`,
+            gps_latitude: body.gpsLat ? toDecimal(body.gpsLat) : null,
+            gps_longitude: body.gpsLng ? toDecimal(body.gpsLng) : null,
+          },
+        });
+      }
 
       const updatedSnag = await tx.snagItem.update({
         where: { id: snagId },
@@ -820,8 +1200,23 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         },
       });
 
+      await notifyTeam(tx, {
+        tenantId: link.tenant_id,
+        projectId: link.project_id,
+        senderId: link.id,
+        senderName: `${link.stakeholder_name} (portal)`,
+        body: `Snag item rectified via portal by ${link.stakeholder_name} — photo proof uploaded, awaiting inspection.`,
+      });
+
       return updatedSnag;
     });
+    } catch (err: any) {
+      // Map thrown {status} errors (404 wrong project/trade) instead of 500s.
+      if (err?.status) {
+        return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+      }
+      throw err;
+    }
 
     return reply.status(200).send({
       statusCode: 200,
@@ -840,7 +1235,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     if (!link) {
       return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired subcontractor access token' });
     }
-    const body = request.body as { packageId?: string; grossWorkCertifiedKes?: string | number; notes?: string };
+    const body = request.body as { packageId?: string; grossWorkCertifiedKes?: string | number; notes?: string; replacesValuationId?: string };
     // The link is bound to one package — a valuation can only target that package.
     if (!link.subcontractor_package_id) {
       return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'This portal link is not bound to a work package' });
@@ -857,7 +1252,6 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     if (gross.lte(0)) {
       return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'grossWorkCertifiedKes must be a positive amount' });
     }
-    const WHT_RATE_PCT = toDecimal(process.env.PORTAL_WHT_RATE_PCT || '3.00');
     try {
       const valuation = await withTenantTx(prisma, link.tenant_id, async (tx) => {
         const pkg = await tx.subcontractorPackage.findFirst({
@@ -865,25 +1259,48 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         });
         if (!pkg) throw new Error('Work package not found on this project');
 
-        // Certified-to-date = sum of gross on prior valuations; previous
-        // payments = net payable already approved/paid on prior valuations.
+        // Each valuation is a claim for work certified in that period; the
+        // certified-to-date floor is the SUM of live (non-rejected) claims —
+        // rejected claims never count toward the cap (Stage-3, auditor
+        // contract: "total claims may not exceed the package sum").
         const prior = await tx.subcontractorValuation.findMany({
           where: { subcontractor_package_id: pkg.id },
-          select: { gross_work_certified_kes: true, net_payable_kes: true, payment_status: true },
+          select: { id: true, gross_work_certified_kes: true, net_payable_kes: true, payment_status: true },
         });
-        const certifiedToDate = prior.reduce((acc, v) => acc.plus(toDecimal(v.gross_work_certified_kes.toString())), toDecimal('0'));
+        const livePrior = prior.filter((v) => v.payment_status !== 'REJECTED');
+        const certifiedToDate = livePrior.reduce((acc, v) => {
+          return acc.plus(toDecimal(v.gross_work_certified_kes.toString()));
+        }, toDecimal('0'));
         const prevPayments = prior
           .filter((v) => ['APPROVED_FOR_PAYMENT', 'PAID'].includes(v.payment_status))
           .reduce((acc, v) => acc.plus(toDecimal(v.net_payable_kes.toString())), toDecimal('0'));
 
-        // Gross is cumulative work certified — cap at the package contract sum.
+        // Cap: certified-to-date + this claim may not exceed the package sum.
         const packageSum = toDecimal(pkg.subcontract_sum.toString());
-        if (gross.gt(packageSum)) {
-          throw new Error(`Gross work certified cannot exceed the package contract sum (${packageSum.toFixed(2)})`);
+        if (certifiedToDate.plus(gross).gt(packageSum)) {
+          throw new Error(`Total claims cannot exceed the package contract sum (${packageSum.toFixed(2)})`);
         }
-        if (gross.lte(certifiedToDate)) {
-          throw new Error(`Gross work certified must exceed certified-to-date (${certifiedToDate.toFixed(2)})`);
+
+        // Resubmission: replacesValuationId must point at a REJECTED claim on
+        // the same package — it links the corrected claim, nothing more.
+        let replacesId: string | null = null;
+        if (body.replacesValuationId) {
+          if (!UUID_REGEX.test(body.replacesValuationId)) {
+            throw new Error('replacesValuationId must be a valid valuation id');
+          }
+          const replaced = await tx.subcontractorValuation.findFirst({
+            where: { id: body.replacesValuationId, subcontractor_package_id: pkg.id },
+            select: { id: true, payment_status: true },
+          });
+          if (!replaced || replaced.payment_status !== 'REJECTED') {
+            throw new Error('replacesValuationId must reference a rejected valuation on this package');
+          }
+          replacesId = replaced.id;
         }
+
+        // WHT from the tenant's central tax settings — no env/hard-coded rate.
+        const taxSettings = await getTaxSettings(tx, link.tenant_id);
+        const WHT_RATE_PCT = whtRateFor(taxSettings, 'SUBCONTRACTOR');
 
         const count = prior.length;
         const retentionRate = toDecimal(pkg.retention_rate_pct.toString());
@@ -907,6 +1324,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             withholding_tax_deducted_kes: wht.toFixed(2),
             net_payable_kes: netPayable.toFixed(2),
             payment_status: 'SUBMITTED',
+            submitted_at: new Date(),
+            replaces_valuation_id: replacesId,
             notes: `[Portal submission by ${link.stakeholder_name}] ${body.notes || ''}`.trim(),
           },
         });
@@ -918,6 +1337,13 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           entityType: 'SubcontractorValuation',
           entityId: created.id,
           changes: { via: 'external_portal', gross, submittedBy: link.stakeholder_name },
+        });
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${link.stakeholder_name} (portal)`,
+          body: `Subcontractor valuation ${created.certificate_no} submitted via portal by ${link.stakeholder_name} — gross ${gross.toFixed(2)} KES. Awaiting review.`,
         });
         return created;
       });
@@ -947,48 +1373,79 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       });
     }
 
+    // Stage-3: a SUPPLIER link without a bound Supplier record sees nothing.
+    if (!link.supplier_id) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'This portal link is not bound to a supplier record',
+      });
+    }
+
+    const q = request.query as { page?: string; pageSize?: string };
+    const page = Math.max(1, parseInt(q.page || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(q.pageSize || '25', 10) || 25));
+
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, diaries] = await Promise.all([
+      const [project, supplier, deliveryTotal, deliveries, purchaseOrders] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
+          select: { id: true, name: true, code: true },
         }),
-        tx.siteDiary.findMany({
-          where: { project_id: link.project_id },
-          include: {
-            deliveries: true,
+        tx.supplier.findFirst({ where: { id: link.supplier_id! }, select: { id: true, name: true } }),
+        // Deliveries are scoped by supplier_id RECORD — never free-text names.
+        tx.materialDelivery.count({
+          where: {
+            supplier_id: link.supplier_id,
+            site_diary: { project_id: link.project_id },
           },
-          orderBy: { entry_date: 'desc' },
-          take: 30,
+        }),
+        tx.materialDelivery.findMany({
+          where: {
+            supplier_id: link.supplier_id,
+            site_diary: { project_id: link.project_id },
+          },
+          include: {
+            site_diary: { select: { entry_date: true } },
+            purchase_order: { select: { id: true, po_number: true, status: true } },
+            purchase_order_item: { select: { id: true, description: true } },
+          },
+          orderBy: { site_diary: { entry_date: 'desc' } },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        tx.purchaseOrder.findMany({
+          where: { project_id: link.project_id, supplier_id: link.supplier_id },
+          include: {
+            items: true,
+            invoices: { orderBy: { created_at: 'desc' } },
+            supplier: { select: { id: true, name: true } },
+          },
+          orderBy: { created_at: 'desc' },
         }),
       ]);
 
-      const deliveries = diaries
-        .flatMap((d) =>
-          d.deliveries.map((m) => ({
-            id: m.id,
-            materialName: m.material_name,
-            quantity: m.quantity.toString(),
-            unit: m.unit,
-            supplierName: m.supplier_name,
-            deliveryNote: m.delivery_note,
-            deliveryStatus: m.delivery_status,
-            confirmedAt: m.confirmed_at,
-            confirmedByName: m.confirmed_by_name,
-            supplierInvoiceRef: m.supplier_invoice_ref,
-            disputeReason: m.dispute_reason,
-            siteDate: d.entry_date,
-          })),
-        )
-        .filter((m) =>
-          !link.stakeholder_name ||
-          !m.supplierName ||
-          m.supplierName.toLowerCase() === link.stakeholder_name.toLowerCase(),
-        );
+      const DELIVERY_STATUS_LABELS: Record<string, string> = {
+        RECORDED: 'Awaiting your confirmation',
+        CONFIRMED: 'Confirmed by you',
+        DISPUTED: 'Disputed',
+      };
+      const PO_STATUS_LABELS: Record<string, string> = {
+        DRAFT: 'Draft',
+        ISSUED: 'Issued — awaiting your acceptance',
+        ACCEPTED: 'Accepted',
+        PART_DELIVERED: 'Part delivered',
+        DELIVERED: 'Delivered',
+        CLOSED: 'Closed',
+        CANCELLED: 'Cancelled',
+      };
 
       return {
         stakeholder: {
           name: link.stakeholder_name,
           vendorType: link.stakeholder_role || 'Material Supplier',
+          supplierId: link.supplier_id,
+          supplierName: supplier?.name ?? null,
         },
         linkExpiresAt: link.expires_at.toISOString(),
         project: {
@@ -996,7 +1453,52 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           name: project?.name,
           code: project?.code,
         },
-        deliveries,
+        page,
+        pageSize,
+        total: deliveryTotal,
+        pagination: { page, pageSize, total: deliveryTotal, totalPages: Math.max(1, Math.ceil(deliveryTotal / pageSize)) },
+        deliveries: deliveries.map((m) => ({
+          id: m.id,
+          materialName: m.material_name,
+          quantity: m.quantity.toString(),
+          unit: m.unit,
+          supplierName: m.supplier_name,
+          deliveryNote: m.delivery_note,
+          deliveryStatus: m.delivery_status,
+          statusLabel: DELIVERY_STATUS_LABELS[m.delivery_status] || m.delivery_status,
+          confirmedAt: m.confirmed_at,
+          confirmedByName: m.confirmed_by_name,
+          supplierInvoiceRef: m.supplier_invoice_ref,
+          disputeReason: m.dispute_reason,
+          purchaseOrderId: m.purchase_order_id,
+          purchaseOrderItemId: m.purchase_order_item_id,
+          purchaseOrder: m.purchase_order ? { id: m.purchase_order.id, poNumber: m.purchase_order.po_number, status: m.purchase_order.status } : null,
+          siteDate: m.site_diary.entry_date,
+        })),
+        purchaseOrders: purchaseOrders.map((po) => ({
+          id: po.id,
+          poNumber: po.po_number,
+          status: po.status,
+          statusLabel: PO_STATUS_LABELS[po.status] || po.status,
+          orderDate: po.order_date,
+          expectedDeliveryDate: po.expected_delivery_date,
+          totalAmount: po.total_amount_kes.toString(),
+          items: po.items.map((i) => ({
+            id: i.id,
+            description: i.description,
+            unit: i.unit,
+            quantity: i.quantity.toString(),
+            rate: i.rate.toString(),
+          })),
+          invoices: po.invoices.map((iv) => ({
+            id: iv.id,
+            reference: iv.reference,
+            amount: iv.amount.toString(),
+            status: iv.status,
+            note: iv.note,
+            createdAt: iv.created_at,
+          })),
+        })),
       };
     });
 
@@ -1017,6 +1519,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     if (!link) {
       return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired supplier access token' });
     }
+    // Stage-3: confirm/dispute only on deliveries owned by the linked supplier.
+    if (!link.supplier_id) {
+      return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'This portal link is not bound to a supplier record' });
+    }
     const parsed = SupplierDeliveryActionSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid action payload', details: parsed.error.flatten() });
@@ -1030,24 +1536,35 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         where: { id: deliveryId },
         include: { site_diary: { select: { project_id: true } } },
       });
-      if (!delivery || delivery.site_diary.project_id !== link.project_id) {
-        throw { status: 404, message: 'Delivery not found on this project' };
+      if (!delivery || delivery.site_diary.project_id !== link.project_id || delivery.supplier_id !== link.supplier_id) {
+        throw { status: 404, message: 'Delivery not found' };
       }
       // CONFIRMED and DISPUTED are final states for the supplier — staff must
       // reset the delivery before the supplier can act again.
       if (delivery.delivery_status === 'CONFIRMED' || delivery.delivery_status === 'DISPUTED') {
         throw { status: 409, message: `Delivery is already ${delivery.delivery_status.toLowerCase()} — contact the site team to reopen it` };
       }
-      return tx.materialDelivery.update({
+      const action = body.action === 'CONFIRM' ? 'CONFIRMED' : 'DISPUTED';
+      const updatedDelivery = await tx.materialDelivery.update({
         where: { id: deliveryId },
         data: {
-          delivery_status: body.action === 'CONFIRM' ? 'CONFIRMED' : 'DISPUTED',
+          delivery_status: action,
           confirmed_at: body.action === 'CONFIRM' ? new Date() : null,
           confirmed_by_name: link.stakeholder_name,
           supplier_invoice_ref: body.invoiceRef || delivery.supplier_invoice_ref,
           dispute_reason: body.action === 'DISPUTE' ? body.note!.trim() : delivery.dispute_reason,
         },
       });
+      await notifyTeam(tx, {
+        tenantId: link.tenant_id,
+        projectId: link.project_id,
+        senderId: link.id,
+        senderName: `${link.stakeholder_name} (portal)`,
+        body: body.action === 'CONFIRM'
+          ? `Supplier ${link.stakeholder_name} confirmed a delivery via portal${body.invoiceRef ? ` — invoice ref ${body.invoiceRef}` : ''}.`
+          : `Supplier ${link.stakeholder_name} disputed a delivery via portal: ${body.note!.trim()}`,
+      });
+      return updatedDelivery;
     }).catch((err: any) => ({ __err: err }));
     const uerr = (updated as any).__err;
     if (uerr) {
@@ -1055,6 +1572,236 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       return reply.status(st).send({ statusCode: st, error: st === 404 ? 'Not Found' : 'Conflict', message: uerr?.message || 'Action failed' });
     }
     return reply.status(200).send({ statusCode: 200, data: updated });
+  });
+
+  // POST /api/v1/portals/supplier/:token/purchase-orders/:poId/accept — supplier
+  // accepts an ISSUED PO with an expected delivery date.
+  server.post('/api/v1/portals/supplier/:token/purchase-orders/:poId/accept', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token, poId } = request.params as { token: string; poId: string };
+    const link = await resolvePortalLink(token, 'SUPPLIER');
+    if (!link) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired supplier access token' });
+    }
+    if (!link.supplier_id) {
+      return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'This portal link is not bound to a supplier record' });
+    }
+    const body = request.body as { expectedDeliveryDate?: string };
+    // Ownership first: a PO belonging to another supplier must 404 before any
+    // payload validation runs (auditor stage-3 contract).
+    const owned = await withTenantTx(prisma, link.tenant_id, (tx) =>
+      tx.purchaseOrder.findFirst({
+        where: { id: poId, project_id: link.project_id, supplier_id: link.supplier_id },
+        select: { id: true },
+      }),
+    );
+    if (!owned) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Purchase order not found' });
+    }
+    if (!body?.expectedDeliveryDate || !/^\d{4}-\d{2}-\d{2}$/.test(body.expectedDeliveryDate)) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'expectedDeliveryDate (YYYY-MM-DD) is required' });
+    }
+    try {
+      const po = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const existing = await tx.purchaseOrder.findFirst({
+          where: { id: poId, project_id: link.project_id, supplier_id: link.supplier_id },
+          include: { items: true, supplier: true },
+        });
+        if (!existing) throw { status: 404, message: 'Purchase order not found' };
+        // DRAFT|ISSUED may be accepted — a DRAFT acceptance implies issue:
+        // the procurement commitment + pending cost entry post exactly as the
+        // staff /issue route does, so the ledger stays honest.
+        if (!['DRAFT', 'ISSUED'].includes(existing.status)) {
+          throw { status: 409, message: `Only issued purchase orders can be accepted (current: ${existing.status})` };
+        }
+        let commitmentId: string | null = (existing as any).commitment_id ?? null;
+        if (existing.status === 'DRAFT') {
+          const latest = await tx.commitment.findFirst({
+            where: { project_id: link.project_id },
+            orderBy: { commitment_no: 'desc' },
+            select: { commitment_no: true },
+          });
+          const commitment = await tx.commitment.create({
+            data: {
+              tenant_id: link.tenant_id,
+              project_id: link.project_id,
+              commitment_no: (latest?.commitment_no ?? 0) + 1,
+              vendor_name: existing.supplier.name,
+              vendor_type: 'SUPPLIER',
+              contract_value: existing.total_amount_kes.toString(),
+              status: 'ACTIVE',
+            },
+          });
+          commitmentId = commitment.id;
+          await tx.costEntry.create({
+            data: {
+              tenant_id: link.tenant_id,
+              project_id: link.project_id,
+              commitment_id: commitment.id,
+              cost_category: 'MATERIAL',
+              amount: existing.total_amount_kes.toString(),
+              vendor_name: existing.supplier.name,
+              description: `PO ${existing.po_number} accepted via supplier portal — ${existing.items.length} line(s), committed spend`,
+              invoice_ref: existing.po_number,
+              status: 'PENDING',
+              // created_by_id is a users FK — the portal link id is not a user;
+              // attribute the ledger row to the staff member who raised the PO.
+              created_by_id: (existing as any).created_by_id ?? null,
+            },
+          });
+        }
+        const updated = await tx.purchaseOrder.update({
+          where: { id: existing.id },
+          data: {
+            status: 'ACCEPTED',
+            expected_delivery_date: new Date(`${body.expectedDeliveryDate}T00:00:00Z`),
+            ...(existing.status === 'DRAFT' ? { issued_at: new Date(), commitment_id: commitmentId } : {}),
+          },
+        });
+        await recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          actorId: link.id,
+          action: 'PURCHASE_ORDER_ACCEPTED_VIA_PORTAL',
+          entityType: 'PurchaseOrder',
+          entityId: existing.id,
+          changes: { acceptedBy: link.stakeholder_name, expectedDeliveryDate: body.expectedDeliveryDate },
+        });
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${link.stakeholder_name} (portal)`,
+          body: `Supplier ${link.stakeholder_name} accepted PO ${existing.po_number} — expected delivery ${body.expectedDeliveryDate}.`,
+        });
+        return updated;
+      });
+      return reply.status(200).send({ statusCode: 200, data: po });
+    } catch (err: any) {
+      const st = err?.status ?? 400;
+      return reply.status(st).send({ statusCode: st, error: st === 404 ? 'Not Found' : 'Conflict', message: err?.message || 'Accept failed' });
+    }
+  });
+
+  // POST /api/v1/portals/supplier/:token/purchase-orders/:poId/invoices — supplier
+  // submits an invoice (reference + amount) against their own PO.
+  server.post('/api/v1/portals/supplier/:token/purchase-orders/:poId/invoices', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token, poId } = request.params as { token: string; poId: string };
+    const link = await resolvePortalLink(token, 'SUPPLIER');
+    if (!link) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invalid or expired supplier access token' });
+    }
+    if (!link.supplier_id) {
+      return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'This portal link is not bound to a supplier record' });
+    }
+    const body = request.body as {
+      reference?: string; invoiceRef?: string; amount?: number | string;
+      purchaseOrderItemId?: string; note?: string; taxAmount?: number | string;
+      submittedAt?: string; replacesInvoiceRef?: string;
+    };
+    // `invoiceRef` is the auditor-contract alias for `reference`.
+    const invoiceRef = (body?.reference ?? body?.invoiceRef ?? '').toString().trim();
+    if (invoiceRef.length < 2) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invoice reference is required' });
+    }
+    let amount: ReturnType<typeof toDecimal>;
+    try {
+      amount = toDecimal(String(body.amount ?? ''));
+    } catch {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'amount must be a positive number' });
+    }
+    if (amount.lte(0)) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'amount must be a positive number' });
+    }
+    try {
+      const result = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const po = await tx.purchaseOrder.findFirst({
+          where: { id: poId, project_id: link.project_id, supplier_id: link.supplier_id },
+          include: { invoices: true },
+        });
+        if (!po) throw { status: 404, message: 'Purchase order not found' };
+        if (!['ISSUED', 'ACCEPTED', 'PART_DELIVERED', 'DELIVERED'].includes(po.status)) {
+          throw { status: 409, message: `Invoices can only be submitted on issued POs (current: ${po.status})` };
+        }
+
+        // Optional line allocation — must be a line on THIS purchase order.
+        let itemId: string | null = null;
+        if (body.purchaseOrderItemId) {
+          if (!UUID_REGEX.test(body.purchaseOrderItemId)) {
+            throw { status: 400, message: 'purchaseOrderItemId must be a valid line id' };
+          }
+          const item = await tx.purchaseOrderItem.findFirst({
+            where: { id: body.purchaseOrderItemId, purchase_order_id: po.id },
+            select: { id: true },
+          });
+          if (!item) throw { status: 400, message: 'purchaseOrderItemId is not a line on this purchase order' };
+          itemId = item.id;
+        }
+
+        // Over-invoice detection: invoiced-to-date (non-rejected) + this
+        // invoice vs the PO total. Over-limit claims are flagged REVIEW_REQUIRED
+        // and notified to the PM — cost posting stays blocked until reviewed.
+        const invoicedToDate = po.invoices
+          .filter((i) => i.status !== 'REJECTED')
+          .reduce((acc, i) => acc.plus(toDecimal(i.amount.toString())), toDecimal('0'));
+        const poTotal = toDecimal(po.total_amount_kes.toString());
+        const overInvoiced = invoicedToDate.plus(amount).gt(poTotal);
+
+        // replacesInvoiceRef: the corrected invoice supersedes the rejected
+        // one — mark the original REJECTED so match maths ignore it.
+        if (body.replacesInvoiceRef) {
+          await tx.purchaseOrderInvoice.updateMany({
+            where: { purchase_order_id: po.id, reference: String(body.replacesInvoiceRef).trim(), status: { not: 'REJECTED' } },
+            data: { status: 'REJECTED', note: `Superseded by ${invoiceRef}` },
+          });
+        }
+
+        const invoice = await tx.purchaseOrderInvoice.create({
+          data: {
+            tenant_id: link.tenant_id,
+            purchase_order_id: po.id,
+            purchase_order_item_id: itemId,
+            reference: invoiceRef,
+            amount: amount.toFixed(2),
+            status: overInvoiced ? 'REVIEW_REQUIRED' : 'SUBMITTED',
+            note: body.note || null,
+            submitted_by_name: link.stakeholder_name,
+          },
+        });
+
+        await recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          actorId: link.id,
+          action: 'SUPPLIER_PO_INVOICE_SUBMITTED',
+          entityType: 'PurchaseOrderInvoice',
+          entityId: invoice.id,
+          changes: { poId: po.id, poNumber: po.po_number, reference: invoice.reference, amount: invoice.amount.toString(), overInvoiced },
+        });
+
+        const bodyText = overInvoiced
+          ? `OVER-INVOICE flag: supplier ${link.stakeholder_name} submitted invoice ${invoice.reference} for ${amount.toFixed(2)} KES on PO ${po.po_number} — cumulative invoicing exceeds the PO total. PM review required before any cost posting.`
+          : `Supplier ${link.stakeholder_name} submitted invoice ${invoice.reference} for ${amount.toFixed(2)} KES on PO ${po.po_number}.`;
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${link.stakeholder_name} (portal)`,
+          body: bodyText,
+        });
+
+        return { invoice, overInvoiced };
+      });
+      return reply.status(201).send({ statusCode: 201, data: result.invoice, overInvoiced: result.overInvoiced });
+    } catch (err: any) {
+      const st = err?.status ?? 400;
+      return reply.status(st).send({ statusCode: st, error: st === 404 ? 'Not Found' : 'Conflict', message: err?.message || 'Submit failed' });
+    }
   });
 
   // ===========================================================================
@@ -1078,7 +1825,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     }
 
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, cubeTests, inspections, certificates, remittedLevyCount, supervisorMemberCount] = await Promise.all([
+      const [project, cubeTests, inspections, certificates, permits, visits] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
         }),
@@ -1100,16 +1847,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           where: { project_id: link.project_id },
           orderBy: { issue_date: 'desc' },
         }),
-        // Statutory levy clearance = at least one WHT certificate remitted to KRA.
-        tx.statutoryTaxCertificate.count({
-          where: {
-            project_id: link.project_id,
-            status: { in: ['REMITTED_TO_KRA', 'ACKNOWLEDGED'] },
-          },
+        tx.projectPermit.findMany({
+          where: { project_id: link.project_id },
+          orderBy: { created_at: 'desc' },
         }),
-        // Accredited site supervisor = an assigned SITE_SUPERVISOR project member.
-        tx.projectMember.count({
-          where: { project_id: link.project_id, role: 'SITE_SUPERVISOR' },
+        tx.complianceVisit.findMany({
+          where: { project_id: link.project_id },
+          include: { actions: { orderBy: { created_at: 'asc' } } },
+          orderBy: { visit_date: 'desc' },
         }),
       ]);
 
@@ -1119,6 +1864,22 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       const totalBreaks = allBreaks.length;
       const passedBreaks = allBreaks.filter((b) => b.is_pass === true).length;
       const passRate = totalBreaks > 0 ? `${((passedBreaks / totalBreaks) * 100).toFixed(1)}%` : null;
+
+      // Permit status is DERIVED from the real expiry date at read time —
+      // never stored, so it cannot drift from the register record.
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const in30 = new Date(today.getTime() + 30 * 86400e3);
+      const permitStatus = (p: any): string => {
+        if (!p.expiry_date) return 'VALID';
+        const exp = new Date(p.expiry_date);
+        exp.setHours(0, 0, 0, 0);
+        if (exp < today) return 'EXPIRED';
+        if (exp <= in30) return 'EXPIRING_SOON';
+        return 'VALID';
+      };
+      const statusLabel = (s: string) =>
+        s === 'VALID' ? 'Valid' : s === 'EXPIRING_SOON' ? 'Expiring within 30 days' : 'Expired';
 
       return {
         regulatoryAuditor: {
@@ -1132,17 +1893,46 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           code: project?.code,
           status: project?.status,
         },
+        // passRate stays null until real cube-test breaks exist — surfaced at
+        // top level too so clients never have to guess (Stage-4 contract).
+        data: { passRate },
         complianceSummary: {
-          // No NCA registration record exists in the schema — report honestly.
-          ncaSiteRegistration: null,
-          // No statutory-levy or supervisor-certification records exist yet —
-          // return null so the portal shows "Not tracked" instead of inventing compliance.
-          statutoryLevyPaid: remittedLevyCount > 0,
-          certifiedSiteSupervisorPresent: supervisorMemberCount > 0,
+          // Only record-backed figures: cube-test pass rate, inspection count.
+          // NCA registration / levy clearance / supervisor certification are
+          // NOT derived here — they live in the permits register and visit
+          // records below (Stage 4: no invented indicators).
           concreteCubePassRate: passRate,
           totalBatchesSampled: cubeTests.length,
           prePourInspectionsConducted: inspections.length,
         },
+        permits: (permits || []).map((p: any) => {
+          const s = permitStatus(p);
+          return {
+            id: p.id,
+            permitType: p.permit_type,
+            permitNumber: p.permit_number,
+            issuer: p.issuer,
+            issuedDate: p.issued_date,
+            expiryDate: p.expiry_date,
+            notes: p.notes,
+            status: s,
+            statusLabel: statusLabel(s),
+          };
+        }),
+        visits: (visits || []).map((v: any) => ({
+          id: v.id,
+          visitDate: v.visit_date,
+          outcome: v.outcome,
+          notes: v.notes,
+          recordedByName: v.recorded_by_name,
+          createdAt: v.created_at,
+          actions: (v.actions || []).map((a: any) => ({
+            id: a.id,
+            description: a.description,
+            dueDate: a.due_date,
+            status: a.status,
+          })),
+        })),
         cubeTests: (cubeTests || []).map((c: any) => ({
           id: c.id,
           pourLocation: c.pour_location,
@@ -1183,6 +1973,109 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     return reply.status(200).send({
       statusCode: 200,
       data: payload,
+    });
+  });
+
+  // POST /api/v1/portals/compliance/:token/visits — inspector records a site
+  // visit with outcome, notes and required actions. The visit is bound to
+  // this portal link + project, audit-logged, and notifies the contractor.
+  server.post('/api/v1/portals/compliance/:token/visits', {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'COMPLIANCE');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired regulatory compliance access token',
+      });
+    }
+
+    const parsed = CreateComplianceVisitSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid compliance visit payload',
+        details: parsed.error.flatten(),
+      });
+    }
+    const body = parsed.data;
+
+    const visit = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+      const project = await tx.project.findFirst({ where: { id: link.project_id }, select: { id: true, name: true } });
+      if (!project) throw { status: 404, message: 'Project not found' };
+
+      const created = await tx.complianceVisit.create({
+        data: {
+          tenant_id: link.tenant_id,
+          project_id: link.project_id,
+          portal_link_id: link.id,
+          visit_date: new Date(`${body.visitDate}T00:00:00.000Z`),
+          outcome: body.outcome,
+          notes: body.notes || null,
+          recorded_by_name: link.stakeholder_name,
+          actions: body.actions.length
+            ? {
+                create: body.actions.map((a) => ({
+                  tenant_id: link.tenant_id,
+                  description: a.description,
+                  due_date: a.dueDate ? new Date(`${a.dueDate}T00:00:00.000Z`) : null,
+                })),
+              }
+            : undefined,
+        },
+        include: { actions: true },
+      });
+
+      await recordAuditLog(tx, {
+        tenantId: link.tenant_id,
+        actorId: link.id,
+        action: 'COMPLIANCE_VISIT_RECORDED',
+        entityType: 'ComplianceVisit',
+        entityId: created.id,
+        projectId: link.project_id,
+        changes: {
+          inspector: link.stakeholder_name,
+          outcome: body.outcome,
+          actionCount: body.actions.length,
+        },
+      });
+
+      await notifyTeam(tx, {
+        tenantId: link.tenant_id,
+        projectId: link.project_id,
+        senderId: link.id,
+        senderName: `${link.stakeholder_name} (compliance portal)`,
+        body: `Compliance inspection visit recorded for ${project.name} — outcome: ${body.outcome}${body.actions.length ? ` with ${body.actions.length} required action(s)` : ''}.`,
+      });
+
+      return created;
+    }).catch((err: any) => {
+      if (err?.status) return { __portalError: { status: err.status, message: err.message } };
+      throw err;
+    }) as any;
+
+    if (visit?.__portalError) {
+      const e = visit.__portalError;
+      return reply.status(e.status).send({ statusCode: e.status, error: 'Not Found', message: e.message });
+    }
+
+    return reply.status(201).send({
+      statusCode: 201,
+      data: {
+        id: visit.id,
+        visitDate: visit.visit_date,
+        outcome: visit.outcome,
+        notes: visit.notes,
+        recordedByName: visit.recorded_by_name,
+        actions: visit.actions.map((a: any) => ({
+          id: a.id, description: a.description, dueDate: a.due_date, status: a.status,
+        })),
+      },
     });
   });
 
@@ -1373,7 +2266,11 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         }
 
         const currentStatus = normalizeCoStatus(variation.status);
-        if (currentStatus !== 'OWNER_REVIEW') {
+        // The client portal IS the owner-side decision channel: the owner may
+        // approve or reject a change order at either pending stage — directly
+        // from PM_REVIEW (their instruction, their call) or after staff
+        // escalation to OWNER_REVIEW.
+        if (currentStatus !== 'OWNER_REVIEW' && currentStatus !== 'PM_REVIEW') {
           throw {
             status: 400,
             message: `This change order is not awaiting owner approval (status: ${currentStatus})`,
@@ -1384,7 +2281,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         const newStatus = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
         let newBudget = project.current_approved_budget.toString();
 
-        // Atomic claim on OWNER_REVIEW — prevents double decisions via
+        // Atomic claim on the pending status — prevents double decisions via
         // concurrent portal submissions or a parallel contractor review.
         const claimed = await claimCoTransition(
           tx,
@@ -1430,6 +2327,14 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           },
           ipAddress: request.ip,
           userAgent: (request.headers['user-agent'] as string) || null,
+        });
+
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${actorName} (client portal)`,
+          body: `Client ${actorName} ${newStatus === 'APPROVED' ? 'approved' : 'rejected'} change order CO-${String(variation.variation_no).padStart(4, '0')} via portal${newStatus === 'APPROVED' ? ' — contract budget updated' : ''}.`,
         });
 
         return { ...updated, status: normalizeCoStatus(updated.status) };

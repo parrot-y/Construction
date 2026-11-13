@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api, ApiError } from '../lib/apiClient';
 
 export interface SubcontractorValuationItem {
   id: string;
@@ -60,19 +61,18 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 
   const load = async () => {
     try {
-      const [vRes, pRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/subcontractor-valuations`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'}),
+      const [vb, pb] = await Promise.all([
+        api.get<{ valuations?: SubcontractorValuationItem[] }>(`/api/v1/projects/${projectId}/subcontractor-valuations`),
+        api.get<unknown>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => null),
       ]);
-      if (!vRes.ok) throw new Error('Failed to load valuations');
-      const vb = await vRes.json();
       setValuations(initialValuations ?? (vb.valuations || []));
-      if (!subcontractorPackages && pRes.ok) {
-        const pb = await pRes.json();
-        const rows = pb.packages || pb.subcontractors || pb || [];
-        setLivePackages((Array.isArray(rows) ? rows : []).map((p: any) => ({
-          id: p.id, firmName: p.firm_name || p.firmName, tradeCategory: p.trade_category || p.tradeCategory,
-        })));
+      if (!subcontractorPackages && pb) {
+        const rows = (pb as { packages?: unknown[]; subcontractors?: unknown[] }).packages
+          || (pb as { subcontractors?: unknown[] }).subcontractors || pb;
+        setLivePackages((Array.isArray(rows) ? rows : []).map((p) => {
+          const r = p as { id: string; firm_name?: string; firmName?: string; trade_category?: string; tradeCategory?: string };
+          return { id: r.id, firmName: r.firm_name || r.firmName || '', tradeCategory: r.trade_category || r.tradeCategory || '' };
+        }));
       }
       setLoadError(null);
     } catch (e: any) {
@@ -136,20 +136,9 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       await onCreateValuation(payload);
 } else {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-valuations`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          setLoadError(err.message || 'Failed to create valuation');
-          setIsSubmitting(false);
-          return;
-        }
-      } catch (e: any) {
-        setLoadError(e.message || 'Network error — valuation not recorded');
+        await api.post(`/api/v1/projects/${projectId}/subcontractor-valuations`, payload);
+      } catch (e) {
+        setLoadError(e instanceof ApiError || e instanceof Error ? e.message : 'Network error — valuation not recorded');
         setIsSubmitting(false);
         return;
       }
@@ -171,20 +160,9 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       await onReviewValuation(selectedValId, 'PAID', paymentReference);
 } else {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-valuations/${selectedValId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ paymentStatus: 'PAID', paymentReference }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          setLoadError(err.message || 'Failed to record payment');
-          setIsSubmitting(false);
-          return;
-        }
-      } catch (e: any) {
-        setLoadError(e.message || 'Network error — payment not recorded');
+        await api.patch(`/api/v1/projects/${projectId}/subcontractor-valuations/${selectedValId}`, { paymentStatus: 'PAID', paymentReference });
+      } catch (e) {
+        setLoadError(e instanceof ApiError || e instanceof Error ? e.message : 'Network error — payment not recorded');
         setIsSubmitting(false);
         return;
       }
@@ -272,7 +250,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 )}
             {valuations.map((val) => (
 <tr key={val.id} className="hover:bg-slate-50/80 transition">
-<td className="py-3 px-4 font-mono font-semibold text-slate-900">{val.certificateNo}</td>
+<td className="py-3 px-4 font-mono tabular-nums font-semibold text-slate-900">{val.certificateNo}</td>
 <td className="py-3 px-4">
 <p className="font-semibold text-slate-900">{val.subcontractorFirm}</p>
 <p className="text-xs text-slate-400">Date: {val.valuationDate}</p>
@@ -309,7 +287,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
                     {val.paymentStatus.replace(/_/g, ' ')}
 </span>
                   {val.paymentReference && (
-<p className="text-xs text-slate-400 font-mono mt-0.5">{val.paymentReference}</p>
+<p className="text-xs text-slate-400 tabular-nums mt-0.5">{val.paymentReference}</p>
 )}
 </td>
 <td className="py-3 px-4 text-right">

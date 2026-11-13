@@ -303,7 +303,7 @@ export default function WeatherDelayClaimsView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">LAD Financial Relief</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-xl font-bold text-slate-900 font-mono">
+<span className="text-xl font-bold text-slate-900 tabular-nums">
                 {formatKes(totalFinancialRelief)}
 </span>
 </div>
@@ -404,7 +404,7 @@ export default function WeatherDelayClaimsView({
 <div className="lg:w-64 flex flex-col items-start lg:items-end justify-between self-stretch">
 <div className="text-right">
 <span className="text-xs text-slate-400 block mb-0.5">Approved EOT Days</span>
-<span className="text-xl font-bold font-mono text-emerald-700">
+<span className="text-xl font-bold tabular-nums text-emerald-700">
                       {item.approved_days ? `${item.approved_days} Days` : '0 Days'}
 </span>
                     {item.lad_financial_relief_kes && (
@@ -510,7 +510,7 @@ export default function WeatherDelayClaimsView({
                     type="text"
                     value={newLadRate}
                     onChange={(e) => setNewLadRate(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2 tabular-nums"
                   />
 </div>
 <div>

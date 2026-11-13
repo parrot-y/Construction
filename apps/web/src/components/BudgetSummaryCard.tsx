@@ -92,7 +92,7 @@ export default function BudgetSummaryCard({
 </div>
 <div className="text-right">
 <span className="text-xs font-medium text-slate-500">Budget Consumed:</span>
-<span className="text-xs font-bold font-mono text-slate-900">{resolved.consumptionPercentage}%</span>
+<span className="text-xs font-bold tabular-nums text-slate-900">{resolved.consumptionPercentage}%</span>
 </div>
 </div>
 
@@ -112,7 +112,7 @@ export default function BudgetSummaryCard({
             style={{ width: `${Math.min(percent, 100)}%`}}
           ></div>
 </div>
-<div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 font-mono">
+<div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 tabular-nums">
 <span>0%</span>
 <span>50%</span>
 <span>100% ({formatKes(resolved.approvedBudget)})</span>
@@ -125,7 +125,7 @@ export default function BudgetSummaryCard({
 <span className="text-[10px] font-semibold text-slate-500 block">
             Approved Budget
 </span>
-<span className="text-sm font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-sm font-bold tabular-nums text-slate-900 mt-1 block">
             {formatKes(resolved.approvedBudget)}
 </span>
 </div>
@@ -134,7 +134,7 @@ export default function BudgetSummaryCard({
 <span className="text-[10px] font-semibold text-emerald-700 block">
             Actual Spent (Approved)
 </span>
-<span className="text-sm font-bold font-mono text-emerald-800 mt-1 block">
+<span className="text-sm font-bold tabular-nums text-emerald-800 mt-1 block">
             {formatKes(resolved.approvedCost)}
 </span>
 </div>
@@ -143,7 +143,7 @@ export default function BudgetSummaryCard({
 <span className="text-[10px] font-semibold text-amber-700 block">
             Pending Approval
 </span>
-<span className="text-sm font-bold font-mono text-amber-800 mt-1 block">
+<span className="text-sm font-bold tabular-nums text-amber-800 mt-1 block">
             {formatKes(resolved.pendingCost)}
 </span>
 </div>
@@ -152,7 +152,7 @@ export default function BudgetSummaryCard({
 <span className="text-[10px] font-semibold text-blue-700 block">
             Remaining Budget
 </span>
-<span className="text-sm font-bold font-mono text-blue-800 mt-1 block">
+<span className="text-sm font-bold tabular-nums text-blue-800 mt-1 block">
             {formatKes(resolved.remainingBudget)}
 </span>
 </div>
@@ -166,50 +166,50 @@ export default function BudgetSummaryCard({
 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Materials</span>
-<span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
+<span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.MATERIAL.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block">
+<span className="text-[10px] text-amber-600 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.MATERIAL.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Labor</span>
-<span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
+<span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.LABOR.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block">
+<span className="text-[10px] text-amber-600 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.LABOR.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Plant / Hire</span>
-<span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
+<span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.PLANT.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block">
+<span className="text-[10px] text-amber-600 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.PLANT.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Subcontracts</span>
-<span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
+<span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.SUBCONTRACT.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block">
+<span className="text-[10px] text-amber-600 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.SUBCONTRACT.pending)} pend
 </span>
 </div>
 
 <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[10px] font-bold text-slate-600 block"> Prelims</span>
-<span className="font-mono font-semibold text-slate-800 block text-[11px] mt-0.5">
+<span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.PRELIMINARY.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block">
+<span className="text-[10px] text-amber-600 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.PRELIMINARY.pending)} pend
 </span>
 </div>

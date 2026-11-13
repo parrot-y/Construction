@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -40,6 +40,7 @@ export default function CompliancePortalView({
 }: CompliancePortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [auditor, setAuditor] = useState({ name: auditorName || '', agency: auditorAgency || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
@@ -64,7 +65,7 @@ export default function CompliancePortalView({
       try {
         const res = await fetch(`/api/v1/portals/compliance/${token}`, { credentials: 'include' });
         const body = await res.json();
-        if (!res.ok) throw new Error(body.message || 'This portal link is invalid or has expired');
+        if (!res.ok) throw portalHttpError(body.message || 'This portal link is invalid or has expired', res.status);
         if (cancelled) return;
         const d = body.data || body;
         if (d.regulatoryAuditor) setAuditor({ name: d.regulatoryAuditor.name || '', agency: d.regulatoryAuditor.agency || '' });
@@ -102,7 +103,7 @@ export default function CompliancePortalView({
         })));
         setCertificates(d.certificates || []);
       } catch (e: any) {
-        if (!cancelled) setLoadError(e.message || 'Failed to load portal');
+        if (!cancelled) { setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -114,12 +115,9 @@ export default function CompliancePortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
-    const isExpired = /expired/i.test(loadError);
-    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
       <div className="max-w-5xl mx-auto">
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={loadError || undefined} />
       </div>
     );
   }
@@ -189,7 +187,7 @@ export default function CompliancePortalView({
 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
 <p className="text-[11px] font-semibold text-slate-500">NCA Registration</p>
-<p className="text-xs font-mono font-bold text-slate-900 truncate">
+<p className="text-xs font-bold text-slate-900 truncate">
             {complianceSummary.ncaSiteRegistration || 'Not recorded'}
 </p>
 {complianceSummary.ncaSiteRegistration && (
@@ -257,7 +255,7 @@ export default function CompliancePortalView({
               {statutoryPermits.map((p) => (
 <tr key={p.id} className="hover:bg-slate-50">
 <td className="p-3 font-semibold text-slate-900">{p.authority}</td>
-<td className="p-3 font-mono font-bold text-blue-700">{p.permitNumber}</td>
+<td className="p-3 font-mono tabular-nums font-bold text-blue-700">{p.permitNumber}</td>
 <td className="p-3 text-slate-600 max-w-xs">{p.description}</td>
 <td className="p-3 text-slate-600">{p.issueDate}</td>
 <td className="p-3 text-slate-700 font-medium">{p.leadOfficer}</td>
@@ -313,14 +311,14 @@ export default function CompliancePortalView({
 
                 return (
 <tr key={c.id} className="hover:bg-slate-50">
-<td className="p-3 font-mono font-bold text-blue-700">{c.batch_reference}</td>
+<td className="p-3 font-mono tabular-nums font-bold text-blue-700">{c.batch_reference}</td>
 <td className="p-3 text-slate-600">{c.pour_date}</td>
 <td className="p-3 font-medium text-slate-900">{c.element_location}</td>
 <td className="p-3 font-bold text-slate-800">C{c.design_grade_mpa}</td>
-<td className="p-3 font-mono">
+<td className="p-3 tabular-nums">
                       {day7 ? `${day7.compressive_strength_mpa} MPa` : '—'}
 </td>
-<td className="p-3 font-mono">
+<td className="p-3 tabular-nums">
                       {day28 ? `${day28.compressive_strength_mpa} MPa` : 'In Curing Tank'}
 </td>
 <td className="p-3">
@@ -392,7 +390,7 @@ export default function CompliancePortalView({
 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3">
 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">NCA Registration:</span>
-<span className="font-bold text-slate-900 font-mono">{complianceSummary.ncaSiteRegistration || 'Not recorded'}</span>
+<span className="font-bold text-slate-900">{complianceSummary.ncaSiteRegistration || 'Not recorded'}</span>
 </div>
 {statutoryPermits.length === 0 ? (
 <div className="text-slate-500">No statutory permits on file — the contractor has not uploaded NEMA, county, DOSHS or NCWSC documents for this project.</div>
@@ -400,7 +398,7 @@ export default function CompliancePortalView({
 statutoryPermits.map((pm) => (
 <div key={pm.id} className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">{pm.authority}:</span>
-<span className="font-bold text-slate-900"><span className="font-mono">{pm.permitNumber}</span> ({pm.status})</span>
+<span className="font-bold text-slate-900"><span className="font-mono tabular-nums">{pm.permitNumber}</span> ({pm.status})</span>
 </div>
 ))
 )}

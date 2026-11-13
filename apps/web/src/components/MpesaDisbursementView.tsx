@@ -243,7 +243,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
             {disbursements.map((tx) => (
 <tr key={tx.id} className="hover:bg-gray-50">
 <td className="px-4 py-3 font-medium text-gray-900">{tx.recipientName}</td>
-<td className="px-4 py-3 text-gray-600 font-mono text-xs">{tx.recipientPhone}</td>
+<td className="px-4 py-3 text-gray-600 font-mono tabular-nums text-xs">{tx.recipientPhone}</td>
 <td className="px-4 py-3 text-xs text-gray-500">
 <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
                     {tx.disbursementType.replace(/_/g, ' ')}
@@ -265,7 +265,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
                     SIM
 </span>
 </td>
-<td className="px-4 py-3 text-center font-mono text-xs font-bold text-blue-600">
+<td className="px-4 py-3 text-center font-mono tabular-nums text-xs font-bold text-blue-600">
                   {tx.mpesaTransactionId || '—'}
 </td>
 <td className="px-4 py-3 text-right text-xs text-gray-500">
@@ -338,7 +338,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
                   placeholder="+2547XXXXXXXX"
                   value={recipientPhone}
                   onChange={(e) => setRecipientPhone(e.target.value)}
-                  className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm font-mono"
+                  className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm tabular-nums"
                   required
                 />
 </div>

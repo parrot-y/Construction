@@ -15,8 +15,10 @@
     "@construction/money": "workspace:*",
     "@construction/permissions": "workspace:*",
     "@construction/validation": "workspace:*",
+    "@sentry/react": "^11.12.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "wouter": "^3.13.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

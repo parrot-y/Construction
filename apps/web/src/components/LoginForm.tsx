@@ -1,12 +1,15 @@
 import React, { useState} from 'react';
 import { AuthSession} from '../types/auth';
+import { PRODUCT_NAME } from '../lib/product';
 
 interface LoginFormProps {
   onLoginSuccess: (session: AuthSession) => void;
+  onOpenSignup?: () => void;
+  onForgotPassword?: () => void;
   apiBaseUrl?: string;
 }
 
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV === true;
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 const DEMO_ACCOUNTS = DEMO_MODE ? [
   { label: 'Company Admin', email: 'admin@apexbuilders.co.ke', role: 'COMPANY_ADMIN', badge: 'bg-blue-100 text-blue-800'},
@@ -17,7 +20,7 @@ const DEMO_ACCOUNTS = DEMO_MODE ? [
   { label: 'Client', email: 'client@apexbuilders.co.ke', role: 'CLIENT', badge: 'bg-emerald-100 text-emerald-800'},
 ] : [];
 
-export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
+export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPassword, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
   const [email, setEmail] = useState(DEMO_MODE ? 'admin@apexbuilders.co.ke' : '');
   const [password, setPassword] = useState(DEMO_MODE ? 'Password123!' : '');
   const [isLoading, setIsLoading] = useState(false);
@@ -72,7 +75,7 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
               S
 </div>
 <div>
-<p className="text-lg font-extrabold ">Site Safi</p>
+<p className="text-lg font-extrabold ">{PRODUCT_NAME}</p>
 <p className="text-[11px] text-slate-400 font-medium">Kenya Construction OS</p>
 </div>
 </div>
@@ -92,7 +95,7 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Client &amp; stakeholder portals — external guests never consume paid seats</li>
 </ul>
 </div>
-<p className="relative text-[11px] text-slate-500">Sign in to your Site Safi workspace</p>
+<p className="relative text-[11px] text-slate-500">Sign in to your {PRODUCT_NAME} workspace</p>
 </div>
 
       {/* Form panel */}
@@ -102,7 +105,7 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
             S
 </div>
 <div>
-<p className="text-base font-extrabold text-slate-900">Site Safi</p>
+<p className="text-base font-extrabold text-slate-900">{PRODUCT_NAME}</p>
 <p className="text-[11px] text-slate-500">Kenya Construction OS</p>
 </div>
 </div>
@@ -160,7 +163,25 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
           >
             {isLoading ? 'Signing in…' : 'Sign in to workspace'}
 </button>
+{onForgotPassword && (
+<button
+            type="button"
+            onClick={onForgotPassword}
+            className="w-full text-center text-xs font-semibold text-slate-500 hover:text-brand-600 transition min-h-[44px] flex items-center justify-center"
+          >
+            Forgot password?
+</button>
+)}
 </form>
+
+{onOpenSignup && (
+<p className="mt-4 text-center text-sm text-slate-600">
+            New contractor?{' '}
+<button type="button" onClick={onOpenSignup} className="font-semibold text-brand-600 hover:text-brand-700">
+              Create your company workspace
+</button>
+</p>
+)}
 
 {DEMO_MODE && (
 <div className="mt-8 pt-6 border-t border-slate-100">

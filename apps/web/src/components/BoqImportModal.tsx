@@ -172,6 +172,17 @@ export default function BoqImportModal({
 )}
 </div>
 
+              <div className="flex items-center justify-between">
+                <a
+                  href="/api/v1/boq/template"
+                  download="sitesafi-boq-template.xlsx"
+                  className="text-xs font-semibold text-purple-700 hover:text-purple-900 underline"
+                >
+                  Download BOQ template (.xlsx)
+                </a>
+                <span className="text-[10px] text-slate-400">Preview is a dry run — nothing is saved until you confirm.</span>
+              </div>
+
               {/* Kenyan Format Guidance */}
 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-600">
 <h4 className="font-bold text-slate-800 text-[11px]">
@@ -193,7 +204,7 @@ export default function BoqImportModal({
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-[10px] font-semibold text-slate-500 block">Grand Total</span>
-<span className="text-base font-bold font-mono text-slate-900 mt-0.5 block">
+<span className="text-base font-bold tabular-nums text-slate-900 mt-0.5 block">
                     {formatKes(previewData.calculatedGrandTotal)}
 </span>
 </div>
@@ -223,7 +234,7 @@ export default function BoqImportModal({
 <div key={section.orderIdx} className="border border-slate-200 rounded-lg overflow-hidden">
 <div className="bg-slate-100 px-4 py-2.5 flex justify-between items-center text-xs border-b border-slate-200">
 <span className="font-bold text-slate-800">{section.title}</span>
-<span className="font-mono font-semibold text-slate-900">
+<span className="tabular-nums font-semibold text-slate-900">
                         Subtotal: {formatKes(section.subtotal)}
 </span>
 </div>
@@ -242,7 +253,7 @@ export default function BoqImportModal({
 <tbody className="divide-y divide-slate-100 text-slate-700">
                         {section.items.map((item, idx) => (
 <tr key={idx} className="hover:bg-slate-50/50">
-<td className="p-2.5 font-mono text-slate-500">{item.itemCode}</td>
+<td className="p-2.5 tabular-nums text-slate-500">{item.itemCode}</td>
 <td className="p-2.5 max-w-xs font-medium">
                               {item.description}
                               {item.isProvisional && (
@@ -254,10 +265,10 @@ export default function BoqImportModal({
 <p className="text-[10px] text-amber-700 mt-0.5"> {item.rejectionReason}</p>
 )}
 </td>
-<td className="p-2.5 font-mono text-slate-500">{item.unit}</td>
-<td className="p-2.5 text-right font-mono">{item.quantity}</td>
-<td className="p-2.5 text-right font-mono">{formatKes(item.unitRate)}</td>
-<td className="p-2.5 text-right font-mono font-semibold text-slate-900">
+<td className="p-2.5 tabular-nums text-slate-500">{item.unit}</td>
+<td className="p-2.5 text-right tabular-nums">{item.quantity}</td>
+<td className="p-2.5 text-right tabular-nums">{formatKes(item.unitRate)}</td>
+<td className="p-2.5 text-right tabular-nums font-semibold text-slate-900">
                               {formatKes(item.totalAmount)}
 </td>
 <td className="p-2.5 text-center">

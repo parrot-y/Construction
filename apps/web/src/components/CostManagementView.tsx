@@ -1,6 +1,8 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import CostCaptureModal from './CostCaptureModal';
+import { useAppDialog } from './AppDialog';
+import { api, ApiError } from '../lib/apiClient';
 
 export interface CostItem {
   id: string;
@@ -10,6 +12,7 @@ export interface CostItem {
   invoice_ref?: string | null;
   description: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'VOIDED';
+  self_approved?: boolean;
   created_at: string;
   receipts?: Array<{ id?: string; filename: string; mime_type?: string}>;
   boq_item?: { id: string; item_code: string; description: string} | null;
@@ -21,6 +24,7 @@ interface CostManagementViewProps {
   projectId: string;
   canApprove?: boolean;
   canCreate?: boolean;
+  userRole?: string;
   initialCosts?: CostItem[];
   boqItems?: Array<{ id: string; item_code: string; description: string}>;
 }
@@ -29,9 +33,11 @@ export default function CostManagementView({
   projectId,
   canApprove = true,
   canCreate = true,
+  userRole,
   initialCosts = [],
   boqItems = [],
 }: CostManagementViewProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const [costs, setCosts] = useState<CostItem[]>(initialCosts);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -39,12 +45,10 @@ export default function CostManagementView({
     if (!projectId) return;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/costs`, { credentials: 'include'});
-        if (!res.ok) throw new Error('Failed to load costs');
-        const rows = await res.json();
+        const rows = await api.get<CostItem[] | { data?: CostItem[] }>(`/api/v1/projects/${projectId}/costs`);
         setCosts(Array.isArray(rows) ? rows : (rows.data || []));
-      } catch (e: any) {
-        setLoadError(e.message || 'Failed to load costs');
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : 'Failed to load costs');
       }
     })();
   }, [projectId]);
@@ -57,70 +61,66 @@ export default function CostManagementView({
     setActionFeedback(`Cost entry for ${formatKes(newCost.amount)} logged successfully in PENDING status`);
 };
 
+  const postApproval = (costId: string, comments: string, selfApprovalReason?: string) =>
+    api.post<{ data?: { updated?: { selfApproved?: boolean; self_approved?: boolean } } }>(`/api/v1/projects/${projectId}/costs/${costId}/approve`, { action: 'APPROVED', comments, ...(selfApprovalReason ? { selfApprovalReason } : {}) });
+
   const handleApprove = async (costId: string) => {
-    const comments = window.prompt('Enter QS/PM approval comments:', 'Verified and approved against site delivery note');
+    const comments = await dialog.prompt({ title: 'Approve cost entry', inputLabel: 'QS/PM approval comments', defaultValue: 'Verified and approved against site delivery note', confirmLabel: 'Approve' });
     if (comments === null) return;
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/costs/${costId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: 'APPROVED', comments}),
-});
-      if (res.ok) {
-        setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED'} : c)));
-        setActionFeedback('Cost entry APPROVED successfully');
-} else {
-        // Fallback simulation
-        setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED'} : c)));
-        setActionFeedback('Cost entry approved.');
-}
-} catch (e: any) {
-      setActionFeedback(e.message || 'Network error — approval not recorded.');
+      let body;
+      try {
+        body = await postApproval(costId, comments);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409 && /selfApprovalReason|different approver/i.test(err.message)) {
+          const canSelfApprove = ['COMPANY_ADMIN', 'ADMIN'].includes(userRole || '');
+          if (!canSelfApprove) {
+            setActionFeedback('A different approver is required.');
+            return;
+          }
+          const reason = await dialog.prompt({ title: 'Self-approval reason required', inputLabel: 'Self-approval reason (min 15 characters)', confirmLabel: 'Approve anyway', minLength: 15 });
+          if (!reason || !reason.trim()) { setActionFeedback('Self-approval cancelled — a reason is required.'); return; }
+          body = await postApproval(costId, comments, reason.trim());
+        } else {
+          throw err;
+        }
+      }
+      const selfApproved = !!(body?.data?.updated?.selfApproved ?? body?.data?.updated?.self_approved);
+      setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED', self_approved: selfApproved || c.self_approved } : c)));
+      setActionFeedback(selfApproved ? 'Cost entry self-approved with recorded reason' : 'Cost entry APPROVED successfully');
+} catch (e) {
+      setActionFeedback(e instanceof Error ? e.message : 'Network error — approval not recorded.');
 }
 };
 
   const handleReject = async (costId: string) => {
-    const comments = window.prompt('Enter reason for rejection:');
+    const comments = await dialog.prompt({ title: 'Reject cost entry', inputLabel: 'Reason for rejection', confirmLabel: 'Reject', danger: true });
     if (!comments) return;
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/costs/${costId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: 'REJECTED', comments}),
-});
-      if (res.ok) {
+      await api.post(`/api/v1/projects/${projectId}/costs/${costId}/approve`, { action: 'REJECTED', comments });
+      {
         setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'REJECTED'} : c)));
         setActionFeedback('Cost entry marked as REJECTED');
-} else {
-        setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'REJECTED'} : c)));
-        setActionFeedback('Cost entry rejected.');
 }
-} catch (e: any) {
-      setActionFeedback(e.message || 'Network error — rejection not recorded.');
+} catch (e) {
+      setActionFeedback((e instanceof Error ? e.message : undefined) || 'Network error — rejection not recorded.');
 }
 };
 
   const handleVoid = async (costId: string) => {
-    const reason = window.prompt('Enter reason for VOIDING this entry (strict append-only audit trail):');
+    const reason = await dialog.prompt({ title: 'Void cost entry', message: 'This entry stays in the append-only audit trail.', inputLabel: 'Reason for voiding', confirmLabel: 'Void', danger: true });
     if (!reason) return;
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/costs/${costId}/void`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ reason}),
-});
-      if (res.ok) {
+      await api.post(`/api/v1/projects/${projectId}/costs/${costId}/void`, { reason });
+      {
         setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'VOIDED'} : c)));
         setActionFeedback('Cost entry VOIDED with immutable audit record');
-} else {
-        setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'VOIDED'} : c)));
-        setActionFeedback('Cost entry voided.');
 }
-} catch (e: any) {
-      setActionFeedback(e.message || 'Network error — void not recorded.');
+} catch (e) {
+      setActionFeedback((e instanceof Error ? e.message : undefined) || 'Network error — void not recorded.');
 }
 };
 
@@ -191,7 +191,7 @@ export default function CostManagementView({
               {canApprove &&<th className="py-2.5 px-3 font-semibold text-center">Actions</th>}
 </tr>
 </thead>
-<tbody className="divide-y divide-slate-100 font-mono">
+<tbody className="divide-y divide-slate-100">
             {filteredCosts.length === 0 ? (
 <tr>
 <td colSpan={canApprove ? 6 : 5} className="py-6 text-center text-slate-400 font-sans">
@@ -203,7 +203,7 @@ export default function CostManagementView({
 <tr key={cost.id} className="hover:bg-slate-50/50 transition">
 <td className="py-3 px-3 font-sans">
 <span className="font-semibold text-slate-900 block">{cost.vendor_name || 'Direct Site Expense'}</span>
-<span className="text-[10px] text-slate-400 block font-mono">
+<span className="text-[10px] text-slate-400 block font-mono tabular-nums">
                       {new Date(cost.created_at).toLocaleDateString()} {cost.invoice_ref ? `• ${cost.invoice_ref}` : ''}
 </span>
 </td>
@@ -237,6 +237,11 @@ export default function CostManagementView({
                     >
                       {cost.status}
 </span>
+                    {cost.self_approved && (
+<span className="ml-1 inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-violet-100 text-violet-800 border border-violet-200" title="Approved by the person who entered it, with a recorded reason">
+                         Self-approved
+</span>
+)}
 </td>
                   {canApprove && (
 <td className="py-3 px-3 text-center font-sans">
@@ -284,6 +289,7 @@ export default function CostManagementView({
         onCostCreated={handleCostCreated}
         boqItems={boqItems}
       />
+{dialog.element}
 </div>
 );
 }

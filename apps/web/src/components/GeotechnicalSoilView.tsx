@@ -378,10 +378,10 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 <tr key={test.id} className="hover:bg-gray-50 transition">
 <td className="px-4 py-3">
 <div className="font-semibold text-gray-900">{test.testNumber}</div>
-<div className="text-xs text-gray-500 font-mono mt-0.5">
+<div className="text-xs text-gray-500 font-mono tabular-nums mt-0.5">
                         {new Date(test.testDate).toLocaleDateString()}
 </div>
-<span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">
+<span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
                         {test.testMethod.replace('_', ' ')}
 </span>
 </td>

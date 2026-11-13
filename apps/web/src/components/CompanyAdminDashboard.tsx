@@ -23,6 +23,7 @@ import CompanyDocumentsView from './CompanyDocumentsView';
 import InboxView from './InboxView';
 import IntegrationsView from './IntegrationsView';
 import ScheduledReportsView from './ScheduledReportsView';
+import { useAppDialog } from './AppDialog';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -30,6 +31,7 @@ interface CompanyAdminDashboardProps {
 }
 
 export default function CompanyAdminDashboard({ session, onPreviewPortal}: CompanyAdminDashboardProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const { user} = session;
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -58,7 +60,8 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 } catch { /* leave unchanged */}
 };
   const handleRevoke = async (membershipId: string) => {
-    if (!window.confirm('Revoke this member\u2019s access to the workspace?')) return;
+    const ok = await dialog.confirm({ title: 'Revoke member access', message: 'Revoke this member’s access to the workspace?', confirmLabel: 'Revoke', danger: true });
+    if (!ok) return;
     try {
       const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include'});
       if (r.ok) setMembers((prev) => prev ? prev.filter((m: any) => m.membershipId !== membershipId) : prev);
@@ -204,7 +207,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <span className="text-[11px] font-semibold text-slate-500 block">
             Total Contract Value
 </span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {formatKes(metrics?.totalContractSum ?? 0)}
 </span>
 <span className="text-[11px] text-slate-400 mt-0.5 block">Sum across projects</span>
@@ -214,7 +217,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <span className="text-[11px] font-semibold text-slate-500 block">
             Approved Budget
 </span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {formatKes(metrics?.totalApprovedBudget ?? 0)}
 </span>
 <span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingApprovalsCount ?? 0} pending approvals` : 'No data yet'}</span>
@@ -257,13 +260,13 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <tr key={p.id} className="hover:bg-slate-50/50">
 <td className="p-3">
 <span className="font-bold text-slate-900 block">{p.name}</span>
-<span className="font-mono text-[11px] text-slate-500">Code: {p.code}</span>
+<span className="font-mono tabular-nums text-[11px] text-slate-500">Code: {p.code}</span>
 </td>
 <td className="p-3">
 <span>{p.location || '—'}</span>
 <span className="block text-[11px] text-slate-400">{p.nca_project_no ? `NCA Reg: ${p.nca_project_no}` : ''}</span>
 </td>
-<td className="p-3 font-mono font-semibold text-slate-900">
+<td className="p-3 font-mono tabular-nums font-semibold text-slate-900">
                     {p.contract_currency || 'KES'} {toCurrencyString(String(p.original_contract_sum ?? '0'))}
 </td>
 <td className="p-3">
@@ -429,11 +432,13 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
+{isModuleEnabled('safety-audits') && (
 <SafetyAuditScorecardView
         projectId={pid}
         projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
+)}
 
 </div>
 <div className={panelCls('compliance')}>
@@ -474,7 +479,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <QuotesManagementView />
 
       {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
-<InvoicingView />
+<InvoicingView userRole="COMPANY_ADMIN" />
 
 </div>
 <div className={panelCls('people')}>
@@ -586,7 +591,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                     value={projectCode}
                     onChange={(e) => setProjectCode(e.target.value)}
                     placeholder="e.g. WOT-2026"
-                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                   />
 </div>
 <div>
@@ -596,7 +601,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                     value={projectNcaNo}
                     onChange={(e) => setProjectNcaNo(e.target.value)}
                     placeholder="NCA-PRJ-2026-XXXX"
-                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                   />
 </div>
 </div>
@@ -619,7 +624,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                   value={projectContractSum}
                   onChange={(e) => setProjectContractSum(e.target.value)}
                   placeholder="e.g. 45000000"
-                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                 />
 </div>
 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -641,6 +646,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

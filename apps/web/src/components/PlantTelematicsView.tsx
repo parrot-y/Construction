@@ -685,7 +685,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <div>
 <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
 <span>CAN-bus Live Diagnostics Dashboard</span>
-<span className="px-2 py-0.5 rounded text-[11px] font-mono bg-blue-100 text-blue-800 border border-blue-200">
+<span className="px-2 py-0.5 rounded text-[11px] tabular-nums bg-blue-100 text-blue-800 border border-blue-200">
                 J1939 / OBD-II
 </span>
 </h3>
@@ -731,12 +731,12 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 {isOverheatFatal ? 'FATAL SHUTDOWN' : isOverheatWarning ? 'WARNING' : 'NORMAL'}
 </span>
 </div>
-<div className="text-2xl font-mono font-extrabold mt-1">
+<div className="text-2xl tabular-nums font-extrabold mt-1">
               {latestPing?.coolantTempC || '92.4'}°C
 </div>
             {/* Overheat Threshold Indicator */}
 <div className="mt-2 text-[10px] space-y-1">
-<div className="flex justify-between text-slate-500 font-mono">
+<div className="flex justify-between text-slate-500 tabular-nums">
 <span>Safe &lt;103°C</span>
 <span className="text-amber-600 font-bold">Warn 103°C</span>
 <span className="text-rose-600 font-bold">Limit 108°C</span>
@@ -761,7 +761,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <span className="text-[11px] font-bold text-slate-500">Engine Oil Temp</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">PID 0x5C</span>
 </div>
-<div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
+<div className="text-2xl tabular-nums font-extrabold text-slate-800 mt-1">
               {latestPing?.oilTempC || '98.5'}°C
 </div>
 <p className="text-[10px] text-slate-500 mt-2">Lubrication envelope: &lt;120.0°C</p>
@@ -773,7 +773,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <span className="text-[11px] font-bold text-slate-500">Engine Speed</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">PID 0x0C</span>
 </div>
-<div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
+<div className="text-2xl tabular-nums font-extrabold text-slate-800 mt-1">
               {latestPing?.engineRpm || (latestPing?.engineStatus === 'STOPPED' ? 0 : 1850)} RPM
 </div>
 <p className="text-[10px] text-slate-500 mt-2">Operating range: 800 - 2,200 RPM</p>
@@ -785,7 +785,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <span className="text-[11px] font-bold text-slate-500">Battery Voltage</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">24V System</span>
 </div>
-<div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
+<div className="text-2xl tabular-nums font-extrabold text-slate-800 mt-1">
               {latestPing?.batteryVoltage || '24.20'} V
 </div>
 <p className="text-[10px] text-slate-500 mt-2">Alternator charging: 23.5V - 28.5V</p>
@@ -799,7 +799,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </div>
 <div className="mt-1">
               {latestPing?.dtcFaultCodes ? (
-<div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-100 text-rose-800 border border-rose-300 font-mono text-xs font-bold">
+<div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-100 text-rose-800 border border-rose-300 tabular-nums text-xs font-bold">
 <span></span>
 <span>{latestPing.dtcFaultCodes}</span>
 </div>
@@ -867,7 +867,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </td>
 <td className="p-3 font-medium text-slate-800">
 <div>{evt.equipmentName}</div>
-<div className="text-[10px] font-mono text-slate-400">{evt.equipmentCode}</div>
+<div className="text-[10px] tabular-nums text-slate-400">{evt.equipmentCode}</div>
 </td>
 <td className="p-3">
 <span
@@ -882,10 +882,10 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                         {evt.engineStatus}
 </span>
 </td>
-<td className="p-3 font-mono font-bold text-rose-700">
+<td className="p-3 tabular-nums font-bold text-rose-700">
                       -{evt.fuelDropLiters || '40.00'} Liters
 </td>
-<td className="p-3 font-mono font-semibold text-slate-800">
+<td className="p-3 tabular-nums font-semibold text-slate-800">
                       {evt.dropRateLPerHour || '480.00'} L/h
 </td>
 <td className="p-3">
@@ -941,7 +941,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     >
                       {alert.severity}
 </span>
-<span className="font-mono text-xs font-bold text-slate-700">{alert.alertCode}</span>
+<span className="tabular-nums text-xs font-bold text-slate-700">{alert.alertCode}</span>
 <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         alert.status === 'ACTIVE'
@@ -1052,7 +1052,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 value={simEngineStatus === 'STOPPED' ? 0 : simRpm}
                 onChange={(e) => setSimRpm(e.target.value)}
                 disabled={simEngineStatus === 'STOPPED'}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800 disabled:bg-slate-100"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800 disabled:bg-slate-100"
                 required
               />
 </div>
@@ -1063,7 +1063,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 type="text"
                 value={simFuelPct}
                 onChange={(e) => setSimFuelPct(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                 required
               />
 </div>
@@ -1076,7 +1076,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 type="text"
                 value={simCoolant}
                 onChange={(e) => setSimCoolant(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
               />
 </div>
 <div>
@@ -1085,7 +1085,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 type="text"
                 value={simOil}
                 onChange={(e) => setSimOil(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
               />
 </div>
 <div>
@@ -1094,7 +1094,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 type="text"
                 value={simVoltage}
                 onChange={(e) => setSimVoltage(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
               />
 </div>
 <div>
@@ -1104,7 +1104,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 placeholder="e.g. P0115, P0217"
                 value={simDtc}
                 onChange={(e) => setSimDtc(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
               />
 </div>
 </div>
@@ -1112,7 +1112,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center">
 <div>
 <span className="text-slate-600 font-medium">Calibrated Fuel Volume in Tank:</span>
-<span className="font-mono font-bold text-slate-900">{previewFuelLiters.toFixed(2)} Liters</span>
+<span className="tabular-nums font-bold text-slate-900">{previewFuelLiters.toFixed(2)} Liters</span>
 <span className="text-slate-400"> (Capacity: {tankCap} L)</span>
 </div>
 <button
@@ -1156,9 +1156,9 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
 <td className="p-3 font-medium text-slate-800">
 <div>{p.equipmentName}</div>
-<div className="text-[10px] font-mono text-slate-400">{p.equipmentCode}</div>
+<div className="text-[10px] font-mono tabular-nums text-slate-400">{p.equipmentCode}</div>
 </td>
-<td className="p-3 font-mono text-slate-700">{p.deviceImei}</td>
+<td className="p-3 tabular-nums text-slate-700">{p.deviceImei}</td>
 <td className="p-3">
 <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -1172,8 +1172,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                       {p.engineStatus}
 </span>
 </td>
-<td className="p-3 font-mono font-bold text-slate-800">{p.fuelLevelPercent}%</td>
-<td className="p-3 font-mono font-bold text-slate-900">{p.calculatedFuelLiters} L</td>
+<td className="p-3 tabular-nums font-bold text-slate-800">{p.fuelLevelPercent}%</td>
+<td className="p-3 tabular-nums font-bold text-slate-900">{p.calculatedFuelLiters} L</td>
 <td className="p-3">
                     {p.isSiphoningEvent ? (
 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
@@ -1335,7 +1335,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     type="text"
                     value={newEquipCode}
                     onChange={(e) => setNewEquipCode(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -1366,7 +1366,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     id="reg-baud-rate"
                     value={newBaudRate}
                     onChange={(e) => setNewBaudRate(parseInt(e.target.value, 10))}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 text-slate-800 font-mono"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 text-slate-800 tabular-nums"
                   >
 <option value={250000}>250 kbps (J1939 Standard)</option>
 <option value={500000}>500 kbps (High Speed CAN)</option>
@@ -1381,7 +1381,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     type="text"
                     value={newMaxBurnRate}
                     onChange={(e) => setNewMaxBurnRate(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -1396,7 +1396,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                   type="text"
                   value={newImei}
                   onChange={(e) => setNewImei(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                   required
                 />
 </div>
@@ -1411,7 +1411,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     type="text"
                     value={newTankCap}
                     onChange={(e) => setNewTankCap(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -1441,7 +1441,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                   type="text"
                   value={newSimPhone}
                   onChange={(e) => setNewSimPhone(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                 />
 </div>
 

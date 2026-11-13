@@ -11,6 +11,21 @@ import {
   UpdateSitePhotoVisibilitySchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
+import { notifyTeam } from '../lib/notify';
+
+/**
+ * Stage-2 privacy: CLIENT and OWNER never receive internal diary notes or
+ * photos that were not explicitly marked client-visible. Everything else
+ * (weather, status, headcounts, deliveries, visible photos) is shared.
+ */
+function toClientSafeDiary<T extends { general_notes?: string | null; photos?: any[] }>(diary: T): T {
+  return {
+    ...diary,
+    general_notes: null,
+    photos: (diary.photos || []).filter((p: any) => p.client_visible === true),
+  };
+}
 
 export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ---------------------------------------------------------------------------
@@ -161,9 +176,25 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 is_non_work_day: data.isNonWorkDay ?? false,
               },
             });
-            // Clean up existing headcounts & deliveries for replacement
+            // Clean up existing headcounts for replacement. Deliveries merge
+            // instead: rows matching an incoming delivery's natural key are
+            // replaced, unrelated deliveries recorded earlier the same day are
+            // kept (a second diary submission must not erase the first).
             await tx.laborHeadcount.deleteMany({ where: { site_diary_id: diary.id } });
-            await tx.materialDelivery.deleteMany({ where: { site_diary_id: diary.id } });
+            const incomingKeys = new Set(
+              (data.deliveries ?? []).map((d) =>
+                [d.materialName, d.unit, String(d.quantity), d.deliveryNote ?? '', d.supplierName ?? ''].join('|')),
+            );
+            const existingDeliveries = await tx.materialDelivery.findMany({
+              where: { site_diary_id: diary.id },
+              select: { id: true, material_name: true, unit: true, quantity: true, delivery_note: true, supplier_name: true },
+            });
+            const replaceIds = existingDeliveries
+              .filter((e) => incomingKeys.has([e.material_name, e.unit, e.quantity.toString(), e.delivery_note ?? '', e.supplier_name ?? ''].join('|')))
+              .map((e) => e.id);
+            if (replaceIds.length > 0) {
+              await tx.materialDelivery.deleteMany({ where: { id: { in: replaceIds } } });
+            }
           } else {
             diary = await tx.siteDiary.create({
               data: {
@@ -193,6 +224,22 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
           // Insert material deliveries
           if (data.deliveries && data.deliveries.length > 0) {
+            // Resolve supplier names to Supplier records so portal scoping by
+            // supplier_id works even when the diary only carried a name.
+            const unnamed = data.deliveries.filter((d) => !d.supplierId && d.supplierName);
+            const nameToId = new Map<string, string>();
+            if (unnamed.length > 0) {
+              const names = [...new Set(unnamed.map((d) => d.supplierName!.trim().toLowerCase()))];
+              // Match names case-insensitively in memory (collation-safe).
+              const all = await tx.supplier.findMany({
+                where: { is_active: true },
+                select: { id: true, name: true },
+              });
+              for (const sup of all) {
+                const key = sup.name.trim().toLowerCase();
+                if (names.includes(key) && !nameToId.has(key)) nameToId.set(key, sup.id);
+              }
+            }
             await tx.materialDelivery.createMany({
               data: data.deliveries.map((d) => ({
                 tenant_id: tenantId,
@@ -201,6 +248,9 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 quantity: d.quantity,
                 unit: d.unit,
                 supplier_name: d.supplierName || null,
+                supplier_id: d.supplierId || (d.supplierName ? nameToId.get(d.supplierName.trim().toLowerCase()) ?? null : null),
+                purchase_order_id: d.purchaseOrderId || null,
+                purchase_order_item_id: d.purchaseOrderItemId || null,
                 delivery_note: d.deliveryNote || null,
               })),
             });
@@ -240,6 +290,16 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             },
             ipAddress: request.ip,
             userAgent: request.headers['user-agent'] || null,
+          });
+
+          // Team notification: diary filed (in-app inbox)
+          const recorderName = (request.user as any).full_name || (request.user as any).email || 'Site team';
+          await notifyTeam(tx, {
+            tenantId,
+            projectId,
+            senderId: sub,
+            senderName: recorderName,
+            body: `Site diary filed for ${project.name} — ${data.entryDate}: ${data.weather}, ${data.siteStatus}.`,
           });
 
           const createdDiary = await tx.siteDiary.findUnique({
@@ -312,24 +372,42 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       ],
     },
     async (request, reply) => {
-      const { tenantId } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId } = request.params as { projectId: string };
+
+      // WORKER field role sees only their own diary entries (Stage 4).
+      const ownOnly = role === 'WORKER';
+      const pg = listParams(request);
+
+      // Tenant-scoped project check — foreign/unknown project ids 404 rather
+      // than silently returning an empty diary list.
+      const project = await withTenantTx(prisma, tenantId, (tx) =>
+        tx.project.findFirst({ where: { id: projectId }, select: { id: true } }),
+      );
+      if (!project) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
 
       const diaries = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.siteDiary.findMany({
-          where: { project_id: projectId },
+          where: { project_id: projectId, ...(ownOnly ? { recorded_by_id: sub } : {}) },
           include: {
             labor_headcounts: true,
             deliveries: true,
             photos: true,
           },
           orderBy: { entry_date: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
+      const clientSafe = request.user.role === 'CLIENT' || request.user.role === 'OWNER';
+      const paged = listPage(diaries.map((d) => (clientSafe ? toClientSafeDiary(d) : d)), pg);
       return reply.status(200).send({
-        data: diaries,
-        count: diaries.length,
+        data: paged.data,
+        page: paged.page,
+        count: paged.data.length,
       });
     },
   );
@@ -346,7 +424,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       ],
     },
     async (request, reply) => {
-      const { tenantId } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId, diaryId } = request.params as { projectId: string; diaryId: string };
 
       const diary = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -354,6 +432,8 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
           where: {
             id: diaryId,
             project_id: projectId,
+            // WORKER field role can only open their own entries (Stage 4).
+            ...(role === 'WORKER' ? { recorded_by_id: sub } : {}),
           },
           include: {
             labor_headcounts: true,
@@ -371,7 +451,8 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         });
       }
 
-      return reply.status(200).send({ data: diary });
+      const clientSafe = request.user.role === 'CLIENT' || request.user.role === 'OWNER';
+      return reply.status(200).send({ data: clientSafe ? toClientSafeDiary(diary) : diary });
     },
   );
 
@@ -645,6 +726,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       const records = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.progressRecord.findMany({
@@ -659,14 +741,19 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             },
           },
           orderBy: { record_date: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      const latestOverall = records[0] ? records[0].overall_progress.toString() : '0.0000';
+      const paged = listPage(records, pg);
+      const pageRecords = paged.data;
+      const latestOverall = pageRecords[0] ? pageRecords[0].overall_progress.toString() : '0.0000';
 
       return reply.status(200).send({
-        data: records,
-        count: records.length,
+        data: pageRecords,
+        page: paged.page,
+        count: pageRecords.length,
         latestOverallProgress: latestOverall,
         latestOverallPercentage: (parseFloat(latestOverall) * 100).toFixed(2),
       });

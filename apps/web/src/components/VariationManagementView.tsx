@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
+import { useAppDialog } from './AppDialog';
+import { api } from '../lib/apiClient';
 
 export interface VariationItemData {
   id: string;
@@ -60,6 +62,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const TRIGGER_LABELS: Record<string, string> = {
+  CLIENT_REQUEST: 'Client request',
   DESIGN_CLARIFICATION: 'Design clarification',
   OWNER_REQUEST: 'Owner request',
   UNFORESEEN_CONDITION: 'Unforeseen condition',
@@ -80,6 +83,7 @@ export default function VariationManagementView({
   initialVariations,
   onVariationUpdated,
 }: VariationManagementViewProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const [variations, setVariations] = useState<VariationOrderData[]>(initialVariations ?? []);
   const [loading, setLoading] = useState(!initialVariations);
   const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>('ALL');
@@ -91,11 +95,8 @@ export default function VariationManagementView({
   const loadVariations = useCallback(async () => {
     if (!projectId) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/variations`, { credentials: 'include'});
-      if (res.ok) {
-        const json = await res.json();
-        setVariations(json.data || []);
-}
+      const json = await api.get<{ data?: VariationOrderData[] }>(`/api/v1/projects/${projectId}/variations`);
+      setVariations(json.data || []);
 } catch {
       // offline/demo — keep current list
 } finally {
@@ -125,19 +126,8 @@ export default function VariationManagementView({
       ? `/api/v1/projects/${projectId}/variations/${variationId}/submit`
       : `/api/v1/projects/${projectId}/variations/${variationId}/review`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify(isSubmit ? {} : { action, comments}),
-});
-
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody.message || `Request failed (${res.status})`);
-}
-    const json = await res.json();
-    return json.data as VariationOrderData;
+    const json = await api.post<{ data: VariationOrderData }>(url, isSubmit ? {} : { action, comments });
+    return json.data;
 };
 
   const handleReviewAction = async (variationId: string, action: 'EVALUATE' | 'APPROVE' | 'REJECT' | 'VOID') => {
@@ -151,7 +141,12 @@ export default function VariationManagementView({
             ? 'Enter reason for voiding this change order:'
             : 'Enter reason for rejecting this change order:';
 
-    const comments = window.prompt(promptMessage, '');
+    const comments = await dialog.prompt({
+      title: action === 'APPROVE' ? 'Approve change order' : action === 'VOID' ? 'Void change order' : action === 'REJECT' ? 'Reject change order' : 'Evaluate change order',
+      inputLabel: promptMessage.replace(/:$/, ''),
+      confirmLabel: action === 'REJECT' || action === 'VOID' ? action : 'Submit',
+      danger: action === 'REJECT' || action === 'VOID',
+    });
     if (comments === null) return;
     if (action === 'REJECT' && comments.trim().length< 3) {
       setActionError('A rejection reason is required.');
@@ -280,7 +275,7 @@ export default function VariationManagementView({
               >
 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
                       CO-{String(vo.variation_no).padStart(4, '0')}
 </span>
 <h4 className="text-xs font-bold text-slate-900">{vo.title}</h4>
@@ -299,7 +294,7 @@ export default function VariationManagementView({
 <div className="flex items-center gap-3">
 <div className="text-right">
 <span
-                        className={`text-xs font-mono font-bold block ${
+                        className={`text-xs tabular-nums font-bold block ${
                           isPositive ? 'text-emerald-700' : 'text-amber-700'
 }`}
                       >
@@ -361,12 +356,12 @@ export default function VariationManagementView({
                                       {isAddition ? 'ADDITION' : 'OMISSION'}
 </span>
 </td>
-<td className="p-2.5 font-mono">
+<td className="p-2.5 tabular-nums">
                                     {isAddition ? `+${item.quantity}` : `${item.quantity}`} {item.unit}
 </td>
-<td className="p-2.5 font-mono">{formatKes(item.unit_rate)}</td>
+<td className="p-2.5 tabular-nums">{formatKes(item.unit_rate)}</td>
 <td
-                                    className={`p-2.5 font-mono font-bold text-right ${
+                                    className={`p-2.5 tabular-nums font-bold text-right ${
                                       itemTotalNum >= 0 ? 'text-emerald-700' : 'text-rose-700'
 }`}
                                   >
@@ -387,7 +382,7 @@ export default function VariationManagementView({
 <ul className="space-y-1.5">
                           {vo.events.map((ev) => (
 <li key={ev.id} className="flex items-start gap-2 text-[11px] text-slate-600">
-<span className="font-mono text-slate-400 shrink-0">
+<span className="font-mono tabular-nums text-slate-400 shrink-0">
                                 {new Date(ev.created_at).toLocaleString()}
 </span>
 <span>
@@ -475,6 +470,7 @@ export default function VariationManagementView({
         projectId={projectId}
         onVariationCreated={handleVariationCreated}
       />
+{dialog.element}
 </div>
 );
 }

@@ -5,8 +5,37 @@ import { toCurrencyString, Decimal } from '@construction/money';
 import { requirePermission } from '../plugins/rbac';
 import { parseBOQWorkbook, ParsedBOQSection } from '../services/boq-parser';
 import ExcelJS from 'exceljs';
+import { PRODUCT_NAME } from '../lib/product';
+import { listParams, listPage } from '../lib/pagination';
 
 export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // GET /api/v1/boq/template - downloadable BOQ workbook template (F3).
+  // Pre-formatted headers + one example row per problem class so importers
+  // see the expected shape before uploading a real document.
+  server.get(
+    '/api/v1/boq/template',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_IMPORT),
+      ],
+    },
+    async (_request, reply) => {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Bills of Quantities');
+      sheet.addRow(['Item No', 'Description', 'Unit', 'Qty', 'Rate (KES)', 'Amount (KES)']);
+      sheet.addRow(['', 'BILL NO. 1 - PRELIMINARIES & GENERAL CONDITIONS', '', '', '', '']);
+      sheet.addRow(['1.1', 'Example measured item — excavate in normal soil', 'M3', 100, 850, 85000]);
+      sheet.addRow(['1.2', 'Example provisional sum item', 'SUM', '', '', 250000]);
+      sheet.addRow(['', 'BILL NO. 2 - SUPERSTRUCTURE', '', '', '', '']);
+      sheet.addRow(['2.1', 'Example prime-cost item (flagged for review)', 'ITEM', 1, 0, 0]);
+      const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+      reply.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      reply.header('Content-Disposition', 'attachment; filename="sitesafi-boq-template.xlsx"');
+      return reply.send(buffer);
+    },
+  );
+
   // POST /api/v1/projects/:projectId/boq/preview - Staged Excel BOQ Parser & Validator
   server.post(
     '/api/v1/projects/:projectId/boq/preview',
@@ -79,6 +108,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
         sourceFilename?: string;
         sections: ParsedBOQSection[];
         excludeRejected?: boolean;
+        dryRun?: boolean;
       };
 
       if (!body || !Array.isArray(body.sections) || body.sections.length === 0) {
@@ -86,6 +116,46 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       }
 
       const excludeRejected = body.excludeRejected !== false;
+
+      // F3 dry-run: report what WOULD be imported (row-by-row problems,
+      // totals, version) without writing a single row.
+      if ((body as { dryRun?: boolean }).dryRun === true) {
+        const problems: Array<{ section: string; itemCode: string; description: string; problem: string }> = [];
+        let dryItems = 0;
+        let dryRejected = 0;
+        let dryTotal = new Decimal(0);
+        for (const sec of body.sections) {
+          for (const item of sec.items) {
+            dryItems++;
+            if (excludeRejected && item.status === 'REJECTED') {
+              dryRejected++;
+              problems.push({ section: sec.title, itemCode: item.itemCode, description: item.description, problem: item.rejectionReason || 'REJECTED row excluded' });
+              continue;
+            }
+            if (item.status === 'WARNING' || item.status === 'REJECTED') {
+              problems.push({ section: sec.title, itemCode: item.itemCode, description: item.description, problem: item.rejectionReason || item.status });
+            }
+            if (item.isProvisional) {
+              problems.push({ section: sec.title, itemCode: item.itemCode, description: item.description, problem: 'Provisional sum — confirm PC settlement before certification' });
+            }
+            if (!item.unit || item.unit === 'ITEM') {
+              problems.push({ section: sec.title, itemCode: item.itemCode, description: item.description, problem: 'Missing or generic unit of measure' });
+            }
+            dryTotal = dryTotal.plus(item.totalAmount || '0');
+          }
+        }
+        return reply.status(200).send({
+          data: {
+            dryRun: true,
+            saved: false,
+            sections: body.sections.length,
+            items: dryItems,
+            excludedRows: dryRejected,
+            calculatedGrandTotal: toCurrencyString(dryTotal),
+            problems,
+          },
+        });
+      }
 
       const createdBOQ = await withTenantTx(prisma, tenantId, async (tx) => {
         // Verify project
@@ -297,7 +367,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       }
 
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'Site Safi';
+      workbook.creator = PRODUCT_NAME;
       const sheet = workbook.addWorksheet('BOQ');
 
       sheet.columns = [
@@ -363,6 +433,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
       const { q, sectionId } = request.query as { q?: string; sectionId?: string };
+      const pg = listParams(request);
 
       const items = await withTenantTx(prisma, tenantId, async (tx) => {
         const activeBOQ = await tx.bOQ.findFirst({
@@ -389,10 +460,13 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
           },
           include: { section: { select: { title: true, order_idx: true } } },
           orderBy: { created_at: 'asc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.status(200).send({ data: items });
+      const paged = listPage(items, pg);
+      return reply.status(200).send({ data: paged.data, page: paged.page });
     },
   );
 };

@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { queueOfflineMutation } from '../services/offline-sync';
 
 export interface SafetyIncident {
   id: string;
@@ -90,25 +91,77 @@ export default function SafetyIncidentLogView({
   const lostTimeCount = incidents.filter((i) => i.incident_type === 'LOST_TIME_INJURY').length;
   const oshaReportableCount = incidents.filter((i) => i.is_osha_reportable).length;
 
-  const handleCreateIncident = (e: React.FormEvent) => {
+  const handleCreateIncident = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLocation.trim() || !newDescription.trim()) return;
 
-    const created: SafetyIncident = {
-      id: `inc-${Date.now()}`,
-      incident_date: new Date(newDate).toISOString(),
-      location_on_site: newLocation.trim(),
-      incident_type: newType,
-      severity: newSeverity,
+    const sevToApi: Record<SafetyIncident['severity'], string> = { LOW: 'MINOR', MEDIUM: 'MODERATE', HIGH: 'SERIOUS', CRITICAL: 'CRITICAL' };
+    const payload = {
+      incidentDate: newDate.slice(0, 10),
+      incidentTime: newDate.slice(11, 16) || undefined,
+      incidentType: newType,
+      severity: sevToApi[newSeverity],
+      exactLocation: newLocation.trim(),
+      affectedPersonName: newAffected.trim() || undefined,
       description: newDescription.trim(),
-      affected_person: newAffected.trim() || null,
-      immediate_action: newImmediate.trim() || null,
-      corrective_action: newCorrective.trim() || null,
-      is_osha_reportable: newOsha,
-      status: 'OPEN',
-      reported_at: new Date().toISOString(),
-      recorded_by: { full_name: 'Site HSE Officer'},
-};
+      immediateAction: newImmediate.trim() || undefined,
+      preventativeAction: newCorrective.trim() || undefined,
+      isOshaReportable: newOsha,
+      investigatedBy: 'Site HSE Officer',
+    };
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    let created: SafetyIncident | null = null;
+
+    if (!isOffline) {
+      try {
+        const res = await fetch(`/api/v1/projects/${projectId}/safety-incidents`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const body = await res.json();
+          const i = body.data ?? body;
+          created = {
+            id: i.id,
+            incident_date: i.incident_date,
+            location_on_site: i.exact_location,
+            incident_type: i.incident_type,
+            severity: ({ MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' } as const)[i.severity as 'MINOR'] || 'MEDIUM',
+            description: i.description,
+            affected_person: i.affected_person_name,
+            immediate_action: i.immediate_action,
+            corrective_action: i.preventative_action,
+            is_osha_reportable: !!i.is_osha_reportable,
+            status: 'OPEN',
+            recorded_by: { full_name: i.investigated_by || 'Site team' },
+            reported_at: i.created_at,
+          };
+        }
+      } catch { /* fall through to queue */ }
+    }
+
+    if (!created) {
+      // Offline (or API unreachable): queue with idempotency key — the sync
+      // engine replays it exactly once when connectivity returns.
+      await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/safety-incidents`, payload);
+      created = {
+        id: `inc-${Date.now()}`,
+        incident_date: new Date(newDate).toISOString(),
+        location_on_site: newLocation.trim(),
+        incident_type: newType,
+        severity: newSeverity,
+        description: newDescription.trim(),
+        affected_person: newAffected.trim() || null,
+        immediate_action: newImmediate.trim() || null,
+        corrective_action: newCorrective.trim() || null,
+        is_osha_reportable: newOsha,
+        status: 'OPEN',
+        recorded_by: { full_name: 'Site HSE Officer'},
+        reported_at: new Date().toISOString(),
+      };
+    }
 
     setIncidents([created, ...incidents]);
     if (onIncidentLogged) onIncidentLogged(created);

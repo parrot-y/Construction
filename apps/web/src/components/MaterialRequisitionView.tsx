@@ -346,7 +346,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 ) : (
               filteredRequisitions.map((req) => (
 <tr key={req.id} className="hover:bg-slate-50/80 transition">
-<td className="py-3 px-4 font-mono font-medium text-slate-900">
+<td className="py-3 px-4 font-mono tabular-nums font-medium text-slate-900">
                     {req.requisitionNo}
 </td>
 <td className="py-3 px-4">
@@ -523,7 +523,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
               {/* Dynamic Total Preview */}
 <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 flex justify-between items-center">
 <span className="font-semibold text-amber-900">Calculated Commitment:</span>
-<span className="text-base font-bold text-amber-900 font-mono">{formatKes(calculatedTotal)}</span>
+<span className="text-base font-bold text-amber-900 tabular-nums">{formatKes(calculatedTotal)}</span>
 </div>
 
 <div className="grid grid-cols-2 gap-4">

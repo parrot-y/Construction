@@ -1,0 +1,5 @@
+# Auditor acceptance specs are immutable contracts — owner review required
+# for any change, including the hash manifest itself.
+/e2e/tests/aud-*.spec.ts        @parrot-y
+/e2e/tests/aud-specs.sha256     @parrot-y
+/.github/workflows/e2e.yml      @parrot-y

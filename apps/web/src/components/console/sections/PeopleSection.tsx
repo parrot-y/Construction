@@ -4,6 +4,7 @@ import { useConsole} from '../ConsoleContext';
 import CrewsView from '../../CrewsView';
 import SubcontractorManagementView from '../../SubcontractorManagementView';
 import { IconPlus} from '../icons';
+import { useAppDialog } from '../../AppDialog';
 
 const ASSIGN_ROLES = ['COMPANY_ADMIN','CLIENT','ARCHITECT','PM_QS','QA_QC','OWNER','EXECUTIVE','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE','ADMIN','SITE_SUPERVISOR'];
 const ROLE_LABELS: Record<string, string> = {
@@ -16,7 +17,28 @@ const ROLE_LABELS: Record<string, string> = {
 
 /** Team — members table with live role editing + invite + revoke. */
 function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
-  const { session} = useConsole();
+  const dialog = useAppDialog();
+  const { session, role} = useConsole();
+  const isCompanyAdmin = role === 'COMPANY_ADMIN' || role === 'ADMIN';
+  const [exportBusy, setExportBusy] = useState(false);
+
+  const downloadCompanyData = async (format: 'json' | 'csv', entity?: string) => {
+    setExportBusy(true);
+    try {
+      const qs = new URLSearchParams({ format});
+      if (entity) qs.set('entity', entity);
+      const r = await fetch(`/api/v1/company/export?${qs}`, { credentials: 'include'});
+      if (!r.ok) { setMsg('Export failed — company admin access required'); return; }
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = format === 'csv' ? `${entity}-export.csv` : 'company-export.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } finally {
+      setExportBusy(false);
+    }
+};
   const [members, setMembers] = useState<any[] | null>(null);
   const [invite, setInvite] = useState({ email: '', role: 'SITE_ENGINEER', open: false});
   const [msg, setMsg] = useState('');
@@ -39,7 +61,8 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 };
 
   const revoke = async (membershipId: string) => {
-    if (!window.confirm('Revoke this member\u2019s access?')) return;
+    const ok = await dialog.confirm({ title: 'Revoke member access', message: 'Revoke this member’s access?', confirmLabel: 'Revoke', danger: true });
+    if (!ok) return;
     const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include'});
     if (r.ok) setMembers((prev) => prev?.filter((m) => m.membershipId !== membershipId) ?? prev);
 };
@@ -50,8 +73,62 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
       body: JSON.stringify({ email: invite.email, role: invite.role}),
 });
     const j = await r.json().catch(() => ({}));
-    setMsg(r.ok ? `Invitation sent to ${invite.email}` : (j.message || 'Invite failed'));
-    if (r.ok) { setInvite({ email: '', role: 'SITE_ENGINEER', open: false});}
+    const link = r.ok && j.data?.inviteUrl ? ` Copy and send this link to ${invite.email}: ${j.data.inviteUrl}` : '';
+    setMsg(r.ok ? `Invitation created for ${invite.email}.${link}` : (j.message || 'Invite failed'));
+    if (r.ok) { setInvite({ email: '', role: 'SITE_ENGINEER', open: false}); loadInvites();}
+};
+
+  const [invites, setInvites] = useState<any[] | null>(null);
+  const [inviteMsg, setInviteMsg] = useState('');
+
+  const loadInvites = () => {
+    fetch('/api/v1/invitations', { credentials: 'include'})
+      .then((r) => (r.ok ? r.json() : { data: []}))
+      .then((j) => setInvites(j.data || []))
+      .catch(() => setInvites([]));
+};
+  useEffect(loadInvites, []);
+
+  const copyInviteLink = async (inviteUrl: string) => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteMsg('Invite link copied to clipboard — send it to the invitee.');
+    } catch {
+      setInviteMsg(inviteUrl);
+    }
+};
+
+  const resetMemberPassword = async (userId: string, email: string) => {
+    const r = await fetch(`/api/v1/company/members/${userId}/password-reset`, { method: 'POST', credentials: 'include'});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { setMsg(j.message || 'Could not generate reset link'); return; }
+    const url = j.data?.resetUrl;
+    try {
+      await navigator.clipboard.writeText(url);
+      setMsg(`One-time reset link for ${email} copied — send it to them. It expires in 30 minutes.`);
+    } catch {
+      setMsg(`Reset link for ${email}: ${url}`);
+    }
+};
+
+  const activateMember = async (userId: string, email: string) => {
+    const r = await fetch(`/api/v1/company/members/${userId}/activate`, { method: 'POST', credentials: 'include'});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { setMsg(`${email} activated — they can sign in now.`); load(); }
+    else setMsg(j.message || 'Activation failed');
+};
+
+  const revokeInvite = async (id: string) => {
+    const r = await fetch(`/api/v1/invitations/${id}/revoke`, { method: 'POST', credentials: 'include'});
+    if (r.ok) loadInvites();
+    else { const j = await r.json().catch(() => ({})); setInviteMsg(j.message || 'Revoke failed');}
+};
+
+  const regenerateInvite = async (id: string) => {
+    const r = await fetch(`/api/v1/invitations/${id}/regenerate`, { method: 'POST', credentials: 'include'});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { setInviteMsg('New invite link generated — the old link no longer works.'); loadInvites();}
+    else setInviteMsg(j.message || 'Regenerate failed');
 };
 
   return (
@@ -61,12 +138,20 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Team</h3>
 <p className="text-xs text-slate-500 dark:text-slate-400">Invite teammates and give each a role. They sign in with that role.</p>
 </div>
-        {canInvite && (
+        <div className="flex items-center gap-2">
+          {isCompanyAdmin && (
+<button onClick={() => downloadCompanyData('json')} disabled={exportBusy}
+              className="px-3.5 py-2 text-xs font-bold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">
+              {exportBusy ? 'Preparing…' : 'Download company data'}
+</button>
+)}
+          {canInvite && (
 <button onClick={() => setInvite({ ...invite, open: !invite.open})}
             className="px-3.5 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1.5">
 <IconPlus className="w-3.5 h-3.5" /> Invite member
 </button>
 )}
+</div>
 </div>
 
       {msg &&<p className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">{msg}</p>}
@@ -108,6 +193,9 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <td className="px-5 py-3 font-semibold">{m.user?.full_name || '—'}</td>
 <td className="px-3 py-3">{m.user?.email}</td>
 <td className="px-3 py-3">
+                      {m.verificationPending && (
+<span className="mr-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold align-middle">PENDING ACTIVATION</span>
+)}
                       {canInvite && !isSelf ? (
 <select value={m.role} onChange={(e) => changeRole(m.membershipId, e.target.value)}
                           className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 text-[11px] font-bold">
@@ -117,9 +205,15 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[10px] font-bold">{ROLE_LABELS[m.role] || m.role}</span>
 )}
 </td>
-<td className="px-5 py-3 text-right">
+<td className="px-5 py-3 text-right whitespace-nowrap">
                       {canInvite && !isSelf && (
+<span className="inline-flex items-center gap-2">
 <button onClick={() => revoke(m.membershipId)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
+<button onClick={() => resetMemberPassword(m.user?.id, m.user?.email)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Reset link</button>
+{m.verificationPending && (
+<button onClick={() => activateMember(m.user?.id, m.user?.email)} className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700">Activate</button>
+)}
+</span>
 )}
 </td>
 </tr>
@@ -132,6 +226,47 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 </table>
 </div>
 </div>
+
+      {/* Invitations — pending / accepted / revoked with link actions */}
+      {canInvite && invites !== null && invites.length > 0 && (
+<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800">
+<h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Invitations</h4>
+</div>
+{inviteMsg &&<p className="px-5 py-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800">{inviteMsg}</p>}
+<div className="divide-y divide-slate-50 dark:divide-slate-800/60">
+            {invites.map((inv: any) => (
+<div key={inv.id} className="px-5 py-3 flex flex-wrap items-center gap-3 text-xs">
+<span className="font-semibold text-slate-800 dark:text-slate-200 w-56 truncate">{inv.email}</span>
+<span className="text-slate-500">{ROLE_LABELS[inv.role] || inv.role}</span>
+<span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  inv.status === 'PENDING' ? 'bg-amber-100 text-amber-800'
+                  : inv.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-slate-200 text-slate-600'
+                }`}>
+                {inv.status}
+</span>
+<span className="text-[10px] text-slate-400">
+                expires {new Date(inv.expiresAt).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
+</span>
+<div className="ml-auto flex items-center gap-3">
+                  {inv.status === 'PENDING' && (
+<>
+<button onClick={() => copyInviteLink(inv.inviteUrl)} className="text-[11px] font-bold text-brand-600 hover:text-brand-700">Copy link</button>
+<button onClick={() => regenerateInvite(inv.id)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Regenerate</button>
+<button onClick={() => revokeInvite(inv.id)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
+</>
+)}
+                  {inv.status === 'REVOKED' && (
+<button onClick={() => regenerateInvite(inv.id)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Regenerate</button>
+)}
+</div>
+</div>
+))}
+</div>
+</div>
+)}
+{dialog.element}
 </div>
 );
 }

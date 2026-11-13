@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { useAppDialog } from './AppDialog';
+import { api } from '../lib/apiClient';
 
 interface PaymentApplication {
   id: string;
@@ -55,7 +57,9 @@ interface Props {
 
 const emptyCommitment = {
   vendorName: '',
-  vendorType: 'SUBCONTRACTOR',
+  // ADR-011: SUBCONTRACTOR progress payments go through Subcontractor
+  // Valuations only — commitments are for supplier/consultant/other vendors.
+  vendorType: 'SUPPLIER',
   scopeDescription: '',
   contractValue: '',
   retentionPct: '5',
@@ -77,6 +81,7 @@ const emptyApplication = {
 };
 
 export default function CommitmentsView({ projectId, canManage = true}: Props): React.JSX.Element {
+  const dialog = useAppDialog();
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,12 +97,10 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load commitments');
-      const json = await res.json();
+      const json = await api.get<{ data?: Commitment[] }>(`/api/v1/projects/${projectId}/commitments`);
       setCommitments(json.data || []);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Load failed');
 } finally {
       setLoading(false);
 }
@@ -111,11 +114,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ data: { commitment_no: number } }>(`/api/v1/projects/${projectId}/commitments`, {
           vendorName: commitmentForm.vendorName,
           vendorType: commitmentForm.vendorType,
           scopeDescription: commitmentForm.scopeDescription || undefined,
@@ -127,16 +126,13 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
           advanceRecoverPct: commitmentForm.advanceRecoverPct || '0',
           costCode: commitmentForm.costCode || undefined,
           notes: commitmentForm.notes || undefined,
-}),
 });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
       setFeedback(`Commitment COM-${String(body.data.commitment_no).padStart(3, '0')} created`);
       setShowCommitmentForm(false);
       setCommitmentForm(emptyCommitment);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Create failed');
 } finally {
       setSaving(false);
 }
@@ -146,27 +142,20 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ data: { application_no: number } }>(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications`, {
           periodStart: appForm.periodStart,
           periodEnd: appForm.periodEnd,
           grossClaimed: appForm.grossClaimed,
           whtPct: appForm.whtPct || '0',
           previousBalance: appForm.previousBalance || '0',
           notes: appForm.notes || undefined,
-}),
 });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
       setFeedback(`Application #${body.data.application_no} drafted`);
       setAppFormFor(null);
       setAppForm(emptyApplication);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Create failed');
 } finally {
       setSaving(false);
 }
@@ -176,44 +165,32 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
     let comments: string | undefined;
     let paidReference: string | undefined;
     if (action === 'REJECT') {
-      const entered = window.prompt('Reason for rejection (required):', '');
+      const entered = await dialog.prompt({ title: 'Reject payment application', inputLabel: 'Reason for rejection (required)', confirmLabel: 'Reject', danger: true, minLength: 3 });
       if (!entered || entered.trim().length< 3) {
         setError('A rejection reason is required.');
         return;
 }
       comments = entered;
 } else if (action === 'MARK_PAID') {
-      paidReference = window.prompt('Payment reference (M-Pesa / EFT / cheque):', '') || undefined;
+      const pr = await dialog.prompt({ title: 'Mark application paid', inputLabel: 'Payment reference (M-Pesa / EFT / cheque)', confirmLabel: 'Mark paid' });
+      if (pr === null) return;
+      paidReference = pr || undefined;
 }
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications/${app.id}/action`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action, comments, paidReference}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
+      const body = await api.post<{ data: { status: string } }>(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications/${app.id}/action`, { action, comments, paidReference });
       setFeedback(`Application #${app.application_no} → ${body.data.status}`);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Action failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Action failed');
 }
 };
 
   const updateCommitmentStatus = async (c: Commitment, status: string) => {
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/commitments/${c.id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed (${res.status})`);
+      await api.patch(`/api/v1/projects/${projectId}/commitments/${c.id}`, { status });
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Update failed');
+} catch (err) {
+      setError((err as { message?: string })?.message || 'Update failed');
 }
 };
 
@@ -250,8 +227,9 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <label className="space-y-1">
 <span className="font-semibold text-slate-600">Type</span>
 <select value={commitmentForm.vendorType} onChange={(e) => setCommitmentForm({ ...commitmentForm, vendorType: e.target.value})} className="w-full border border-slate-300 rounded-lg px-2 py-1.5">
-              {['SUBCONTRACTOR', 'SUPPLIER', 'CONSULTANT', 'OTHER'].map((t) =><option key={t} value={t}>{t}</option>)}
+              {['SUPPLIER', 'CONSULTANT', 'OTHER'].map((t) =><option key={t} value={t}>{t}</option>)}
 </select>
+<p className="text-[10px] text-slate-400 col-span-2 sm:col-span-4 -mt-1">Subcontractor progress payments are managed under Subcontractor Valuations (ADR-011).</p>
 </label>
 <label className="space-y-1">
 <span className="font-semibold text-slate-600">Contract value (KES) *</span>
@@ -309,7 +287,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
             >
 <div className="space-y-1">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">COM-{String(c.commitment_no).padStart(3, '0')}</span>
+<span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">COM-{String(c.commitment_no).padStart(3, '0')}</span>
 <span className="text-sm font-bold text-slate-900">{c.vendor_name}</span>
 <span className="text-[10px] font-semibold text-slate-500 ">{c.vendor_type}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${COMMITMENT_STATUS_STYLES[c.status] || COMMITMENT_STATUS_STYLES.ACTIVE}`}>
@@ -325,7 +303,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 </div>
 <div className="flex items-center gap-3">
                 {c.net_amount_owed && c.net_amount_owed !== '0.00' && (
-<span className="text-xs font-mono font-bold text-amber-700">Owed {formatKes(c.net_amount_owed)}</span>
+<span className="text-xs font-mono tabular-nums font-bold text-amber-700">Owed {formatKes(c.net_amount_owed)}</span>
 )}
 <span className="text-[11px] text-slate-400">{c.applications.length} claim{c.applications.length === 1 ? '' : 's'} {expanded === c.id ? '▾' : '▸'}</span>
 </div>
@@ -342,7 +320,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <div key={a.id} className="bg-white border border-slate-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
 <div className="space-y-0.5">
 <div className="flex items-center gap-2">
-<span className="font-mono text-[11px] font-bold">#{a.application_no}</span>
+<span className="font-mono tabular-nums text-[11px] font-bold">#{a.application_no}</span>
 <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${APP_STATUS_STYLES[a.status]}`}>{a.status}</span>
 <span className="text-[10px] text-slate-500">{a.period_start} → {a.period_end}</span>
 </div>
@@ -355,7 +333,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 </div>
 </div>
 <div className="flex items-center gap-2">
-<span className="text-xs font-mono font-bold text-emerald-700">{formatKes(a.net_payable)}</span>
+<span className="text-xs tabular-nums font-bold text-emerald-700">{formatKes(a.net_payable)}</span>
                       {canManage && (
 <div className="flex gap-1.5">
                           {a.status === 'DRAFT' && (
@@ -434,6 +412,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 </div>
 ))}
 </div>
+{dialog.element}
 </div>
 );
 }

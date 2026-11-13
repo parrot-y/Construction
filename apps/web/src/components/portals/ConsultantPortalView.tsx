@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
 
 export interface ConsultantRfiItem {
   id: string;
@@ -66,6 +66,7 @@ export default function ConsultantPortalView({
 }: ConsultantPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [stakeholder, setStakeholder] = useState({ name: stakeholderName || '', role: stakeholderRole || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
@@ -85,7 +86,7 @@ export default function ConsultantPortalView({
       try {
         const res = await fetch(`/api/v1/portals/consultant/${token}`, { credentials: 'include' });
         const body = await res.json();
-        if (!res.ok) throw new Error(body.message || 'This portal link is invalid or has expired');
+        if (!res.ok) throw portalHttpError(body.message || 'This portal link is invalid or has expired', res.status);
         if (cancelled) return;
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', role: d.stakeholder.role || '' });
@@ -138,7 +139,7 @@ export default function ConsultantPortalView({
           })),
         })));
       } catch (e: any) {
-        if (!cancelled) setLoadError(e.message || 'Failed to load portal');
+        if (!cancelled) { setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -150,12 +151,9 @@ export default function ConsultantPortalView({
     return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
   }
   if (loadError) {
-    const isExpired = /expired/i.test(loadError);
-    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
       <div className="max-w-5xl mx-auto">
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={loadError || undefined} />
       </div>
     );
   }
@@ -292,7 +290,7 @@ export default function ConsultantPortalView({
               >
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                       {rfi.rfi_number}
 </span>
 <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
@@ -407,7 +405,7 @@ export default function ConsultantPortalView({
 <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
 <div className="flex justify-between items-start">
 <div>
-<span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+<span className="font-mono tabular-nums text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                       {c.batch_reference}
 </span>
 <h4 className="text-xs font-bold text-slate-900 mt-1">{c.element_location}</h4>
@@ -425,7 +423,7 @@ export default function ConsultantPortalView({
                     >
 <div>
 <span className="font-semibold text-slate-800">{b.age_days}-Day Crush:</span>{' '}
-<span className="font-mono">{b.compressive_strength_mpa} MPa</span>
+<span className="tabular-nums">{b.compressive_strength_mpa} MPa</span>
 <span className="text-[10px] text-slate-500 ml-1">({b.failure_load_kn} kN)</span>
 </div>
 <span

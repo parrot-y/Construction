@@ -550,7 +550,7 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
 <tr key={delivery.id} className="hover:bg-gray-50 transition">
 <td className="px-4 py-3">
 <div className="font-semibold text-gray-900">{delivery.deliveryTicketNo}</div>
-<div className="text-xs text-gray-500 font-mono mt-0.5">{delivery.truckRegistrationNo}</div>
+<div className="text-xs text-gray-500 font-mono tabular-nums mt-0.5">{delivery.truckRegistrationNo}</div>
                         {delivery.driverName && (
 <div className="text-xs text-gray-400 mt-0.5"> {delivery.driverName}</div>
 )}

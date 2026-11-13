@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import type { Prisma } from '@construction/db';
 import { Permissions } from '@construction/permissions';
@@ -36,6 +37,7 @@ export const checklistsRoutes: FastifyPluginAsync = async (server: FastifyInstan
     async (request, reply) => {
       const { tenantId } = request.user;
       const { trade, kind, q } = request.query as { trade?: string; kind?: string; q?: string };
+      const pg = listParams(request);
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) =>
           tx.checklistTemplate.findMany({
@@ -46,9 +48,12 @@ export const checklistsRoutes: FastifyPluginAsync = async (server: FastifyInstan
               ...(q ? { title: { contains: q, mode: 'insensitive' } } : {}),
             },
             orderBy: { created_at: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           }),
         );
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list templates' });
@@ -144,6 +149,7 @@ export const checklistsRoutes: FastifyPluginAsync = async (server: FastifyInstan
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
       const { trade, status } = request.query as { trade?: string; status?: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(projectId)) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) =>
@@ -154,17 +160,21 @@ export const checklistsRoutes: FastifyPluginAsync = async (server: FastifyInstan
               ...(status ? { status } : {}),
             },
             orderBy: { created_at: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           }),
         );
+        const paged = listPage(data, pg);
         return reply.status(200).send({
-          data: data.map((a) => ({
+          data: paged.data.map((a) => ({
             ...a,
             due_date: a.due_date?.toISOString().slice(0, 10) ?? null,
             submitted_at: a.submitted_at?.toISOString() ?? null,
             created_at: a.created_at.toISOString(),
             updated_at: a.updated_at.toISOString(),
           })),
-          count: data.length,
+          page: paged.page,
+          count: paged.data.length,
         });
       } catch (err) {
         server.log.error(err);

@@ -228,7 +228,7 @@ export default function RfiManagementView({
 <span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
               BORAQS / EBK Engineering Coordination
 </span>
-<span className="text-xs text-slate-400 font-mono">ISO 9001:2015</span>
+<span className="text-xs text-slate-400 tabular-nums">ISO 9001:2015</span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
             Request for Information (RFI) Register
@@ -256,7 +256,7 @@ export default function RfiManagementView({
 <span className="text-[10px] font-semibold text-slate-400 block">
             Total RFIs Logged
 </span>
-<span className="text-lg font-bold font-mono text-slate-800 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-slate-800 mt-0.5 block">
             {rfis.length}
 </span>
 </div>
@@ -264,7 +264,7 @@ export default function RfiManagementView({
 <span className="text-[10px] font-semibold text-amber-600 block">
             Pending Consultant Reply
 </span>
-<span className="text-lg font-bold font-mono text-amber-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-amber-700 mt-0.5 block">
             {rfis.filter((r) => r.status === 'SUBMITTED').length}
 </span>
 </div>
@@ -272,7 +272,7 @@ export default function RfiManagementView({
 <span className="text-[10px] font-semibold text-emerald-600 block">
             Answered & Resolved
 </span>
-<span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-emerald-700 mt-0.5 block">
             {rfis.filter((r) => r.status === 'ANSWERED').length}
 </span>
 </div>
@@ -280,7 +280,7 @@ export default function RfiManagementView({
 <span className="text-[10px] font-semibold text-rose-600 block">
             Critical Path Queries
 </span>
-<span className="text-lg font-bold font-mono text-rose-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-rose-700 mt-0.5 block">
             {rfis.filter((r) => r.priority === 'CRITICAL').length}
 </span>
 </div>
@@ -378,13 +378,13 @@ export default function RfiManagementView({
 }`}
                       onClick={() => handleToggleExpand(rfi.id)}
                     >
-<td className="p-3 font-mono font-bold text-purple-900 whitespace-nowrap">
+<td className="p-3 font-mono tabular-nums font-bold text-purple-900 whitespace-nowrap">
                         {rfi.rfiNo}
 </td>
 <td className="p-3">
 <div className="font-semibold text-slate-900">{rfi.title}</div>
                         {rfi.drawingRef && (
-<div className="text-[11px] text-slate-400 font-mono mt-0.5">
+<div className="text-[11px] text-slate-400 tabular-nums mt-0.5">
                             {`Ref: ${rfi.drawingRef}`}
 </div>
 )}
@@ -413,7 +413,7 @@ export default function RfiManagementView({
                           {rfi.status}
 </span>
 </td>
-<td className="p-3 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+<td className="p-3 whitespace-nowrap text-slate-500 tabular-nums text-[11px]">
                         {`${rfi.daysElapsed} days elapsed`}
 </td>
 <td className="p-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
@@ -453,7 +453,7 @@ export default function RfiManagementView({
                                   {rfi.attachments.map((att, i) => (
 <span
                                       key={i}
-                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200 hover:bg-slate-200 cursor-pointer"
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[11px] tabular-nums border border-slate-200 hover:bg-slate-200 cursor-pointer"
                                     >
 <span></span>
 <span>{att.name}</span>
@@ -496,7 +496,7 @@ export default function RfiManagementView({
 </span>
 </div>
 </div>
-<span className="text-[11px] text-slate-500 font-mono">
+<span className="text-[11px] text-slate-500 tabular-nums">
                                         {new Date(resp.respondedAt).toLocaleDateString()}
 </span>
 </div>
@@ -508,7 +508,7 @@ export default function RfiManagementView({
                                         {resp.attachments.map((att, i) => (
 <span
                                             key={i}
-                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-emerald-900 rounded-md text-[11px] font-mono border border-emerald-200 shadow-2xs hover:bg-emerald-50 cursor-pointer"
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-emerald-900 rounded-md text-[11px] tabular-nums border border-emerald-200 shadow-2xs hover:bg-emerald-50 cursor-pointer"
                                           >
 <span></span>
 <span>{att.name}</span>

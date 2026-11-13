@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import {
@@ -30,6 +31,7 @@ export const observationsRoutes: FastifyPluginAsync = async (server: FastifyInst
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
       const { status, type } = request.query as { status?: string; type?: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(projectId)) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
 
       try {
@@ -42,10 +44,13 @@ export const observationsRoutes: FastifyPluginAsync = async (server: FastifyInst
             },
             include: { corrective_actions: { select: { id: true, title: true, status: true, due_date: true, owner_name: true } } },
             orderBy: { created_at: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
           return rows.map((o) => ({ ...o, ref: obsRef(o.obs_number), created_at: o.created_at.toISOString(), updated_at: o.updated_at.toISOString(), closed_at: o.closed_at?.toISOString() ?? null }));
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list observations' });
@@ -194,6 +199,7 @@ export const observationsRoutes: FastifyPluginAsync = async (server: FastifyInst
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
       const { status } = request.query as { status?: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(projectId)) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) =>
@@ -201,11 +207,14 @@ export const observationsRoutes: FastifyPluginAsync = async (server: FastifyInst
             where: { project_id: projectId, ...(status ? { status } : {}) },
             include: { observation: { select: { id: true, obs_number: true, title: true } } },
             orderBy: { created_at: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           }),
         );
         const now = new Date();
+        const paged = listPage(data, pg);
         return reply.status(200).send({
-          data: data.map((a) => ({
+          data: paged.data.map((a) => ({
             ...a,
             effective_status: a.status === 'ACTIVE' && a.due_date && a.due_date < now ? 'OVERDUE' : a.status,
             created_at: a.created_at.toISOString(),
@@ -213,7 +222,8 @@ export const observationsRoutes: FastifyPluginAsync = async (server: FastifyInst
             due_date: a.due_date?.toISOString().slice(0, 10) ?? null,
             completed_at: a.completed_at?.toISOString() ?? null,
           })),
-          count: data.length,
+          page: paged.page,
+          count: paged.data.length,
         });
       } catch (err) {
         server.log.error(err);

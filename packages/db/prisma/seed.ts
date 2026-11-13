@@ -32,6 +32,19 @@ export async function seed() {
     },
   });
 
+  // B1: demo/dev tenant keeps every gated module enabled so the full
+  // surface stays exercisable; pilot tenants start with non-core OFF.
+  const GATED = ['equipment','telematics','soil','survey','tenders','steel','asphalt','geofence','rmc','muster','independent','rebar','safety-audits','correspondence','inventory'];
+  await withTenantTx(prisma, tenant.id, async (tx) => {
+    for (const m of GATED) {
+      await tx.tenantModuleFlag.upsert({
+        where: { tenant_id_module: { tenant_id: tenant.id, module: m } },
+        update: { enabled: true },
+        create: { tenant_id: tenant.id, module: m, enabled: true, updated_by: 'seed' },
+      });
+    }
+  });
+
   const defaultPasswordHash = await hashPassword('Password123!');
 
   // 2. Create V1 Users and Memberships within tenant context
@@ -136,6 +149,8 @@ export async function seed() {
         where: { email: u.email },
         update: {
           password_hash: defaultPasswordHash,
+          // Seeded demo accounts are pre-verified so they remain usable.
+          email_verified_at: new Date(),
         },
         create: {
           email: u.email,
@@ -143,6 +158,7 @@ export async function seed() {
           full_name: u.full_name,
           phone_number: u.phone_number,
           is_active: true,
+          email_verified_at: new Date(),
         },
       });
 

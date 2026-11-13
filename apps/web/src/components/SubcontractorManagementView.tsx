@@ -334,7 +334,7 @@ export default function SubcontractorManagementView({
                 {/* Subcontract Sum & Action */}
 <div className="lg:w-60 flex flex-col items-start lg:items-end justify-center">
 <span className="text-xs text-slate-400">Subcontract Sum</span>
-<span className="text-lg font-bold text-slate-900 font-mono">
+<span className="text-lg font-bold text-slate-900 tabular-nums">
                     {formatKes(pkg.subcontract_sum)}
 </span>
                   {canAward && (

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { APIRequestContext, expect } from '@playwright/test';
 
 export const API = process.env.E2E_API_URL || 'http://localhost:4199';
@@ -36,8 +37,14 @@ export async function apiGet(request: APIRequestContext, session: Session, path:
 }
 
 export async function apiPost(request: APIRequestContext, session: Session, path: string, data?: any, extraHeaders: Record<string, string> = {}) {
+  // Payment recording requires an Idempotency-Key (Stage-7). Specs that don't
+  // set one get a fresh key per call — same semantics as before for them.
+  const headers = { ...authHeaders(session), ...extraHeaders };
+  if (path.includes('/payments') && !headers['idempotency-key'] && !headers['Idempotency-Key']) {
+    headers['idempotency-key'] = randomUUID();
+  }
   return request.post(`${API}${path}`, {
-    headers: { ...authHeaders(session), ...extraHeaders },
+    headers,
     data,
   });
 }

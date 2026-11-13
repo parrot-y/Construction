@@ -46,12 +46,13 @@ describe('Gate-4 S1: Quotes-to-cash suite', () => {
     });
     const userB = await prisma.user.upsert({
       where: { email: 'admin@quotes-isolation.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@quotes-isolation.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Test Admin B',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
     await withTenantTx(prisma, tenantB.id, async (tx) => {
@@ -632,7 +633,10 @@ describe('Gate-4 S1: Quotes-to-cash suite', () => {
     const invBody = JSON.parse(inv.body).invoice;
     expect(invBody.project_id).toBe(body.project.id);
     expect(invBody.quote_id).toBe(q.id);
-    expect(invBody.items).toHaveLength(1);
+    // Deposit is VAT-inclusive: net 100000 + VAT 16000 = 116000 total.
+    expect(invBody.items).toHaveLength(2);
+    expect(Number(invBody.tax_pct)).toBe(16);
+    expect(Number(invBody.tax_amount)).toBe(16000);
     expect(invBody.client_name).toBe('Deposit Client');
   });
 });

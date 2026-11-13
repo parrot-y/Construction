@@ -89,6 +89,11 @@ export default function ClientDashboard({
   const [hydrated, setHydrated] = useState(false);
   const [photos, setPhotos] = useState(photosProp);
   const [timeline, setTimeline] = useState(timelineProp);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [paymentInstructions, setPaymentInstructions] = useState<any>(null);
+  const [retentionTerms, setRetentionTerms] = useState<any>(null);
+  const [noticeSent, setNoticeSent] = useState<string | null>(null);
 
   // Hydrate from the live client-portal endpoint (real project data).
   const loadProject = async (pid: string) => {
@@ -137,6 +142,8 @@ export default function ClientDashboard({
           sectionCode: t.section_code,
 })));
         if (Array.isArray(d.payment_certificates)) setPaymentCertificates(d.payment_certificates);
+        if (d.retention_terms) setRetentionTerms(d.retention_terms);
+        if (d.payment_instructions) setPaymentInstructions(d.payment_instructions);
         setHydrated(true);
 } catch { /* keep demo defaults */}
 };
@@ -158,26 +165,67 @@ export default function ClientDashboard({
     return () => { cancelled = true;};
 }, []);
 
+  // Stage-2: "Waiting for you" approvals feed + client invoices + dated FX rates.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [appr, inv, fx] = await Promise.all([
+          fetch('/api/v1/me/approvals', { credentials: 'include'}),
+          fetch('/api/v1/me/invoices', { credentials: 'include'}),
+          fetch('/api/v1/fx-rates', { credentials: 'include'}),
+        ]);
+        if (cancelled) return;
+        if (appr.ok) {
+          const j = await appr.json();
+          const d = j.data ?? j;
+          setApprovals(Array.isArray(d) ? d : d?.items || d?.approvals || []);
+        }
+        if (inv.ok) {
+          const j = await inv.json();
+          const d = j.data ?? j;
+          const list = Array.isArray(d) ? d : d?.invoices || [];
+          setInvoices(list);
+          const pi = d?.paymentInstructions ?? j.paymentInstructions ?? null;
+          if (pi) setPaymentInstructions((prev: any) => prev ?? pi);
+        }
+        if (fx.ok) {
+          const j = await fx.json();
+          const d = j.data ?? j;
+          if (d?.rates) setFxFeed(d);
+        }
+      } catch { /* non-fatal */ }
+    })();
+    return () => { cancelled = true;};
+  }, []);
+
   type CurrencyCode = 'KES' | 'USD' | 'GBP' | 'EUR' | 'AED';
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('KES');
+  const [fxFeed, setFxFeed] = useState<{ rates: Record<string, number>; asOf?: string; source?: string } | null>(null);
 
-  const exchangeRates: Record<CurrencyCode, { rate: number; symbol: string; label: string}> = {
+  // Stage-2: rates come from GET /api/v1/fx-rates (dated + sourced), never hard-coded.
+  const exchangeRates: Record<CurrencyCode, { rate: number | undefined; symbol: string; label: string}> = {
     KES: { rate: 1.0, symbol: 'KES', label: 'Kenyan Shilling'},
-    USD: { rate: 129.50, symbol: '$', label: 'US Dollar'},
-    GBP: { rate: 166.80, symbol: '£', label: 'British Pound'},
-    EUR: { rate: 140.20, symbol: '€', label: 'Euro'},
-    AED: { rate: 35.25, symbol: 'AED', label: 'UAE Dirham'},
+    USD: { rate: fxFeed?.rates?.USD, symbol: '$', label: 'US Dollar'},
+    GBP: { rate: fxFeed?.rates?.GBP, symbol: '£', label: 'British Pound'},
+    EUR: { rate: fxFeed?.rates?.EUR, symbol: '€', label: 'Euro'},
+    AED: { rate: fxFeed?.rates?.AED, symbol: 'AED', label: 'UAE Dirham'},
 };
 
+  const effectiveCurrency: CurrencyCode =
+    selectedCurrency !== 'KES' && !(fxFeed?.rates?.[selectedCurrency] ?? 0) ? 'KES' : selectedCurrency;
+
   const formatWithCurrency = (kesStr: string, isAddition = false): string => {
-    if (selectedCurrency === 'KES') {
+    const rate = exchangeRates[effectiveCurrency].rate ?? 0;
+    // Never convert without a dated, sourced rate feed — show honest KES instead.
+    if (effectiveCurrency === 'KES' || !fxFeed || !(rate > 0)) {
       return `${isAddition ? '+ ' : ''}${formatKes(kesStr)}`;
 }
     const num = parseFloat(kesStr);
-    if (isNaN(num)) return `${exchangeRates[selectedCurrency].symbol} 0.00`;
-    const converted = num / exchangeRates[selectedCurrency].rate;
+    if (isNaN(num)) return `${exchangeRates[effectiveCurrency].symbol} 0.00`;
+    const converted = num / rate;
     const formatted = converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2});
-    return `${isAddition ? '+ ' : ''}${exchangeRates[selectedCurrency].symbol} ${formatted}`;
+    return `${isAddition ? '+ ' : ''}${exchangeRates[effectiveCurrency].symbol} ${formatted}`;
 };
 
 
@@ -267,7 +315,7 @@ export default function ClientDashboard({
 <span>•</span>
 <span className="text-slate-500">{projectData.location}</span>
 <span>•</span>
-<span className="font-mono text-slate-500">NCA: {projectData.ncaRegistration}</span>
+<span className="tabular-nums text-slate-500">NCA: {projectData.ncaRegistration}</span>
 </div>
 </div>
 <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -301,34 +349,144 @@ export default function ClientDashboard({
 </div>
 </div>
 
+      {/* Stage-2: "Waiting for you" — items needing client/owner attention */}
+      {approvals.length > 0 && (
+<div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+<div className="flex items-center gap-2">
+<span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+              Waiting for you
+</span>
+<span className="text-xs text-amber-800 font-semibold">{approvals.length} item{approvals.length === 1 ? '' : 's'} need your attention</span>
+</div>
+<div className="space-y-1.5">
+            {approvals.slice(0, 6).map((a: any, i: number) => (
+<div key={a.id || i} className="flex items-center justify-between gap-3 text-xs bg-white/70 border border-amber-100 rounded-lg px-3 py-2">
+<span className="font-semibold text-slate-800 truncate">{a.title || a.certificate_no || 'Item'}</span>
+<span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                  {a.type === 'VARIATION' ? 'Variation order' : a.type === 'CERTIFICATE' ? 'Payment certificate' : a.type === 'QUOTE' ? 'Quote' : 'Approval'}
+                  {a.amount ? ` • ${formatKes(String(a.amount))}` : ''}
+</span>
+</div>
+))}
+</div>
+</div>
+)}
+
+      {/* Stage-2: Invoices, balances, payment history & contractor payment instructions */}
+<div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+<div>
+<span className="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-full">
+              Invoices & Payments
+</span>
+<h3 className="text-base font-bold text-slate-900 mt-1">Your invoices and how to pay</h3>
+</div>
+
+        {paymentInstructions && (
+<div className="p-3.5 bg-sky-50 border border-sky-200 rounded-lg text-xs text-slate-700 space-y-1">
+<span className="font-semibold text-slate-900 block">Payment instructions</span>
+            {paymentInstructions.paybill && <p>Paybill: <span className="tabular-nums font-bold">{paymentInstructions.paybill}</span></p>}
+            {paymentInstructions.till && <p>Buy Goods Till: <span className="tabular-nums font-bold">{paymentInstructions.till}</span></p>}
+            {paymentInstructions.bank && (
+<p>Bank: {paymentInstructions.bank.bankName} — A/C {paymentInstructions.bank.accountNumber} ({paymentInstructions.bank.accountName})</p>
+)}
+            {!paymentInstructions.paybill && !paymentInstructions.till && !paymentInstructions.bank && (
+<p className="text-slate-500">{JSON.stringify(paymentInstructions)}</p>
+)}
+</div>
+)}
+
+        {invoices.length === 0 ? (
+<p className="text-xs text-slate-400">No invoices yet.</p>
+) : (
+<div className="overflow-x-auto">
+<table className="w-full text-left text-xs border-collapse">
+<thead>
+<tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
+<th className="py-2 px-3">Invoice</th>
+<th className="py-2 px-3">Status</th>
+<th className="py-2 px-3">Total</th>
+<th className="py-2 px-3">Balance due</th>
+<th className="py-2 px-3">Payments</th>
+<th className="py-2 px-3"></th>
+</tr>
+</thead>
+<tbody className="divide-y divide-slate-100">
+              {invoices.slice(0, 10).map((inv: any) => {
+                const statusLabel: Record<string, string> = {
+                  DRAFT: 'Draft', SENT: 'Sent — awaiting payment', VIEWED: 'Viewed',
+                  PART_PAID: 'Part paid', PAID: 'Paid', OVERDUE: 'Overdue', CANCELLED: 'Cancelled',
+                };
+                const balance = parseFloat(inv.balance_due ?? inv.balanceDue ?? '0');
+                const history = inv.payment_history || inv.paymentHistory || inv.payments || [];
+                const notices = inv.payment_notices || inv.paymentNotices || [];
+                return (
+<tr key={inv.id}>
+<td className="py-2 px-3 font-semibold text-slate-800">{inv.title || `Invoice #${inv.invoice_no ?? ''}`}</td>
+<td className="py-2 px-3">
+<span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : balance > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+                        {statusLabel[inv.status] || inv.status}
+</span>
+</td>
+<td className="py-2 px-3 tabular-nums">{formatKes(String(inv.total ?? '0'))}</td>
+<td className="py-2 px-3 tabular-nums font-bold text-slate-900">{formatKes(String(balance))}</td>
+<td className="py-2 px-3 text-slate-500">
+                        {history.length > 0 ? `${history.length} payment${history.length === 1 ? '' : 's'} recorded` : '—'}
+                        {notices.length > 0 && <span className="block text-[10px] text-sky-600">{notices.length} notice{notices.length === 1 ? '' : 's'} sent</span>}
+</td>
+<td className="py-2 px-3 text-right">
+                        {balance > 0 && !['PAID', 'CANCELLED', 'DRAFT'].includes(inv.status) && (
+<InvoicePayNotice invoice={inv} onSent={(id) => { setNoticeSent(id); setTimeout(() => setNoticeSent(null), 4000); }} />
+)}
+                        {noticeSent === inv.id && <span className="text-[10px] font-bold text-emerald-700">Notice sent to contractor</span>}
+</td>
+</tr>
+);
+              })}
+</tbody>
+</table>
+</div>
+)}
+</div>
+
       {/* 5 Plain-Language Financial Cards with Diaspora Multi-Currency Toggle */}
 <div className="space-y-3">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-1 gap-2">
 <div>
 <h3 className="text-sm font-bold text-slate-900">Financial Summary & Budget Control</h3>
 <p className="text-[11px] text-slate-500">
-              {selectedCurrency === 'KES'
+              {effectiveCurrency === 'KES'
                 ? 'Base contract currency: Kenyan Shilling (KES)'
-                : `Diaspora converted estimate: 1 ${selectedCurrency} ≈ ${exchangeRates[selectedCurrency].rate.toFixed(2)} KES • Official valuation in KES`}
+                : fxFeed
+                  ? `Diaspora converted estimate: 1 ${selectedCurrency} ≈ ${exchangeRates[effectiveCurrency].rate?.toFixed(2) ?? '0'} KES • Official valuation in KES`
+                  : 'Exchange rates unavailable — showing KES'}
+              {fxFeed?.asOf && <span className="block text-[10px] text-slate-400 mt-0.5">Rates as of {fxFeed.asOf}{fxFeed.source ? ` (${fxFeed.source})` : ''}</span>}
 </p>
 </div>
 <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
 <span className="text-[10px] font-semibold text-slate-500 px-1">Diaspora View:</span>
-            {(['KES', 'USD', 'GBP', 'EUR', 'AED'] as CurrencyCode[]).map((c) => (
+            {(['KES', 'USD', 'GBP', 'EUR', 'AED'] as CurrencyCode[])
+              .map((c) => {
+                const rateAvailable = c === 'KES' || (fxFeed?.rates?.[c] ?? 0) > 0;
+                return (
 <button
                 key={c}
                 type="button"
-                onClick={() => setSelectedCurrency(c)}
+                disabled={!rateAvailable}
+                title={rateAvailable ? undefined : 'Exchange rate unavailable — KES only'}
+                onClick={() => rateAvailable && setSelectedCurrency(c)}
                 data-testid={`currency-toggle-${c.toLowerCase()}`}
                 className={`px-2 py-0.5 text-xs font-bold rounded transition ${
-                  selectedCurrency === c
-                    ? 'bg-emerald-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  !rateAvailable
+                    ? 'text-slate-300 cursor-not-allowed'
+                    : selectedCurrency === c
+                      ? 'bg-emerald-700 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
 }`}
               >
                 {c}
 </button>
-))}
+);
+              })}
 </div>
 </div>
 
@@ -338,11 +496,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Original Agreed Budget
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-slate-900 mt-1 block">
               {formatWithCurrency(financials.originalAgreedBudget)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.originalAgreedBudget)}
 </span>
 ) : (
@@ -355,11 +513,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Approved Variations Total
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-blue-700 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-blue-700 mt-1 block">
               {formatWithCurrency(financials.approvedVariationsTotal, true)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.approvedVariationsTotal)}
 </span>
 ) : (
@@ -372,11 +530,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Current Approved Budget
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-slate-900 mt-1 block">
               {formatWithCurrency(financials.currentApprovedBudget)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.currentApprovedBudget)}
 </span>
 ) : (
@@ -389,11 +547,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Total Spent to Date
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-emerald-700 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-emerald-700 mt-1 block">
               {formatWithCurrency(financials.totalSpentToDate)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.totalSpentToDate)}
 </span>
 ) : (
@@ -406,11 +564,11 @@ export default function ClientDashboard({
 <span className="text-[11px] font-semibold text-slate-500 block">
               Remaining Balance
 </span>
-<span className="text-base sm:text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-base sm:text-lg font-bold tabular-nums text-slate-900 mt-1 block">
               {formatWithCurrency(financials.remainingBalance)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.remainingBalance)}
 </span>
 ) : (
@@ -424,11 +582,11 @@ export default function ClientDashboard({
 <div className="flex justify-between items-center text-xs">
 <div className="flex items-center gap-2">
 <span className="font-semibold text-slate-700">Project Budget Utilization:</span>
-<span className="font-bold text-slate-900 font-mono">
+<span className="font-bold text-slate-900 tabular-nums">
                 {`${financials.budgetUsedPercentage.toFixed(1)}% Consumed`}
 </span>
 </div>
-<span className="text-slate-500 font-mono text-[11px]">
+<span className="text-slate-500 tabular-nums text-[11px]">
               {formatKes(financials.totalSpentToDate)} of {formatKes(financials.currentApprovedBudget)}
 </span>
 </div>
@@ -488,7 +646,7 @@ export default function ClientDashboard({
               Variance Delta
 </span>
 <span
-              className={`text-lg font-bold font-mono mt-0.5 block ${
+              className={`text-lg font-bold tabular-nums mt-0.5 block ${
                 progress.varianceDelta > 0 ? 'text-amber-700' : 'text-emerald-700'
 }`}
             >
@@ -528,7 +686,7 @@ export default function ClientDashboard({
                 Certified Valuations Ledger
 </span>
 <span className="text-xs text-slate-500">
-                Currency: {selectedCurrency} ({exchangeRates[selectedCurrency].label})
+                Currency: {effectiveCurrency} ({exchangeRates[effectiveCurrency].label})
 </span>
 </div>
 <h3 className="text-base font-bold text-slate-900 mt-1">
@@ -541,8 +699,8 @@ export default function ClientDashboard({
 
 <div className="text-left sm:text-right text-xs">
 <span className="text-[10px] text-slate-400 font-semibold block">Total Net Paid to Date</span>
-<span className="text-base font-mono font-bold text-emerald-700">
-              {formatWithCurrency('4050000.00')}
+<span className="text-base tabular-nums font-bold text-emerald-700">
+              {formatWithCurrency(String((paymentCertificates || []).filter((c: any) => c.status === 'PAID').reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
 <span className="text-[10px] text-slate-400 block">Gross Certified: {formatWithCurrency(financials.totalSpentToDate)}</span>
 </div>
@@ -552,23 +710,23 @@ export default function ClientDashboard({
 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] font-semibold block">Total Contract Sum:</span>
-<span className="text-sm font-bold font-mono text-slate-900 mt-0.5 block">
+<span className="text-sm font-bold tabular-nums text-slate-900 mt-0.5 block">
               {formatWithCurrency(financials.originalAgreedBudget)}
 </span>
-<span className="text-[10px] text-slate-400 font-mono">Base: {formatKes(financials.originalAgreedBudget)}</span>
+<span className="text-[10px] text-slate-400 tabular-nums">Base: {formatKes(financials.originalAgreedBudget)}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] font-semibold block">Gross Certified IPCs:</span>
-<span className="text-sm font-bold font-mono text-emerald-700 mt-0.5 block">
+<span className="text-sm font-bold tabular-nums text-emerald-700 mt-0.5 block">
               {formatWithCurrency(financials.totalSpentToDate)}
 </span>
-<span className="text-[10px] text-slate-400 font-mono">Base: {formatKes(financials.totalSpentToDate)}</span>
+<span className="text-[10px] text-slate-400 tabular-nums">Base: {formatKes(financials.totalSpentToDate)}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] font-semibold block">Net Payments Disbursed:</span>
-<span className="text-sm font-bold font-mono text-blue-700 mt-0.5 block">
+<span className="text-sm font-bold tabular-nums text-blue-700 mt-0.5 block">
               {formatWithCurrency(String((paymentCertificates || []).reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
 <span className="text-[10px] text-slate-400">Sum of net payable on certified IPCs</span>
@@ -577,7 +735,7 @@ export default function ClientDashboard({
 {hydrated && progress.varianceDelta !== 0 && (
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-500 text-[10px] font-semibold block">Progress vs plan:</span>
-<span className={`text-sm font-bold font-mono mt-0.5 block ${progress.varianceDelta >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+<span className={`text-sm font-bold tabular-nums mt-0.5 block ${progress.varianceDelta >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
               {progress.varianceDelta >= 0 ? '+' : ''}{progress.varianceDelta.toFixed(1)} pts
 </span>
 <span className="text-[10px] text-slate-500 font-medium">{progress.healthNotice}</span>
@@ -594,7 +752,7 @@ export default function ClientDashboard({
 <th className="py-2.5 px-3">Milestone Scope</th>
 <th className="py-2.5 px-3">Date Certified</th>
 <th className="py-2.5 px-3">Gross Certified ({selectedCurrency})</th>
-<th className="py-2.5 px-3">10% Retention ({selectedCurrency})</th>
+<th className="py-2.5 px-3">Retention Held ({selectedCurrency})</th>
 <th className="py-2.5 px-3">Net Payment ({selectedCurrency})</th>
 <th className="py-2.5 px-3 text-right">Status</th>
 </tr>
@@ -602,12 +760,12 @@ export default function ClientDashboard({
 <tbody className="divide-y divide-slate-100">
 {(paymentCertificates || []).map((c: any) => (
 <tr key={c.id} className="hover:bg-slate-50/60">
-<td className="py-2.5 px-3 font-mono font-bold text-slate-800">{c.certificate_no}</td>
+<td className="py-2.5 px-3 font-mono tabular-nums font-bold text-slate-800">{c.certificate_no}</td>
 <td className="py-2.5 px-3 text-slate-700">{c.period_start} → {c.period_end}</td>
-<td className="py-2.5 px-3 text-slate-500 font-mono">{c.certified_at ? c.certified_at.split('T')[0] : '—'}</td>
-<td className="py-2.5 px-3 font-mono font-bold text-slate-900">{formatWithCurrency(c.this_period_amount)}</td>
-<td className="py-2.5 px-3 font-mono text-amber-700">{formatWithCurrency(c.retention_held)}</td>
-<td className="py-2.5 px-3 font-mono font-bold text-emerald-700">{formatWithCurrency(c.net_payable)}</td>
+<td className="py-2.5 px-3 text-slate-500 font-mono tabular-nums">{c.certified_at ? c.certified_at.split('T')[0] : '—'}</td>
+<td className="py-2.5 px-3 font-mono tabular-nums font-bold text-slate-900">{formatWithCurrency(c.this_period_amount)}</td>
+<td className="py-2.5 px-3 tabular-nums text-amber-700">{formatWithCurrency(c.retention_held)}</td>
+<td className="py-2.5 px-3 tabular-nums font-bold text-emerald-700">{formatWithCurrency(c.net_payable)}</td>
 <td className="py-2.5 px-3 text-right">
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${c.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-sky-100 text-sky-800 border-sky-300'}`}>
                     {c.status === 'PAID' ? 'Paid' : 'Certified'}
@@ -642,31 +800,50 @@ export default function ClientDashboard({
 <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
               Statutory Protection
 </span>
-<h3 className="text-base font-bold text-slate-900 mt-1">Contract Retention Terms (Kenyan Standard)</h3>
-<p className="text-xs text-slate-500">EASMM & Kenyan standard contract rules enforced</p>
+<h3 className="text-base font-bold text-slate-900 mt-1">Contract Retention Terms</h3>
+<p className="text-xs text-slate-500">{retentionTerms ? 'Terms set by your contractor' : 'Standard Kenyan schedule (contractor has not set custom terms)'}</p>
 </div>
 
+        {(() => {
+          // Tenant-configured terms (camelCase from company settings, or the
+          // API default snake_case shape) — never hard-code percentages.
+          const rt = retentionTerms || {};
+          const interim = rt.interimDeductionRatePct ?? rt.interim_deduction_rate;
+          const capRate = rt.maxCapRatePct ?? rt.max_cap_rate;
+          const capAmount = rt.maxCapAmount ?? rt.max_cap_amount;
+          const schedule = rt.releaseSchedule ?? rt.release_schedule;
+          const scheduleText = typeof schedule === 'string'
+            ? schedule
+            : Array.isArray(schedule)
+              ? schedule.map((s: any) => s.description || `${s.percentage ?? s.rate ?? ''} at ${s.milestone ?? 'milestone'}`).join(' • ')
+              : null;
+          return (
 <div className="space-y-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
 <span className="text-slate-500 block text-[11px]">Interim Certificate Deduction:</span>
-<span className="font-bold text-slate-800 text-sm">10% of Gross Certified Work</span>
+<span className="font-bold text-slate-800 text-sm">
+                  {interim
+                    ? `${String(interim)} per certificate${capRate ? `, capped at ${String(capRate)} of the contract sum` : ''}`
+                    : 'Not specified by contractor'}
+</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
 <span className="text-slate-500 block text-[11px]">Maximum Retention Fund Cap:</span>
 <span className="font-bold text-slate-800 text-sm">
-                {formatKes(parseFloat(financials.originalAgreedBudget || '0') * 0.05)} <span className="font-normal text-slate-500">(5% of Contract Sum)</span>
+                  {capAmount ? `${formatKes(String(capAmount))} ` : ''}{capRate ? <span className="font-normal text-slate-500">({String(capRate)} of Contract Sum)</span> : (!capAmount ? 'Not specified by contractor' : null)}
 </span>
 </div>
 
+{scheduleText && (
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
-<span className="text-slate-500 block text-[11px]">Release Milestones:</span>
-<span className="font-medium text-slate-700 block">
-                • 50% released at Practical Completion (Section Handover)<br />
-                • 50% released at end of Defects Liability Period (DLP)
-</span>
+<span className="text-slate-500 block text-[11px]">Release Schedule:</span>
+<span className="font-medium text-slate-700 block">{scheduleText}</span>
 </div>
+)}
 </div>
+);
+        })()}
 </div>
 </div>
 
@@ -722,4 +899,102 @@ export default function ClientDashboard({
 )}
 </div>
 );
+}
+
+/** Stage-2: client reports "I have paid" — a notice only, never mutates the invoice. */
+function InvoicePayNotice({ invoice, onSent }: { invoice: any; onSent: (id: string) => void }): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(String(invoice.balance_due ?? invoice.balanceDue ?? ''));
+  const [method, setMethod] = useState('M_PESA');
+  const [reference, setReference] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    setBusy(true); setError('');
+    try {
+      const res = await fetch(`/api/v1/client/invoices/${invoice.id}/payment-notice`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseFloat(amount) || 0,
+          method,
+          reference: reference || undefined,
+          note: note || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.message || 'Could not send notice');
+      }
+      onSent(invoice.id);
+      setOpen(false);
+    } catch (e: any) {
+      setError(e.message || 'Could not send notice');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 transition"
+      >
+        I've paid — notify
+      </button>
+    );
+  }
+
+  return (
+    <div className="inline-flex flex-col gap-1.5 items-end">
+      <div className="flex gap-1.5 items-center">
+        <input
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="Amount"
+          inputMode="decimal"
+          className="w-20 px-2 py-1 text-[11px] border border-slate-300 rounded"
+        />
+        <select value={method} onChange={(e) => setMethod(e.target.value)} className="px-1.5 py-1 text-[11px] border border-slate-300 rounded">
+          <option value="M_PESA">M-Pesa</option>
+          <option value="BANK">Bank transfer</option>
+          <option value="CHEQUE">Cheque</option>
+          <option value="CASH">Cash</option>
+          <option value="CARD">Card</option>
+        </select>
+      </div>
+      <input
+        value={reference}
+        onChange={(e) => setReference(e.target.value)}
+        placeholder="Payment reference"
+        className="w-44 px-2 py-1 text-[11px] border border-slate-300 rounded"
+      />
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Note (optional)"
+        className="w-44 px-2 py-1 text-[11px] border border-slate-300 rounded"
+      />
+      {error && <span className="text-[10px] text-rose-600">{error}</span>}
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void submit()}
+          className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-sky-700 text-white hover:bg-sky-800 disabled:opacity-50"
+        >
+          {busy ? 'Sending…' : 'Send notice'}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="px-2 py-1 text-[10px] font-semibold text-slate-500">
+          Cancel
+        </button>
+      </div>
+      <span className="text-[9px] text-slate-400">Notifies contractor — invoice unchanged until they confirm.</span>
+    </div>
+  );
 }

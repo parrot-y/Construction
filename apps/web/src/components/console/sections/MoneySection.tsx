@@ -6,6 +6,7 @@ import CostManagementView from '../../CostManagementView';
 import BudgetSummaryCard from '../../BudgetSummaryCard';
 import VarianceMonitorCard from '../../VarianceMonitorCard';
 import CommitmentsView from '../../CommitmentsView';
+import ProcurementView from '../../ProcurementView';
 import QuotesManagementView from '../../QuotesManagementView';
 import InvoicingView from '../../InvoicingView';
 import SiteInventoryManagementView from '../../SiteInventoryManagementView';
@@ -27,6 +28,7 @@ const FIN_TABS = ['overview', 'ledger', 'boq', 'applications', 'retention', 'bud
 
 /** Financial tracker — money in/out, budget vs actual, exports (reference"Financials"). */
 function FinancialsView({ projectId, projectName}: { projectId: string; projectName?: string}): React.JSX.Element {
+  const { role } = useConsole();
   const [ft, setFt] = useState<(typeof FIN_TABS)[number]>('overview');
   const [kpis, setKpis] = useState<{ cashIn: number; deposits: number; cashOut: number; net: number} | null>(null);
 
@@ -77,7 +79,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
             {([['Cash in', kpis?.cashIn], ['Deposits & advances', kpis?.deposits], ['Cash out', kpis?.cashOut], ['Net', kpis?.net]] as [string, number | undefined][]).map(([l, v]) => (
 <div key={l} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
 <p className="text-[10px] font-bold text-slate-400">{l}</p>
-<p className="text-lg font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">{v === undefined ? '—' : formatKes(v)}</p>
+<p className="text-lg font-bold tabular-nums text-slate-900 dark:text-slate-100 mt-1">{v === undefined ? '—' : formatKes(v)}</p>
 </div>
 ))}
 </div>
@@ -87,7 +89,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
 </div>
 </div>
 )}
-      {ft === 'ledger' &&<CostManagementView projectId={projectId} canCreate canApprove />}
+      {ft === 'ledger' &&<CostManagementView projectId={projectId} canCreate canApprove userRole={role} />}
       {ft === 'boq' &&<BoqWorkbookView projectId={projectId} />}
       {ft === 'applications' &&<CommitmentsView projectId={projectId} canManage />}
       {ft === 'retention' &&<RetentionAndBondsView projectId={projectId} projectName={projectName} userRole="PM_QS" />}
@@ -123,11 +125,13 @@ export default function MoneySection(): React.JSX.Element {
       return livePid ?<FinancialsView projectId={livePid} projectName={projectName} /> :<EmptyProject what="financials" />;
     case 'commitments':
       return livePid ?<CommitmentsView projectId={livePid} canManage={canManage} /> :<EmptyProject what="commitments" />;
+    case 'procurement':
+      return livePid ?<ProcurementView projectId={livePid} canManage={canManage} /> :<EmptyProject what="procurement" />;
     case 'quotes':
       if (!canManage) return<NoAccess what="quotes" />;
       return<QuotesManagementView />;
     case 'invoices':
-      return<InvoicingView />;
+      return<InvoicingView userRole={role} />;
     case 'inventory':
       return livePid ?<SiteInventoryManagementView projectId={livePid} canManage={canManage} /> :<EmptyProject what="inventory" />;
     case 'certificates':

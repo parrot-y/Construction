@@ -16,6 +16,8 @@ import {
   VoidCostEntrySchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
+import { evaluateSelfApproval } from '../plugins/makerChecker';
 
 export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ---------------------------------------------------------------------------
@@ -195,6 +197,16 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         category?: string;
         boqItemId?: string;
       };
+      const pg = listParams(request);
+
+      // Tenant-scoped project check — a foreign/unknown project id must 404,
+      // not silently return an empty list (cross-tenant probing).
+      const project = await withTenantTx(prisma, tenantId, (tx) =>
+        tx.project.findFirst({ where: { id: projectId }, select: { id: true } }),
+      );
+      if (!project) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+      }
 
       const result = await withTenantTx(prisma, tenantId, async (tx) => {
         const whereClause: any = {
@@ -233,6 +245,8 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             },
           },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
 
         return entries.map((e) => ({
@@ -241,9 +255,11 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         }));
       });
 
+      const paged = listPage(result, pg);
       return reply.status(200).send({
-        data: result,
-        count: result.length,
+        data: paged.data,
+        page: paged.page,
+        count: paged.data.length,
       });
     },
   );
@@ -318,7 +334,7 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       ],
     },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId, costId } = request.params as { projectId: string; costId: string };
 
       const bodyParse = ApproveCostEntrySchema.safeParse(request.body);
@@ -331,7 +347,7 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         });
       }
 
-      const { action, comments } = bodyParse.data;
+      const { action, comments, selfApprovalReason } = bodyParse.data;
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -347,11 +363,39 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             throw { status: 400, message: 'Cannot approve or reject a voided cost entry' };
           }
 
-          // Update cost entry status
-          const updated = await tx.costEntry.update({
-            where: { id: costId },
-            data: { status: action },
+          // A decided cost cannot be decided again (no double-posting).
+          if (entry.status === 'APPROVED' || entry.status === 'REJECTED') {
+            throw { status: 409, message: `Cost entry is already ${entry.status.toLowerCase()} — a decided cost cannot be decided again` };
+          }
+
+          // Maker-checker: creator cannot decide own entry; COMPANY_ADMIN/ADMIN
+          // may only with a recorded selfApprovalReason.
+          // Maker-checker applies to approval decisions; a creator may still
+          // reject/withdraw their own pending entry.
+          const selfAppr = action === 'APPROVED'
+            ? evaluateSelfApproval({
+                creatorId: entry.created_by_id,
+                actorId: sub,
+                actorRole: role,
+                reason: selfApprovalReason,
+                entity: 'cost',
+              })
+            : { selfApproved: false, reason: null };
+
+          // Atomic claim on the current status — a concurrent approve/reject
+          // that already flipped the row makes this updateMany match 0 rows.
+          const claim = await tx.costEntry.updateMany({
+            where: { id: costId, status: entry.status },
+            data: {
+              status: action,
+              self_approved: selfAppr.selfApproved,
+              self_approval_reason: selfAppr.reason,
+            },
           });
+          if (claim.count !== 1) {
+            throw { status: 409, message: 'Cost entry was modified concurrently — please retry' };
+          }
+          const updated = await tx.costEntry.findUniqueOrThrow({ where: { id: costId } });
 
           // Create approval record
           const approval = await tx.costApproval.create({
@@ -376,6 +420,8 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
               previousStatus: entry.status,
               newStatus: action,
               comments: comments || null,
+              selfApproved: selfAppr.selfApproved,
+              selfApprovalReason: selfAppr.reason,
             },
             ipAddress: request.ip,
             userAgent: request.headers['user-agent'] || null,
@@ -385,6 +431,7 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             updated: {
               ...updated,
               amount: toCurrencyString(updated.amount.toString()),
+              selfApproved: selfAppr.selfApproved,
             },
             approval,
           };
@@ -602,7 +649,9 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     {
       preHandler: [
         server.authenticate,
-        requirePermission(Permissions.PROJECT_VIEW),
+        // Budget vs actuals is contractor financial data — clients and other
+        // portal roles must never read it (auditor stage-2 contract).
+        requirePermission(Permissions.COST_VIEW),
       ],
     },
     async (request, reply) => {

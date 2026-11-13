@@ -114,12 +114,13 @@ describe('Operations E2E Integration Suite', () => {
 
     const userB = await prisma.user.upsert({
       where: { email: 'admin@kilimanjarodev-b.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@kilimanjarodev-b.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Daniel Kiptoo',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 
@@ -643,6 +644,17 @@ describe('Operations E2E Integration Suite', () => {
     const pkgData = JSON.parse(pkgRes.body);
     const subPackageId = pkgData.id || pkgData.data?.id;
 
+    // SUPPLIER links must bind to a Supplier record (stage-3 contract).
+    const supplierRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/suppliers',
+      headers: { cookie: pmCookie, 'content-type': 'application/json' },
+      payload: { name: 'External SUPPLIER Partner', contactPerson: 'Sales Desk' },
+    });
+    expect(supplierRes.statusCode).toBe(201);
+    const supplierData = JSON.parse(supplierRes.body).data;
+    const supplierRecordId = supplierData.id;
+
     for (const portalRole of rolesToTest) {
       const linkRes = await app.inject({
         method: 'POST',
@@ -654,6 +666,7 @@ describe('Operations E2E Integration Suite', () => {
           stakeholderRole: `${portalRole} Specialist`,
           expiresInDays: 30,
           ...(portalRole === 'SUBCONTRACTOR' ? { subcontractorPackageId: subPackageId } : {}),
+          ...(portalRole === 'SUPPLIER' ? { supplierId: supplierRecordId } : {}),
         },
       });
 

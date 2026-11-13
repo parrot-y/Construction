@@ -249,7 +249,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 <span className="text-xs font-semibold text-gray-500 ">
             Average Compliance Score
 </span>
-<p className="text-2xl font-bold text-gray-900 mt-1 font-mono">
+<p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">
             {summary.averageComplianceScorePct}%
 </p>
 <div className="w-full bg-gray-100 rounded-full h-2 mt-2">
@@ -343,7 +343,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 <div className="font-semibold text-xs">{audit.auditorName}</div>
 <div className="text-xs text-gray-500">{audit.auditorType.replace(/_/g, ' ')}</div>
 </td>
-<td className="px-4 py-3 font-mono font-medium text-gray-900">
+<td className="px-4 py-3 tabular-nums font-medium text-gray-900">
 <span
                         className={
                           parseFloat(audit.ppeComplianceScore) >= 85
@@ -374,7 +374,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 <span className="text-red-700 font-bold"> FAIL STOP WORK</span>
 )}
 </td>
-<td className="px-4 py-3 font-mono font-bold text-gray-900">
+<td className="px-4 py-3 tabular-nums font-bold text-gray-900">
                       {audit.overallComplianceScore}%
 </td>
 <td className="px-4 py-3">
@@ -434,7 +434,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
                     required
                     value={auditNo}
                     onChange={(e) => setAuditNo(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -490,7 +490,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
                   required
                   value={ppeScore}
                   onChange={(e) => setPpeScore(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-sm font-mono font-bold"
+                  className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums font-bold"
                 />
 </div>
 
@@ -628,11 +628,11 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 </div>
 <div>
 <span className="font-semibold text-gray-600 block text-xs">PPE Compliance:</span>
-<span className="font-mono font-bold">{selectedAuditForDetails.ppeComplianceScore}%</span>
+<span className="tabular-nums font-bold">{selectedAuditForDetails.ppeComplianceScore}%</span>
 </div>
 <div>
 <span className="font-semibold text-gray-600 block text-xs">Overall Compliance:</span>
-<span className="font-mono font-bold text-indigo-700">{selectedAuditForDetails.overallComplianceScore}%</span>
+<span className="tabular-nums font-bold text-indigo-700">{selectedAuditForDetails.overallComplianceScore}%</span>
 </div>
 </div>
 

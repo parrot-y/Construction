@@ -72,12 +72,13 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
 
     const userB = await prisma.user.upsert({
       where: { email: 'supervisor@kilimanjaroops.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'supervisor@kilimanjaroops.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Peter Rotich',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 
@@ -398,8 +399,8 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
       url: `/api/v1/projects/${projectAId}/site-diaries`,
       headers: { cookie: tenantBCookie },
     });
-    expect(tenantBList.statusCode).toBe(200);
-    expect(JSON.parse(tenantBList.body).data).toHaveLength(0);
+    // Stage 5: foreign project ids 404 rather than returning an empty list.
+    expect(tenantBList.statusCode).toBe(404);
 
     // 4. Direct DB lookup under Tenant B context returns 0 rows
     const dbCross = await withTenantTx(prisma, tenantBId, async (tx) => {

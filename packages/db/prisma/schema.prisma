@@ -18,6 +18,12 @@ model Tenant {
   kra_pin        String?      @db.VarChar(20)
   nca_category   String?      @db.VarChar(50) // e.g. "NCA 4"
   currency       String       @default("KES") @db.VarChar(3)
+  // Stage-2: tenant-configured client-facing terms (no hard-coded percentages)
+  retention_terms       Json?   @db.JsonB
+  payment_instructions  Json?   @db.JsonB
+  // Manually maintained FX rates (KES base) with asOf + source — entered by an
+  // admin; the API refuses to serve conversion without them.
+  fx_rates              Json?   @db.JsonB
   created_at     DateTime     @default(now()) @db.Timestamptz
   updated_at     DateTime     @updatedAt @db.Timestamptz
 
@@ -27,6 +33,7 @@ model Tenant {
   idempotency    IdempotencyKey[]
   audit_logs     AuditLog[]
   subscription_plans   SubscriptionPlan[]
+  tax_settings         TenantTaxSetting?
   mpesa_subscriptions  MpesaSubscriptionTransaction[]
   bar_bending_schedules BarBendingSchedule[]
   mpesa_disbursements   MpesaDisbursementTransaction[]
@@ -47,8 +54,25 @@ model Tenant {
   tender_bids               TenderBid[]
   quotes                    Quote[]
   invoices                  Invoice[]
+  module_flags              TenantModuleFlag[]
 
   @@map("tenants")
+}
+
+// B1 pilot scope: per-tenant feature flags. Absent row = module OFF for
+// non-core modules; operator enables per tenant via /api/v1/operator/*.
+model TenantModuleFlag {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenant_id  String   @db.Uuid
+  module     String   @db.VarChar(40)
+  enabled    Boolean  @default(false)
+  updated_by String?  @db.VarChar(64)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, module])
+  @@map("tenant_module_flags")
 }
 
 model User {
@@ -59,6 +83,20 @@ model User {
   phone_number   String?      @db.VarChar(30)
   country        String?      @db.VarChar(60)
   is_active      Boolean      @default(true)
+  email_verified_at DateTime? @db.Timestamptz
+  phone_verified_at DateTime? @db.Timestamptz
+  // Single-use email-verification token (sha256 hash only — raw token is
+  // never persisted). Login is blocked until email OR phone is verified,
+  // or a company admin activates the account (pilot path).
+  email_verify_token_hash       String?   @db.VarChar(64)
+  email_verify_token_expires_at DateTime? @db.Timestamptz
+  email_verify_token_used_at    DateTime? @db.Timestamptz
+  // Field-role (phone+PIN) accounts: PIN is stored hashed (same KDF as
+  // passwords); raw PINs are never persisted. Failed-attempt counter +
+  // lockout timestamp rate-limit PIN logins independently of passwords.
+  pin_hash            String?   @db.VarChar(255)
+  pin_failed_attempts Int       @default(0)
+  pin_locked_until    DateTime? @db.Timestamptz
   created_at     DateTime     @default(now()) @db.Timestamptz
   updated_at     DateTime     @updatedAt @db.Timestamptz
 
@@ -97,6 +135,9 @@ model Invitation {
   phone      String?    @db.VarChar(30)
   role       String     @db.VarChar(50) // "COMPANY_ADMIN", "PM_QS", "SITE_SUPERVISOR", "CLIENT"
   token      String     @unique @db.VarChar(255)
+  // Phone+PIN field invites carry a hashed PIN (copied to the user at
+  // accept); email invites leave this null.
+  pin_hash   String?    @db.VarChar(255)
   status     String     @default("PENDING") @db.VarChar(50) // "PENDING", "ACCEPTED", "EXPIRED", "REVOKED"
   expires_at DateTime   @db.Timestamptz
   created_at DateTime   @default(now()) @db.Timestamptz
@@ -188,6 +229,7 @@ model Project {
   tender_bids           TenderBid[]
   quotes                Quote[]
   invoices              Invoice[]
+  purchase_orders       PurchaseOrder[]
   payment_certificates  PaymentCertificate[]
   commitments           Commitment[]
   payment_applications  PaymentApplication[]
@@ -200,6 +242,9 @@ model Project {
   daily_attendances     DailyAttendance[]
   checklist_assignments ChecklistAssignment[]
   scheduled_reports     ScheduledReport[]
+  permits               ProjectPermit[]
+  compliance_visits     ComplianceVisit[]
+  drawing_acknowledgements DrawingAcknowledgement[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -345,7 +390,10 @@ model MaterialDelivery {
   material_name String     @db.VarChar(255) // e.g. "Machine-Cut Stone 9x9"
   quantity      Decimal    @db.Decimal(12, 4)
   unit          String     @db.VarChar(20)
-  supplier_name String?    @db.VarChar(255)
+  supplier_name String?    @db.VarChar(255) // legacy free-text; prefer supplier_id
+  supplier_id   String?    @db.Uuid
+  purchase_order_id       String? @db.Uuid
+  purchase_order_item_id  String? @db.Uuid
   delivery_note String?    @db.VarChar(100)
   delivery_status String   @default("RECORDED") @db.VarChar(20) // RECORDED | CONFIRMED | DISPUTED
   confirmed_at   DateTime? @db.Timestamptz
@@ -354,8 +402,12 @@ model MaterialDelivery {
   dispute_reason String?  @db.VarChar(500)
 
   site_diary    SiteDiary  @relation(fields: [site_diary_id], references: [id], onDelete: Cascade)
+  supplier      Supplier?  @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+  purchase_order      PurchaseOrder?      @relation(fields: [purchase_order_id], references: [id], onDelete: SetNull)
+  purchase_order_item PurchaseOrderItem?  @relation(fields: [purchase_order_item_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id, site_diary_id])
+  @@index([tenant_id, supplier_id])
   @@map("material_deliveries")
 }
 
@@ -404,21 +456,26 @@ model CostEntry {
   project_id     String         @db.Uuid
   boq_item_id    String?        @db.Uuid
   cost_category  String         @db.VarChar(50) // "MATERIAL", "LABOR", "PLANT", "SUBCONTRACT", "PRELIMINARY"
+  commitment_id  String?        @db.Uuid
   amount         Decimal        @db.Decimal(15, 2)
   vendor_name    String?        @db.VarChar(255)
   invoice_ref    String?        @db.VarChar(100)
   description    String         @db.Text
   status         String         @default("PENDING") @db.VarChar(50) // "PENDING", "APPROVED", "REJECTED", "VOIDED"
+  self_approved        Boolean  @default(false)
+  self_approval_reason String?  @db.VarChar(500)
   created_by_id  String         @db.Uuid
   created_at     DateTime       @default(now()) @db.Timestamptz
 
   project        Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
   boq_item       BOQItem?       @relation(fields: [boq_item_id], references: [id])
+  commitment     Commitment?    @relation(fields: [commitment_id], references: [id], onDelete: SetNull)
   created_by     User           @relation("CostCreator", fields: [created_by_id], references: [id])
   receipts       CostReceipt[]
   approvals      CostApproval[]
 
   @@index([tenant_id, project_id, status])
+  @@index([tenant_id, commitment_id])
   @@map("cost_entries")
 }
 
@@ -558,6 +615,28 @@ model AuditLog {
   @@index([tenant_id, entity_type, entity_id])
   @@index([tenant_id, project_id, created_at])
   @@map("audit_logs")
+}
+
+model DocumentCounter {
+  tenant_id  String   @db.Uuid
+  scope      String   @db.VarChar(120)
+  last_value BigInt   @default(0)
+  updated_at DateTime @default(now()) @db.Timestamptz
+
+  @@id([tenant_id, scope])
+  @@map("document_counters")
+}
+
+model LoginThrottle {
+  id           String   @id @default(uuid()) @db.Uuid
+  scope        String   @db.VarChar(10) // 'IP' | 'ACCT'
+  identifier   String   @db.VarChar(320)
+  window_start DateTime @db.Timestamptz
+  fail_count   Int      @default(0)
+  updated_at   DateTime @default(now()) @db.Timestamptz
+
+  @@unique([scope, identifier])
+  @@map("login_throttles")
 }
 
 model IdempotencyKey {
@@ -927,15 +1006,21 @@ model PortalAccessLink {
   // SUBCONTRACTOR links are scoped to exactly one work package — a link
   // without this field sees nothing (audit: no cross-subs visibility).
   subcontractor_package_id String? @db.Uuid
+  // SUPPLIER links are bound to a Supplier record — never free-text names.
+  supplier_id String? @db.Uuid
+  // CONSULTANT links may be scope-limited: ALL | RFI | INSPECTIONS |
+  // CERTIFICATES. NULL/'ALL' returns every consultant section.
+  scope String? @db.VarChar(30)
 
   project          Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  supplier         Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id, project_id, portal_type])
   @@map("portal_access_links")
 }
 
 // =============================================================
-// PROJECT SCHEDULE & GANTT TASKS (BUILD-SASA BENCHMARK)
+// PROJECT SCHEDULE & GANTT TASKS 
 // =============================================================
 
 model ProjectScheduleTask {
@@ -964,7 +1049,7 @@ model ProjectScheduleTask {
 }
 
 // =============================================================
-// SITE STORE INVENTORY & STOCK BALANCES (BUILD-SASA BENCHMARK)
+// SITE STORE INVENTORY & STOCK BALANCES 
 // =============================================================
 
 model SiteInventoryItem {
@@ -1040,7 +1125,7 @@ model SafetyIncident {
 }
 
 // =============================================================
-// PROJECT DOCUMENTS & DRAWINGS REPOSITORY (BUILD-SASA BENCHMARK)
+// PROJECT DOCUMENTS & DRAWINGS REPOSITORY 
 // =============================================================
 
 model ProjectDocument {
@@ -1055,10 +1140,13 @@ model ProjectDocument {
   status               String    @default("APPROVED_FOR_CONSTRUCTION") @db.VarChar(50) // "APPROVED_FOR_CONSTRUCTION", "FOR_REVIEW", "SUPERSEDED", "INFORMATION_ONLY"
   uploaded_by_name     String    @db.VarChar(255)
   notes                String?   @db.Text
+  // Drawings register: date the revision was issued to the project.
+  issued_date          DateTime? @db.Date
   created_at           DateTime  @default(now()) @db.Timestamptz
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
   annotations          DrawingAnnotation[]
+  acknowledgements     DrawingAcknowledgement[]
 
   @@index([tenant_id, project_id, category])
   @@map("project_documents")
@@ -1083,7 +1171,7 @@ model DrawingAnnotation {
 }
 
 // =============================================================
-// SUBCONTRACTOR WORK PACKAGES & DIRECTORY (BUILD-SASA BENCHMARK)
+// SUBCONTRACTOR WORK PACKAGES & DIRECTORY 
 // =============================================================
 
 model SubcontractorPackage {
@@ -1172,7 +1260,7 @@ model StatutoryTaxCertificate {
 }
 
 // =============================================================
-// MATERIAL PURCHASE REQUISITIONS (BUILD-SASA BENCHMARK)
+// MATERIAL PURCHASE REQUISITIONS 
 // =============================================================
 
 model MaterialRequisition {
@@ -1283,10 +1371,24 @@ model SubcontractorValuation {
   withholding_tax_pct            Decimal              @default(3.00) @db.Decimal(5, 2)
   withholding_tax_deducted_kes   Decimal              @db.Decimal(15, 2)
   net_payable_kes                Decimal              @db.Decimal(15, 2)
-  payment_status                 String               @default("SUBMITTED") @db.VarChar(50) // "SUBMITTED", "QS_VERIFIED", "APPROVED_FOR_PAYMENT", "PAID", "REJECTED"
+  payment_status                 String               @default("SUBMITTED") @db.VarChar(50) // "SUBMITTED", "UNDER_REVIEW", "APPROVED_FOR_PAYMENT", "PAID", "REJECTED" (legacy "QS_VERIFIED" normalizes to UNDER_REVIEW)
   payment_reference              String?              @db.VarChar(100) // e.g. "KCB-RTGS-98124"
   paid_at                        DateTime?            @db.Timestamptz
+  prepared_by_id                 String?              @db.Uuid
+  submitted_at                   DateTime?            @db.Timestamptz
+  reviewed_by_id                 String?              @db.Uuid
+  reviewed_at                    DateTime?            @db.Timestamptz
+  approved_by_id                 String?              @db.Uuid
+  approved_at                    DateTime?            @db.Timestamptz
+  rejected_by_id                 String?              @db.Uuid
+  rejected_at                    DateTime?            @db.Timestamptz
+  rejection_reason               String?              @db.Text
+  cost_entry_id                  String?              @db.Uuid
   approved_by                    String?              @db.VarChar(255)
+  // Resubmission link: a corrected claim replaces a REJECTED valuation.
+  replaces_valuation_id          String?              @db.Uuid
+  replaces_valuation             SubcontractorValuation?  @relation("ValuationResubmission", fields: [replaces_valuation_id], references: [id], onDelete: SetNull)
+  replaced_by                    SubcontractorValuation[] @relation("ValuationResubmission")
   notes                          String?              @db.Text
   created_at                     DateTime             @default(now()) @db.Timestamptz
   updated_at                     DateTime             @updatedAt @db.Timestamptz
@@ -1299,7 +1401,7 @@ model SubcontractorValuation {
 }
 
 // =============================================================
-// PLANT, MACHINERY & HEAVY EQUIPMENT (BUILD-SASA BENCHMARK)
+// PLANT, MACHINERY & HEAVY EQUIPMENT 
 // =============================================================
 
 model PlantEquipment {
@@ -2373,6 +2475,7 @@ model Invoice {
   title        String    @db.VarChar(255)
   project_id   String?   @db.Uuid
   quote_id     String?   @db.Uuid
+  certificate_id String? @db.Uuid
   client_name  String    @db.VarChar(255)
   client_email String?   @db.VarChar(255)
   client_phone String?   @db.VarChar(50)
@@ -2383,6 +2486,8 @@ model Invoice {
   subtotal     Decimal   @default(0) @db.Decimal(15, 2)
   tax_pct      Decimal   @default(0) @db.Decimal(5, 2)
   tax_amount   Decimal   @default(0) @db.Decimal(15, 2)
+  wht_pct      Decimal   @default(0) @db.Decimal(5, 2)
+  wht_amount   Decimal   @default(0) @db.Decimal(15, 2)
   total        Decimal   @default(0) @db.Decimal(15, 2)
   amount_paid  Decimal   @default(0) @db.Decimal(15, 2)
   balance_due  Decimal   @default(0) @db.Decimal(15, 2)
@@ -2395,6 +2500,8 @@ model Invoice {
   paid_at      DateTime? @db.Timestamptz
   voided_at    DateTime? @db.Timestamptz
   void_reason  String?   @db.VarChar(255)
+  self_approved        Boolean  @default(false)
+  self_approval_reason String?  @db.VarChar(500)
   created_by   String?   @db.Uuid
   created_at   DateTime  @default(now()) @db.Timestamptz
   updated_at   DateTime  @updatedAt @db.Timestamptz
@@ -2402,13 +2509,16 @@ model Invoice {
   tenant   Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   project  Project?          @relation(fields: [project_id], references: [id], onDelete: SetNull)
   quote    Quote?            @relation(fields: [quote_id], references: [id], onDelete: SetNull)
+  certificate PaymentCertificate? @relation(fields: [certificate_id], references: [id], onDelete: SetNull)
   items    InvoiceLineItem[]
   payments InvoicePayment[]
+  payment_notices ClientPaymentNotice[]
 
   @@unique([tenant_id, invoice_no])
   @@index([tenant_id, status])
   @@index([tenant_id, project_id])
   @@index([tenant_id, due_date])
+  @@index([tenant_id, certificate_id])
   @@map("invoices")
 }
 
@@ -2473,6 +2583,11 @@ model PaymentCertificate {
   advance_recovery     Decimal   @default(0) @db.Decimal(15, 2)
   amount_due_previous  Decimal   @default(0) @db.Decimal(15, 2)
   net_payable          Decimal   @db.Decimal(15, 2)
+  invoice_id           String?   @db.Uuid
+  vat_pct              Decimal   @default(0) @db.Decimal(5, 2)
+  vat_amount           Decimal   @default(0) @db.Decimal(15, 2)
+  wht_pct              Decimal   @default(0) @db.Decimal(5, 2)
+  wht_amount           Decimal   @default(0) @db.Decimal(15, 2)
   status               String    @default("DRAFT") @db.VarChar(30)
   submitted_at         DateTime? @db.Timestamptz
   certified_at         DateTime? @db.Timestamptz
@@ -2480,15 +2595,38 @@ model PaymentCertificate {
   paid_reference       String?   @db.VarChar(100) // M-Pesa code / EFT ref / cheque no
   submitted_by_id      String?   @db.Uuid
   certified_by_id      String?   @db.Uuid
+  self_approved        Boolean   @default(false)
+  self_approval_reason String?   @db.VarChar(500)
   notes                String?   @db.Text
   created_at           DateTime  @default(now()) @db.Timestamptz
   updated_at           DateTime  @updatedAt @db.Timestamptz
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  invoices             Invoice[]
+  lines                PaymentCertificateLine[]
 
   @@unique([project_id, certificate_no])
   @@index([tenant_id, project_id, status])
   @@map("payment_certificates")
+}
+
+model PaymentCertificateLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String   @db.Uuid
+  certificate_id String   @db.Uuid
+  boq_item_id    String?  @db.Uuid
+  description    String   @db.Text
+  unit           String?  @db.VarChar(20)
+  progress_pct   Decimal? @db.Decimal(7, 4) // cumulative completion fraction e.g. 0.6500
+  unit_rate      Decimal? @db.Decimal(15, 4)
+  amount         Decimal  @db.Decimal(15, 2) // amount certified this period for this line
+  sort_order     Int      @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  certificate    PaymentCertificate @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, certificate_id])
+  @@map("payment_certificate_lines")
 }
 
 // -------------------------------------------------------------
@@ -2522,6 +2660,7 @@ model Commitment {
 
   project                Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
   applications           PaymentApplication[]
+  cost_entries           CostEntry[]
 
   @@unique([project_id, commitment_no])
   @@index([tenant_id, project_id, status])
@@ -2999,4 +3138,246 @@ model RefreshToken {
 
   @@index([tenant_id, user_id])
   @@map("refresh_tokens")
+}
+
+// -------------------------------------------------------------
+// PASSWORD RESET TOKENS — single-use, expiring, hash-only storage.
+// Unauthenticated lookup goes through the lookup_password_reset_token
+// SECURITY DEFINER function (rls.sql); tenant_id keeps the table under RLS.
+// -------------------------------------------------------------
+
+model PasswordResetToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenant_id   String    @db.Uuid
+  user_id     String    @db.Uuid
+  token_hash  String    @unique @db.VarChar(64)
+  expires_at  DateTime  @db.Timestamptz
+  used_at     DateTime? @db.Timestamptz
+  created_by  String?   @db.Uuid // admin user id for admin-assisted resets; NULL = self-serve
+  created_at  DateTime  @default(now()) @db.Timestamptz
+
+  @@index([tenant_id, user_id])
+  @@map("password_reset_tokens")
+}
+
+// -------------------------------------------------------------
+// TENANT TAX SETTINGS (VAT + withholding tax by vendor category)
+// Central per-tenant configuration; no hard-coded rates in routes.
+// -------------------------------------------------------------
+
+model TenantTaxSetting {
+  tenant_id               String   @id @db.Uuid
+  vat_pct                 Decimal  @default(16.00) @db.Decimal(5, 2)
+  wht_contractor_pct      Decimal  @default(3.00) @db.Decimal(5, 2)
+  wht_subcontractor_pct   Decimal  @default(3.00) @db.Decimal(5, 2)
+  wht_consultant_pct      Decimal  @default(3.00) @db.Decimal(5, 2)
+  wht_supplier_pct        Decimal  @default(0.00) @db.Decimal(5, 2)
+  whvat_pct               Decimal  @default(2.00) @db.Decimal(5, 2)
+  updated_by              String?  @db.Uuid
+  created_at              DateTime @default(now()) @db.Timestamptz
+  updated_at              DateTime @updatedAt @db.Timestamptz
+
+  tenant                  Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@map("tenant_tax_settings")
+}
+
+// =============================================================
+// STAGE 3 — SUPPLIERS & PURCHASE ORDERS (record-bound portals)
+// =============================================================
+
+model Supplier {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenant_id      String    @db.Uuid
+  name           String    @db.VarChar(255)
+  contact_person String?   @db.VarChar(255)
+  phone          String?   @db.VarChar(50)
+  email          String?   @db.VarChar(255)
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz
+  updated_at     DateTime  @updatedAt @db.Timestamptz
+
+  deliveries     MaterialDelivery[]
+  portal_links   PortalAccessLink[]
+  purchase_orders PurchaseOrder[]
+
+  @@index([tenant_id])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id                      String    @id @default(uuid()) @db.Uuid
+  tenant_id               String    @db.Uuid
+  project_id              String    @db.Uuid
+  po_number               String    @db.VarChar(50)
+  supplier_id             String    @db.Uuid
+  status                  String    @default("DRAFT") @db.VarChar(30) // DRAFT | ISSUED | ACCEPTED | PART_DELIVERED | DELIVERED | CLOSED | CANCELLED
+  order_date              DateTime  @default(now()) @db.Date
+  expected_delivery_date  DateTime? @db.Date
+  notes                   String?   @db.Text
+  total_amount_kes        Decimal   @default(0) @db.Decimal(15, 2)
+  commitment_id           String?   @db.Uuid
+  issued_at               DateTime? @db.Timestamptz
+  created_by_id           String?   @db.Uuid
+  created_at              DateTime  @default(now()) @db.Timestamptz
+  updated_at              DateTime  @updatedAt @db.Timestamptz
+
+  project       Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  supplier      Supplier               @relation(fields: [supplier_id], references: [id], onDelete: Restrict)
+  items         PurchaseOrderItem[]
+  invoices      PurchaseOrderInvoice[]
+  deliveries    MaterialDelivery[]
+
+  @@unique([project_id, po_number])
+  @@index([tenant_id, project_id, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenant_id        String   @db.Uuid
+  purchase_order_id String  @db.Uuid
+  description      String   @db.VarChar(500)
+  unit             String   @db.VarChar(20)
+  quantity         Decimal  @db.Decimal(14, 4)
+  rate             Decimal  @db.Decimal(15, 2)
+  created_at       DateTime @default(now()) @db.Timestamptz
+
+  purchase_order   PurchaseOrder       @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+  deliveries       MaterialDelivery[]
+  invoices         PurchaseOrderInvoice[]
+
+  @@index([tenant_id, purchase_order_id])
+  @@map("purchase_order_items")
+}
+
+model PurchaseOrderInvoice {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenant_id              String    @db.Uuid
+  purchase_order_id      String    @db.Uuid
+  purchase_order_item_id String?   @db.Uuid // optional line allocation for three-way match
+  reference              String    @db.VarChar(100)
+  amount            Decimal   @db.Decimal(15, 2)
+  status            String    @default("SUBMITTED") @db.VarChar(30) // SUBMITTED | REVIEW_REQUIRED | ACCEPTED | REJECTED
+  note              String?   @db.Text
+  submitted_by_name String?   @db.VarChar(255) // portal stakeholder name
+  reviewed_by_id    String?   @db.Uuid
+  reviewed_at       DateTime? @db.Timestamptz
+  review_reason     String?   @db.Text
+  cost_entry_id     String?   @db.Uuid
+  created_at        DateTime  @default(now()) @db.Timestamptz
+  updated_at        DateTime  @updatedAt @db.Timestamptz
+
+  purchase_order    PurchaseOrder      @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+  purchase_order_item PurchaseOrderItem? @relation(fields: [purchase_order_item_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id, purchase_order_id, status])
+  @@map("purchase_order_invoices")
+}
+
+// =============================================================
+// STAGE 2 — CLIENT PAYMENT NOTICES (non-mutating)
+// =============================================================
+
+model ClientPaymentNotice {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenant_id    String    @db.Uuid
+  invoice_id   String    @db.Uuid
+  user_id      String    @db.Uuid // the client who submitted it
+  amount       Decimal   @db.Decimal(15, 2)
+  method       String    @db.VarChar(30)
+  reference    String?   @db.VarChar(100)
+  note         String?   @db.Text
+  status       String    @default("PENDING") @db.VarChar(20) // PENDING | CONFIRMED | REJECTED
+  confirmed_at DateTime? @db.Timestamptz
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @updatedAt @db.Timestamptz
+
+  invoice      Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, invoice_id])
+  @@map("client_payment_notices")
+}
+
+// =============================================================
+// STAGE 4 — DRAWING ACKNOWLEDGEMENTS, PERMITS, COMPLIANCE VISITS
+// =============================================================
+
+// Per-link acknowledgement of a drawing revision by a consultant portal
+// link — visible to the contractor on the drawings register.
+model DrawingAcknowledgement {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenant_id        String   @db.Uuid
+  project_id       String   @db.Uuid
+  document_id      String   @db.Uuid
+  portal_link_id   String   @db.Uuid
+  stakeholder_name String   @db.VarChar(255)
+  acknowledged_at  DateTime @default(now()) @db.Timestamptz
+
+  document         ProjectDocument @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  project          Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([document_id, portal_link_id])
+  @@index([tenant_id, project_id])
+  @@map("drawing_acknowledgements")
+}
+
+// Permits & licences register (NCA registration, NEMA licence, county
+// approval, other). Status is DERIVED from expiry_date at read time —
+// never stored, so it cannot drift from the real record.
+model ProjectPermit {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenant_id     String    @db.Uuid
+  project_id    String    @db.Uuid
+  permit_type   String    @db.VarChar(40) // "NCA_REGISTRATION", "NEMA_LICENSE", "COUNTY_APPROVAL", "OTHER"
+  permit_number String    @db.VarChar(100)
+  issuer        String    @db.VarChar(255)
+  issued_date   DateTime? @db.Date
+  expiry_date   DateTime? @db.Date
+  notes         String?   @db.Text
+  created_by_id String?   @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @updatedAt @db.Timestamptz
+
+  project       Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, project_id])
+  @@map("project_permits")
+}
+
+// Inspector visit recorded through the compliance portal — bound to the
+// portal link that recorded it, notified to the contractor, and surfaced
+// on the project with its required actions.
+model ComplianceVisit {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenant_id        String   @db.Uuid
+  project_id       String   @db.Uuid
+  portal_link_id   String   @db.Uuid
+  visit_date       DateTime @db.Date
+  outcome          String   @db.VarChar(40) // "COMPLIANT", "CONDITIONAL", "NON_COMPLIANT", "FOLLOW_UP_REQUIRED"
+  notes            String?  @db.Text
+  recorded_by_name String   @db.VarChar(255)
+  created_at       DateTime @default(now()) @db.Timestamptz
+
+  project          Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  actions          ComplianceAction[]
+
+  @@index([tenant_id, project_id])
+  @@map("compliance_visits")
+}
+
+model ComplianceAction {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenant_id    String    @db.Uuid
+  visit_id     String    @db.Uuid
+  description  String    @db.Text
+  due_date     DateTime? @db.Date
+  status       String    @default("OPEN") @db.VarChar(20) // OPEN | DONE | OVERDUE (derived at read)
+  completed_at DateTime? @db.Timestamptz
+  created_at   DateTime  @default(now()) @db.Timestamptz
+
+  visit        ComplianceVisit @relation(fields: [visit_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, visit_id])
+  @@map("compliance_actions")
 }

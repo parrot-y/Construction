@@ -20,11 +20,12 @@ import {
   PaymentCertificatePdf,
   ProjectSummaryData,
   ProjectSummaryPdf,
-  renderPdfToBuffer,
+  renderPdfToBufferLimited,
   SectionSummaryEntry,
   SiteDiaryReportData,
   SiteDiaryReportPdf,
 } from '../reports';
+import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -204,7 +205,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           };
 
           const docElement = React.createElement(PaymentCertificatePdf, { data: certData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
+          const renderedBuffer = await renderPdfToBufferLimited(docElement);
 
           // Append-only audit log
           await recordAuditLog(tx, {
@@ -233,9 +234,10 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           .send(buffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -367,7 +369,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           };
 
           const docElement = React.createElement(SiteDiaryReportPdf, { data: reportData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
+          const renderedBuffer = await renderPdfToBufferLimited(docElement);
 
           // Append-only audit log
           await recordAuditLog(tx, {
@@ -400,9 +402,10 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           .send(buffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -584,7 +587,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           };
 
           const docElement = React.createElement(ProjectSummaryPdf, { data: summaryData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
+          const renderedBuffer = await renderPdfToBufferLimited(docElement);
 
           // Append-only audit log
           await recordAuditLog(tx, {
@@ -612,9 +615,10 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           .send(buffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -769,7 +773,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             securityHash,
           };
 
-          const renderedBuffer = await renderPdfToBuffer(
+          const renderedBuffer = await renderPdfToBufferLimited(
             React.createElement(IndependentInspectionReportPdf, { data: inspectionData }),
           );
 
@@ -798,9 +802,10 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           .send(buffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -844,7 +849,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
 
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Site Safi';
+      wb.creator = PRODUCT_NAME;
       const money = (v: any) => Number(v ?? 0);
 
       const cash = wb.addWorksheet('Cash flow');
@@ -930,7 +935,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
 
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Site Safi';
+      wb.creator = PRODUCT_NAME;
       const money = (v: any) => Number(v ?? 0);
 
       const ws = wb.addWorksheet('Costs');

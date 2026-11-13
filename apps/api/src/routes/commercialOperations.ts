@@ -1,6 +1,8 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
-import { toDecimal } from '@construction/money';
+import { toDecimal, Decimal } from '@construction/money';
+import { getTaxSettings, whtRateFor } from '../lib/tax';
+import { notifyTeam } from '../lib/notify';
 import {
   CreateMaterialRequisitionSchema,
   ReviewMaterialRequisitionSchema,
@@ -9,12 +11,14 @@ import {
   CreateSubcontractorValuationSchema,
   ReviewSubcontractorValuationSchema,
 } from '@construction/validation';
+import { PRODUCT_NAME } from '../lib/product';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const commercialOperationsRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ===========================================================================
-  // MODULE 1: MATERIAL PURCHASE REQUISITIONS (BUILD-SASA BENCHMARK)
+  // MODULE 1: MATERIAL PURCHASE REQUISITIONS 
   // ===========================================================================
 
   // 1.1 List Material Requisitions
@@ -24,6 +28,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -34,16 +39,25 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const requisitions = await tx.materialRequisition.findMany({
-            where: { project_id: projectId },
-            include: { inventory_item: true },
-            orderBy: { created_at: 'desc' },
-          });
+          const [requisitions, allReqs] = await Promise.all([
+            tx.materialRequisition.findMany({
+              where: { project_id: projectId },
+              include: { inventory_item: true },
+              orderBy: { created_at: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.materialRequisition.findMany({
+              where: { project_id: projectId },
+              select: { status: true, estimated_total_cost_kes: true },
+            }),
+          ]);
 
-          const totalCount = requisitions.length;
-          const pendingCount = requisitions.filter((r) => r.status === 'PENDING_APPROVAL').length;
-          const approvedCount = requisitions.filter((r) => r.status === 'APPROVED' || r.status === 'PO_ISSUED').length;
-          const totalEstimatedKes = requisitions.reduce(
+          const pagedReqs = listPage(requisitions, pg);
+          const totalCount = allReqs.length;
+          const pendingCount = allReqs.filter((r) => r.status === 'PENDING_APPROVAL').length;
+          const approvedCount = allReqs.filter((r) => r.status === 'APPROVED' || r.status === 'PO_ISSUED').length;
+          const totalEstimatedKes = allReqs.reduce(
             (sum, r) => sum.plus(toDecimal(r.estimated_total_cost_kes.toString())),
             toDecimal('0.00')
           );
@@ -56,7 +70,8 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               approvedCount,
               totalEstimatedKes: totalEstimatedKes.toFixed(2),
             },
-            requisitions: requisitions.map((r) => ({
+            page: pagedReqs.page,
+            requisitions: pagedReqs.data.map((r) => ({
               id: r.id,
               requisitionNo: r.requisition_no,
               inventoryItemId: r.inventory_item_id,
@@ -258,6 +273,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -268,29 +284,39 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const records = await tx.materialWastageReconciliation.findMany({
-            where: { project_id: projectId },
-            orderBy: { created_at: 'desc' },
-          });
+          const [records, allRecords] = await Promise.all([
+            tx.materialWastageReconciliation.findMany({
+              where: { project_id: projectId },
+              orderBy: { created_at: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.materialWastageReconciliation.findMany({
+              where: { project_id: projectId },
+              select: { status: true, financial_loss_kes: true },
+            }),
+          ]);
 
-          const totalFinancialLoss = records.reduce(
+          const pagedRecords = listPage(records, pg);
+          const totalFinancialLoss = allRecords.reduce(
             (sum, r) => sum.plus(toDecimal(r.financial_loss_kes.toString())),
             toDecimal('0.00')
           );
-          const criticalLossesCount = records.filter((r) => r.status === 'CRITICAL_UNEXPLAINED_LOSS').length;
-          const elevatedCount = records.filter((r) => r.status === 'ELEVATED_LOSS').length;
-          const withinToleranceCount = records.filter((r) => r.status === 'WITHIN_TOLERANCE').length;
+          const criticalLossesCount = allRecords.filter((r) => r.status === 'CRITICAL_UNEXPLAINED_LOSS').length;
+          const elevatedCount = allRecords.filter((r) => r.status === 'ELEVATED_LOSS').length;
+          const withinToleranceCount = allRecords.filter((r) => r.status === 'WITHIN_TOLERANCE').length;
 
           return {
             projectId,
             summary: {
-              totalReconciliations: records.length,
+              totalReconciliations: allRecords.length,
               totalFinancialLossKes: totalFinancialLoss.toFixed(2),
               criticalLossesCount,
               elevatedCount,
               withinToleranceCount,
             },
-            reconciliations: records.map((r) => ({
+            page: pagedRecords.page,
+            reconciliations: pagedRecords.data.map((r) => ({
               id: r.id,
               periodName: r.period_name,
               materialName: r.material_name,
@@ -450,6 +476,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -460,10 +487,20 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const records = await tx.projectCashFlowForecast.findMany({
-            where: { project_id: projectId },
-            orderBy: { period_month: 'asc' },
-          });
+          const [records, allRecords] = await Promise.all([
+            tx.projectCashFlowForecast.findMany({
+              where: { project_id: projectId },
+              orderBy: { period_month: 'asc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.projectCashFlowForecast.findMany({
+              where: { project_id: projectId },
+            }),
+          ]);
+          const pagedRecords = listPage(records, pg);
+          records.length = 0;
+          records.push(...pagedRecords.data);
 
           // Aggregate portfolio metrics
           let totalPv = toDecimal('0.00');
@@ -472,7 +509,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           let totalBilled = toDecimal('0.00');
           let totalNetCashFlow = toDecimal('0.00');
 
-          for (const r of records) {
+          for (const r of allRecords) {
             totalPv = totalPv.plus(toDecimal(r.planned_value_kes.toString()));
             totalAc = totalAc.plus(toDecimal(r.actual_cost_kes.toString()));
             totalEv = totalEv.plus(toDecimal(r.earned_value_kes.toString()));
@@ -502,7 +539,8 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               estimateAtCompletionKes: eac.toFixed(2),
               varianceAtCompletionKes: bac.minus(eac).toFixed(2),
             },
-            sCurveSeries: records.map((r) => ({
+            page: pagedRecords.page,
+            sCurveSeries: pagedRecords.data.map((r) => ({
               periodMonth: r.period_month,
               plannedValueKes: r.planned_value_kes.toString(),
               actualCostKes: r.actual_cost_kes.toString(),
@@ -661,6 +699,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -671,18 +710,29 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const valuations = await tx.subcontractorValuation.findMany({
-            where: { project_id: projectId },
-            include: { subcontractor_package: true },
-            orderBy: { valuation_date: 'desc' },
-          });
+          const [valuations, allValuations] = await Promise.all([
+            tx.subcontractorValuation.findMany({
+              where: { project_id: projectId },
+              include: { subcontractor_package: true },
+              orderBy: { valuation_date: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.subcontractorValuation.findMany({
+              where: { project_id: projectId },
+              include: { subcontractor_package: { select: { subcontract_sum: true } } },
+            }),
+          ]);
+          const pagedVals = listPage(valuations, pg);
 
           let totalGross = toDecimal('0.00');
           let totalRetention = toDecimal('0.00');
           let totalWht = toDecimal('0.00');
           let totalNetPayable = toDecimal('0.00');
 
-          for (const v of valuations) {
+          for (const v of allValuations) {
+            // Stage-3: rejected claims never count toward certified totals.
+            if (v.payment_status === 'REJECTED') continue;
             totalGross = totalGross.plus(toDecimal(v.gross_work_certified_kes.toString()));
             totalRetention = totalRetention.plus(toDecimal(v.retention_deducted_kes.toString()));
             totalWht = totalWht.plus(toDecimal(v.withholding_tax_deducted_kes.toString()));
@@ -691,14 +741,15 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
 
           return {
             projectId,
+            page: pagedVals.page,
             summary: {
-              totalValuations: valuations.length,
+              totalValuations: allValuations.length,
               totalGrossCertifiedKes: totalGross.toFixed(2),
               totalRetentionHeldKes: totalRetention.toFixed(2),
               totalWhtDeductedKes: totalWht.toFixed(2),
               totalNetPayableKes: totalNetPayable.toFixed(2),
             },
-            valuations: valuations.map((v) => ({
+            valuations: pagedVals.data.map((v) => ({
               id: v.id,
               certificateNo: v.certificate_no,
               subcontractorPackageId: v.subcontractor_package_id,
@@ -712,13 +763,52 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               withholdingTaxPct: v.withholding_tax_pct.toString(),
               withholdingTaxDeductedKes: v.withholding_tax_deducted_kes.toString(),
               netPayableKes: v.net_payable_kes.toString(),
-              paymentStatus: v.payment_status,
+              paymentStatus: v.payment_status === 'QS_VERIFIED' ? 'UNDER_REVIEW' : v.payment_status,
               paymentReference: v.payment_reference,
               paidAt: v.paid_at?.toISOString() || null,
+              preparedById: v.prepared_by_id,
+              submittedAt: v.submitted_at?.toISOString() || null,
+              approvedById: v.approved_by_id,
+              approvedAt: v.approved_at?.toISOString() || null,
+              rejectedById: v.rejected_by_id,
+              rejectedAt: v.rejected_at?.toISOString() || null,
+              rejectionReason: v.rejection_reason,
+              costEntryId: v.cost_entry_id,
               approvedBy: v.approved_by,
               notes: v.notes,
               createdAt: v.created_at.toISOString(),
             })),
+            packages: (() => {
+              const byPkg = new Map<string, { certified: Decimal; paid: Decimal; outstanding: Decimal; contractValue: Decimal }>();
+              for (const v of allValuations) {
+                const key = v.subcontractor_package_id;
+                const agg = byPkg.get(key) ?? {
+                  certified: new Decimal(0),
+                  paid: new Decimal(0),
+                  outstanding: new Decimal(0),
+                  contractValue: toDecimal(v.subcontractor_package.subcontract_sum.toString()),
+                };
+                const status = v.payment_status === 'QS_VERIFIED' ? 'UNDER_REVIEW' : v.payment_status;
+                if (status === 'APPROVED_FOR_PAYMENT' || status === 'PAID') {
+                  agg.certified = agg.certified.plus(toDecimal(v.gross_work_certified_kes.toString()));
+                }
+                if (status === 'PAID') {
+                  agg.paid = agg.paid.plus(toDecimal(v.net_payable_kes.toString()));
+                }
+                if (status === 'APPROVED_FOR_PAYMENT') {
+                  agg.outstanding = agg.outstanding.plus(toDecimal(v.net_payable_kes.toString()));
+                }
+                byPkg.set(key, agg);
+              }
+              return [...byPkg.entries()].map(([packageId, a]) => ({
+                subcontractorPackageId: packageId,
+                contractValueKes: a.contractValue.toFixed(2),
+                certifiedToDateKes: a.certified.toFixed(2),
+                paidToDateKes: a.paid.toFixed(2),
+                outstandingToPayKes: a.outstanding.toFixed(2),
+                contractRemainingKes: a.contractValue.minus(a.certified).toFixed(2),
+              }));
+            })(),
           };
         });
 
@@ -759,20 +849,6 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
       const gross = toDecimal(data.grossWorkCertifiedKes);
       const retentionPct = toDecimal(data.retentionRatePct || '10.00');
       const prevPayments = toDecimal(data.previousPaymentsDeductedKes || '0.00');
-      const whtPct = toDecimal(data.withholdingTaxPct || '3.00');
-
-      // Kenyan JBC Subcontract Formulation:
-      // Retention is computed on gross work certified
-      const retentionDeducted = gross.times(retentionPct.dividedBy(100));
-
-      // Work done in current valuation period subject to WHT = gross - prevPayments
-      const currentPeriodGross = gross.minus(prevPayments);
-      const whtDeducted = currentPeriodGross.gt(0)
-        ? currentPeriodGross.times(whtPct.dividedBy(100))
-        : toDecimal('0.00');
-
-      // Net payable = gross - retention - previous payments - WHT
-      const netPayable = gross.minus(retentionDeducted).minus(prevPayments).minus(whtDeducted);
 
       try {
         const created = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -783,6 +859,25 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
             where: { id: data.subcontractorPackageId, project_id: projectId },
           });
           if (!subPkg) throw { status: 404, message: 'Subcontractor package not found' };
+
+          // WHT rate: explicit override wins, otherwise tenant tax settings.
+          const taxSettings = await getTaxSettings(tx, tenantId);
+          const whtPct = data.withholdingTaxPct != null
+            ? toDecimal(data.withholdingTaxPct)
+            : whtRateFor(taxSettings, 'SUBCONTRACTOR');
+
+          // Kenyan JBC Subcontract Formulation:
+          // Retention is computed on gross work certified
+          const retentionDeducted = gross.times(retentionPct.dividedBy(100));
+
+          // Work done in current valuation period subject to WHT = gross - prevPayments
+          const currentPeriodGross = gross.minus(prevPayments);
+          const whtDeducted = currentPeriodGross.gt(0)
+            ? currentPeriodGross.times(whtPct.dividedBy(100))
+            : toDecimal('0.00');
+
+          // Net payable = gross - retention - previous payments - WHT
+          const netPayable = gross.minus(retentionDeducted).minus(prevPayments).minus(whtDeducted);
 
           const createdVal = await tx.subcontractorValuation.create({
             data: {
@@ -799,6 +894,8 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               withholding_tax_deducted_kes: whtDeducted.toFixed(2),
               net_payable_kes: netPayable.toFixed(2),
               payment_status: 'SUBMITTED',
+              prepared_by_id: sub,
+              submitted_at: new Date(),
               notes: data.notes || null,
             },
           });
@@ -817,6 +914,15 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               whtKes: whtDeducted.toFixed(2),
               netPayableKes: netPayable.toFixed(2),
             },
+          });
+
+          const preparerName = (request.user as any).full_name || (request.user as any).email || PRODUCT_NAME;
+          await notifyTeam(tx, {
+            tenantId,
+            projectId,
+            senderId: sub,
+            senderName: preparerName,
+            body: `Subcontractor valuation ${createdVal.certificate_no} submitted — gross ${gross.toFixed(2)} KES, net payable ${netPayable.toFixed(2)} KES. Awaiting review.`,
           });
 
           return createdVal;
@@ -849,7 +955,7 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
     '/api/v1/projects/:projectId/subcontractor-valuations/:valuationId',
     { preHandler: [server.authenticate] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { projectId, valuationId } = request.params as { projectId: string; valuationId: string };
 
       if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(valuationId)) {
@@ -866,7 +972,31 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
         });
       }
 
-      const { paymentStatus, approvedBy, paymentReference, paidAt, notes } = parseResult.data;
+      const { paymentStatus, approvedBy, paymentReference, paidAt, notes, tccOverrideReason } = parseResult.data;
+
+      // Rejection requires a reason — the subcontractor must see why the claim
+      // failed and what to fix before resubmitting (auditor stage-3 contract).
+      if (paymentStatus === 'REJECTED' && !notes?.trim()) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'A rejection reason is required — the subcontractor sees it in their portal',
+        });
+      }
+
+      // State machine: SUBMITTED -> UNDER_REVIEW|QS_VERIFIED -> APPROVED_FOR_PAYMENT -> PAID
+      // with REJECTED reachable from SUBMITTED/UNDER_REVIEW/QS_VERIFIED.
+      // QS_VERIFIED is the QS quantity/value sign-off track (stored literally,
+      // read-side normalized to UNDER_REVIEW for display); APPROVED_FOR_PAYMENT
+      // always requires a valid TCC regardless of which review track was used.
+      const TRANSITIONS: Record<string, string[]> = {
+        SUBMITTED: ['UNDER_REVIEW', 'REJECTED'],
+        UNDER_REVIEW: ['APPROVED_FOR_PAYMENT', 'REJECTED', 'SUBMITTED'],
+        QS_VERIFIED: ['APPROVED_FOR_PAYMENT', 'REJECTED', 'SUBMITTED'],
+        APPROVED_FOR_PAYMENT: ['PAID'],
+        PAID: [],
+        REJECTED: [],
+      };
 
       try {
         const updated = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -875,26 +1005,198 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
           });
           if (!val) throw { status: 404, message: 'Subcontractor valuation not found' };
 
-          const updatedVal = await tx.subcontractorValuation.update({
-            where: { id: valuationId },
-            data: {
-              payment_status: paymentStatus,
-              approved_by: approvedBy || (paymentStatus === 'APPROVED_FOR_PAYMENT' ? sub : val.approved_by),
-              payment_reference: paymentReference || val.payment_reference,
-              paid_at: paidAt ? new Date(paidAt) : (paymentStatus === 'PAID' ? new Date() : val.paid_at),
-              notes: notes || val.notes,
-            },
+          const current = val.payment_status;
+          // QS_VERIFIED is a real stored state on the QS sign-off track —
+          // a quantity/value verification distinct from UNDER_REVIEW. It
+          // confers NO tax-compliance exemption: the TCC gate below applies
+          // to every transition into APPROVED_FOR_PAYMENT.
+          const target = paymentStatus;
+          // Transition validation treats QS_VERIFIED like UNDER_REVIEW for
+          // reachability (SUBMITTED -> verify), while the stored status keeps
+          // the distinct QS_VERIFIED marker.
+          const checkTarget = target === 'QS_VERIFIED' ? 'UNDER_REVIEW' : target;
+          const allowed = TRANSITIONS[current] ?? [];
+          if (!allowed.includes(checkTarget) && !(current === 'QS_VERIFIED' && target === 'QS_VERIFIED')) {
+            throw {
+              status: 409,
+              message: `Illegal valuation transition: ${current} -> ${target}`,
+            };
+          }
+
+          // Segregation of duties: approver must differ from whoever prepared
+          // or reviewed (moved to UNDER_REVIEW) the valuation.
+          if (target === 'APPROVED_FOR_PAYMENT') {
+            const conflict =
+              (val.prepared_by_id && val.prepared_by_id === sub) ||
+              (val.reviewed_by_id && val.reviewed_by_id === sub);
+            if (conflict) {
+              throw {
+                status: 409,
+                message: 'The person who prepared or reviewed this valuation cannot approve it — a different approver is required',
+              };
+            }
+          }
+
+          // Stage-3 TCC gate: APPROVED_FOR_PAYMENT requires a valid Tax
+          // Compliance Certificate on file for the subcontractor package —
+          // COMPLIANT/EXEMPT and unexpired. COMPANY_ADMIN may override only
+          // with a mandatory reason, which is written to the audit log.
+          let tccOverride: string | null = null;
+          // TCC gate applies to EVERY transition into APPROVED_FOR_PAYMENT —
+          // QS_VERIFIED is a quantity/value sign-off, not tax compliance, so
+          // it carries no exemption (auditor review 0d38faf).
+          if (target === 'APPROVED_FOR_PAYMENT') {
+            const tcc = await tx.subcontractorTaxCompliance.findFirst({
+              where: { subcontractor_package_id: val.subcontractor_package_id },
+              orderBy: { last_verified_at: 'desc' },
+            });
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tccValid = !!tcc
+              && ['COMPLIANT', 'EXEMPT'].includes(tcc.compliance_status)
+              && tcc.tcc_expiry_date >= today;
+            if (!tccValid) {
+              const reason = (tccOverrideReason || '').trim();
+              const overrideAttempted = tccOverrideReason !== undefined && tccOverrideReason !== null;
+              if (overrideAttempted && role === 'COMPANY_ADMIN') {
+                if (reason.length === 0) {
+                  throw { status: 400, message: 'tccOverrideReason is required for a TCC override' };
+                }
+                tccOverride = reason;
+              } else {
+                throw {
+                  status: 409,
+                  code: 'TCC_INVALID',
+                  message: 'A valid (unexpired) Tax Compliance Certificate is required before approving this valuation for payment',
+                };
+              }
+            }
+          }
+
+          // PAID requires a payment reference and payment date — a claim can
+          // never be marked paid without proof of disbursement.
+          if (target === 'PAID') {
+            const effectiveRef = paymentReference || val.payment_reference;
+            if (!effectiveRef || !String(effectiveRef).trim()) {
+              throw { status: 400, message: 'paymentReference is required before marking a valuation PAID' };
+            }
+            if (!paidAt) {
+              throw { status: 400, message: 'paidAt is required before marking a valuation PAID' };
+            }
+          }
+
+          const now = new Date();
+          const updateData: any = {
+            payment_status: target,
+            payment_reference: paymentReference || val.payment_reference,
+            notes: notes || val.notes,
+          };
+          if (target === 'UNDER_REVIEW' || target === 'QS_VERIFIED') {
+            updateData.submitted_at = val.submitted_at ?? now;
+            updateData.reviewed_by_id = sub;
+            updateData.reviewed_at = now;
+          }
+          if (target === 'APPROVED_FOR_PAYMENT') {
+            updateData.approved_by_id = sub;
+            updateData.approved_at = now;
+            updateData.approved_by = approvedBy || sub;
+          }
+          if (target === 'REJECTED') {
+            updateData.rejected_by_id = sub;
+            updateData.rejected_at = now;
+            updateData.rejection_reason = notes ?? null;
+          }
+          if (target === 'PAID') {
+            updateData.paid_at = paidAt ? new Date(paidAt) : now;
+          }
+
+          // Atomic claim on current status — prevents double transitions.
+          const claim = await tx.subcontractorValuation.updateMany({
+            where: { id: valuationId, payment_status: val.payment_status },
+            data: updateData,
           });
+          if (claim.count !== 1) {
+            throw { status: 409, message: 'Valuation was modified concurrently — please retry' };
+          }
+
+          // Post to cost ledger on approval — commitment-linked, once only.
+          if (target === 'APPROVED_FOR_PAYMENT' && !val.cost_entry_id) {
+            const pkg = await tx.subcontractorPackage.findUnique({ where: { id: val.subcontractor_package_id } });
+            let commitment = await tx.commitment.findFirst({
+              where: { project_id: projectId, subcontractor_package_id: val.subcontractor_package_id, status: 'ACTIVE' },
+            });
+            if (!commitment && pkg) {
+              const latest = await tx.commitment.findFirst({
+                where: { project_id: projectId },
+                orderBy: { commitment_no: 'desc' },
+                select: { commitment_no: true },
+              });
+              commitment = await tx.commitment.create({
+                data: {
+                  tenant_id: tenantId,
+                  project_id: projectId,
+                  commitment_no: (latest?.commitment_no ?? 0) + 1,
+                  vendor_name: pkg.firm_name,
+                  vendor_type: 'SUBCONTRACTOR',
+                  contract_value: pkg.subcontract_sum.toString(),
+                  retention_pct: pkg.retention_rate_pct.toString(),
+                  status: 'ACTIVE',
+                  subcontractor_package_id: pkg.id,
+                },
+              });
+            }
+            if (commitment) {
+              const netPayable = toDecimal(val.net_payable_kes.toString());
+              const costEntry = await tx.costEntry.create({
+                data: {
+                  tenant_id: tenantId,
+                  project_id: projectId,
+                  commitment_id: commitment.id,
+                  cost_category: 'SUBCONTRACT',
+                  amount: netPayable.toFixed(2),
+                  vendor_name: pkg?.firm_name ?? null,
+                  description: `Subcontractor valuation ${val.certificate_no} — ${pkg?.firm_name ?? 'subcontractor'} (net payable)`,
+                  status: 'APPROVED',
+                  created_by_id: sub,
+                },
+              });
+              await tx.subcontractorValuation.update({
+                where: { id: valuationId },
+                data: { cost_entry_id: costEntry.id },
+              });
+            }
+          }
+
+          const updatedVal = await tx.subcontractorValuation.findUniqueOrThrow({ where: { id: valuationId } });
 
           await recordAuditLog(tx, {
             tenantId,
             actorId: sub,
-            action: 'REVIEW',
+            action: `SUBCONTRACTOR_VALUATION_${target}`,
             entityType: 'SUBCONTRACTOR_VALUATION',
             entityId: updatedVal.id,
             projectId,
-            changes: { paymentStatus, paymentReference, approvedBy: updatedVal.approved_by },
+            changes: {
+              previousStatus: current,
+              newStatus: target,
+              approvedById: updatedVal.approved_by_id,
+              approvedAt: updatedVal.approved_at?.toISOString() ?? null,
+              paymentReference: updatedVal.payment_reference,
+              costEntryId: updatedVal.cost_entry_id,
+              tccOverrideReason: tccOverride,
+            },
           });
+          if (tccOverride) {
+            await recordAuditLog(tx, {
+              tenantId,
+              actorId: sub,
+              action: 'SUBCONTRACTOR_VALUATION_TCC_OVERRIDE',
+              entityType: 'SUBCONTRACTOR_VALUATION',
+              entityId: updatedVal.id,
+              projectId,
+              changes: { overrideReason: tccOverride, approvedBy: sub },
+            });
+          }
 
           return updatedVal;
         });
@@ -906,11 +1208,20 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
             paymentStatus: updated.payment_status,
             paymentReference: updated.payment_reference,
             paidAt: updated.paid_at?.toISOString() || null,
+            approvedById: updated.approved_by_id,
+            approvedAt: updated.approved_at?.toISOString() || null,
+            costEntryId: updated.cost_entry_id,
           },
         });
       } catch (err: any) {
         if (err.status === 404) {
           return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: err.message });
+        }
+        if (err.status === 409) {
+          return reply.status(409).send({ statusCode: 409, error: 'Conflict', code: err.code, message: err.message });
+        }
+        if (err.status === 400) {
+          return reply.status(400).send({ statusCode: 400, error: 'Bad Request', code: err.code, message: err.message });
         }
         request.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update subcontractor valuation' });
