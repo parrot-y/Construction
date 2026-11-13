@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
 import { formatKes } from '../../ui';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
 import { useAppDialog } from '../AppDialog';
 
 interface CoItem {
@@ -66,6 +66,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
   const [data, setData] = useState<PortalPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [extra, setExtra] = useState<ClientExtra | null>(null);
@@ -77,7 +78,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
       const res = await fetch(`/api/v1/portals/client/${encodeURIComponent(token)}/change-orders`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Invalid or expired access link');
+        throw portalHttpError(body.message || 'Invalid or expired access link', res.status);
 }
       const json = await res.json();
       setData(json.data);
@@ -89,6 +90,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
         .catch(() => {});
 } catch (err: any) {
       setError(err?.message || 'Failed to load change orders');
+      setErrorKind(portalErrorKind(err));
 } finally {
       setLoading(false);
 }
@@ -146,12 +148,9 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 }
 
   if (error || !data) {
-    const isExpired = /expired/i.test(error || '');
-    const isRevoked = /revoked|invalid/i.test(error || '');
     return (
       <div>
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={error || undefined} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-purple-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={error || undefined} />
       </div>
     );
   }

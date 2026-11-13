@@ -37,7 +37,6 @@ function DialogHarness({ onResult }: { onResult: (v: any) => void }): React.JSX.
 
 describe('AppErrorBoundary', () => {
   it('a throwing module shows the fallback with ref id and keeps the shell alive', async () => {
-    const results: any[] = [];
     await render(
       <div>
         <p data-testid="shell">shell alive</p>
