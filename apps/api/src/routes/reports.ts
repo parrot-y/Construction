@@ -234,9 +234,10 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           .send(buffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -401,9 +402,10 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           .send(buffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -613,9 +615,10 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           .send(buffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -799,9 +802,10 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           .send(buffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }

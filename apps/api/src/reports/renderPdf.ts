@@ -1,5 +1,15 @@
 import React from 'react';
 import { pdf } from '@react-pdf/renderer';
+import { Worker } from 'node:worker_threads';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { InvoicePdf } from './InvoicePdf';
+import { PaymentCertificatePdf } from './PaymentCertificatePdf';
+import { SiteDiaryReportPdf } from './SiteDiaryReportPdf';
+import { ProjectSummaryPdf } from './ProjectSummaryPdf';
+import { SnagRegisterPdf } from './SnagRegisterPdf';
+import { IndependentInspectionReportPdf } from './IndependentInspectionReportPdf';
 
 /**
  * Renders a React PDF document tree to a Node.js Buffer using @react-pdf/renderer.
@@ -26,42 +36,136 @@ export async function renderPdfToBuffer(document: React.ReactElement): Promise<B
 }
 
 // ---------------------------------------------------------------------------
-// Concurrency limit + timeout (Stage-7): PDF rendering is CPU-bound; cap
-// in-flight renders at 2 per process and fail fast after 30s so a burst of
-// report requests queues instead of starving the event loop.
+// Worker-pool PDF rendering (Stage-A3): @react-pdf/renderer layout is
+// synchronous CPU work. Rendering on the main thread stalls the event loop
+// for ~100ms+ per document, so production renders run in a pool of 2 worker
+// threads — one per concurrency slot. Queue depth is capped at 20; beyond
+// that callers get PdfQueueFullError → 503 + Retry-After. Each render has a
+// 15s timeout.
 // ---------------------------------------------------------------------------
 const PDF_MAX_CONCURRENT = 2;
-const PDF_TIMEOUT_MS = 30_000;
-let pdfInFlight = 0;
-const pdfWaiters: Array<() => void> = [];
+const PDF_MAX_QUEUE = 20;
+const PDF_TIMEOUT_MS = 15_000;
+const PDF_RETRY_AFTER_SECONDS = 2;
 
-async function acquirePdfSlot(): Promise<() => void> {
-  if (pdfInFlight < PDF_MAX_CONCURRENT) {
-    pdfInFlight += 1;
-    return () => {
-      pdfInFlight -= 1;
-      pdfWaiters.shift()?.();
-    };
+/** Queue saturated: callers map this to 503 + Retry-After. */
+export class PdfQueueFullError extends Error {
+  status = 503;
+  retryAfterSeconds = PDF_RETRY_AFTER_SECONDS;
+  constructor() {
+    super('PDF generation is busy — too many concurrent report requests');
+    this.name = 'PdfQueueFullError';
+  }
+}
+
+const PDF_COMPONENTS: Record<string, React.ComponentType<any>> = {
+  InvoicePdf,
+  PaymentCertificatePdf,
+  SiteDiaryReportPdf,
+  ProjectSummaryPdf,
+  SnagRegisterPdf,
+  IndependentInspectionReportPdf,
+};
+
+const require2 = createRequire(import.meta.url);
+let tsxLoaderUrl: string | null = null;
+function workerExecArgv(): string[] {
+  if (!tsxLoaderUrl) {
+    const pkgJson = require2.resolve('tsx/package.json');
+    tsxLoaderUrl = pathToFileURL(join(dirname(pkgJson), 'dist', 'loader.mjs')).href;
+  }
+  return ['--import', tsxLoaderUrl];
+}
+
+interface PdfWorkerSlot {
+  worker: Worker;
+  busy: boolean;
+}
+const slots: PdfWorkerSlot[] = [];
+const pdfWaiters: Array<() => void> = [];
+let nextJobId = 1;
+
+function getSlot(index: number): PdfWorkerSlot {
+  if (!slots[index]) {
+    const worker = new Worker(new URL('./pdfWorker.ts', import.meta.url), {
+      execArgv: workerExecArgv(),
+      // Workers must not keep the process alive on their own.
+      stdout: false,
+      stderr: false,
+    });
+    worker.unref();
+    slots[index] = { worker, busy: false };
+    worker.on('error', () => {
+      // A crashed worker is replaced on next acquire; in-flight jobs time out.
+      slots[index] = { worker: new Worker(new URL('./pdfWorker.ts', import.meta.url), { execArgv: workerExecArgv(), stdout: false, stderr: false }), busy: false };
+      slots[index].worker.unref();
+    });
+  }
+  return slots[index];
+}
+
+export async function acquirePdfSlot(): Promise<number> {
+  for (let i = 0; i < PDF_MAX_CONCURRENT; i++) {
+    if (!slots[i]?.busy) {
+      const slot = getSlot(i);
+      slot.busy = true;
+      return i;
+    }
+  }
+  if (pdfWaiters.length >= PDF_MAX_QUEUE) {
+    throw new PdfQueueFullError();
   }
   await new Promise<void>((resolve) => pdfWaiters.push(resolve));
-  pdfInFlight += 1;
-  return () => {
-    pdfInFlight -= 1;
-    pdfWaiters.shift()?.();
-  };
+  return acquirePdfSlot();
+}
+
+export function releasePdfSlot(index: number): void {
+  const slot = slots[index];
+  if (slot) slot.busy = false;
+  pdfWaiters.shift()?.();
+}
+
+function renderOnWorker(slotIndex: number, name: string, props: any, jobId: number): Promise<Buffer> {
+  const slot = slots[slotIndex]!;
+  return new Promise<Buffer>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('PDF render timed out after 15s'));
+    }, PDF_TIMEOUT_MS);
+    const onMessage = (msg: any) => {
+      if (msg?.id !== jobId) return;
+      cleanup();
+      if (msg.ok) resolve(Buffer.from(msg.buffer));
+      else reject(new Error(msg.error || 'PDF render failed in worker'));
+    };
+    const onError = (err: Error) => {
+      cleanup();
+      reject(err);
+    };
+    const cleanup = () => {
+      clearTimeout(timer);
+      slot.worker.off('message', onMessage);
+      slot.worker.off('error', onError);
+    };
+    slot.worker.on('message', onMessage);
+    slot.worker.on('error', onError);
+    slot.worker.postMessage({ id: jobId, name, props });
+  });
 }
 
 export async function renderPdfToBufferLimited(document: React.ReactElement): Promise<Buffer> {
-  const release = await acquirePdfSlot();
+  const name = Object.keys(PDF_COMPONENTS).find(
+    (n) => PDF_COMPONENTS[n] === (document as any).type,
+  );
+  if (!name) {
+    throw new Error(`renderPdfToBufferLimited: unregistered PDF component ${(document as any)?.type?.name ?? 'unknown'}`);
+  }
+  const slotIndex = await acquirePdfSlot();
+  const jobId = nextJobId++;
   try {
-    return await Promise.race([
-      renderPdfToBuffer(document),
-      new Promise<Buffer>((_, reject) =>
-        setTimeout(() => reject(new Error('PDF render timed out after 30s')), PDF_TIMEOUT_MS),
-      ),
-    ]);
+    return await renderOnWorker(slotIndex, name, (document as any).props ?? {}, jobId);
   } finally {
-    release();
+    releasePdfSlot(slotIndex);
   }
 }
 

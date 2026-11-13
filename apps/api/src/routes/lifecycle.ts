@@ -89,6 +89,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         return reply.status(200).send(result);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         }
         request.log.error(err);
@@ -1211,6 +1212,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           .send(csv);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         }
         request.log.error(err);
@@ -1719,6 +1721,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
         return reply.header('X-Cache-Lookup', 'MISS').status(result.status).send(result.body);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         }
         request.log.error(err);

@@ -219,7 +219,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
 
         return reply.status(201).send({ invoice: formatInvoice(invoice) });
       } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -360,7 +360,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
 
         return reply.send({ invoice: formatInvoice(invoice) });
       } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -429,7 +429,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
 
         return reply.send({ invoice: formatInvoice(invoice) });
       } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -588,7 +588,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             message: 'A payment with this reference has already been recorded',
           });
         }
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -645,7 +645,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
 
         return reply.send({ invoice: formatInvoice(invoice) });
       } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -748,7 +748,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           .header('Content-Disposition', `attachment; filename="${result.invoiceNo}.pdf"`)
           .send(result.buffer);
       } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
