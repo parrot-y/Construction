@@ -3,6 +3,17 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Security headers — parity with apps/web/nginx.conf so dev/preview and
+// production emit identical policy (CSP on in every served environment).
+const securityHeaders = {
+  'Content-Security-Policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests",
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+};
+
 export default defineConfig({
   plugins: [
     react(),
@@ -38,9 +49,13 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    headers: securityHeaders,
     proxy: {
       '/api': { target: process.env.VITE_API_TARGET || 'http://localhost:4100', changeOrigin: true },
       '/uploads': { target: process.env.VITE_API_TARGET || 'http://localhost:4100', changeOrigin: true },
     },
+  },
+  preview: {
+    headers: securityHeaders,
   },
 });

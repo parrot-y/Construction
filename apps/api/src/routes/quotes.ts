@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { listParams, listPage } from '../lib/pagination';
+import { nextDocumentNumber } from '../lib/counters';
 import { randomBytes, createHash } from 'node:crypto';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
@@ -517,11 +518,7 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
                 ? depositAmt.dividedBy(vatDivisor).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
                 : depositAmt;
               const depositVat = depositAmt.minus(depositNet).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-              const invAgg = await tx.invoice.aggregate({
-                where: { tenant_id: tenantId },
-                _max: { invoice_no: true },
-              });
-              const invNo = (invAgg._max.invoice_no ?? 0) + 1;
+              const invNo = await nextDocumentNumber(tx, tenantId, 'INVOICE');
               const issueDate = new Date();
               const dueDate = new Date(issueDate.getTime() + 7 * 86400000);
               depositInvoice = await tx.invoice.create({

@@ -472,3 +472,69 @@ requirements, failing-test-first, then built.
 - HONEST GAPS: Sentry/Resend/SES/SNS proven only as code+config until real
   DSN/creds/domain exist; /ready 503 path untested; me/approvals + portal
   feeds are bounded aggregates, not page-parameter lists
+
+## CTO audit fixes (Stage-7 hardening) — DONE
+- [ ] Payments: Idempotency-Key + SELECT FOR UPDATE + partial unique
+      (tenant_id,reference)→409 DUPLICATE_PAYMENT_REFERENCE + dev-concurrency.spec.ts
+      NOTE: aud-stage1/stage2 POST /payments without the header — helpers.ts
+      apiPost will auto-attach a key for /payments URLs (specs untouched)
+- [ ] Numbering: document_counters table + atomic upsert helper; invoice_no
+      tenant scope, certificate_no per-project scope; backfill from max;
+      global P2002→409 in error handler
+- [ ] Cost approve: updateMany claim on current status (certificates pattern)
+- [ ] Auth: trustProxy from TRUSTED_PROXY_CIDRS (no wildcard); login_throttles
+      table — IP AND normalized-email, 10 fails/15min, generic 429, dummy
+      verify for timing; PIN path already DB-backed (pin_failed_attempts)
+- [ ] Web headers: apps/web/nginx.conf (CSP no unsafe-inline scripts,
+      HSTS, XFO DENY, nosniff, Referrer-Policy, Permissions-Policy) +
+      vite server.headers parity + dev-security-headers.spec.ts
+- [ ] Passwords: scrypt N=2^17 r=8 p=1 maxmem raised; 's2$N$r$p$salt$key'
+      format; legacy salt:key still verifies; rehash on next login
+- [ ] PDF: p-limit(2) + timeout around renderPdfToBuffer call sites +
+      event-loop lag measurement over 10 concurrent report requests
+- [ ] ADR-013 next scale step (pg-boss, DB shared state)
+- [ ] Evidence + verify-local + commit/push
+
+### Stage-7 progress notes
+- Migration 0017: document_counters + login_throttles + partial unique
+  invoice_payments(tenant_id,reference); counters backfilled from maxima
+- Payments: Idempotency-Key REQUIRED (400 without); FOR UPDATE row lock
+  BEFORE idempotency re-check (same-key racers queue then replay); key
+  reuse across invoices → 409; P2002→DUPLICATE_PAYMENT_REFERENCE
+- e2e helpers.ts auto-attaches idempotency-key on /payments URLs so immutable
+  aud specs keep passing; InvoicingView sends crypto.randomUUID() per submit
+- Numbering: nextDocumentNumber() atomic upsert; applied to invoice create
+  (3 sites: invoices.ts, certificates.ts invoice-from-cert, quotes.ts
+  deposit invoice) + certificate_no per project
+- Cost approve: updateMany claim on prior status → exactly one CostApproval
+- Auth: TRUSTED_PROXY_CIDRS env (CIDR list, '*' rejected); login_throttles
+  IP+ACCT scopes, 10 fails/15min atomic upsert, dummy-hash timing equalise,
+  clear on success; PIN path already DB-backed
+- Headers: apps/web/nginx.conf (real file, COPY'd in Dockerfile) + vite
+  server/preview headers parity; CSP script-src 'self' (fonts origins added
+  for Google Fonts); dev-security-headers.spec.ts asserts the set
+- Passwords: scrypt N=2^17 r=8 p=1 maxmem 256MB, 's2$N$r$p$salt$key' format,
+  legacy salt:key verifies, transparent rehash on login
+- PDF: renderPdfToBufferLimited — semaphore 2 + 30s timeout at all 7 call
+  sites; event-loop lag measured in audit-hardening.test.ts
+- ADR-013-next-scale-step.md: pg-boss on Postgres, DB shared state
+- audit-hardening.test.ts: 8/8 pass (payments×3, numbering×10-parallel,
+  cost-claim, hash formats, pdf-burst, XFF throttle isolation)
+- invoices.test.ts 16/16 + lifecycle-money 6/6 still green with keys
+
+### Stage-7 REVIEW
+- OBSERVED: verify-local COMPLETED SUCCESSFULLY — API 586/586 (+8),
+  web 118, db 15, money 63, permissions 9
+- OBSERVED: dev-concurrency + dev-security-headers 3/3 on chromium AND
+  mobile-390 against real API+DB (migration 0017 applied to e2e DB)
+- OBSERVED: P2002 meta.target is NULL for raw-SQL partial indexes and
+  modelName is camelCase — DUPLICATE_PAYMENT_REFERENCE matching had to
+  inspect meta+message case-insensitively (fixed after first red run)
+- OBSERVED: proxy-addr only honours XFF when the socket peer is trusted —
+  test needed 127.0.0.1/32 in TRUSTED_PROXY_CIDRS alongside 10/8
+- OBSERVED: trustProxy env is read at buildServer() — e2e api server does
+  NOT set TRUSTED_PROXY_CIDRS (direct connections, correct for tests)
+- FIXED: packages/db index.test.ts asserted legacy ':' format — updated
+  to s2$ prefix
+- NOT DONE: TRUSTED_PROXY_CIDRS must be set to ALB CIDRs in staging env
+  at deploy time; full aud-* sweep not re-run this batch

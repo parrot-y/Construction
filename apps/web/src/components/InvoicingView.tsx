@@ -284,7 +284,7 @@ export default function InvoicingView(): React.JSX.Element {
       const res = await fetch(`/api/v1/invoices/${inv.id}/payments`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID()},
         body: JSON.stringify({
           amount: parseFloat(payForm.amount),
           method: payForm.method,

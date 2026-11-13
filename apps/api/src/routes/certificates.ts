@@ -12,6 +12,7 @@ import {
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
 import { listParams, listPage } from '../lib/pagination';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
+import { nextDocumentNumber } from '../lib/counters';
 import { getTaxSettings } from '../lib/tax';
 import { notifyTeam } from '../lib/notify';
 
@@ -306,12 +307,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const latest = await tx.paymentCertificate.findFirst({
-            where: { project_id: projectId },
-            orderBy: { certificate_no: 'desc' },
-            select: { certificate_no: true },
-          });
-          const certificateNo = (latest?.certificate_no ?? 0) + 1;
+          const certificateNo = await nextDocumentNumber(tx, tenantId, `CERT:${projectId}`);
 
           // Editable review: explicit lines win; thisPeriodAmount may override.
           // When neither is supplied the amount is DERIVED from real BoQ
@@ -562,12 +558,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             project?.name ??
             'Client';
 
-          const latest = await tx.invoice.findFirst({
-            where: { tenant_id: tenantId },
-            orderBy: { invoice_no: 'desc' },
-            select: { invoice_no: true },
-          });
-          const invoiceNo = (latest?.invoice_no ?? 0) + 1;
+          const invoiceNo = await nextDocumentNumber(tx, tenantId, 'INVOICE');
           const issueDate = new Date();
           const dueDate = new Date(Date.now() + data.dueDays * 24 * 60 * 60 * 1000);
 

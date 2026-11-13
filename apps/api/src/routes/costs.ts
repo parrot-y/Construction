@@ -382,15 +382,20 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
               })
             : { selfApproved: false, reason: null };
 
-          // Update cost entry status
-          const updated = await tx.costEntry.update({
-            where: { id: costId },
+          // Atomic claim on the current status — a concurrent approve/reject
+          // that already flipped the row makes this updateMany match 0 rows.
+          const claim = await tx.costEntry.updateMany({
+            where: { id: costId, status: entry.status },
             data: {
               status: action,
               self_approved: selfAppr.selfApproved,
               self_approval_reason: selfAppr.reason,
             },
           });
+          if (claim.count !== 1) {
+            throw { status: 409, message: 'Cost entry was modified concurrently — please retry' };
+          }
+          const updated = await tx.costEntry.findUniqueOrThrow({ where: { id: costId } });
 
           // Create approval record
           const approval = await tx.costApproval.create({

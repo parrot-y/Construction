@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { hashPassword, prisma, recordAuditLog, verifyPassword, withTenantTx } from '@construction/db';
+import { hashPassword, isCurrentHashFormat, prisma, recordAuditLog, verifyPassword, withTenantTx } from '@construction/db';
 import { getPermissionsForRole, Role } from '@construction/permissions';
 import {
   AuthUserResponse,
@@ -22,25 +22,45 @@ import {
 import { sendTransactionalEmail } from '../lib/email';
 import { normalizeKenyaPhone } from './invitations';
 
-interface LoginAttempt {
-  count: number;
-  resetAt: number;
+// DB-backed login throttling (OWASP A07, Stage-7): failed attempts are counted
+// per client IP AND per normalised account email in `login_throttles`, so the
+// counter survives restarts, is shared across replicas, and cannot be bypassed
+// by rotating IPs against one account (or one IP against many accounts).
+const THROTTLE_MAX_FAILURES = 10;
+const THROTTLE_WINDOW_MS = 15 * 60 * 1000; // 15-minute window
+
+const throttleCutoff = () => new Date(Date.now() - THROTTLE_WINDOW_MS);
+
+async function throttleRetryAfter(scope: 'IP' | 'ACCT', identifier: string): Promise<number> {
+  const row = await prisma.loginThrottle.findUnique({
+    where: { scope_identifier: { scope, identifier } },
+  });
+  if (!row || row.fail_count < THROTTLE_MAX_FAILURES) return 0;
+  const windowEnd = row.window_start.getTime() + THROTTLE_WINDOW_MS;
+  return Math.max(0, Math.ceil((windowEnd - Date.now()) / 1000));
 }
 
-// In-memory sliding window rate limiter for login protection (OWASP A07)
-const MAX_FAILED_ATTEMPTS = 20;
-const LOCKOUT_WINDOW_MS = 5 * 60 * 1000; // 5-minute lockout window
-const failedLoginsMap = new Map<string, LoginAttempt>();
+async function recordLoginFailure(scope: 'IP' | 'ACCT', identifier: string): Promise<void> {
+  const cutoff = throttleCutoff();
+  const now = new Date();
+  await prisma.$executeRaw`
+    INSERT INTO login_throttles (scope, identifier, window_start, fail_count, updated_at)
+    VALUES (${scope}, ${identifier}, ${now}, 1, ${now})
+    ON CONFLICT (scope, identifier) DO UPDATE SET
+      fail_count = CASE WHEN login_throttles.window_start < ${cutoff} THEN 1 ELSE login_throttles.fail_count + 1 END,
+      window_start = CASE WHEN login_throttles.window_start < ${cutoff} THEN ${now} ELSE login_throttles.window_start END,
+      updated_at = ${now}
+  `;
+}
 
-// Clean up stale attempt records
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, attempt] of failedLoginsMap.entries()) {
-    if (now > attempt.resetAt) {
-      failedLoginsMap.delete(ip);
-    }
-  }
-}, 60 * 1000).unref();
+async function clearLoginThrottle(scope: 'IP' | 'ACCT', identifier: string): Promise<void> {
+  await prisma.loginThrottle.deleteMany({ where: { scope, identifier } });
+}
+
+// Constant-work dummy verify so unknown accounts cost the same scrypt time as
+// real ones (prevents user enumeration via response timing).
+let dummyHashPromise: Promise<string> | null = null;
+const dummyHash = () => (dummyHashPromise ??= hashPassword('not-a-real-password'));
 
 const ACCESS_TTL = '15m';
 const REFRESH_TTL = '7d';
@@ -170,31 +190,6 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     config: { rateLimit: { max: Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 30), timeWindow: '1 minute' } },
   }, async (request, reply) => {
     const clientIp = request.ip || '127.0.0.1';
-    const now = Date.now();
-    const attempt = failedLoginsMap.get(clientIp);
-
-    // Rate limiting guard
-    if (attempt && now < attempt.resetAt && attempt.count >= MAX_FAILED_ATTEMPTS) {
-      const retryAfterSeconds = Math.ceil((attempt.resetAt - now) / 1000);
-      reply.header('Retry-After', retryAfterSeconds);
-      server.log.warn(
-        { ip: clientIp, attempts: attempt.count },
-        'Security Audit: Login rate limit exceeded; request throttled',
-      );
-      return reply.status(429).send({
-        error: 'Too Many Requests',
-        message: 'Too many failed login attempts. Please try again later.',
-      });
-    }
-
-    const recordFailedAttempt = () => {
-      const cur = failedLoginsMap.get(clientIp);
-      if (!cur || now > cur.resetAt) {
-        failedLoginsMap.set(clientIp, { count: 1, resetAt: now + LOCKOUT_WINDOW_MS });
-      } else {
-        cur.count += 1;
-      }
-    };
 
     // Field workers sign in with { phone, pin } on the standard login endpoint.
     const body0 = request.body as { phone?: string; pin?: string } | undefined;
@@ -212,18 +207,41 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     }
 
     const { email, password, tenantId } = parseResult.data;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Throttle by client IP AND by normalised account — either one tripping
+    // blocks the attempt. Generic 429, same shape for both.
+    const [ipRetry, acctRetry] = await Promise.all([
+      throttleRetryAfter('IP', clientIp),
+      throttleRetryAfter('ACCT', normalizedEmail),
+    ]);
+    const retryAfter = Math.max(ipRetry, acctRetry);
+    if (retryAfter > 0) {
+      reply.header('Retry-After', retryAfter);
+      server.log.warn({ ip: clientIp }, 'Security Audit: Login throttled');
+      return reply.status(429).send({
+        error: 'Too Many Requests',
+        message: 'Too many failed login attempts. Please try again later.',
+      });
+    }
+
+    const recordFailed = async (reason: string) => {
+      await Promise.all([
+        recordLoginFailure('IP', clientIp),
+        recordLoginFailure('ACCT', normalizedEmail),
+      ]);
+      server.log.warn({ ip: clientIp, reason }, 'Security Audit: Failed authentication attempt');
+    };
 
     // Retrieve user directly from public schema without auth_context bypasses (2c)
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizedEmail },
     });
 
     if (!user || !user.is_active) {
-      recordFailedAttempt();
-      server.log.warn(
-        { ip: clientIp, email: email.toLowerCase(), reason: 'USER_NOT_FOUND_OR_INACTIVE' },
-        'Security Audit: Failed authentication attempt',
-      );
+      // Equalise timing: unknown accounts still pay the scrypt cost.
+      await verifyPassword(password, await dummyHash());
+      await recordFailed('USER_NOT_FOUND_OR_INACTIVE');
       return reply.status(401).send({
         error: 'Unauthorized',
         message: 'Invalid email or password',
@@ -232,19 +250,25 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     const isPasswordValid = await verifyPassword(password, user.password_hash);
     if (!isPasswordValid) {
-      recordFailedAttempt();
-      server.log.warn(
-        { ip: clientIp, email: email.toLowerCase(), reason: 'INVALID_PASSWORD' },
-        'Security Audit: Failed authentication attempt',
-      );
+      await recordFailed('INVALID_PASSWORD');
       return reply.status(401).send({
         error: 'Unauthorized',
         message: 'Invalid email or password',
       });
     }
 
-    // Reset failed login counter on successful authentication
-    failedLoginsMap.delete(clientIp);
+    // Transparent upgrade: legacy `salt:key` hashes are re-written in the
+    // current parameter-bearing format on the next successful login.
+    if (!isCurrentHashFormat(user.password_hash)) {
+      const upgraded = await hashPassword(password);
+      await prisma.user.update({ where: { id: user.id }, data: { password_hash: upgraded } });
+    }
+
+    // Successful authentication clears both throttle scopes.
+    await Promise.all([
+      clearLoginThrottle('IP', clientIp),
+      clearLoginThrottle('ACCT', normalizedEmail),
+    ]);
 
     // Account verification gate: self-serve accounts (register-company,
     // invite accept) cannot sign in until email/phone is verified or a company

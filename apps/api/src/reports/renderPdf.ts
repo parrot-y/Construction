@@ -25,6 +25,46 @@ export async function renderPdfToBuffer(document: React.ReactElement): Promise<B
   return Buffer.from(result);
 }
 
+// ---------------------------------------------------------------------------
+// Concurrency limit + timeout (Stage-7): PDF rendering is CPU-bound; cap
+// in-flight renders at 2 per process and fail fast after 30s so a burst of
+// report requests queues instead of starving the event loop.
+// ---------------------------------------------------------------------------
+const PDF_MAX_CONCURRENT = 2;
+const PDF_TIMEOUT_MS = 30_000;
+let pdfInFlight = 0;
+const pdfWaiters: Array<() => void> = [];
+
+async function acquirePdfSlot(): Promise<() => void> {
+  if (pdfInFlight < PDF_MAX_CONCURRENT) {
+    pdfInFlight += 1;
+    return () => {
+      pdfInFlight -= 1;
+      pdfWaiters.shift()?.();
+    };
+  }
+  await new Promise<void>((resolve) => pdfWaiters.push(resolve));
+  pdfInFlight += 1;
+  return () => {
+    pdfInFlight -= 1;
+    pdfWaiters.shift()?.();
+  };
+}
+
+export async function renderPdfToBufferLimited(document: React.ReactElement): Promise<Buffer> {
+  const release = await acquirePdfSlot();
+  try {
+    return await Promise.race([
+      renderPdfToBuffer(document),
+      new Promise<Buffer>((_, reject) =>
+        setTimeout(() => reject(new Error('PDF render timed out after 30s')), PDF_TIMEOUT_MS),
+      ),
+    ]);
+  } finally {
+    release();
+  }
+}
+
 export interface PdfBenchmarkResult {
   buffer: Buffer;
   durationMs: number;

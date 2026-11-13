@@ -11,8 +11,9 @@ import {
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 import { listParams, listPage } from '../lib/pagination';
+import { nextDocumentNumber } from '../lib/counters';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
-import { renderPdfToBuffer } from '../reports/renderPdf';
+import { renderPdfToBufferLimited } from '../reports/renderPdf';
 import { InvoicePdf, InvoicePdfData } from '../reports/InvoicePdf';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -154,11 +155,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             if (!quote) throw { status: 404, message: 'Quote not found' };
           }
 
-          const maxNo = await tx.invoice.aggregate({
-            where: { tenant_id: tenantId },
-            _max: { invoice_no: true },
-          });
-          const invoiceNo = (maxNo._max.invoice_no ?? 0) + 1;
+          const invoiceNo = await nextDocumentNumber(tx, tenantId, 'INVOICE');
 
           const totals = computeInvoiceTotals(data.items, data.taxPct);
           const issueDate = data.issueDate ? new Date(`${data.issueDate}T00:00:00Z`) : new Date();
@@ -450,6 +447,15 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
       if (!UUID_REGEX.test(id)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invoice not found' });
       }
+      // Idempotent payment recording (Stage-7): every payment POST must carry
+      // an Idempotency-Key; a replay returns the originally recorded payment.
+      const idempotencyKey = (request.headers['idempotency-key'] as string | undefined)?.trim();
+      if (!idempotencyKey || idempotencyKey.length > 255) {
+        return reply.status(400).send({
+          statusCode: 400, error: 'Bad Request',
+          message: 'Idempotency-Key header is required for payment recording',
+        });
+      }
       const parsed = RecordInvoicePaymentSchema.safeParse(request.body);
       if (!parsed.success) {
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: parsed.error.issues[0]?.message });
@@ -458,6 +464,22 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          // Row lock FIRST: serialise all payment posts on this invoice, then
+          // re-check the idempotency key — a concurrent same-key request that
+          // queued on the lock must see the committed replay, not double-post.
+          await tx.$queryRaw`SELECT id FROM invoices WHERE id = ${id}::uuid FOR UPDATE`;
+
+          const prior = await tx.idempotencyKey.findUnique({
+            where: { tenant_id_idempotency_key: { tenant_id: tenantId, idempotency_key: idempotencyKey } },
+          });
+          if (prior) {
+            const priorInvoiceId = (prior.response_body as any)?.invoice?.id;
+            if (priorInvoiceId && priorInvoiceId !== id) {
+              throw { status: 409, code: 'IDEMPOTENCY_KEY_REUSE', message: 'Idempotency-Key was already used for a different invoice payment' };
+            }
+            return { isReplay: true as const, status: prior.response_status, body: prior.response_body as any };
+          }
+
           const existing = await tx.invoice.findFirst({ where: { id } });
           if (!existing) throw { status: 404, message: 'Invoice not found' };
           if (existing.status !== 'SENT' && existing.status !== 'PART_PAID') {
@@ -538,14 +560,34 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             userAgent: (request.headers['user-agent'] as string) || null,
           });
 
-          return { invoice: updated, payment };
+          const responsePayload = {
+            invoice: formatInvoice(updated),
+            payment,
+          };
+          await tx.idempotencyKey.create({
+            data: {
+              tenant_id: tenantId,
+              idempotency_key: idempotencyKey,
+              response_status: 201,
+              response_body: responsePayload as any,
+            },
+          });
+
+          return { isReplay: false as const, status: 201, body: responsePayload };
         });
 
-        return reply.status(201).send({
-          invoice: formatInvoice(result.invoice),
-          payment: result.payment,
-        });
+        if (result.isReplay) {
+          return reply.status(result.status).send(result.body);
+        }
+        return reply.status(result.status).send(result.body);
       } catch (err: any) {
+        const p2002Text = (JSON.stringify(err?.meta ?? '') + ' ' + String(err?.message ?? '')).toLowerCase();
+        if (err?.code === 'P2002' && (p2002Text.includes('reference') || p2002Text.includes('invoicepayment') || p2002Text.includes('invoice_payments'))) {
+          return reply.status(409).send({
+            statusCode: 409, error: 'Conflict', code: 'DUPLICATE_PAYMENT_REFERENCE',
+            message: 'A payment with this reference has already been recorded',
+          });
+        }
         if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         throw err;
       }
@@ -684,7 +726,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             })),
           };
 
-          const buffer = await renderPdfToBuffer(React.createElement(InvoicePdf, { data: pdfData }));
+          const buffer = await renderPdfToBufferLimited(React.createElement(InvoicePdf, { data: pdfData }));
 
           await recordAuditLog(tx, {
             tenantId,

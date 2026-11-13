@@ -150,7 +150,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-1' },
       payload: { amount: 100000, method: 'M_PESA', reference: 'QGH7X2' },
     });
     expect(res.statusCode).toBe(409);
@@ -183,7 +183,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-2' },
       payload: { amount: 300000, method: 'M_PESA', reference: 'QGH7X2ABC', note: 'Deposit via paybill' },
     });
     expect(res.statusCode).toBe(201);
@@ -200,7 +200,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-3' },
       payload: { amount: 999999, method: 'BANK' },
     });
     expect(res.statusCode).toBe(400);
@@ -210,7 +210,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-4' },
       payload: { amount: 338000, method: 'BANK', reference: 'TRF-9981' },
     });
     expect(res.statusCode).toBe(201);
@@ -226,7 +226,7 @@ describe('Gate-4 S2: Invoicing (AR) suite', () => {
     const res = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/payments`,
-      headers: { cookie: adminCookie },
+      headers: { cookie: adminCookie, 'idempotency-key': 'pay-invoices.test.ts-5' },
       payload: { amount: 1, method: 'CASH' },
     });
     expect(res.statusCode).toBe(409);

@@ -58,7 +58,15 @@ export function buildServer(): FastifyInstance {
   // Validate production security invariants (Fail-Closed on missing/short secrets)
   validateEnvironmentSecurity();
 
+  // Trust X-Forwarded-For only from configured proxy CIDRs (the ALB in
+  // staging). TRUSTED_PROXY_CIDRS is a comma-separated list — never '*'.
+  const trustedProxyCidrs = (process.env.TRUSTED_PROXY_CIDRS || '')
+    .split(',')
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0 && !c.includes('*'));
+
   const server = fastify({
+    trustProxy: trustedProxyCidrs.length > 0 ? trustedProxyCidrs : false,
     logger: {
       level: process.env.LOG_LEVEL || 'info',
       serializers: {
@@ -140,6 +148,21 @@ export function buildServer(): FastifyInstance {
   // Global defensive error handler (OWASP A05 - Prevent sensitive information leakage)
   server.setErrorHandler((error: FastifyError, request, reply) => {
     request.log.error({ err: error, reqId: request.id }, 'Unhandled request error');
+
+    // Prisma unique-violation safety net: concurrent creates that race past
+    // application checks surface as 409, never 500.
+    if ((error as any)?.code === 'P2002') {
+      const target = (JSON.stringify((error as any)?.meta ?? '') + ' ' + String((error as any)?.message ?? '')).toLowerCase();
+      const isPaymentRef = target.includes('reference') || target.includes('invoicepayment') || target.includes('invoice_payments');
+      return reply.status(409).send({
+        statusCode: 409,
+        error: 'Conflict',
+        code: isPaymentRef ? 'DUPLICATE_PAYMENT_REFERENCE' : 'DUPLICATE_RECORD',
+        message: isPaymentRef
+          ? 'A payment with this reference has already been recorded'
+          : 'A record with these unique fields already exists',
+      });
+    }
 
     const statusCode = error.statusCode || 500;
 

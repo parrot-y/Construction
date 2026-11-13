@@ -20,7 +20,7 @@ import {
   PaymentCertificatePdf,
   ProjectSummaryData,
   ProjectSummaryPdf,
-  renderPdfToBuffer,
+  renderPdfToBufferLimited,
   SectionSummaryEntry,
   SiteDiaryReportData,
   SiteDiaryReportPdf,
@@ -205,7 +205,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           };
 
           const docElement = React.createElement(PaymentCertificatePdf, { data: certData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
+          const renderedBuffer = await renderPdfToBufferLimited(docElement);
 
           // Append-only audit log
           await recordAuditLog(tx, {
@@ -368,7 +368,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           };
 
           const docElement = React.createElement(SiteDiaryReportPdf, { data: reportData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
+          const renderedBuffer = await renderPdfToBufferLimited(docElement);
 
           // Append-only audit log
           await recordAuditLog(tx, {
@@ -585,7 +585,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           };
 
           const docElement = React.createElement(ProjectSummaryPdf, { data: summaryData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
+          const renderedBuffer = await renderPdfToBufferLimited(docElement);
 
           // Append-only audit log
           await recordAuditLog(tx, {
@@ -770,7 +770,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             securityHash,
           };
 
-          const renderedBuffer = await renderPdfToBuffer(
+          const renderedBuffer = await renderPdfToBufferLimited(
             React.createElement(IndependentInspectionReportPdf, { data: inspectionData }),
           );
 

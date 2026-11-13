@@ -600,6 +600,28 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model DocumentCounter {
+  tenant_id  String   @db.Uuid
+  scope      String   @db.VarChar(120)
+  last_value BigInt   @default(0)
+  updated_at DateTime @default(now()) @db.Timestamptz
+
+  @@id([tenant_id, scope])
+  @@map("document_counters")
+}
+
+model LoginThrottle {
+  id           String   @id @default(uuid()) @db.Uuid
+  scope        String   @db.VarChar(10) // 'IP' | 'ACCT'
+  identifier   String   @db.VarChar(320)
+  window_start DateTime @db.Timestamptz
+  fail_count   Int      @default(0)
+  updated_at   DateTime @default(now()) @db.Timestamptz
+
+  @@unique([scope, identifier])
+  @@map("login_throttles")
+}
+
 model IdempotencyKey {
   id              String     @id @default(uuid()) @db.Uuid
   tenant_id       String     @db.Uuid

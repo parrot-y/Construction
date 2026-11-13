@@ -1167,7 +1167,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
 
         if (format === 'pdf') {
           const { SnagRegisterPdf } = await import('../reports/SnagRegisterPdf');
-          const { renderPdfToBuffer } = await import('../reports/renderPdf');
+          const { renderPdfToBufferLimited } = await import('../reports/renderPdf');
           // project already fetched inside tenant tx above
           const openStatuses = ['OPEN', 'IN_PROGRESS', 'READY_FOR_REVIEW', 'CONTESTED'];
           const docElement = React.createElement(SnagRegisterPdf, {
@@ -1195,7 +1195,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               })),
             },
           });
-          const pdfBuffer = await renderPdfToBuffer(docElement);
+          const pdfBuffer = await renderPdfToBufferLimited(docElement);
           return reply
             .header('Content-Type', 'application/pdf')
             .header('Content-Disposition', 'attachment; filename="snag-register.pdf"')

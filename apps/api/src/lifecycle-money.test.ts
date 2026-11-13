@@ -292,7 +292,7 @@ describe('Contractor lifecycle — money integrity', () => {
     const pay = await server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoice.id}/payments`,
-      headers: authed(adminCookie),
+      headers: { ...authed(adminCookie), 'idempotency-key': 'pay-lifecycle-money-1' },
       payload: { amount: Number(expectedTotal.toFixed(2)), method: 'BANK', reference: 'EFT-001' },
     });
     expect([200, 201]).toContain(pay.statusCode);
