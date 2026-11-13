@@ -562,3 +562,23 @@ requirements, failing-test-first, then built.
   l-procurement projectId resolved from qs session + .tabular-nums.
 - OBSERVED: full suite 236/236 chromium+mobile-390, 0 skipped, 0 flaky
 - infra: TRUSTED_PROXY_CIDRS env on API task (defaults to VPC CIDR)
+
+## Pilot readiness program (master prompt phases A–F)
+
+- [x] Phase A A1–A6 — pushed (0cefd57…0c4c86d); auditor accepted A–B? (pending auditor reply)
+- [x] B1 module flags + 404 gating + PILOT_SCOPE.md — pushed 570c650
+- [x] C1 routing — pushed 9b0f9f7 (c1-routing.spec green both viewports)
+- [x] C2 code splitting — pushed 761de96 (initial JS 1306→306KB raw; Lighthouse evidence)
+- [x] C3 type-debt ratchet + money paths — pushed 7dfdd98 (75→0 any in money routes; baseline 787)
+- [x] C4 typed API client + core modules — pushed 4230c51 (apiClient + 11 views migrated)
+- [x] Phase D: D1 README ✓ D2 dependabot/codeql/gitleaks ✓ D3 coverage thresholds
+      (money pkg 98.28% lines; api invoices 91.31 / certificates 90.92 /
+      commitments 90.04 / commercialOperations 91.77 — per-file >=90
+      enforced in vitest config + CI money-coverage step) ✓
+      D4 OpenAPI+envelope ✓ D5 e2e workflow (chromium+mobile-390, hash
+      check, brand/demo greps); "required check" = branch protection
+      toggle, owner action
+- [ ] Phase E: terraform plan only after A–B auditor acceptance
+- [x] Phase F: F1 report-a-problem (f99476d) · F2 operator adoption
+      (2543f44) · F3 BoQ template+dry-run+messy fixtures (3b69fc1)
+- [~] Final verify-local on final commit + PR table
