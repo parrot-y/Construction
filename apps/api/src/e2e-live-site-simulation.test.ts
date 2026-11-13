@@ -1486,7 +1486,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       method: 'POST',
       url: `/api/v1/billing/mpesa-callback?tenantId=${tenantId}`,
       headers: {
-        'x-mpesa-webhook-token': 'buildsasa-daraja-webhook-secret-production',
+        'x-mpesa-webhook-token': 'test-daraja-webhook-secret',
       },
       payload: {
         MerchantRequestID: 'MR_SIM_VALID',

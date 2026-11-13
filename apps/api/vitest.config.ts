@@ -16,9 +16,9 @@ export default defineConfig({
       JWT_SECRET: process.env.JWT_SECRET || 'dev-super-secure-jwt-signing-secret-key-32-chars-minimum!',
       COOKIE_SECRET: process.env.COOKIE_SECRET || 'dev-super-secure-cookie-secret-key-32-chars!',
       MPESA_WEBHOOK_SECRET:
-        process.env.MPESA_WEBHOOK_SECRET || 'buildsasa-daraja-webhook-secret-production',
+        process.env.MPESA_WEBHOOK_SECRET || 'test-daraja-webhook-secret',
       SITE_OPS_WEBHOOK_SECRET:
-        process.env.SITE_OPS_WEBHOOK_SECRET || 'buildsasa-site-ops-webhook-secret-production-32-chars!',
+        process.env.SITE_OPS_WEBHOOK_SECRET || 'test-site-ops-webhook-secret-32-chars!',
     },
   },
 });

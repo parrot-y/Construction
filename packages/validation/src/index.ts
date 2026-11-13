@@ -692,7 +692,7 @@ export type SupplierDeliveryAction = z.infer<typeof SupplierDeliveryActionSchema
 export type CreatePortalLink = z.infer<typeof CreatePortalLinkSchema>;
 
 // -------------------------------------------------------------
-// PROJECT SCHEDULE & GANTT TASKS (BUILD-SASA BENCHMARK)
+// PROJECT SCHEDULE & GANTT TASKS 
 // -------------------------------------------------------------
 export const TaskStatusEnum = z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'DELAYED']);
 export type TaskStatus = z.infer<typeof TaskStatusEnum>;
@@ -725,7 +725,7 @@ export const UpdateScheduleTaskSchema = z.object({
 export type UpdateScheduleTask = z.infer<typeof UpdateScheduleTaskSchema>;
 
 // -------------------------------------------------------------
-// SITE STORE INVENTORY (BUILD-SASA BENCHMARK)
+// SITE STORE INVENTORY 
 // -------------------------------------------------------------
 export const CreateInventoryItemSchema = z.object({
   materialName: z.string().min(2).max(255),
@@ -806,7 +806,7 @@ export const CreateSafetyIncidentSchema = z.preprocess((v) => {
 export type CreateSafetyIncident = z.infer<typeof CreateSafetyIncidentSchema>;
 
 // -------------------------------------------------------------
-// PROJECT DOCUMENTS & DRAWINGS (BUILD-SASA BENCHMARK)
+// PROJECT DOCUMENTS & DRAWINGS 
 // -------------------------------------------------------------
 export const DocumentCategoryEnum = z.enum([
   'ARCHITECTURAL_DRAWING',
@@ -843,7 +843,7 @@ export const CreateProjectDocumentSchema = z.object({
 export type CreateProjectDocument = z.infer<typeof CreateProjectDocumentSchema>;
 
 // -------------------------------------------------------------
-// SUBCONTRACTOR WORK PACKAGES (BUILD-SASA BENCHMARK)
+// SUBCONTRACTOR WORK PACKAGES 
 // -------------------------------------------------------------
 export const SubcontractorStatusEnum = z.enum(['AWARDED', 'ACTIVE', 'COMPLETED', 'TERMINATED']);
 export type SubcontractorStatus = z.infer<typeof SubcontractorStatusEnum>;

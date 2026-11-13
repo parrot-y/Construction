@@ -47,7 +47,7 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
   const [verifyToken, setVerifyToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // One-time migration of the legacy offline queue keys to `buildsasa_*`
+    // One-time migration of legacy offline queue keys to `sitesafi_*`
     void migrateOfflineStorage();
     if (!externalPortal && typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
@@ -88,18 +88,21 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
 };
 
   // Demo workspace previews — real logins through the normal auth flow.
-  // Only reachable when VITE_DEMO_MODE=true (LandingPortalHub gates the buttons).
-  const DEMO_LOGINS: Record<string, string> = {
+  // Compile-time gated: with VITE_DEMO_MODE unset the bundler eliminates
+  // this block and the seeded demo credentials never reach the bundle.
+  const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+  const DEMO_LOGINS: Record<string, string> = DEMO_MODE ? {
     COMPANY_ADMIN: 'admin@apexbuilders.co.ke',
     PM_QS: 'qs@apexbuilders.co.ke',
     SITE_SUPERVISOR: 'supervisor@apexbuilders.co.ke',
     EXECUTIVE: 'executive@apexbuilders.co.ke',
     CLIENT: 'client@apexbuilders.co.ke',
-  };
+  } : {};
 
   const [demoPreview, setDemoPreview] = useState(false);
 
   const handleSelectRolePreview = async (role: string) => {
+    if (!DEMO_MODE) return;
     const email = DEMO_LOGINS[role.toUpperCase()];
     if (!email) return;
     try {

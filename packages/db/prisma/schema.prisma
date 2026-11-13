@@ -1003,7 +1003,7 @@ model PortalAccessLink {
 }
 
 // =============================================================
-// PROJECT SCHEDULE & GANTT TASKS (BUILD-SASA BENCHMARK)
+// PROJECT SCHEDULE & GANTT TASKS 
 // =============================================================
 
 model ProjectScheduleTask {
@@ -1032,7 +1032,7 @@ model ProjectScheduleTask {
 }
 
 // =============================================================
-// SITE STORE INVENTORY & STOCK BALANCES (BUILD-SASA BENCHMARK)
+// SITE STORE INVENTORY & STOCK BALANCES 
 // =============================================================
 
 model SiteInventoryItem {
@@ -1108,7 +1108,7 @@ model SafetyIncident {
 }
 
 // =============================================================
-// PROJECT DOCUMENTS & DRAWINGS REPOSITORY (BUILD-SASA BENCHMARK)
+// PROJECT DOCUMENTS & DRAWINGS REPOSITORY 
 // =============================================================
 
 model ProjectDocument {
@@ -1154,7 +1154,7 @@ model DrawingAnnotation {
 }
 
 // =============================================================
-// SUBCONTRACTOR WORK PACKAGES & DIRECTORY (BUILD-SASA BENCHMARK)
+// SUBCONTRACTOR WORK PACKAGES & DIRECTORY 
 // =============================================================
 
 model SubcontractorPackage {
@@ -1243,7 +1243,7 @@ model StatutoryTaxCertificate {
 }
 
 // =============================================================
-// MATERIAL PURCHASE REQUISITIONS (BUILD-SASA BENCHMARK)
+// MATERIAL PURCHASE REQUISITIONS 
 // =============================================================
 
 model MaterialRequisition {
@@ -1384,7 +1384,7 @@ model SubcontractorValuation {
 }
 
 // =============================================================
-// PLANT, MACHINERY & HEAVY EQUIPMENT (BUILD-SASA BENCHMARK)
+// PLANT, MACHINERY & HEAVY EQUIPMENT 
 // =============================================================
 
 model PlantEquipment {

@@ -9,7 +9,7 @@ interface LoginFormProps {
   apiBaseUrl?: string;
 }
 
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV === true;
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 const DEMO_ACCOUNTS = DEMO_MODE ? [
   { label: 'Company Admin', email: 'admin@apexbuilders.co.ke', role: 'COMPANY_ADMIN', badge: 'bg-blue-100 text-blue-800'},
