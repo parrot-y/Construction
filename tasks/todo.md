@@ -581,4 +581,28 @@ requirements, failing-test-first, then built.
 - [ ] Phase E: terraform plan only after A–B auditor acceptance
 - [x] Phase F: F1 report-a-problem (f99476d) · F2 operator adoption
       (2543f44) · F3 BoQ template+dry-run+messy fixtures (3b69fc1)
-- [~] Final verify-local on final commit + PR table
+- [x] Final verify-local on final commit — verify-2ffae50.log COMPLETED SUCCESSFULLY
+      (617/617 api, 127 web, 74 money, 15 db, 9 permissions; lint/typecheck/
+      build/audit/type-debt/bundle/demo-brand greps all green)
+
+## Pilot readiness — final verification review (2026-11-13)
+
+- OBSERVED: scripts/verify-local.sh on commit 2ffae50 →
+  docs/evidence/verify-2ffae50.log (+ full-sha copy):
+  migrations 0001–0018 applied as db_migrator, rls.sql re-enforced,
+  seeded, secret scan clean, lint/typecheck/build green, pnpm audit
+  passed (1 moderate uuid advisory remains; 1 high zod-3.x GHSA
+  explicitly ignored in pnpm-workspace.yaml auditConfig with
+  justification — zod4 migration is follow-up), tests as db_app:
+  api 617/617, web 127/127, db 15/15, money 74/74, permissions 9/9.
+- OBSERVED: @fastify/static bumped >=10.1.1 via pnpm override
+  (GHSA-83w8-p2f5-377r, swagger-ui only, non-production surface).
+- OBSERVED: F3 parser regression found & fixed — prime-cost /
+  provisional-sum rows with qty×rate are VALID isProvisional items
+  (not WARNING); e2e-live-site-simulation 24/24 restored.
+- OBSERVED: route-guard coverage extended for operator-key routes
+  and self-service routes (company/modules, problem-reports).
+- NOT REACHED: Playwright suite not re-run in this final verify
+  (last full sweep 236/236 at 1ce7753); CI e2e workflow runs it on PR.
+- NOT REACHED: Phase E terraform plan — gated on auditor acceptance
+  of Phases A–B.
