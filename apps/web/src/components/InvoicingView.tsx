@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
+import { useAppDialog } from './AppDialog';
 
 interface InvoiceItem {
   id?: string;
@@ -84,6 +85,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function InvoicingView({ userRole = '' }: { userRole?: string } = {}): React.JSX.Element {
+  const dialog = useAppDialog();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -248,7 +250,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
           if (!['COMPANY_ADMIN', 'ADMIN'].includes(userRole)) {
             throw new Error('A different approver is required.');
           }
-          const reason = window.prompt('You are sending an invoice you created. Record the self-approval reason (min 15 characters):');
+          const reason = await dialog.prompt({ title: 'Self-approval reason required', inputLabel: 'Self-approval reason (min 15 characters)', confirmLabel: 'Send anyway', minLength: 15 });
           if (!reason || !reason.trim()) throw new Error('Self-approval cancelled — a reason is required.');
           res = await sendOnce(reason.trim());
         } else {
@@ -268,7 +270,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 };
 
   const handleVoid = async (inv: Invoice) => {
-    const reason = window.prompt('Reason for voiding this invoice?');
+    const reason = await dialog.prompt({ title: 'Void invoice', inputLabel: 'Reason for voiding', confirmLabel: 'Void', danger: true });
     if (!reason) return;
     setBusyId(inv.id);
     setError(null);
@@ -699,6 +701,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 </table>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

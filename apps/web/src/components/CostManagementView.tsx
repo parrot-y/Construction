@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import CostCaptureModal from './CostCaptureModal';
+import { useAppDialog } from './AppDialog';
 
 export interface CostItem {
   id: string;
@@ -35,6 +36,7 @@ export default function CostManagementView({
   initialCosts = [],
   boqItems = [],
 }: CostManagementViewProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const [costs, setCosts] = useState<CostItem[]>(initialCosts);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -70,7 +72,7 @@ export default function CostManagementView({
   };
 
   const handleApprove = async (costId: string) => {
-    const comments = window.prompt('Enter QS/PM approval comments:', 'Verified and approved against site delivery note');
+    const comments = await dialog.prompt({ title: 'Approve cost entry', inputLabel: 'QS/PM approval comments', defaultValue: 'Verified and approved against site delivery note', confirmLabel: 'Approve' });
     if (comments === null) return;
 
     try {
@@ -84,7 +86,7 @@ export default function CostManagementView({
             setActionFeedback('A different approver is required.');
             return;
           }
-          const reason = window.prompt('You are approving a cost you entered. Record the self-approval reason (min 15 characters):');
+          const reason = await dialog.prompt({ title: 'Self-approval reason required', inputLabel: 'Self-approval reason (min 15 characters)', confirmLabel: 'Approve anyway', minLength: 15 });
           if (!reason || !reason.trim()) { setActionFeedback('Self-approval cancelled — a reason is required.'); return; }
           res = await postApproval(costId, comments, reason.trim());
         }
@@ -104,7 +106,7 @@ export default function CostManagementView({
 };
 
   const handleReject = async (costId: string) => {
-    const comments = window.prompt('Enter reason for rejection:');
+    const comments = await dialog.prompt({ title: 'Reject cost entry', inputLabel: 'Reason for rejection', confirmLabel: 'Reject', danger: true });
     if (!comments) return;
 
     try {
@@ -126,7 +128,7 @@ export default function CostManagementView({
 };
 
   const handleVoid = async (costId: string) => {
-    const reason = window.prompt('Enter reason for VOIDING this entry (strict append-only audit trail):');
+    const reason = await dialog.prompt({ title: 'Void cost entry', message: 'This entry stays in the append-only audit trail.', inputLabel: 'Reason for voiding', confirmLabel: 'Void', danger: true });
     if (!reason) return;
 
     try {
@@ -312,6 +314,7 @@ export default function CostManagementView({
         onCostCreated={handleCostCreated}
         boqItems={boqItems}
       />
+{dialog.element}
 </div>
 );
 }

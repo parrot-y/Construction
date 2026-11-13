@@ -16,6 +16,7 @@ import SubcontractorPortalView from '../portals/SubcontractorPortalView';
 import SupplierPortalView from '../portals/SupplierPortalView';
 import CompliancePortalView from '../portals/CompliancePortalView';
 import { AuthSession} from '../../types/auth';
+import AppErrorBoundary from '../AppErrorBoundary';
 
 function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const { session, roleLabel, projects, projectId, setProjectId, currency, setCurrency, setAiOpen, newMenuOpen, setNewMenuOpen, dark, toggleDark, setSection, setTab} = useConsole();
@@ -335,13 +336,16 @@ function SectionPrompt(): React.JSX.Element | null {
 
 function SectionBody(): React.JSX.Element {
   const { section} = useConsole();
+  const wrap = (label: string, el: React.ReactNode) => (
+    <AppErrorBoundary key={section} label={`console:${label}`}>{el}</AppErrorBoundary>
+  );
   switch (section) {
-    case 'projects': return<ProjectsSection />;
-    case 'site': return<SiteSection />;
-    case 'money': return<MoneySection />;
-    case 'people': return<PeopleSection />;
-    case 'files': return<FilesSection />;
-    default: return<HomeSection />;
+    case 'projects': return wrap('projects', <ProjectsSection />);
+    case 'site': return wrap('site', <SiteSection />);
+    case 'money': return wrap('money', <MoneySection />);
+    case 'people': return wrap('people', <PeopleSection />);
+    case 'files': return wrap('files', <FilesSection />);
+    default: return wrap('home', <HomeSection />);
 }
 }
 
@@ -350,15 +354,18 @@ function PortalPreview(): React.JSX.Element | null {
   if (!portalPreview) return null;
   const back = () => setPortalPreview(null);
   const common = { onBackToDashboard: back};
+  const pw = (label: string, el: React.ReactNode) => (
+    <AppErrorBoundary label={`portal-preview:${label.toLowerCase()}`}>{el}</AppErrorBoundary>
+  );
   switch (portalPreview.type.toUpperCase()) {
     case 'CONSULTANT':
-      return<ConsultantPortalView token={portalPreview.token} stakeholderName={portalPreview.name} stakeholderRole={portalPreview.role} {...common} />;
+      return pw('CONSULTANT', <ConsultantPortalView token={portalPreview.token} stakeholderName={portalPreview.name} stakeholderRole={portalPreview.role} {...common} />);
     case 'SUBCONTRACTOR':
-      return<SubcontractorPortalView token={portalPreview.token} subcontractorName={portalPreview.name} subcontractorTrade={portalPreview.role} {...common} />;
+      return pw('SUBCONTRACTOR', <SubcontractorPortalView token={portalPreview.token} subcontractorName={portalPreview.name} subcontractorTrade={portalPreview.role} {...common} />);
     case 'SUPPLIER':
-      return<SupplierPortalView token={portalPreview.token} supplierName={portalPreview.name} supplierCategory={portalPreview.role} {...common} />;
+      return pw('SUPPLIER', <SupplierPortalView token={portalPreview.token} supplierName={portalPreview.name} supplierCategory={portalPreview.role} {...common} />);
     case 'COMPLIANCE':
-      return<CompliancePortalView token={portalPreview.token} auditorName={portalPreview.name} auditorAgency={portalPreview.role} {...common} />;
+      return pw('COMPLIANCE', <CompliancePortalView token={portalPreview.token} auditorName={portalPreview.name} auditorAgency={portalPreview.role} {...common} />);
     default:
       return (
 <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-10 text-center text-sm text-slate-500">

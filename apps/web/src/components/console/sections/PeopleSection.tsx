@@ -4,6 +4,7 @@ import { useConsole} from '../ConsoleContext';
 import CrewsView from '../../CrewsView';
 import SubcontractorManagementView from '../../SubcontractorManagementView';
 import { IconPlus} from '../icons';
+import { useAppDialog } from '../../AppDialog';
 
 const ASSIGN_ROLES = ['COMPANY_ADMIN','CLIENT','ARCHITECT','PM_QS','QA_QC','OWNER','EXECUTIVE','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE','ADMIN','SITE_SUPERVISOR'];
 const ROLE_LABELS: Record<string, string> = {
@@ -16,6 +17,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 /** Team — members table with live role editing + invite + revoke. */
 function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
+  const dialog = useAppDialog();
   const { session, role} = useConsole();
   const isCompanyAdmin = role === 'COMPANY_ADMIN' || role === 'ADMIN';
   const [exportBusy, setExportBusy] = useState(false);
@@ -59,7 +61,8 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 };
 
   const revoke = async (membershipId: string) => {
-    if (!window.confirm('Revoke this member\u2019s access?')) return;
+    const ok = await dialog.confirm({ title: 'Revoke member access', message: 'Revoke this member’s access?', confirmLabel: 'Revoke', danger: true });
+    if (!ok) return;
     const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include'});
     if (r.ok) setMembers((prev) => prev?.filter((m) => m.membershipId !== membershipId) ?? prev);
 };
@@ -263,6 +266,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

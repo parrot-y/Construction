@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
 import { formatKes } from '../../ui';
 import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { useAppDialog } from '../AppDialog';
 
 interface CoItem {
   id: string;
@@ -61,6 +62,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function ClientPortalView({ token, onBackToDashboard}: ClientPortalViewProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const [data, setData] = useState<PortalPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,14 +100,23 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 
   const respond = async (co: ChangeOrder, action: 'APPROVE' | 'REJECT') => {
     setFeedback(null);
-    const signedName = window.prompt('Type your full name to sign this decision:', data?.stakeholder.name || '');
+    const signedName = await dialog.prompt({
+      title: 'Sign your decision',
+      inputLabel: 'Type your full name to sign',
+      defaultValue: data?.stakeholder.name || '',
+      confirmLabel: 'Continue',
+    });
     if (!signedName || signedName.trim().length< 2) return;
 
-    const comments =
-      action === 'REJECT'
-        ? window.prompt('Reason for rejection (required):', '')
-        : window.prompt('Approval comments (optional):', '');
-    if (action === 'REJECT' && (!comments || comments.trim().length< 3)) {
+    const comments = await dialog.prompt({
+      title: action === 'REJECT' ? 'Reason for rejection' : 'Approval comments',
+      inputLabel: action === 'REJECT' ? 'Reason for rejection (required)' : 'Approval comments (optional)',
+      confirmLabel: action === 'REJECT' ? 'Reject' : 'Approve',
+      danger: action === 'REJECT',
+      minLength: action === 'REJECT' ? 3 : 0,
+    });
+    if (comments === null) return;
+    if (action === 'REJECT' && comments.trim().length< 3) {
       setFeedback('A rejection reason is required.');
       return;
 }
@@ -321,6 +332,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
         </>
       )}
 </div>
+{dialog.element}
 </div>
 );
 }

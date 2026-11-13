@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
+import { useAppDialog } from './AppDialog';
 
 export interface VariationItemData {
   id: string;
@@ -81,6 +82,7 @@ export default function VariationManagementView({
   initialVariations,
   onVariationUpdated,
 }: VariationManagementViewProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const [variations, setVariations] = useState<VariationOrderData[]>(initialVariations ?? []);
   const [loading, setLoading] = useState(!initialVariations);
   const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>('ALL');
@@ -152,7 +154,12 @@ export default function VariationManagementView({
             ? 'Enter reason for voiding this change order:'
             : 'Enter reason for rejecting this change order:';
 
-    const comments = window.prompt(promptMessage, '');
+    const comments = await dialog.prompt({
+      title: action === 'APPROVE' ? 'Approve change order' : action === 'VOID' ? 'Void change order' : action === 'REJECT' ? 'Reject change order' : 'Evaluate change order',
+      inputLabel: promptMessage.replace(/:$/, ''),
+      confirmLabel: action === 'REJECT' || action === 'VOID' ? action : 'Submit',
+      danger: action === 'REJECT' || action === 'VOID',
+    });
     if (comments === null) return;
     if (action === 'REJECT' && comments.trim().length< 3) {
       setActionError('A rejection reason is required.');
@@ -476,6 +483,7 @@ export default function VariationManagementView({
         projectId={projectId}
         onVariationCreated={handleVariationCreated}
       />
+{dialog.element}
 </div>
 );
 }

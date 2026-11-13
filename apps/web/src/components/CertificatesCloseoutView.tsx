@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState} from 'react';
 import { formatKes, CopyWhatsAppButton } from '../ui';
+import { useAppDialog } from './AppDialog';
 import { PRODUCT_NAME } from '../lib/product';
 
 interface PaymentCertificate {
@@ -67,6 +68,7 @@ interface Props {
 }
 
 export default function CertificatesCloseoutView({ projectId, canManage = true}: Props): React.JSX.Element {
+  const dialog = useAppDialog();
   const [certs, setCerts] = useState<PaymentCertificate[]>([]);
   const [closeout, setCloseout] = useState<CloseoutData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -201,16 +203,24 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
     let comments: string | undefined;
     let paidReference: string | undefined;
     if (action === 'REJECT') {
-      const entered = window.prompt('Reason for rejection (required):', '');
+      const entered = await dialog.prompt({
+        title: 'Reject payment certificate',
+        inputLabel: 'Reason for rejection (required)',
+        confirmLabel: 'Reject', danger: true, minLength: 3,
+      });
       if (!entered || entered.trim().length< 3) {
         setError('A rejection reason is required.');
         return;
 }
       comments = entered;
 } else if (action === 'CERTIFY') {
-      comments = window.prompt('Certification comments (optional):', '') || undefined;
+      const c = await dialog.prompt({ title: 'Certify payment certificate', inputLabel: 'Certification comments (optional)', confirmLabel: 'Certify' });
+      if (c === null) return;
+      comments = c || undefined;
 } else if (action === 'MARK_PAID') {
-      paidReference = window.prompt('Payment reference (M-Pesa code / EFT / cheque no):', '') || undefined;
+      const pr = await dialog.prompt({ title: 'Mark certificate paid', inputLabel: 'Payment reference (M-Pesa code / EFT / cheque no)', confirmLabel: 'Mark paid' });
+      if (pr === null) return;
+      paidReference = pr || undefined;
 }
 
     try {
@@ -265,7 +275,10 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 
   const advanceCloseout = async () => {
     if (!closeout?.nextStage) return;
-    const notes = window.prompt(`Advance closeout to ${STAGE_LABELS[closeout.nextStage]}? Notes (optional):`, '');
+    const notes = await dialog.prompt({
+      title: `Advance closeout to ${STAGE_LABELS[closeout.nextStage]}?`,
+      inputLabel: 'Notes (optional)', confirmLabel: 'Advance',
+    });
     if (notes === null) return;
     try {
       const res = await fetch(`/api/v1/projects/${projectId}/closeout/transition`, {
@@ -580,6 +593,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 ))}
 </div>
 </div>
+{dialog.element}
 </div>
 );
 }

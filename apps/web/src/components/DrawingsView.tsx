@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { useAppDialog } from './AppDialog';
 
 interface Drawing {
   id: string; title: string; category: string; drawing_reference?: string | null;
@@ -30,6 +31,7 @@ const STATUS_STYLE: Record<string, string> = {
 const DRAWING_CATS = ['ARCHITECTURAL_DRAWING', 'STRUCTURAL_DRAWING', 'MEP_DRAWING', 'CIVIL_DRAWING', 'ELECTRICAL_DRAWING'];
 
 export default function DrawingsView({ projectId, canManage = true}: { projectId?: string; canManage?: boolean}): React.JSX.Element {
+  const dialog = useAppDialog();
   const [projects, setProjects] = useState<ProjectOpt[]>([]);
   const [pid, setPid] = useState(projectId || '');
   const [discipline, setDiscipline] = useState('ALL');
@@ -84,7 +86,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 
   const addAnnotation = async () => {
     if (!preview || !pendingPin) return;
-    const note = window.prompt('Annotation note');
+    const note = await dialog.prompt({ title: 'Add annotation', inputLabel: 'Annotation note', confirmLabel: 'Add', minLength: 2 });
     if (!note || note.trim().length< 2) { setPendingPin(null); return;}
     const res = await fetch(`/api/v1/projects/${pid}/documents/${preview.id}/annotations`, {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
@@ -307,6 +309,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

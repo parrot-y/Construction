@@ -2,6 +2,7 @@ import React, { useState, useEffect} from 'react';
 import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
 import InviteAcceptView from './components/InviteAcceptView';
+import AppErrorBoundary from './components/AppErrorBoundary';
 import { RequestPasswordResetView, ResetPasswordView, VerifyEmailView } from './components/PasswordResetViews';
 import Dashboard from './components/Dashboard';
 import LandingPortalHub from './components/LandingPortalHub';
@@ -30,7 +31,7 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
     if (path === '/terms') return <TermsPage />;
     if (path === '/privacy') return <PrivacyPage />;
   }
-  return <AppShell initialPortal={initialPortal} />;
+  return <AppErrorBoundary label="app-shell"><AppShell initialPortal={initialPortal} /></AppErrorBoundary>;
 }
 
 function AppShell({ initialPortal}: AppProps): React.JSX.Element {
@@ -130,37 +131,37 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
       case 'consultant':
         return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-<ConsultantPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+<AppErrorBoundary label="portal:consultant"><ConsultantPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} /></AppErrorBoundary>
 </main>
 );
       case 'subcontractor':
         return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-<SubcontractorPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+<AppErrorBoundary label="portal:subcontractor"><SubcontractorPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} /></AppErrorBoundary>
 </main>
 );
       case 'supplier':
         return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-<SupplierPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+<AppErrorBoundary label="portal:supplier"><SupplierPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} /></AppErrorBoundary>
 </main>
 );
       case 'compliance':
         return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-<CompliancePortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+<AppErrorBoundary label="portal:compliance"><CompliancePortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} /></AppErrorBoundary>
 </main>
 );
       case 'quote':
         return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-<PublicQuoteView token={externalPortal.token} onBack={handleExitPortal} />
+<AppErrorBoundary label="portal:quote"><PublicQuoteView token={externalPortal.token} onBack={handleExitPortal} /></AppErrorBoundary>
 </main>
 );
       case 'client':
         return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-<ClientPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} />
+<AppErrorBoundary label="portal:client"><ClientPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} /></AppErrorBoundary>
 </main>
 );
       default:

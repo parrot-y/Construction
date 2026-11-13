@@ -23,6 +23,7 @@ import CompanyDocumentsView from './CompanyDocumentsView';
 import InboxView from './InboxView';
 import IntegrationsView from './IntegrationsView';
 import ScheduledReportsView from './ScheduledReportsView';
+import { useAppDialog } from './AppDialog';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -30,6 +31,7 @@ interface CompanyAdminDashboardProps {
 }
 
 export default function CompanyAdminDashboard({ session, onPreviewPortal}: CompanyAdminDashboardProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const { user} = session;
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -58,7 +60,8 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 } catch { /* leave unchanged */}
 };
   const handleRevoke = async (membershipId: string) => {
-    if (!window.confirm('Revoke this member\u2019s access to the workspace?')) return;
+    const ok = await dialog.confirm({ title: 'Revoke member access', message: 'Revoke this member’s access to the workspace?', confirmLabel: 'Revoke', danger: true });
+    if (!ok) return;
     try {
       const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include'});
       if (r.ok) setMembers((prev) => prev ? prev.filter((m: any) => m.membershipId !== membershipId) : prev);
@@ -641,6 +644,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

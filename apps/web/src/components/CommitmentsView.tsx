@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { useAppDialog } from './AppDialog';
 
 interface PaymentApplication {
   id: string;
@@ -79,6 +80,7 @@ const emptyApplication = {
 };
 
 export default function CommitmentsView({ projectId, canManage = true}: Props): React.JSX.Element {
+  const dialog = useAppDialog();
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,14 +180,16 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
     let comments: string | undefined;
     let paidReference: string | undefined;
     if (action === 'REJECT') {
-      const entered = window.prompt('Reason for rejection (required):', '');
+      const entered = await dialog.prompt({ title: 'Reject payment application', inputLabel: 'Reason for rejection (required)', confirmLabel: 'Reject', danger: true, minLength: 3 });
       if (!entered || entered.trim().length< 3) {
         setError('A rejection reason is required.');
         return;
 }
       comments = entered;
 } else if (action === 'MARK_PAID') {
-      paidReference = window.prompt('Payment reference (M-Pesa / EFT / cheque):', '') || undefined;
+      const pr = await dialog.prompt({ title: 'Mark application paid', inputLabel: 'Payment reference (M-Pesa / EFT / cheque)', confirmLabel: 'Mark paid' });
+      if (pr === null) return;
+      paidReference = pr || undefined;
 }
     try {
       const res = await fetch(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications/${app.id}/action`, {
@@ -437,6 +441,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 </div>
 ))}
 </div>
+{dialog.element}
 </div>
 );
 }
