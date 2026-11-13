@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { PRODUCT_NAME } from '../lib/product';
 
+const fmtTs = (iso: string) => iso.replace('T', ' ').slice(0, 16) + ' UTC';
+
 /**
  * F2: operator-only adoption page. The platform operator authenticates with
  * the deployment OPERATOR_KEY (same guard as /api/v1/operator/*) — the key
@@ -65,7 +67,7 @@ export default function OperatorAdoptionView(): React.JSX.Element {
         {error && <p className="text-xs text-red-600">{error}</p>}
         {data && (
           <div className="space-y-4">
-            <p className="text-[10px] text-slate-400">Generated {new Date(data.generatedAt).toLocaleString()} · window {data.windowDays}d</p>
+            <p className="text-[10px] text-slate-400">Generated {fmtTs(data.generatedAt)} · window {data.windowDays}d</p>
             {data.tenants.map((t) => (
               <div key={t.tenant.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap gap-4 text-xs">
@@ -85,7 +87,7 @@ export default function OperatorAdoptionView(): React.JSX.Element {
                       <tr key={u.userId}>
                         <td className="px-4 py-2 text-slate-800 dark:text-slate-200">{u.name || u.email}{!u.active && <span className="ml-2 text-[10px] text-red-500">inactive</span>}</td>
                         <td className="px-4 py-2 text-slate-500">{u.role}</td>
-                        <td className="px-4 py-2 text-slate-500 tabular-nums">{u.lastActivityAt ? new Date(u.lastActivityAt).toLocaleString() : 'never'}</td>
+                        <td className="px-4 py-2 text-slate-500 tabular-nums">{u.lastActivityAt ? fmtTs(u.lastActivityAt) : 'never'}</td>
                       </tr>
                     ))}
                   </tbody>
