@@ -31,11 +31,14 @@ async function clickNav(page: Page, name: string) {
 async function openMoneyTab(page: Page, tab: string) {
   await clickNav(page, 'Money');
   const t = page.getByRole('tab', { name: tab, exact: true }).first();
-  for (let i = 0; i < 3; i++) {
-    await t.click({ force: true });
+  for (let i = 0; i < 6; i++) {
+    // dispatchEvent bypasses hit-testing — sticky headers/notices can cover
+    // the tab bar after long flows and swallow a real mouse click.
+    await t.dispatchEvent('click');
     if (await t.getAttribute('aria-selected').then((v) => v === 'true').catch(() => false)) return;
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(500);
   }
+  throw new Error(`Money tab "${tab}" did not become selected`);
 }
 
 const stamp = Date.now();
@@ -97,6 +100,9 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
   test('certificate → invoice → valuation screens are clickable end to end', async ({ page }, testInfo) => {
     const tag = testInfo.project.name.replace(/[^a-z0-9]/gi, '');
     const invTitle = `UI invoice ${stamp}-${tag}`;
+    // Admin created and sends the invoice — maker-checker asks for a
+    // self-approval reason via prompt().
+    page.on('dialog', (d) => d.accept('UI test self-approval reason'));
     await uiLogin(page, 'admin@apexbuilders.co.ke', 'Password123!');
     // Pin the project selector when the layout exposes one (desktop header);
     // mobile auto-selects the first project, which is the fixture project.

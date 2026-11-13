@@ -54,3 +54,9 @@ variable "alert_phone" {
   type        = string
   default     = ""
 }
+
+variable "trusted_proxy_cidrs" {
+  description = "Comma-separated CIDRs allowed to supply X-Forwarded-For (the ALB/VPC). Empty = default VPC CIDR. Never a wildcard."
+  type        = string
+  default     = ""
+}

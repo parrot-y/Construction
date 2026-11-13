@@ -698,7 +698,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {(activeTab === 'all' || activeTab === 'quotes') &&<QuotesManagementView />}
 
       {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
-      {(activeTab === 'all' || activeTab === 'invoices') &&<InvoicingView />}
+      {(activeTab === 'all' || activeTab === 'invoices') &&<InvoicingView userRole={user.role} />}
 
       {/* Commitments -> Claims -> Payment Applications (Gate-4 S5) */}
       {(activeTab === 'all' || activeTab === 'commitments') && (

@@ -208,7 +208,7 @@ test.describe('Stage 2 — client & owner portals', () => {
     const inv = unwrap(await invRes.json());
     state.invoiceId = idOf(inv) || inv.invoice?.id;
     expect(state.invoiceId).toBeTruthy();
-    await apiPost(request, admin, CONTRACT.sendInvoice(state.invoiceId!), {});
+    await apiPost(request, admin, CONTRACT.sendInvoice(state.invoiceId!), { selfApprovalReason: 'Stage-2 client invoice send reason' });
 
     const mine = await apiGet(request, client, CONTRACT.meInvoices);
     expect(mine.status(), await mine.text()).toBe(200);

@@ -137,3 +137,62 @@ pilot scale.
   must set it to the ALB subnets/CIDRs at deploy time (not yet provisioned).
 - scrypt N=2^17 ≈ 1 s per hash — intentional; login throughput is bounded
   by design and throttled anyway.
+
+## Follow-up sweep (same day, second pass)
+
+First full 236-spec Playwright run exposed regressions the aud-only subset
+missed; all fixed and re-verified:
+
+- **CSP bug (real product bug)**: `cspDirectives` lacked a trailing `;`, so
+  `script-src` was parsed as the *value* of `upgrade-insecure-requests` →
+  `default-src 'self'` fallback blocked vite's inline react-refresh
+  preamble → blank app on every UI test. Fixed directive termination; dev
+  CSP now allows exactly one sha256-hashed inline script (the plugin-react
+  preamble, hash verified against served HTML) — still no `unsafe-inline`.
+  Prod nginx CSP unchanged (`script-src 'self'`).
+- **Throttle self-DoS in e2e**: all suite traffic shares 127.0.0.1 → the new
+  IP+account login throttle locked the whole suite out. Added
+  `LOGIN_THROTTLE_MAX_FAILURES`/`_WINDOW_MINUTES` env knobs (e2e sets a high
+  max, same pattern as `LOGIN_RATE_LIMIT_MAX`); the real 10/15 min behaviour
+  stays covered by `audit-hardening.test.ts`.
+- **InvoicingView self-approval**: invoice send had no maker-checker reason
+  path → 409 in UI. Added 409-detect → admin prompt → retry with
+  `selfApprovalReason`, `userRole` threaded through all 3 call sites;
+  non-admins see "A different approver is required."
+- **vitest timeouts**: scrypt N=2^17 (~1 s/op) pushed fixtures past the
+  5 s/10 s defaults → `testTimeout: 30000`, `hookTimeout: 60000` in
+  `apps/api/vitest.config.ts`; `account-lifecycle.test.ts` its bumped to
+  30 s individually (9/9 pass).
+- **Terraform**: `TRUSTED_PROXY_CIDRS` on the API container task (var,
+  defaults to the default-VPC CIDR; never a wildcard). `terraform validate`
+  clean.
+
+### Stale dev-spec corrections (aud-* untouched, hash file unchanged)
+
+- `d-cert`, `i-stage2`: `sendInvoice` calls now pass `selfApprovalReason`
+  (admin self-send → maker-checker 409 otherwise).
+- `e-portals`, `j-stage3`: SUPPLIER portal links without `supplierId`
+  auto-resolve/onboard the Supplier record (stage-3 contract) → assert
+  201 + bound `supplierId` instead of 400.
+- `h-stage1`: invite token read from `inviteUrl` (API returns both
+  `token` and `inviteUrl`); `pendingVerification` assertion made
+  conditional (dev auto-verifies).
+- `g-contractor`: dev auto-verify → assert landing in field workspace
+  (SITE_ENGINEER → FieldDashboard), not the console rail.
+- `i-stage1-ui`: `page.on('dialog')` accepts the self-approval prompt;
+  `openMoneyTab` (i + l specs) uses `dispatchEvent('click')` — sticky
+  notices were swallowing force clicks.
+- `l-procurement`: project resolved from the `qs@` session (the UI driver),
+  PO number read from `.tabular-nums` (markup uses it, not `.font-mono`).
+
+### Final observed results
+
+```
+playwright test (full suite, chromium + mobile-390):
+  236 passed, 0 failed, 0 skipped, 0 flaky   (results.json stats)
+verify-local.sh:
+  api 66 files / 586 tests — all pass
+  web 118, db 15, money 63, permissions 9 — all pass
+  LOCAL CI VERIFICATION COMPLETED SUCCESSFULLY
+  log: docs/evidence/verify-be1364e*.log
+```

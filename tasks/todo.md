@@ -473,7 +473,7 @@ requirements, failing-test-first, then built.
   DSN/creds/domain exist; /ready 503 path untested; me/approvals + portal
   feeds are bounded aggregates, not page-parameter lists
 
-## CTO audit fixes (Stage-7 hardening) — DONE
+## CTO audit fixes (Stage-7 hardening) — DONE + full-suite green
 - [ ] Payments: Idempotency-Key + SELECT FOR UPDATE + partial unique
       (tenant_id,reference)→409 DUPLICATE_PAYMENT_REFERENCE + dev-concurrency.spec.ts
       NOTE: aud-stage1/stage2 POST /payments without the header — helpers.ts
@@ -538,3 +538,27 @@ requirements, failing-test-first, then built.
   to s2$ prefix
 - NOT DONE: TRUSTED_PROXY_CIDRS must be set to ALB CIDRs in staging env
   at deploy time; full aud-* sweep not re-run this batch
+
+### Stage-7 follow-up (full Playwright sweep)
+- OBSERVED: first full 236-test sweep exposed real regressions the
+  aud-only subset missed:
+  a) CSP string bug — cspDirectives ended without ';' so script-src was
+     swallowed into upgrade-insecure-requests' value → default-src 'self'
+     fallback blocked vite's inline react-refresh preamble → white screen
+     on every UI test. Fixed by terminating directives and adding the
+     exact sha256 of the preamble to DEV CSP only (no unsafe-inline).
+  b) DB login throttle self-DoS'd the suite (all traffic = 127.0.0.1)
+     → LOGIN_THROTTLE_MAX_FAILURES env knob, e2e sets it high (same
+     pattern as LOGIN_RATE_LIMIT_MAX); real 10/15min covered by vitest.
+  c) InvoicingView send had no self-approval reason path → 409 under
+     maker-checker; added prompt+retry + userRole threading (3 call sites).
+- OBSERVED: stale dev specs updated to current contracts (aud-* untouched):
+  d-cert/i-stage2 sendInvoice +selfApprovalReason; e-portals/j-stage3
+  supplier links auto-resolve Supplier record (201+supplierId);
+  h-stage1 invite token via inviteUrl + pendingVerification gated;
+  g-contractor dev auto-verify → field-workspace landing;
+  i-stage1-ui dialog handler for self-approval prompt;
+  i/l openMoneyTab dispatchEvent (sticky overlays ate force clicks);
+  l-procurement projectId resolved from qs session + .tabular-nums.
+- OBSERVED: full suite 236/236 chromium+mobile-390, 0 skipped, 0 flaky
+- infra: TRUSTED_PROXY_CIDRS env on API task (defaults to VPC CIDR)

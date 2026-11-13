@@ -83,7 +83,7 @@ const STATUS_STYLES: Record<string, string> = {
   VOID: 'bg-slate-100 text-slate-500 border-slate-300 line-through',
 };
 
-export default function InvoicingView(): React.JSX.Element {
+export default function InvoicingView({ userRole = '' }: { userRole?: string } = {}): React.JSX.Element {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,12 +235,26 @@ export default function InvoicingView(): React.JSX.Element {
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/send`, {
+      const sendOnce = (selfApprovalReason?: string) => fetch(`/api/v1/invoices/${inv.id}/send`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({}),
-});
+        body: JSON.stringify(selfApprovalReason ? { selfApprovalReason } : {}),
+      });
+      let res = await sendOnce();
+      if (res.status === 409) {
+        const errBody = await res.json().catch(() => null);
+        if (/selfApprovalReason|different approver/i.test(errBody?.message || '')) {
+          if (!['COMPANY_ADMIN', 'ADMIN'].includes(userRole)) {
+            throw new Error('A different approver is required.');
+          }
+          const reason = window.prompt('You are sending an invoice you created. Record the self-approval reason (min 15 characters):');
+          if (!reason || !reason.trim()) throw new Error('Self-approval cancelled — a reason is required.');
+          res = await sendOnce(reason.trim());
+        } else {
+          throw new Error(errBody?.message || 'Failed to send invoice');
+        }
+      }
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || 'Failed to send invoice');
       setNotice(`Invoice INV-${String(inv.invoice_no).padStart(5, '0')} marked as sent`);

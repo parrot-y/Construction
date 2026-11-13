@@ -118,22 +118,10 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     await page.locator('#invite-confirm').fill(invitePassword);
     await page.getByRole('button', { name: 'Accept invitation' }).click();
 
-    // New accounts land on the verification gate, not the console.
-    await expect(page.getByText('Invitation accepted')).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/verify your email/i)).toBeVisible();
-
-    // Follow the real verify link → auto-verifies → continue to sign-in form.
-    const verifyHref = await page.locator('a[href*="verify="]').first().getAttribute('href');
-    expect(verifyHref, 'verification link must be rendered').toBeTruthy();
-    await page.goto(verifyHref!);
-    await expect(page.getByText('email is verified', { exact: false })).toBeVisible({ timeout: 20_000 });
-    await page.getByRole('button', { name: 'Continue to sign in' }).click();
-    await page.locator('#email').fill(inviteEmail);
-    await page.locator('#password').fill(invitePassword);
-    await page.getByRole('button', { name: 'Sign in to workspace' }).click();
-
-    // Lands inside the console as the new member
-    await expect(page.getByRole('button', { name: 'Projects' }).first()).toBeVisible({ timeout: 20_000 });
+    // Dev/pilot: invite acceptance is auto-verified (simulated delivery), so
+    // the UI signs the new member straight in. SITE_ENGINEER lands on the
+    // mobile-first field workspace, not the console rail.
+    await expect(page.getByRole('button', { name: /Projects|Today|Site Diary|Record diary/ }).first()).toBeVisible({ timeout: 20_000 });
 
     // Admin sees the invitation as ACCEPTED
     const listRes = await apiGet(request, admin, '/api/v1/invitations');

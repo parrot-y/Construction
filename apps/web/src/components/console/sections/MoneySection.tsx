@@ -131,7 +131,7 @@ export default function MoneySection(): React.JSX.Element {
       if (!canManage) return<NoAccess what="quotes" />;
       return<QuotesManagementView />;
     case 'invoices':
-      return<InvoicingView />;
+      return<InvoicingView userRole={role} />;
     case 'inventory':
       return livePid ?<SiteInventoryManagementView projectId={livePid} canManage={canManage} /> :<EmptyProject what="inventory" />;
     case 'certificates':

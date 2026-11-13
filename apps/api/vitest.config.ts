@@ -5,6 +5,10 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     fileParallelism: false,
+    // scrypt N=2^17 costs ~1s per hash/verify — fixtures that provision
+    // several accounts need headroom beyond the 5s/10s defaults.
+    testTimeout: 30000,
+    hookTimeout: 60000,
     env: {
       DATABASE_URL:
         process.env.DATABASE_URL ||

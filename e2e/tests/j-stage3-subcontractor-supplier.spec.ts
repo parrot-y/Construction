@@ -115,11 +115,13 @@ test.describe('Stage 3 — subcontractor & supplier portals', () => {
   test('1. Supplier links require a Supplier record; deliveries are record-scoped + paginated', async ({ request }) => {
     const admin = state.admin!; const pm = state.pm!; const pid = state.projectId!;
 
-    // Link without supplierId is refused.
+    // Stage-3 contract: no supplierId → the Supplier record is resolved (or
+    // onboarded) from stakeholderName; the link is still record-bound.
     const noSup = await apiPost(request, admin, CONTRACT.portalLinks(pid), {
-      portalType: 'SUPPLIER', stakeholderName: 'Nameless Supplier', expiresInDays: 7,
+      portalType: 'SUPPLIER', stakeholderName: `Nameless Supplier ${Date.now()}`, expiresInDays: 7,
     });
-    expect(noSup.status(), 'SUPPLIER link without supplierId must be refused').toBe(400);
+    expect(noSup.status(), await noSup.text()).toBe(201);
+    expect(unwrap(await noSup.json()).supplierId, 'link must bind a Supplier record').toBeTruthy();
 
     // Links bound to supplier records.
     for (const [key, supId, name] of [

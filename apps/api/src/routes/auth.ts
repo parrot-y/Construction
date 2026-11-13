@@ -26,8 +26,8 @@ import { normalizeKenyaPhone } from './invitations';
 // per client IP AND per normalised account email in `login_throttles`, so the
 // counter survives restarts, is shared across replicas, and cannot be bypassed
 // by rotating IPs against one account (or one IP against many accounts).
-const THROTTLE_MAX_FAILURES = 10;
-const THROTTLE_WINDOW_MS = 15 * 60 * 1000; // 15-minute window
+const THROTTLE_MAX_FAILURES = Number(process.env.LOGIN_THROTTLE_MAX_FAILURES ?? 10);
+const THROTTLE_WINDOW_MS = Number(process.env.LOGIN_THROTTLE_WINDOW_MINUTES ?? 15) * 60 * 1000;
 
 const throttleCutoff = () => new Date(Date.now() - THROTTLE_WINDOW_MS);
 

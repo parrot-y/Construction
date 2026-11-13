@@ -353,6 +353,7 @@ resource "aws_ecs_task_definition" "api" {
       { name = "AWS_REGION", value = var.aws_region },
       { name = "EMAIL_DRIVER", value = "ses" },
       { name = "SES_FROM", value = "no-reply@${var.product_domain}" },
+      { name = "TRUSTED_PROXY_CIDRS", value = var.trusted_proxy_cidrs != "" ? var.trusted_proxy_cidrs : data.aws_vpc.default.cidr_block },
     ]
     secrets = [
       { name = "APP_ENV_JSON", valueFrom = aws_secretsmanager_secret.app_env.arn },

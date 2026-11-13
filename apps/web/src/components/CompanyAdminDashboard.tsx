@@ -474,7 +474,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <QuotesManagementView />
 
       {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
-<InvoicingView />
+<InvoicingView userRole="COMPANY_ADMIN" />
 
 </div>
 <div className={panelCls('people')}>

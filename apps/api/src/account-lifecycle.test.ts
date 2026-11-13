@@ -39,7 +39,7 @@ describe('Account lifecycle hardening', () => {
   // ------------------------------------------------------------------
   // 1. PASSWORD RESET
   // ------------------------------------------------------------------
-  it('request-reset never enumerates users; known email gets a usable single-use token', async () => {
+  it('request-reset never enumerates users; known email gets a usable single-use token', { timeout: 30000 }, async () => {
     // Unknown email — identical shape, no token material.
     const unknown = await server.inject({
       method: 'POST',
@@ -95,7 +95,7 @@ describe('Account lifecycle hardening', () => {
     adminCookie = (await login('admin@apexbuilders.co.ke', 'Password123!')).cookie;
   });
 
-  it('reset-password rejects bogus and expired tokens', async () => {
+  it('reset-password rejects bogus and expired tokens', { timeout: 30000 }, async () => {
     const bogus = await server.inject({
       method: 'POST',
       url: '/api/v1/auth/reset-password',
@@ -104,7 +104,7 @@ describe('Account lifecycle hardening', () => {
     expect([400, 404, 410]).toContain(bogus.statusCode);
   });
 
-  it('company admin can generate a one-time reset link for a team member', async () => {
+  it('company admin can generate a one-time reset link for a team member', { timeout: 30000 }, async () => {
     // Fresh verified user to reset.
     const email = `resetme-${RUN}@apexbuilders.co.ke`;
     const reg = await server.inject({
@@ -148,7 +148,7 @@ describe('Account lifecycle hardening', () => {
     expect((await login(email, 'First!Pass123')).status).toBe(401);
   });
 
-  it('request-password-reset is rate limited', async () => {
+  it('request-password-reset is rate limited', { timeout: 30000 }, async () => {
     let saw429 = false;
     for (let i = 0; i < 12; i++) {
       const r = await server.inject({
@@ -164,7 +164,7 @@ describe('Account lifecycle hardening', () => {
   // ------------------------------------------------------------------
   // 2. ACCOUNT VERIFICATION GATE
   // ------------------------------------------------------------------
-  it('register-company account cannot log in until email is verified', async () => {
+  it('register-company account cannot log in until email is verified', { timeout: 30000 }, async () => {
     const email = `verify-${RUN}@verify-e2e.test`;
     const reg = await server.inject({
       method: 'POST',
@@ -202,7 +202,7 @@ describe('Account lifecycle hardening', () => {
     expect((await login(email, 'Ver!fyPass123')).status).toBe(200);
   });
 
-  it('invite-accepted account is pending verification until verified or admin-activated', async () => {
+  it('invite-accepted account is pending verification until verified or admin-activated', { timeout: 30000 }, async () => {
     // Company admin invites a fresh user.
     const invite = await server.inject({
       method: 'POST',
@@ -247,7 +247,7 @@ describe('Account lifecycle hardening', () => {
   // ------------------------------------------------------------------
   // 3. INVITE ROLE LIMITS
   // ------------------------------------------------------------------
-  it('only COMPANY_ADMIN may invite ADMIN or COMPANY_ADMIN; others only below their own', async () => {
+  it('only COMPANY_ADMIN may invite ADMIN or COMPANY_ADMIN; others only below their own', { timeout: 30000 }, async () => {
     // Seed an EXECUTIVE user in the tenant.
     const execEmail = `exec-${RUN}@apexbuilders.co.ke`;
     await withTenantTx(prisma, tenantId, async (tx) => {
@@ -297,7 +297,7 @@ describe('Account lifecycle hardening', () => {
   // ------------------------------------------------------------------
   // 4. INVITE FOR EXISTING ACCOUNT
   // ------------------------------------------------------------------
-  it('existing-account invite requires the account password and reports company+role', async () => {
+  it('existing-account invite requires the account password and reports company+role', { timeout: 30000 }, async () => {
     // A dedicated existing account (own company, verified) — never a shared
     // seeded user, so the test cannot pollute other suites' memberships.
     const existingEmail = `existing-${RUN}@apexbuilders.co.ke`;
@@ -364,7 +364,7 @@ describe('Account lifecycle hardening', () => {
     expect((await login(existingEmail, 'Wr0ng!Pass')).status).toBe(401);
   });
 
-  it('invite accept requires the invitee to set their own password', async () => {
+  it('invite accept requires the invitee to set their own password', { timeout: 30000 }, async () => {
     const invite = await server.inject({
       method: 'POST',
       url: '/api/v1/invitations',
