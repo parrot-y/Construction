@@ -196,11 +196,28 @@ export async function parseBOQWorkbook(
     await workbook.xlsx.load(buffer as any);
   }
 
-  const worksheet = workbook.worksheets[0];
-  if (!worksheet) {
+  if (workbook.worksheets.length === 0) {
     throw new Error('Excel workbook contains no valid worksheets');
   }
 
+  const sections: ParsedBOQSection[] = [];
+  let currentSection: ParsedBOQSection = {
+    title: 'General & Preliminaries',
+    orderIdx: 1,
+    subtotal: '0.00',
+    items: [],
+  };
+
+  let validItemsCount = 0;
+  let warningItemsCount = 0;
+  let rejectedItemsCount = 0;
+  let grandTotalDecimal = new Decimal(0);
+  let lastSectionCode = '';
+
+  // F3: messy Kenyan BoQs are often split bill-by-bill across worksheets.
+  // Every sheet is scanned with the same state so items from all bills
+  // land in one continuous section/item stream.
+  for (const worksheet of workbook.worksheets) {
   let columnMap: ColumnIndexMap | null = null;
   let headerRowIndex = -1;
 
@@ -234,26 +251,52 @@ export async function parseBOQWorkbook(
     headerRowIndex = 1;
   }
 
-  const sections: ParsedBOQSection[] = [];
-  let currentSection: ParsedBOQSection = {
-    title: 'General & Preliminaries',
-    orderIdx: 1,
-    subtotal: '0.00',
-    items: [],
+  // F3: index merged cell ranges so item rows sitting inside a merge
+  // (common in messy Kenyan BoQs where a section title is merged across
+  // columns, or a description is merged over quantity rows) can be
+  // flagged row-by-row instead of silently mis-parsed.
+  const colToNum = (letters: string): number => {
+    let n = 0;
+    for (const ch of letters.toUpperCase()) n = n * 26 + (ch.charCodeAt(0) - 64);
+    return n;
   };
-
-  let validItemsCount = 0;
-  let warningItemsCount = 0;
-  let rejectedItemsCount = 0;
-  let grandTotalDecimal = new Decimal(0);
-  let lastSectionCode = '';
+  const mergeRanges: Array<{ top: number; left: number; bottom: number; right: number }> = [];
+  const rawMerges = (worksheet.model as { merges?: unknown[] }).merges;
+  if (Array.isArray(rawMerges)) {
+    for (const ref of rawMerges) {
+      let range: { top: number; left: number; bottom: number; right: number } | null = null;
+      if (typeof ref === 'string') {
+        const m = ref.match(/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/i);
+        if (m) {
+          range = {
+            left: colToNum(m[1]!),
+            top: parseInt(m[2]!, 10),
+            right: m[3] ? colToNum(m[3]) : colToNum(m[1]!),
+            bottom: m[4] ? parseInt(m[4], 10) : parseInt(m[2]!, 10),
+          };
+        }
+      } else if (ref && typeof ref === 'object') {
+        const o = ref as { top?: number; left?: number; bottom?: number; right?: number };
+        if (o.top != null && o.left != null && o.bottom != null && o.right != null) {
+          range = { top: o.top, left: o.left, bottom: o.bottom, right: o.right };
+        }
+      }
+      if (range && (range.top !== range.bottom || range.left !== range.right)) {
+        mergeRanges.push(range);
+      }
+    }
+  }
+  const isMergedCell = (rowNum: number, colNum: number): boolean =>
+    mergeRanges.some((rg) => rowNum >= rg.top && rowNum <= rg.bottom && colNum >= rg.left && colNum <= rg.right);
 
   // Iterate over data rows starting after the header
   for (let r = headerRowIndex + 1; r <= worksheet.rowCount; r++) {
     const row = worksheet.getRow(r);
     const rawValues: string[] = [];
     row.eachCell({ includeEmpty: true }, (cell) => {
-      rawValues.push(extractCellString(cell.value));
+      const c = cell as unknown as { isMerged?: boolean; master?: unknown };
+      const isMergeEcho = c.isMerged === true && c.master !== undefined && c.master !== cell;
+      rawValues.push(isMergeEcho ? '' : extractCellString(cell.value));
     });
 
     if (rawValues.length === 0 || rawValues.every((v) => !v)) {
@@ -313,6 +356,16 @@ export async function parseBOQWorkbook(
     if (!descRaw && !amountStr) {
       continue;
     }
+
+    // F3 row-by-row problem detection (dry-run reports these without saving):
+    // merged description cells, prime-cost items, and missing units.
+    const mergedFlags: string[] = [];
+    if (isMergedCell(r, columnMap.descIdx + 1)) {
+      mergedFlags.push('merged-cell');
+    }
+    const PRIME_COST_RE = /prime\s*cost|p\.?\s*c\.?\s*(sum|item|sums)|provisional\s+sum|as\s+per\s+(architect|engineer|instruction)/i;
+    const isPrimeCost = PRIME_COST_RE.test(descRaw);
+    const missingUnit = !unitRaw && !(columnMap.unitIdx === -1);
 
     // Evaluate line item status
     let status: 'VALID' | 'WARNING' | 'REJECTED' = 'VALID';
@@ -396,6 +449,23 @@ export async function parseBOQWorkbook(
       currentSection.subtotal = toCurrencyString(currentSubtotal);
     }
 
+    // Apply F3 advisory flags — never downgrade a REJECTED row, and a row
+    // may accumulate multiple problems.
+    if (status !== 'REJECTED') {
+      const advisories: string[] = [];
+      if (mergedFlags.length > 0) advisories.push('Row sits inside a merged cell range — verify this description/quantity applies to this row only');
+      if (isPrimeCost && !isProvisional) advisories.push('Prime-cost / provisional-sum item — confirm the PC sum is settled outside this BOQ before certification');
+      if (missingUnit && !isProvisional) advisories.push('Missing unit of measure — defaulted, please correct in source document');
+      if (advisories.length > 0) {
+        if (status === 'VALID') {
+          status = 'WARNING';
+          warningItemsCount++;
+          validItemsCount = Math.max(0, validItemsCount - 1);
+        }
+        rejectionReason = [rejectionReason, ...advisories].filter(Boolean).join(' | ');
+      }
+    }
+
     currentSection.items.push({
       itemCode: codeRaw || `${currentSection.orderIdx}.${currentSection.items.length + 1}`,
       description: descRaw,
@@ -408,6 +478,8 @@ export async function parseBOQWorkbook(
       rejectionReason,
     });
   }
+
+  } // end per-worksheet scan
 
   // Push final section
   if (currentSection.items.length > 0) {

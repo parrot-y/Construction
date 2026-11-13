@@ -172,6 +172,17 @@ export default function BoqImportModal({
 )}
 </div>
 
+              <div className="flex items-center justify-between">
+                <a
+                  href="/api/v1/boq/template"
+                  download="sitesafi-boq-template.xlsx"
+                  className="text-xs font-semibold text-purple-700 hover:text-purple-900 underline"
+                >
+                  Download BOQ template (.xlsx)
+                </a>
+                <span className="text-[10px] text-slate-400">Preview is a dry run — nothing is saved until you confirm.</span>
+              </div>
+
               {/* Kenyan Format Guidance */}
 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-600">
 <h4 className="font-bold text-slate-800 text-[11px]">
