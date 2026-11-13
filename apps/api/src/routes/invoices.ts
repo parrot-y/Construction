@@ -105,7 +105,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.get(
     '/api/v1/invoices',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_VIEW)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "List invoices", "security": [{"cookieAuth": []}], "parameters": [{"name": "status", "in": "query", "schema": {"type": "string", "enum": ["DRAFT", "SENT", "PART_PAID", "PAID", "VOID", "OVERDUE", "ALL"]}}, {"name": "projectId", "in": "query", "schema": {"type": "string", "format": "uuid"}}, {"name": "q", "in": "query", "schema": {"type": "string"}}, {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1}}, {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 25}}]},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
       const { status, projectId, q } = request.query as Record<string, string | undefined>;
@@ -149,7 +151,10 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.post(
     '/api/v1/invoices',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Create invoice with line items", "security": [{"cookieAuth": []}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["title", "clientName", "items"], "properties": {"title": {"type": "string"}, "clientName": {"type": "string"}, "clientEmail": {"type": "string"}, "projectId": {"type": "string", "format": "uuid"}, "currency": {"type": "string", "default": "KES"}, "taxPct": {"type": "number"}, "issueDate": {"type": "string", "format": "date"}, "dueDays": {"type": "integer"}, "items": {"type": "array", "items": {"type": "object"}}}}}}}},
+      preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)],
+    },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const parsed = CreateInvoiceSchema.safeParse(request.body);
@@ -251,7 +256,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.get(
     '/api/v1/invoices/:id',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_VIEW)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Invoice detail", "security": [{"cookieAuth": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}]},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
       const { id } = request.params as { id: string };
@@ -393,7 +400,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.post(
     '/api/v1/invoices/:id/send',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_SEND)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Send invoice (DRAFT\u2192SENT)", "security": [{"cookieAuth": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"selfApprovalReason": {"type": "string", "minLength": 15}}}}}}},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_SEND)] },
     async (request, reply) => {
       const { tenantId, sub, role } = request.user;
       const { id } = request.params as { id: string };
@@ -463,7 +472,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.post(
     '/api/v1/invoices/:id/payments',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_EDIT)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Record payment (Idempotency-Key required)", "security": [{"cookieAuth": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}, {"name": "Idempotency-Key", "in": "header", "required": true, "schema": {"type": "string"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["amount", "method"], "properties": {"amount": {"type": "number"}, "method": {"type": "string", "enum": ["CASH", "BANK_TRANSFER", "M_PESA", "CHEQUE", "CARD", "OTHER"]}, "reference": {"type": "string"}, "note": {"type": "string"}}}}}}},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_EDIT)] },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { id } = request.params as { id: string };
@@ -623,7 +634,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.post(
     '/api/v1/invoices/:id/void',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_EDIT)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Void invoice", "security": [{"cookieAuth": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["reason"], "properties": {"reason": {"type": "string"}}}}}}},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_EDIT)] },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { id } = request.params as { id: string };

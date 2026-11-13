@@ -834,7 +834,9 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   // GET /api/v1/auth/me
   server.get(
     '/api/v1/auth/me',
-    { preHandler: [server.authenticate] },
+    {
+      schema: {"tags": ["Auth"], "summary": "Current session user + permissions", "security": [{"cookieAuth": []}]},
+ preHandler: [server.authenticate] },
     async (request, reply) => {
       const userPayload = request.user;
 
@@ -887,7 +889,10 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   // PATCH /api/v1/auth/me — profile self-service (name, phone, country)
   server.patch(
     '/api/v1/auth/me',
-    { preHandler: [server.authenticate] },
+    {
+      schema: {"tags": ["Auth"], "summary": "Current session user + permissions", "security": [{"cookieAuth": []}]},
+      preHandler: [server.authenticate],
+    },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const body = (request.body || {}) as { fullName?: string; phoneNumber?: string | null; country?: string | null };

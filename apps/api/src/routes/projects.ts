@@ -22,6 +22,7 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
   server.get(
     '/api/v1/projects',
     {
+      schema: {"tags": ["Projects"], "summary": "List projects", "security": [{"cookieAuth": []}]},
       preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)],
     },
     async (request, reply) => {

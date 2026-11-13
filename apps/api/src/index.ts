@@ -9,6 +9,8 @@ import fastify, { FastifyError, FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
 import { prisma } from '@construction/db';
 import { registerAuthorizationGuards } from './plugins/routeAuthorization';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { redactUrl } from './lib/logRedaction';
 import { initSentry } from './lib/sentry';
 import { authPlugin } from './plugins/auth';
@@ -136,6 +138,24 @@ export function buildServer(): FastifyInstance {
   // Rate limiting (audit S-02): opt-in per route via config.rateLimit —
   // global:false so test suites and high-frequency internal calls are unaffected.
   server.register(rateLimit, { global: false });
+
+  // OpenAPI spec for core endpoints (D4). Off in production unless
+  // OPENAPI_ENABLED=1 — spec exposes route shapes, not data.
+  if (process.env.OPENAPI_ENABLED === '1' || process.env.NODE_ENV !== 'production') {
+    server.register(swagger, {
+      openapi: {
+        info: { title: 'SiteSafi API', version: '0.1.0', description: 'Core endpoints. See docs/API_CONTRACT.md for the response envelope convention.' },
+        components: {
+          securitySchemes: {
+            cookieAuth: { type: 'apiKey', in: 'cookie', name: 'access_token' },
+          },
+        },
+        security: [{ cookieAuth: [] }],
+      },
+    });
+    server.register(swaggerUi, { routePrefix: '/docs' });
+  }
+
   server.register(moduleGate);
 
   // Multipart file upload (capped at 15MB per ADR-003)

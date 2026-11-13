@@ -247,7 +247,9 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
 
   server.get(
     '/api/v1/projects/:projectId/payment-certificates',
-    { preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
+    {
+      schema: {"tags": ["Payment certificates"], "summary": "List certificates", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}]},
+ preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
@@ -284,7 +286,9 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
   // before creating the DRAFT certificate.
   server.get(
     '/api/v1/projects/:projectId/payment-certificates/preview',
-    { preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
+    {
+      schema: {"tags": ["Payment certificates"], "summary": "Preview certificate lines from BoQ progress", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}]},
+ preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
@@ -309,7 +313,10 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
 
   server.post(
     '/api/v1/projects/:projectId/payment-certificates',
-    { preHandler: [server.authenticate, requirePermission(Permissions.CERTIFICATE_MANAGE)] },
+    {
+      schema: {"tags": ["Payment certificates"], "summary": "Create payment certificate from BoQ progress", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}]},
+      preHandler: [server.authenticate, requirePermission(Permissions.CERTIFICATE_MANAGE)],
+    },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { projectId } = request.params as { projectId: string };
@@ -434,7 +441,10 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
   // PATCH .../payment-certificates/:certId — editable review while DRAFT
   server.patch(
     '/api/v1/projects/:projectId/payment-certificates/:certId',
-    { preHandler: [server.authenticate, requirePermission(Permissions.CERTIFICATE_MANAGE)] },
+    {
+      schema: {"tags": ["Payment certificates"], "summary": "Edit DRAFT certificate lines", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}, {"name": "certId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}]},
+      preHandler: [server.authenticate, requirePermission(Permissions.CERTIFICATE_MANAGE)],
+    },
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId, certId } = request.params as { projectId: string; certId: string };
@@ -727,7 +737,10 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
   for (const suffix of ['create-invoice', 'invoice']) {
     server.post(
       `/api/v1/projects/:projectId/payment-certificates/:certId/${suffix}`,
-      { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)] },
+      {
+        schema: {"tags":["Payment certificates"],"summary":"Create client invoice from CERTIFIED certificate (also /invoice alias)","security":[{"cookieAuth":[]}],"parameters":[{"name":"projectId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}},{"name":"certId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"clientName":{"type":"string"},"clientEmail":{"type":"string"},"dueDays":{"type":"integer"},"notes":{"type":"string"}}}}}}},
+        preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)],
+      },
       createInvoiceFromCertificate,
     );
   }
@@ -736,6 +749,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
   server.post(
     '/api/v1/projects/:projectId/payment-certificates/:certId/action',
     {
+      schema: {"tags": ["Payment certificates"], "summary": "Certificate workflow action", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}, {"name": "certId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["SUBMIT", "CERTIFY", "REJECT", "MARK_PAID", "VOID"]}, "comments": {"type": "string"}, "paidReference": {"type": "string"}}}}}}},
+
       preHandler: [
         server.authenticate,
         // Baseline gate; the handler enforces the precise per-action permission
@@ -931,7 +946,10 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
 
   server.get(
     '/api/v1/projects/:projectId/closeout',
-    { preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
+    {
+      schema: {"tags": ["Closeout"], "summary": "Closeout stage + checklist", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}]},
+      preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)],
+    },
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
@@ -956,7 +974,10 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
 
   server.post(
     '/api/v1/projects/:projectId/closeout/transition',
-    { preHandler: [server.authenticate, requirePermission(Permissions.COST_APPROVE)] },
+    {
+      schema: {"tags": ["Closeout"], "summary": "Advance closeout stage", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["stage"], "properties": {"stage": {"type": "string"}, "notes": {"type": "string"}}}}}}},
+      preHandler: [server.authenticate, requirePermission(Permissions.COST_APPROVE)],
+    },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { projectId } = request.params as { projectId: string };
