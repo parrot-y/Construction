@@ -1,7 +1,7 @@
 # ADR-013: Next scale step — job queue on Postgres, shared state in DB
 
 Status: proposed (pilot → first growth step)
-Date: 2026-11-15
+Date: 2026-11-13
 
 ## Context
 

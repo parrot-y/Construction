@@ -1,6 +1,6 @@
 # Stage-6 staging hardening — evidence
 
-Run date: 2026-11-15 (session). Branch: `devin/contractor-lifecycle`.
+Run date: 2026-11-13 (session). Branch: `devin/contractor-lifecycle`.
 Full verification: `scripts/verify-local.sh` with
 `UPLOAD_DRIVER=s3 S3_BUCKET=sitesafi-uploads-test S3_ENDPOINT=http://localhost:4566`
 against LocalStack 3.8.1 — **COMPLETED SUCCESSFULLY**:

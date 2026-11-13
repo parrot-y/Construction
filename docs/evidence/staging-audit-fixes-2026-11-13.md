@@ -1,6 +1,6 @@
 # Stage-7 CTO audit fixes — evidence
 
-Run date: 2026-11-15. Branch: `devin/contractor-lifecycle`.
+Run date: 2026-11-13. Branch: `devin/contractor-lifecycle`.
 `aud-*` specs and `aud-specs.sha256` untouched.
 
 ## verify-local.sh — COMPLETED SUCCESSFULLY

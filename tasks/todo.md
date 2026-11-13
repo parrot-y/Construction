@@ -458,7 +458,7 @@ requirements, failing-test-first, then built.
 - [x] verify-local.sh full run with UPLOAD_DRIVER=s3 vs LocalStack —
       COMPLETED SUCCESSFULLY (API 578/578, web 118/118, db 15/15, money 63/63,
       permissions 9/9); 4 PNG objects observed in localstack bucket
-- [x] Evidence doc docs/evidence/staging-hardening-2026-11-15.md + commit/push
+- [x] Evidence doc docs/evidence/staging-hardening-2026-11-13.md + commit/push
 
 ## Review (stage-6)
 - OBSERVED: verify-local COMPLETED SUCCESSFULLY under UPLOAD_DRIVER=s3 —
