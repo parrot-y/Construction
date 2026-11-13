@@ -143,6 +143,57 @@ export const operatorRoutes: FastifyPluginAsync = async (server: FastifyInstance
     });
   });
 
+  // F2: operator adoption metrics — per tenant: last activity per user,
+  // diary entries (30d), invoices created (30d), certificates, open issues.
+  // Guarded by OPERATOR_KEY like the other operator endpoints.
+  server.get('/api/v1/operator/adoption', async (request, reply) => {
+    if (!operatorKeyOk(request)) {
+      return reply.status(403).send({ error: 'Forbidden', message: 'Operator key required' });
+    }
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const tenants = await prisma.tenant.findMany({
+      select: { id: true, name: true, slug: true, created_at: true },
+      orderBy: { created_at: 'asc' },
+    });
+
+    const rows = [];
+    for (const t of tenants) {
+      const metrics = await withTenantTx(prisma, t.id, async (tx) => {
+        const memberships = await tx.membership.findMany({
+          where: { tenant_id: t.id },
+          select: { user_id: true, role: true, user: { select: { full_name: true, email: true, is_active: true } } },
+        });
+        const userIds = memberships.map((m) => m.user_id);
+        const lastTokens = userIds.length
+          ? await tx.refreshToken.groupBy({
+              by: ['user_id'],
+              where: { tenant_id: t.id, user_id: { in: userIds } },
+              _max: { created_at: true },
+            })
+          : [];
+        const lastByUser = new Map(lastTokens.map((r) => [r.user_id, r._max.created_at]));
+        const users = memberships.map((m) => ({
+          userId: m.user_id,
+          name: m.user?.full_name ?? null,
+          email: m.user?.email ?? null,
+          role: m.role,
+          active: m.user?.is_active ?? false,
+          lastActivityAt: lastByUser.get(m.user_id) ?? null,
+        }));
+        const [diaryEntries, invoices, certificates, openSnags, openRfis] = await Promise.all([
+          tx.siteDiary.count({ where: { tenant_id: t.id, created_at: { gte: since } } }),
+          tx.invoice.count({ where: { tenant_id: t.id, created_at: { gte: since } } }),
+          tx.paymentCertificate.count({ where: { tenant_id: t.id } }),
+          tx.snagItem.count({ where: { tenant_id: t.id, status: 'OPEN' } }),
+          tx.rFI.count({ where: { tenant_id: t.id, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } } }),
+        ]);
+        return { users, diaryEntries30d: diaryEntries, invoices30d: invoices, certificates, openSnags, openRfis };
+      });
+      rows.push({ tenant: { id: t.id, name: t.name, slug: t.slug, createdAt: t.created_at }, ...metrics });
+    }
+    return reply.send({ data: { generatedAt: new Date().toISOString(), windowDays: 30, tenants: rows } });
+  });
+
   server.put('/api/v1/operator/tenants/:tenantId/modules', async (request, reply) => {
     if (!operatorKeyOk(request)) {
       return reply.status(403).send({ error: 'Forbidden', message: 'Operator key required' });

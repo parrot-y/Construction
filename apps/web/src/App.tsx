@@ -21,6 +21,7 @@ import { PRODUCT_NAME } from './lib/product';
 const PageFallback = <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
 const TermsPage = lazy(() => import('./components/LegalPage').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = lazy(() => import('./components/LegalPage').then((m) => ({ default: m.PrivacyPage })));
+const OperatorAdoptionView = lazy(() => import('./components/OperatorAdoptionView'));
 
 interface AppProps {
   initialPortal?: {
@@ -35,6 +36,7 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
     const path = window.location.pathname.replace(/\/+$/, '') || '/';
     if (path === '/terms') return <Suspense fallback={PageFallback}><TermsPage /></Suspense>;
     if (path === '/privacy') return <Suspense fallback={PageFallback}><PrivacyPage /></Suspense>;
+    if (path === '/operator') return <Suspense fallback={PageFallback}><OperatorAdoptionView /></Suspense>;
   }
   return <AppErrorBoundary label="app-shell"><AppShell initialPortal={initialPortal} /></AppErrorBoundary>;
 }
