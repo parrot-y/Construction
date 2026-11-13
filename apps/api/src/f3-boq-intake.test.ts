@@ -70,10 +70,10 @@ describe('F3: BoQ real-document intake (dry-run, template, messy fixtures)', () 
     expect(descs.some((d) => d.includes('Site establishment'))).toBe(true);
     expect(descs.some((d) => d.includes('Excavate foundation'))).toBe(true);
 
-    // prime-cost flagged
+    // prime-cost item classified as a sum-type (provisional) item
     const pc = allItems.find((i) => i.description.includes('Prime Cost'));
     expect(pc).toBeTruthy();
-    expect(pc!.status === 'WARNING' || pc!.isProvisional || (pc!.rejectionReason || '').length > 0).toBe(true);
+    expect(pc!.isProvisional).toBe(true);
 
     // missing-unit row flagged as WARNING
     const noUnit = allItems.find((i) => i.description.includes('Temporary fencing'));

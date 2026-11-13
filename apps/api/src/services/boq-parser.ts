@@ -449,12 +449,16 @@ export async function parseBOQWorkbook(
       currentSection.subtotal = toCurrencyString(currentSubtotal);
     }
 
+    // Prime-cost / provisional-sum language marks the row as a sum-type item
+    // (kept VALID — Kenyan BOQs price PC sums as qty x rate or amount-only);
+    // the dry-run report surfaces them via isProvisional, not as warnings.
+    if (isPrimeCost && status !== 'REJECTED') isProvisional = true;
+
     // Apply F3 advisory flags — never downgrade a REJECTED row, and a row
     // may accumulate multiple problems.
     if (status !== 'REJECTED') {
       const advisories: string[] = [];
       if (mergedFlags.length > 0) advisories.push('Row sits inside a merged cell range — verify this description/quantity applies to this row only');
-      if (isPrimeCost && !isProvisional) advisories.push('Prime-cost / provisional-sum item — confirm the PC sum is settled outside this BOQ before certification');
       if (missingUnit && !isProvisional) advisories.push('Missing unit of measure — defaulted, please correct in source document');
       if (advisories.length > 0) {
         if (status === 'VALID') {
