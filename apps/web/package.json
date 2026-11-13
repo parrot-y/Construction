@@ -15,6 +15,7 @@
     "@construction/money": "workspace:*",
     "@construction/permissions": "workspace:*",
     "@construction/validation": "workspace:*",
+    "@sentry/react": "^11.12.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

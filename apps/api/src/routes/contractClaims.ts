@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, withTenantTx, recordAuditLog } from '@construction/db';
 import { getTaxSettings } from '../lib/tax';
 import {
@@ -94,6 +95,7 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -101,17 +103,26 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
-          const events = await tx.projectDelayEvent.findMany({
-            where: { project_id: projectId },
-            orderBy: { start_date: 'desc' },
-          });
+          const [events, allEvents] = await Promise.all([
+            tx.projectDelayEvent.findMany({
+              where: { project_id: projectId },
+              orderBy: { start_date: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.projectDelayEvent.findMany({
+              where: { project_id: projectId },
+              select: { days_claimed: true, status: true, approved_days: true, lad_financial_relief_kes: true },
+            }),
+          ]);
+          const pagedEvents = listPage(events, pg);
 
           let totalDaysClaimed = 0;
           let totalApprovedDays = 0;
           let totalFinancialRelief = toDecimal(0);
           let approvedCount = 0;
 
-          for (const ev of events) {
+          for (const ev of allEvents) {
             totalDaysClaimed += ev.days_claimed;
             if (ev.status === 'APPROVED_BY_ARCHITECT' && ev.approved_days) {
               totalApprovedDays += ev.approved_days;
@@ -123,9 +134,10 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
           }
 
           return {
-            delayEvents: events,
+            page: pagedEvents.page,
+            delayEvents: pagedEvents.data,
             summary: {
-              totalClaimsCount: events.length,
+              totalClaimsCount: allEvents.length,
               approvedClaimsCount: approvedCount,
               totalDaysClaimed,
               totalApprovedDays,
@@ -310,6 +322,7 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -317,17 +330,23 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
-          const certs = await tx.statutoryTaxCertificate.findMany({
-            where: { project_id: projectId },
-            orderBy: { created_at: 'desc' },
-          });
+          const [certs, allCerts] = await Promise.all([
+            tx.statutoryTaxCertificate.findMany({
+              where: { project_id: projectId },
+              orderBy: { created_at: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.statutoryTaxCertificate.findMany({ where: { project_id: projectId } }),
+          ]);
+          const pagedCerts = listPage(certs, pg);
 
           let totalGross = toDecimal(0);
           let totalWht = toDecimal(0);
           let totalWhvat = toDecimal(0);
           let totalNet = toDecimal(0);
 
-          for (const c of certs) {
+          for (const c of allCerts) {
             totalGross = totalGross.plus(toDecimal(c.gross_amount));
             totalWht = totalWht.plus(toDecimal(c.wht_deducted));
             totalWhvat = totalWhvat.plus(toDecimal(c.whvat_deducted));
@@ -335,9 +354,10 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
           }
 
           return {
-            certificates: certs,
+            page: pagedCerts.page,
+            certificates: pagedCerts.data,
             summary: {
-              totalCertificates: certs.length,
+              totalCertificates: allCerts.length,
               totalGrossCertifiedKes: totalGross.toFixed(2),
               totalWhtDeductedKes: totalWht.toFixed(2),
               totalWhvatDeductedKes: totalWhvat.toFixed(2),

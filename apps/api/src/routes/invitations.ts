@@ -4,7 +4,9 @@ import { AcceptInvitationSchema, InviteMemberSchema } from '@construction/valida
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { randomBytes } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
-import { issueEmailVerificationToken } from '../lib/accountTokens';
+import { emailVerificationUrl, invitationAcceptUrl, issueEmailVerificationToken } from '../lib/accountTokens';
+import { sendTransactionalEmail } from '../lib/email';
+import { listParams, listPage } from '../lib/pagination';
 
 /** Field roles that can be onboarded by phone + PIN (no email account). */
 const PIN_FIELD_ROLES = new Set(['FOREMAN', 'WORKER', 'SITE_ENGINEER', 'TRADE_LEAD']);
@@ -189,6 +191,17 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
         return created;
       });
 
+      // Transactional invite email (simulated driver in dev). PIN invites
+      // have no mailbox — the admin reads the PIN to the worker directly.
+      if (!isPinInvite) {
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+        await sendTransactionalEmail({
+          to: inviteEmail,
+          subject: `You've been invited to ${tenant?.name ?? 'a SiteSafi workspace'}`,
+          text: `You have been invited to join ${tenant?.name ?? 'a company'} on SiteSafi as ${body.role}.\n\nAccept your invitation:\n${invitationAcceptUrl(token)}\n\nThis link expires in 7 days. If you were not expecting this, ignore this email.`,
+        }).catch(() => undefined);
+      }
+
       return reply.status(201).send({
         data: {
           ...invitePayload(invite),
@@ -248,6 +261,7 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
     async (request, reply) => {
       const { tenantId } = request.user;
       const { status } = request.query as { status?: string };
+      const pg = listParams(request);
 
       const invitations = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.invitation.findMany({
@@ -256,18 +270,22 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
             ...(status ? { status } : {}),
           },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
+      const pagedInvites = listPage(invitations, pg);
       // List view exposes inviteUrl (the copy-and-send link the admin UI's
       // "Copy link" action needs) but never the bare token field — same
       // COMPANY_INVITE permission gates create/regenerate which already
       // return full tokens, so this is not a privilege escalation.
       return reply.status(200).send({
-        data: invitations.map((inv) => {
+        data: pagedInvites.data.map((inv) => {
           const { token: _t, ...rest } = invitePayload(inv);
           return rest;
         }),
+        page: pagedInvites.page,
       });
     },
   );
@@ -567,6 +585,13 @@ export const invitationRoutes: FastifyPluginAsync = async (server: FastifyInstan
       const verificationToken = needsVerification
         ? await issueEmailVerificationToken(outcome.userId)
         : null;
+      if (verificationToken && invitation.email && !invitation.email.endsWith('@pin.local')) {
+        await sendTransactionalEmail({
+          to: invitation.email,
+          subject: `Verify your ${process.env.PRODUCT_NAME || 'SiteSafi'} email`,
+          text: `Welcome aboard. Verify your email address to finish activating your account:\n\n${emailVerificationUrl(verificationToken)}\n\nThis link can be used once.`,
+        }).catch(() => undefined);
+      }
 
       return reply.status(200).send({
         data: {

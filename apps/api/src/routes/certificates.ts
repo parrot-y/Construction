@@ -10,6 +10,7 @@ import {
   CloseoutTransitionSchema,
 } from '@construction/validation';
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
 import { getTaxSettings } from '../lib/tax';
 import { notifyTeam } from '../lib/notify';
@@ -228,6 +229,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       }
@@ -238,10 +240,13 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           const rows = await tx.paymentCertificate.findMany({
             where: { project_id: projectId },
             orderBy: { certificate_no: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
           return rows.map(formatCert);
         });
-        return reply.status(200).send({ data: certs, count: certs.length });
+        const paged = listPage(certs, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err: any) {
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);

@@ -3,6 +3,7 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { SendInboxMessageSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 import { Permissions } from '@construction/permissions';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -69,6 +70,7 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     async (request, reply) => {
       const { tenantId, sub, role } = request.user;
       const { projectId, unread } = request.query as { projectId?: string; unread?: string };
+      const pg = listParams(request);
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) => {
           let msgs = await visibleWhere(tx, tenantId, sub, role);
@@ -76,7 +78,8 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
           if (unread === 'true') msgs = msgs.filter((m: any) => m.sender_id !== sub && m.reads.length === 0);
           return msgs.map(format);
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load inbox' });
@@ -91,12 +94,14 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     { preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)] },
     async (request, reply) => {
       const { tenantId, sub, role } = request.user;
+      const pg = listParams(request);
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) => {
           const msgs = await visibleWhere(tx, tenantId, sub, role);
           return msgs.map(format);
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load notifications' });

@@ -16,7 +16,27 @@ const ROLE_LABELS: Record<string, string> = {
 
 /** Team — members table with live role editing + invite + revoke. */
 function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
-  const { session} = useConsole();
+  const { session, role} = useConsole();
+  const isCompanyAdmin = role === 'COMPANY_ADMIN' || role === 'ADMIN';
+  const [exportBusy, setExportBusy] = useState(false);
+
+  const downloadCompanyData = async (format: 'json' | 'csv', entity?: string) => {
+    setExportBusy(true);
+    try {
+      const qs = new URLSearchParams({ format});
+      if (entity) qs.set('entity', entity);
+      const r = await fetch(`/api/v1/company/export?${qs}`, { credentials: 'include'});
+      if (!r.ok) { setMsg('Export failed — company admin access required'); return; }
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = format === 'csv' ? `${entity}-export.csv` : 'company-export.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } finally {
+      setExportBusy(false);
+    }
+};
   const [members, setMembers] = useState<any[] | null>(null);
   const [invite, setInvite] = useState({ email: '', role: 'SITE_ENGINEER', open: false});
   const [msg, setMsg] = useState('');
@@ -115,12 +135,20 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Team</h3>
 <p className="text-xs text-slate-500 dark:text-slate-400">Invite teammates and give each a role. They sign in with that role.</p>
 </div>
-        {canInvite && (
+        <div className="flex items-center gap-2">
+          {isCompanyAdmin && (
+<button onClick={() => downloadCompanyData('json')} disabled={exportBusy}
+              className="px-3.5 py-2 text-xs font-bold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">
+              {exportBusy ? 'Preparing…' : 'Download company data'}
+</button>
+)}
+          {canInvite && (
 <button onClick={() => setInvite({ ...invite, open: !invite.open})}
             className="px-3.5 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1.5">
 <IconPlus className="w-3.5 h-3.5" /> Invite member
 </button>
 )}
+</div>
 </div>
 
       {msg &&<p className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">{msg}</p>}

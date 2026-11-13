@@ -7,6 +7,7 @@ import {
 } from '@construction/validation';
 import { notifyTeam } from '../lib/notify';
 import { PRODUCT_NAME } from '../lib/product';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TENANT_WIDE = new Set<Role>([Roles.COMPANY_ADMIN, Roles.ADMIN, Roles.EXECUTIVE]);
@@ -64,6 +65,7 @@ export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // -------------------------------------------------------------------------
   server.get('/api/v1/me/invoices', { preHandler: [server.authenticate] }, async (request, reply) => {
     const { tenantId, sub, role } = request.user;
+    const pg = listParams(request);
     try {
       const payload = await withTenantTx(prisma, tenantId, async (tx) => {
         const projectIds = TENANT_WIDE.has(role as Role) ? null : await memberProjectIds(tx, sub);
@@ -75,7 +77,8 @@ export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
             project: { select: { id: true, name: true, code: true } },
           },
           orderBy: { created_at: 'desc' },
-          take: 100,
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
         const tenant = await tx.tenant.findUnique({
           where: { id: tenantId },
@@ -84,7 +87,8 @@ export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
         return { invoices, paymentInstructions: tenant?.payment_instructions ?? null };
       });
 
-      const data = payload.invoices.map((inv: any) => {
+      const pagedInvoices = listPage(payload.invoices, pg);
+      const data = pagedInvoices.data.map((inv: any) => {
         const total = toDecimal(inv.total.toString());
         const paid = inv.payments.reduce((acc: any, p: any) => acc.plus(toDecimal(p.amount.toString())), toDecimal('0'));
         return {
@@ -122,6 +126,7 @@ export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
         data: { invoices: data, paymentInstructions: payload.paymentInstructions },
         invoices: data,
         paymentInstructions: payload.paymentInstructions,
+        page: pagedInvoices.page,
       });
     } catch (err) {
       server.log.error(err);
@@ -135,6 +140,7 @@ export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // -------------------------------------------------------------------------
   server.get('/api/v1/me/approvals', { preHandler: [server.authenticate] }, async (request, reply) => {
     const { tenantId, sub, role } = request.user;
+    const pg = listParams(request);
     try {
       const items = await withTenantTx(prisma, tenantId, async (tx) => {
         const projectIds = TENANT_WIDE.has(role as Role) ? null : await memberProjectIds(tx, sub);
@@ -144,20 +150,20 @@ export const meRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
           where: { ...projectWhere, status: { in: ['PM_REVIEW', 'OWNER_REVIEW', 'SUBMITTED', 'QS_EVALUATED'] } },
           select: { id: true, title: true, status: true, project_id: true, net_amount: true, created_at: true },
           orderBy: { created_at: 'desc' },
-          take: 50,
+          take: pg.limit,
         });
         const certificates = await tx.paymentCertificate.findMany({
           where: { ...projectWhere, status: { in: ['CERTIFIED', 'SUBMITTED', 'UNDER_REVIEW'] } },
           select: { id: true, certificate_no: true, status: true, project_id: true, net_payable: true, created_at: true },
           orderBy: { created_at: 'desc' },
-          take: 50,
+          take: pg.limit,
         });
         const quotes = role === Roles.CLIENT
           ? await tx.quote.findMany({
               where: { status: 'SENT', client_email: (request.user as any).email },
               select: { id: true, quote_no: true, title: true, status: true, total: true, created_at: true },
               orderBy: { created_at: 'desc' },
-              take: 50,
+              take: pg.limit,
             })
           : [];
 

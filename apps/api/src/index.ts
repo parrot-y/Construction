@@ -7,7 +7,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import fastify, { FastifyError, FastifyInstance } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
+import { prisma } from '@construction/db';
 import { registerAuthorizationGuards } from './plugins/routeAuthorization';
+import { redactUrl } from './lib/logRedaction';
+import { initSentry } from './lib/sentry';
 import { authPlugin } from './plugins/auth';
 import { securityGuardPlugin } from './plugins/security-guard';
 import { fileRoutes } from './routes/files';
@@ -50,12 +53,29 @@ import { operatorRoutes } from './routes/operator';
 import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
+  // Error monitoring — no-op without SENTRY_DSN (dev/e2e unaffected).
+  initSentry();
   // Validate production security invariants (Fail-Closed on missing/short secrets)
   validateEnvironmentSecurity();
 
   const server = fastify({
     logger: {
       level: process.env.LOG_LEVEL || 'info',
+      serializers: {
+        // Never persist portal bearer tokens, credential headers, or
+        // password/token fields in request logs.
+        req(request) {
+          return {
+            method: request.method,
+            url: redactUrl(request.url),
+            host: request.headers?.host,
+            remoteAddress: request.ip,
+          };
+        },
+        res(reply) {
+          return { statusCode: reply.statusCode };
+        },
+      },
     },
   });
 
@@ -191,6 +211,16 @@ export function buildServer(): FastifyInstance {
   server.register(clientPaymentNoticeRoutes);
   server.register(procurementRoutes);
   server.register(operatorRoutes);
+
+  // Readiness probe: /health is liveness; /ready proves the DB is reachable.
+  server.get('/ready', async (_request, reply) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      return reply.status(200).send({ status: 'ready', timestamp: new Date().toISOString() });
+    } catch {
+      return reply.status(503).send({ status: 'not_ready' });
+    }
+  });
 
   // Root unauthenticated health check route
   server.get('/health', async (_request, reply) => {

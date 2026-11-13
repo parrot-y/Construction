@@ -6,6 +6,7 @@ import { requirePermission } from '../plugins/rbac';
 import { parseBOQWorkbook, ParsedBOQSection } from '../services/boq-parser';
 import ExcelJS from 'exceljs';
 import { PRODUCT_NAME } from '../lib/product';
+import { listParams, listPage } from '../lib/pagination';
 
 export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // POST /api/v1/projects/:projectId/boq/preview - Staged Excel BOQ Parser & Validator
@@ -364,6 +365,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
       const { q, sectionId } = request.query as { q?: string; sectionId?: string };
+      const pg = listParams(request);
 
       const items = await withTenantTx(prisma, tenantId, async (tx) => {
         const activeBOQ = await tx.bOQ.findFirst({
@@ -390,10 +392,13 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
           },
           include: { section: { select: { title: true, order_idx: true } } },
           orderBy: { created_at: 'asc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.status(200).send({ data: items });
+      const paged = listPage(items, pg);
+      return reply.status(200).send({ data: paged.data, page: paged.page });
     },
   );
 };

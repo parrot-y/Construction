@@ -186,6 +186,52 @@ resource "aws_secretsmanager_secret" "app_env" {
 # ${local.name}-pg is exposed as aws_db_instance.main.master_user_secret.
 
 # ---------------------------------------------------------------------------
+# Uploads bucket — private, SSE-S3, no public access. The API proxies all
+# downloads through /uploads/* so tenant/membership checks always apply.
+# ---------------------------------------------------------------------------
+
+resource "aws_s3_bucket" "uploads" {
+  bucket = "${local.name}-uploads"
+}
+
+resource "aws_s3_bucket_public_access_block" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_versioning" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+  versioning_configuration {
+    status = "Enabled" # object versioning for accidental-overwrite recovery
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+  rule {
+    id     = "abort-incomplete-uploads"
+    status = "Enabled"
+    filter {}
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+# ---------------------------------------------------------------------------
 # ECR repositories
 # ---------------------------------------------------------------------------
 
@@ -252,8 +298,37 @@ resource "aws_iam_role" "task" {
   })
 }
 
-# Task role: no AWS API access needed by the app itself for pilot.
-# (Upload bucket / SNS publish can be added later with least privilege.)
+resource "aws_iam_role_policy" "task_s3" {
+  name = "${local.name}-task-s3"
+  role = aws_iam_role.task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "UploadsObjects"
+      Effect   = "Allow"
+      Action   = ["s3:PutObject", "s3:GetObject"]
+      Resource = "${aws_s3_bucket.uploads.arn}/*"
+    }]
+  })
+}
+
+# Task role: SES send for transactional email (verify/reset/invite).
+resource "aws_iam_role_policy" "task_ses" {
+  name = "${local.name}-task-ses"
+  role = aws_iam_role.task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "SesSend"
+      Effect   = "Allow"
+      Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+      Resource = "*"
+      Condition = {
+        StringLike = { "ses:FromAddress" = "*@${var.product_domain}" }
+      }
+    }]
+  })
+}
 
 resource "aws_ecs_task_definition" "api" {
   family                   = "${local.name}-api"
@@ -273,6 +348,11 @@ resource "aws_ecs_task_definition" "api" {
       { name = "NODE_ENV", value = "production" },
       { name = "HOST", value = "0.0.0.0" },
       { name = "PORT", value = "3000" },
+      { name = "UPLOAD_DRIVER", value = "s3" },
+      { name = "S3_BUCKET", value = aws_s3_bucket.uploads.bucket },
+      { name = "AWS_REGION", value = var.aws_region },
+      { name = "EMAIL_DRIVER", value = "ses" },
+      { name = "SES_FROM", value = "no-reply@${var.product_domain}" },
     ]
     secrets = [
       { name = "APP_ENV_JSON", valueFrom = aws_secretsmanager_secret.app_env.arn },
@@ -535,6 +615,13 @@ resource "aws_sns_topic_subscription" "email" {
   topic_arn = aws_sns_topic.alerts.arn
   protocol  = "email"
   endpoint  = var.alert_email
+}
+
+resource "aws_sns_topic_subscription" "sms" {
+  count     = var.alert_phone != "" ? 1 : 0
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "sms"
+  endpoint  = var.alert_phone
 }
 
 resource "aws_cloudwatch_metric_alarm" "alb_5xx" {

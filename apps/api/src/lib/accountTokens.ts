@@ -98,3 +98,15 @@ export function passwordResetUrl(token: string): string {
   const base = (process.env.WEB_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '');
   return `${base}/?reset=${token}`;
 }
+
+/** Absolute verify-email link for transactional email delivery. */
+export function emailVerificationUrl(token: string): string {
+  const base = (process.env.WEB_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '');
+  return `${base}/?verify=${token}`;
+}
+
+/** Absolute invitation-acceptance link for transactional email delivery. */
+export function invitationAcceptUrl(token: string): string {
+  const base = (process.env.WEB_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '');
+  return `${base}/?invite=${token}`;
+}

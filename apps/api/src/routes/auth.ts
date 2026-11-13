@@ -13,11 +13,13 @@ import {
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import {
   consumeEmailVerificationToken,
+  emailVerificationUrl,
   issueEmailVerificationToken,
   issuePasswordResetToken,
   lookupPasswordResetToken,
   passwordResetUrl,
 } from '../lib/accountTokens';
+import { sendTransactionalEmail } from '../lib/email';
 import { normalizeKenyaPhone } from './invitations';
 
 interface LoginAttempt {
@@ -443,9 +445,14 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         return { tenant, user, membership };
       });
 
-      // Issue the single-use verification token. Email delivery is simulated
-      // for the pilot, so the raw token is returned outside production.
+      // Issue the single-use verification token and deliver it by email
+      // (simulated driver in dev; raw token still returned outside prod).
       const verificationToken = await issueEmailVerificationToken(created.user.id);
+      await sendTransactionalEmail({
+        to: normalizedEmail,
+        subject: `Verify your ${process.env.PRODUCT_NAME || 'SiteSafi'} account`,
+        text: `Welcome to ${process.env.PRODUCT_NAME || 'SiteSafi'}. Verify your email address:\n\n${emailVerificationUrl(verificationToken)}\n\nThis link expires soon and can be used once. If you did not create this account, ignore this email.`,
+      }).catch(() => undefined);
 
       return reply.status(201).send({
         data: {
@@ -531,6 +538,11 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         if (tenantId) {
           resetToken = await issuePasswordResetToken(user.id, tenantId);
           resetUrl = passwordResetUrl(resetToken);
+          await sendTransactionalEmail({
+            to: email,
+            subject: `Reset your ${process.env.PRODUCT_NAME || 'SiteSafi'} password`,
+            text: `A password reset was requested for your account.\n\n${resetUrl}\n\nThis link expires soon and can be used once. If you did not request this, ignore this email.`,
+          }).catch(() => undefined);
         }
       }
 

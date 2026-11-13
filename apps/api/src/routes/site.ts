@@ -11,6 +11,7 @@ import {
   UpdateSitePhotoVisibilitySchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 import { notifyTeam } from '../lib/notify';
 
 /**
@@ -376,6 +377,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
       // WORKER field role sees only their own diary entries (Stage 4).
       const ownOnly = role === 'WORKER';
+      const pg = listParams(request);
 
       // Tenant-scoped project check — foreign/unknown project ids 404 rather
       // than silently returning an empty diary list.
@@ -395,13 +397,17 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             photos: true,
           },
           orderBy: { entry_date: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
       const clientSafe = request.user.role === 'CLIENT' || request.user.role === 'OWNER';
+      const paged = listPage(diaries.map((d) => (clientSafe ? toClientSafeDiary(d) : d)), pg);
       return reply.status(200).send({
-        data: diaries.map((d) => (clientSafe ? toClientSafeDiary(d) : d)),
-        count: diaries.length,
+        data: paged.data,
+        page: paged.page,
+        count: paged.data.length,
       });
     },
   );
@@ -720,6 +726,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       const records = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.progressRecord.findMany({
@@ -734,14 +741,19 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             },
           },
           orderBy: { record_date: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      const latestOverall = records[0] ? records[0].overall_progress.toString() : '0.0000';
+      const paged = listPage(records, pg);
+      const pageRecords = paged.data;
+      const latestOverall = pageRecords[0] ? pageRecords[0].overall_progress.toString() : '0.0000';
 
       return reply.status(200).send({
-        data: records,
-        count: records.length,
+        data: pageRecords,
+        page: paged.page,
+        count: pageRecords.length,
         latestOverallProgress: latestOverall,
         latestOverallPercentage: (parseFloat(latestOverall) * 100).toFixed(2),
       });

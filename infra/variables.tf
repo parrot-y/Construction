@@ -48,3 +48,9 @@ variable "github_repo" {
   type        = string
   default     = "parrot-y/Construction"
 }
+
+variable "alert_phone" {
+  description = "Optional E.164 phone for SNS SMS uptime alerts (e.g. +2547XXXXXXXX)"
+  type        = string
+  default     = ""
+}

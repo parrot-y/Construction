@@ -10,6 +10,7 @@ import {
   VoidInvoiceSchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
 import { renderPdfToBuffer } from '../reports/renderPdf';
 import { InvoicePdf, InvoicePdfData } from '../reports/InvoicePdf';
@@ -87,6 +88,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
     async (request, reply) => {
       const { tenantId } = request.user;
       const { status, projectId, q } = request.query as Record<string, string | undefined>;
+      const pg = listParams(request);
 
       const where: any = {
         ...(projectId && UUID_REGEX.test(projectId) ? { project_id: projectId } : {}),
@@ -111,10 +113,13 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             _count: { select: { payments: true } },
           },
           orderBy: { invoice_no: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.send({ invoices: invoices.map(formatInvoice) });
+      const paged = listPage(invoices.map(formatInvoice), pg);
+      return reply.send({ invoices: paged.data, page: paged.page });
     },
   );
 

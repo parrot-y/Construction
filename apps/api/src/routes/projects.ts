@@ -8,6 +8,7 @@ import {
 } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 import { TENANT_WIDE_ROLES } from '../plugins/routeAuthorization';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,6 +31,7 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       // requireProjectMembership 403s everything else, so the picker must
       // not offer projects the caller can't open.
       const tenantWide = TENANT_WIDE_ROLES.has(role as Role);
+      const pg = listParams(request);
       const projects = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.project.findMany({
           where: tenantWide ? {} : { members: { some: { user_id: sub } } },
@@ -43,10 +45,12 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             },
           },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.status(200).send({ data: projects });
+      return reply.status(200).send({ ...listPage(projects, pg) });
     },
   );
 

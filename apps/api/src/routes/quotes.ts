@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { randomBytes, createHash } from 'node:crypto';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
@@ -115,6 +116,7 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
     async (request, reply) => {
       const { tenantId } = request.user;
       const { status, projectId, q } = request.query as Record<string, string | undefined>;
+      const pg = listParams(request);
 
       const quotes = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.quote.findMany({
@@ -125,10 +127,13 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
           },
           include: { items: true, project: { select: { id: true, name: true, code: true } } },
           orderBy: { quote_no: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.send({ quotes: quotes.map(formatQuote) });
+      const paged = listPage(quotes.map(formatQuote), pg);
+      return reply.send({ quotes: paged.data, page: paged.page });
     },
   );
 
@@ -641,6 +646,7 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
       if (!user?.email) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'User not found' });
       }
+      const pg = listParams(request);
 
       const quotes = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.quote.findMany({
@@ -653,10 +659,13 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
             project: { select: { id: true, name: true, code: true } },
           },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.send({ quotes: quotes.map(formatQuote) });
+      const paged = listPage(quotes.map(formatQuote), pg);
+      return reply.send({ quotes: paged.data, page: paged.page });
     },
   );
 

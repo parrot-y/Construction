@@ -1,5 +1,6 @@
 import React from 'react';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage, setPageHeaders } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Decimal, toDecimal } from '@construction/money';
 import {
@@ -107,6 +108,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -142,10 +144,14 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               attachments: true,
             },
             orderBy: { rfi_number: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
         });
 
-        return reply.status(200).send(rfis);
+        const paged = listPage(rfis, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
       } catch (err: any) {
         if (err.status) {
           return reply.status(err.status).send({
@@ -439,6 +445,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -465,10 +472,14 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               },
             },
             orderBy: { scheduled_date: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
         });
 
-        return reply.status(200).send(inspections);
+        const paged = listPage(inspections, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
       } catch (err: any) {
         if (err.status) {
           return reply.status(err.status).send({
@@ -748,6 +759,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -774,6 +786,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               },
             },
             orderBy: { pour_date: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
 
           return records.map((t) => ({
@@ -787,7 +801,9 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           }));
         });
 
-        return reply.status(200).send(tests);
+        const paged = listPage(tests, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
       } catch (err: any) {
         if (err.status) {
           return reply.status(err.status).send({
@@ -1044,6 +1060,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -1070,6 +1087,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               },
             },
             orderBy: { snag_number: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
 
           return records.map((s) => ({
@@ -1082,7 +1101,9 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           }));
         });
 
-        return reply.status(200).send(snags);
+        const paged = listPage(snags, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
       } catch (err: any) {
         if (err.status) {
           return reply.status(err.status).send({
@@ -1868,6 +1889,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -1889,6 +1911,8 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           const records = await tx.defectsLiabilityCertificate.findMany({
             where: { project_id: projectId },
             orderBy: { issue_date: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
 
           return records.map((c) => ({
@@ -1897,7 +1921,9 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           }));
         });
 
-        return reply.status(200).send(certs);
+        const paged = listPage(certs, pg);
+        setPageHeaders(reply, paged);
+        return reply.status(200).send(paged.data);
       } catch (err: any) {
         if (err.status) {
           return reply.status(err.status).send({

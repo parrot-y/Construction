@@ -8,6 +8,7 @@ import {
   PoInvoiceReviewSchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 import { notifyTeam } from '../lib/notify';
 import { PRODUCT_NAME } from '../lib/product';
 
@@ -83,15 +84,18 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
     { preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
+      const pg = listParams(request);
       const rows = await withTenantTx(prisma, tenantId, (tx) =>
-        tx.supplier.findMany({ orderBy: { name: 'asc' } }),
+        tx.supplier.findMany({ orderBy: { name: 'asc' }, skip: pg.skip, take: pg.limit + 1 }),
       );
+      const paged = listPage(rows, pg);
       return reply.status(200).send({
-        data: rows.map((s) => ({
+        data: paged.data.map((s) => ({
           id: s.id, name: s.name, contactPerson: s.contact_person,
           phone: s.phone, email: s.email, isActive: s.is_active,
           createdAt: s.created_at,
         })),
+        page: paged.page,
       });
     },
   );
@@ -164,6 +168,7 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       }
@@ -172,9 +177,12 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
           where: { project_id: projectId },
           include: { items: true, invoices: true, supplier: { select: { id: true, name: true } } },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         }),
       );
-      return reply.status(200).send({ data: pos.map(poDto) });
+      const paged = listPage(pos.map(poDto), pg);
+      return reply.status(200).send({ data: paged.data, page: paged.page });
     },
   );
 

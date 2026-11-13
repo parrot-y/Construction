@@ -429,3 +429,46 @@ requirements, failing-test-first, then built.
 - [x] Contract fixes: phone+PIN auth, TCC gate + QS_VERIFIED track reconciliation, per-claim valuation caps/resubmit, supplier-bound procurement + three-way match, consultant scopes/drawings acks, compliance permits/visits, field role scoping, diary delivery merge, drawings aliases, incident idempotency+notify
 - [x] Audit fixes: ClientDashboard FX fallback removed; font-mono 469→69; e2e.yml all-specs both viewports + fail-on-skip; expired-TCC proven in aud-stage3 test 2
 - [x] Evidence: docs/evidence/auditor-acceptance-2026-11-11.md; API regression 86 tests green; web+api tsc clean
+
+## Stage-6 hardening batch (staging readiness, no new features) — IN PROGRESS
+- [x] S3 upload driver: UPLOAD_DRIVER=s3, S3_BUCKET env, SSE AES256, private
+      (proxied /uploads/* keeps tenant + magic-byte checks), local driver default
+- [x] Terraform: aws_s3_bucket.uploads + public-access-block + SSE + versioning
+      + lifecycle + task-role s3:PutObject/GetObject + UPLOAD_DRIVER/S3_BUCKET env
+- [x] Monitoring: @sentry/node + @sentry/react (release tag, PII scrub, no-op
+      without DSN), /ready DB check (SELECT 1 → 503 on failure), SNS email+SMS
+      uptime alerts in infra
+- [x] Logging: req serializer redacts /portals/<type>/<token> → [redacted],
+      credential headers dropped; redactDeep/redactHeaders helpers + tests
+      (apps/api/src/log-redaction.test.ts); bodies are never logged
+- [x] Seed guard: packages/db/prisma/seed.ts refuses NODE_ENV=production (pre-existing)
+- [x] Email seam: lib/email.ts — simulated (dev), resend, ses drivers;
+      wired into verify/reset (auth.ts) + invitations; operator activation fallback kept
+- [x] Pagination: listParams/listPage helper (default 50, max 200, ?page/?limit);
+      applied to ~60 collection endpoints across 20 route files; legacy bare-array
+      endpoints use X-Page/X-Limit/X-Has-More/X-Next-Page headers; web fetch
+      wrapper in main.tsx transparently follows pages and merges list arrays
+      (MAX_LIST_PAGES=20); unit tests pagination.test.ts
+- [x] /terms + /privacy: LegalPage.tsx placeholder pages on path routes
+- [x] Company data export: GET /api/v1/company/export (COMPANY_ADMIN/ADMIN,
+      COMPANY_MANAGE), ?format=json full export / ?format=csv&entity=<name>,
+      audit-logged COMPANY_DATA_EXPORTED; "Download company data" button in Team view
+- [x] company-export.test.ts: role gate, JSON+CSV export, audit rows, /health+/ready,
+      pagination clamp — written, runs inside verify-local
+- [x] verify-local.sh full run with UPLOAD_DRIVER=s3 vs LocalStack —
+      COMPLETED SUCCESSFULLY (API 578/578, web 118/118, db 15/15, money 63/63,
+      permissions 9/9); 4 PNG objects observed in localstack bucket
+- [x] Evidence doc docs/evidence/staging-hardening-2026-11-15.md + commit/push
+
+## Review (stage-6)
+- OBSERVED: verify-local COMPLETED SUCCESSFULLY under UPLOAD_DRIVER=s3 —
+  g5-14 upload-security 4/4 via real S3 driver; LocalStack bucket holds
+  4 tenant-scoped .png objects; company-export 8/8; pagination 4/4;
+  log-redaction 5/5; API total 578 (was 561)
+- OBSERVED: seed guard refuses NODE_ENV=production (run output captured)
+- FIXED mid-run: turbo.json globalPassThroughEnv was stripping S3/email/
+  sentry env vars — first verify pass silently used local driver; added
+  passthrough list and re-ran (this is why evidence shows real S3 objects)
+- HONEST GAPS: Sentry/Resend/SES/SNS proven only as code+config until real
+  DSN/creds/domain exist; /ready 503 path untested; me/approvals + portal
+  feeds are bounded aggregates, not page-parameter lists

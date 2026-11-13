@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { getTaxSettings, whtRateFor } from '../lib/tax';
 import { Permissions } from '@construction/permissions';
@@ -233,6 +234,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -246,12 +248,16 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         return tx.portalAccessLink.findMany({
           where: { project_id: projectId },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
+      const pagedLinks = listPage(links, pg);
 
       return reply.status(200).send({
         statusCode: 200,
-        data: links.map((l) => ({
+        page: pagedLinks.page,
+        data: pagedLinks.data.map((l) => ({
           id: l.id,
           portalType: l.portal_type,
           stakeholderName: l.stakeholder_name,

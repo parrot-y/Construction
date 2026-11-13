@@ -9,6 +9,7 @@ import {
   PaymentApplicationActionSchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -110,6 +111,7 @@ export const commitmentsRoutes: FastifyPluginAsync = async (server: FastifyInsta
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       }
@@ -121,6 +123,8 @@ export const commitmentsRoutes: FastifyPluginAsync = async (server: FastifyInsta
             where: { project_id: projectId },
             include: { applications: { orderBy: { application_no: 'asc' } } },
             orderBy: { commitment_no: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
           const out = [];
           for (const c of rows) {
@@ -133,7 +137,8 @@ export const commitmentsRoutes: FastifyPluginAsync = async (server: FastifyInsta
           }
           return out;
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err: any) {
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);

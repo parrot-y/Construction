@@ -14,6 +14,7 @@ import PublicQuoteView from './components/PublicQuoteView';
 import { AuthSession} from './types/auth';
 import { migrateOfflineStorage } from './services/offline-sync';
 import { PRODUCT_NAME } from './lib/product';
+import { TermsPage, PrivacyPage } from './components/LegalPage';
 
 interface AppProps {
   initialPortal?: {
@@ -23,6 +24,16 @@ interface AppProps {
 }
 
 export default function App({ initialPortal}: AppProps = {}): React.JSX.Element {
+  // Public legal pages — path-based, rendered before any app state.
+  if (typeof window !== 'undefined') {
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (path === '/terms') return <TermsPage />;
+    if (path === '/privacy') return <PrivacyPage />;
+  }
+  return <AppShell initialPortal={initialPortal} />;
+}
+
+function AppShell({ initialPortal}: AppProps): React.JSX.Element {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [externalPortal, setExternalPortal] = useState<{
     type: string;

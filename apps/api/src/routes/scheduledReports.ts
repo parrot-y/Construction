@@ -4,6 +4,7 @@ import { Permissions } from '@construction/permissions';
 import { CreateScheduledReportSchema, UpdateScheduledReportSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -68,6 +69,7 @@ export const scheduledReportsRoutes: FastifyPluginAsync = async (server: Fastify
     { preHandler: [server.authenticate, requirePermission(Permissions.REPORT_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
+      const pg = listParams(request);
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) =>
           tx.scheduledReport.findMany({
@@ -76,16 +78,20 @@ export const scheduledReportsRoutes: FastifyPluginAsync = async (server: Fastify
               runs: { orderBy: { ran_at: 'desc' }, take: 5, select: { id: true, ran_at: true, status: true, error: true } },
             },
             orderBy: { created_at: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           }),
         );
+        const paged = listPage(data, pg);
         return reply.status(200).send({
-          data: data.map((r) => ({
+          data: paged.data.map((r) => ({
             ...r,
             next_run_at: r.next_run_at?.toISOString() ?? null,
             last_run_at: r.last_run_at?.toISOString() ?? null,
             created_at: r.created_at.toISOString(),
           })),
-          count: data.length,
+          page: paged.page,
+          count: paged.data.length,
         });
       } catch (err) {
         server.log.error(err);
@@ -277,14 +283,17 @@ ${JSON.stringify(result.summary, null, 2).slice(0, 4000)}` });
     async (request, reply) => {
       const { tenantId } = request.user;
       const { id } = request.params as { id: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(id)) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Report not found' });
       try {
         const runs = await withTenantTx(prisma, tenantId, async (tx) =>
-          tx.scheduledReportRun.findMany({ where: { report_id: id }, orderBy: { ran_at: 'desc' }, take: 50 }),
+          tx.scheduledReportRun.findMany({ where: { report_id: id }, orderBy: { ran_at: 'desc' }, skip: pg.skip, take: pg.limit + 1 }),
         );
+        const paged = listPage(runs, pg);
         return reply.status(200).send({
-          data: runs.map((r) => ({ ...r, ran_at: r.ran_at.toISOString() })),
-          count: runs.length,
+          data: paged.data.map((r) => ({ ...r, ran_at: r.ran_at.toISOString() })),
+          page: paged.page,
+          count: paged.data.length,
         });
       } catch (err) {
         server.log.error(err);

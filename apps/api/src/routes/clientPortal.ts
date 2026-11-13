@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import {
@@ -557,20 +558,24 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
     { preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)] },
     async (request, reply) => {
       const { tenantId, sub, role } = request.user as any;
+      const pg = listParams(request);
       try {
         const rows = await withTenantTx(prisma, tenantId, async (tx) =>
           tx.clientProjectRequest.findMany({
             where: role === 'CLIENT' ? { user_id: sub } : {},
             orderBy: { created_at: 'desc' },
-            take: 50,
+            skip: pg.skip,
+            take: pg.limit + 1,
           }),
         );
+        const paged = listPage(rows, pg);
         return reply.status(200).send({
-          data: rows.map((r) => ({
+          data: paged.data.map((r) => ({
             ...r,
             created_at: r.created_at.toISOString(),
             updated_at: r.updated_at.toISOString(),
           })),
+          page: paged.page,
         });
       } catch (err) {
         server.log.error(err);

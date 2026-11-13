@@ -6,6 +6,7 @@ import { Permissions, Roles } from '@construction/permissions';
 import { toDecimal, Decimal } from '@construction/money';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 
 export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // GET /api/v1/company - Get company profile
@@ -147,6 +148,7 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     { preHandler: [server.authenticate] },
     async (request, reply) => {
       const { tenantId } = request.user;
+      const pg = listParams(request);
 
       const members = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.membership.findMany({
@@ -165,10 +167,13 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             },
           },
           orderBy: { created_at: 'asc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      const formatted = members.map((m) => ({
+      const pagedMembers = listPage(members, pg);
+      const formatted = pagedMembers.data.map((m) => ({
         membershipId: m.id,
         role: m.role,
         coApprovalLimit: m.co_approval_limit ? m.co_approval_limit.toFixed(2) : null,
@@ -177,7 +182,7 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
         verificationPending: !m.user.email_verified_at && !m.user.phone_verified_at,
       }));
 
-      return reply.status(200).send({ data: formatted });
+      return reply.status(200).send({ data: formatted, page: pagedMembers.page });
     },
   );
 
@@ -580,6 +585,117 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           whvatPct: settings.whvatPct.toFixed(2),
         },
       });
+    },
+  );
+
+  // GET /api/v1/company/export — COMPANY_ADMIN-only data export.
+  // ?format=json (default): full tenant export. ?format=csv&entity=<name>:
+  // flat CSV of one entity. Every export is audit-logged.
+  server.get(
+    '/api/v1/company/export',
+    { preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_MANAGE)] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      if (role !== 'COMPANY_ADMIN' && role !== 'ADMIN') {
+        return reply.status(403).send({ statusCode: 403, error: 'Forbidden', message: 'Company admin role required' });
+      }
+      const { format = 'json', entity } = request.query as { format?: string; entity?: string };
+
+      const CSV_ENTITIES: Record<string, { model: string; fields: string[] }> = {
+        projects: { model: 'project', fields: ['id', 'code', 'name', 'status', 'client_name', 'site_location', 'original_contract_sum', 'current_approved_budget', 'start_date', 'target_end_date', 'created_at'] },
+        members: { model: 'membership', fields: ['id', 'role', 'created_at'] },
+        invoices: { model: 'invoice', fields: ['id', 'invoice_no', 'title', 'status', 'client_name', 'currency', 'subtotal', 'tax', 'total', 'amount_paid', 'issue_date', 'due_date', 'created_at'] },
+        quotes: { model: 'quote', fields: ['id', 'quote_no', 'title', 'status', 'client_name', 'client_email', 'currency', 'total', 'valid_until', 'created_at'] },
+        'cost-entries': { model: 'costEntry', fields: ['id', 'project_id', 'cost_category', 'description', 'amount', 'status', 'entry_date', 'created_at'] },
+        'site-diaries': { model: 'siteDiary', fields: ['id', 'project_id', 'entry_date', 'weather', 'site_status', 'general_notes', 'created_at'] },
+        'payment-certificates': { model: 'paymentCertificate', fields: ['id', 'project_id', 'certificate_no', 'status', 'gross_amount', 'retention_amount', 'net_payable', 'certificate_date', 'created_at'] },
+        documents: { model: 'companyDocument', fields: ['id', 'title', 'category', 'reference_no', 'issuer', 'expiry_date', 'status', 'created_at'] },
+      };
+
+      const esc = (v: unknown) => {
+        if (v === null || v === undefined) return '';
+        const str = v instanceof Date ? v.toISOString() : String(v);
+        return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+      };
+
+      try {
+        if (format === 'csv') {
+          const cfg = entity ? CSV_ENTITIES[entity] : undefined;
+          if (!cfg) {
+            return reply.status(400).send({
+              statusCode: 400, error: 'Bad Request',
+              message: `entity required for CSV export. One of: ${Object.keys(CSV_ENTITIES).join(', ')}`,
+            });
+          }
+          const rows: any[] = await withTenantTx(prisma, tenantId, async (tx) => {
+            const delegate = (tx as any)[cfg.model];
+            if (cfg.model === 'membership') {
+              return delegate.findMany({
+                where: { tenant_id: tenantId },
+                include: { user: { select: { email: true, full_name: true, phone_number: true } } },
+                orderBy: { created_at: 'asc' },
+              }).then((ms: any[]) => ms.map((m) => ({
+                id: m.id, role: m.role, created_at: m.created_at,
+                email: m.user?.email, full_name: m.user?.full_name, phone: m.user?.phone_number,
+              })));
+            }
+            if (cfg.model === 'companyDocument') {
+              return delegate.findMany({ where: { tenant_id: tenantId }, orderBy: { created_at: 'desc' } });
+            }
+            return delegate.findMany({ where: { tenant_id: tenantId }, orderBy: { created_at: 'desc' } });
+          });
+
+          const headers = cfg.model === 'membership'
+            ? ['id', 'role', 'email', 'full_name', 'phone', 'created_at']
+            : cfg.fields;
+          const csvRows = [headers.join(',')];
+          for (const r of rows) {
+            csvRows.push(headers.map((h) => esc((r as any)[h])).join(','));
+          }
+          await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+            tenantId, actorId: sub, action: 'COMPANY_DATA_EXPORTED',
+            entityType: 'Tenant', entityId: tenantId,
+            changes: { format: 'csv', entity },
+          }));
+          reply.header('content-type', 'text/csv; charset=utf-8');
+          reply.header('content-disposition', `attachment; filename="${entity}-export.csv"`);
+          return reply.status(200).send(csvRows.join('\n'));
+        }
+
+        // JSON full export
+        const data = await withTenantTx(prisma, tenantId, async (tx) => {
+          const [tenant, memberships, projects, invoices, quotes, costEntries, diaries, certificates, documents] = await Promise.all([
+            tx.tenant.findUnique({ where: { id: tenantId } }),
+            tx.membership.findMany({
+              where: { tenant_id: tenantId },
+              include: { user: { select: { id: true, email: true, full_name: true, phone_number: true, is_active: true, created_at: true } } },
+            }),
+            tx.project.findMany({ include: { members: { include: { user: { select: { id: true, full_name: true, email: true } } } } } }),
+            tx.invoice.findMany({ include: { items: true, payments: true } }),
+            tx.quote.findMany({ include: { items: true } }),
+            tx.costEntry.findMany(),
+            tx.siteDiary.findMany({ include: { labor_headcounts: true, deliveries: true, photos: true } }),
+            tx.paymentCertificate.findMany({ include: { lines: true } }),
+            tx.companyDocument.findMany(),
+          ]);
+          return { tenant, memberships, projects, invoices, quotes, costEntries, diaries, certificates, documents };
+        });
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId, actorId: sub, action: 'COMPANY_DATA_EXPORTED',
+          entityType: 'Tenant', entityId: tenantId,
+          changes: { format: 'json' },
+        }));
+        reply.header('content-type', 'application/json; charset=utf-8');
+        reply.header('content-disposition', 'attachment; filename="company-export.json"');
+        return reply.status(200).send(JSON.stringify({
+          exportedAt: new Date().toISOString(),
+          tenantId,
+          ...data,
+        }, null, 2));
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to export company data' });
+      }
     },
   );
 };

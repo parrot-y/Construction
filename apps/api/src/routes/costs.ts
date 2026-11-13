@@ -16,6 +16,7 @@ import {
   VoidCostEntrySchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
 
 export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
@@ -196,6 +197,7 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         category?: string;
         boqItemId?: string;
       };
+      const pg = listParams(request);
 
       // Tenant-scoped project check — a foreign/unknown project id must 404,
       // not silently return an empty list (cross-tenant probing).
@@ -243,6 +245,8 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
             },
           },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
 
         return entries.map((e) => ({
@@ -251,9 +255,11 @@ export const costRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         }));
       });
 
+      const paged = listPage(result, pg);
       return reply.status(200).send({
-        data: result,
-        count: result.length,
+        data: paged.data,
+        page: paged.page,
+        count: paged.data.length,
       });
     },
   );
