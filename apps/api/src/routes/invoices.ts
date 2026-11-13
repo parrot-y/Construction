@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import type { Prisma } from '@construction/db';
 import React from 'react';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
@@ -15,10 +16,11 @@ import { nextDocumentNumber } from '../lib/counters';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
 import { renderPdfToBufferLimited } from '../reports/renderPdf';
 import { InvoicePdf, InvoicePdfData } from '../reports/InvoicePdf';
+import type { RouteError } from '../types/errors';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const MONEY = (v: any) => (v == null ? '0' : v.toString());
+const MONEY = (v: unknown) => (v == null ? '0' : v.toString());
 
 /**
  * ADR-005 / C-03: invoice money math uses decimal.js; line totals rounded
@@ -39,14 +41,32 @@ function computeInvoiceTotals(
 }
 
 /** OVERDUE is derived, never stored: unpaid invoice past its due date. */
-function effectiveStatus(inv: any): string {
+type InvoiceRecord = {
+  status: string;
+  due_date?: Date | string | null;
+  amount_paid?: unknown;
+  total?: unknown;
+  subtotal?: unknown;
+  tax_pct?: { toString(): string } | null;
+  tax_amount?: unknown;
+  certificate_id?: string | null;
+  wht_pct?: { toString(): string } | null;
+  wht_amount?: unknown;
+  balance_due?: unknown;
+  self_approved?: boolean | null;
+  items?: Array<Record<string, unknown> & { quantity?: unknown; unit_rate?: unknown; total_amount?: unknown }> | null;
+  payments?: unknown[] | null;
+  [key: string]: unknown;
+};
+
+function effectiveStatus(inv: InvoiceRecord): string {
   if ((inv.status === 'SENT' || inv.status === 'PART_PAID') && inv.due_date && new Date(inv.due_date) < new Date()) {
     return 'OVERDUE';
   }
   return inv.status;
 }
 
-function formatInvoice(inv: any) {
+function formatInvoice(inv: InvoiceRecord | null | undefined) {
   if (!inv) return null;
   const paid = Number(inv.amount_paid ?? 0);
   const total = Number(inv.total ?? 0);
@@ -68,7 +88,7 @@ function formatInvoice(inv: any) {
     amount_paid_num: paid,
     balance_due_num: Math.round((total - paid) * 100) / 100,
     items: inv.items
-      ? inv.items.map((i: any) => ({
+      ? inv.items.map((i) => ({
           ...i,
           quantity: i.quantity ? i.quantity.toString() : '0',
           unit_rate: i.unit_rate ? i.unit_rate.toString() : '0',
@@ -91,7 +111,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
       const { status, projectId, q } = request.query as Record<string, string | undefined>;
       const pg = listParams(request);
 
-      const where: any = {
+      const where: Prisma.InvoiceWhereInput = {
         ...(projectId && UUID_REGEX.test(projectId) ? { project_id: projectId } : {}),
         ...(q ? { title: { contains: q, mode: 'insensitive' } } : {}),
       };
@@ -218,7 +238,8 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
         });
 
         return reply.status(201).send({ invoice: formatInvoice(invoice) });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
@@ -285,10 +306,10 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
 
           const itemSource = data.items ?? [];
           const keptItems = !data.items
-            ? (await tx.invoiceLineItem.findMany({ where: { invoice_id: id } })).map((i: any) => ({
+            ? (await tx.invoiceLineItem.findMany({ where: { invoice_id: id } })).map((i) => ({
                 section: i.section,
                 description: i.description,
-                unit: i.unit as any,
+                unit: i.unit,
                 quantity: i.quantity.toString(),
                 unitRate: i.unit_rate.toString(),
               }))
@@ -359,7 +380,8 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
         });
 
         return reply.send({ invoice: formatInvoice(invoice) });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
@@ -428,7 +450,8 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
         });
 
         return reply.send({ invoice: formatInvoice(invoice) });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
@@ -473,11 +496,11 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             where: { tenant_id_idempotency_key: { tenant_id: tenantId, idempotency_key: idempotencyKey } },
           });
           if (prior) {
-            const priorInvoiceId = (prior.response_body as any)?.invoice?.id;
+            const priorInvoiceId = (prior.response_body as { invoice?: { id?: string } })?.invoice?.id;
             if (priorInvoiceId && priorInvoiceId !== id) {
               throw { status: 409, code: 'IDEMPOTENCY_KEY_REUSE', message: 'Idempotency-Key was already used for a different invoice payment' };
             }
-            return { isReplay: true as const, status: prior.response_status, body: prior.response_body as any };
+            return { isReplay: true as const, status: prior.response_status, body: prior.response_body as unknown };
           }
 
           const existing = await tx.invoice.findFirst({ where: { id } });
@@ -569,7 +592,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
               tenant_id: tenantId,
               idempotency_key: idempotencyKey,
               response_status: 201,
-              response_body: responsePayload as any,
+              response_body: responsePayload as Prisma.InputJsonValue,
             },
           });
 
@@ -580,7 +603,8 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           return reply.status(result.status).send(result.body);
         }
         return reply.status(result.status).send(result.body);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         const p2002Text = (JSON.stringify(err?.meta ?? '') + ' ' + String(err?.message ?? '')).toLowerCase();
         if (err?.code === 'P2002' && (p2002Text.includes('reference') || p2002Text.includes('invoicepayment') || p2002Text.includes('invoice_payments'))) {
           return reply.status(409).send({
@@ -644,7 +668,8 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
         });
 
         return reply.send({ invoice: formatInvoice(invoice) });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
@@ -747,7 +772,8 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${result.invoiceNo}.pdf"`)
           .send(result.buffer);
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }

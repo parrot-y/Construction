@@ -106,6 +106,18 @@ jobs:
       - name: Run Typecheck
         run: pnpm run typecheck
 
+      - name: Type-debt ratchet (C3)
+        # Total any/ts-ignore count must not exceed the committed baseline,
+        # and new/changed files must be free of explicit any / ts-ignore.
+        run: bash scripts/check-type-debt.sh
+
+      - name: Type-debt check on changed files
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- '*.ts' '*.tsx' | grep -v '\.test\.' || true)
+          if [ -n "$files" ]; then bash scripts/check-type-debt.sh --files $files; fi
+
       - name: Build All Packages
         run: pnpm run build
 

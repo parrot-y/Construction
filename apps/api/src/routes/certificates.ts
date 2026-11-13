@@ -1,4 +1,5 @@
-import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { FastifyInstance, FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import type { Prisma } from '@construction/db';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions, hasPermission, Role } from '@construction/permissions';
 import { toDecimal, toCurrencyString, Decimal } from '@construction/money';
@@ -8,6 +9,7 @@ import {
   PaymentCertificateActionSchema,
   CreateInvoiceFromCertificateSchema,
   CloseoutTransitionSchema,
+  PaymentCertificateLineInput,
 } from '@construction/validation';
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
 import { listParams, listPage } from '../lib/pagination';
@@ -15,6 +17,7 @@ import { evaluateSelfApproval } from '../plugins/makerChecker';
 import { nextDocumentNumber } from '../lib/counters';
 import { getTaxSettings } from '../lib/tax';
 import { notifyTeam } from '../lib/notify';
+import type { RouteError } from '../types/errors';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -34,7 +37,25 @@ const NEXT_STAGE: Record<CloseoutStage, CloseoutStage | null> = {
   CLOSED: null,
 };
 
-function formatCert(c: any) {
+type CertRecord = {
+  period_start?: Date | null; period_end?: Date | null;
+  this_period_amount?: { toString(): string } | null;
+  previous_certified?: { toString(): string } | null;
+  cumulative_certified?: { toString(): string } | null;
+  retention_pct?: { toString(): string } | null;
+  retention_deduction?: { toString(): string } | null;
+  retention_held?: { toString(): string } | null;
+  retention_released?: { toString(): string } | null;
+  advance_recovery?: { toString(): string } | null;
+  amount_due_previous?: { toString(): string } | null;
+  net_payable?: { toString(): string } | null;
+  invoice_id?: string | null; vat_pct?: { toString(): string } | null;
+  vat_amount?: { toString(): string } | null; wht_pct?: { toString(): string } | null;
+  wht_amount?: { toString(): string } | null; submitted_at?: Date | null; certified_at?: Date | null; paid_at?: Date | null;
+  [key: string]: unknown;
+};
+
+function formatCert(c: CertRecord | null | undefined) {
   if (!c) return null;
   return {
     ...c,
@@ -62,7 +83,7 @@ function formatCert(c: any) {
 }
 
 /** Contract-sum baseline for the 5% JBC retention cap (mirrors lifecycle.ts). */
-async function resolveContractSum(tx: any, project: any): Promise<Decimal> {
+async function resolveContractSum(tx: Prisma.TransactionClient, project: { id: string; [key: string]: unknown }): Promise<Decimal> {
   const activeBoq = await tx.bOQ.findFirst({
     where: { project_id: project.id, status: { in: ['ACTIVE', 'APPROVED'] } },
     orderBy: { version: 'desc' },
@@ -75,7 +96,7 @@ async function resolveContractSum(tx: any, project: any): Promise<Decimal> {
 }
 
 /** Certified (payable-decision) total = sum of this_period over CERTIFIED+PAID certs. */
-async function certifiedTotal(tx: any, projectId: string): Promise<Decimal> {
+async function certifiedTotal(tx: Prisma.TransactionClient, projectId: string): Promise<Decimal> {
   const agg = await tx.paymentCertificate.aggregate({
     where: { project_id: projectId, status: { in: ['CERTIFIED', 'PAID'] } },
     _sum: { this_period_amount: true },
@@ -83,7 +104,7 @@ async function certifiedTotal(tx: any, projectId: string): Promise<Decimal> {
   return toDecimal(agg._sum.this_period_amount?.toString() ?? '0');
 }
 
-async function latestRetentionHeld(tx: any, projectId: string): Promise<Decimal> {
+async function latestRetentionHeld(tx: Prisma.TransactionClient, projectId: string): Promise<Decimal> {
   const last = await tx.paymentCertificate.findFirst({
     where: { project_id: projectId, status: { in: ['CERTIFIED', 'PAID', 'SUBMITTED', 'UNDER_REVIEW'] } },
     orderBy: { certificate_no: 'desc' },
@@ -101,8 +122,8 @@ interface CertMathInput {
 
 /** Shared JBC retention/net-payable math used by create, patch and preview. */
 async function computeCertMath(
-  tx: any,
-  project: any,
+  tx: Prisma.TransactionClient,
+  project: { id: string; [key: string]: unknown },
   projectId: string,
   thisPeriod: Decimal,
   opts: CertMathInput,
@@ -138,19 +159,19 @@ async function computeCertMath(
 /** Derive certificate lines + this-period amount from real BoQ progress:
  * per BOQ item, latest completion% x (qty x rate) minus amount already
  * certified on prior CERTIFIED/PAID certificates. */
-async function deriveProgressCertificate(tx: any, tenantId: string, projectId: string) {
+async function deriveProgressCertificate(tx: Prisma.TransactionClient, tenantId: string, projectId: string) {
   const activeBoq = await tx.bOQ.findFirst({
     where: { project_id: projectId, status: { in: ['ACTIVE', 'APPROVED'] } },
     orderBy: { version: 'desc' },
     include: { sections: { include: { items: true } } },
   });
-  if (!activeBoq) return { lines: [] as any[], thisPeriodAmount: '0.00', previousCertified: '0.00' };
+  if (!activeBoq) return { lines: [] as PaymentCertificateLineInput[], thisPeriodAmount: '0.00', previousCertified: '0.00' };
 
-  const items = activeBoq.sections.flatMap((sec: any) => sec.items);
+  const items = (activeBoq.sections as Array<{ items: Array<{ id: string; description: string; unit: string | null; quantity: { toString(): string }; unit_rate: { toString(): string } }> }>).flatMap((sec) => sec.items);
 
   // Latest cumulative progress per BOQ item
   const progressRows = await tx.progressItem.findMany({
-    where: { tenant_id: tenantId, boq_item_id: { in: items.map((i: any) => i.id) } },
+    where: { tenant_id: tenantId, boq_item_id: { in: items.map((i) => i.id) } },
     include: { progress_record: { select: { record_date: true } } },
     orderBy: { progress_record: { record_date: 'desc' } },
   });
@@ -178,7 +199,7 @@ async function deriveProgressCertificate(tx: any, tenantId: string, projectId: s
     priorByItem.set(key, (priorByItem.get(key) ?? new Decimal(0)).plus(toDecimal(l.amount.toString())));
   }
 
-  const lines: any[] = [];
+  const lines: PaymentCertificateLineInput[] = [];
   let total = new Decimal(0);
   for (const item of items) {
     const prog = latestPct.get(item.id);
@@ -211,7 +232,7 @@ async function deriveProgressCertificate(tx: any, tenantId: string, projectId: s
 /** VAT + client-side WHT for a certificate amount, from tenant tax settings.
  * The taxable base is the current-period net of retention — the amount that
  * is actually invoiced to the client. */
-async function computeCertTax(tx: any, tenantId: string, taxableBase: Decimal) {
+async function computeCertTax(tx: Prisma.TransactionClient, tenantId: string, taxableBase: Decimal) {
   const tax = await getTaxSettings(tx, tenantId);
   const vatAmount = taxableBase.times(tax.vatPct).dividedBy(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
   const whtBase = taxableBase.plus(vatAmount);
@@ -248,7 +269,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         });
         const paged = listPage(certs, pg);
         return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list payment certificates' });
@@ -276,7 +298,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           return deriveProgressCertificate(tx, tenantId, projectId);
         });
         return reply.status(200).send({ data: preview });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to build certificate preview' });
@@ -315,7 +338,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           let lineInputs = data.lines ?? null;
           let thisPeriod: Decimal;
           if (lineInputs) {
-            thisPeriod = lineInputs.reduce((acc: Decimal, l: any) => acc.plus(toDecimal(l.amount)), new Decimal(0)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+            thisPeriod = lineInputs.reduce((acc: Decimal, l) => acc.plus(toDecimal(l.amount)), new Decimal(0)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
           } else if (data.thisPeriodAmount != null) {
             thisPeriod = toDecimal(data.thisPeriodAmount);
           } else {
@@ -361,7 +384,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
               notes: data.notes ?? null,
               lines: lineInputs
                 ? {
-                    create: lineInputs.map((l: any, idx: number) => ({
+                    create: lineInputs.map((l, idx: number) => ({
                       tenant_id: tenantId,
                       boq_item_id: l.boqItemId ?? null,
                       description: l.description,
@@ -399,7 +422,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         });
 
         return reply.status(201).send({ message: 'Payment certificate drafted', data: cert });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to create payment certificate' });
@@ -435,7 +459,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
 
           const lineInputs = data.lines ?? null;
           const thisPeriod = lineInputs
-            ? lineInputs.reduce((acc: Decimal, l: any) => acc.plus(toDecimal(l.amount)), new Decimal(0)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+            ? lineInputs.reduce((acc: Decimal, l) => acc.plus(toDecimal(l.amount)), new Decimal(0)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
             : data.thisPeriodAmount != null
               ? toDecimal(data.thisPeriodAmount)
               : toDecimal(cert.this_period_amount.toString());
@@ -451,7 +475,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           if (lineInputs) {
             await tx.paymentCertificateLine.deleteMany({ where: { certificate_id: certId } });
             await tx.paymentCertificateLine.createMany({
-              data: lineInputs.map((l: any, idx: number) => ({
+              data: lineInputs.map((l, idx: number) => ({
                 tenant_id: tenantId,
                 certificate_id: certId,
                 boq_item_id: l.boqItemId ?? null,
@@ -499,7 +523,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           return formatCert(row);
         });
         return reply.status(200).send({ message: 'Certificate updated', data: updated });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Bad Request', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update certificate' });
@@ -509,7 +534,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
 
   // POST .../payment-certificates/:certId/create-invoice — issue a client
   // invoice from a CERTIFIED certificate. Links both ways; VAT + WHT lines.
-  const createInvoiceFromCertificate = async (request: any, reply: any) => {
+  const createInvoiceFromCertificate = async (request: FastifyRequest, reply: FastifyReply) => {
       const { tenantId, sub } = request.user;
       const { projectId, certId } = request.params as { projectId: string; certId: string };
       if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(certId)) {
@@ -592,7 +617,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
               created_by: sub,
               items: {
                 create: [
-                  ...cert.lines.map((l: any, idx: number) => ({
+                  ...cert.lines.map((l, idx) => ({
                     tenant_id: tenantId,
                     section: `Certificate line ${idx + 1}`,
                     description: l.description,
@@ -662,7 +687,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           return { invoice, alreadyExisted: false };
         });
 
-        const inv = result.invoice as any;
+        const inv = result.invoice as unknown as { id?: string; invoice_no?: number | string; total?: unknown; [key: string]: unknown };
         return reply.status(result.alreadyExisted ? 200 : 201).send({
           message: result.alreadyExisted ? 'Invoice already exists for this certificate' : 'Invoice created from certificate',
           data: {
@@ -688,7 +713,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             },
           },
         });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Bad Request', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to create invoice from certificate' });
@@ -787,7 +813,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             : { selfApproved: false, reason: null };
 
           const now = new Date();
-          const data: any = {
+          const data: Record<string, unknown> = {
             status: t.to,
             submitted_at: action === 'SUBMIT' ? now : cert.submitted_at,
             certified_at: action === 'CERTIFY' ? now : cert.certified_at,
@@ -843,7 +869,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         });
 
         return reply.status(200).send({ message: `Certificate ${action.toLowerCase()} processed`, data: result });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Bad Request', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to process certificate action' });
@@ -855,7 +882,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
   // CLOSEOUT STAGE MACHINE (ADR-008)
   // =========================================================================
 
-  async function closeoutChecklist(tx: any, projectId: string) {
+  async function closeoutChecklist(tx: Prisma.TransactionClient, projectId: string) {
     const [pcCert, dlpCerts, openSnags, pendingCerts, project] = await Promise.all([
       tx.defectsLiabilityCertificate.findFirst({
         where: { project_id: projectId, certificate_type: 'PRACTICAL_COMPLETION' },
@@ -918,7 +945,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           return closeoutChecklist(tx, projectId);
         });
         return reply.status(200).send({ data });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load closeout status' });
@@ -959,7 +987,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             throw { status: 409, message: `Closeout prerequisites not met for ${target}: ${JSON.stringify(checklist.checklist)}` };
           }
 
-          const updateData: any = { closeout_stage: target };
+          const updateData: Record<string, unknown> = { closeout_stage: target };
           if (target === 'HANDED_OVER' && !project.practical_completion_date) {
             const pcCert = await tx.defectsLiabilityCertificate.findFirst({
               where: { project_id: projectId, certificate_type: 'PRACTICAL_COMPLETION' },
@@ -996,7 +1024,8 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         });
 
         return reply.status(200).send({ message: `Closeout advanced to ${target}`, data: result });
-      } catch (err: any) {
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Bad Request', message: err.message });
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to transition closeout stage' });
