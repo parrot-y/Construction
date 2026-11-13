@@ -207,6 +207,8 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
   'GET /api/v1/me/invoices': 'Caller-scoped invoice list (CLIENT/OWNER scope enforced in-handler)',
   'GET /api/v1/me/approvals': 'Caller-scoped "waiting for you" approval feed',
   'GET /api/v1/product': 'Product metadata for any authenticated member',
+  'GET /api/v1/company/modules': 'Own-tenant module flags — member-readable pilot scope',
+  'POST /api/v1/problem-reports': 'Self-service problem report — actor/tenant bound to session',
   'GET /api/v1/company/payment-instructions': 'Payment instructions any member (incl. CLIENT) may read to pay the contractor',
   'POST /api/v1/client/invoices/:invoiceId/payment-notice': 'Client self-service payment notice on own invoice (non-mutating, notifies staff)',
   'GET /api/v1/billing/subscription-status': 'Caller\u2019s tenant subscription status',

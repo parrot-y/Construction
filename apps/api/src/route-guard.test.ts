@@ -54,6 +54,9 @@ const UNAUTHENTICATED_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/telematics/ping': 'Device ingest endpoint (device-token auth in-handler)',
   'POST /api/v1/telematics/canbus-ping': 'Device ingest endpoint (device-token auth in-handler)',
   'POST /api/v1/operator/admin-account': 'Platform-operator activation — x-operator-key header, not a user session',
+  'GET /api/v1/operator/tenants/:tenantId/modules': 'Platform-operator module flags — x-operator-key header, not a user session',
+  'PUT /api/v1/operator/tenants/:tenantId/modules': 'Platform-operator module flag update — x-operator-key header, audit-logged',
+  'GET /api/v1/operator/adoption': 'Platform-operator adoption metrics — x-operator-key header, not a user session',
   'GET /api/public/quotes/:token': 'Public quote share link (SHA-256 hashed token + rate limit)',
   'POST /api/public/quotes/:token/respond': 'Public quote share link response (SHA-256 hashed token + rate limit)',
 };
