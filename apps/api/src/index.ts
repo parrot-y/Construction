@@ -52,6 +52,7 @@ import { integrationRoutes } from './routes/integrations';
 import { meRoutes, clientPaymentNoticeRoutes } from './routes/me';
 import { procurementRoutes } from './routes/procurement';
 import { operatorRoutes } from './routes/operator';
+import { problemReportRoutes } from './routes/problemReports';
 import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
@@ -254,6 +255,7 @@ export function buildServer(): FastifyInstance {
   server.register(clientPaymentNoticeRoutes);
   server.register(procurementRoutes);
   server.register(operatorRoutes);
+  server.register(problemReportRoutes);
 
   // Readiness probe: /health is liveness; /ready proves the DB is reachable.
   server.get('/ready', async (_request, reply) => {

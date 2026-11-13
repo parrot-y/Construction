@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useRef, useState} from 'react';
 import { ConsoleProvider, useConsole} from './ConsoleContext';
 import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection} from './navConfig';
+import ReportProblemModal from '../ReportProblemModal';
 import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSun, IconMoon} from './icons';
 import SessionsModal from './SessionsModal';
 const ConsultantPortalView = lazy(() => import('../portals/ConsultantPortalView'));
@@ -30,6 +31,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const [q, setQ] = useState('');
   const [userMenu, setUserMenu] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/v1/company/members', { credentials: 'include'})
@@ -201,6 +203,10 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user.fullName || user.email}</p>
 <p className="text-[10px] text-slate-400">{user.email} · {roleLabel}</p>
 </div>
+<button onClick={() => { setUserMenu(false); setReportOpen(true);}}
+                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  Report a problem
+</button>
 <button onClick={() => { setUserMenu(false); setSessionsOpen(true);}}
                   className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
                   Active sessions
@@ -216,6 +222,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 </div>
 </div>
       {sessionsOpen &&<SessionsModal onClose={() => setSessionsOpen(false)} />}
+      {reportOpen &&<ReportProblemModal onClose={() => setReportOpen(false)} />}
 </header>
 );
 }
