@@ -1,13 +1,16 @@
-import React, { useState} from 'react';
+import React, { Suspense, lazy, useState} from 'react';
 import { AuthSession} from '../types/auth';
-import ClientDashboard from './ClientDashboard';
-import OwnerDashboard from './OwnerDashboard';
-import AppShell from './console/AppShell';
-import FieldDashboard from './FieldDashboard';
-import ConsultantPortalView from './portals/ConsultantPortalView';
-import SubcontractorPortalView from './portals/SubcontractorPortalView';
-import SupplierPortalView from './portals/SupplierPortalView';
-import CompliancePortalView from './portals/CompliancePortalView';
+const ClientDashboard = lazy(() => import('./ClientDashboard'));
+
+const OwnerDashboard = lazy(() => import('./OwnerDashboard'));
+const FieldDashboard = lazy(() => import('./FieldDashboard'));
+const AppShell = lazy(() => import('./console/AppShell'));
+const ConsultantPortalView = lazy(() => import('./portals/ConsultantPortalView'));
+const SubcontractorPortalView = lazy(() => import('./portals/SubcontractorPortalView'));
+const SupplierPortalView = lazy(() => import('./portals/SupplierPortalView'));
+const CompliancePortalView = lazy(() => import('./portals/CompliancePortalView'));
+
+const Fallback = <div className="min-h-[40vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
 
 interface DashboardProps {
   session: AuthSession;
@@ -44,42 +47,42 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
       switch (previewPortal.type.toUpperCase()) {
         case 'CONSULTANT':
           return (
-<ConsultantPortalView
+<Suspense fallback={Fallback}><ConsultantPortalView
               token={previewPortal.token}
               stakeholderName={previewPortal.name}
               stakeholderRole={previewPortal.role}
               onBackToDashboard={() => setPreviewPortal(null)}
-            />
+            /></Suspense>
 );
         case 'SUBCONTRACTOR':
           return (
-<SubcontractorPortalView
+<Suspense fallback={Fallback}><SubcontractorPortalView
               token={previewPortal.token}
               subcontractorName={previewPortal.name}
               subcontractorTrade={previewPortal.role}
               onBackToDashboard={() => setPreviewPortal(null)}
-            />
+            /></Suspense>
 );
         case 'SUPPLIER':
           return (
-<SupplierPortalView
+<Suspense fallback={Fallback}><SupplierPortalView
               token={previewPortal.token}
               supplierName={previewPortal.name}
               supplierCategory={previewPortal.role}
               onBackToDashboard={() => setPreviewPortal(null)}
-            />
+            /></Suspense>
 );
         case 'COMPLIANCE':
           return (
-<CompliancePortalView
+<Suspense fallback={Fallback}><CompliancePortalView
               token={previewPortal.token}
               auditorName={previewPortal.name}
               auditorAgency={previewPortal.role}
               onBackToDashboard={() => setPreviewPortal(null)}
-            />
+            /></Suspense>
 );
         case 'CLIENT':
-          return<ClientDashboard session={session} />;
+          return <Suspense fallback={Fallback}><ClientDashboard session={session} /></Suspense>;
         default:
           return (
 <div className="bg-white p-6 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
@@ -93,22 +96,22 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
 }
 
     if (user.role === 'CLIENT') {
-      return<ClientDashboard session={session} />;
+      return <Suspense fallback={Fallback}><ClientDashboard session={session} /></Suspense>;
 }
     // Stage-2: OWNER gets a dedicated read-mostly dashboard — no contractor
     // actions, no billing admin, approvals + financial visibility only.
     if (user.role === 'OWNER') {
-      return<OwnerDashboard session={session} />;
+      return <Suspense fallback={Fallback}><OwnerDashboard session={session} /></Suspense>;
 }
     // Stage 4: field roles get the mobile-first field workspace —
     // diary, attendance, checklists, inbox, drawings, RFIs, safety
     // incidents and snagging, all permission-filtered.
     if (['FOREMAN', 'WORKER', 'SITE_ENGINEER', 'TRADE_LEAD'].includes(user.role)) {
-      return<FieldDashboard session={session} onLogout={onLogout} />;
+      return <Suspense fallback={Fallback}><FieldDashboard session={session} onLogout={onLogout} /></Suspense>;
 }
     // All internal workspace roles render inside the console shell
     // (icon rail + section router per role nav matrix).
-    return<AppShell session={session} onLogout={onLogout} />;
+    return <Suspense fallback={Fallback}><AppShell session={session} onLogout={onLogout} /></Suspense>;
 };
 
   // Internal workspace roles use the console shell (own chrome).
@@ -117,7 +120,7 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
   if (user.role !== 'CLIENT' && user.role !== 'OWNER'
       && !['FOREMAN', 'WORKER', 'SITE_ENGINEER', 'TRADE_LEAD'].includes(user.role)
       && !previewPortal) {
-    return<AppShell session={session} onLogout={onLogout} />;
+    return <Suspense fallback={Fallback}><AppShell session={session} onLogout={onLogout} /></Suspense>;
 }
 
   const initials = user.fullName

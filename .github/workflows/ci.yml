@@ -115,6 +115,11 @@ jobs:
         # VITE_DEMO_MODE === 'true' and dead-code-eliminated otherwise.
         run: bash scripts/check-demo-bundle.sh
 
+      - name: Initial JS bundle budget (C2)
+        # Entry chunks must stay ≤450KB raw / ≤140KB gzip — route-level
+        # React.lazy keeps heavy modules out of the initial payload.
+        run: bash scripts/check-bundle-size.sh
+
       - name: Security Vulnerability Audit
         run: pnpm audit --prod --audit-level=high
 

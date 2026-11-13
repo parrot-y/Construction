@@ -75,5 +75,9 @@ export default defineConfig({
   },
   preview: {
     headers: securityHeaders,
+    proxy: {
+      '/api': { target: process.env.VITE_API_TARGET || 'http://localhost:4100', changeOrigin: true },
+      '/uploads': { target: process.env.VITE_API_TARGET || 'http://localhost:4100', changeOrigin: true },
+    },
   },
 });

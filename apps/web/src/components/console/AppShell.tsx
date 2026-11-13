@@ -1,20 +1,24 @@
-import React, { useEffect, useRef, useState} from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState} from 'react';
 import { ConsoleProvider, useConsole} from './ConsoleContext';
 import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection} from './navConfig';
 import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSun, IconMoon} from './icons';
-import AskAiPanel from './AskAiPanel';
 import SessionsModal from './SessionsModal';
-import HomeSection from './sections/HomeSection';
-import ProjectsSection from './sections/ProjectsSection';
-import SiteSection from './sections/SiteSection';
-import MoneySection from './sections/MoneySection';
-import PeopleSection from './sections/PeopleSection';
-import FilesSection from './sections/FilesSection';
+const ConsultantPortalView = lazy(() => import('../portals/ConsultantPortalView'));
+const SubcontractorPortalView = lazy(() => import('../portals/SubcontractorPortalView'));
+const SupplierPortalView = lazy(() => import('../portals/SupplierPortalView'));
+const CompliancePortalView = lazy(() => import('../portals/CompliancePortalView'));
+
+const SectionFallback = <div className="min-h-[40vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
+
+const HomeSection = lazy(() => import('./sections/HomeSection'));
+const ProjectsSection = lazy(() => import('./sections/ProjectsSection'));
+const SiteSection = lazy(() => import('./sections/SiteSection'));
+const MoneySection = lazy(() => import('./sections/MoneySection'));
+const PeopleSection = lazy(() => import('./sections/PeopleSection'));
+const FilesSection = lazy(() => import('./sections/FilesSection'));
+const AskAiPanel = lazy(() => import('./AskAiPanel'));
 import OfflineSyncBanner from '../OfflineSyncBanner';
-import ConsultantPortalView from '../portals/ConsultantPortalView';
-import SubcontractorPortalView from '../portals/SubcontractorPortalView';
-import SupplierPortalView from '../portals/SupplierPortalView';
-import CompliancePortalView from '../portals/CompliancePortalView';
+
 import { AuthSession} from '../../types/auth';
 import AppErrorBoundary from '../AppErrorBoundary';
 
@@ -337,7 +341,7 @@ function SectionPrompt(): React.JSX.Element | null {
 function SectionBody(): React.JSX.Element {
   const { section} = useConsole();
   const wrap = (label: string, el: React.ReactNode) => (
-    <AppErrorBoundary key={section} label={`console:${label}`}>{el}</AppErrorBoundary>
+    <AppErrorBoundary key={section} label={`console:${label}`}><Suspense fallback={SectionFallback}>{el}</Suspense></AppErrorBoundary>
   );
   switch (section) {
     case 'projects': return wrap('projects', <ProjectsSection />);
@@ -355,7 +359,7 @@ function PortalPreview(): React.JSX.Element | null {
   const back = () => setPortalPreview(null);
   const common = { onBackToDashboard: back};
   const pw = (label: string, el: React.ReactNode) => (
-    <AppErrorBoundary label={`portal-preview:${label.toLowerCase()}`}>{el}</AppErrorBoundary>
+    <AppErrorBoundary label={`portal-preview:${label.toLowerCase()}`}><Suspense fallback={SectionFallback}>{el}</Suspense></AppErrorBoundary>
   );
   switch (portalPreview.type.toUpperCase()) {
     case 'CONSULTANT':
@@ -394,7 +398,7 @@ function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <SectionBody />
 </main>
 </div>
-<AskAiPanel />
+<Suspense fallback={null}><AskAiPanel /></Suspense>
 </div>
 );
 }
