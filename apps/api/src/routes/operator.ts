@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { timingSafeEqual } from 'node:crypto';
 import { prisma, recordAuditLog, withTenantTx, hashPassword } from '@construction/db';
 import { OperatorAdminAccountSchema } from '@construction/validation';
+import { ALL_GATED_MODULES, GATED_MODULES } from '../plugins/moduleGate';
 
 /**
  * Platform-operator routes (Stage 4 auditor fix A).
@@ -114,5 +115,70 @@ export const operatorRoutes: FastifyPluginAsync = async (server: FastifyInstance
         mode,
       },
     });
+  });
+
+  // B1: per-tenant module flags. Operator-only (OPERATOR_KEY), audit-logged.
+  server.get('/api/v1/operator/tenants/:tenantId/modules', async (request, reply) => {
+    if (!operatorKeyOk(request)) {
+      return reply.status(403).send({ error: 'Forbidden', message: 'Operator key required' });
+    }
+    const { tenantId } = request.params as { tenantId: string };
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true, name: true, slug: true } });
+    if (!tenant) return reply.status(404).send({ error: 'Not Found', message: 'Tenant not found' });
+    const flags = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.tenantModuleFlag.findMany({ where: { tenant_id: tenantId } }),
+    );
+    const byModule = new Map(flags.map((f) => [f.module, f]));
+    return reply.send({
+      data: {
+        tenant,
+        modules: ALL_GATED_MODULES.map((m) => ({
+          module: m,
+          label: m,
+          enabled: byModule.get(m)?.enabled === true,
+          updatedAt: byModule.get(m)?.updated_at ?? null,
+        })),
+        note: 'Modules not listed are Pilot Core and always enabled.',
+      },
+    });
+  });
+
+  server.put('/api/v1/operator/tenants/:tenantId/modules', async (request, reply) => {
+    if (!operatorKeyOk(request)) {
+      return reply.status(403).send({ error: 'Forbidden', message: 'Operator key required' });
+    }
+    const { tenantId } = request.params as { tenantId: string };
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+    if (!tenant) return reply.status(404).send({ error: 'Not Found', message: 'Tenant not found' });
+    const body = (request.body ?? {}) as { modules?: Record<string, boolean> };
+    const modules = body.modules ?? {};
+    const unknown = Object.keys(modules).filter((m) => !(m in GATED_MODULES));
+    if (unknown.length) {
+      return reply.status(400).send({ error: 'Bad Request', message: `Unknown modules: ${unknown.join(', ')}` });
+    }
+    const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+      const out: string[] = [];
+      for (const [module, enabled] of Object.entries(modules)) {
+        await tx.tenantModuleFlag.upsert({
+          where: { tenant_id_module: { tenant_id: tenantId, module } },
+          update: { enabled: enabled === true, updated_by: 'operator' },
+          create: { tenant_id: tenantId, module, enabled: enabled === true, updated_by: 'operator' },
+        });
+        out.push(module);
+      }
+      await recordAuditLog(tx, {
+        tenantId,
+        actorId: '00000000-0000-0000-0000-000000000000',
+        action: 'TENANT_MODULES_UPDATED',
+        entityType: 'Tenant',
+        entityId: tenantId,
+        projectId: null,
+        changes: { modules },
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'] ?? null,
+      });
+      return out;
+    });
+    return reply.send({ data: { tenantId, updated } });
   });
 };

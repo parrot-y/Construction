@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState} from 'react';
+import { configureRuntimeModules } from '../../lib/modules';
 import { AuthSession} from '../../types/auth';
 import { getRoleNav, RoleNav} from './navConfig';
 
@@ -59,6 +60,10 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
   const [portalPreview, setPortalPreview] = useState<{ type: string; token: string; name: string; role?: string} | null>(null);
 
   useEffect(() => {
+    fetch('/api/v1/company/modules', { credentials: 'include'})
+      .then((r) => (r.ok ? r.json() : { data: { modules: [] }}))
+      .then((j) => configureRuntimeModules(j?.data?.modules ?? []))
+      .catch(() => configureRuntimeModules([]));
     fetch('/api/v1/projects', { credentials: 'include'})
       .then((r) => (r.ok ? r.json() : { data: []}))
       .then((j) => {

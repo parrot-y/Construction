@@ -1,40 +1,63 @@
 /**
- * Peripheral-module feature flags (audit A-3.7 / MVP_SCOPE).
+ * Module feature flags (B1 pilot scope).
  *
- * Modules outside the MVP core chain (quote → project → BoQ → site diary →
- * variation → payment certificate → invoice → payment → retention) are
- * hidden from navigation unless explicitly enabled.
- *
- *   VITE_ENABLE_PERIPHERAL_MODULES=plant,survey,tender,steel,asphalt,geofence,rebar,rmc
- *
- * In dev/test builds all modules are visible so the full surface stays
- * exercisable; production builds show only the MVP chain unless the env
- * flag opts modules back in.
+ * Two layers:
+ *  - PERIPHERAL_MODULES: ids that can be gated per tenant. Anything not in
+ *    this list is Pilot Core and always visible.
+ *  - Runtime flags: ConsoleContext fetches /api/v1/company/modules once per
+ *    session and calls configureRuntimeModules(); when configured the set is
+ *    authoritative (non-core OFF unless the tenant flag enables it).
+ *  - Env/dev fallback: before runtime flags load, VITE_ENABLE_PERIPHERAL_MODULES
+ *    and DEV decide (keeps unauthenticated/portal surfaces unchanged).
  */
 
 export const PERIPHERAL_MODULES = [
-  'tenders',
   'equipment',
   'telematics',
-  'geofence',
-  'rebar',
-  'rmc',
-  'steel',
   'soil',
-  'asphalt',
   'survey',
+  'tenders',
+  'steel',
+  'asphalt',
+  'geofence',
+  'rmc',
+  'muster',
+  'independent',
+  'rebar',
+  'safety',
+  'correspondence',
+  'inventory',
 ] as const;
 
+/** Legacy aliases used at call sites → canonical flag ids. */
+const ALIASES: Record<string, string> = {
+  plant: 'telematics',
+};
+
 export type PeripheralModule = (typeof PERIPHERAL_MODULES)[number];
+
+let runtimeModules: Set<string> | null = null;
+
+/** Called once per session with the tenant's enabled non-core module ids. */
+export function configureRuntimeModules(modules: string[] | null): void {
+  runtimeModules = modules ? new Set(modules) : null;
+}
+
+export function runtimeModulesConfigured(): boolean {
+  return runtimeModules !== null;
+}
 
 const DEV_ALL = import.meta.env.DEV === true;
 
 export function isModuleEnabled(id: string): boolean {
-  if (!(PERIPHERAL_MODULES as readonly string[]).includes(id)) return true;
+  const canonical = ALIASES[id] ?? id;
+  if (!(PERIPHERAL_MODULES as readonly string[]).includes(canonical)) return true;
+  // Authoritative once the tenant's flags have loaded.
+  if (runtimeModules !== null) return runtimeModules.has(canonical);
   if (DEV_ALL) return true;
   const enabled = (import.meta.env.VITE_ENABLE_PERIPHERAL_MODULES || '')
     .split(',')
     .map((s: string) => s.trim())
     .filter(Boolean);
-  return enabled.includes(id);
+  return enabled.includes(canonical) || enabled.includes(id);
 }

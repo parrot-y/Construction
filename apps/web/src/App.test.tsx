@@ -1,4 +1,4 @@
-import { describe, expect, it} from 'vitest';
+import { describe, expect, it, vi, afterEach} from 'vitest';
 import { renderToString} from 'react-dom/server';
 import App from './App';
 import Dashboard from './components/Dashboard';
@@ -67,15 +67,29 @@ import QuotesManagementView from './components/QuotesManagementView';
 import InvoicingView from './components/InvoicingView';
 
 describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
-  it('renders the login screen by default with demo accounts and title', () => {
-    const html = renderToString(<LoginForm onLoginSuccess={() => {}} />);
-        expect(html).toContain('SiteSafi');
+  afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+
+  it('renders the login screen without demo credentials by default (A1)', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', '');
+    vi.resetModules();
+    const { default: LF } = await import('./components/LoginForm');
+    const html = renderToString(<LF onLoginSuccess={() => {}} />);
+    expect(html).toContain('SiteSafi');
+    expect(html).not.toContain('apexbuilders.co.ke');
+    expect(html).not.toContain('Password123');
+  });
+
+  it('renders demo accounts only when VITE_DEMO_MODE=true', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', 'true');
+    vi.resetModules();
+    const { default: LF } = await import('./components/LoginForm');
+    const html = renderToString(<LF onLoginSuccess={() => {}} />);
     expect(html).toContain('admin@apexbuilders.co.ke');
     expect(html).toContain('COMPANY_ADMIN');
     expect(html).toContain('PM_QS');
     expect(html).toContain('SITE_SUPERVISOR');
     expect(html).toContain('CLIENT');
-});
+  });
 
   it('renders the App component root unauthenticated', () => {
     const html = renderToString(<App />);

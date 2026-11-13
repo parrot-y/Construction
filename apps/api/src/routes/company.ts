@@ -28,6 +28,21 @@ export const companyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     },
   );
 
+
+  // GET /api/v1/company/modules — enabled non-core module flags for this
+  // tenant (B1). Any authenticated member may read; writes are operator-only.
+  server.get(
+    '/api/v1/company/modules',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const flags = await withTenantTx(prisma, tenantId, (tx) =>
+        tx.tenantModuleFlag.findMany({ where: { tenant_id: tenantId, enabled: true }, select: { module: true } }),
+      );
+      return reply.status(200).send({ data: { modules: flags.map((f) => f.module) } });
+    },
+  );
+
   // GET /api/v1/company/payment-instructions - Where clients/owners should pay
   // (paybill, till, bank). Any authenticated member may read it — clients need
   // it to pay; it contains no internal data.

@@ -54,8 +54,25 @@ model Tenant {
   tender_bids               TenderBid[]
   quotes                    Quote[]
   invoices                  Invoice[]
+  module_flags              TenantModuleFlag[]
 
   @@map("tenants")
+}
+
+// B1 pilot scope: per-tenant feature flags. Absent row = module OFF for
+// non-core modules; operator enables per tenant via /api/v1/operator/*.
+model TenantModuleFlag {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenant_id  String   @db.Uuid
+  module     String   @db.VarChar(40)
+  enabled    Boolean  @default(false)
+  updated_by String?  @db.VarChar(64)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, module])
+  @@map("tenant_module_flags")
 }
 
 model User {
