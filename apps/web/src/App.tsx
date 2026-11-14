@@ -19,6 +19,11 @@ import { migrateOfflineStorage } from './services/offline-sync';
 import { PRODUCT_NAME } from './lib/product';
 
 const PageFallback = <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
+
+// Portal links carry a bearer token. The token is redacted from the address
+// bar on consume (C1), so the active portal context is kept in sessionStorage
+// instead — per-tab, cleared on tab close, never in history or screenshots.
+const PORTAL_STORAGE_KEY = 'sitesafi_portal_link';
 const TermsPage = lazy(() => import('./components/LegalPage').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = lazy(() => import('./components/LegalPage').then((m) => ({ default: m.PrivacyPage })));
 const OperatorAdoptionView = lazy(() => import('./components/OperatorAdoptionView'));
@@ -75,6 +80,20 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
         setExternalPortal({ type: portal.toLowerCase(), token});
         // C1: redact the bearer token from the address bar/history once consumed.
         window.history.replaceState({}, '', `/?portal=${portal.toLowerCase()}`);
+} else {
+        // Reload/deep-link with a redacted URL: restore the portal this tab
+        // was already viewing so revoked/expired links still fail honestly.
+        try {
+          const saved = window.sessionStorage.getItem(PORTAL_STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved) as { type?: unknown; token?: unknown } | null;
+            if (typeof parsed?.type === 'string' && typeof parsed?.token === 'string' && parsed.token) {
+              setExternalPortal({ type: parsed.type.toLowerCase(), token: parsed.token });
+            }
+          }
+        } catch {
+          // Corrupt storage — fall through to the normal landing flow.
+        }
 }
       if (params.get('signup') === '1') {
         setShowSignupForm(true);
@@ -93,6 +112,20 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
 }
 }
 }, [externalPortal]);
+
+  // Keep sessionStorage in step with the active portal (set on consume,
+  // removed when the stakeholder exits back to the landing hub).
+  useEffect(() => {
+    try {
+      if (externalPortal) {
+        window.sessionStorage.setItem(PORTAL_STORAGE_KEY, JSON.stringify(externalPortal));
+      } else {
+        window.sessionStorage.removeItem(PORTAL_STORAGE_KEY);
+      }
+    } catch {
+      // Storage unavailable (private mode etc.) — portal still works in-memory.
+    }
+  }, [externalPortal]);
 
   const handleLogout = async () => {
     try {
@@ -188,7 +221,26 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
 }
 }
 
-  // 2. Standard authenticated workspace / login / landing hub flow
+  // 2. Invitation link (?invite=<token>) takes precedence over any existing
+  // session — a reused link must show the honest invitation state, not the
+  // workspace of whoever happens to be signed in on this browser.
+  if (inviteToken) {
+    return (
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<Suspense fallback={PageFallback}><InviteAcceptView
+        token={inviteToken}
+        onLoginSuccess={(newSession) => {
+          setSession(newSession);
+          setInviteToken(null);
+          window.history.replaceState({}, '', '/');
+        }}
+        onBack={() => { setInviteToken(null); window.history.replaceState({}, '', '/'); }}
+      /></Suspense>
+</main>
+);
+}
+
+  // 3. Standard authenticated workspace / login / landing hub flow
   if (session) {
     return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
@@ -255,20 +307,7 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
 );
 }
 
-  // 3a. Invitation acceptance view (?invite=<token>)
-  if (inviteToken) {
-    return (
-<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-<Suspense fallback={PageFallback}><InviteAcceptView
-        token={inviteToken}
-        onLoginSuccess={(newSession) => setSession(newSession)}
-        onBack={() => { setInviteToken(null); window.history.replaceState({}, '', '/'); }}
-      /></Suspense>
-</main>
-);
-}
-
-  // 3b. Company signup view
+  // 3c. Company signup view
   if (showSignupForm) {
     return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
