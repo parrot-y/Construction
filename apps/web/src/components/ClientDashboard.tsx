@@ -980,6 +980,11 @@ function InvoicePayNotice({ invoice, onSent }: { invoice: any; onSent: (id: stri
         placeholder="Note (optional)"
         className="w-44 px-2 py-1 text-[11px] border border-slate-300 rounded"
       />
+      {method === 'M_PESA' && (
+        <span className="text-[10px] text-amber-700">
+          M-Pesa cap: KES 150,000 per transaction{(parseFloat(amount) || 0) > 150000 ? ' — this amount exceeds it' : ''}
+        </span>
+      )}
       {error && <span className="text-[10px] text-rose-600">{error}</span>}
       <div className="flex gap-1.5">
         <button

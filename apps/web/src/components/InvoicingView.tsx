@@ -663,6 +663,14 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 </button>
 </div>
 )}
+{showPayForm && payForm.method === 'M_PESA' && (
+<div className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                            M-Pesa collections are capped at <strong>KES 150,000.00 per transaction</strong>.
+                            {(parseFloat(payForm.amount) || 0) > 150000 && (
+                              <span className="font-semibold"> This amount exceeds the cap — split the payment or use bank transfer.</span>
+                            )}
+</div>
+)}
 </div>
 )}
 </td>

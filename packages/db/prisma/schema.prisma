@@ -55,6 +55,7 @@ model Tenant {
   quotes                    Quote[]
   invoices                  Invoice[]
   module_flags              TenantModuleFlag[]
+  provider_charges          ProviderPaymentCharge[]
 
   @@map("tenants")
 }
@@ -2513,6 +2514,7 @@ model Invoice {
   items    InvoiceLineItem[]
   payments InvoicePayment[]
   payment_notices ClientPaymentNotice[]
+  provider_charges ProviderPaymentCharge[]
 
   @@unique([tenant_id, invoice_no])
   @@index([tenant_id, status])
@@ -3380,4 +3382,39 @@ model ComplianceAction {
 
   @@index([tenant_id, visit_id])
   @@map("compliance_actions")
+}
+
+// -------------------------------------------------------------
+// PROVIDER PAYMENT CHARGES (Paystack etc.)
+// One row per initiated online charge. The provider webhook resolves
+// tenant/invoice through the SECURITY DEFINER lookup function
+// (lookup_provider_payment_charge) before entering tenant context.
+// Status machine: PENDING -> PROCESSING -> PAID | FAILED | EXPIRED
+// -------------------------------------------------------------
+
+model ProviderPaymentCharge {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenant_id           String   @db.Uuid
+  invoice_id          String   @db.Uuid
+  provider            String   @db.VarChar(20)  // "paystack"
+  reference           String   @db.VarChar(100) // our charge reference sent to provider
+  access_code         String?  @db.VarChar(100)
+  authorization_url   String?  @db.VarChar(500)
+  amount_minor        Int      // minor units (KES cents)
+  currency            String   @db.VarChar(3)   // ISO 4217, e.g. "KES"
+  email               String?  @db.VarChar(255)
+  status              String   @default("PENDING") @db.VarChar(20)
+  invoice_payment_id  String?  @db.Uuid
+  failure_reason      String?  @db.Text
+  created_by          String?  @db.Uuid
+  created_at          DateTime @default(now()) @db.Timestamptz
+  updated_at          DateTime @updatedAt @db.Timestamptz
+
+  tenant   Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  invoice  Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider, reference])
+  @@index([tenant_id, invoice_id])
+  @@index([tenant_id, status])
+  @@map("provider_payment_charges")
 }

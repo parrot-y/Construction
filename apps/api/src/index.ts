@@ -5,7 +5,7 @@ import rateLimit from '@fastify/rate-limit';
 import moduleGate from './plugins/moduleGate';
 import fs from 'node:fs';
 import path from 'node:path';
-import fastify, { FastifyError, FastifyInstance } from 'fastify';
+import fastify, { FastifyError, FastifyInstance, FastifyRequest } from 'fastify';
 import { HealthCheckResponse } from '@construction/validation';
 import { prisma } from '@construction/db';
 import { registerAuthorizationGuards } from './plugins/routeAuthorization';
@@ -37,6 +37,7 @@ import { enterpriseOperationsRoutes } from './routes/enterpriseOperations';
 import { platformServicesRoutes } from './routes/platformServices';
 import { quotesRoutes } from './routes/quotes';
 import { invoicesRoutes } from './routes/invoices';
+import { paymentRoutes } from './routes/payments';
 import { certificatesRoutes } from './routes/certificates';
 import { commitmentsRoutes } from './routes/commitments';
 import { announcementsRoutes } from './routes/announcements';
@@ -93,8 +94,11 @@ export function buildServer(): FastifyInstance {
   // Tolerant JSON body parser: DELETE/other bodiless requests may still carry
   // `Content-Type: application/json` with an empty payload — treat that as
   // "no body" instead of Fastify's default 400.
-  server.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+  server.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
     const raw = typeof body === 'string' ? body : String(body ?? '');
+    // Webhook signature verification (e.g. x-paystack-signature) needs the
+    // exact bytes received — stash them before parsing.
+    (req as FastifyRequest & { rawBody?: string }).rawBody = raw;
     if (!raw.trim()) return done(null, undefined);
     try {
       done(null, JSON.parse(raw));
@@ -256,6 +260,7 @@ export function buildServer(): FastifyInstance {
   server.register(procurementRoutes);
   server.register(operatorRoutes);
   server.register(problemReportRoutes);
+  server.register(paymentRoutes);
 
   // Readiness probe: /health is liveness; /ready proves the DB is reachable.
   server.get('/ready', async (_request, reply) => {

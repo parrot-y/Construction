@@ -51,6 +51,7 @@ const UNAUTHENTICATED_ALLOWLIST: Record<string, string> = {
   'GET /api/v1/invitations/lookup/:token': 'Token-scoped invite preview (32-byte random token, rate limited)',
   'POST /api/v1/billing/mpesa-callback': 'Safaricom Daraja STK callback (checkout-request-id lookup)',
   'POST /api/v1/billing/mpesa-b2c-callback': 'Safaricom Daraja B2C callback (result lookup)',
+  'POST /api/v1/webhooks/paystack': 'Paystack webhook — x-paystack-signature HMAC-SHA512 verified against raw body in-handler',
   'POST /api/v1/telematics/ping': 'Device ingest endpoint (device-token auth in-handler)',
   'POST /api/v1/telematics/canbus-ping': 'Device ingest endpoint (device-token auth in-handler)',
   'POST /api/v1/operator/admin-account': 'Platform-operator activation — x-operator-key header, not a user session',
