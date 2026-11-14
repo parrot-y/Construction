@@ -84,7 +84,7 @@ against the AWS Pricing Calculator once the account exists.
    assumptions, resource name collisions, service quotas, and the
    ACM→Route53→ALB dependency chain are all unproven. First real plan
    may surface conflicts (e.g. default VPC subnets in <2 AZs, existing
-   `siteforge-*` names). Blocker: AWS account + credentials.
+   `sitesafi-*` names). Blocker: AWS account + credentials.
 2. **Email deliverability on staging.** `SES_FROM=no-reply@<domain>`
    requires a verified SES domain identity AND SES production access
    (out of sandbox) — otherwise invite/reset emails silently fail.

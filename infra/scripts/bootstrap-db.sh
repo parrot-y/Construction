@@ -2,6 +2,12 @@
 # Creates the split DB roles required for RLS enforcement in production-like
 # environments. Run ONCE as the RDS master user against the staging DB.
 #
+# Role model (explicit, least privilege):
+#   db_migrator — owns schema objects; runs `prisma migrate deploy` + rls.sql.
+#                 NOSUPERUSER NOBYPASSRLS so it can never silently bypass RLS.
+#   db_app      — runtime role used by the API. NOSUPERUSER NOBYPASSRLS is
+#                 mandatory: without it, RLS policies are decorative.
+#
 # Required env:
 #   PGHOST PGUSER PGPASSWORD        — RDS master credentials
 #   MIGRATOR_DB_PASSWORD            — password for db_migrator (generated, store in Secrets Manager)
@@ -16,13 +22,21 @@ psql -v ON_ERROR_STOP=1 \
   -v app_pw="$APP_DB_PASSWORD" <<'SQL'
 DO $$ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='db_migrator') THEN
-    CREATE ROLE db_migrator WITH LOGIN CREATEDB;
+    CREATE ROLE db_migrator WITH LOGIN;
   END IF;
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='db_app') THEN
     CREATE ROLE db_app WITH LOGIN;
   END IF;
 END $$;
-ALTER ROLE db_migrator WITH PASSWORD :'migrator_pw';
-ALTER ROLE db_app WITH PASSWORD :'app_pw';
+ALTER ROLE db_migrator WITH PASSWORD :'migrator_pw'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+ALTER ROLE db_app WITH PASSWORD :'app_pw'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 GRANT CONNECT ON DATABASE construction TO db_migrator, db_app;
+-- db_migrator runs DDL (migrations + rls.sql); db_app gets DML only via
+-- the grants applied by rls.sql — never CREATE on the schema.
+GRANT CREATE ON DATABASE construction TO db_migrator;
 SQL
+
+echo "Roles verified:"
+psql -tA -c "SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname IN ('db_migrator','db_app') ORDER BY rolname;"

@@ -13,7 +13,7 @@ variable "environment" {
 variable "project_name" {
   description = "Short project slug used in resource names"
   type        = string
-  default     = "siteforge"
+  default     = "sitesafi"
 }
 
 variable "product_domain" {
@@ -53,6 +53,12 @@ variable "alert_phone" {
   description = "Optional E.164 phone for SNS SMS uptime alerts (e.g. +2547XXXXXXXX)"
   type        = string
   default     = ""
+}
+
+variable "monthly_budget_usd" {
+  description = "Monthly cost budget alarm threshold in USD"
+  type        = string
+  default     = "100"
 }
 
 variable "trusted_proxy_cidrs" {

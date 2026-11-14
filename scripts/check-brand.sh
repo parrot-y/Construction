@@ -7,7 +7,7 @@
 #     contracts whose brand-ban regexes must name the forbidden strings.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PATTERN='buildsasa|\bsasa\b|mjengo|site safi'
+PATTERN='buildsasa|\bsasa\b|mjengo|site safi|siteforge'
 EXCLUDES='--exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.turbo --exclude-dir=coverage --exclude-dir=.git'
 rc=0
 hits=$(grep -rniIE "$PATTERN" $EXCLUDES apps packages infra scripts .github 2>/dev/null \

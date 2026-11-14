@@ -48,3 +48,5 @@ uploads/
 infra/terraform.tfstate*
 infra/.terraform/
 infra/crash.log
+infra/bootstrap/.terraform/
+infra/bootstrap/terraform.tfstate*

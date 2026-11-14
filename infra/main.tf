@@ -680,7 +680,15 @@ resource "aws_iam_role" "github_deploy" {
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" }
-        StringLike   = { "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:*" }
+        # Deploys only from main or from a job bound to the `staging`
+        # GitHub environment (which must have required reviewers enabled —
+        # see infra/README.md). No wildcard repo/branch access.
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:${var.github_repo}:ref:refs/heads/main",
+            "repo:${var.github_repo}:environment:staging",
+          ]
+        }
       }
     }]
   })
@@ -729,4 +737,101 @@ resource "aws_iam_role_policy" "github_deploy" {
       },
     ]
   })
+}
+
+# ---------------------------------------------------------------------------
+# Cost guardrail — monthly budget with 80%/100% email alerts via SNS.
+# ---------------------------------------------------------------------------
+
+resource "aws_budgets_budget" "monthly" {
+  name         = "${local.name}-monthly"
+  budget_type  = "COST"
+  limit_amount = var.monthly_budget_usd
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+  }
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Audit trail — multi-region CloudTrail to a dedicated private S3 bucket.
+# ---------------------------------------------------------------------------
+
+resource "aws_s3_bucket" "cloudtrail" {
+  bucket = "${local.name}-cloudtrail"
+}
+
+resource "aws_s3_bucket_public_access_block" "cloudtrail" {
+  bucket = aws_s3_bucket.cloudtrail.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "cloudtrail" {
+  bucket = aws_s3_bucket.cloudtrail.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail" {
+  bucket = aws_s3_bucket.cloudtrail.id
+  rule {
+    id     = "expire-old-trail-logs"
+    status = "Enabled"
+    filter {}
+    expiration {
+      days = 365
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "cloudtrail" {
+  bucket = aws_s3_bucket.cloudtrail.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "AWSCloudTrailAclCheck"
+      Effect    = "Allow"
+      Principal = { Service = "cloudtrail.amazonaws.com" }
+      Action    = "s3:GetBucketAcl"
+      Resource  = aws_s3_bucket.cloudtrail.arn
+    }]
+  })
+}
+
+resource "aws_cloudtrail" "main" {
+  name                          = "${local.name}-trail"
+  s3_bucket_name                = aws_s3_bucket.cloudtrail.id
+  is_multi_region_trail         = true
+  enable_log_file_validation    = true
+  include_global_service_events = true
+
+  depends_on = [aws_s3_bucket_policy.cloudtrail]
+}
+
+# ---------------------------------------------------------------------------
+# Threat detection — GuardDuty (regional, 30-day default retention).
+# ---------------------------------------------------------------------------
+
+resource "aws_guardduty_detector" "main" {
+  enable = true
 }
