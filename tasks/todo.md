@@ -606,3 +606,25 @@ requirements, failing-test-first, then built.
   (last full sweep 236/236 at 1ce7753); CI e2e workflow runs it on PR.
 - NOT REACHED: Phase E terraform plan — gated on auditor acceptance
   of Phases A–B.
+
+## Pilot readiness — e2e sweep review (2026-11-14)
+
+- OBSERVED: full Playwright suite on commit 2a5f28a →
+  docs/evidence/e2e-2a5f28a.md: 272/272 passed (136 chromium +
+  136 mobile-390), 0 failed / 0 skipped / 0 flaky, 7.7m. All five
+  aud-* specs green on both viewports; aud-spec hashes verified
+  unchanged before the run.
+- OBSERVED: two real product bugs found by the sweep and fixed in
+  2a5f28a (aud specs untouched):
+  1. Portal reload after token redaction dropped to landing page —
+     portal context now persists in sessionStorage; revoked links
+     show the honest expired/switched-off state (aud-stage2 t8).
+  2. ?invite= link while signed in rendered the workspace instead of
+     the invitation state — invite view now takes precedence; token
+     cleared on success (g-contractor-journey t2).
+- OBSERVED: safety gate split (b532e54): safety-incidents CORE,
+  safety-audits peripheral; fresh-tenant 404 gating test added.
+- OBSERVED: canonical offline keys renamed to sitesafi_* with
+  buildsasa_*/mjengo_* read-only migration sources (5d4372f).
+- NOT REACHED: Phase E terraform plan — still gated on auditor
+  acceptance of Phases A–B.
