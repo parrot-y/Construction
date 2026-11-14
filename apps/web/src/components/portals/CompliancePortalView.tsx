@@ -198,7 +198,7 @@ export default function CompliancePortalView({
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-<p className="text-[11px] font-semibold text-slate-500">0.5% Statutory Levy</p>
+<p className="text-[11px] font-semibold text-slate-500">Statutory Levy</p>
 <p className="text-sm font-bold text-emerald-600">
             {complianceSummary.statutoryLevyPaid === null ? 'Not tracked' : complianceSummary.statutoryLevyPaid ? 'Paid & Reconciled' : 'Pending'}
 </p>

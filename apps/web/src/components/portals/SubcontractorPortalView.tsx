@@ -149,11 +149,14 @@ export default function SubcontractorPortalView({
         };
       }),
     );
+    const wAvgRetentionRate = contractSum > 0
+      ? packages.reduce((a: number, p: any) => a + (Number(p.retentionRatePct) || 0) * Number(p.subcontractSum || 0), 0) / contractSum
+      : (packages[0] ? Number(packages[0].retentionRatePct) || 0 : 0);
     return {
       contractSumKes: String(contractSum),
       cumulativeCertifiedKes: String(certified),
       retentionWithheldKes: String(retention),
-      retentionRatePct: packages[0] ? Number(packages[0].retentionRatePct || 5) : 5,
+      retentionRatePct: Math.round(wAvgRetentionRate * 100) / 100,
       netDisbursedKes: allVals.filter((v: any) => v.paymentStatus === 'PAID')
         .reduce((a: number, v: any) => a + Number(v.netPayableKes || 0), 0)
         .toString(),
@@ -330,7 +333,7 @@ export default function SubcontractorPortalView({
               : 'border-transparent text-slate-500 hover:text-slate-800'
 }`}
         >
-           Trade Valuations &amp; 5% Retention Ledger
+           Trade Valuations &amp; {commercialSummary.retentionRatePct}% Retention Ledger
 </button>
 </div>
 
@@ -643,7 +646,7 @@ export default function SubcontractorPortalView({
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 tabular-nums"
                 />
 <p className="text-[10px] text-slate-500 mt-0.5">
-                  Contract retention and 3% WHT are calculated automatically on submission.
+                  Contract retention and withholding tax are calculated automatically on submission.
 </p>
 </div>
 
