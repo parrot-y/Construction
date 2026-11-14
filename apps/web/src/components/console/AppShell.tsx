@@ -79,7 +79,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 </select>
 )}
 
-<div className="flex-1 max-w-md mx-auto relative">
+<div className="flex-1 min-w-0 max-w-md mx-auto relative">
 <div className="relative">
 <IconSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
 <input

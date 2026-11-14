@@ -219,7 +219,7 @@ export default function SupplierPortalView({
 });
 
   return (
-<div className="max-w-5xl mx-auto space-y-6" data-testid="supplier-portal-view">
+<div className="w-full max-w-5xl mx-auto space-y-6" data-testid="supplier-portal-view">
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
