@@ -45,7 +45,7 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
   const [costSuccess, setCostSuccess] = useState<string | null>(null);
   const [todayHeadcount, setTodayHeadcount] = useState<number>(0);
   const [projects, setProjects] = useState<{ id: string; name: string; code: string}[]>([]);
-  const [section, setSection] = useState<'today' | 'messages' | 'site' | 'more'>('site');
+  const [section, setSection] = useState<'today' | 'messages' | 'site' | 'more'>('today');
   const [pid, setPid] = useState('');
   const activeProject = projects.find((p) => p.id === pid) || projects[0];
   const projectLabel = activeProject ? `${activeProject.name} (${activeProject.code})` : 'No project assigned';
@@ -272,13 +272,6 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
         canManage={true}
       />
 
-      {/* Safety & HSE Incident Register (OSHA 2007) */}
-<SafetyIncidentLogView
-        projectId={pid}
-        canLog={true}
-        canInvestigate={true}
-      />
-
       {/* Project Drawing & Regulatory Document Vault */}
 <ProjectDocumentVaultView
         projectId={pid}
@@ -395,15 +388,6 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
         defaultTab="checklists"
       />
 
-      {/* Practical Completion Snagging & Punch List Register */}
-<SnaggingListView
-        projectId={pid}
-        projectName={projectLabel}
-        canAdd={true}
-        canRectify={true}
-        canVerify={false}
-      />
-
 </>)}
 
       {section === 'messages' && (<>
@@ -418,8 +402,70 @@ export default function SupervisorDashboard({ session}: SupervisorDashboardProps
 </>)}
 
       {section === 'today' && (<>
+{/* Today's work — field actions first */}
+<div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+<h3 className="text-sm font-bold text-slate-900">Today's work</h3>
+<p className="text-xs text-slate-500 mt-0.5">{new Date().toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — start here each morning.</p>
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+<button
+              type="button"
+              data-testid="today-log-diary-btn"
+              onClick={() => setShowDiaryModal(true)}
+              className="text-left p-4 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition"
+            >
+<span className="block text-sm font-bold text-amber-900">Log today's diary</span>
+<span className="block text-[11px] text-amber-700 mt-1">Weather, labour, deliveries &amp; progress</span>
+</button>
+<button
+              type="button"
+              data-testid="today-checklists-btn"
+              onClick={() => document.getElementById('todays-checklists')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="text-left p-4 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 transition"
+            >
+<span className="block text-sm font-bold text-blue-900">Open checklists</span>
+<span className="block text-[11px] text-blue-700 mt-1">Hold points &amp; quality inspections</span>
+</button>
+<button
+              type="button"
+              data-testid="today-snags-btn"
+              onClick={() => document.getElementById('todays-snags')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="text-left p-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 transition"
+            >
+<span className="block text-sm font-bold text-rose-900">Open snags</span>
+<span className="block text-[11px] text-rose-700 mt-1">Defects to rectify &amp; close out</span>
+</button>
+<button
+              type="button"
+              data-testid="today-safety-btn"
+              onClick={() => document.getElementById('todays-safety')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="text-left p-4 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition"
+            >
+<span className="block text-sm font-bold text-emerald-900">Report safety incident</span>
+<span className="block text-[11px] text-emerald-700 mt-1">Near miss, injury or hazard</span>
+</button>
+</div>
+</div>
+
 <AttendanceView canManage={true} />
+<div id="todays-checklists" className="scroll-mt-20">
 <ChecklistsView canManage={true} />
+</div>
+<div id="todays-snags" className="scroll-mt-20">
+<SnaggingListView
+          projectId={pid}
+          projectName={projectLabel}
+          canAdd={true}
+          canRectify={true}
+          canVerify={false}
+        />
+</div>
+<div id="todays-safety" className="scroll-mt-20">
+<SafetyIncidentLogView
+          projectId={pid}
+          canLog={true}
+          canInvestigate={true}
+        />
+</div>
 </>)}
 
       {/* Site Diary Modal */}
