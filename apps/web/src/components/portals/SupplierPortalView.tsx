@@ -74,7 +74,6 @@ export default function SupplierPortalView({
   supplierCategory,
   projectName,
   projectCode,
-  onBackToDashboard,
 }: SupplierPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -246,14 +245,6 @@ export default function SupplierPortalView({
           >
              PO &amp; Invoicing Ledger
 </button>
-          {onBackToDashboard && (
-<button
-              onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
-            >
-              ← Back to Project
-</button>
-)}
 </div>
 </header>
       {/* What you can do here */}

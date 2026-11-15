@@ -77,7 +77,6 @@ export default function ConsultantPortalView({
   stakeholderRole,
   projectName,
   projectCode,
-  onBackToDashboard,
 }: ConsultantPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -283,20 +282,10 @@ export default function ConsultantPortalView({
 </div>
 <h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
 <p className="text-xs text-slate-500">
-            Welcome,<span className="text-slate-700 font-semibold">{stakeholder.name}</span> • {stakeholder.role}
+            Welcome, <span className="text-slate-700 font-semibold">{stakeholder.name}</span> • {stakeholder.role}
 </p>
 </div>
 
-<div className="flex items-center gap-3">
-          {onBackToDashboard && (
-<button
-              onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
-            >
-              ← Back to Project
-</button>
-)}
-</div>
 </header>
       {/* What you can do here */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -305,12 +294,13 @@ export default function ConsultantPortalView({
             <li>• Review RFIs raised by the site team and reply with technical answers</li>
             <li>• Track concrete cube test results against KS 02-598 targets</li>
             <li>• Complete pre-pour QA checklists for upcoming concrete works</li>
+            <li>• Verify snags the contractor has rectified, or reject them with a reason and photo</li>
 </ul>
 </div>
 
 
       {/* Tabs */}
-<div className="flex border-b border-slate-200 gap-4 text-xs font-semibold">
+<div className="flex flex-wrap border-b border-slate-200 gap-x-4 gap-y-1 text-xs font-semibold">
 <button
           onClick={() => setActiveTab('rfis')}
           className={`pb-2 border-b-2 transition ${

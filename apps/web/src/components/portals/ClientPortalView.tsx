@@ -71,7 +71,7 @@ const STATUS_STYLES: Record<string, string> = {
   VOID: 'bg-slate-100 text-slate-400',
 };
 
-export default function ClientPortalView({ token, onBackToDashboard}: ClientPortalViewProps): React.JSX.Element {
+export default function ClientPortalView({ token }: ClientPortalViewProps): React.JSX.Element {
   const dialog = useAppDialog();
   const [data, setData] = useState<PortalPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -207,9 +207,6 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
             {data.project?.code ? ` · ${data.project.code}` : ''}
 </p>
 </div>
-        {onBackToDashboard && (
-<button onClick={onBackToDashboard} className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition shrink-0">← Back to Dashboard</button>
-)}
 </div>
 
       {/* What you can do here */}
@@ -218,6 +215,8 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 <ul className="text-xs text-slate-600 space-y-1">
             <li>• Approve or decline change orders raised by the contractor</li>
             <li>• Follow payment certificates, invoices and retention deductions</li>
+            <li>• Track practical completion, the defects liability period and snag rectification</li>
+            <li>• Acknowledge practical completion once the certificate is issued</li>
             <li>• View progress photos, milestones and project updates</li>
 </ul>
 </div>
@@ -231,66 +230,6 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
           {pending.length} change order{pending.length > 1 ? 's' : ''} awaiting your approval
 </div>
 )}
-
-<div className="space-y-3">
-        {data.changeOrders.length === 0 && (
-<p className="text-sm text-slate-500 text-center py-8">No change orders on this project yet — when the contractor raises a variation, it will appear here for your approval.</p>
-)}
-        {data.changeOrders.map((co) => {
-          const isNegative = co.net_amount.trim().startsWith('-');
-          const absAmount = isNegative ? co.net_amount.trim().slice(1) : co.net_amount.trim();
-          return (
-<div key={co.id} className="border border-slate-200 rounded-xl p-4 space-y-2">
-<div className="flex items-center justify-between gap-2 flex-wrap">
-<div className="flex items-center gap-2">
-<span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
-                    CO-{String(co.variation_no).padStart(4, '0')}
-</span>
-<span className="text-sm font-bold text-slate-900">{co.title}</span>
-<span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLES[co.status] || STATUS_STYLES.DRAFT}`}>
-                    {co.status.replace(/_/g, ' ')}
-</span>
-</div>
-<span className={`text-sm tabular-nums font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
-                  {isNegative ? '-' : '+'}KES {toCurrencyString(absAmount)}
-</span>
-</div>
-
-<p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg">{co.reason}</p>
-
-              {co.items && co.items.length > 0 && (
-<ul className="text-[11px] text-slate-600 space-y-0.5 pl-2">
-                  {co.items.map((it) => (
-<li key={it.id}>
-                      • {it.description} — {it.quantity} {it.unit} ({it.total_amount})
-</li>
-))}
-</ul>
-)}
-
-              {co.time_extension_days > 0 && (
-<p className="text-[11px] text-slate-500">Schedule impact: +{co.time_extension_days} days</p>
-)}
-
-              {co.status === 'OWNER_REVIEW' && (
-<div className="flex gap-2 pt-1">
-<button
-                    onClick={() => void respond(co, 'APPROVE')}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
-                  >
-                    Approve
-</button>
-<button
-                    onClick={() => void respond(co, 'REJECT')}
-                    className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg"
-                  >
-                    Reject
-</button>
-</div>
-)}
-</div>
-);
-})}
 
       {/* Stage 6: practical completion & closeout */}
       {extra?.closeout && (extra.closeout.practicalCompletion || extra.closeout.snags.length > 0) && (
@@ -352,6 +291,67 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
           )}
         </div>
       )}
+
+
+<div className="space-y-3">
+        {data.changeOrders.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No change orders on this project yet — when the contractor raises a variation, it will appear here for your approval.</p>
+)}
+        {data.changeOrders.map((co) => {
+          const isNegative = co.net_amount.trim().startsWith('-');
+          const absAmount = isNegative ? co.net_amount.trim().slice(1) : co.net_amount.trim();
+          return (
+<div key={co.id} className="border border-slate-200 rounded-xl p-4 space-y-2">
+<div className="flex items-center justify-between gap-2 flex-wrap">
+<div className="flex items-center gap-2">
+<span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
+                    CO-{String(co.variation_no).padStart(4, '0')}
+</span>
+<span className="text-sm font-bold text-slate-900">{co.title}</span>
+<span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLES[co.status] || STATUS_STYLES.DRAFT}`}>
+                    {co.status.replace(/_/g, ' ')}
+</span>
+</div>
+<span className={`text-sm tabular-nums font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
+                  {isNegative ? '-' : '+'}KES {toCurrencyString(absAmount)}
+</span>
+</div>
+
+<p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg">{co.reason}</p>
+
+              {co.items && co.items.length > 0 && (
+<ul className="text-[11px] text-slate-600 space-y-0.5 pl-2">
+                  {co.items.map((it) => (
+<li key={it.id}>
+                      • {it.description} — {it.quantity} {it.unit} ({it.total_amount})
+</li>
+))}
+</ul>
+)}
+
+              {co.time_extension_days > 0 && (
+<p className="text-[11px] text-slate-500">Schedule impact: +{co.time_extension_days} days</p>
+)}
+
+              {co.status === 'OWNER_REVIEW' && (
+<div className="flex gap-2 pt-1">
+<button
+                    onClick={() => void respond(co, 'APPROVE')}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+                  >
+                    Approve
+</button>
+<button
+                    onClick={() => void respond(co, 'REJECT')}
+                    className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg"
+                  >
+                    Reject
+</button>
+</div>
+)}
+</div>
+);
+})}
 
       {/* Read-only project feed: progress, certificates, invoices */}
       {extra && (
