@@ -14,6 +14,7 @@ import ObservationsView from './ObservationsView';
 import SiteDiaryModal from './SiteDiaryModal';
 import SafetyIncidentLogView from './SafetyIncidentLogView';
 import SnaggingListView from './SnaggingListView';
+import OfflineSyncBanner from './OfflineSyncBanner';
 
 interface ProjectOpt { id: string; name: string; code: string}
 
@@ -45,8 +46,8 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
   const [diaries, setDiaries] = useState<DiaryRow[]>([]);
 
   const can = (p: string) => permissions.includes(p);
-  const canDiary = can('SITE_DIARY_CREATE') || can('SITE_DIARY_VIEW');
-  const canTenders = can('TENDER_VIEW');
+  const canDiary = can('site.diary_create') || can('site.diary_view');
+  const canTenders = can('tender.view');
 
   useEffect(() => {
     fetch('/api/v1/projects', { credentials: 'include'})
@@ -84,6 +85,7 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
 
   return (
 <div className="space-y-6 pb-24 sm:pb-6">
+      <OfflineSyncBanner />
       {/* Desktop pills */}
 <div className="hidden sm:flex items-center gap-2 bg-white rounded-xl border border-slate-200 p-1.5 w-fit">
         {SECTIONS.map((s) => (
@@ -103,7 +105,7 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
 <div className="bg-white rounded-xl border border-slate-200 p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-slate-900">Site Diary</h3>
-                {!readOnly && can('SITE_DIARY_CREATE') && (
+                {!readOnly && can('site.diary_create') && (
                   <button onClick={() => setDiaryOpen(true)}
                     className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg">
                     Record diary

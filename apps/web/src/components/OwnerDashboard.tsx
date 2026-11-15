@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { formatKes } from '../ui';
 import { AuthSession } from '../types/auth';
 import PhotoEvidenceGallery from './PhotoEvidenceGallery';
+import VariationManagementView from './VariationManagementView';
 
 interface OwnerDashboardProps {
   session: AuthSession;
@@ -29,6 +30,7 @@ function plainStatus(s?: string): string {
 export default function OwnerDashboard({ session }: OwnerDashboardProps): React.JSX.Element {
   const { user } = session;
   const [project, setProject] = useState<any>(null);
+  const [projectId, setProjectId] = useState('');
   const [approvals, setApprovals] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [photos, setPhotos] = useState<any[]>([]);
@@ -44,6 +46,7 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
         const list = pj.data || [];
         if (cancelled || list.length === 0) return;
         const pid = list[0].id;
+        setProjectId(pid);
 
         const [portal, appr, inv] = await Promise.all([
           fetch(`/api/v1/projects/${pid}/client-portal`, { credentials: 'include' }),
@@ -131,6 +134,16 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
           </div>
         )}
       </div>
+
+      {projectId && (
+        <VariationManagementView
+          projectId={projectId}
+          userRole="OWNER"
+          canRequest={false}
+          canReview={true}
+          canApprove={true}
+        />
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[

@@ -54,3 +54,40 @@ one item = one commit `H<n>: <what>`; evidence log named for final sha.
 
 ### Verify
 - [ ] verify-local.sh on final commit; full Playwright matrix; evidence.
+
+## H5 detail plan (2026-11-15)
+
+Product gaps found while mapping journeys — fix inside H5:
+- [ ] CompliancePortalView: `statutoryPermits` state never populated (permits
+      table permanently empty) — wire `d.permits`; add VALID/EXPIRING_SOON/
+      EXPIRED badge cases; add Site visits card (list `d.visits`) + Record
+      visit form → POST /portals/compliance/:token/visits.
+- [ ] OwnerDashboard: OWNER holds VARIATION_REVIEW+VARIATION_APPROVE but has
+      no UI — embed VariationManagementView card (canApprove/canReview).
+
+Spec: e2e/tests/h5-portal-journeys.spec.ts — dedicated demo tenant
+(Nyota Construction Ltd, same provisioning pattern as capture-visual.mjs),
+fixed realistic identities, fresh per-run fixtures (no timestamped names).
+Journeys: supplier PO accept→delivery confirm→invoice; compliance permit +
+record visit; field foreman today→diary→offline incident→sync; owner
+dashboard→approve CO; public quote view→accept→deposit invoice via client
+portal. Screenshots → docs/evidence/visual/<sha>/portal-flows/.
+
+## H5 progress
+
+- [x] CompliancePortalView: permits wired from `d.permits` (was permanently
+      empty state), VALID/EXPIRING_SOON/EXPIRED badges, visits card +
+      record-visit form → POST /portals/compliance/:token/visits.
+- [x] OwnerDashboard: embedded VariationManagementView (canApprove/canReview)
+      so OWNER can decide pending change orders — OWNER holds
+      VARIATION_REVIEW+APPROVE but had no UI surface.
+- [x] FieldDashboard: mounted OfflineSyncBanner (field roles had NO sync
+      flush — queued mutations would never replay) AND fixed permission
+      check bug: can() compared enum KEYS ('SITE_DIARY_CREATE') instead of
+      VALUES ('site.diary_create') — 'Record diary' never rendered for
+      FOREMAN/WORKER/SITE_ENGINEER/TRADE_LEAD.
+- [x] e2e/tests/h5-portal-journeys.spec.ts — 6 tests × 2 viewports, all
+      green (12/12). Dedicated Nyota tenant, fresh fixtures per run.
+      Journeys: supplier PO accept→delivery confirm→invoice; compliance
+      permits+visit; foreman diary+offline incident→exactly-once sync;
+      owner CO approve; public quote accept→deposit invoice.
