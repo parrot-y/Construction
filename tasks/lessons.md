@@ -92,3 +92,9 @@ The live dev API uses `construction_demo`, tests/verify use `construction_test` 
 - renderToString escapes apostrophes as &#x27; — assert on escaped text or apostrophe-free strings.
 - Deleting a dead component kept alive by tests: match `it(` blocks by paren-balance, not indentation — this file's closers are `});` at column 0. Verify no non-target tests were removed by diffing deleted ranges.
 - Currency guard bans literal "KES <digits>" in components — policy constants (M-Pesa cap) must render via formatKes(), not hard-coded text.
+
+## 2026-11-15 — Stage 6 closeout lessons
+- Contract-changing features break PRE-EXISTING vitest fixtures that encode the old behaviour (hard-coded retention %, terminal REJECTED, COMPLETED side-effect). Grep the suite for the old constants BEFORE committing the feature; update fixtures to seed the new ledger state rather than weakening assertions.
+- verify-local.sh is the real gate: the API suite runs ~10min and catches drift the targeted runs miss — always re-run it on the FINAL sha before claiming done.
+- Token-scoped portal POST routes must be added to route-guard.test.ts UNAUTHENTICATED_ALLOWLIST with a justification — the static scan fails otherwise.
+- Evidence folder named for the commit that CAPTURED it can drift from later fix commits; decide once (capture-commit vs final-commit) and document — do not rename per fix or the trail churns.
