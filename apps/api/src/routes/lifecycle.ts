@@ -21,6 +21,7 @@ import {
 } from '@construction/validation';
 import { Permissions } from '@construction/permissions';
 import { requirePermission } from '../plugins/rbac';
+import { retentionPosition } from '../services/retention';
 import { randomUUID } from 'node:crypto';
 import { sniffMime, verifyUpload } from '../lib/uploadSecurity';
 import { getStorageDriver } from '../lib/storage';
@@ -1968,9 +1969,12 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
   );
 
   // 5.2 POST /api/v1/projects/:projectId/certificates - Issue Certificate & Retention Release
+  // Stage 6: completion/DLP/final certificates and retention release require
+  // CERTIFICATE_CLOSEOUT — the contractor's own site team (SUPERINTENDENT,
+  // SITE_SUPERVISOR…) must not certify their own practical completion.
   server.post(
     '/api/v1/projects/:projectId/certificates',
-    { preHandler: [server.authenticate] },
+    { preHandler: [server.authenticate, requirePermission(Permissions.CERTIFICATE_CLOSEOUT)] },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { projectId } = request.params as { projectId: string };
@@ -2004,44 +2008,64 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             throw { status: 404, message: 'Project not found' };
           }
 
-          // Kenyan Standard Form of Building Contract (JBC 1999) Retention Mechanics:
-          // Total Retention Fund Limit = 5.0% of Original Contract Sum
-          // First Moiety (50% of retention fund = 2.5% of contract sum) released at Practical Completion
-          // Second Moiety (final 50% = remaining 2.5% of contract sum) released at Making Good Defects / DLP Expiry
-          let retentionReleasedDec: Decimal;
-
-          if (data.retentionAmountReleased) {
-            retentionReleasedDec = toDecimal(data.retentionAmountReleased);
-          } else {
-            // Determine project contract sum baseline (active BOQ or original_contract_sum)
-            const activeBoq = await tx.bOQ.findFirst({
-              where: { project_id: projectId, status: { in: ['ACTIVE', 'APPROVED'] } },
-              orderBy: { version: 'desc' },
+          // Stage 6: one PRACTICAL_COMPLETION certificate per project — a
+          // second would release the first moiety of retention twice.
+          if (data.certificateType === 'PRACTICAL_COMPLETION') {
+            const existingPc = await tx.defectsLiabilityCertificate.findFirst({
+              where: { project_id: projectId, certificate_type: 'PRACTICAL_COMPLETION' },
+              select: { id: true },
             });
-
-            let contractSum = toDecimal(project.original_contract_sum.toString());
-            if (activeBoq && toDecimal(activeBoq.total_amount.toString()).greaterThan(0)) {
-              contractSum = toDecimal(activeBoq.total_amount.toString());
-            } else if (contractSum.isZero() && toDecimal(project.current_approved_budget.toString()).greaterThan(0)) {
-              contractSum = toDecimal(project.current_approved_budget.toString());
+            if (existingPc) {
+              throw { status: 409, message: 'A practical completion certificate already exists for this project' };
             }
-
-            // Retention Fund Cap = 5% of Contract Sum
-            const maxRetentionCap = contractSum.times(0.05);
-
-            // JBC 1999: 50% of retention released at Practical Completion or Making Good Defects
-            retentionReleasedDec = maxRetentionCap.times(0.5).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
           }
 
-          // Compute DLP Expiry Date if not specified: default is effective_date + dlp_duration_months
+          // Retention release is ledger-driven (Stage 6 audit): the default
+          // is the correct moiety of retention ACTUALLY HELD on certified
+          // payment certificates minus what earlier closeout certificates
+          // already released — never a guessed percentage of contract sum.
+          //   PRACTICAL_COMPLETION      → first moiety = 50% of outstanding
+          //   MAKING_GOOD_DEFECTS /
+          //   FINAL_PAYMENT_CERTIFICATE → remaining outstanding in full
+          // A typed amount may never exceed the outstanding balance.
+          const pos = await retentionPosition(tx, projectId);
+          let retentionReleasedDec: Decimal;
+          if (data.retentionAmountReleased != null && data.retentionAmountReleased !== '') {
+            retentionReleasedDec = toDecimal(data.retentionAmountReleased);
+            if (retentionReleasedDec.lte(0)) {
+              throw { status: 400, message: 'retentionAmountReleased must be positive' };
+            }
+            if (retentionReleasedDec.gt(pos.outstanding)) {
+              throw {
+                status: 400,
+                message: `Retention release ${retentionReleasedDec.toFixed(2)} exceeds retention held and not yet released (${pos.outstanding.toFixed(2)})`,
+              };
+            }
+          } else if (data.certificateType === 'PRACTICAL_COMPLETION') {
+            retentionReleasedDec = pos.outstanding.dividedBy(2).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+          } else {
+            retentionReleasedDec = pos.outstanding.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+          }
+
+          // DLP expiry is derived from effective_date + duration. A typed
+          // override must be in the future and justified in the notes —
+          // a past date would fake the DEFECTS_EXPIRED gate (Stage 6 audit).
           let dlpExpiryDate: Date;
+          let dlpExpiryOverride = false;
+          const eff = new Date(`${data.effectiveDate}T00:00:00.000Z`);
+          const derivedExpiry = new Date(eff);
+          derivedExpiry.setMonth(derivedExpiry.getMonth() + (data.dlpDurationMonths || 6));
           if (data.dlpExpiryDate) {
             dlpExpiryDate = new Date(`${data.dlpExpiryDate}T00:00:00.000Z`);
+            if (dlpExpiryDate <= new Date()) {
+              throw { status: 400, message: 'dlpExpiryDate override must be a future date' };
+            }
+            if ((data.notes ?? '').replace(/\s+/g, '').length < 15) {
+              throw { status: 400, message: 'A dlpExpiryDate override requires a justification note of at least 15 characters' };
+            }
+            dlpExpiryOverride = true;
           } else {
-            const eff = new Date(`${data.effectiveDate}T00:00:00.000Z`);
-            const expiry = new Date(eff);
-            expiry.setMonth(expiry.getMonth() + (data.dlpDurationMonths || 6));
-            dlpExpiryDate = expiry;
+            dlpExpiryDate = derivedExpiry;
           }
 
           const created = await tx.defectsLiabilityCertificate.create({
@@ -2064,13 +2088,9 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             },
           });
 
-          // If practical completion achieved, project status can transition to PRACTICAL_COMPLETION or DLP
-          if (data.certificateType === 'PRACTICAL_COMPLETION' && project.status === 'ACTIVE') {
-            await tx.project.update({
-              where: { id: projectId },
-              data: { status: 'COMPLETED' },
-            });
-          }
+          // Stage 6: issuing a practical completion certificate does NOT mark
+          // the project COMPLETED — status follows the closeout stage machine
+          // (COMPLETED is set only when closeout reaches CLOSED).
 
           await recordAuditLog(tx, {
             tenantId,
@@ -2083,6 +2103,10 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               certificateType: created.certificate_type,
               certificateReference: created.certificate_reference,
               retentionAmountReleased: created.retention_amount_released.toString(),
+              retentionHeld: pos.held.toFixed(2),
+              retentionReleasedToDate: pos.released.toFixed(2),
+              retentionOutstanding: pos.outstanding.toFixed(2),
+              dlpExpiryOverride,
             },
           });
 

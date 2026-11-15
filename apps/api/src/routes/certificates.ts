@@ -14,6 +14,7 @@ import {
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
 import { listParams, listPage } from '../lib/pagination';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
+import { retentionPosition } from '../services/retention';
 import { nextDocumentNumber } from '../lib/counters';
 import { getTaxSettings } from '../lib/tax';
 import { notifyTeam } from '../lib/notify';
@@ -898,7 +899,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
   // =========================================================================
 
   async function closeoutChecklist(tx: Prisma.TransactionClient, projectId: string) {
-    const [pcCert, dlpCerts, openSnags, pendingCerts, project] = await Promise.all([
+    const [pcCert, dlpCerts, openSnags, pendingCerts, unpaidInvoices, project, retention] = await Promise.all([
       tx.defectsLiabilityCertificate.findFirst({
         where: { project_id: projectId, certificate_type: 'PRACTICAL_COMPLETION' },
         orderBy: { issue_date: 'desc' },
@@ -907,13 +908,21 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         where: { project_id: projectId },
         orderBy: { issue_date: 'desc' },
       }),
+      // Stage 6: EVERY snag not explicitly VERIFIED_CLOSED still blocks
+      // closeout — READY_FOR_REVIEW (awaiting consultant verification),
+      // REJECTED and CONTESTED all represent unresolved defects.
       tx.snagItem.count({
-        where: { project_id: projectId, status: { in: ['OPEN', 'IN_PROGRESS', 'RECTIFIED_BY_CONTRACTOR'] } },
+        where: { project_id: projectId, status: { not: 'VERIFIED_CLOSED' } },
       }),
       tx.paymentCertificate.count({
         where: { project_id: projectId, status: { in: ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW'] } },
       }),
+      // Stage 6: money still owed to the contractor blocks CLOSED.
+      tx.invoice.count({
+        where: { project_id: projectId, status: { in: ['SENT', 'PART_PAID', 'OVERDUE'] } },
+      }),
       tx.project.findUnique({ where: { id: projectId } }),
+      retentionPosition(tx, projectId),
     ]);
 
     const now = new Date();
@@ -922,11 +931,19 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
     const dlpActive = !!latestDlp?.dlp_expiry_date && new Date(latestDlp.dlp_expiry_date) > now;
 
     const stage = (project?.closeout_stage ?? 'IN_PROGRESS') as CloseoutStage;
+    // Retention outstanding must be fully released by closeout certificates
+    // or explicitly written off by an admin (reason >= 15 chars, audited).
+    const retentionOutstanding = retention.outstanding;
+    const retentionWrittenOff = retentionOutstanding.lte(0) || !!project?.retention_write_off_reason;
     const gates: Record<string, boolean> = {
       HANDED_OVER: !!pcCert,
       DEFECTS_LIABILITY: !!pcCert && dlpActive,
       DEFECTS_EXPIRED: !!pcCert && dlpExpired,
-      CLOSED: openSnags === 0 && pendingCerts === 0,
+      CLOSED:
+        openSnags === 0 &&
+        pendingCerts === 0 &&
+        unpaidInvoices === 0 &&
+        retentionWrittenOff,
     };
 
     return {
@@ -939,6 +956,11 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         defectsLiabilityExpired: dlpExpired,
         openSnagItems: openSnags,
         pendingPaymentCertificates: pendingCerts,
+        unpaidInvoices,
+        retentionHeld: retention.held.toFixed(2),
+        retentionReleased: retention.released.toFixed(2),
+        retentionOutstanding: retentionOutstanding.toFixed(2),
+        retentionWrittenOff: !retentionOutstanding.lte(0) && !!project?.retention_write_off_reason,
       },
       gates,
     };
@@ -975,7 +997,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
   server.post(
     '/api/v1/projects/:projectId/closeout/transition',
     {
-      schema: {"tags": ["Closeout"], "summary": "Advance closeout stage", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["stage"], "properties": {"stage": {"type": "string"}, "notes": {"type": "string"}}}}}}},
+      schema: {"tags": ["Closeout"], "summary": "Advance closeout stage", "security": [{"cookieAuth": []}], "parameters": [{"name": "projectId", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["stage"], "properties": {"stage": {"type": "string"}, "notes": {"type": "string"}, "retentionWriteOffReason": {"type": "string"}}}}}}},
       preHandler: [server.authenticate, requirePermission(Permissions.COST_APPROVE)],
     },
     async (request, reply) => {
@@ -988,7 +1010,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
       if (!parsed.success) {
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid closeout transition', details: parsed.error.errors });
       }
-      const { stage: target, notes } = parsed.data;
+      const { stage: target, notes, retentionWriteOffReason } = parsed.data;
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -1009,6 +1031,24 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           }
 
           const updateData: Record<string, unknown> = { closeout_stage: target };
+          // Stage 6: closing with retention still outstanding requires an
+          // explicit admin write-off (>= 15 non-space chars, audit-logged).
+          if (target === 'CLOSED') {
+            const pos = await retentionPosition(tx, projectId);
+            if (pos.outstanding.gt(0)) {
+              const reason = (retentionWriteOffReason ?? '').replace(/\s+/g, '');
+              if (reason.length < 15) {
+                throw {
+                  status: 400,
+                  message: `Retention of ${pos.outstanding.toFixed(2)} is still outstanding — release it via a defects certificate or provide retentionWriteOffReason (at least 15 characters) to write it off`,
+                };
+              }
+              updateData.retention_write_off_amount = pos.outstanding.toFixed(2);
+              updateData.retention_write_off_reason = retentionWriteOffReason!.trim();
+              updateData.retention_write_off_by = sub;
+              updateData.retention_write_off_at = new Date();
+            }
+          }
           if (target === 'HANDED_OVER' && !project.practical_completion_date) {
             const pcCert = await tx.defectsLiabilityCertificate.findFirst({
               where: { project_id: projectId, certificate_type: 'PRACTICAL_COMPLETION' },
@@ -1036,7 +1076,15 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
             action: 'CLOSEOUT_STAGE_TRANSITION',
             entityType: 'Project',
             entityId: projectId,
-            changes: { previousStage: current, newStage: target, notes: notes ?? null },
+            changes: {
+              previousStage: current,
+              newStage: target,
+              notes: notes ?? null,
+              retentionWriteOff:
+                target === 'CLOSED' && updateData.retention_write_off_reason
+                  ? { amount: updateData.retention_write_off_amount, reason: updateData.retention_write_off_reason }
+                  : null,
+            },
             ipAddress: request.ip,
             userAgent: (request.headers['user-agent'] as string) || null,
           });

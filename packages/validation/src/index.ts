@@ -1987,6 +1987,9 @@ export type PaymentCertificateAction = z.infer<typeof PaymentCertificateActionSc
 export const CloseoutTransitionSchema = z.object({
   stage: z.enum(['HANDED_OVER', 'DEFECTS_LIABILITY', 'DEFECTS_EXPIRED', 'CLOSED']),
   notes: z.string().max(2000).optional(),
+  // Stage 6: required when closing with retention still outstanding —
+  // the admin writes it off with a reason of >= 15 non-space characters.
+  retentionWriteOffReason: z.string().max(500).optional(),
 });
 export type CloseoutTransition = z.infer<typeof CloseoutTransitionSchema>;
 

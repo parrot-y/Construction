@@ -86,6 +86,11 @@ export const Permissions = {
 
   // Payment Certificates & Closeout (ADR-008)
   CERTIFICATE_MANAGE: 'certificate.manage',
+  // Completion / DLP / final certificates and retention release — a narrower
+  // gate than CERTIFICATE_MANAGE so the contractor's own site team
+  // (SUPERINTENDENT, SITE_SUPERVISOR, FOREMAN…) cannot certify their own
+  // practical completion or release retention (Stage 6 audit).
+  CERTIFICATE_CLOSEOUT: 'certificate.closeout',
   ANNOUNCEMENT_MANAGE: 'announcement.manage',
 
   // Site Diary & Progress
@@ -151,6 +156,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.CERTIFICATE_CLOSEOUT,
     Permissions.DOCUMENT_MANAGE,
     Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
@@ -194,6 +200,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.CERTIFICATE_CLOSEOUT,
     Permissions.DOCUMENT_MANAGE,
     Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
@@ -236,6 +243,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.COST_VIEW,
     Permissions.COST_APPROVE,
     Permissions.CERTIFICATE_MANAGE,
+    Permissions.CERTIFICATE_CLOSEOUT,
     Permissions.DOCUMENT_MANAGE,
     Permissions.ANNOUNCEMENT_MANAGE,
     Permissions.SITE_DIARY_CREATE,
@@ -334,6 +342,7 @@ export const RolePermissionsMap: Record<Role, readonly Permission[]> = {
     Permissions.INSPECTION_SUBMIT,
     Permissions.INSPECTION_VIEW,
     Permissions.INSPECTION_REVIEW,
+    Permissions.CERTIFICATE_CLOSEOUT,
   ],
   [Roles.OWNER]: [
     Permissions.PROJECT_VIEW,

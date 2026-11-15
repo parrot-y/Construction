@@ -171,6 +171,12 @@ model Project {
   // ADR-008 closeout stage machine: IN_PROGRESS -> HANDED_OVER -> DEFECTS_LIABILITY -> DEFECTS_EXPIRED -> CLOSED
   closeout_stage       String          @default("IN_PROGRESS") @db.VarChar(30)
   practical_completion_date DateTime?  @db.Date
+  // Stage 6: admin write-off of outstanding retention so a project can close
+  // without releasing money that was never earned back to the contractor.
+  retention_write_off_amount Decimal?  @db.Decimal(15, 2)
+  retention_write_off_reason String?   @db.VarChar(500)
+  retention_write_off_by     String?   @db.Uuid
+  retention_write_off_at     DateTime? @db.Timestamptz
   start_date           DateTime?       @db.Date
   target_end_date      DateTime?       @db.Date
   created_at           DateTime        @default(now()) @db.Timestamptz
