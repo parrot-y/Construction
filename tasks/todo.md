@@ -628,3 +628,26 @@ requirements, failing-test-first, then built.
   buildsasa_*/mjengo_* read-only migration sources (5d4372f).
 - NOT REACHED: Phase E terraform plan — still gated on auditor
   acceptance of Phases A–B.
+
+## Auditor fixes F1–F5 (2026-11-15)
+
+- F1 DONE (b09e423): client portal + all 5 portals filtered to issued
+  money documents only; portal-data-scoping.test.ts 3/3 (draft invoice
+  red-proved the leak first).
+- F2 DONE (41e3734): Paystack NEEDS_REVIEW on settlement failure
+  (audit + admin notify + 200 ack), FAILED→later-success settle,
+  optional partial amount (Decimal minor units, <=balance, <=KES150k
+  cap), rls.sql owns lookup_provider_payment_charge (db_migrator-owned
+  SECURITY DEFINER saw zero rows under FORCE RLS — root cause of the
+  8 failing webhook tests). paystack.test.ts 14/14 vs real Postgres.
+- F3 DONE (d1d5f50): real console FieldHome leads with Today's work
+  (diary/headcount/snags/safety incident) above inbox;
+  SupervisorDashboard.tsx deleted as dead code + 11 App.test.tsx blocks.
+- F4 DONE (bbdd2b2 + 8694323): capture-visual.mjs picks seeded
+  Riverside Commercial Plaza + realistic stakeholder names; 20 fresh
+  PNGs in docs/evidence/visual/bbdd2b2/; supervisor home verified live
+  at scrollWidth=390.
+- F5 VERIFIED: A2/A3/A4/A5/A6 commits all present (33ef490, 431fc89,
+  f9d225d, 279dec4, 0c4c86d); GuardDuty/OIDC in 97f653a.
+- IN PROGRESS: verify-local.sh on final commit → verify-<sha>.log.
+- NOT DONE (owner): terraform plan needs AWS creds + domain decision.

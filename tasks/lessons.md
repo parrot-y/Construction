@@ -84,3 +84,11 @@ The live dev API uses `construction_demo`, tests/verify use `construction_test` 
 - Playwright `set-cookie` header joins multiple cookies — split on `,(?=[^;]+=)` like `login()` in helpers.ts before building a Session manually.
 - E2E DB accumulates rows across runs — brand-string sweeps must also purge historical rows (inbox_messages sender_name) or payload-sampling tests flake on residue.
 - Auditor font-mono rule: `<tbody className="font-mono">` wraps mixed prose+numbers — restrict at element level, not container level.
+
+## 2026-11-15 — F1–F5 audit fixes lessons
+- SECURITY DEFINER functions created by a MIGRATION are owned by db_migrator; under FORCE RLS they see ZERO rows. Every lookup_* function must ALSO be (re)created in rls.sql (runs as postgres) — migration 0019's lookup_provider_payment_charge silently returned nothing until re-created there. Symptom: webhook "unknown_reference", not an error.
+- JSON.stringify(NaN) → null: a test sending `{amount: NaN}` actually delivers `amount: null` — server-side `!== undefined && !== null` guards treat it as "absent". Validate `!== undefined` only, and let null fail the number check.
+- Zod enum drift: Fastify route schema said BANK_TRANSFER but RecordInvoicePaymentSchema only allows BANK — the route-level JSON schema is decorative; the zod schema is authoritative. Match test fixtures to the zod enum.
+- renderToString escapes apostrophes as &#x27; — assert on escaped text or apostrophe-free strings.
+- Deleting a dead component kept alive by tests: match `it(` blocks by paren-balance, not indentation — this file's closers are `});` at column 0. Verify no non-target tests were removed by diffing deleted ranges.
+- Currency guard bans literal "KES <digits>" in components — policy constants (M-Pesa cap) must render via formatKes(), not hard-coded text.
