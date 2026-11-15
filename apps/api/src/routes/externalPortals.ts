@@ -17,6 +17,7 @@ import {
   normalizeCoStatus,
   recordCoEvent,
 } from '../services/variationWorkflow';
+import { retentionPosition } from '../services/retention';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -449,9 +450,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     const wantInspections = scope === 'ALL' || scope === 'INSPECTIONS';
     const wantCertificates = scope === 'ALL' || scope === 'CERTIFICATES';
     const wantDrawings = scope === 'ALL';
+    const wantSnags = scope === 'ALL' || scope === 'SNAGS';
 
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, rfis, inspections, cubeTests, certificates, drawingDocs] = await Promise.all([
+      const [project, rfis, inspections, cubeTests, certificates, drawingDocs, snags] = await Promise.all([
         tx.project.findFirst({
           where: { id: link.project_id },
           select: { id: true, name: true, code: true, status: true },
@@ -501,6 +503,21 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
               },
               include: { acknowledgements: true },
               orderBy: { created_at: 'desc' },
+            })
+          : Promise.resolve([]),
+        // Stage 6: snags awaiting consultant verification (READY_FOR_REVIEW /
+        // RECTIFIED_BY_CONTRACTOR) plus recent decisions for context. Private
+        // snags never leave the contractor's portals.
+        wantSnags
+          ? tx.snagItem.findMany({
+              where: {
+                project_id: link.project_id,
+                is_private: false,
+                status: { in: ['READY_FOR_REVIEW', 'RECTIFIED_BY_CONTRACTOR', 'VERIFIED_CLOSED', 'REJECTED', 'CONTESTED'] },
+              },
+              include: { photos: { orderBy: { captured_at: 'desc' } } },
+              orderBy: { snag_number: 'desc' },
+              take: 100,
             })
           : Promise.resolve([]),
       ]);
@@ -590,6 +607,34 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           retentionAmountReleased: c.retention_amount_released?.toString(),
           architectName: c.architect_name, qsName: c.qs_name,
         }));
+      }
+
+      if (wantSnags) {
+        out.snags = (snags || []).map((sn: any) => ({
+          id: sn.id,
+          snagNumber: sn.snag_number,
+          description: sn.description,
+          locationBlock: sn.location_block,
+          locationFloor: sn.location_floor,
+          locationRoom: sn.location_room,
+          tradeCategory: sn.trade_category,
+          severity: sn.severity,
+          status: sn.status,
+          identifiedAt: sn.identified_at,
+          rectifiedAt: sn.rectified_at,
+          verifiedAt: sn.verified_at,
+          photos: (sn.photos || []).map((ph: any) => ({
+            id: ph.id,
+            photoType: ph.photo_type,
+            caption: ph.caption,
+            storageKey: ph.storage_key,
+            capturedAt: ph.captured_at,
+          })),
+        }));
+        out.snagCounts = (snags || []).reduce((acc: Record<string, number>, sn: any) => {
+          acc[sn.status] = (acc[sn.status] || 0) + 1;
+          return acc;
+        }, {});
       }
 
       if (wantDrawings) {
@@ -820,6 +865,129 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     },
   );
 
+  // POST /api/v1/portals/consultant/:token/snags/:snagId/review — Stage 6:
+  // the consultant verifies a rectified snag (VERIFIED_CLOSED) or rejects it
+  // with a reason and photo evidence (REJECTED, sent back for rework).
+  server.post('/api/v1/portals/consultant/:token/snags/:snagId/review', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token, snagId } = request.params as { token: string; snagId: string };
+    const link = await resolvePortalLink(token, 'CONSULTANT');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired consultant access token',
+      });
+    }
+    if (!UUID_REGEX.test(snagId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Snag item not found' });
+    }
+
+    const body = request.body as { action?: string; reason?: string; photoStorageKey?: string };
+    const action = String(body.action || '').toUpperCase();
+    if (action !== 'VERIFY' && action !== 'REJECT') {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: "action must be 'VERIFY' or 'REJECT'" });
+    }
+    const reason = (body.reason ?? '').trim();
+    const reasonLen = reason.replace(/\s+/g, '').length;
+    if (action === 'REJECT') {
+      if (reasonLen < 15) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'A rejection requires a reason of at least 15 characters' });
+      }
+      if (!body.photoStorageKey) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'A rejection requires photo evidence — upload via the portal uploads endpoint first' });
+      }
+      const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
+      if (!body.photoStorageKey.startsWith(expectedPrefix) || body.photoStorageKey.includes('..')) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'photoStorageKey was not issued for this project — upload via the consultant portal uploads endpoint first' });
+      }
+    }
+
+    try {
+      const updated = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const snag = await tx.snagItem.findFirst({
+          where: { id: snagId, project_id: link.project_id },
+        });
+        if (!snag || snag.is_private) {
+          throw { status: 404, message: 'Snag item not found on this project' };
+        }
+
+        const reviewable = ['READY_FOR_REVIEW', 'RECTIFIED_BY_CONTRACTOR'];
+        if (!reviewable.includes(snag.status)) {
+          throw { status: 409, message: `Snag is ${snag.status} — only snags awaiting verification can be reviewed` };
+        }
+
+        const now = new Date();
+        if (action === 'REJECT') {
+          await tx.snagPhoto.create({
+            data: {
+              tenant_id: link.tenant_id,
+              snag_item_id: snagId,
+              photo_type: 'DEFECT',
+              storage_key: body.photoStorageKey!,
+              caption: `Rejection evidence — ${link.stakeholder_name}: ${reason.slice(0, 200)}`,
+            },
+          });
+          await tx.snagComment.create({
+            data: {
+              tenant_id: link.tenant_id,
+              snag_item_id: snagId,
+              author_name: `${link.stakeholder_name} (Consultant)`,
+              body: `Rejected: ${reason}`,
+            },
+          });
+        }
+
+        const record = await tx.snagItem.update({
+          where: { id: snagId },
+          data: action === 'VERIFY'
+            ? { status: 'VERIFIED_CLOSED', verified_at: now, verified_by_name: link.stakeholder_name }
+            : { status: 'REJECTED' },
+          include: { photos: true },
+        });
+
+        await recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          actorId: link.id,
+          action: 'SNAG_REVIEWED_VIA_PORTAL',
+          entityType: 'SNAG_ITEM',
+          entityId: snagId,
+          projectId: link.project_id,
+          changes: {
+            reviewer: link.stakeholder_name,
+            action,
+            previousStatus: snag.status,
+            newStatus: record.status,
+            reason: action === 'REJECT' ? reason : null,
+            photoKey: action === 'REJECT' ? body.photoStorageKey : null,
+          },
+        });
+
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${link.stakeholder_name} (portal)`,
+          body: action === 'VERIFY'
+            ? `Snag #${snag.snag_number} verified closed by ${link.stakeholder_name} (consultant portal).`
+            : `Snag #${snag.snag_number} rejected by ${link.stakeholder_name} (consultant portal): ${reason.slice(0, 140)}`,
+        });
+
+        return record;
+      });
+
+      return reply.status(200).send({ statusCode: 200, data: updated });
+    } catch (err: any) {
+      if (err?.status) {
+        return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Conflict', message: err.message });
+      }
+      throw err;
+    }
+  });
+
   // POST /api/v1/portals/consultant/:token/drawings/:documentId/acknowledge
   // Per-link drawing acknowledgement — the contractor sees who acknowledged
   // which revision on the project drawings register.
@@ -986,6 +1154,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       // Package summary + retention release status (Stage-3).
       let packageSummary = null;
       let retentionRelease = null;
+      let retentionReleasesList: any[] = [];
       if (pkg) {
         const vals = pkg.valuations || [];
         const live = vals.filter((v: any) => v.payment_status !== 'REJECTED');
@@ -1000,8 +1169,21 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           .reduce((acc: any, v: any) => acc.plus(dec(v.retention_deducted_kes)), toDecimal('0'));
         const releases = await tx.subcontractorRetentionRelease.findMany({
           where: { subcontractor_package_id: pkg.id },
-          select: { release_amount: true, status: true },
+          orderBy: { created_at: 'desc' },
         });
+        retentionReleasesList = releases.map((r: any) => ({
+          id: r.id,
+          releaseNo: r.release_no,
+          moietyStage: r.moiety_stage,
+          totalRetentionHeld: r.total_retention_held.toString(),
+          releasePercentage: r.release_percentage.toString(),
+          releaseAmount: r.release_amount.toString(),
+          status: r.status,
+          qsRecommendationNotes: r.qs_recommendation_notes,
+          disbursementRef: r.disbursement_ref,
+          disbursedAt: r.disbursed_at ? r.disbursed_at.toISOString() : null,
+          createdAt: r.created_at.toISOString(),
+        }));
         const releasedAmt = releases
           .filter((r: any) => r.status === 'PAID')
           .reduce((acc: any, r: any) => acc.plus(dec(r.release_amount)), toDecimal('0'));
@@ -1063,6 +1245,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         valuations: packages.flatMap((p: any) => p.valuations || []),
         packageSummary,
         retentionRelease,
+        retentionReleases: retentionReleasesList,
       };
     });
 
@@ -1224,6 +1407,168 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     });
   });
 
+
+  // POST /api/v1/portals/subcontractor/:token/retention-release — Stage 6:
+  // the subcontractor requests release of its package retention once that
+  // package's snags are verified closed. Creates a PENDING_QS_REVIEW release
+  // for the contractor's QS/director to action — never pays out directly.
+  server.post('/api/v1/portals/subcontractor/:token/retention-release', {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'SUBCONTRACTOR');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired subcontractor access token',
+      });
+    }
+    if (!link.subcontractor_package_id) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'This portal link is not bound to a work package' });
+    }
+
+    try {
+      const result = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const pkg = await tx.subcontractorPackage.findFirst({
+          where: { id: link.subcontractor_package_id, project_id: link.project_id },
+          include: { valuations: true },
+        });
+        if (!pkg) throw { status: 404, message: 'Work package not found on this project' };
+
+        // Gate 1: every snag scoped to this package must be VERIFIED_CLOSED.
+        const pkgSnags = await tx.snagItem.findMany({
+          where: {
+            project_id: link.project_id,
+            is_private: false,
+            OR: [
+              { trade_category: { equals: pkg.trade_category, mode: 'insensitive' as const } },
+              { assigned_trade_firm: { equals: pkg.firm_name, mode: 'insensitive' as const } },
+            ],
+          },
+          select: { id: true, snag_number: true, status: true },
+        });
+        const openSnags = pkgSnags.filter((s: any) => s.status !== 'VERIFIED_CLOSED');
+        if (openSnags.length > 0) {
+          throw {
+            status: 409,
+            message: `${openSnags.length} snag(s) on this package are not yet verified closed — retention can only be requested after the consultant signs off`,
+          };
+        }
+
+        // Gate 2: retention actually held on approved/paid valuations.
+        const dec = (v: any) => toDecimal(String(v ?? '0'));
+        const held = pkg.valuations
+          .filter((v: any) => ['APPROVED_FOR_PAYMENT', 'PAID'].includes(v.payment_status))
+          .reduce((acc: any, v: any) => acc.plus(dec(v.retention_deducted_kes)), toDecimal('0'));
+        if (held.lte(0)) {
+          throw { status: 409, message: 'No retention is currently held on this package' };
+        }
+
+        const existing = await tx.subcontractorRetentionRelease.findMany({
+          where: { subcontractor_package_id: pkg.id },
+          orderBy: { created_at: 'asc' },
+        });
+        const pending = existing.find((r: any) =>
+          ['PENDING_QS_REVIEW', 'APPROVED_BY_DIRECTOR', 'PENDING_DISBURSEMENT'].includes(r.status));
+        if (pending) {
+          throw { status: 409, message: `A retention release (${pending.release_no}) is already awaiting review` };
+        }
+        const firstMoietyPaid = existing.some((r: any) =>
+          r.moiety_stage === 'FIRST_MOIETY_PRACTICAL_COMPLETION' && r.status === 'PAID');
+        const releasedAmt = existing
+          .filter((r: any) => r.status === 'PAID')
+          .reduce((acc: any, r: any) => acc.plus(dec(r.release_amount)), toDecimal('0'));
+        const outstanding = held.minus(releasedAmt);
+
+        // Gate 3: the second (final) moiety only after the defects liability
+        // period has expired or the project is closed.
+        let moietyStage: string;
+        let releaseAmount: any;
+        let defectClearance = false;
+        if (!firstMoietyPaid) {
+          moietyStage = 'FIRST_MOIETY_PRACTICAL_COMPLETION';
+          releaseAmount = held.dividedBy(2).toDecimalPlaces(2);
+        } else {
+          const project = await tx.project.findUnique({
+            where: { id: link.project_id },
+            select: { closeout_stage: true },
+          });
+          if (!project || !['DEFECTS_EXPIRED', 'CLOSED'].includes(project.closeout_stage)) {
+            throw { status: 409, message: 'The final retention moiety can only be requested after the defects liability period has expired' };
+          }
+          moietyStage = 'SECOND_MOIETY_FINAL_COMPLETION';
+          releaseAmount = outstanding.toDecimalPlaces(2);
+          defectClearance = true;
+        }
+        if (releaseAmount.lte(0)) {
+          throw { status: 409, message: 'No retention remains to be released on this package' };
+        }
+
+        const releaseNo = `RET-REL-${String(existing.length + 1).padStart(3, '0')}`;
+        const releasePct = held.gt(0) ? releaseAmount.dividedBy(held).times(100).toDecimalPlaces(2) : toDecimal('0');
+        const release = await tx.subcontractorRetentionRelease.create({
+          data: {
+            tenant_id: link.tenant_id,
+            project_id: link.project_id,
+            subcontractor_package_id: pkg.id,
+            release_no: releaseNo,
+            moiety_stage: moietyStage,
+            total_retention_held: held.toFixed(2),
+            release_percentage: releasePct.toFixed(2),
+            release_amount: releaseAmount.toFixed(2),
+            qs_recommendation_notes: `Requested by ${link.stakeholder_name} via subcontractor portal`,
+            defect_clearance_verified: defectClearance,
+            status: 'PENDING_QS_REVIEW',
+          },
+        });
+
+        await recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          actorId: link.id,
+          action: 'SUB_RETENTION_RELEASE_REQUESTED',
+          entityType: 'SUBCONTRACTOR_RETENTION_RELEASE',
+          entityId: release.id,
+          projectId: link.project_id,
+          changes: {
+            requester: link.stakeholder_name,
+            packageId: pkg.id,
+            releaseNo,
+            moietyStage,
+            amount: releaseAmount.toFixed(2),
+          },
+        });
+
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${link.stakeholder_name} (portal)`,
+          body: `${link.stakeholder_name} requested retention release ${releaseNo} of KES ${releaseAmount.toFixed(2)} on ${pkg.trade_category} — awaiting QS review.`,
+        });
+
+        return {
+          id: release.id,
+          releaseNo: release.release_no,
+          moietyStage: release.moiety_stage,
+          totalRetentionHeld: release.total_retention_held.toString(),
+          releasePercentage: release.release_percentage.toString(),
+          releaseAmount: release.release_amount.toString(),
+          status: release.status,
+          createdAt: release.created_at.toISOString(),
+        };
+      });
+
+      return reply.status(201).send({ statusCode: 201, data: result });
+    } catch (err: any) {
+      if (err?.status) {
+        return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Conflict', message: err.message });
+      }
+      throw err;
+    }
+  });
 
   // POST /api/v1/portals/subcontractor/:token/valuations — sub submits a progress valuation
   server.post('/api/v1/portals/subcontractor/:token/valuations', {
@@ -2101,7 +2446,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
     }
 
     const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
-      const [project, diaries, certificates, invoices, progress] = await Promise.all([
+      const [project, diaries, certificates, invoices, progress, pcCert, closeoutSnags, retention, ack] = await Promise.all([
         tx.project.findFirst({ where: { id: link.project_id } }),
         tx.siteDiary.findMany({
           where: {
@@ -2130,6 +2475,24 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           where: { project_id: link.project_id },
           orderBy: { record_date: 'desc' },
           take: 10,
+        }),
+        // Stage 6: practical completion closeout visibility for the client.
+        tx.defectsLiabilityCertificate.findFirst({
+          where: { project_id: link.project_id, certificate_type: 'PRACTICAL_COMPLETION' },
+          orderBy: { issue_date: 'desc' },
+        }),
+        // Snag list with counts by status — never cost data (Stage 6).
+        tx.snagItem.findMany({
+          where: { project_id: link.project_id, is_private: false },
+          select: {
+            id: true, snag_number: true, description: true, location_floor: true,
+            location_room: true, trade_category: true, severity: true, status: true,
+          },
+          orderBy: { snag_number: 'desc' },
+        }),
+        retentionPosition(tx, link.project_id),
+        tx.practicalCompletionAcknowledgement.findFirst({
+          where: { project_id: link.project_id },
         }),
       ]);
 
@@ -2171,10 +2534,132 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           id: pr.id, recordDate: pr.record_date,
           overallProgress: pr.overall_progress?.toString(), notes: pr.notes,
         })),
+        // Stage 6 closeout block: PC status, snag counts, DLP expiry,
+        // retention position, and whether the client has acknowledged PC.
+        closeout: {
+          practicalCompletion: pcCert
+            ? {
+                id: pcCert.id,
+                certificateReference: pcCert.certificate_reference,
+                issueDate: pcCert.issue_date,
+                effectiveDate: pcCert.effective_date,
+                dlpDurationMonths: pcCert.dlp_duration_months,
+                dlpExpiryDate: pcCert.dlp_expiry_date,
+                retentionAmountReleased: pcCert.retention_amount_released?.toString(),
+              }
+            : null,
+          snagCounts: closeoutSnags.reduce((acc: Record<string, number>, sn: any) => {
+            acc[sn.status] = (acc[sn.status] || 0) + 1;
+            return acc;
+          }, {}),
+          snags: closeoutSnags.map((sn: any) => ({
+            id: sn.id,
+            snagNumber: sn.snag_number,
+            description: sn.description,
+            locationFloor: sn.location_floor,
+            locationRoom: sn.location_room,
+            tradeCategory: sn.trade_category,
+            severity: sn.severity,
+            status: sn.status,
+          })),
+          retention: {
+            held: retention.held.toFixed(2),
+            released: retention.released.toFixed(2),
+            outstanding: retention.outstanding.toFixed(2),
+          },
+          acknowledged: ack
+            ? { byName: ack.acknowledged_by_name, at: ack.acknowledged_at }
+            : null,
+        },
       };
     });
 
     return reply.status(200).send({ statusCode: 200, data: payload });
+  });
+
+  // POST /api/v1/portals/client/:token/closeout/acknowledge — Stage 6: the
+  // client acknowledges practical completion with a typed name. Recorded
+  // once per project; a second attempt is a 409.
+  server.post('/api/v1/portals/client/:token/closeout/acknowledge', {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'CLIENT');
+
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired client access token',
+      });
+    }
+
+    const body = request.body as { typedName?: string };
+    const typedName = (body.typedName ?? '').trim();
+    if (typedName.replace(/\s+/g, '').length < 3) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Type your full name to acknowledge practical completion' });
+    }
+
+    try {
+      const result = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+        const pcCert = await tx.defectsLiabilityCertificate.findFirst({
+          where: { project_id: link.project_id, certificate_type: 'PRACTICAL_COMPLETION' },
+          orderBy: { issue_date: 'desc' },
+        });
+        if (!pcCert) {
+          throw { status: 409, message: 'No practical completion certificate has been issued for this project yet' };
+        }
+
+        const existing = await tx.practicalCompletionAcknowledgement.findFirst({
+          where: { project_id: link.project_id },
+        });
+        if (existing) {
+          throw { status: 409, message: `Practical completion was already acknowledged by ${existing.acknowledged_by_name}` };
+        }
+
+        const ack = await tx.practicalCompletionAcknowledgement.create({
+          data: {
+            tenant_id: link.tenant_id,
+            project_id: link.project_id,
+            defects_liability_certificate_id: pcCert.id,
+            acknowledged_by_name: typedName,
+            portal_link_id: link.id,
+          },
+        });
+
+        await recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          actorId: link.id,
+          action: 'PC_ACKNOWLEDGED_VIA_PORTAL',
+          entityType: 'PRACTICAL_COMPLETION_ACKNOWLEDGEMENT',
+          entityId: ack.id,
+          projectId: link.project_id,
+          changes: {
+            acknowledgedByName: typedName,
+            stakeholderName: link.stakeholder_name,
+            certificateReference: pcCert.certificate_reference,
+          },
+        });
+
+        await notifyTeam(tx, {
+          tenantId: link.tenant_id,
+          projectId: link.project_id,
+          senderId: link.id,
+          senderName: `${link.stakeholder_name} (portal)`,
+          body: `${link.stakeholder_name} acknowledged practical completion as "${typedName}" via the client portal.`,
+        });
+
+        return { acknowledgedByName: ack.acknowledged_by_name, acknowledgedAt: ack.acknowledged_at };
+      });
+
+      return reply.status(201).send({ statusCode: 201, data: result });
+    } catch (err: any) {
+      if (err?.status) {
+        return reply.status(err.status).send({ statusCode: err.status, error: err.status === 409 ? 'Conflict' : 'Error', message: err.message });
+      }
+      throw err;
+    }
   });
 
   // GET /api/v1/portals/client/:token/change-orders

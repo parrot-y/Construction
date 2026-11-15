@@ -45,6 +45,16 @@ interface ClientExtra {
   certificates: { id: string; certificateNo: string; periodEnd?: string; thisPeriodAmount: string; cumulativeCertified: string; netPayable: string; status: string; paidAt?: string | null }[];
   invoices: { id: string; invoiceNo: string; title: string; status: string; currency: string; total: string; amountPaid: string; balanceDue: string; issueDate?: string; dueDate?: string }[];
   progressRecords: { id: string; recordDate?: string; overallProgress?: string | null; notes?: string | null }[];
+  closeout?: {
+    practicalCompletion: {
+      id: string; certificateReference: string; issueDate?: string; effectiveDate?: string;
+      dlpDurationMonths?: number; dlpExpiryDate?: string | null; retentionAmountReleased?: string;
+    } | null;
+    snagCounts: Record<string, number>;
+    snags: { id: string; snagNumber: number; description: string; locationFloor?: string | null; locationRoom?: string | null; tradeCategory?: string | null; severity?: string | null; status: string }[];
+    retention: { held: string; released: string; outstanding: string };
+    acknowledged: { byName: string; at: string } | null;
+  } | null;
 }
 
 interface ClientPortalViewProps {
@@ -140,6 +150,34 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
       await load();
 } catch (err: any) {
       setFeedback(err?.message || 'Failed to submit decision');
+}
+};
+
+  const acknowledgePc = async () => {
+    setFeedback(null);
+    const typedName = await dialog.prompt({
+      title: 'Acknowledge practical completion',
+      inputLabel: 'Type your full name to acknowledge',
+      defaultValue: data?.stakeholder.name || '',
+      confirmLabel: 'Acknowledge',
+    });
+    if (!typedName || typedName.trim().length < 3) return;
+    try {
+      const res = await fetch(`/api/v1/portals/client/${encodeURIComponent(token)}/closeout/acknowledge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ typedName: typedName.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || `Request failed (${res.status})`);
+      setFeedback('Practical completion acknowledged — thank you.');
+      // Refresh the read-only feed so the acknowledged state shows.
+      fetch(`/api/v1/portals/client/${encodeURIComponent(token)}`, { credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((b) => { if (b?.data) setExtra(b.data); })
+        .catch(() => {});
+} catch (err: any) {
+      setFeedback(err?.message || 'Failed to record acknowledgement');
 }
 };
 
@@ -253,6 +291,67 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 </div>
 );
 })}
+
+      {/* Stage 6: practical completion & closeout */}
+      {extra?.closeout && (extra.closeout.practicalCompletion || extra.closeout.snags.length > 0) && (
+        <div className="border border-slate-200 rounded-xl p-4 space-y-3" data-testid="client-closeout-card">
+          <h3 className="text-xs font-bold text-slate-700">Practical completion &amp; closeout</h3>
+          {extra.closeout.practicalCompletion ? (
+            <div className="text-xs space-y-1">
+              <p className="text-slate-700">
+                <span className="font-semibold">Certificate {extra.closeout.practicalCompletion.certificateReference}</span>
+                {' '}issued {extra.closeout.practicalCompletion.issueDate ? new Date(extra.closeout.practicalCompletion.issueDate).toLocaleDateString('en-KE') : ''}
+              </p>
+              {extra.closeout.practicalCompletion.dlpExpiryDate && (
+                <p className="text-slate-600">
+                  Defects liability period ends{' '}
+                  <span className="font-semibold">{new Date(extra.closeout.practicalCompletion.dlpExpiryDate).toLocaleDateString('en-KE')}</span>
+                  {' '}({extra.closeout.practicalCompletion.dlpDurationMonths ?? 6} months)
+                </p>
+              )}
+              <p className="text-slate-600">
+                Retention held {formatKes(extra.closeout.retention.held)} · released {formatKes(extra.closeout.retention.released)}
+                {Number(extra.closeout.retention.outstanding) > 0 && <> · outstanding {formatKes(extra.closeout.retention.outstanding)}</>}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">Practical completion has not been certified yet.</p>
+          )}
+
+          {extra.closeout.snags.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 mb-1.5">
+                Snag list — {Object.entries(extra.closeout.snagCounts).map(([s, n]) => `${n} ${s.replace(/_/g, ' ').toLowerCase()}`).join(' · ')}
+              </p>
+              <ul className="space-y-1">
+                {extra.closeout.snags.map((sn) => (
+                  <li key={sn.id} className="flex items-center justify-between text-[11px] bg-slate-50 rounded-lg px-3 py-1.5">
+                    <span className="text-slate-700">SN-{String(sn.snagNumber).padStart(3, '0')} — {sn.description}</span>
+                    <span className={`ml-2 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${sn.status === 'VERIFIED_CLOSED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{sn.status.replace(/_/g, ' ')}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {extra.closeout.practicalCompletion && (
+            extra.closeout.acknowledged ? (
+              <p className="text-[11px] text-emerald-700 font-semibold">
+                Practical completion acknowledged by {extra.closeout.acknowledged.byName} on{' '}
+                {new Date(extra.closeout.acknowledged.at).toLocaleDateString('en-KE')}
+              </p>
+            ) : (
+              <button
+                onClick={() => void acknowledgePc()}
+                className="px-3.5 py-2 min-h-[44px] text-xs font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-lg transition"
+                data-testid="client-acknowledge-pc"
+              >
+                Acknowledge practical completion
+              </button>
+            )
+          )}
+        </div>
+      )}
 
       {/* Read-only project feed: progress, certificates, invoices */}
       {extra && (

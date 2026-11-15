@@ -1481,8 +1481,10 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             READY_FOR_REVIEW: ['VERIFIED_CLOSED', 'IN_PROGRESS', 'REJECTED'],
             RECTIFIED_BY_CONTRACTOR: ['VERIFIED_CLOSED', 'READY_FOR_REVIEW', 'IN_PROGRESS', 'CONTESTED'],
             CONTESTED: ['IN_PROGRESS', 'READY_FOR_REVIEW', 'REJECTED'],
+            // Stage 6: a consultant portal rejection sends the snag back for
+            // rework — REJECTED is not a dead end.
+            REJECTED: ['IN_PROGRESS', 'READY_FOR_REVIEW'],
             VERIFIED_CLOSED: [],
-            REJECTED: [],
           };
           const allowed = SNAG_TRANSITIONS[snag.status] ?? [];
           if (snag.status !== data.status && !allowed.includes(data.status)) {

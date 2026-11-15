@@ -47,6 +47,21 @@ export interface ConsultantInspection {
 }>;
 }
 
+export interface ConsultantSnag {
+  id: string;
+  snagNumber: number;
+  description: string;
+  locationFloor?: string | null;
+  locationRoom?: string | null;
+  tradeCategory?: string | null;
+  severity?: string | null;
+  status: string;
+  identifiedAt?: string;
+  rectifiedAt?: string | null;
+  verifiedAt?: string | null;
+  photos?: Array<{ id: string; photoType: string; caption?: string | null; storageKey: string; capturedAt: string }>;
+}
+
 interface ConsultantPortalViewProps {
   token?: string;
   stakeholderName?: string;
@@ -73,11 +88,16 @@ export default function ConsultantPortalView({
   const [rfis, setRfis] = useState<ConsultantRfiItem[]>([]);
   const [cubeTests, setCubeTests] = useState<ConsultantCubeTest[]>([]);
   const [inspections, setInspections] = useState<ConsultantInspection[]>([]);
+  const [snags, setSnags] = useState<ConsultantSnag[]>([]);
   const [selectedRfi, setSelectedRfi] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'rfis' | 'cubes' | 'inspections'>('rfis');
+  const [activeTab, setActiveTab] = useState<'rfis' | 'cubes' | 'inspections' | 'snags'>('rfis');
+  const [rejectingSnag, setRejectingSnag] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectPhoto, setRejectPhoto] = useState<File | null>(null);
+  const [snagBusy, setSnagBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
@@ -138,6 +158,20 @@ export default function ConsultantPortalView({
             notes: it.deficiencyNotes,
           })),
         })));
+        setSnags((d.snags || []).map((s: any) => ({
+          id: s.id,
+          snagNumber: s.snagNumber,
+          description: s.description,
+          locationFloor: s.locationFloor,
+          locationRoom: s.locationRoom,
+          tradeCategory: s.tradeCategory,
+          severity: s.severity,
+          status: s.status,
+          identifiedAt: s.identifiedAt,
+          rectifiedAt: s.rectifiedAt,
+          verifiedAt: s.verifiedAt,
+          photos: s.photos || [],
+        })));
       } catch (e: any) {
         if (!cancelled) { setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
@@ -188,6 +222,50 @@ export default function ConsultantPortalView({
       setSubmitting(false);
 }
 };
+
+  const reviewableSnags = snags.filter((s) => ['READY_FOR_REVIEW', 'RECTIFIED_BY_CONTRACTOR'].includes(s.status));
+
+  const handleSnagReview = async (snagId: string, action: 'VERIFY' | 'REJECT') => {
+    setSnagBusy(snagId);
+    setFeedback(null);
+    try {
+      let photoStorageKey: string | undefined;
+      if (action === 'REJECT' && rejectPhoto) {
+        const fd = new FormData();
+        fd.append('file', rejectPhoto);
+        const up = await fetch(`/api/v1/portals/consultant/${token}/uploads`, { method: 'POST', body: fd });
+        const upBody = await up.json().catch(() => ({}));
+        if (!up.ok) throw new Error(upBody.message || 'Photo upload failed');
+        photoStorageKey = upBody.data?.storageKey || upBody.storageKey;
+      }
+      const res = await fetch(`/api/v1/portals/consultant/${token}/snags/${snagId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reason: rejectReason || undefined, photoStorageKey }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Review failed');
+      setFeedback(action === 'VERIFY' ? 'Snag verified and closed.' : 'Snag rejected — sent back for rework.');
+      setRejectingSnag(null);
+      setRejectReason('');
+      setRejectPhoto(null);
+      // Refresh snag list in place.
+      const fresh = await fetch(`/api/v1/portals/consultant/${token}`, { credentials: 'include' });
+      const fb = await fresh.json();
+      const d = fb.data || fb;
+      setSnags((d.snags || []).map((s: any) => ({
+        id: s.id, snagNumber: s.snagNumber, description: s.description,
+        locationFloor: s.locationFloor, locationRoom: s.locationRoom,
+        tradeCategory: s.tradeCategory, severity: s.severity, status: s.status,
+        identifiedAt: s.identifiedAt, rectifiedAt: s.rectifiedAt, verifiedAt: s.verifiedAt,
+        photos: s.photos || [],
+      })));
+    } catch (e: any) {
+      setFeedback(e.message || 'Network error — review not submitted.');
+    } finally {
+      setSnagBusy(null);
+    }
+  };
 
   return (
 <div className="w-full max-w-5xl mx-auto space-y-6" data-testid="consultant-portal-view">
@@ -262,6 +340,16 @@ export default function ConsultantPortalView({
 }`}
         >
           Pre-Pour QA Checklists ({inspections.length})
+</button>
+<button
+          onClick={() => setActiveTab('snags')}
+          className={`pb-2 border-b-2 transition ${
+            activeTab === 'snags'
+              ? 'border-purple-600 text-purple-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+}`}
+        >
+          Snag Verification ({reviewableSnags.length})
 </button>
 </div>
 
@@ -472,6 +560,120 @@ export default function ConsultantPortalView({
 </div>
 </div>
 ))}
+</div>
+)}
+
+      {/* TAB 4: Snag verification (Stage 6 closeout loop) */}
+      {activeTab === 'snags' && (
+<div className="space-y-4">
+          {snags.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No snags on this project yet — rectified defects awaiting your verification appear here.</p>
+)}
+          {snags.map((sn) => {
+            const reviewable = ['READY_FOR_REVIEW', 'RECTIFIED_BY_CONTRACTOR'].includes(sn.status);
+            const isRejecting = rejectingSnag === sn.id;
+            return (
+<div key={sn.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3" data-testid={`consultant-snag-${sn.snagNumber}`}>
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+<div className="flex items-center gap-2">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        SN-{String(sn.snagNumber).padStart(3, '0')}
+</span>
+<span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                        {sn.tradeCategory || 'General'}
+</span>
+<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          sn.severity === 'MAJOR' || sn.severity === 'CRITICAL'
+                            ? 'bg-red-100 text-red-800 border border-red-200'
+                            : 'bg-slate-100 text-slate-700'
+}`}>{sn.severity || 'COSMETIC'}</span>
+</div>
+<span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                        sn.status === 'VERIFIED_CLOSED'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : reviewable
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+}`}>{sn.status.replace(/_/g, ' ')}</span>
+</div>
+<h3 className="text-sm font-bold text-slate-900">{sn.description}</h3>
+<p className="text-xs text-slate-500">
+                  {[sn.locationFloor, sn.locationRoom].filter(Boolean).join(' • ')}
+                  {sn.rectifiedAt ? ` • Rectified ${new Date(sn.rectifiedAt).toLocaleDateString()}` : ''}
+                  {sn.verifiedAt ? ` • Verified ${new Date(sn.verifiedAt).toLocaleDateString()}` : ''}
+</p>
+{sn.photos && sn.photos.length > 0 && (
+<div className="flex gap-2 flex-wrap">
+                    {sn.photos.map((ph) => (
+<a key={ph.id} href={`/uploads/${ph.storageKey}`} target="_blank" rel="noreferrer" className="text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded hover:bg-purple-100">
+                        {ph.photoType === 'DEFECT' ? 'Defect photo' : 'Rectified photo'}{ph.caption ? ` — ${ph.caption}` : ''}
+</a>
+))}
+</div>
+)}
+
+                {reviewable && (
+<div className="pt-2 space-y-2">
+                    {!isRejecting ? (
+<div className="flex flex-wrap gap-2">
+<button
+                          type="button"
+                          disabled={snagBusy === sn.id}
+                          onClick={() => handleSnagReview(sn.id, 'VERIFY')}
+                          className="px-3.5 py-2 min-h-[44px] text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 transition"
+                        >
+                          {snagBusy === sn.id ? 'Working…' : 'Verify — defect fixed'}
+</button>
+<button
+                          type="button"
+                          onClick={() => { setRejectingSnag(sn.id); setRejectReason(''); setRejectPhoto(null); }}
+                          className="px-3.5 py-2 min-h-[44px] text-xs font-semibold bg-white text-red-700 border border-red-300 hover:bg-red-50 rounded-lg transition"
+                        >
+                          Reject — needs rework
+</button>
+</div>
+) : (
+<div className="space-y-2 bg-red-50/50 p-3 rounded-lg border border-red-200">
+<label className="block text-xs font-bold text-red-900">Reason for rejection (min 15 characters):</label>
+<textarea
+                          rows={2}
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          placeholder="e.g. Tile alignment still visible at the patio door — please make good and resubmit photos."
+                          className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-400 focus:outline-none"
+                        />
+<label className="block text-xs font-bold text-red-900">Photo evidence (required):</label>
+<input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          capture="environment"
+                          onChange={(e) => setRejectPhoto(e.target.files?.[0] || null)}
+                          className="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-red-100 file:text-red-800 file:text-xs file:font-semibold"
+                        />
+<div className="flex gap-2 justify-end">
+<button
+                            type="button"
+                            onClick={() => { setRejectingSnag(null); setRejectReason(''); setRejectPhoto(null); }}
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg"
+                          >
+                            Cancel
+</button>
+<button
+                            type="button"
+                            disabled={snagBusy === sn.id || rejectReason.replace(/\s+/g, '').length < 15 || !rejectPhoto}
+                            onClick={() => handleSnagReview(sn.id, 'REJECT')}
+                            className="px-3.5 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 transition"
+                          >
+                            {snagBusy === sn.id ? 'Submitting…' : 'Submit rejection'}
+</button>
+</div>
+</div>
+)}
+</div>
+)}
+</div>
+);
+})}
 </div>
 )}
 </div>

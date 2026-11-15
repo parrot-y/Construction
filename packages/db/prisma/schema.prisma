@@ -194,6 +194,7 @@ model Project {
   concrete_cube_tests  ConcreteCubeTest[]
   snag_items           SnagItem[]
   defects_liability_certificates DefectsLiabilityCertificate[]
+  pc_acknowledgements PracticalCompletionAcknowledgement[]
   portal_access_links  PortalAccessLink[]
   schedule_tasks       ProjectScheduleTask[]
   inventory_items      SiteInventoryItem[]
@@ -991,6 +992,24 @@ model DefectsLiabilityCertificate {
 
   @@index([tenant_id, project_id, certificate_type])
   @@map("defects_liability_certificates")
+}
+
+// Stage 6: client acknowledgement of practical completion via the client
+// portal — recorded once per project, audit-logged.
+model PracticalCompletionAcknowledgement {
+  id                              String   @id @default(uuid()) @db.Uuid
+  tenant_id                       String   @db.Uuid
+  project_id                      String   @db.Uuid
+  defects_liability_certificate_id String?  @db.Uuid
+  acknowledged_by_name            String   @db.VarChar(255)
+  portal_link_id                  String   @db.Uuid
+  acknowledged_at                 DateTime @default(now()) @db.Timestamptz
+
+  project                         Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id])
+  @@index([tenant_id, project_id])
+  @@map("practical_completion_acknowledgements")
 }
 
 // =============================================================

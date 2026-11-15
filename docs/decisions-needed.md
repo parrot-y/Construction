@@ -56,3 +56,35 @@ are never client-visible. Invoices show `SENT`/`PART_PAID`/`PAID`
 (`OVERDUE` is derived downstream); `DRAFT`/`VOID` stay internal.
 If the owner wants clients to see certificates at `UNDER_REVIEW`
 (pre-issue visibility), that is a product decision to revisit.
+
+## 9. Client acknowledgement of practical completion — binding or record-only? (Stage 6)
+
+The client portal now lets the client acknowledge practical completion with a
+typed name; it is recorded once per project (`practical_completion_acknowledgements`),
+audit-logged, and shown to the contractor team.
+
+- **Option A (implemented):** record-only acknowledgement — evidence the client
+  saw the certificate, no contractual effect. DLP clocks and retention release
+  continue on the certificate dates regardless.
+- **Option B:** binding acceptance — acknowledgement (or silence past a deadline)
+  becomes the contractual trigger for the defects liability period and first
+  retention moiety.
+- **Recommendation:** A for the pilot — JBC 1999 practical-completion
+  certificates are issued by the consultant; client acknowledgement is useful
+  evidence but should not silently start contractual clocks without owner/legal
+  sign-off. Revisit if the pilot contractor's contracts require it.
+
+## 10. Consultant snag rejection status (Stage 6)
+
+A consultant portal rejection sets the snag to `REJECTED` with a mandatory
+reason (>=15 chars) and photo evidence, and records a snag comment. Previously
+`REJECTED` was a dead end in the internal transition map — it now allows
+`IN_PROGRESS`/`READY_FOR_REVIEW` so the contractor can send it back for rework.
+
+- **Option A (implemented):** `REJECTED` is a visible "sent back" state the
+  contractor must actively move to `IN_PROGRESS`.
+- **Option B:** rejection returns the snag directly to `IN_PROGRESS` — simpler
+  but loses the "was rejected by the consultant" signal in status reports.
+- **Recommendation:** A — the audit trail and snag comments already carry the
+  rejection detail; keeping a distinct status makes closeout reporting honest
+  (a rejected snag still blocks CLOSED until re-verified).

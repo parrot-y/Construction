@@ -76,6 +76,9 @@ export default function SubcontractorPortalView({
   const [claimPackageId, setClaimPackageId] = useState('');
   const [claimAmount, setClaimAmount] = useState('');
   const [claimNotes, setClaimNotes] = useState('');
+  const [retentionRelease, setRetentionRelease] = useState<any>(null);
+  const [retentionReleases, setRetentionReleases] = useState<any[]>([]);
+  const [releaseBusy, setReleaseBusy] = useState(false);
 
   useEffect(() => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
@@ -105,6 +108,8 @@ export default function SubcontractorPortalView({
           })),
         })));
         setPackages(d.packages || []);
+        setRetentionRelease(d.retentionRelease || null);
+        setRetentionReleases(d.retentionReleases || []);
         if ((d.packages || []).length > 0) setClaimPackageId(d.packages[0].id);
       } catch (e: any) {
         if (!cancelled) { setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
@@ -223,6 +228,26 @@ export default function SubcontractorPortalView({
       setFeedback(e.message || 'Network error — valuation not submitted.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleRequestRelease = async () => {
+    setReleaseBusy(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/v1/portals/subcontractor/${token}/retention-release`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Retention release request failed.');
+      setFeedback(`Retention release ${body.data?.releaseNo || ''} requested — awaiting QS review.`);
+      const fresh = await fetch(`/api/v1/portals/subcontractor/${token}`, { credentials: 'include' });
+      const fb = await fresh.json();
+      const d = fb.data || fb;
+      setRetentionRelease(d.retentionRelease || null);
+      setRetentionReleases(d.retentionReleases || []);
+    } catch (e: any) {
+      setFeedback(e.message || 'Network error — release not requested.');
+    } finally {
+      setReleaseBusy(false);
     }
   };
 
@@ -571,6 +596,56 @@ export default function SubcontractorPortalView({
 </table>
 </div>
 </div>
+
+{/* Stage 6: retention release request */}
+{retentionRelease && retentionRelease.status !== 'NONE' && (
+<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3" data-testid="sub-retention-release-card">
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
+<div>
+<h3 className="text-sm font-bold text-slate-900">Retention release</h3>
+<p className="text-xs text-slate-500">
+                    Held {formatKes(retentionRelease.held)} · Released {formatKes(retentionRelease.released)}
+                    {Number(retentionRelease.pending) > 0 && <> · Pending {formatKes(retentionRelease.pending)}</>}
+</p>
+</div>
+<span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                      retentionRelease.status === 'RELEASED'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : retentionRelease.status === 'PENDING'
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-slate-100 text-slate-700 border-slate-300'
+}`}>{retentionRelease.status}</span>
+</div>
+
+{retentionReleases.length > 0 && (
+<ul className="space-y-1.5">
+                  {retentionReleases.map((r) => (
+<li key={r.id} className="flex items-center justify-between text-[11px] bg-slate-50 rounded-lg px-3 py-2">
+<span className="font-mono tabular-nums font-semibold text-slate-800">{r.releaseNo}</span>
+<span className="text-slate-500">{String(r.moietyStage || '').replace(/_/g, ' ')}</span>
+<span className="tabular-nums font-bold text-slate-900">{formatKes(r.releaseAmount)}</span>
+<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' : r.status === 'REJECTED' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{r.status.replace(/_/g, ' ')}</span>
+</li>
+))}
+</ul>
+)}
+
+{retentionRelease.status === 'HELD' && (
+<button
+                  type="button"
+                  disabled={releaseBusy}
+                  onClick={() => void handleRequestRelease()}
+                  data-testid="request-retention-release-btn"
+                  className="px-3.5 py-2 min-h-[44px] text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg disabled:opacity-50 transition"
+                >
+                  {releaseBusy ? 'Requesting…' : 'Request retention release (first moiety)'}
+</button>
+)}
+{retentionRelease.status === 'PENDING' && (
+<p className="text-[11px] text-amber-700">A release request is already with the QS for review.</p>
+)}
+</div>
+)}
 </div>
 )}
 

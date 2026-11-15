@@ -661,8 +661,8 @@ export const CreatePortalLinkSchema = z.object({
   // CONSULTANT links may be scope-limited so a link only returns the
   // sections it was issued for (Stage 4). `scopes` (array) is the
   // auditor-contract form; `scope` (single) is canonical.
-  scope: z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES']).optional().nullable(),
-  scopes: z.array(z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES'])).max(4).optional().nullable(),
+  scope: z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES', 'SNAGS']).optional().nullable(),
+  scopes: z.array(z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES', 'SNAGS'])).max(5).optional().nullable(),
 });
 
 // Consultant portal RFI reply (external, unauthenticated token scope)
