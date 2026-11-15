@@ -27,6 +27,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const { session, roleLabel, projects, projectId, setProjectId, currency, setCurrency, setAiOpen, newMenuOpen, setNewMenuOpen, dark, toggleDark, setSection, setTab} = useConsole();
   const searchRef = useRef<HTMLInputElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileSearch, setMobileSearch] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   const [q, setQ] = useState('');
   const [userMenu, setUserMenu] = useState(false);
@@ -39,6 +40,10 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
       .then((j) => setMembers(j.data || []))
       .catch(() => {});
 }, []);
+
+  useEffect(() => {
+    if (mobileSearch) searchRef.current?.focus();
+  }, [mobileSearch]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -79,7 +84,16 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 </select>
 )}
 
-<div className="flex-1 min-w-0 max-w-md mx-auto relative">
+{!mobileSearch && (
+<button
+            onClick={() => setMobileSearch(true)}
+            aria-label="Open search"
+            className="sm:hidden w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
+          >
+<IconSearch className="w-5 h-5" />
+</button>
+)}
+<div className={`${mobileSearch ? 'block' : 'hidden'} sm:block flex-1 min-w-0 max-w-md mx-auto relative`}>
 <div className="relative">
 <IconSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
 <input
@@ -87,6 +101,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onFocus={() => setSearchOpen(true)}
+            onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setMobileSearch(false); (e.target as HTMLInputElement).blur(); } }}
             placeholder="Search projects, change orders and people"
             aria-label="Search workspace"
             className="w-full pl-9 pr-14 py-2 text-sm bg-slate-100 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-900 dark:text-slate-100"
@@ -105,21 +120,21 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
                 return (
 <>
                     {projHits.map((p) => (
-<button key={p.id} onClick={() => { setProjectId(p.id); setQ(''); setSearchOpen(false);}}
+<button key={p.id} onClick={() => { setProjectId(p.id); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">{p.name}</span>
 <span className="ml-2 text-[10px] text-slate-400 font-mono tabular-nums">{p.code} · project</span>
 </button>
 ))}
                     {memberHits.map((m: any) => (
-<button key={m.membershipId || m.user?.email} onClick={() => { setSection('people'); setTab('team'); setQ(''); setSearchOpen(false);}}
+<button key={m.membershipId || m.user?.email} onClick={() => { setSection('people'); setTab('team'); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">{m.user?.full_name || m.user?.email}</span>
 <span className="ml-2 text-[10px] text-slate-400">{m.role} · person</span>
 </button>
 ))}
                     {secHits.map((sec) => (
-<button key={sec} onClick={() => { setSection(sec as ConsoleSection); setQ(''); setSearchOpen(false);}}
+<button key={sec} onClick={() => { setSection(sec as ConsoleSection); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">Go to {SECTION_LABELS[sec as ConsoleSection]}</span>
 <span className="ml-2 text-[10px] text-slate-400">section</span>
@@ -227,8 +242,22 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 );
 }
 
+// Roles holding cost.approve see a badge on the Money rail icon when
+// provider payments are waiting for review (G1).
+const REVIEW_BADGE_ROLES = new Set(['ADMIN', 'COMPANY_ADMIN', 'PM_QS', 'EXECUTIVE', 'SUPERINTENDENT']);
+
 function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
   const { nav, section, setSection, setAiOpen, session, projects, projectId, setProjectId} = useConsole();
+  const [reviewCount, setReviewCount] = useState(0);
+  useEffect(() => {
+    if (!REVIEW_BADGE_ROLES.has(session.user.role)) { setReviewCount(0); return; }
+    let alive = true;
+    fetch('/api/v1/payments/charges/review', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => { if (alive) setReviewCount((j.data || []).length); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [session.user.role]);
   const cls = mobile
     ? 'flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 text-[9px] font-bold'
     : 'w-11 h-11 rounded-xl flex items-center justify-center';
@@ -249,8 +278,13 @@ function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
         const Icon = iconFor(s.id);
         const active = section === s.id;
         return (
-<button key={s.id} onClick={() => setSection(s.id)} aria-label={s.label} className={itemCls(active)}>
+<button key={s.id} onClick={() => setSection(s.id)} aria-label={s.label} className={`${itemCls(active)} relative`}>
             {React.createElement(Icon, { className: 'w-5 h-5'})}
+            {s.id === 'money' && reviewCount > 0 && (
+<span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center" aria-label={`${reviewCount} payments to review`}>
+                {reviewCount > 9 ? '9+' : reviewCount}
+</span>
+)}
             {mobile &&<span className="truncate">{s.label.split(' ')[0]}</span>}
 </button>
 );

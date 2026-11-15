@@ -365,4 +365,181 @@ export const paymentRoutes: FastifyPluginAsync = async (server: FastifyInstance)
     }
     return reply.send({ received: true, status: 'paid', payment: (result as { payment: { body: unknown } }).payment.body });
   });
+
+  // -------------------------------------------------------------------------
+  // GET /api/v1/payments/charges/review — held provider payments awaiting a
+  // human decision (NEEDS_REVIEW, not yet resolved). Money-approval roles only.
+  // -------------------------------------------------------------------------
+  server.get(
+    '/api/v1/payments/charges/review',
+    { preHandler: [server.authenticate, requirePermission(Permissions.COST_APPROVE)] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const charges = await withTenantTx(prisma, tenantId, async (tx) =>
+        tx.providerPaymentCharge.findMany({
+          where: { status: 'NEEDS_REVIEW', resolved_at: null },
+          select: {
+            id: true, provider: true, reference: true, amount_minor: true, currency: true,
+            failure_reason: true, created_at: true, invoice_id: true,
+            invoice: { select: { invoice_no: true, project_id: true } },
+          },
+          orderBy: { created_at: 'asc' },
+        }),
+      );
+      return reply.send({
+        data: charges.map((c) => ({
+          id: c.id,
+          provider: c.provider,
+          reference: c.reference,
+          amountMinor: c.amount_minor,
+          currency: c.currency,
+          amount: (c.amount_minor / 100).toFixed(2),
+          reason: c.failure_reason,
+          createdAt: c.created_at,
+          invoiceId: c.invoice_id,
+          invoiceNo: c.invoice?.invoice_no ?? null,
+        })),
+      });
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // POST /api/v1/payments/charges/:id/resolve — resolve a held charge once:
+  //   APPLY    → post the verified amount to another invoice (same tenant,
+  //              same row-lock + idempotency path as provider settlement)
+  //   REFUNDED → money returned outside SiteSafi (note ≥15 chars + reference)
+  //   KEEP     → reviewed and deliberately left flagged
+  // Second resolution attempt → 409. Other tenant's charge → 404 (RLS).
+  // -------------------------------------------------------------------------
+  server.post(
+    '/api/v1/payments/charges/:id/resolve',
+    { preHandler: [server.authenticate, requirePermission(Permissions.COST_APPROVE)] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { id } = request.params as { id: string };
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Charge not found' });
+      }
+      const body = (request.body ?? {}) as {
+        action?: string; invoiceId?: string; note?: string; refundReference?: string;
+      };
+      const action = body.action;
+      if (action !== 'APPLY' && action !== 'REFUNDED' && action !== 'KEEP') {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: "action must be APPLY, REFUNDED or KEEP" });
+      }
+
+      let targetInvoiceId: string | null = null;
+      if (action === 'APPLY') {
+        if (!body.invoiceId || !UUID_REGEX.test(body.invoiceId)) {
+          return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'invoiceId (uuid) is required for APPLY' });
+        }
+        targetInvoiceId = body.invoiceId;
+      }
+      const note = typeof body.note === 'string' ? body.note.trim() : '';
+      const refundReference = typeof body.refundReference === 'string' ? body.refundReference.trim() : '';
+      if (action === 'REFUNDED') {
+        if (note.replace(/\s+/g, '').length < 15) {
+          return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'A refund note of at least 15 characters is required' });
+        }
+        if (!refundReference) {
+          return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'refundReference is required' });
+        }
+      }
+
+      try {
+        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+          const charge = await tx.providerPaymentCharge.findFirst({ where: { id } });
+          if (!charge) throw { status: 404, message: 'Charge not found' };
+          if (charge.status !== 'NEEDS_REVIEW' || charge.resolved_at) {
+            throw { status: 409, message: 'Charge has already been resolved' };
+          }
+
+          // Atomic claim — concurrent resolutions serialise on this row and
+          // the loser sees resolved_at set → 409.
+          const resolutionState = action === 'APPLY' ? 'APPLIED' : action === 'REFUNDED' ? 'REFUNDED' : 'KEPT';
+          const claim = await tx.providerPaymentCharge.updateMany({
+            where: { id: charge.id, status: 'NEEDS_REVIEW', resolved_at: null },
+            data: {
+              resolution: resolutionState,
+              resolved_at: new Date(),
+              resolved_by: sub,
+              resolution_note: action === 'REFUNDED' ? note : null,
+              resolution_reference: action === 'REFUNDED' ? refundReference : null,
+              ...(action === 'REFUNDED' ? { status: 'REFUNDED' } : {}),
+            },
+          });
+          if (claim.count === 0) throw { status: 409, message: 'Charge has already been resolved' };
+
+          const invoice = await tx.invoice.findUnique({
+            where: { id: charge.invoice_id },
+            select: { project_id: true, invoice_no: true },
+          });
+
+          let paymentId: string | null = null;
+          let appliedInvoiceNo: string | null = null;
+          if (action === 'APPLY' && targetInvoiceId) {
+            // Same serialisation as provider settlement: invoice row lock
+            // first, then the shared idempotent recording core.
+            await tx.$queryRaw`SELECT id FROM invoices WHERE id = ${targetInvoiceId}::uuid FOR UPDATE`;
+            const amountMajor = toDecimal(charge.amount_minor).dividedBy(100).toFixed(2);
+            const payment = await recordInvoicePaymentTx(tx, {
+              tenantId,
+              invoiceId: targetInvoiceId,
+              amount: amountMajor,
+              method: 'M_PESA',
+              reference: `paystack:${charge.reference}`,
+              note: `Held online payment applied by reviewer (charge ${charge.reference})`,
+              recordedBy: sub,
+              idempotencyKey: `provider-charge-resolve:${charge.id}`,
+              ipAddress: request.ip,
+              userAgent: (request.headers['user-agent'] as string) || null,
+              auditAction: 'INVOICE_PAYMENT_RECORDED_PROVIDER_RESOLVED',
+            });
+            paymentId = (payment.body as { payment?: { id?: string } })?.payment?.id ?? null;
+            appliedInvoiceNo = ((payment.body as { invoice?: { invoice_no?: unknown } })?.invoice?.invoice_no ?? null) as string | null;
+            await tx.providerPaymentCharge.update({
+              where: { id: charge.id },
+              data: { status: 'PAID', invoice_payment_id: paymentId, resolved_invoice_id: targetInvoiceId },
+            });
+          }
+
+          await recordAuditLog(tx, {
+            tenantId,
+            projectId: invoice?.project_id ?? null,
+            actorId: sub,
+            action: 'PROVIDER_PAYMENT_RESOLVED',
+            entityType: 'ProviderPaymentCharge',
+            entityId: charge.id,
+            changes: {
+              provider: charge.provider,
+              reference: charge.reference,
+              amountMinor: charge.amount_minor,
+              currency: charge.currency,
+              originalInvoiceId: charge.invoice_id,
+              originalInvoiceNo: invoice?.invoice_no ?? null,
+              resolution: action,
+              resolvedInvoiceId: targetInvoiceId,
+              appliedInvoiceNo,
+              refundReference: action === 'REFUNDED' ? refundReference : null,
+              note: action === 'REFUNDED' ? note : null,
+              previousReason: charge.failure_reason,
+            },
+            ipAddress: request.ip,
+            userAgent: (request.headers['user-agent'] as string) || null,
+          });
+
+          return { chargeId: charge.id, action, paymentId };
+        });
+
+        return reply.send({ resolved: true, ...result });
+      } catch (err) {
+        const e = err as { status?: number; message?: string };
+        if (typeof e?.status === 'number' && typeof e?.message === 'string') {
+          const errorName = e.status === 404 ? 'Not Found' : e.status === 409 ? 'Conflict' : e.status === 400 ? 'Bad Request' : 'Error';
+          return reply.status(e.status).send({ statusCode: e.status, error: errorName, message: e.message });
+        }
+        throw err;
+      }
+    },
+  );
 };

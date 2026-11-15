@@ -3,6 +3,7 @@ import { toCurrencyString} from '@construction/money';
 import { useAppDialog } from './AppDialog';
 import { api, ApiError } from '../lib/apiClient';
 import { formatKes } from '../ui';
+import PaymentReviewPanel from './PaymentReviewPanel';
 
 interface InvoiceItem {
   id?: string;
@@ -85,6 +86,9 @@ const STATUS_STYLES: Record<string, string> = {
   OVERDUE: 'bg-rose-50 text-rose-800 border-rose-300',
   VOID: 'bg-slate-100 text-slate-500 border-slate-300 line-through',
 };
+
+// Roles holding cost.approve may resolve held provider payments (G1).
+const REVIEW_ROLES = new Set(['ADMIN', 'COMPANY_ADMIN', 'PM_QS', 'EXECUTIVE', 'SUPERINTENDENT']);
 
 export default function InvoicingView({ userRole = '' }: { userRole?: string } = {}): React.JSX.Element {
   const dialog = useAppDialog();
@@ -325,6 +329,10 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
           {showForm ? 'Close Form' : '+ New Invoice'}
 </button>
 </div>
+
+      {REVIEW_ROLES.has(userRole) && (
+<PaymentReviewPanel invoices={invoices} onChanged={load} />
+)}
 
 <div className="flex flex-wrap gap-1.5">
         {FILTERS.map((f) => (
