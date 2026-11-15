@@ -120,7 +120,7 @@ test.describe.serial('Stage 6 — portal closeout journeys', () => {
 
     // Snag 1 — awaiting consultant verification.
     S.snagForConsultant = await createSnag(request, 'GENERAL', `Grouting void beside patio door ${RUN}`);
-    await walkTo(request, S.snagForConsultant, 'READY_FOR_REVIEW');
+    await walkTo(request, S.snagForConsultant!, 'READY_FOR_REVIEW');
 
     // Subcontractor package + its own snag (will be verified closed).
     const TRADE = `S6-TILING-${RUN}`;
@@ -132,7 +132,7 @@ test.describe.serial('Stage 6 — portal closeout journeys', () => {
     const pkgId = pkgBody.id || pkgBody.package?.id || pkgBody.data?.id;
 
     S.packageSnag = await createSnag(request, TRADE, `Tiles chipped at stair nosing ${RUN}`);
-    await walkTo(request, S.packageSnag, 'VERIFIED_CLOSED');
+    await walkTo(request, S.packageSnag!, 'VERIFIED_CLOSED');
 
     // Sub valuation approved for payment -> retention held on the package.
     S.subToken = await mkLink(request, 'SUBCONTRACTOR', { stakeholderName: `S6 Tile Works ${RUN}`, subcontractorPackageId: pkgId });
