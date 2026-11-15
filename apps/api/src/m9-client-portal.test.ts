@@ -134,6 +134,11 @@ describe('Milestone M9: Client / Developer Portal Integration Test Suite', () =>
           original_contract_sum: '45000000.00',
           current_approved_budget: '45000000.00',
           status: 'ACTIVE',
+          // Round H3: retention terms are project settings — the 10%/5%
+          // schedule asserted below is configured on the project, not hard-coded.
+          retention_rate_pct: '10.00',
+          retention_cap_pct: '5.00',
+          retention_first_moiety_pct: '50.00',
           start_date: new Date('2026-01-15T00:00:00.000Z'),
           target_end_date: new Date('2026-12-15T00:00:00.000Z'),
         },

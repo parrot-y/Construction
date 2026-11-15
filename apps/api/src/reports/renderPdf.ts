@@ -48,6 +48,14 @@ const PDF_MAX_QUEUE = 20;
 const PDF_TIMEOUT_MS = 15_000;
 const PDF_RETRY_AFTER_SECONDS = 2;
 
+/**
+ * PDF renders run inside withTenantTx callbacks on several report routes.
+ * The default 5s interactive-transaction timeout is shorter than a cold
+ * worker render, so those transactions must opt into a longer lease —
+ * still bounded below the worker's own 15s render timeout.
+ */
+export const PDF_TX_OPTIONS = { timeout: 30_000 } as const;
+
 /** Queue saturated: callers map this to 503 + Retry-After. */
 export class PdfQueueFullError extends Error {
   status = 503;

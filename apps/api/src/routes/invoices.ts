@@ -15,7 +15,7 @@ import { listParams, listPage } from '../lib/pagination';
 import { nextDocumentNumber } from '../lib/counters';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
 import { recordInvoicePaymentTx } from '../services/invoicePayments';
-import { renderPdfToBufferLimited } from '../reports/renderPdf';
+import { PDF_TX_OPTIONS, renderPdfToBufferLimited } from '../reports/renderPdf';
 import { InvoicePdf, InvoicePdfData } from '../reports/InvoicePdf';
 import type { RouteError } from '../types/errors';
 
@@ -686,7 +686,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           });
 
           return { buffer, invoiceNo: pdfData.invoiceNo };
-        });
+        }, PDF_TX_OPTIONS);
 
         return reply
           .type('application/pdf')

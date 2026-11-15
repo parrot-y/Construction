@@ -20,6 +20,7 @@ import {
   PaymentCertificatePdf,
   ProjectSummaryData,
   ProjectSummaryPdf,
+  PDF_TX_OPTIONS,
   renderPdfToBufferLimited,
   SectionSummaryEntry,
   SiteDiaryReportData,
@@ -228,7 +229,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           });
 
           return { buffer: renderedBuffer, projectCode: project.code };
-        });
+        }, PDF_TX_OPTIONS);
 
         const filename = `IPC-${projectCode}.pdf`;
         return reply
@@ -396,7 +397,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             projectCode: project.code,
             entryDateFormatted: entryDateStr,
           };
-        });
+        }, PDF_TX_OPTIONS);
 
         const filename = `SiteDiary-${projectCode}-${entryDateFormatted}.pdf`;
         return reply
@@ -609,7 +610,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           });
 
           return { buffer: renderedBuffer, projectCode: project.code };
-        });
+        }, PDF_TX_OPTIONS);
 
         const filename = `ProjectSummary-${projectCode}.pdf`;
         return reply
@@ -796,7 +797,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           });
 
           return { buffer: renderedBuffer, inspectionCode: inspection.inspection_code };
-        });
+        }, PDF_TX_OPTIONS);
 
         const filename = `${inspectionCode}.pdf`;
         return reply

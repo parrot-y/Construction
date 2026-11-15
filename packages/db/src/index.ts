@@ -41,6 +41,7 @@ export async function withTenantTx<T>(
   client: PrismaClient,
   tenantId: string,
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { maxWait?: number; timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel },
 ): Promise<T> {
   if (!tenantId) {
     throw new Error('Tenant context isolation requires a valid non-empty tenantId');
@@ -52,7 +53,7 @@ export async function withTenantTx<T>(
 
     // 2. Execute business operations inside the same transaction
     return fn(tx);
-  });
+  }, options);
 }
 
 /**
