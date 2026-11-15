@@ -639,10 +639,36 @@ describe('Lifecycle Extensions Suite: 5 Domains & Strict RLS Isolation', () => {
   // DOMAIN 5: DEFECTS LIABILITY CERTIFICATES & RETENTION RELEASE
   // ===========================================================================
   describe('Domain 5: Defects Liability Certificates & JBC 1999 Retention Release', () => {
-    it('issues Practical Completion Certificate and auto-calculates 50% 1st moiety retention release (KES 250,000.00)', async () => {
-      // Contract Sum = KES 10,000,000.00
-      // 5% Retention Cap = KES 500,000.00
-      // 50% Moiety at Practical Completion = KES 250,000.00
+    it('issues Practical Completion Certificate releasing the first moiety of retention actually held on the ledger (KES 250,000.00)', async () => {
+      // Stage 6: retention release is ledger-driven, not a contract-sum guess.
+      // Seed the ledger: a CERTIFIED IPC has withheld the 5% retention cap on
+      // the KES 10,000,000 contract = KES 500,000.00 held.
+      // First moiety (50% of held) at Practical Completion = KES 250,000.00
+      await withTenantTx(prisma, tenantAId, async (tx) => {
+        const maxNo = await tx.paymentCertificate.aggregate({
+          where: { project_id: projectAId },
+          _max: { certificate_no: true },
+        });
+        await tx.paymentCertificate.create({
+          data: {
+            tenant_id: tenantAId,
+            project_id: projectAId,
+            certificate_no: (maxNo._max.certificate_no ?? 0) + 1,
+            period_start: new Date('2026-10-01T00:00:00.000Z'),
+            period_end: new Date('2026-10-31T00:00:00.000Z'),
+            this_period_amount: '10000000.00',
+            previous_certified: '0.00',
+            cumulative_certified: '10000000.00',
+            retention_pct: '5.00',
+            retention_deduction: '500000.00',
+            retention_held: '500000.00',
+            retention_released: '0.00',
+            net_payable: '9500000.00',
+            status: 'CERTIFIED',
+            certified_at: new Date(),
+          },
+        });
+      });
       const res = await server.inject({
         method: 'POST',
         url: `/api/v1/projects/${projectAId}/certificates`,
@@ -670,10 +696,11 @@ describe('Lifecycle Extensions Suite: 5 Domains & Strict RLS Isolation', () => {
       expect(body.retention_amount_released).toBe('250000.00');
       expect(body.dlp_expiry_date).toContain('2027-05-04');
 
-      // Verify project status transitioned to COMPLETED
+      // Stage 6: issuing a certificate must NOT flip project status — the
+      // closeout stage machine owns COMPLETED.
       await withTenantTx(prisma, tenantAId, async (tx) => {
         const proj = await tx.project.findUnique({ where: { id: projectAId } });
-        expect(proj?.status).toBe('COMPLETED');
+        expect(proj?.status).not.toBe('COMPLETED');
       });
     });
 

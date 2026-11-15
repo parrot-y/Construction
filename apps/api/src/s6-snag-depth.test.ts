@@ -139,7 +139,10 @@ describe('Gate-4 S6: Punch list depth', () => {
     expect((await setStatus(qsCookie, snagId, 'IN_PROGRESS')).statusCode).toBe(400);
     // REJECTED path: OPEN -> REJECTED legal on private snag
     expect((await setStatus(adminCookie, privateSnagId, 'REJECTED')).statusCode).toBe(200);
-    expect((await setStatus(qsCookie, privateSnagId, 'IN_PROGRESS')).statusCode).toBe(400);
+    // Stage 6: REJECTED is not terminal — a consultant rejection sends the
+    // snag back for rework, but it still cannot skip the review step.
+    expect((await setStatus(qsCookie, privateSnagId, 'IN_PROGRESS')).statusCode).toBe(200);
+    expect((await setStatus(qsCookie, privateSnagId, 'VERIFIED_CLOSED')).statusCode).toBe(400);
   });
 
   it('supports comments and additional distributions on a snag', async () => {

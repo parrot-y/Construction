@@ -862,6 +862,37 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   // STEP 12: Certificate of Practical Completion (1st Moiety 50% Retention Release)
   // ---------------------------------------------------------------------------
   it('Step 12: Joint site inspection reaches Practical Completion: Architect & QS issue Certificate of Practical Completion, triggering 1st Moiety (50%) retention fund release', async () => {
+    // Stage 6: retention release is ledger-driven. Seed the ledger with a
+    // CERTIFIED interim payment certificate that has withheld the 5% cap on
+    // the KES 40,279,000 contract = KES 2,013,950.00 held, so the first
+    // moiety release is KES 1,006,975.00 — derived, not guessed.
+    await withTenantTx(prisma, tenantId, async (tx) => {
+      const maxNo = await tx.paymentCertificate.aggregate({
+        where: { project_id: projectId },
+        _max: { certificate_no: true },
+      });
+      await tx.paymentCertificate.create({
+        data: {
+          tenant_id: tenantId,
+          project_id: projectId,
+          certificate_no: (maxNo._max.certificate_no ?? 0) + 1,
+          period_start: new Date('2026-03-01T00:00:00.000Z'),
+          period_end: new Date('2026-03-31T00:00:00.000Z'),
+          this_period_amount: '40279000.00',
+          previous_certified: '0.00',
+          cumulative_certified: '40279000.00',
+          retention_pct: '5.00',
+          retention_deduction: '2013950.00',
+          retention_held: '2013950.00',
+          retention_released: '0.00',
+          net_payable: '38265050.00',
+          status: 'CERTIFIED',
+          certified_at: new Date(),
+          submitted_by_id: adminUserId,
+        },
+      });
+    });
+
     const cpcRes = await server.inject({
       method: 'POST',
       url: `/api/v1/projects/${projectId}/certificates`,
