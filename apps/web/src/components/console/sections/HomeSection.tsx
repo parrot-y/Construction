@@ -191,11 +191,87 @@ function ExecHome(): React.JSX.Element {
 );
 }
 
-/** Field-role home — team inbox + announcements (reference pattern). */
+/** Field-role home — today's work first (diary, headcount, snags, safety),
+ *  team inbox below. */
 function FieldHome(): React.JSX.Element {
-  const { tab, session} = useConsole();
-  if (tab === 'announcements') return<AnnouncementsView canManage={false} />;
-  return<InboxView currentUserId={session.user.id} />;
+  const { tab, session, projects, projectId, setSection, setTab } = useConsole();
+  const [logToday, setLogToday] = useState<boolean | null>(null);
+  const [openSnags, setOpenSnags] = useState(0);
+  const [presentToday, setPresentToday] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!projectId || !/^[0-9a-f-]{36}$/i.test(projectId)) {
+      setLogToday(null); setOpenSnags(0); setPresentToday(null);
+      return;
+    }
+    const opts: RequestInit = { credentials: 'include' };
+    fetch(`/api/v1/projects/${projectId}/site-diaries`, opts)
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => {
+        const today = new Date().toISOString().slice(0, 10);
+        const list = j.data || j || [];
+        setLogToday(Array.isArray(list) && list.some((d: any) => String(d.entry_date || d.date || '').slice(0, 10) === today));
+      })
+      .catch(() => setLogToday(null));
+    fetch(`/api/v1/projects/${projectId}/snags`, opts)
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => {
+        const list = j.data || j || [];
+        setOpenSnags(list.filter?.((s: any) => ['OPEN', 'IN_PROGRESS', 'READY_FOR_REVIEW'].includes(s.status))?.length ?? 0);
+      })
+      .catch(() => {});
+    fetch(`/api/v1/projects/${projectId}/attendance`, opts)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setPresentToday(typeof j?.summary?.present === 'number' ? j.summary.present : null))
+      .catch(() => {});
+  }, [projectId]);
+
+  if (tab === 'announcements') return <AnnouncementsView canManage={false} />;
+
+  const pname = projects.find((p) => p.id === projectId)?.name;
+  const actions = [
+    {
+      label: "Log today's diary",
+      desc: logToday === true ? 'Site log done today' : logToday === false ? 'Not logged yet' : 'Weather, labour, work done',
+      tab: 'dailylog',
+      warn: logToday === false,
+    },
+    {
+      label: "Today's headcount",
+      desc: presentToday != null ? `${presentToday} present today` : 'Attendance register',
+      tab: 'attendance',
+    },
+    {
+      label: 'Open snags',
+      desc: `${openSnags} snag${openSnags === 1 ? '' : 's'} open`,
+      tab: 'punch',
+      warn: openSnags > 0,
+    },
+    {
+      label: 'Report safety incident',
+      desc: 'Incident register',
+      tab: 'safety',
+    },
+  ];
+
+  return (
+<div className="space-y-6">
+<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Today's work{pname ? ` — ${pname}` : ''}</h2>
+<p className="text-[11px] text-slate-400 mt-0.5">Start here: site log, headcount, snags and safety for today.</p>
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+          {actions.map((a) => (
+<button key={a.tab} onClick={() => { setSection('site'); setTab(a.tab); }}
+              className="text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition">
+<p className={`text-xs font-bold ${a.warn ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{a.label}</p>
+<p className="text-[10px] text-slate-400 mt-1">{a.desc}</p>
+</button>
+))}
+</div>
+</div>
+<InboxView currentUserId={session.user.id} />
+</div>
+);
 }
 
 export default function HomeSection(): React.JSX.Element {

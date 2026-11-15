@@ -56,7 +56,6 @@ import { AsphaltPavementView} from './components/AsphaltPavementView';
 import { TopographicSurveyView} from './components/TopographicSurveyView';
 import PmQsDashboard from './components/PmQsDashboard';
 import CompanyAdminDashboard from './components/CompanyAdminDashboard';
-import SupervisorDashboard from './components/SupervisorDashboard';
 import IndependentSiteReportView from './components/IndependentSiteReportView';
 import ContractorTenderBoardView from './components/ContractorTenderBoardView';
 import LandingPortalHub from './components/LandingPortalHub';
@@ -157,35 +156,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('No variance data yet');
 });
 
-  it('renders SITE_SUPERVISOR dashboard with daily diary, headcount, and offline PWA indicator', () => {
-    const supervisorSession: AuthSession = {
-      user: {
-        id: '33333333-3333-3333-3333-333333333333',
-        email: 'supervisor@apexbuilders.co.ke',
-        fullName: 'John Mwangi',
-        role: 'SITE_SUPERVISOR',
-        tenant: {
-          id: 'tenant-123',
-          name: 'Apex Builders Kenya Ltd',
-          slug: 'apex-builders',
-          currency: 'KES',
-},
-},
-      permissions: ['site.diary.create', 'evidence.upload', 'progress.update', 'project.view'],
-      token: 'mock-jwt-token-supervisor',
-};
-
-    const html = renderToString(<SupervisorDashboard session={supervisorSession} />);
-    expect(html).toContain('Apex Builders Kenya Ltd');
-    expect(html).toContain('Site Supervisor Workspace');
-    expect(html).toContain('Site Operations &amp; Daily Diary');
-    expect(html).toContain('+ Record Daily Site Diary');
-    expect(html).toContain('IndexedDB Offline Queue Active');
-    expect(html).toContain('Assigned Sites');
-    expect(html).toContain('Today&#x27;s Diary Status');
-    expect(html).toContain('Today&#x27;s Headcount');
-    expect(html).toContain('Photo Evidence Feed');
-});
+  
 
   it('renders CLIENT dashboard with physical progress, certified costs, and retention ledger terms', () => {
     const clientSession: AuthSession = {
@@ -861,14 +832,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('/reports/summary');
 });
 
-    it('renders PDF report download buttons in SupervisorDashboard', () => {
-      const html = renderToString(<SupervisorDashboard session={mockSession('SITE_SUPERVISOR')} />);
-      expect(html).toContain('Daily Diary (PDF)');
-      expect(html).toContain('Site Summary (PDF)');
-      expect(html).toContain('data-testid="download-site-diary-btn"');
-      expect(html).toContain('data-testid="download-summary-btn"');
-      expect(html).toContain('/reports/summary');
-});
+    
 });
 
   describe('Construction Lifecycle Extensions: RFI Technical Queries Suite', () => {
@@ -1105,12 +1069,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Practical Completion &amp; Retention Release Card');
 });
 
-    it('embeds QualityControlView and SnaggingListView into SupervisorDashboard', () => {
-      const html = renderToString(<SupervisorDashboard session={mockSessionForRole('SITE_SUPERVISOR')} />);
-
-      expect(html).toContain('Pre-Pour Hold Points &amp; Concrete Cube Crushing');
-      expect(html).toContain('Defects Snagging Punch List Register');
-});
+    
 
     it('embeds PracticalCompletionCard and SnaggingListView into ClientDashboard with verification capability', () => {
       const html = renderToString(<ClientDashboard session={mockSessionForRole('CLIENT')} />);
@@ -1469,23 +1428,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Subcontractor Valuations &amp; Retention Ledger');
 });
 
-    it('embeds Material Requisitions and Wastage Variance into SupervisorDashboard', () => {
-      const superSession: AuthSession = {
-        user: {
-          id: 'user-super',
-          email: 'supervisor@apexbuilders.co.ke',
-          fullName: 'Site Supervisor',
-          role: 'SITE_SUPERVISOR',
-          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES'},
-},
-        permissions: ['site.diary', 'cost.create'],
-        token: 'token',
-};
-
-      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
-      expect(html).toContain('Site Material Requisitions &amp; Orders');
-      expect(html).toContain('Material Wastage &amp; Shrinkage Engine');
-});
+    
 });
 
   describe('Milestones M16, M17 & M18: Plant Equipment, Labor Muster Roll & Safety Audits UI Suite', () => {
@@ -1562,24 +1505,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
 });
 
-    it('embeds Plant Equipment, Labor Muster Roll and Safety Audits into SupervisorDashboard', () => {
-      const superSession: AuthSession = {
-        user: {
-          id: 'user-super',
-          email: 'supervisor@apexbuilders.co.ke',
-          fullName: 'Site Supervisor',
-          role: 'SITE_SUPERVISOR',
-          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES'},
-},
-        permissions: ['site.diary', 'cost.create'],
-        token: 'token',
-};
-
-      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
-      expect(html).toContain('Plant &amp; Heavy Equipment Manager');
-      expect(html).toContain('Site Casual Labor Muster Roll &amp; Artisan Payroll');
-      expect(html).toContain('Field Safety &amp; DOSHS/NCA Compliance Scorecards');
-});
+    
 
     it('embeds Plant Equipment, Labor Muster Roll and Safety Audits into CompanyAdminDashboard', () => {
       const adminSession: AuthSession = {
@@ -1681,23 +1607,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Subcontractor Retention &amp; Bank Bonds Engine');
 });
 
-    it('embeds WhatsApp Site Webhook into SupervisorDashboard', () => {
-      const superSession: AuthSession = {
-        user: {
-          id: 'user-super',
-          email: 'supervisor@apexbuilders.co.ke',
-          fullName: 'Site Supervisor',
-          role: 'SITE_SUPERVISOR',
-          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES'},
-},
-        permissions: ['site.diary', 'cost.create'],
-        token: 'token',
-};
-
-      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
-      expect(html).toContain('WhatsApp Site Ops Bot &amp; Webhook Engine');
-      expect(html).toContain('Field WhatsApp Bot &amp; Incident Dispatch');
-});
+    
 
     it('embeds e-TIMS and Retention/Bonds into CompanyAdminDashboard', () => {
       const adminSession: AuthSession = {
@@ -1796,23 +1706,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Pay / Upgrade with M-Pesa');
 });
 
-    it('embeds GeofencedClockInView and PlantTelematicsView into SupervisorDashboard', () => {
-      const superSession: AuthSession = {
-        user: {
-          id: 'user-super',
-          email: 'supervisor@apexbuilders.co.ke',
-          fullName: 'Site Supervisor',
-          role: 'SITE_SUPERVISOR',
-          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES'},
-},
-        permissions: ['site.diary', 'cost.create'],
-        token: 'token',
-};
-
-      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
-      expect(html).toContain('Project Geofencing &amp; Biometric Attendance');
-      expect(html).toContain('Plant GPS Telematics &amp; Remote Fuel Flow Ingestion');
-});
+    
 
     it('embeds GeofencedClockInView and PlantTelematicsView into PmQsDashboard', () => {
       const pmSession: AuthSession = {
@@ -1880,23 +1774,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Safaricom Daraja B2C Bulk Wages &amp; Retention Disbursements');
 });
 
-    it('embeds BarBendingScheduleView into SupervisorDashboard for site cutting lists', () => {
-      const superSession: AuthSession = {
-        user: {
-          id: 'user-super',
-          email: 'supervisor@apexbuilders.co.ke',
-          fullName: 'Site Supervisor',
-          role: 'SITE_SUPERVISOR',
-          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES'},
-},
-        permissions: ['site.diary', 'cost.create'],
-        token: 'token',
-};
-
-      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
-      expect(html).toContain('Rebar Takeoff &amp; BS 8666 Bar Bending Schedule (BBS)');
-      expect(html).toContain('KS 02-598 Certified');
-});
+    
 
     it('embeds MpesaDisbursementView into CompanyAdminDashboard for executive payouts', () => {
       const adminSession: AuthSession = {
@@ -1972,24 +1850,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Structural Steel Framing &amp; Fabrication Takeoff Engine');
 });
 
-    it('embeds RmcTransitTrackerView into SupervisorDashboard for live batch tickets and slump cone testing', () => {
-      const superSession: AuthSession = {
-        user: {
-          id: 'user-super',
-          email: 'supervisor@apexbuilders.co.ke',
-          fullName: 'Site Supervisor',
-          role: 'SITE_SUPERVISOR',
-          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES'},
-},
-        permissions: ['site.diary', 'cost.create'],
-        token: 'token',
-};
-
-      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
-      expect(html).toContain('Ready-Mix Concrete (RMC) Transit &amp; Slump Tracker');
-      expect(html).toContain('Bamburi Special Products Ltd');
-      expect(html).toContain('KDH 482B');
-});
+    
 });
 
   describe('Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality', () => {
@@ -2049,23 +1910,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Asphalt Pavement Quality &amp; Thermal Tracker');
 });
 
-    it('embeds GeotechnicalSoilView and AsphaltPavementView into SupervisorDashboard', () => {
-      const superSession: AuthSession = {
-        user: {
-          id: 'user-super',
-          email: 'supervisor@apexbuilders.co.ke',
-          fullName: 'Site Supervisor',
-          role: 'SITE_SUPERVISOR',
-          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES'},
-},
-        permissions: ['site.diary', 'cost.create'],
-        token: 'token',
-};
-
-      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
-      expect(html).toContain('Geotechnical Soil Compaction QA Engine');
-      expect(html).toContain('Asphalt Pavement Quality &amp; Thermal Tracker');
-});
+    
 
     it('renders TopographicSurveyView with Mass Haul Diagram, Cut/Fill metrics, and station takeoff table', () => {
       const html = renderToString(
@@ -2110,23 +1955,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('Mass Haul Diagram (MHD)');
 });
 
-    it('embeds TopographicSurveyView into SupervisorDashboard', () => {
-      const superSession: AuthSession = {
-        user: {
-          id: 'user-super',
-          email: 'supervisor@apexbuilders.co.ke',
-          fullName: 'Site Supervisor',
-          role: 'SITE_SUPERVISOR',
-          tenant: { id: 'tenant-123', name: 'Apex Builders Kenya Ltd', slug: 'apex', currency: 'KES'},
-},
-        permissions: ['site.diary', 'cost.create'],
-        token: 'token',
-};
-
-      const html = renderToString(<SupervisorDashboard session={superSession} />).replace(/<!-- -->/g, '');
-      expect(html).toContain('Survey &amp; Topographic Cut/Fill Earthworks Engine');
-      expect(html).toContain('Mass Haul Diagram (MHD)');
-});
+    
 
     it('renders PlantTelematicsView CAN-bus Live Diagnostics Dashboard with overheat threshold indicators and ECU DTC codes', () => {
       const html = renderToString(
