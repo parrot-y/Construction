@@ -1714,7 +1714,11 @@ model SubcontractorRetentionRelease {
   release_amount             Decimal              @db.Decimal(15, 2)
   qs_recommendation_notes    String?              @db.Text
   defect_clearance_verified  Boolean              @default(false)
-  status                     String               @default("PENDING_QS_REVIEW") @db.VarChar(50) // "PENDING_QS_REVIEW", "APPROVED_BY_DIRECTOR", "PAID", "REJECTED"
+  status                     String               @default("PENDING_QS_REVIEW") @db.VarChar(50) // "PENDING_QS_REVIEW" -> "QS_RECOMMENDED" -> "APPROVED_BY_DIRECTOR" -> "PAID" | "REJECTED"
+  requested_by_user_id       String?              @db.Uuid // console creator; null for portal requests
+  recommended_by_user_id     String?              @db.Uuid // QS who recommended release
+  approved_by_user_id        String?              @db.Uuid // director who approved
+  approval_override_reason   String?              @db.Text // >=15 chars when approver == requester/recommender
   disbursement_ref           String?              @db.VarChar(100) // E.g. "MPESA-B2C-QA8192" or "EFT-KCB-9921"
   disbursed_at               DateTime?            @db.Timestamptz
   created_at                 DateTime             @default(now()) @db.Timestamptz

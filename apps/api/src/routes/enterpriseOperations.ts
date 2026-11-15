@@ -10,7 +10,7 @@ import {
   ProcessWebhookPayloadSchema,
   CreateSiteAlertNotificationSchema,
   CreateSubcontractorRetentionReleaseSchema,
-  ReviewSubcontractorRetentionReleaseSchema,
+  SubcontractorRetentionReleaseActionSchema,
   CreateContractorBondSchema,
 } from '@construction/validation';
 import { PRODUCT_NAME } from '../lib/product';
@@ -846,6 +846,10 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
               qsRecommendationNotes: r.qs_recommendation_notes,
               defectClearanceVerified: r.defect_clearance_verified,
               status: r.status,
+              requestedByUserId: r.requested_by_user_id,
+              recommendedByUserId: r.recommended_by_user_id,
+              approvedByUserId: r.approved_by_user_id,
+              approvalOverrideReason: r.approval_override_reason,
               disbursementRef: r.disbursement_ref,
               disbursedAt: r.disbursed_at?.toISOString() || null,
               createdAt: r.created_at.toISOString(),
@@ -921,6 +925,20 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
           });
           if (!pkg) throw { status: 404, message: 'Subcontractor package not found in this project' };
 
+          // H2: one live release per package per moiety — a second request for
+          // the same moiety is refused until the first is REJECTED.
+          const duplicate = await tx.subcontractorRetentionRelease.findFirst({
+            where: {
+              subcontractor_package_id: data.subcontractorPackageId,
+              moiety_stage: data.moietyStage,
+              status: { not: 'REJECTED' },
+            },
+            select: { release_no: true },
+          });
+          if (duplicate) {
+            throw { status: 409, message: `A ${data.moietyStage === 'FIRST_MOIETY_PRACTICAL_COMPLETION' ? 'first' : 'final'} moiety release (${duplicate.release_no}) already exists for this package` };
+          }
+
           const release = await tx.subcontractorRetentionRelease.create({
             data: {
               tenant_id: tenantId,
@@ -934,6 +952,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
               qs_recommendation_notes: data.qsRecommendationNotes,
               defect_clearance_verified: data.defectClearanceVerified,
               status: 'PENDING_QS_REVIEW',
+              requested_by_user_id: sub,
             },
           });
 
@@ -988,17 +1007,39 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
       }
 
-      const parseResult = ReviewSubcontractorRetentionReleaseSchema.safeParse(request.body);
+      const parseResult = SubcontractorRetentionReleaseActionSchema.safeParse(request.body);
       if (!parseResult.success) {
         return reply.status(400).send({
           statusCode: 400,
           error: 'Bad Request',
-          message: 'Invalid retention review input',
+          message: 'Invalid retention review input — use action: RECOMMEND | APPROVE | REJECT | MARK_PAID',
           details: parseResult.error.flatten(),
         });
       }
 
-      const { status, disbursementRef } = parseResult.data;
+      const { action, qsRecommendationNotes, disbursementRef, overrideReason } = parseResult.data;
+      const actorRole = String((request.user as { role?: string }).role ?? '');
+
+      // H2 maker-checker: the QS recommends, a director approves and pays.
+      // Field/site roles and portal stakeholders cannot move money here.
+      const QS_ROLES = ['PM_QS', 'ADMIN', 'COMPANY_ADMIN'];
+      const DIRECTOR_ROLES = ['EXECUTIVE', 'ADMIN', 'COMPANY_ADMIN'];
+      const needsDirector = action === 'APPROVE' || action === 'MARK_PAID';
+      const allowed = needsDirector ? DIRECTOR_ROLES : [...QS_ROLES, ...DIRECTOR_ROLES];
+      if (!allowed.includes(actorRole)) {
+        return reply.status(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: `${needsDirector ? 'A director (EXECUTIVE/ADMIN/COMPANY_ADMIN)' : 'A QS or administrator'} must ${action === 'RECOMMEND' ? 'recommend' : action === 'APPROVE' ? 'approve' : action === 'REJECT' ? 'reject' : 'mark paid'} retention releases`,
+        });
+      }
+      if (action === 'MARK_PAID' && !disbursementRef?.trim()) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'A disbursement reference (e.g. MPESA-B2C-…) is required to record the payout',
+        });
+      }
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -1007,12 +1048,67 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
           });
           if (!release) throw { status: 404, message: 'Retention release not found' };
 
+          const from = release.status;
+          const next: Record<string, string> = {
+            RECOMMEND: 'QS_RECOMMENDED',
+            APPROVE: 'APPROVED_BY_DIRECTOR',
+            REJECT: 'REJECTED',
+            MARK_PAID: 'PAID',
+          };
+          const validFrom: Record<string, string[]> = {
+            RECOMMEND: ['PENDING_QS_REVIEW'],
+            APPROVE: ['QS_RECOMMENDED'],
+            REJECT: ['PENDING_QS_REVIEW', 'QS_RECOMMENDED'],
+            MARK_PAID: ['APPROVED_BY_DIRECTOR'],
+          };
+          const allowedFrom = validFrom[action] ?? [];
+          if (!allowedFrom.includes(from)) {
+            throw {
+              status: 409,
+              message: `Cannot ${action} a release in status ${from} — expected ${allowedFrom.join(' or ')}`,
+            };
+          }
+
+          // Maker-checker: the approver must differ from whoever requested
+          // (console) or recommended the release. Same-person approval needs
+          // an override reason of at least 15 non-space characters.
+          let override: string | null = null;
+          if (action === 'APPROVE') {
+            const conflicted =
+              (release.requested_by_user_id && release.requested_by_user_id === sub) ||
+              (release.recommended_by_user_id && release.recommended_by_user_id === sub);
+            if (conflicted) {
+              const reason = (overrideReason ?? '').replace(/\s+/g, '');
+              if (reason.length < 15) {
+                throw {
+                  status: 409,
+                  message: 'Self-approval of a retention release requires an overrideReason of at least 15 characters',
+                };
+              }
+              override = overrideReason!.trim();
+            }
+          }
+
           const updated = await tx.subcontractorRetentionRelease.update({
             where: { id: releaseId },
             data: {
-              status,
-              disbursement_ref: disbursementRef,
-              disbursed_at: status === 'PAID' ? new Date() : release.disbursed_at,
+              status: next[action],
+              ...(action === 'RECOMMEND'
+                ? {
+                    recommended_by_user_id: sub,
+                    ...(qsRecommendationNotes != null
+                      ? { qs_recommendation_notes: qsRecommendationNotes }
+                      : {}),
+                  }
+                : {}),
+              ...(action === 'APPROVE' ? { approved_by_user_id: sub } : {}),
+              ...(override ? { approval_override_reason: override } : {}),
+              ...(action === 'MARK_PAID'
+                ? {
+                    disbursement_ref: disbursementRef!.trim(),
+                    disbursed_at: new Date(),
+                  }
+                : {}),
             },
           });
 
@@ -1024,8 +1120,11 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
             entityId: updated.id,
             projectId,
             changes: {
-              newStatus: status,
-              disbursementRef,
+              action,
+              fromStatus: from,
+              newStatus: updated.status,
+              disbursementRef: updated.disbursement_ref,
+              ...(override ? { approvalOverrideReason: override } : {}),
             },
           });
 
@@ -1042,7 +1141,7 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
       } catch (err: any) {
         return reply.status(err.status || 500).send({
           statusCode: err.status || 500,
-          error: err.status === 404 ? 'Not Found' : 'Internal Server Error',
+          error: err.status === 404 ? 'Not Found' : err.status === 409 ? 'Conflict' : err.status === 403 ? 'Forbidden' : 'Internal Server Error',
           message: err.message,
         });
       }

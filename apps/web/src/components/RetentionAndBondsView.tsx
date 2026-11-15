@@ -14,7 +14,10 @@ export interface RetentionReleaseItem {
   releaseAmount: string;
   qsRecommendationNotes?: string | null;
   defectClearanceVerified: boolean;
-  status: 'PENDING_QS_REVIEW' | 'APPROVED_BY_DIRECTOR' | 'PAID' | 'REJECTED';
+  status: 'PENDING_QS_REVIEW' | 'QS_RECOMMENDED' | 'APPROVED_BY_DIRECTOR' | 'PAID' | 'REJECTED';
+  requestedByUserId?: string | null;
+  recommendedByUserId?: string | null;
+  approvedByUserId?: string | null;
   disbursementRef?: string | null;
   disbursedAt?: string | null;
   createdAt: string;
@@ -259,27 +262,65 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
     setShowReleaseModal(false);
 };
 
-  const handleDisburseClick = async (releaseId: string) => {
-    const ref = `MPESA-B2C-${Date.now().toString().slice(-6)}`;
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const handleReview = async (releaseId: string, action: 'RECOMMEND' | 'APPROVE' | 'REJECT' | 'MARK_PAID', extra: Record<string, unknown> = {}) => {
+    setReviewError(null);
+    const statusFor = { RECOMMEND: 'QS_RECOMMENDED', APPROVE: 'APPROVED_BY_DIRECTOR', REJECT: 'REJECTED', MARK_PAID: 'PAID' } as const;
 
     if (isLive && projectId) {
+      const post = (payload: Record<string, unknown>) =>
+        api.post<{ status?: string }>(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, { action, ...payload });
       try {
-        await api.post(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, { status: 'PAID', disbursementRef: ref });
-        await reload(); return;
-} catch { /* fall through to local */}
-}
+        await post(extra);
+        await reload();
+        return;
+      } catch (err: any) {
+        const msg = String(err?.message ?? err ?? '');
+        // Maker-checker override: the API demands a >=15-char reason when the
+        // approver is also the requester/recommender.
+        if (action === 'APPROVE' && /overrideReason/i.test(msg)) {
+          const reason = window.prompt('You recommended or requested this release — approval needs an override reason (min 15 characters):');
+          if (reason && reason.trim().length >= 15) {
+            try {
+              await post({ ...extra, overrideReason: reason.trim() });
+              await reload();
+              return;
+            } catch (err2: any) {
+              setReviewError(String(err2?.message ?? err2));
+              return;
+            }
+          }
+          setReviewError('Approval cancelled — an override reason is required for self-approval.');
+          return;
+        }
+        setReviewError(msg || `Could not ${action.toLowerCase()} the release.`);
+        return;
+      }
+    }
 
     if (onReviewRelease) {
-      await onReviewRelease(releaseId, 'PAID', ref);
-}
+      await onReviewRelease(releaseId, statusFor[action], extra.disbursementRef as string | undefined);
+    }
     setReleases(
       releases.map((r) =>
         r.id === releaseId
-          ? { ...r, status: 'PAID', disbursementRef: ref, disbursedAt: new Date().toISOString()}
-          : r
-)
-);
-};
+          ? {
+              ...r,
+              status: statusFor[action],
+              ...(action === 'MARK_PAID'
+                ? { disbursementRef: extra.disbursementRef as string, disbursedAt: new Date().toISOString() }
+                : {}),
+            }
+          : r,
+      ),
+    );
+  };
+
+  const handleDisburseClick = async (releaseId: string) => {
+    const ref = `MPESA-B2C-${Date.now().toString().slice(-6)}`;
+    await handleReview(releaseId, 'MARK_PAID', { disbursementRef: ref });
+  };
 
   const handleCreateBondSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -420,6 +461,11 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               Moiety 1: {pct.first}% at PC | Moiety 2: {pct.second}% post-DLP Snags Cleared
 </span>
 </div>
+{reviewError && (
+<div className="px-4 py-2 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300">
+              {reviewError}
+</div>
+)}
 <div className="overflow-x-auto">
 <table className="w-full text-left border-collapse text-sm">
 <thead>
@@ -464,6 +510,8 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                             : rel.status === 'APPROVED_BY_DIRECTOR'
                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                            : rel.status === 'QS_RECOMMENDED'
+                            ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
                             : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
 }`}
                       >
@@ -471,17 +519,37 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </span>
 </td>
 <td className="py-3 px-4 text-center">
-                      {rel.status !== 'PAID' ? (
-<button
-                          onClick={() => handleDisburseClick(rel.id)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
-                        >
-                          Disburse M-Pesa B2C
-</button>
-) : (
+                      {rel.status === 'PAID' ? (
 <span className="text-[10px] tabular-nums text-slate-500">
                           {rel.disbursementRef}
 </span>
+) : rel.status === 'REJECTED' ? (
+<span className="text-[10px] text-slate-400">Rejected</span>
+) : (
+<div className="flex flex-col items-center gap-1">
+<button
+                            onClick={() =>
+                              rel.status === 'APPROVED_BY_DIRECTOR'
+                                ? handleDisburseClick(rel.id)
+                                : handleReview(rel.id, rel.status === 'PENDING_QS_REVIEW' ? 'RECOMMEND' : 'APPROVE')
+                            }
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
+                          >
+                            {rel.status === 'PENDING_QS_REVIEW'
+                              ? 'QS Recommend'
+                              : rel.status === 'QS_RECOMMENDED'
+                              ? 'Director Approve'
+                              : 'Disburse M-Pesa B2C'}
+</button>
+                          {rel.status !== 'APPROVED_BY_DIRECTOR' && (
+<button
+                              onClick={() => handleReview(rel.id, 'REJECT')}
+                              className="text-[10px] text-rose-600 hover:underline"
+                            >
+                              Reject
+</button>
+)}
+</div>
 )}
 </td>
 </tr>

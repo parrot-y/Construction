@@ -1294,11 +1294,13 @@ export const CreateSubcontractorRetentionReleaseSchema = z.object({
 });
 export type CreateSubcontractorRetentionRelease = z.infer<typeof CreateSubcontractorRetentionReleaseSchema>;
 
-export const ReviewSubcontractorRetentionReleaseSchema = z.object({
-  status: z.enum(['PENDING_QS_REVIEW', 'APPROVED_BY_DIRECTOR', 'PAID', 'REJECTED']),
+export const SubcontractorRetentionReleaseActionSchema = z.object({
+  action: z.enum(['RECOMMEND', 'APPROVE', 'REJECT', 'MARK_PAID']),
+  qsRecommendationNotes: z.string().max(2000).optional().nullable(),
   disbursementRef: z.string().max(100).optional().nullable(),
+  overrideReason: z.string().max(500).optional().nullable(),
 });
-export type ReviewSubcontractorRetentionRelease = z.infer<typeof ReviewSubcontractorRetentionReleaseSchema>;
+export type SubcontractorRetentionReleaseAction = z.infer<typeof SubcontractorRetentionReleaseActionSchema>;
 
 export const BondTypeEnum = z.enum([
   'PERFORMANCE_BOND',

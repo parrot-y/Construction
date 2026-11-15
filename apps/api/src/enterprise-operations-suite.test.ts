@@ -450,22 +450,59 @@ describe('Milestones M19, M20 & M21: Enterprise Operations Suite', () => {
       createdReleaseId = body.id;
     });
 
-    it('should approve and disburse retention release with M-Pesa B2C disbursement reference', async () => {
-      const res = await app.inject({
-        method: 'POST',
-        url: `/api/v1/projects/${testProjectId}/subcontractor-retention-releases/${createdReleaseId}/review`,
-        headers: { cookie: authCookie },
-        payload: {
-          status: 'PAID',
-          disbursementRef: 'MPESA-B2C-QA99824',
-        },
-      });
+    it('should walk QS recommend -> director approve -> M-Pesa B2C disbursement', async () => {
+      const reviewUrl = `/api/v1/projects/${testProjectId}/subcontractor-retention-releases/${createdReleaseId}/review`;
 
-      expect(res.statusCode).toBe(200);
-      const body = JSON.parse(res.body);
+      // QS recommends (admin acts as QS here — same tenant, allowed role).
+      const rec = await app.inject({
+        method: 'POST',
+        url: reviewUrl,
+        headers: { cookie: authCookie },
+        payload: { action: 'RECOMMEND', qsRecommendationNotes: 'Verified against certified valuations.' },
+      });
+      expect(rec.statusCode).toBe(200);
+      expect(JSON.parse(rec.body).status).toBe('QS_RECOMMENDED');
+
+      // Self-approval without an override reason is refused (maker-checker).
+      const selfApprove = await app.inject({
+        method: 'POST',
+        url: reviewUrl,
+        headers: { cookie: authCookie },
+        payload: { action: 'APPROVE' },
+      });
+      expect(selfApprove.statusCode).toBe(409);
+
+      // Director approval with the required override reason.
+      const appr = await app.inject({
+        method: 'POST',
+        url: reviewUrl,
+        headers: { cookie: authCookie },
+        payload: { action: 'APPROVE', overrideReason: 'Sole director on site; documented in site minutes.' },
+      });
+      expect(appr.statusCode).toBe(200);
+      expect(JSON.parse(appr.body).status).toBe('APPROVED_BY_DIRECTOR');
+
+      // Payout recorded once, with the M-Pesa B2C reference.
+      const paid = await app.inject({
+        method: 'POST',
+        url: reviewUrl,
+        headers: { cookie: authCookie },
+        payload: { action: 'MARK_PAID', disbursementRef: 'MPESA-B2C-QA99824' },
+      });
+      expect(paid.statusCode).toBe(200);
+      const body = JSON.parse(paid.body);
       expect(body.status).toBe('PAID');
       expect(body.disbursementRef).toBe('MPESA-B2C-QA99824');
       expect(body.disbursedAt).toBeDefined();
+
+      // A second payout attempt is refused — money moves exactly once.
+      const again = await app.inject({
+        method: 'POST',
+        url: reviewUrl,
+        headers: { cookie: authCookie },
+        payload: { action: 'MARK_PAID', disbursementRef: 'MPESA-B2C-QA99825' },
+      });
+      expect(again.statusCode).toBe(409);
     });
 
     it('should list subcontractor retention releases with financial totals', async () => {

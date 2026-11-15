@@ -1475,12 +1475,32 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(rel1.statusCode).toBe(201);
     const releaseId = JSON.parse(rel1.body).id;
 
+    // H2 maker-checker: QS recommends, director approves, then payout.
+    const reviewUrl = `/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`;
+    const rec = await server.inject({
+      method: 'POST',
+      url: reviewUrl,
+      headers: { cookie: qsCookie },
+      payload: { action: 'RECOMMEND', qsRecommendationNotes: 'QS verified against certified valuations.' },
+    });
+    expect(rec.statusCode).toBe(200);
+    expect(JSON.parse(rec.body).status).toBe('QS_RECOMMENDED');
+
+    const appr = await server.inject({
+      method: 'POST',
+      url: reviewUrl,
+      headers: { cookie: adminCookie },
+      payload: { action: 'APPROVE' },
+    });
+    expect(appr.statusCode).toBe(200);
+    expect(JSON.parse(appr.body).status).toBe('APPROVED_BY_DIRECTOR');
+
     // Disburse via M-Pesa B2C
     const disbRes = await server.inject({
       method: 'POST',
-      url: `/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`,
+      url: reviewUrl,
       headers: { cookie: adminCookie },
-      payload: { status: 'PAID', disbursementRef: 'MPESA-B2C-RET-001' },
+      payload: { action: 'MARK_PAID', disbursementRef: 'MPESA-B2C-RET-001' },
     });
     expect(disbRes.statusCode).toBe(200);
     expect(JSON.parse(disbRes.body).status).toBe('PAID');

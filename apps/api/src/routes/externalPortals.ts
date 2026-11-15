@@ -1188,7 +1188,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           .filter((r: any) => r.status === 'PAID')
           .reduce((acc: any, r: any) => acc.plus(dec(r.release_amount)), toDecimal('0'));
         const pendingAmt = releases
-          .filter((r: any) => ['PENDING_QS_REVIEW', 'APPROVED_BY_DIRECTOR', 'PENDING_DISBURSEMENT'].includes(r.status))
+          .filter((r: any) => ['PENDING_QS_REVIEW', 'QS_RECOMMENDED', 'APPROVED_BY_DIRECTOR', 'PENDING_DISBURSEMENT'].includes(r.status))
           .reduce((acc: any, r: any) => acc.plus(dec(r.release_amount)), toDecimal('0'));
         const contractSum = dec(pkg.subcontract_sum);
         packageSummary = {
@@ -1202,6 +1202,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           held: retentionHeld.toFixed(2),
           released: releasedAmt.toFixed(2),
           pending: pendingAmt.toFixed(2),
+          outstanding: retentionHeld.minus(releasedAmt).toFixed(2),
           status: retentionHeld.lte(0)
             ? 'NONE'
             : releasedAmt.gte(retentionHeld) && pendingAmt.lte(0)
@@ -1472,7 +1473,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           orderBy: { created_at: 'asc' },
         });
         const pending = existing.find((r: any) =>
-          ['PENDING_QS_REVIEW', 'APPROVED_BY_DIRECTOR', 'PENDING_DISBURSEMENT'].includes(r.status));
+          ['PENDING_QS_REVIEW', 'QS_RECOMMENDED', 'APPROVED_BY_DIRECTOR', 'PENDING_DISBURSEMENT'].includes(r.status));
         if (pending) {
           throw { status: 409, message: `A retention release (${pending.release_no}) is already awaiting review` };
         }
