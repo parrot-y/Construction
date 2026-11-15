@@ -237,7 +237,7 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
 
     // Fresh portal links each run.
     const mkLink = async (portalType: string, extra: Record<string, unknown> = {}) => {
-      const r = await apiPost(request, S.admin, `/api/v1/projects/${pid}/portals/links`, {
+      const r = await apiPost(request, S.admin!, `/api/v1/projects/${pid}/portals/links`, {
         portalType,
         stakeholderName: portalType === 'SUPPLIER' ? SUPPLIER_NAME : 'NCA Compliance Office',
         expiresInDays: 30,
