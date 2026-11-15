@@ -386,7 +386,8 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
           // Client-visible invoices with balances and payment history —
           // mirrors what the token portal shows (Stage-2 contract).
           const invoicesRaw = await tx.invoice.findMany({
-            where: { project_id: projectId },
+            // Client-visible invoices only — DRAFT/VOID never leave the console.
+            where: { project_id: projectId, status: { in: ['SENT', 'PART_PAID', 'PAID'] } },
             orderBy: { created_at: 'desc' },
             include: { payments: { orderBy: { paid_at: 'desc' } } },
           });

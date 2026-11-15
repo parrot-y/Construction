@@ -2104,17 +2104,26 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       const [project, diaries, certificates, invoices, progress] = await Promise.all([
         tx.project.findFirst({ where: { id: link.project_id } }),
         tx.siteDiary.findMany({
-          where: { project_id: link.project_id },
+          where: {
+            project_id: link.project_id,
+            // Diary content is never returned — only photos the contractor
+            // explicitly flagged client_visible. Skip diaries with none.
+            photos: { some: { client_visible: true } },
+          },
           include: { photos: { where: { client_visible: true } } },
           orderBy: { entry_date: 'desc' },
           take: 30,
         }),
+        // Client sees only ISSUED money documents — never DRAFT/SUBMITTED/
+        // UNDER_REVIEW/REJECTED internal stages (F1 audit fix).
         tx.paymentCertificate.findMany({
-          where: { project_id: link.project_id },
+          where: { project_id: link.project_id, status: { in: ['CERTIFIED', 'PAID'] } },
           orderBy: { period_end: 'desc' },
         }),
+        // SENT/PART_PAID/PAID only — DRAFT and VOID invoices are internal.
+        // OVERDUE is derived at read time elsewhere; stored statuses suffice.
         tx.invoice.findMany({
-          where: { project_id: link.project_id },
+          where: { project_id: link.project_id, status: { in: ['SENT', 'PART_PAID', 'PAID'] } },
           orderBy: { issue_date: 'desc' },
         }),
         tx.progressRecord.findMany({
@@ -2188,7 +2197,9 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       const [project, changeOrders] = await Promise.all([
         tx.project.findFirst({ where: { id: link.project_id } }),
         tx.variationOrder.findMany({
-          where: { project_id: link.project_id },
+          // DRAFT is internal work-in-progress; VOID is cancelled — the client
+          // only sees COs that were issued to them or already decided.
+          where: { project_id: link.project_id, status: { notIn: ['DRAFT', 'VOID'] } },
           include: {
             items: { orderBy: { id: 'asc' } },
             events: { orderBy: { created_at: 'asc' } },

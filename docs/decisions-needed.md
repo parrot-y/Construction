@@ -43,3 +43,16 @@ recommendation; nothing below has been decided or implemented unilaterally.
 
 - `terraform plan` could not run: no AWS credentials exist on the build machine and no account/OU structure has been provided.
 - **Needed:** AWS account ID, an IAM principal or SSO profile for Terraform, confirmation of the default-VPC assumption, and the hosted zone ID once the domain (decision 1) exists.
+
+## 8. Client-portal certificate visibility (resolved — flagged for owner awareness)
+
+Payment certificates have no `APPROVED` status; the lifecycle is
+DRAFT → SUBMITTED → UNDER_REVIEW → CERTIFIED → PAID (+ REJECTED).
+**Decision taken (F1 audit fix):** the client token portal and the
+authenticated client console expose only `CERTIFIED` and `PAID`
+certificates — i.e. documents the contractor has actually issued.
+`SUBMITTED`/`UNDER_REVIEW` are internal review stages, `DRAFT`/`REJECTED`
+are never client-visible. Invoices show `SENT`/`PART_PAID`/`PAID`
+(`OVERDUE` is derived downstream); `DRAFT`/`VOID` stay internal.
+If the owner wants clients to see certificates at `UNDER_REVIEW`
+(pre-issue visibility), that is a product decision to revisit.
