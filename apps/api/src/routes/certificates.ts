@@ -14,7 +14,7 @@ import {
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
 import { listParams, listPage } from '../lib/pagination';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
-import { retentionPosition } from '../services/retention';
+import { retentionPosition, pendingRetentionPayout, certifiedRetentionHeld } from '../services/retention';
 import { nextDocumentNumber } from '../lib/counters';
 import { getTaxSettings } from '../lib/tax';
 import { notifyTeam } from '../lib/notify';
@@ -116,9 +116,10 @@ async function latestRetentionHeld(tx: Prisma.TransactionClient, projectId: stri
 
 interface CertMathInput {
   retentionPct?: string | null;
-  retentionReleased?: string | null;
   advanceRecovery?: string | null;
   amountDuePrevious?: string | null;
+  /** H1: when recomputing an existing DRAFT, exclude its own committed release. */
+  excludeCertId?: string;
 }
 
 /** Shared JBC retention/net-payable math used by create, patch and preview. */
@@ -143,7 +144,12 @@ async function computeCertMath(
   const desiredDeduction = thisPeriod.times(pct);
   const room = Decimal.max(new Decimal(0), retentionCap.minus(prevHeld));
   const retentionDeduction = Decimal.min(desiredDeduction, room).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-  const released = toDecimal(opts.retentionReleased ?? '0');
+  // H1: retention_released is DERIVED, never typed — the certificate executes
+  // authorized-but-uncommitted defects-certificate releases, capped at the
+  // held balance (previous chain plus this period's new withholding).
+  const pendingPayout = await pendingRetentionPayout(tx, projectId, opts.excludeCertId);
+  const releaseCap = Decimal.max(new Decimal(0), prevHeld.plus(retentionDeduction));
+  const released = Decimal.min(pendingPayout, releaseCap).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
   const retentionHeld = Decimal.max(
     new Decimal(0),
     prevHeld.plus(retentionDeduction).minus(released),
@@ -158,7 +164,7 @@ async function computeCertMath(
     .plus(released)
     .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
-  return { previousCertified, cumulative, retentionDeduction, retentionHeld, advanceRecovery, amountDuePrevious, netPayable, pct };
+  return { previousCertified, cumulative, retentionDeduction, retentionHeld, released, advanceRecovery, amountDuePrevious, netPayable, pct };
 }
 
 /** Derive certificate lines + this-period amount from real BoQ progress:
@@ -336,6 +342,15 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
       if (data.periodEnd < data.periodStart) {
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'periodEnd must be on or after periodStart' });
       }
+      // H1: retention release is executed from authorized defects certificates
+      // — a typed amount on the IPC is not a money path and is refused.
+      if (data.retentionReleased != null && toDecimal(data.retentionReleased).gt(0)) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'retentionReleased is derived from approved retention-release certificates — it cannot be entered on a payment certificate',
+        });
+      }
 
       try {
         const cert = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -384,7 +399,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
               retention_pct: math.pct.times(100).toDecimalPlaces(2).toFixed(2),
               retention_deduction: math.retentionDeduction.toFixed(2),
               retention_held: math.retentionHeld.toFixed(2),
-              retention_released: toDecimal(data.retentionReleased ?? '0').toFixed(2),
+              retention_released: math.released.toFixed(2),
               advance_recovery: math.advanceRecovery.toFixed(2),
               amount_due_previous: math.amountDuePrevious.toFixed(2),
               net_payable: math.netPayable.toFixed(2),
@@ -461,6 +476,13 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid certificate update', details: parsed.error.errors });
       }
       const data = parsed.data;
+      if (data.retentionReleased != null && toDecimal(data.retentionReleased).gt(0)) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'retentionReleased is derived from approved retention-release certificates — it cannot be entered on a payment certificate',
+        });
+      }
 
       try {
         const updated = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -481,9 +503,9 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
 
           const math = await computeCertMath(tx, project, projectId, thisPeriod, {
             retentionPct: data.retentionPct ?? cert.retention_pct.toString(),
-            retentionReleased: data.retentionReleased,
             advanceRecovery: data.advanceRecovery,
             amountDuePrevious: data.amountDuePrevious,
+            excludeCertId: certId,
           });
           const tax = await computeCertTax(tx, tenantId, thisPeriod.minus(math.retentionDeduction));
 
@@ -513,7 +535,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
               retention_pct: math.pct.times(100).toDecimalPlaces(2).toFixed(2),
               retention_deduction: math.retentionDeduction.toFixed(2),
               retention_held: math.retentionHeld.toFixed(2),
-              retention_released: toDecimal(data.retentionReleased ?? cert.retention_released.toString()).toFixed(2),
+              retention_released: math.released.toFixed(2),
               advance_recovery: math.advanceRecovery.toFixed(2),
               amount_due_previous: math.amountDuePrevious.toFixed(2),
               net_payable: math.netPayable.toFixed(2),
@@ -579,9 +601,12 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           const project = await tx.project.findFirst({ where: { id: projectId } });
           const gross = toDecimal(cert.this_period_amount.toString());
           const retentionDeduction = toDecimal(cert.retention_deduction.toString());
+          // H1: an executed retention release is billed back to the client on
+          // this invoice — exactly once, as its own line.
+          const retentionReleased = toDecimal(cert.retention_released.toString());
           // The invoice bills the net amount certified for payment this period
-          // (gross less retention). VAT/WHT were computed on the same base.
-          const subtotal = gross.minus(retentionDeduction);
+          // (gross less retention withheld, plus any retention released).
+          const subtotal = gross.minus(retentionDeduction).plus(retentionReleased);
           const vatAmount = toDecimal(cert.vat_amount.toString());
           const whtAmount = toDecimal(cert.wht_amount.toString());
           const vatPct = toDecimal(cert.vat_pct.toString());
@@ -654,6 +679,18 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
                         sort_order: 999,
                       }]
                     : []),
+                  ...(retentionReleased.gt(0)
+                    ? [{
+                        tenant_id: tenantId,
+                        section: 'Retention release',
+                        description: `Retention released on certificate IPC-${String(cert.certificate_no).padStart(3, '0')}`,
+                        unit: 'item',
+                        quantity: '1',
+                        unit_rate: retentionReleased.toFixed(2),
+                        total_amount: retentionReleased.toFixed(2),
+                        sort_order: 1000,
+                      }]
+                    : []),
                   ...(vatAmount.gt(0)
                     ? [{
                         tenant_id: tenantId,
@@ -663,7 +700,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
                         quantity: '1',
                         unit_rate: vatAmount.toFixed(2),
                         total_amount: vatAmount.toFixed(2),
-                        sort_order: 1000,
+                        sort_order: 1001,
                       }]
                     : []),
                   ...(whtAmount.gt(0)
@@ -675,7 +712,7 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
                         quantity: '1',
                         unit_rate: whtAmount.negated().toFixed(2),
                         total_amount: whtAmount.negated().toFixed(2),
-                        sort_order: 1001,
+                        sort_order: 1002,
                       }]
                     : []),
                 ],
@@ -852,6 +889,18 @@ export const certificatesRoutes: FastifyPluginAsync = async (server: FastifyInst
           });
           if (claim.count !== 1) {
             throw { status: 409, message: 'Certificate was modified concurrently — please retry' };
+          }
+
+          // H1: on certification the stored retention_held is rewritten to the
+          // aggregate ledger truth (Σ deductions − Σ releases over
+          // CERTIFIED/PAID) — draft-time snapshots can drift when certificates
+          // are drafted out of order.
+          if (action === 'CERTIFY') {
+            const heldNow = await certifiedRetentionHeld(tx, projectId);
+            await tx.paymentCertificate.update({
+              where: { id: certId },
+              data: { retention_held: heldNow.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed(2) },
+            });
           }
 
           const updated = await tx.paymentCertificate.findUniqueOrThrow({ where: { id: certId } });

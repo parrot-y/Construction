@@ -2566,6 +2566,8 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           retention: {
             held: retention.held.toFixed(2),
             released: retention.released.toFixed(2),
+            paidOut: retention.paidOut.toFixed(2),
+            pendingPayout: retention.pendingPayout.toFixed(2),
             outstanding: retention.outstanding.toFixed(2),
           },
           acknowledged: ack

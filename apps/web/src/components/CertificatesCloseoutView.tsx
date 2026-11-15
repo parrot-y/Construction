@@ -85,7 +85,6 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
     periodStart: '',
     periodEnd: '',
     retentionPct: '5',
-    retentionReleased: '',
     advanceRecovery: '',
     amountDuePrevious: '',
     notes: '',
@@ -180,7 +179,6 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
           lines,
           thisPeriodAmount: toAmountString(linesTotal),
           retentionPct: builder.retentionPct || projectRetentionPct,
-          retentionReleased: builder.retentionReleased || '0',
           advanceRecovery: builder.advanceRecovery || '0',
           amountDuePrevious: builder.amountDuePrevious || '0',
           notes: builder.notes || undefined,
@@ -376,10 +374,6 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 <label className="space-y-1">
 <span className="font-semibold text-slate-600">Retention %</span>
 <input type="number" min="0" max="100" step="0.01" value={builder.retentionPct} onChange={(e) => setBuilder({ ...builder, retentionPct: e.target.value})} className="w-full border border-slate-300 rounded-lg px-2 py-1.5 min-h-[44px]" />
-</label>
-<label className="space-y-1">
-<span className="font-semibold text-slate-600">Retention released (KES)</span>
-<input type="number" min="0" step="0.01" value={builder.retentionReleased} onChange={(e) => setBuilder({ ...builder, retentionReleased: e.target.value})} className="w-full border border-slate-300 rounded-lg px-2 py-1.5 min-h-[44px]" />
 </label>
 <label className="space-y-1">
 <span className="font-semibold text-slate-600">Advance recovery (KES)</span>
