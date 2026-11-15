@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Visual evidence capture — seeds nothing itself; uses the already-seeded
- * demo tenant (Apex Builders Kenya Ltd / Riverside Commercial Plaza) and the
- * five external portal links created via the API, then screenshots:
+ * Visual evidence capture — seeds its OWN dedicated demo tenant via the
+ * public API (register-company + invitations + one project + portal
+ * links), completely separate from the seeded e2e tenant the API test
+ * suite mutates. Idempotent: re-running logs into the same tenant.
  *
  *   - 5 portals  (consultant, subcontractor, supplier, compliance, client)
  *   - 5 console roles (COMPANY_ADMIN, PM_QS, SITE_SUPERVISOR, CLIENT, VIEWER)
@@ -16,7 +17,7 @@
  * Requires the e2e webServers (API + vite) to be running.
  */
 import { chromium } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const API = process.env.E2E_API_URL || 'http://localhost:4199';
@@ -32,12 +33,35 @@ const VIEWPORTS = [
 
 mkdirSync(OUT, { recursive: true });
 
+// ---------- dedicated demo tenant (never touched by the API test suite) ----------
+const COMPANY = {
+  companyName: 'Nyota Construction Ltd',
+  adminName: 'Brian Ochieng',
+  adminEmail: 'admin@nyota-builders.co.ke',
+  adminPhone: '+254712345001',
+  password: PASSWORD,
+};
+const MEMBERS = [
+  { key: 'pm-qs', role: 'PM_QS', name: 'Otieno Odhiambo', email: 'pm@nyota-builders.co.ke' },
+  { key: 'supervisor', role: 'SITE_SUPERVISOR', name: 'Mwangi Njoroge', email: 'supervisor@nyota-builders.co.ke' },
+  { key: 'client', role: 'CLIENT', name: 'Sarah Achieng', email: 'client@nyota-builders.co.ke' },
+  { key: 'viewer', role: 'VIEWER', name: 'Kevin Maina', email: 'viewer@nyota-builders.co.ke' },
+];
+const PROJECT = {
+  name: 'Kileleshwa Residential Villas',
+  code: 'KIL-RES-01',
+  location: 'Kileleshwa, Nairobi',
+  description: 'Eight high-end residential villas with basement parking and lift.',
+  contractValue: '84500000',
+  startDate: '2026-01-12',
+  targetEndDate: '2027-06-30',
+};
+
 // ---------- API helpers ----------
-async function apiLogin(request, email) {
+async function apiLogin(request, email, password = PASSWORD) {
   const res = await request.post(`${API}/api/v1/auth/login`, {
-    data: { email, password: PASSWORD },
+    data: { email, password },
   });
-  if (!res.ok()) throw new Error(`login ${email}: ${res.status()} ${await res.text()}`);
   return res;
 }
 
@@ -51,6 +75,12 @@ function cookiesFrom(res, webUrl) {
       return { name: pair.slice(0, eq).trim(), value: pair.slice(eq + 1).trim(), domain: host, path: '/' };
     });
 }
+
+const cookieHeaderOf = (res) =>
+  res.headersArray()
+    .filter((h) => h.name.toLowerCase() === 'set-cookie')
+    .map((h) => h.value.split(';')[0])
+    .join('; ');
 
 async function apiGet(request, cookieHeader, path) {
   const res = await request.get(`${API}${path}`, { headers: { cookie: cookieHeader } });
@@ -66,56 +96,135 @@ async function apiPost(request, cookieHeader, path, data) {
 
 const unwrap = (j) => j?.data ?? j;
 
+// Ensure the dedicated tenant + admin exist (register once, reuse after).
+async function ensureAdmin(request) {
+  let res = await apiLogin(request, COMPANY.adminEmail);
+  if (res.ok()) return res;
+  const reg = await request.post(`${API}/api/v1/auth/register-company`, {
+    data: {
+      companyName: COMPANY.companyName,
+      adminFullName: COMPANY.adminName,
+      adminEmail: COMPANY.adminEmail,
+      adminPhone: COMPANY.adminPhone,
+      password: COMPANY.password,
+    },
+  });
+  if (!reg.ok()) throw new Error(`register-company: ${reg.status()} ${await reg.text()}`);
+  res = await apiLogin(request, COMPANY.adminEmail);
+  if (!res.ok()) throw new Error(`admin login after register: ${res.status()}`);
+  return res;
+}
+
+// Ensure a member exists: login, else invite + accept, then login.
+async function ensureMember(request, adminCookie, member) {
+  let res = await apiLogin(request, member.email);
+  if (res.ok()) return res;
+  const inv = unwrap(await apiPost(request, adminCookie, '/api/v1/invitations', {
+    email: member.email, role: member.role, fullName: member.name,
+  }));
+  const token = inv.token || inv.invitation?.token;
+  if (!token) throw new Error(`invite ${member.key}: no token in ${JSON.stringify(inv)}`);
+  const acc = await request.post(`${API}/api/v1/invitations/accept`, {
+    data: { token, email: member.email, fullName: member.name, password: PASSWORD },
+  });
+  if (!acc.ok()) throw new Error(`accept ${member.key}: ${acc.status()} ${await acc.text()}`);
+  res = await apiLogin(request, member.email);
+  if (!res.ok()) throw new Error(`login ${member.key}: ${res.status()}`);
+  return res;
+}
+
 // ---------- main ----------
 const browser = await chromium.launch();
 const request = await (await import('@playwright/test')).request.newContext();
 
-// Admin session for API-driven setup (portal links, project id).
-const adminRes = await apiLogin(request, 'admin@apexbuilders.co.ke');
+const adminRes = await ensureAdmin(request);
 const adminCookies = cookiesFrom(adminRes, WEB);
 const adminCookieHeader = adminCookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
-const projects = unwrap(await apiGet(request, adminCookieHeader, '/api/v1/projects'));
-const projectList = Array.isArray(projects) ? projects : projects.projects || projects.data || [];
-// Prefer the clean seeded demo project — the shared e2e DB also accumulates
-// throwaway projects from specs (e.g. "E2E Family Home Extension <ts>").
-const projectId = (projectList.find((p) => p.name === 'Riverside Commercial Plaza') || projectList[0])?.id;
-if (!projectId) throw new Error('No seeded project found — run prisma seed first');
+// Dedicated project — create only if this tenant has none yet.
+let projects = unwrap(await apiGet(request, adminCookieHeader, '/api/v1/projects'));
+let projectList = Array.isArray(projects) ? projects : projects.projects || projects.data || [];
+let projectId = projectList[0]?.id;
+if (!projectId) {
+  const created = unwrap(await apiPost(request, adminCookieHeader, '/api/v1/projects', PROJECT));
+  projectId = created.id || created.project?.id;
+  if (!projectId) throw new Error(`project create returned no id: ${JSON.stringify(created)}`);
+}
+console.log(`tenant: ${COMPANY.companyName} · project: ${PROJECT.name}`);
 
-// Resolve subcontractor package + supplier ids for scoped portal links.
+// One issued invoice so Money / client portal show real content.
+try {
+  const invs = unwrap(await apiGet(request, adminCookieHeader, '/api/v1/invoices'));
+  const invList = Array.isArray(invs) ? invs : invs.invoices || invs.data || [];
+  if (invList.length === 0) {
+    const inv = unwrap(await apiPost(request, adminCookieHeader, '/api/v1/invoices', {
+      projectId,
+      title: 'Structural works — stage 1',
+      clientName: 'Nyota Residential Holdings',
+      clientEmail: 'accounts@nyota-holdings.co.ke',
+      currency: 'KES',
+      items: [
+        { description: 'Foundation and substructure', unit: 'sum', quantity: 1, unitRate: 18500000 },
+        { description: 'Superstructure to slab level 3', unit: 'sum', quantity: 1, unitRate: 34200000 },
+        { description: 'Finishes and MEP first fix', unit: 'sum', quantity: 1, unitRate: 21800000 },
+      ],
+    }));
+    const invId = inv.id || inv.invoice?.id;
+    if (invId) {
+      await apiPost(request, adminCookieHeader, `/api/v1/invoices/${invId}/send`, {
+        selfApprovalReason: 'Visual evidence capture — demo invoice send',
+      });
+    }
+  }
+} catch (e) {
+  console.warn('invoice seed skipped:', e.message);
+}
+
+// Provision the four non-admin console members (invite + accept on first run).
+for (const m of MEMBERS) {
+  await ensureMember(request, adminCookieHeader, m);
+}
+
+// One subcontractor package — SUBCONTRACTOR portal links require it.
 let subcontractorPackageId = null;
-let supplierId = null;
 try {
   const subs = unwrap(await apiGet(request, adminCookieHeader, `/api/v1/projects/${projectId}/subcontractors`));
-  const first = (Array.isArray(subs) ? subs : subs.packages || subs.data || [])[0];
-  subcontractorPackageId = first?.id ?? first?.package?.id ?? null;
-} catch (e) { console.warn('subcontractor list failed:', e.message); }
-try {
-  const suppliers = unwrap(await apiGet(request, adminCookieHeader, '/api/v1/suppliers'));
-  const first = (Array.isArray(suppliers) ? suppliers : suppliers.suppliers || suppliers.data || [])[0];
-  supplierId = first?.id ?? null;
-} catch (e) { console.warn('supplier list failed:', e.message); }
+  const subList = Array.isArray(subs) ? subs : subs.packages || subs.data || [];
+  subcontractorPackageId = subList[0]?.id ?? subList[0]?.package?.id ?? null;
+  if (!subcontractorPackageId) {
+    const pkg = await apiPost(request, adminCookieHeader, `/api/v1/projects/${projectId}/subcontractors`, {
+      tradeCategory: 'MASONRY',
+      firmName: 'Mabati & Masonry Works Ltd',
+      contactPerson: 'Peter Waweru',
+      phoneNumber: '+254722000456',
+      subcontractSum: '9600000',
+      retentionRatePct: '5.00',
+      scopeDescription: 'Blockwork, plastering and roofing for all eight villas.',
+    });
+    subcontractorPackageId = pkg.id;
+  }
+} catch (e) {
+  console.warn('subcontractor package seed skipped:', e.message);
+}
 
-// Create one link per portal type.
+// Portal links — one per external portal type on the dedicated project.
 const PORTAL_TYPES = ['CONSULTANT', 'SUBCONTRACTOR', 'SUPPLIER', 'COMPLIANCE', 'CLIENT'];
 const STAKEHOLDER_NAMES = {
   CONSULTANT: 'Eng. Wanjiru Kamau — Lead Consultant',
   SUBCONTRACTOR: 'Mabati & Masonry Works Ltd',
   SUPPLIER: 'East Africa Cement Suppliers',
   COMPLIANCE: 'NCA Compliance Office',
-  CLIENT: 'Riverside Property Holdings',
+  CLIENT: 'Nyota Residential Holdings',
 };
 const tokens = {};
 for (const type of PORTAL_TYPES) {
-  const payload = {
-    portalType: type,
-    stakeholderName: STAKEHOLDER_NAMES[type],
-    expiresInDays: 7,
-    ...(type === 'SUBCONTRACTOR' && subcontractorPackageId ? { subcontractorPackageId } : {}),
-    ...(type === 'SUPPLIER' && supplierId ? { supplierId } : {}),
-  };
   try {
-    const link = unwrap(await apiPost(request, adminCookieHeader, `/api/v1/projects/${projectId}/portals/links`, payload));
+    const link = unwrap(await apiPost(request, adminCookieHeader, `/api/v1/projects/${projectId}/portals/links`, {
+      portalType: type,
+      stakeholderName: STAKEHOLDER_NAMES[type],
+      expiresInDays: 30,
+      ...(type === 'SUBCONTRACTOR' && subcontractorPackageId ? { subcontractorPackageId } : {}),
+    }));
     tokens[type.toLowerCase()] = link.token || link.rawToken;
     if (!tokens[type.toLowerCase()]) console.warn(`${type}: no token in response`, link);
   } catch (e) {
@@ -129,17 +238,13 @@ async function shot(page, name) {
 }
 
 async function settle(page) {
-  // Let lazy chunks + data fetches land before capture.
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
   await page.waitForTimeout(800);
 }
 
 const CONSOLE_ROLES = [
-  { key: 'admin', email: 'admin@apexbuilders.co.ke' },
-  { key: 'pm-qs', email: 'qs@apexbuilders.co.ke' },
-  { key: 'supervisor', email: 'supervisor@apexbuilders.co.ke' },
-  { key: 'client', email: 'client@apexbuilders.co.ke' },
-  { key: 'viewer', email: 'viewer@apexbuilders.co.ke' },
+  { key: 'admin', email: COMPANY.adminEmail },
+  ...MEMBERS.map((m) => ({ key: m.key, email: m.email })),
 ];
 
 for (const vp of VIEWPORTS) {
@@ -164,6 +269,7 @@ for (const vp of VIEWPORTS) {
     const page = await context.newPage();
     try {
       const loginRes = await apiLogin(request, role.email);
+      if (!loginRes.ok()) throw new Error(`login ${role.email}: ${loginRes.status()}`);
       await context.addCookies(cookiesFrom(loginRes, WEB));
       await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' });
       await settle(page);
@@ -176,6 +282,15 @@ for (const vp of VIEWPORTS) {
 
   await context.close();
 }
+
+// Record which seed produced this capture for CAPTURE.md traceability.
+writeFileSync(`${OUT}/SEED.txt`, [
+  `tenant: ${COMPANY.companyName} (${COMPANY.adminEmail})`,
+  `project: ${PROJECT.name} (${PROJECT.code})`,
+  `seeded by: e2e/capture-visual.mjs via /api/v1/auth/register-company + /api/v1/invitations`,
+  `commit: ${execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()}`,
+  '',
+].join('\n'));
 
 await browser.close();
 await request.dispose();

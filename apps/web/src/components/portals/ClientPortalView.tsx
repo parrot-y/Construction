@@ -170,7 +170,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 </p>
 </div>
         {onBackToDashboard && (
-<button onClick={onBackToDashboard} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
+<button onClick={onBackToDashboard} className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition shrink-0">← Back to Dashboard</button>
 )}
 </div>
 
