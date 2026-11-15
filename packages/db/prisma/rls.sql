@@ -360,3 +360,30 @@ LANGUAGE sql AS $$
 $$;
 REVOKE ALL ON FUNCTION lookup_mpesa_b2c_transaction(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_mpesa_b2c_transaction(TEXT) TO db_app;
+
+-- Narrow SECURITY DEFINER lookup for provider payment webhooks (Paystack seam).
+-- The unauthenticated webhook resolves tenant context from (provider, reference)
+-- before entering withTenantTx. Re-created here (as the postgres role that owns
+-- rls.sql) so it bypasses FORCE RLS like every other lookup_* function — the
+-- migration-time copy is owned by db_migrator and would see zero rows.
+DROP FUNCTION IF EXISTS lookup_provider_payment_charge(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION lookup_provider_payment_charge(p_provider TEXT, p_reference TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  invoice_id UUID,
+  amount_minor INTEGER,
+  currency VARCHAR,
+  status VARCHAR,
+  invoice_payment_id UUID
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id, invoice_id, amount_minor, currency, status, invoice_payment_id
+  FROM public.provider_payment_charges
+  WHERE provider = p_provider AND reference = p_reference
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_provider_payment_charge(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_provider_payment_charge(TEXT, TEXT) TO db_app;

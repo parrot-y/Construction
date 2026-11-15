@@ -59,12 +59,19 @@ describe('Paystack provider seam', () => {
     return inv;
   };
 
-  const initialize = async (invoiceId: string) =>
+  const initialize = async (invoiceId: string, payload: Record<string, unknown> = {}) =>
     server.inject({
       method: 'POST',
       url: `/api/v1/invoices/${invoiceId}/paystack/initialize`,
       headers: authed(adminCookie),
-      payload: {},
+      payload,
+    });
+
+  const recordManualPayment = async (invoiceId: string, amount: number) =>
+    server.inject({
+      method: 'POST', url: `/api/v1/invoices/${invoiceId}/payments`,
+      headers: { ...authed(adminCookie), 'idempotency-key': `manual-${Date.now()}-${Math.random()}` },
+      payload: { amount, method: 'BANK', reference: `manual-${Date.now()}-${Math.random()}` },
     });
 
   const postWebhook = async (rawBody: string, signature?: string) =>
@@ -285,6 +292,147 @@ describe('Paystack provider seam', () => {
 
     const invoice = await withTenantTx(prisma, tenantId, (tx) => tx.invoice.findUnique({ where: { id: inv.id } }));
     expect(Number(invoice?.amount_paid)).toBe(0);
+    verifyOverrides.delete(reference);
+  });
+
+  // --------------------------------------------------------------- F2: partial amounts + Decimal
+  it('initialize accepts a partial amount under the M-Pesa cap on an over-cap invoice', async () => {
+    const inv = await newSentInvoice(200000, 'Split payment invoice'); // balance KES 200,000 > cap
+    const res = await initialize(inv.id, { amount: 50000 });
+    expect(res.statusCode, res.body).toBe(201);
+    const body = JSON.parse(res.body);
+    expect(body.charge.amountMinor).toBe(5000000); // KES 50,000.00
+    expect(body.balanceDue).toBe('200000.00');
+
+    // Settle the partial charge — invoice must be PART_PAID, not PAID.
+    const reference = body.charge.reference;
+    const wh = chargeSuccessBody(reference);
+    const whRes = await postWebhook(wh, sign(wh));
+    expect(JSON.parse(whRes.body).status).toBe('paid');
+    const invoice = await withTenantTx(prisma, tenantId, (tx) => tx.invoice.findUnique({ where: { id: inv.id } }));
+    expect(invoice?.status).toBe('PART_PAID');
+    expect(Number(invoice?.amount_paid)).toBe(50000);
+    expect(Number(invoice?.balance_due)).toBe(150000);
+  });
+
+  it('initialize rejects partial amounts that are non-positive, over balance, or over-cap', async () => {
+    const inv = await newSentInvoice(10000, 'Partial validation invoice');
+    for (const [amount, code] of [
+      [0, 400], [-5, 400], [10001, 400], [NaN, 400],
+    ] as const) {
+      const res = await initialize(inv.id, { amount });
+      expect(res.statusCode, `amount=${amount}: ${res.body}`).toBe(code);
+    }
+  });
+
+  it('minor-unit conversion uses Decimal — awkward values stay exact', async () => {
+    // KES 0.07 -> 7 minor units; float math gives 7.000000000000001.
+    const tiny = await newSentInvoice(0.07, 'Tiny invoice');
+    const r1 = await initialize(tiny.id);
+    expect(r1.statusCode, r1.body).toBe(201);
+    expect(JSON.parse(r1.body).charge.amountMinor).toBe(7);
+
+    // USD invoice above the KES cap path — 1,234,567.89 -> 123,456,789 minor.
+    const big = await server.inject({
+      method: 'POST', url: '/api/v1/invoices', headers: authed(adminCookie),
+      payload: {
+        title: 'USD decimal invoice', clientName: 'FX Client', currency: 'USD',
+        items: [{ description: 'Works', unit: 'sum', quantity: 1, unitRate: 1234567.89 }],
+      },
+    });
+    expect(big.statusCode, big.body).toBe(201);
+    const bigInv = JSON.parse(big.body).invoice ?? JSON.parse(big.body).data;
+    const send = await server.inject({
+      method: 'POST', url: `/api/v1/invoices/${bigInv.id}/send`, headers: authed(adminCookie),
+      payload: { selfApprovalReason: 'Paystack decimal test send reason' },
+    });
+    expect([200, 201]).toContain(send.statusCode);
+    const r2 = await initialize(bigInv.id);
+    expect(r2.statusCode, r2.body).toBe(201);
+    expect(JSON.parse(r2.body).charge.amountMinor).toBe(123456789);
+    expect(JSON.parse(r2.body).charge.currency).toBe('USD');
+  });
+
+  // --------------------------------------------------------------- F2: NEEDS_REVIEW
+  it('webhook after a manual full payment flags NEEDS_REVIEW instead of losing the money', async () => {
+    const inv = await newSentInvoice(80000, 'Manual-paid race invoice');
+    const init = await initialize(inv.id);
+    const reference = JSON.parse(init.body).charge.reference;
+
+    // Client pays the invoice manually (bank transfer) before the webhook lands.
+    const manual = await recordManualPayment(inv.id, 80000);
+    expect([200, 201]).toContain(manual.statusCode);
+
+    const body = chargeSuccessBody(reference);
+    const res = await postWebhook(body, sign(body));
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).status).toBe('needs_review');
+
+    const charge = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.providerPaymentCharge.findFirst({ where: { reference } }));
+    expect(charge?.status).toBe('NEEDS_REVIEW');
+    expect(charge?.failure_reason).toContain('settlement rejected');
+
+    // Money is NOT double-recorded.
+    const payments = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.invoicePayment.findMany({ where: { invoice_id: inv.id } }));
+    expect(payments).toHaveLength(1);
+    const invoice = await withTenantTx(prisma, tenantId, (tx) => tx.invoice.findUnique({ where: { id: inv.id } }));
+    expect(Number(invoice?.amount_paid)).toBe(80000);
+
+    // Admins were notified in-app.
+    const notices = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.inboxMessage.findMany({ where: { body: { contains: reference } } }));
+    expect(notices.length).toBeGreaterThan(0);
+
+    // Provider retry is acked, not errored.
+    const retry = await postWebhook(body, sign(body));
+    expect(retry.statusCode).toBe(200);
+    expect(JSON.parse(retry.body).status).toBe('needs_review');
+  });
+
+  it('concurrent duplicate webhooks settle exactly once', async () => {
+    const inv = await newSentInvoice(60000, 'Concurrent webhook invoice');
+    const init = await initialize(inv.id);
+    const reference = JSON.parse(init.body).charge.reference;
+    const body = chargeSuccessBody(reference);
+    const sig = sign(body);
+
+    const [r1, r2] = await Promise.all([postWebhook(body, sig), postWebhook(body, sig)]);
+    expect(r1.statusCode).toBe(200);
+    expect(r2.statusCode).toBe(200);
+
+    const payments = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.invoicePayment.findMany({ where: { invoice_id: inv.id } }));
+    expect(payments).toHaveLength(1);
+    const statuses = [JSON.parse(r1.body).status, JSON.parse(r2.body).status].sort();
+    expect(statuses).toEqual(['already_processed', 'paid']);
+  });
+
+  it('a FAILED charge settles when a later webhook verifies success', async () => {
+    const inv = await newSentInvoice(40000, 'Failed-then-success invoice');
+    const init = await initialize(inv.id);
+    const reference = JSON.parse(init.body).charge.reference;
+
+    // First delivery: provider verify reports failure -> charge FAILED.
+    verifyOverrides.set(reference, { status: 'failed' });
+    let body = chargeSuccessBody(reference);
+    let res = await postWebhook(body, sign(body));
+    expect(JSON.parse(res.body).status).toBe('rejected');
+    let charge = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.providerPaymentCharge.findFirst({ where: { reference } }));
+    expect(charge?.status).toBe('FAILED');
+
+    // Later delivery: provider now reports success -> settle.
+    verifyOverrides.set(reference, { status: 'success' });
+    res = await postWebhook(body, sign(body));
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).status).toBe('paid');
+    charge = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.providerPaymentCharge.findFirst({ where: { reference } }));
+    expect(charge?.status).toBe('PAID');
+    const invoice = await withTenantTx(prisma, tenantId, (tx) => tx.invoice.findUnique({ where: { id: inv.id } }));
+    expect(invoice?.status).toBe('PAID');
     verifyOverrides.delete(reference);
   });
 });

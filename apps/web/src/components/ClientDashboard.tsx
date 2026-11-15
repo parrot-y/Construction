@@ -982,7 +982,7 @@ function InvoicePayNotice({ invoice, onSent }: { invoice: any; onSent: (id: stri
       />
       {method === 'M_PESA' && (
         <span className="text-[10px] text-amber-700">
-          M-Pesa cap: KES 150,000 per transaction{(parseFloat(amount) || 0) > 150000 ? ' — this amount exceeds it' : ''}
+          M-Pesa cap: KES 150,000 per transaction — pay in parts if needed{(parseFloat(amount) || 0) > 150000 ? ' — this amount exceeds it' : ''}
         </span>
       )}
       {error && <span className="text-[10px] text-rose-600">{error}</span>}
