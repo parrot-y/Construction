@@ -76,7 +76,10 @@ const adminCookies = cookiesFrom(adminRes, WEB);
 const adminCookieHeader = adminCookies.map((c) => `${c.name}=${c.value}`).join('; ');
 
 const projects = unwrap(await apiGet(request, adminCookieHeader, '/api/v1/projects'));
-const projectId = (Array.isArray(projects) ? projects : projects.projects || projects.data || [])[0]?.id;
+const projectList = Array.isArray(projects) ? projects : projects.projects || projects.data || [];
+// Prefer the clean seeded demo project — the shared e2e DB also accumulates
+// throwaway projects from specs (e.g. "E2E Family Home Extension <ts>").
+const projectId = (projectList.find((p) => p.name === 'Riverside Commercial Plaza') || projectList[0])?.id;
 if (!projectId) throw new Error('No seeded project found — run prisma seed first');
 
 // Resolve subcontractor package + supplier ids for scoped portal links.
@@ -95,11 +98,18 @@ try {
 
 // Create one link per portal type.
 const PORTAL_TYPES = ['CONSULTANT', 'SUBCONTRACTOR', 'SUPPLIER', 'COMPLIANCE', 'CLIENT'];
+const STAKEHOLDER_NAMES = {
+  CONSULTANT: 'Eng. Wanjiru Kamau — Lead Consultant',
+  SUBCONTRACTOR: 'Mabati & Masonry Works Ltd',
+  SUPPLIER: 'East Africa Cement Suppliers',
+  COMPLIANCE: 'NCA Compliance Office',
+  CLIENT: 'Riverside Property Holdings',
+};
 const tokens = {};
 for (const type of PORTAL_TYPES) {
   const payload = {
     portalType: type,
-    stakeholderName: `Visual Evidence ${type}`,
+    stakeholderName: STAKEHOLDER_NAMES[type],
     expiresInDays: 7,
     ...(type === 'SUBCONTRACTOR' && subcontractorPackageId ? { subcontractorPackageId } : {}),
     ...(type === 'SUPPLIER' && supplierId ? { supplierId } : {}),
