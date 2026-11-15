@@ -91,3 +91,58 @@ portal. Screenshots → docs/evidence/visual/<sha>/portal-flows/.
       Journeys: supplier PO accept→delivery confirm→invoice; compliance
       permits+visit; foreman diary+offline incident→exactly-once sync;
       owner CO approve; public quote accept→deposit invoice.
+
+## H5 result (commit 473341a + spec fix)
+
+- [x] h5-portal-journeys.spec.ts: 6 tests × chromium + mobile-390 = 12/12 green.
+      Journeys: supplier PO accept→delivery confirm→invoice; compliance
+      permits+record visit; foreman diary+offline incident→exactly-once sync;
+      owner dashboard→approve CO; public quote view→accept→deposit invoice.
+- [x] Product gaps fixed: CompliancePortalView permits/visits wiring,
+      OwnerDashboard VariationManagementView embed, FieldDashboard
+      OfflineSyncBanner + permission-value bug (enum key vs value),
+      mobile search icon fix carried from H4.
+- [x] Evidence: docs/evidence/visual/473341a/portal-flows/ (15 PNGs).
+- [x] Regression: b-diary-sync.spec.ts green; web+api typecheck clean.
+
+## H6 — review pointers (checklist 14/15)
+
+### 1962c01 — held provider-payment resolve screen (G1)
+
+Backend (`apps/api/src/routes/payments.ts`):
+- L370 `GET /api/v1/payments/charges/review` — NEEDS_REVIEW charges not yet
+  resolved; money-approval roles only.
+- L407 `POST /api/v1/payments/charges/:id/resolve` — single-use resolve:
+  APPLY (row-locked post to another same-tenant invoice + payment
+  transaction), REFUNDED (≥15-char note + refund reference), KEEP (flagged).
+  Second attempt → 409; cross-tenant → 404 via RLS. All audit-logged.
+- Migration: `packages/db/prisma/migrations/0020_provider_charge_resolution/`.
+
+Tests — `apps/api/src/payment-charge-review.test.ts` (6 tests):
+1. lists NEEDS_REVIEW charges with invoice no/amount/reference/reason.
+2. REFUNDED requires note+reference; resolves once (second → 409).
+3. APPLY posts held amount to another invoice exactly once under
+   concurrent resolve clicks (row lock).
+4. APPLY rejects amount exceeding target invoice balance.
+5. KEEP marks reviewed while flagged; second attempt 409s.
+6. Cross-tenant charge invisible/unresolvable (404).
+
+Frontend:
+- `apps/web/src/components/PaymentReviewPanel.tsx` — APPLY/REFUNDED/KEEP UI.
+- `apps/web/src/components/InvoicingView.tsx` L334 — panel mounted.
+- `apps/web/src/components/console/AppShell.tsx` L240-262 — Money-rail badge
+  counts pending reviews for cost.approve roles.
+
+### 0bf3592 — clean demo-data capture (G2)
+
+- `e2e/capture-visual.mjs` — provisions dedicated tenant
+  "Nyota Construction Ltd" via `/api/v1/auth/register-company` +
+  invitations + one project (Kileleshwa Residential Villas, KIL-RES-01);
+  captures never see API-suite fixture rows.
+- `docs/evidence/visual/0bf3592/SEED.txt` — records tenant, project, seed
+  method, commit per run. CAPTURE.md + 20 console/portal PNGs (desktop
+  1440 + mobile 390).
+- Stale `docs/evidence/visual/90ba399/` removed in the same commit.
+- UI fixes in the same commit: ClientPortalView Back → real button;
+  390px header search → icon that expands the real input (Escape/result
+  collapses).

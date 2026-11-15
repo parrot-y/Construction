@@ -372,6 +372,15 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
     await expect(page.getByText(/Level 2 complete/)).toBeVisible({ timeout: 15000 });
     await page.screenshot({ path: `${SHOTS}/h5-08-field-diary-saved.png`, fullPage: true });
 
+    // Baseline count — each run adds exactly one incident with this location.
+    const countIncidents = async () => {
+      const res = await apiGet(request, S.admin!, `/api/v1/projects/${S.projectId}/safety-incidents`);
+      const body = await res.json();
+      const rows = body.incidents || body.data || [];
+      return rows.filter((i: any) => /Scaffolding Grid B-4/.test(i.exact_location || '')).length;
+    };
+    const baseline = await countIncidents();
+
     // Go offline, then log a safety incident — it must queue locally.
     await context.setOffline(true);
     await page.locator('button:visible', { hasText: /^Site$/ }).click();
@@ -386,14 +395,10 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
 
     // Back online — the queued mutation replays exactly once via Idempotency-Key.
     await context.setOffline(false);
-    await expect
-      .poll(async () => {
-        const res = await apiGet(request, S.admin!, `/api/v1/projects/${S.projectId}/safety-incidents`);
-        const body = await res.json();
-        const rows = body.incidents || body.data || [];
-        return rows.filter((i: any) => /Scaffolding Grid B-4/.test(i.exact_location || '')).length;
-      }, { timeout: 30000 })
-      .toBe(1);
+    await expect.poll(countIncidents, { timeout: 30000 }).toBe(baseline + 1);
+    // Exactly once: give any duplicate replay a chance to land, then re-check.
+    await page.waitForTimeout(3000);
+    expect(await countIncidents()).toBe(baseline + 1);
     await page.screenshot({ path: `${SHOTS}/h5-10-field-synced.png`, fullPage: true });
   });
 
