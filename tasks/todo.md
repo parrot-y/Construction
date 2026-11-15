@@ -1,13 +1,13 @@
 # tasks/todo.md — active plan
 
-## Current: Stage 6 — completion/closeout portal loop (S6.2 + S6.3)
+## Current: Stage 6 — completion/closeout portal loop (S6.2 + S6.3) — S6.2 DONE (836d283)
 
 Auditor spec `aud-stage6-completion-closeout.spec.ts` locked (S6.0, hash verified).
 S6.1 engine done (snag counting, ledger retention, cert permission, DLP derivation,
 CLOSED gates, write-off). Now the portal loop + e2e + decisions + report.
 
 ### S6.2 API — externalPortals.ts
-- [ ] Consultant GET: add `snags` (non-private, project-scoped) + counts; scope 'SNAGS'
+- [x] Consultant GET: add `snags` (non-private, project-scoped) + counts; scope 'SNAGS'
 - [ ] Consultant POST `/snags/:snagId/review` {action VERIFY|REJECT, reason?, photoStorageKey?}
       VERIFY: READY_FOR_REVIEW|RECTIFIED_BY_CONTRACTOR -> VERIFIED_CLOSED (verified_by=stakeholder)
       REJECT: reason >=15 non-space chars + photoStorageKey prefix-validated -> REJECTED
@@ -22,18 +22,18 @@ CLOSED gates, write-off). Now the portal loop + e2e + decisions + report.
       release_no seq; audit + notifyTeam
 
 ### S6.2 Web portal views
-- [ ] ConsultantPortalView: snags awaiting verification + verify/reject (reason+photo via uploads endpoint)
+- [x] ConsultantPortalView: snags awaiting verification + verify/reject (reason+photo via uploads endpoint)
 - [ ] ClientPortalView: closeout card (PC status, snag counts, DLP expiry, retention) + acknowledge form
 - [ ] SubcontractorPortalView: retention releases list + request-release button
 
 ### S6.2 Tests + evidence
-- [ ] API vitest: portal-closeout.test.ts (consultant verify/reject auth+validation, client ack once/409, sub release gating, cross-tenant)
+- [x] API vitest: portal-closeout.test.ts (consultant verify/reject auth+validation, client ack once/409, sub release gating, cross-tenant)
 - [ ] Playwright s6-portal-closeout.spec.ts: link->action journeys chromium+mobile-390, screenshots -> docs/evidence/visual/<sha>/portal-flows/
 - [ ] Supplier + compliance portal e2e: token still valid after HANDED_OVER
 
 ### S6.3
-- [ ] docs/decisions-needed.md: client ack binding?; consultant reject -> REJECTED status choice
-- [ ] 10% retention project test (retention_rate_pct configurable per package)
+- [x] docs/decisions-needed.md: client ack binding?; consultant reject -> REJECTED status choice
+- [x] 10% retention project test (retention_rate_pct configurable per package)
 - [ ] Report table + partial/decisions/missed
 
 ### Verify
