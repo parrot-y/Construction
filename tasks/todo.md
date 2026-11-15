@@ -1,68 +1,56 @@
 # tasks/todo.md — active plan
 
-## Current: Stage 6 — completion/closeout portal loop — ALL DONE pending final verify (7959ca7)
+## Current: Round H (checklist 14/15 review, 28–32)
 
-Auditor spec `aud-stage6-completion-closeout.spec.ts` locked (S6.0, hash verified).
-S6.1 engine done (snag counting, ledger retention, cert permission, DLP derivation,
-CLOSED gates, write-off). Now the portal loop + e2e + decisions + report.
+Rules: aud-* specs + sha256 immutable; tests first with RED RUN COMMITTED;
+one item = one commit `H<n>: <what>`; evidence log named for final sha.
 
-### S6.2 API — externalPortals.ts
-- [x] Consultant GET: add `snags` (non-private, project-scoped) + counts; scope 'SNAGS'
-- [x] Consultant POST `/snags/:snagId/review` {action VERIFY|REJECT, reason?, photoStorageKey?}
-      VERIFY: READY_FOR_REVIEW|RECTIFIED_BY_CONTRACTOR -> VERIFIED_CLOSED (verified_by=stakeholder)
-      REJECT: reason >=15 non-space chars + photoStorageKey prefix-validated -> REJECTED
-      + SnagComment(author=stakeholder) + SnagPhoto; audit SNAG_REVIEWED_VIA_PORTAL; notifyTeam
-- [x] lifecycle.ts: allow REJECTED -> IN_PROGRESS (rework path, dead-end fix)
-- [x] Client GET: add `closeout` {pcCert, snagCounts, snags(no cost), dlpExpiry, retention pos, acknowledged}
-- [x] Client POST `/closeout/acknowledge` {typedName} — once per project (unique), audit
-- [x] Schema+migration 0022: PracticalCompletionAcknowledgement (tenant_id -> RLS auto)
-- [x] Subcontractor GET: add `retentionReleases` array for bound package
-- [x] Subcontractor POST `/retention-release` — pkg snags all VERIFIED_CLOSED, held>0,
-      no pending release; FIRST_MOIETY 50% or SECOND only at DEFECTS_EXPIRED/CLOSED;
-      release_no seq; audit + notifyTeam
+### H1 — one source of truth for retention money
+- [ ] Decide: retention release pre-fills/locks `retention_released` on next
+      payment certificate OR creates a retention-release invoice/credit line.
+      Write choice in docs/decisions-needed.md.
+- [ ] Remove the other typed path (or make read-only); ledger must never
+      double-count (held already net of cert-level releases vs DLC releases).
+- [ ] Test: PC half release → payment certificate → final release; reconcile
+      held/released/outstanding to the cent; invoice/cert shows release once.
+      Decimal edge values (half-cent splits).
 
-### S6.2 Web portal views
-- [x] ConsultantPortalView: snags awaiting verification + verify/reject (reason+photo via uploads endpoint)
-- [x] ClientPortalView: closeout card (PC status, snag counts, DLP expiry, retention) + acknowledge form
-- [x] SubcontractorPortalView: retention releases list + request-release button
+### H2 — subcontractor retention request → paid
+- [ ] E2E: PENDING_QS_REVIEW → QS recommends → director approves
+      (maker-checker, requester cannot self-approve, admin override needs
+      15-char reason) → payout recorded once with reference → portal shows
+      PAID → package retention held falls → ledger reconciles → second
+      request for same moiety refused.
+- [ ] Console screen where QS reviews it, verified at 390px.
 
-### S6.2 Tests + evidence
-- [x] API vitest: portal-closeout.test.ts (consultant verify/reject auth+validation, client ack once/409, sub release gating, cross-tenant)
-- [x] Playwright s6-portal-closeout.spec.ts: link->action journeys chromium+mobile-390, screenshots -> docs/evidence/visual/<sha>/portal-flows/
-- [x] Supplier + compliance portal e2e: token still valid after HANDED_OVER
+### H3 — retention rate + cap per project
+- [ ] Project settings: retentionRatePct + retentionCapPct (default 5%),
+      editable by admin/PM_QS before first certificate, audit-logged.
+- [ ] Remove every hard-coded 5%/50% in retention path (certificates.ts
+      preview math too); list each in PR.
+- [ ] 10% project through certificate → invoice → release.
 
-### S6.3
-- [x] docs/decisions-needed.md: client ack binding?; consultant reject -> REJECTED status choice
-- [x] 10% retention project test (retention_rate_pct configurable per package)
-- [x] Report table + partial/decisions/missed
+### H4 — wording/layout at 390px (auditor visual review)
+- [ ] "Welcome,S6 CONSULTANT" missing space.
+- [ ] Scope-derived "What you can do here" bullets (consultant: verify snags;
+      client: practical completion + snags).
+- [ ] Client portal: closeout card first, above empty change-orders.
+- [ ] Subcontractor valuation table clipped — stacked cards or scroll shadow.
+- [ ] Dead "Back to Project/Dashboard" buttons on link portals — remove or
+      point to portal top.
+- [ ] Consultant tab bar clips "Snag Verification (1)" — wrap or scroll cue.
+
+### H5 — remaining portal screenshot journeys
+- [ ] supplier (accept PO, confirm delivery, submit invoice), compliance
+      (permit, visit), field roles (today's work, diary, offline incident +
+      sync), owner (approve variation, dashboard), public quote (view,
+      accept, deposit invoice).
+- [ ] Clean seeded demo tenant, realistic names; chromium + mobile-390;
+      docs/evidence/visual/<final-sha>/portal-flows/.
+
+### H6 — PR pointers
+- [ ] 1962c01 held-payment resolve screen + 0bf3592 clean-demo capture:
+      exact files/tests + what each proves.
 
 ### Verify
-- [~] verify-local.sh on final commit; evidence log named for sha (running on 7959ca7)
-
-
-## Review — Stage 6 closeout (S6.0–S6.3 + fixes)
-
-- S6.0 `04fdc52`: auditor spec locked verbatim, sha256 appended, CI spec-count bumped to 6.
-- S6.1 `01e74c5`: snag-aware closeout gates (only VERIFIED_CLOSED counts as closed),
-  ledger-driven retention via `retentionPosition()` (latest CERTIFIED/PAID IPC
-  `retention_held` minus issued DLC releases), one PC cert per project (409),
-  DLP expiry derived + justified future-only override, `CERTIFICATE_CLOSEOUT`
-  permission, CLOSED gates on snags/invoices/pending certs/retention with
-  audited >=15-char admin write-off, PC no longer flips project COMPLETED.
-- S6.2 `836d283` (+`c0fae5b` typecheck fix): consultant portal snag
-  verify/reject (reason+photo, audit as stakeholder, team notified), client
-  closeout view + one-time typed-name PC acknowledgement, subcontractor
-  package-bound retention release requests gated on package snag closure.
-  Playwright journeys chromium+mobile-390 green; screenshots in
-  `docs/evidence/visual/836d283/portal-flows/`.
-- S6.3 `62dcb49`: decisions logged (client ack binding semantics etc.),
-  10% package retention-rate API test.
-- Post-verify fix `7959ca7`: pre-existing vitest suites still asserted the
-  OLD contract — hard-coded 5%x50% release guess, COMPLETED side-effect,
-  terminal REJECTED, and un-allowlisted portal routes. Aligned fixtures to
-  the new contract (seeded CERTIFIED IPC rows so ledger retention exists);
-  no product weakening — the ledger values now prove the same moieties.
-- Regression: portal-closeout 5/5, lifecycle-extensions 33/33,
-  e2e-live-site-simulation 24/24, s6-snag-depth 5/5, route-guard 8/8,
-  portal regression 16/16, aud+portal Playwright 20/20 (chromium),
-  s6-portal-closeout 5/5 chromium + 5/5 mobile-390.
+- [ ] verify-local.sh on final commit; full Playwright matrix; evidence.

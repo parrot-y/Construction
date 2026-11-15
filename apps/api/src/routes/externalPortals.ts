@@ -1485,17 +1485,18 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
 
         // Gate 3: the second (final) moiety only after the defects liability
         // period has expired or the project is closed.
+        const project = await tx.project.findUnique({
+          where: { id: link.project_id },
+          select: { closeout_stage: true, retention_first_moiety_pct: true },
+        });
+        const firstMoietyPct = toDecimal(String(project?.retention_first_moiety_pct ?? '50'));
         let moietyStage: string;
         let releaseAmount: any;
         let defectClearance = false;
         if (!firstMoietyPaid) {
           moietyStage = 'FIRST_MOIETY_PRACTICAL_COMPLETION';
-          releaseAmount = held.dividedBy(2).toDecimalPlaces(2);
+          releaseAmount = held.times(firstMoietyPct).dividedBy(100).toDecimalPlaces(2);
         } else {
-          const project = await tx.project.findUnique({
-            where: { id: link.project_id },
-            select: { closeout_stage: true },
-          });
           if (!project || !['DEFECTS_EXPIRED', 'CLOSED'].includes(project.closeout_stage)) {
             throw { status: 409, message: 'The final retention moiety can only be requested after the defects liability period has expired' };
           }

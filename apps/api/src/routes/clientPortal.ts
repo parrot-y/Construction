@@ -320,27 +320,35 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             where: { id: tenantId },
             select: { retention_terms: true, payment_instructions: true },
           });
-          const maxCapAmountDec = originalBudgetDec.times(0.05);
-          // Kenyan standard schedule: 10% interim deduction on each
-          // certificate, capped at 5% of the contract sum (retention_pct is
-          // the effective withheld rate once the cap binds).
+          // Round H3: the fallback schedule mirrors the project's own
+          // retention settings (single source of truth) — a tenant-level
+          // retention_terms override still wins when present.
+          const projRatePct = toDecimal(String(project.retention_rate_pct ?? '5'));
+          const projCapPct = toDecimal(String(project.retention_cap_pct ?? '5'));
+          const projFirstMoietyPct = toDecimal(String(project.retention_first_moiety_pct ?? '50'));
+          const projSecondMoietyPct = new Decimal(100).minus(projFirstMoietyPct);
+          const rateLabel = `${projRatePct.toFixed(2).replace(/\.00$/, '')}%`;
+          const capLabel = `${projCapPct.toFixed(2).replace(/\.00$/, '')}%`;
+          const firstLabel = `${projFirstMoietyPct.toFixed(2).replace(/\.00$/, '')}%`;
+          const secondLabel = `${projSecondMoietyPct.toFixed(2).replace(/\.00$/, '')}%`;
+          const maxCapAmountDec = originalBudgetDec.times(projCapPct).dividedBy(100);
           const defaultRetentionTerms = {
-            retention_pct: 5,
-            interim_deduction_rate: '10%',
-            max_cap_rate: '5%',
+            retention_pct: projRatePct.toNumber(),
+            interim_deduction_rate: rateLabel,
+            max_cap_rate: capLabel,
             max_cap_amount: toCurrencyString(maxCapAmountDec),
             release_schedule: [
               {
                 milestone: 'Practical Completion',
-                percentage: '50%',
-                rate: '50%',
-                description: '50% released at Practical Completion (Section Handover)',
+                percentage: firstLabel,
+                rate: firstLabel,
+                description: `${firstLabel} released at Practical Completion (Section Handover)`,
               },
               {
                 milestone: 'Defects Liability Period',
-                percentage: '50%',
-                rate: '50%',
-                description: '50% released at end of Defects Liability Period (DLP)',
+                percentage: secondLabel,
+                rate: secondLabel,
+                description: `${secondLabel} released at end of Defects Liability Period (DLP)`,
               },
             ],
           };

@@ -2026,11 +2026,13 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
           // is the correct moiety of retention ACTUALLY HELD on certified
           // payment certificates minus what earlier closeout certificates
           // already released — never a guessed percentage of contract sum.
-          //   PRACTICAL_COMPLETION      → first moiety = 50% of outstanding
+          //   PRACTICAL_COMPLETION      → first moiety = project
+          //     retention_first_moiety_pct of outstanding (default 50%)
           //   MAKING_GOOD_DEFECTS /
           //   FINAL_PAYMENT_CERTIFICATE → remaining outstanding in full
           // A typed amount may never exceed the outstanding balance.
           const pos = await retentionPosition(tx, projectId);
+          const firstMoietyPct = toDecimal(String(project.retention_first_moiety_pct ?? '50'));
           let retentionReleasedDec: Decimal;
           if (data.retentionAmountReleased != null && data.retentionAmountReleased !== '') {
             retentionReleasedDec = toDecimal(data.retentionAmountReleased);
@@ -2044,7 +2046,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               };
             }
           } else if (data.certificateType === 'PRACTICAL_COMPLETION') {
-            retentionReleasedDec = pos.outstanding.dividedBy(2).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+            retentionReleasedDec = pos.outstanding.times(firstMoietyPct).dividedBy(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
           } else {
             retentionReleasedDec = pos.outstanding.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
           }

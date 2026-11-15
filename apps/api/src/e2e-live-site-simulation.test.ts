@@ -569,6 +569,16 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   // STEP 7: Client inspects Client Portal (5 plain numbers, photo gallery, retention)
   // ---------------------------------------------------------------------------
   it('Step 7: Client inspects Client Portal (retrieving the 5 plain-language numbers, Nairobi GPS photo gallery, milestone timeline, and Kenyan retention terms)', async () => {
+    // Round H3: retention terms are project settings, not hard-coded — set the
+    // Kenyan 10%-interim / 5%-cap schedule explicitly before any certificate.
+    const setTerms = await server.inject({
+      method: 'PATCH',
+      url: `/api/v1/projects/${projectId}`,
+      headers: { cookie: adminCookie },
+      payload: { retentionRatePct: '10.00', retentionCapPct: '5.00', retentionFirstMoietyPct: '50.00' },
+    });
+    expect(setTerms.statusCode, setTerms.body).toBe(200);
+
     const portalRes = await server.inject({
       method: 'GET',
       url: `/api/v1/projects/${projectId}/client-portal`,

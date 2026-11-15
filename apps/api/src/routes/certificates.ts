@@ -65,7 +65,7 @@ function formatCert(c: CertRecord | null | undefined) {
     this_period_amount: toCurrencyString(c.this_period_amount?.toString() ?? '0'),
     previous_certified: toCurrencyString(c.previous_certified?.toString() ?? '0'),
     cumulative_certified: toCurrencyString(c.cumulative_certified?.toString() ?? '0'),
-    retention_pct: c.retention_pct?.toString() ?? '5.00',
+    retention_pct: c.retention_pct?.toString() ?? '0.00',
     retention_deduction: toCurrencyString(c.retention_deduction?.toString() ?? '0'),
     retention_held: toCurrencyString(c.retention_held?.toString() ?? '0'),
     retention_released: toCurrencyString(c.retention_released?.toString() ?? '0'),
@@ -133,8 +133,12 @@ async function computeCertMath(
   const cumulative = previousCertified.plus(thisPeriod);
 
   const contractSum = await resolveContractSum(tx, project);
-  const retentionCap = contractSum.times(5).dividedBy(100);
-  const pct = toDecimal(opts.retentionPct ?? '5').dividedBy(100);
+  // Round H3: rate + cap are project settings (default 5%/5%), editable by
+  // admin/PM_QS until the first certificate — no hard-coded percentages.
+  const capPct = toDecimal(String(project.retention_cap_pct ?? '5'));
+  const retentionCap = contractSum.times(capPct).dividedBy(100);
+  const ratePct = toDecimal(opts.retentionPct ?? String(project.retention_rate_pct ?? '5'));
+  const pct = ratePct.dividedBy(100);
   const prevHeld = await latestRetentionHeld(tx, projectId);
   const desiredDeduction = thisPeriod.times(pct);
   const room = Decimal.max(new Decimal(0), retentionCap.minus(prevHeld));

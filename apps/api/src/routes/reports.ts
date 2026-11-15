@@ -140,11 +140,14 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             }
           }
 
-          // Kenyan standard retention terms: 10% deduction, capped at 5% of Contract Sum
-          const retentionDeductionRate = '10%';
-          const retentionMaxCapRate = '5%';
-          const maxRetentionCapDec = contractSumDec.times(0.05).toDecimalPlaces(2);
-          const computedRetentionDec = grossValuationDec.times(0.10).toDecimalPlaces(2);
+          // Retention terms come from the project's own settings (H3) — the
+          // same source the certificate engine uses, never hard-coded.
+          const retentionRatePct = toDecimal(String(project.retention_rate_pct ?? '5'));
+          const retentionCapPct = toDecimal(String(project.retention_cap_pct ?? '5'));
+          const retentionDeductionRate = `${retentionRatePct.toFixed(2).replace(/\.00$/, '')}%`;
+          const retentionMaxCapRate = `${retentionCapPct.toFixed(2).replace(/\.00$/, '')}%`;
+          const maxRetentionCapDec = contractSumDec.times(retentionCapPct).dividedBy(100).toDecimalPlaces(2);
+          const computedRetentionDec = grossValuationDec.times(retentionRatePct).dividedBy(100).toDecimalPlaces(2);
           const retentionDeductedDec = computedRetentionDec.greaterThan(maxRetentionCapDec)
             ? maxRetentionCapDec
             : computedRetentionDec;

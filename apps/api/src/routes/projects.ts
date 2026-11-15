@@ -234,7 +234,7 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_EDIT)],
     },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { id } = request.params as { id: string };
 
       if (!UUID_REGEX.test(id)) {
@@ -281,6 +281,33 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             }
           }
 
+          // Round H3: project retention terms are commercial contract data —
+          // admin/PM_QS only, and locked once the first payment certificate
+          // exists (the rate/cap must not move mid-contract).
+          const retentionFields = ['retentionRatePct', 'retentionCapPct', 'retentionFirstMoietyPct'] as const;
+          const touchesRetention = retentionFields.some((f) => body[f] !== undefined);
+          if (touchesRetention) {
+            if (!['COMPANY_ADMIN', 'PM_QS', 'ADMIN'].includes(String(role))) {
+              throw { status: 403, message: 'Only a company admin or PM/QS can change retention terms' };
+            }
+            const certCount = await tx.paymentCertificate.count({ where: { project_id: id } });
+            if (certCount > 0) {
+              throw { status: 409, message: 'Retention terms are locked — a payment certificate already exists for this project' };
+            }
+            const pct = (v: string) => {
+              const d = toDecimal(v);
+              if (d.lt(0) || d.gt(100)) throw { status: 400, message: 'Retention percentages must be between 0 and 100' };
+              return d.toFixed(2);
+            };
+            if (body.retentionRatePct !== undefined && body.retentionRatePct !== null) data.retention_rate_pct = pct(body.retentionRatePct);
+            if (body.retentionCapPct !== undefined && body.retentionCapPct !== null) data.retention_cap_pct = pct(body.retentionCapPct);
+            if (body.retentionFirstMoietyPct !== undefined && body.retentionFirstMoietyPct !== null) data.retention_first_moiety_pct = pct(body.retentionFirstMoietyPct);
+          }
+
+          const before = await tx.project.findUnique({
+            where: { id },
+            select: { retention_rate_pct: true, retention_cap_pct: true, retention_first_moiety_pct: true },
+          });
           const project = await tx.project.update({ where: { id }, data });
 
           // progressPct → real ProgressRecord (no duplicated manual field)
@@ -307,7 +334,18 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             action: 'PROJECT_UPDATED',
             entityType: 'Project',
             entityId: project.id,
-            changes: { fields: Object.keys(body) },
+            changes: {
+              fields: Object.keys(body),
+              ...(touchesRetention && before
+                ? {
+                    retention: {
+                      ratePct: { from: before.retention_rate_pct?.toString(), to: project.retention_rate_pct?.toString() },
+                      capPct: { from: before.retention_cap_pct?.toString(), to: project.retention_cap_pct?.toString() },
+                      firstMoietyPct: { from: before.retention_first_moiety_pct?.toString(), to: project.retention_first_moiety_pct?.toString() },
+                    },
+                  }
+                : {}),
+            },
           });
 
           return project;

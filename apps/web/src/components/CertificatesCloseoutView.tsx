@@ -72,6 +72,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
   const dialog = useAppDialog();
   const [certs, setCerts] = useState<PaymentCertificate[]>([]);
   const [closeout, setCloseout] = useState<CloseoutData | null>(null);
+  const [projectRetentionPct, setProjectRetentionPct] = useState<string>('5');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -100,12 +101,19 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
     setLoading(true);
     setError(null);
     try {
-      const [cJson, xJson] = await Promise.all([
+      const [cJson, xJson, pJson] = await Promise.all([
         api.get<{ data?: PaymentCertificate[] }>(`/api/v1/projects/${projectId}/payment-certificates`),
         api.get<{ data: CloseoutData }>(`/api/v1/projects/${projectId}/closeout`),
+        api.get<Record<string, unknown>>(`/api/v1/projects/${projectId}`).catch(() => null),
       ]);
       setCerts(cJson.data || []);
       setCloseout(xJson.data);
+      const p = (pJson as any)?.project ?? pJson;
+      const rp = p?.retention_rate_pct;
+      if (rp !== undefined && rp !== null) {
+        const n = parseFloat(String(rp));
+        if (Number.isFinite(n)) setProjectRetentionPct(String(n));
+      }
 } catch (err: any) {
       setError(err?.message || 'Load failed');
 } finally {
@@ -126,7 +134,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
       const data = body.data || {};
       setPreviewLines((data.lines || []).map((l: PreviewLine) => ({ ...l })));
       const today = new Date().toISOString().slice(0, 10);
-      setBuilder((b) => ({ ...b, periodStart: b.periodStart || today, periodEnd: b.periodEnd || today }));
+      setBuilder((b) => ({ ...b, periodStart: b.periodStart || today, periodEnd: b.periodEnd || today, retentionPct: b.retentionPct || projectRetentionPct }));
 } catch (err: any) {
       setError(err?.message || 'Could not build certificate preview');
       setPreviewLines([]);
@@ -171,7 +179,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
           periodEnd: builder.periodEnd,
           lines,
           thisPeriodAmount: toAmountString(linesTotal),
-          retentionPct: builder.retentionPct || '5',
+          retentionPct: builder.retentionPct || projectRetentionPct,
           retentionReleased: builder.retentionReleased || '0',
           advanceRecovery: builder.advanceRecovery || '0',
           amountDuePrevious: builder.amountDuePrevious || '0',

@@ -85,20 +85,45 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   const [releasePackageId, setReleasePackageId] = useState('');
   const [subPkgs, setSubPkgs] = useState<{ id: string; firm_name: string}[]>([]);
 
+  // Round H3: retention schedule labels come from the project's own
+  // settings — never hard-coded 5%/50%.
+  const [projTerms, setProjTerms] = useState<{ rate: string; cap: string; first: string; second: string } | null>(null);
+  const termsApplied = React.useRef(false);
+  const fmtPct = (v: unknown, fallback: number) => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+    const p = Number.isFinite(n) ? n : fallback;
+    return `${p.toFixed(2).replace(/\.00$/, '')}`;
+  };
+
   const isLive = !!projectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [liveLoaded, setLiveLoaded] = useState(!isLive);
 
   const reload = React.useCallback(async () => {
     if (!isLive || !projectId) return;
     try {
-      const [rj, bj, pj] = await Promise.all([
+      const [rj, bj, pj, prj] = await Promise.all([
         api.get<{ releases?: RetentionReleaseItem[] }>(`/api/v1/projects/${projectId}/subcontractor-retention-releases`).catch(() => null),
         api.get<{ bonds?: ContractorBondItem[] }>(`/api/v1/projects/${projectId}/contractor-bonds`).catch(() => null),
         api.get<{ packages?: Array<{ id: string; firm_name: string }> }>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => null),
+        api.get<Record<string, unknown>>(`/api/v1/projects/${projectId}`).catch(() => null),
       ]);
       if (rj) setReleases(rj.releases || []);
       if (bj) setBonds(bj.bonds || []);
       if (pj) setSubPkgs((pj.packages || []).map((p) => ({ id: p.id, firm_name: p.firm_name})));
+      const p = (prj as any)?.project ?? prj;
+      if (p && !termsApplied.current) {
+        termsApplied.current = true;
+        const first = parseFloat(String(p.retention_first_moiety_pct ?? '50')) || 50;
+        const second = 100 - first;
+        setProjTerms({
+          rate: fmtPct(p.retention_rate_pct, 5),
+          cap: fmtPct(p.retention_cap_pct, 5),
+          first: fmtPct(first, 50),
+          second: fmtPct(second, 50),
+        });
+        setReleasePct(first.toFixed(2));
+        setQsNotes(`First moiety ${fmtPct(first, 50)}% retention recommended for release upon practical completion.`);
+      }
 } catch { /* keep demo */}
     setLiveLoaded(true);
 }, [isLive, projectId]);
@@ -181,11 +206,14 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
     totalReleasedAmount: releases.reduce((s, r) => s + parseFloat(r.releaseAmount), 0).toFixed(2),
 };
 
+  const pct = projTerms ?? { rate: '5', cap: '5', first: '50', second: '50' };
+  const moietyMaxPct = moietyStage === 'FIRST_MOIETY_PRACTICAL_COMPLETION' ? pct.first : pct.second;
+
   const handleCreateReleaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const held = parseFloat(totalHeld) || 0;
-    const pct = parseFloat(releasePct) || 50;
-    const amt = held * (pct / 100);
+    const pctNum = parseFloat(releasePct) || parseFloat(pct.first) || 50;
+    const amt = held * (pctNum / 100);
 
     const newRel: RetentionReleaseItem = {
       id: `rel-${Date.now()}`,
@@ -195,7 +223,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
       tradeCategory: 'SPECIALIST_TRADE',
       moietyStage,
       totalRetentionHeld: held.toFixed(2),
-      releasePercentage: pct.toFixed(2),
+      releasePercentage: pctNum.toFixed(2),
       releaseAmount: amt.toFixed(2),
       qsRecommendationNotes: qsNotes,
       defectClearanceVerified: defectVerified,
@@ -212,7 +240,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
             releaseNo,
             moietyStage,
             totalRetentionHeld: held.toFixed(2),
-            releasePercentage: pct.toFixed(2),
+            releasePercentage: pctNum.toFixed(2),
             releaseAmount: amt.toFixed(2),
             qsRecommendationNotes: qsNotes || null,
             defectClearanceVerified: defectVerified,
@@ -311,7 +339,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </div>
 <h1 className="text-2xl font-bold ">Retention Releases &amp; Performance Bonds</h1>
 <p className="text-sm text-blue-200/80 mt-1">
-              Project:<span className="font-semibold text-white">{projectName}</span> | 50% Practical Completion Release, 50% Post-DLP Expiry Release &amp; Bank Guarantee Expiry Monitor
+              Project:<span className="font-semibold text-white">{projectName}</span> | {pct.first}% Practical Completion Release, {pct.second}% Post-DLP Expiry Release &amp; Bank Guarantee Expiry Monitor
 </p>
 </div>
 <div className="flex items-center gap-3">
@@ -337,7 +365,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Subcontract Retention Held</div>
 <div className="text-xl font-bold text-white mt-1">{formatKes(summary.totalRetentionHeld)}</div>
-<div className="text-[10px] text-blue-300 mt-1">5% Subcontract Sum Cap</div>
+<div className="text-[10px] text-blue-300 mt-1">{pct.cap}% Retention Cap</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Retention Disbursed</div>
@@ -389,7 +417,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               Subcontractor Dual-Moiety Retention Schedule (JBC 1999)
 </h3>
 <span className="text-xs text-slate-500">
-              Moiety 1: 50% at PC | Moiety 2: 50% post-DLP Snags Cleared
+              Moiety 1: {pct.first}% at PC | Moiety 2: {pct.second}% post-DLP Snags Cleared
 </span>
 </div>
 <div className="overflow-x-auto">
@@ -532,7 +560,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               Issue Subcontractor Retention Release
 </h3>
 <p className="text-xs text-slate-500 mb-4">
-              Dual-moiety retention release under JBC 1999 Clause 30 (50% on PC, 50% post-DLP).
+              Dual-moiety retention release under JBC 1999 Clause 30 ({pct.first}% on PC, {pct.second}% post-DLP).
 </p>
 <form onSubmit={handleCreateReleaseSubmit} className="space-y-4 text-sm">
               {isLive && (
@@ -588,8 +616,8 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                   onChange={(e: any) => setMoietyStage(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700"
                 >
-<option value="FIRST_MOIETY_PRACTICAL_COMPLETION">First Moiety (Practical Completion - 50%)</option>
-<option value="SECOND_MOIETY_FINAL_COMPLETION">Second Moiety (Final Completion Post-DLP - 50%)</option>
+<option value="FIRST_MOIETY_PRACTICAL_COMPLETION">First Moiety (Practical Completion - {pct.first}%)</option>
+<option value="SECOND_MOIETY_FINAL_COMPLETION">Second Moiety (Final Completion Post-DLP - {pct.second}%)</option>
 </select>
 </div>
 <div className="grid grid-cols-2 gap-3">
@@ -608,7 +636,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </div>
 <div>
 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Release % (Max 50%)
+                    Release % (Max {moietyMaxPct}%)
 </label>
 <input
                     type="number"

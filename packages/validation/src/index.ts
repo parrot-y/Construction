@@ -2109,6 +2109,11 @@ export const UpdateProjectDetailsSchema = z.object({
   startDate: IsoDate.optional().nullable(),
   targetEndDate: IsoDate.optional().nullable(),
   progressPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  // Round H3: project retention terms — locked once the first payment
+  // certificate exists (enforced server-side).
+  retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  retentionCapPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  retentionFirstMoietyPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
 }).refine((v) => Object.keys(v).length > 0, { message: 'At least one field must be provided' });
 export type UpdateProjectDetails = z.infer<typeof UpdateProjectDetailsSchema>;
 
