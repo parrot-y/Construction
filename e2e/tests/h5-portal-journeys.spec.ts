@@ -259,7 +259,7 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
       currency: 'KES',
       taxPct: 16,
       depositPct: 30,
-      terms: '50% advance on commencement; balance on practical completion. Prices firm for 30 days.',
+      terms: '30% advance on commencement; balance on practical completion. Prices firm for 30 days.',
       items: [
         { description: 'Paving, landscaping and external drainage', unit: 'sum', quantity: 1, unitRate: 2400000 },
         { description: 'Perimeter wall, gates and guardhouse', unit: 'sum', quantity: 1, unitRate: 1800000 },

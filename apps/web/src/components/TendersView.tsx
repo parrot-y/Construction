@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatMoney } from '@construction/money';
 
 interface Tender {
   id: string; tenderCode: string; title: string; tradeCategory?: string;
@@ -21,7 +22,7 @@ const STATUS_STYLE: Record<string, string> = {
   CLOSED: 'bg-slate-100 text-slate-500',
   CANCELLED: 'bg-rose-50 text-rose-600',
 };
-const fmt = (n: string | number) => `KES ${Number(n).toLocaleString('en-KE', { maximumFractionDigits: 0})}`;
+const fmt = (n: string | number) => formatMoney(n);
 
 export default function TendersView({ projectId, canManage = true}: { projectId?: string; canManage?: boolean}): React.JSX.Element {
   const [projects, setProjects] = useState<ProjectOpt[]>([]);

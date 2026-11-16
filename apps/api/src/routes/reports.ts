@@ -8,7 +8,7 @@ import {
   calculateDetailedVariance,
   calculateSectionVariance,
   Decimal,
-  toCurrencyString,
+  formatMoneyNumber,
   toDecimal,
 } from '@construction/money';
 import { hasPermission, Permissions, Role, Roles } from '@construction/permissions';
@@ -194,17 +194,17 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               boraqsRegistrationNo: 'BORAQS/QS/2026/041',
             },
             financials: {
-              contractSum: toCurrencyString(contractSumDec),
-              approvedVariations: toCurrencyString(approvedVariationsDec),
-              revisedContractSum: toCurrencyString(revisedContractSumDec),
-              grossValuation: toCurrencyString(grossValuationDec),
+              contractSum: formatMoneyNumber(contractSumDec),
+              approvedVariations: formatMoneyNumber(approvedVariationsDec),
+              revisedContractSum: formatMoneyNumber(revisedContractSumDec),
+              grossValuation: formatMoneyNumber(grossValuationDec),
               retentionDeductionRate,
-              retentionDeducted: toCurrencyString(retentionDeductedDec),
+              retentionDeducted: formatMoneyNumber(retentionDeductedDec),
               retentionMaxCapRate,
-              retentionMaxCapAmount: toCurrencyString(maxRetentionCapDec),
-              cumulativeNetValuation: toCurrencyString(cumulativeNetValuationDec),
-              previousPaymentsCertified: toCurrencyString(previousPaymentsDec),
-              netAmountDue: toCurrencyString(netAmountDueDec),
+              retentionMaxCapAmount: formatMoneyNumber(maxRetentionCapDec),
+              cumulativeNetValuation: formatMoneyNumber(cumulativeNetValuationDec),
+              previousPaymentsCertified: formatMoneyNumber(previousPaymentsDec),
+              netAmountDue: formatMoneyNumber(netAmountDueDec),
             },
           };
 
@@ -574,11 +574,11 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             },
             generatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
             financials: {
-              originalAgreedBudget: toCurrencyString(originalBudgetDec),
-              approvedVariationsTotal: toCurrencyString(approvedVariationsDec),
-              currentApprovedBudget: toCurrencyString(currentApprovedBudgetDec),
-              totalSpentToDate: toCurrencyString(totalSpentDec),
-              remainingBalance: toCurrencyString(remainingBalanceDec),
+              originalAgreedBudget: formatMoneyNumber(originalBudgetDec),
+              approvedVariationsTotal: formatMoneyNumber(approvedVariationsDec),
+              currentApprovedBudget: formatMoneyNumber(currentApprovedBudgetDec),
+              totalSpentToDate: formatMoneyNumber(totalSpentDec),
+              remainingBalance: formatMoneyNumber(remainingBalanceDec),
               budgetUsedPercentage,
             },
             progress: {

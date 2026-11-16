@@ -1,5 +1,5 @@
 import React, { useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
 import { PRODUCT_NAME } from '../lib/product';
 
 export type TenderStatus = 'OPEN' | 'UNDER_REVIEW' | 'AWARDED';
@@ -321,7 +321,7 @@ export default function ContractorTenderBoardView({
 
     setTenders(updatedTenders);
     setShowBidModal(false);
-    setActionSuccess(`Bid of KES ${toCurrencyString(bidAmountKes)} from ${bidContractorName} successfully submitted and ranked.`);
+    setActionSuccess(`Bid of ${formatMoney(bidAmountKes)} from ${bidContractorName} successfully submitted and ranked.`);
     setBidContractorName('');
     setBidPastProjects('');
     if (onBidSubmitted) onBidSubmitted(targetTenderId, newBid);
@@ -347,7 +347,7 @@ export default function ContractorTenderBoardView({
 });
 
     setTenders(updated);
-    setActionSuccess(`Tender ${targetRef} successfully AWARDED to ${winningBid.contractorName} for KES ${toCurrencyString(winningBid.bidAmountKes)}!`);
+    setActionSuccess(`Tender ${targetRef} successfully AWARDED to ${winningBid.contractorName} for ${formatMoney(winningBid.bidAmountKes)}!`);
     if (onTenderAwarded) onTenderAwarded(targetTenderId, bidId);
 };
 
@@ -469,7 +469,7 @@ export default function ContractorTenderBoardView({
 <div className="mt-3 pt-2 border-t border-slate-200/60 text-xs">
 <div className="flex justify-between items-center text-[11px]">
 <span className="text-slate-500">Est. Budget:</span>
-<span className="tabular-nums font-bold text-slate-900">KES {toCurrencyString(tender.estimatedBudgetKes)}</span>
+<span className="tabular-nums font-bold text-slate-900">{formatMoney(tender.estimatedBudgetKes)}</span>
 </div>
 <div className="flex justify-between items-center text-[10px] text-slate-500 mt-0.5">
 <span>Deadline: {tender.submissionDeadline}</span>
@@ -501,7 +501,7 @@ export default function ContractorTenderBoardView({
                 Estimated Project Budget
 </span>
 <span className="text-base tabular-nums font-bold text-slate-900">
-                KES {toCurrencyString(activeTender.estimatedBudgetKes)}
+                {formatMoney(activeTender.estimatedBudgetKes)}
 </span>
 <span className="text-[11px] text-slate-500 block">Deadline: {activeTender.submissionDeadline}</span>
 </div>
@@ -523,7 +523,7 @@ export default function ContractorTenderBoardView({
 <span className="text-[10px] tabular-nums text-emerald-700 ml-auto">{activeTender.awardedAt}</span>
 </div>
 <p className="text-emerald-800">
-                Contract officially awarded to<strong className="font-bold">{awardedBid.contractorName}</strong> ({awardedBid.ncaCategory}) at the competitively evaluated sum of<strong className="tabular-nums font-bold">KES {toCurrencyString(awardedBid.bidAmountKes)}</strong>.
+                Contract officially awarded to<strong className="font-bold">{awardedBid.contractorName}</strong> ({awardedBid.ncaCategory}) at the competitively evaluated sum of<strong className="tabular-nums font-bold">{formatMoney(awardedBid.bidAmountKes)}</strong>.
 </p>
 </div>
 )}
@@ -603,7 +603,7 @@ export default function ContractorTenderBoardView({
 </span>
 </td>
 <td className="py-3 px-3 tabular-nums font-bold text-slate-900">
-                          KES {toCurrencyString(bid.bidAmountKes)}
+                          {formatMoney(bid.bidAmountKes)}
 </td>
 <td className="py-3 px-3 font-medium text-slate-700">
                           {bid.durationWeeks} Weeks
@@ -666,19 +666,19 @@ export default function ContractorTenderBoardView({
 <div className="space-y-1 text-[11px] pt-1">
 <div className="flex justify-between text-slate-600">
 <span>Direct Labor:</span>
-<span className="tabular-nums">KES {toCurrencyString(b.tradeBreakdown.labor)}</span>
+<span className="tabular-nums">{formatMoney(b.tradeBreakdown.labor)}</span>
 </div>
 <div className="flex justify-between text-slate-600">
 <span>Materials Supply:</span>
-<span className="tabular-nums">KES {toCurrencyString(b.tradeBreakdown.materials)}</span>
+<span className="tabular-nums">{formatMoney(b.tradeBreakdown.materials)}</span>
 </div>
 <div className="flex justify-between text-slate-600">
 <span>Plant &amp; Equipment:</span>
-<span className="tabular-nums">KES {toCurrencyString(b.tradeBreakdown.plantEquipment)}</span>
+<span className="tabular-nums">{formatMoney(b.tradeBreakdown.plantEquipment)}</span>
 </div>
 <div className="flex justify-between text-slate-600">
 <span>Preliminaries &amp; Overheads:</span>
-<span className="tabular-nums">KES {toCurrencyString(b.tradeBreakdown.preliminaries)}</span>
+<span className="tabular-nums">{formatMoney(b.tradeBreakdown.preliminaries)}</span>
 </div>
 </div>
 </div>

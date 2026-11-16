@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
 import { api } from '../lib/apiClient';
 
 interface QuoteItem {
@@ -171,6 +171,15 @@ export default function QuotesManagementView(): React.JSX.Element {
   const taxAmt = itemSubtotal * (taxPctNum / 100);
   const total = itemSubtotal + taxAmt;
   const depositAmt = total * (depositPctNum / 100);
+
+  // The deposit % field is the single source of truth shown to the client.
+  // Warn when free-text terms mention a different payment-stage percentage.
+  const termsPaymentPct = (() => {
+    const m = form.terms.match(/(\d+(?:\.\d+)?)\s*%[^.\n]{0,40}(advance|deposit|mobilis|upfront|commence|instal|stage|demand|retention)|(?:advance|deposit|mobilis|upfront|commence|instal|stage|demand|retention)[^.\n]{0,40}(\d+(?:\.\d+)?)\s*%/i);
+    if (!m) return null;
+    const pct = parseFloat((m[1] ?? m[2]) as string);
+    return Number.isFinite(pct) && depositPctNum > 0 && Math.abs(pct - depositPctNum) > 0.001 ? pct : null;
+})();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -346,8 +355,13 @@ export default function QuotesManagementView(): React.JSX.Element {
 <div className="sm:col-span-3">
 <label className="block text-[11px] font-semibold text-slate-600 mb-1">Terms & Conditions</label>
 <textarea value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value})} rows={2}
-                placeholder="e.g. 50% deposit to mobilize; 30-day payment terms; prices exclude transport unless stated"
+                placeholder="e.g. Deposit to mobilize; 30-day payment terms; prices exclude transport unless stated"
                 className="w-full text-xs p-2 border border-slate-300 rounded-lg" />
+            {termsPaymentPct !== null && (
+<p className="mt-1 text-[11px] font-semibold text-amber-700" data-testid="terms-deposit-mismatch">
+                Heads up — your terms mention {termsPaymentPct}% but the deposit is set to {depositPctNum}%. The deposit figure above is what the client sees, so keep them consistent.
+</p>
+)}
 </div>
 </div>
 
@@ -388,10 +402,10 @@ export default function QuotesManagementView(): React.JSX.Element {
 
 <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
 <span className="text-slate-600">
-              Subtotal:<strong>{form.currency} {toCurrencyString(itemSubtotal)}</strong>
-              {' • '}Tax ({taxPctNum}%):<strong>{toCurrencyString(taxAmt)}</strong>
-              {' • '}Total:<strong>{form.currency} {toCurrencyString(total)}</strong>
-              {' • '}Deposit ({depositPctNum}%):<strong>{toCurrencyString(depositAmt)}</strong>
+              Subtotal:<strong>{formatMoney(itemSubtotal, form.currency)}</strong>
+              {' • '}Tax ({taxPctNum}%):<strong>{formatMoney(taxAmt)}</strong>
+              {' • '}Total:<strong>{formatMoney(total, form.currency)}</strong>
+              {' • '}Deposit ({depositPctNum}%):<strong>{formatMoney(depositAmt)}</strong>
 </span>
 <button type="submit" disabled={busyId === 'create'}
               className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50">
@@ -433,8 +447,8 @@ export default function QuotesManagementView(): React.JSX.Element {
 <span className="font-medium text-slate-800">{q.client_name}</span>
                       {q.client_email &&<span className="block text-[10px] text-slate-400">{q.client_email}</span>}
 </td>
-<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{q.currency} {toCurrencyString(q.total)}</td>
-<td className="py-2.5 pr-3 tabular-nums text-slate-600">{q.currency} {toCurrencyString(q.deposit_amount)}</td>
+<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{formatMoney(q.total, q.currency)}</td>
+<td className="py-2.5 pr-3 tabular-nums text-slate-600">{formatMoney(q.deposit_amount, q.currency)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[q.status] ?? STATUS_STYLES.DRAFT}`}>
                         {q.status}
@@ -491,16 +505,16 @@ export default function QuotesManagementView(): React.JSX.Element {
 <td className="py-1 pr-2 text-slate-500">{it.unit}</td>
 <td className="py-1 pr-2 text-right tabular-nums">{it.quantity}</td>
 <td className="py-1 pr-2 text-right tabular-nums">{it.unit_rate}</td>
-<td className="py-1 text-right tabular-nums font-semibold">{toCurrencyString(it.total_amount ?? '0')}</td>
+<td className="py-1 text-right tabular-nums font-semibold">{formatMoney(it.total_amount ?? '0')}</td>
 </tr>
 ))}
 </tbody>
 </table>
 <div className="text-right space-y-0.5 pt-1">
-<p className="text-slate-600">Subtotal:<span className="tabular-nums">{detail.currency} {toCurrencyString(detail.subtotal)}</span></p>
-<p className="text-slate-600">Tax ({detail.tax_pct}%):<span className="tabular-nums">{detail.currency} {toCurrencyString(detail.tax_amount)}</span></p>
-<p className="font-bold text-slate-900">Total:<span className="tabular-nums">{detail.currency} {toCurrencyString(detail.total)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit due ({detail.deposit_pct}%):<span className="tabular-nums">{detail.currency} {toCurrencyString(detail.deposit_amount)}</span></p>
+<p className="text-slate-600">Subtotal:<span className="tabular-nums">{formatMoney(detail.subtotal, detail.currency)}</span></p>
+<p className="text-slate-600">Tax ({detail.tax_pct}%):<span className="tabular-nums">{formatMoney(detail.tax_amount, detail.currency)}</span></p>
+<p className="font-bold text-slate-900">Total:<span className="tabular-nums">{formatMoney(detail.total, detail.currency)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit due ({detail.deposit_pct}%):<span className="tabular-nums">{formatMoney(detail.deposit_amount, detail.currency)}</span></p>
 </div>
 </div>
 <div>

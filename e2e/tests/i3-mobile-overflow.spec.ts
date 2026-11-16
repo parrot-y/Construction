@@ -259,4 +259,30 @@ test.describe.serial('I3 — 390px overflow gate across portals and console', ()
     await expect(page.getByText('Owner Portal')).toBeVisible({ timeout: 30_000 });
     await expectNoXOverflow(page, 'owner dashboard');
   });
+
+  // I5 — every money amount >= 1,000 must render with thousands separators.
+  // "KES 1234567.00" fails; "KES 1,234,567.00" passes.
+  const NO_UNSEPARATED_MONEY = /(?:KES|USD|Ksh)\s+-?\d{4,}(?:\.\d+)?/;
+  const assertSeparatedMoney = async (page: Page, label: string) => {
+    const bodyText = await page.locator('body').innerText();
+    const bad = bodyText.match(new RegExp(NO_UNSEPARATED_MONEY.source, 'g')) || [];
+    expect(bad, `${label} rendered unseparated money: ${bad.join(', ')}`).toEqual([]);
+  };
+
+  test('9. portal and dashboard money is thousands-separated', async ({ page }) => {
+    // Public quote (1.2M quote → deposit ~468K)
+    await page.goto(`/?portal=quote&token=${S.quoteToken}`);
+    await expect(page.getByText('Deposit required')).toBeVisible({ timeout: 20000 });
+    await assertSeparatedMoney(page, 'public quote');
+
+    // Supplier portal (PO totals)
+    await page.goto(`/?portal=supplier&token=${S.tokens.SUPPLIER}`);
+    await expect(page.getByTestId('supplier-portal-view')).toBeVisible({ timeout: 20000 });
+    await assertSeparatedMoney(page, 'supplier portal');
+
+    // Owner dashboard (contract sum 84.5M)
+    await uiLogin(page, `owner.${RUN}@i3-overflow.test`, page.getByText('Owner Portal'));
+    await expect(page.getByText('Owner Portal')).toBeVisible({ timeout: 30_000 });
+    await assertSeparatedMoney(page, 'owner dashboard');
+  });
 });

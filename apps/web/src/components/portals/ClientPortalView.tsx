@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
 import { formatKes, SavedDataNotice, formatDate } from '../../ui';
 import { fetchJsonCached } from '../../services/offline-cache';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
@@ -314,7 +314,7 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
 </span>
 </div>
 <span className={`text-sm tabular-nums font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
-                  {isNegative ? '-' : '+'}KES {toCurrencyString(absAmount)}
+                  {isNegative ? '-' : '+'}{formatMoney(absAmount)}
 </span>
 </div>
 

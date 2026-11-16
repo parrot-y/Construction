@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
 import { useAppDialog } from './AppDialog';
 import { api, ApiError } from '../lib/apiClient';
 import { formatKes } from '../ui';
@@ -293,7 +293,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       setNotice(
         body.invoice.status === 'PAID'
           ? `Invoice INV-${String(inv.invoice_no).padStart(5, '0')} fully paid`
-          : `Payment recorded — balance ${inv.currency} ${toCurrencyString(body.invoice.balance_due)}`,
+          : `Payment recorded — balance ${inv.currency} ${formatMoney(body.invoice.balance_due)}`,
 );
       load();
       refreshDetail(inv.id);
@@ -479,9 +479,9 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 
 <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
 <span className="text-slate-600">
-              Subtotal:<strong>{form.currency} {toCurrencyString(itemSubtotal)}</strong>
-              {' • '}VAT ({taxPctNum}%):<strong>{toCurrencyString(taxAmt)}</strong>
-              {' • '}Total:<strong>{form.currency} {toCurrencyString(total)}</strong>
+              Subtotal:<strong>{formatMoney(itemSubtotal, form.currency)}</strong>
+              {' • '}VAT ({taxPctNum}%):<strong>{formatMoney(taxAmt)}</strong>
+              {' • '}Total:<strong>{formatMoney(total, form.currency)}</strong>
 </span>
 <button type="submit" disabled={busyId === 'create'}
               className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50">
@@ -523,8 +523,8 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <span className="font-medium text-slate-800">{inv.client_name}</span>
                       {inv.client_email &&<span className="block text-[10px] text-slate-400">{inv.client_email}</span>}
 </td>
-<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{inv.currency} {toCurrencyString(inv.total)}</td>
-<td className="py-2.5 pr-3 tabular-nums text-slate-600">{inv.currency} {toCurrencyString(inv.balance_due)}</td>
+<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{formatMoney(inv.total, inv.currency)}</td>
+<td className="py-2.5 pr-3 tabular-nums text-slate-600">{formatMoney(inv.balance_due, inv.currency)}</td>
 <td className="py-2.5 pr-3 text-slate-500">{fmtDate(inv.due_date)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.DRAFT}`}>
@@ -560,8 +560,8 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
 <div><span className="text-slate-400">Issue:</span><strong>{fmtDate(detail.issue_date)}</strong></div>
 <div><span className="text-slate-400">Due:</span><strong>{fmtDate(detail.due_date)}</strong></div>
-<div><span className="text-slate-400">Paid:</span><strong>{detail.currency} {toCurrencyString(detail.amount_paid)}</strong></div>
-<div><span className="text-slate-400">Balance:</span><strong className="text-rose-700">{detail.currency} {toCurrencyString(detail.balance_due)}</strong></div>
+<div><span className="text-slate-400">Paid:</span><strong>{formatMoney(detail.amount_paid, detail.currency)}</strong></div>
+<div><span className="text-slate-400">Balance:</span><strong className="text-rose-700">{formatMoney(detail.balance_due, detail.currency)}</strong></div>
 </div>
                             {detail.po_number &&<p className="text-[11px] text-slate-500">PO Ref: {detail.po_number}</p>}
                             {detail.bill_to &&<p className="text-[11px] text-slate-500 whitespace-pre-line">Bill to: {detail.bill_to}</p>}
@@ -584,17 +584,17 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <td className="py-1 pr-2">{it.section ? `[${it.section}] ` : ''}{it.description}</td>
 <td className="py-1 pr-2">{it.unit}</td>
 <td className="py-1 pr-2 text-right font-mono tabular-nums">{it.quantity}</td>
-<td className="py-1 pr-2 text-right tabular-nums">{toCurrencyString(it.unit_rate)}</td>
-<td className="py-1 text-right tabular-nums font-semibold">{detail.currency} {toCurrencyString(it.total_amount ?? 0)}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{formatMoney(it.unit_rate)}</td>
+<td className="py-1 text-right tabular-nums font-semibold">{formatMoney(it.total_amount ?? 0, detail.currency)}</td>
 </tr>
 ))}
 </tbody>
 </table>
 
 <div className="text-[11px] text-slate-600 space-x-3">
-<span>Subtotal:<strong>{detail.currency} {toCurrencyString(detail.subtotal)}</strong></span>
-<span>VAT ({detail.tax_pct}%):<strong>{detail.currency} {toCurrencyString(detail.tax_amount)}</strong></span>
-<span>Total:<strong>{detail.currency} {toCurrencyString(detail.total)}</strong></span>
+<span>Subtotal:<strong>{formatMoney(detail.subtotal, detail.currency)}</strong></span>
+<span>VAT ({detail.tax_pct}%):<strong>{formatMoney(detail.tax_amount, detail.currency)}</strong></span>
+<span>Total:<strong>{formatMoney(detail.total, detail.currency)}</strong></span>
 </div>
 
                             {(detail.payments ?? []).length > 0 && (
@@ -604,7 +604,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
                                   {detail.payments!.map((p) => (
 <div key={p.id} className="flex justify-between text-[11px] text-slate-600">
 <span>{fmtDate(p.paid_at)} • {p.method.replace('_', ' ')}{p.reference ? ` • ${p.reference}` : ''}{p.note ? ` — ${p.note}` : ''}</span>
-<span className="font-mono tabular-nums font-semibold">{detail.currency} {toCurrencyString(p.amount)}</span>
+<span className="font-mono tabular-nums font-semibold">{formatMoney(p.amount, detail.currency)}</span>
 </div>
 ))}
 </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
 import { formatKes } from '../ui';
 import { AuthSession} from '../types/auth';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
@@ -267,7 +267,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <span className="block text-[11px] text-slate-400">{p.nca_project_no ? `NCA Reg: ${p.nca_project_no}` : ''}</span>
 </td>
 <td className="p-3 font-mono tabular-nums font-semibold text-slate-900">
-                    {p.contract_currency || 'KES'} {toCurrencyString(String(p.original_contract_sum ?? '0'))}
+                    {p.contract_currency || 'KES'} {formatMoney(String(p.original_contract_sum ?? '0'))}
 </td>
 <td className="p-3">
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${p.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>

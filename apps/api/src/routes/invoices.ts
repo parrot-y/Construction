@@ -3,7 +3,7 @@ import type { Prisma } from '@construction/db';
 import React from 'react';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
-import { toCurrencyString, toDecimal, Decimal, calculateLineTotal, DecimalValue } from '@construction/money';
+import { toCurrencyString, toDecimal, Decimal, calculateLineTotal, DecimalValue, formatMoneyNumber } from '@construction/money';
 import {
   CreateInvoiceSchema,
   UpdateInvoiceSchema,
@@ -650,21 +650,21 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
               unit: it.unit,
               quantity: it.quantity.toString(),
               unitRate: it.unit_rate.toString(),
-              total: toCurrencyString(it.total_amount.toString()),
+              total: formatMoneyNumber(it.total_amount.toString()),
             })),
             totals: {
-              subtotal: toCurrencyString(invoice.subtotal.toString()),
+              subtotal: formatMoneyNumber(invoice.subtotal.toString()),
               taxPct: invoice.tax_pct.toString(),
-              taxAmount: toCurrencyString(invoice.tax_amount.toString()),
-              total: toCurrencyString(invoice.total.toString()),
-              amountPaid: toCurrencyString(invoice.amount_paid.toString()),
-              balanceDue: toCurrencyString(invoice.balance_due.toString()),
+              taxAmount: formatMoneyNumber(invoice.tax_amount.toString()),
+              total: formatMoneyNumber(invoice.total.toString()),
+              amountPaid: formatMoneyNumber(invoice.amount_paid.toString()),
+              balanceDue: formatMoneyNumber(invoice.balance_due.toString()),
             },
             terms: invoice.terms,
             notes: invoice.notes,
             paybill: invoice.paybill,
             payments: invoice.payments.map((p) => ({
-              amount: toCurrencyString(p.amount.toString()),
+              amount: formatMoneyNumber(p.amount.toString()),
               method: p.method,
               reference: p.reference,
               paidAt: p.paid_at.toISOString().split('T')[0] ?? '',

@@ -2084,7 +2084,7 @@ it('renders ContractorTenderBoardView with active tenders, 70/30 technical/finan
       // Active tenders
       expect(html).toContain('SSF-TND-2026-STR-01');
       expect(html).toContain('Reinforced Concrete Framing &amp; Suspended Slabs Package');
-      expect(html).toContain('18500000.00');
+      expect(html).toContain('18,500,000.00');
       expect(html).toContain('UNDER_REVIEW');
 
       // Ranked bids & evaluation view

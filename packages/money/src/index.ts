@@ -58,6 +58,35 @@ export function toCurrencyString(amount: DecimalValue): string {
 }
 
 /**
+ * Grouped number with 2 decimals, no currency prefix — for templates that
+ * already print the currency code (e.g. PDF "KES {amount}"):
+ *   formatMoneyNumber('4872000') → "4,872,000.00"
+ */
+export function formatMoneyNumber(amount: DecimalValue): string {
+  const fixed = toDecimal(amount).toFixed(2, Decimal.ROUND_HALF_UP);
+  const negative = fixed.startsWith('-');
+  const parts = (negative ? fixed.slice(1) : fixed).split('.');
+  const intPart = parts[0] ?? '0';
+  const decPart = parts[1] ?? '00';
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${negative ? '-' : ''}${grouped}.${decPart}`;
+}
+
+/**
+ * Display money with thousands separators and a currency prefix:
+ *   formatMoney('4872000')        → "KES 4,872,000.00"
+ *   formatMoney('4872000', 'USD') → "USD 4,872,000.00"
+ *   formatMoney('-1250.5')        → "-KES 1,250.50"
+ * Use for every user-facing amount — screens, PDFs and portals.
+ */
+export function formatMoney(amount: DecimalValue, currency = 'KES'): string {
+  const formatted = formatMoneyNumber(amount);
+  return formatted.startsWith('-')
+    ? `-${currency} ${formatted.slice(1)}`
+    : `${currency} ${formatted}`;
+}
+
+/**
  * Computes cost consumption ratio = actual approved cost / current approved budget.
  * Returns 0 if current approved budget is zero.
  */

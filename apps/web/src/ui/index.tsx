@@ -1,17 +1,16 @@
 import React from 'react';
 import { formatDateTime } from '../lib/format';
+import { formatMoney } from '@construction/money';
 
 /** Product UI kit — see docs/DESIGN_SYSTEM.md. */
 
 // ---------------------------------------------------------------- formatKes
-const kesFormatter = new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0});
-
-/**"KES 2,250,000" — accepts Decimal-ish strings/numbers; never shows raw decimals. */
+/**"KES 2,250,000.00" — accepts Decimal-ish strings/numbers; grouped, 2dp. */
 export function formatKes(amount: string | number | null | undefined): string {
   if (amount === null || amount === undefined || amount === '') return '—';
   const n = typeof amount === 'string' ? Number(amount) : amount;
   if (!Number.isFinite(n)) return '—';
-  return `KES ${kesFormatter.format(Math.round(n))}`;
+  return formatMoney(n);
 }
 
 // ------------------------------------------------------------------ Button
