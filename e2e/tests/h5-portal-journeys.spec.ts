@@ -273,40 +273,78 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
     S.quoteToken = (await sent.json()).shareToken;
     expect(S.quoteToken, 'share token').toBeTruthy();
 
-    // Fresh change order → submitted → evaluated → pending owner approval.
-    const vo = await apiPost(request, S.admin, `/api/v1/projects/${pid}/variations`, {
-      title: 'Additional basement waterproofing',
-      reason: 'Client requested upgraded basement tanking after the geotechnical review.',
-      triggerType: 'CLIENT_REQUEST',
-      timeExtensionDays: 5,
-      items: [
-        { description: 'Extra basement tanking membrane and protection board', unit: 'm2', quantity: 850, unitRate: 1450 },
-        { description: 'Additional site supervision for tanking works', unit: 'day', quantity: 10, unitRate: 8500 },
-      ],
-    });
-    expect(vo.status(), `variation: ${await vo.text()}`).toBeLessThan(300);
-    const voBody = unwrap(await vo.json());
-    S.variationId = voBody.id || voBody.variation?.id || voBody.data?.id;
-    expect(S.variationId, 'variation id').toBeTruthy();
-    const sub = await apiPost(request, S.admin, `/api/v1/projects/${pid}/variations/${S.variationId}/submit`, {});
-    expect(sub.status(), `submit: ${await sub.text()}`).toBeLessThan(300);
-    const evalRes = await apiPost(request, S.admin, `/api/v1/projects/${pid}/variations/${S.variationId}/review`, {
-      action: 'EVALUATE',
-      comments: 'Rates verified against the 2026 supplier schedule.',
-    });
-    expect(evalRes.status(), `evaluate: ${await evalRes.text()}`).toBeLessThan(300);
+    // Change order → owner approval. Reuse a still-pending CO from a
+    // previous run when one exists so repeated captures don't pile up
+    // identical rows; otherwise create one (title varies by count).
+    const voListRes = await apiGet(request, S.admin, `/api/v1/projects/${pid}/variations`);
+    const voList = unwrap(voListRes);
+    const vos: any[] = Array.isArray(voList) ? voList : voList.variations || voList.data || voList.items || [];
+    const stageRank: Record<string, number> = { OWNER_REVIEW: 3, PM_REVIEW: 2, SUBMITTED: 2, QS_EVALUATED: 2, DRAFT: 1 };
+    const reusable = vos
+      .filter((v) => stageRank[v.status] != null)
+      .sort((a, b) => stageRank[b.status]! - stageRank[a.status]!)[0];
 
-    // Escalate to OWNER_REVIEW: the QS has no co-approval limit, so their
-    // approve attempt pushes the order to the owner — the only stage where
-    // the owner dashboard shows Approve (I4 gate).
-    const qs = sessions.get('PM_QS')!;
-    const esc = await apiPost(request, qs, `/api/v1/projects/${pid}/variations/${S.variationId}/review`, {
-      action: 'APPROVE',
-      comments: 'Above QS authority — escalating to owner.',
-    });
-    expect(esc.status(), `escalate: ${await esc.text()}`).toBeLessThan(300);
-    const escBody = unwrap(await esc.json());
-    expect(String(escBody.status || escBody.variation?.status)).toBe('OWNER_REVIEW');
+    if (reusable) {
+      S.variationId = reusable.id;
+      let stage = reusable.status as string;
+      if (stage === 'DRAFT') {
+        const sub = await apiPost(request, S.admin, `/api/v1/projects/${pid}/variations/${S.variationId}/submit`, {});
+        expect(sub.status(), `submit: ${await sub.text()}`).toBeLessThan(300);
+        stage = 'PM_REVIEW';
+      }
+      if (['PM_REVIEW', 'SUBMITTED', 'QS_EVALUATED'].includes(stage)) {
+        // Tolerate "already evaluated" — a reused CO may already carry the
+        // evaluation; the escalate step below is the real gate.
+        const ev = await apiPost(request, S.admin, `/api/v1/projects/${pid}/variations/${S.variationId}/review`, {
+          action: 'EVALUATE', comments: 'Rates verified against the 2026 supplier schedule.',
+        });
+        if (ev.status() >= 300 && ![400, 409].includes(ev.status())) {
+          throw new Error(`evaluate: ${ev.status()} ${await ev.text()}`);
+        }
+      }
+      if (stage !== 'OWNER_REVIEW') {
+        const qs = sessions.get('PM_QS')!;
+        const esc = await apiPost(request, qs, `/api/v1/projects/${pid}/variations/${S.variationId}/review`, {
+          action: 'APPROVE', comments: 'Above QS authority — escalating to owner.',
+        });
+        expect(esc.status(), `escalate: ${await esc.text()}`).toBeLessThan(300);
+      }
+    } else {
+      const suffixes = ['', ' — north wing', ' — tower A', ' — basement level 2'];
+      const vo = await apiPost(request, S.admin, `/api/v1/projects/${pid}/variations`, {
+        title: `Additional basement waterproofing${suffixes[vos.length % suffixes.length]}`,
+        reason: 'Client requested upgraded basement tanking after the geotechnical review.',
+        triggerType: 'CLIENT_REQUEST',
+        timeExtensionDays: 5,
+        items: [
+          { description: 'Extra basement tanking membrane and protection board', unit: 'm2', quantity: 850, unitRate: 1450 },
+          { description: 'Additional site supervision for tanking works', unit: 'day', quantity: 10, unitRate: 8500 },
+        ],
+      });
+      expect(vo.status(), `variation: ${await vo.text()}`).toBeLessThan(300);
+      const voBody = unwrap(await vo.json());
+      S.variationId = voBody.id || voBody.variation?.id || voBody.data?.id;
+      expect(S.variationId, 'variation id').toBeTruthy();
+      const sub = await apiPost(request, S.admin, `/api/v1/projects/${pid}/variations/${S.variationId}/submit`, {});
+      expect(sub.status(), `submit: ${await sub.text()}`).toBeLessThan(300);
+      const evalRes = await apiPost(request, S.admin, `/api/v1/projects/${pid}/variations/${S.variationId}/review`, {
+        action: 'EVALUATE',
+        comments: 'Rates verified against the 2026 supplier schedule.',
+      });
+      expect(evalRes.status(), `evaluate: ${await evalRes.text()}`).toBeLessThan(300);
+
+      // Escalate to OWNER_REVIEW: the QS has no co-approval limit, so their
+      // approve attempt pushes the order to the owner — the only stage where
+      // the owner dashboard shows Approve (I4 gate).
+      const qs = sessions.get('PM_QS')!;
+      const esc = await apiPost(request, qs, `/api/v1/projects/${pid}/variations/${S.variationId}/review`, {
+        action: 'APPROVE',
+        comments: 'Above QS authority — escalating to owner.',
+      });
+      expect(esc.status(), `escalate: ${await esc.text()}`).toBeLessThan(300);
+      const escBody = unwrap(await esc.json());
+      expect(String(escBody.status || escBody.variation?.status)).toBe('OWNER_REVIEW');
+    }
   });
 
   // -------------------------------------------------------------------------
