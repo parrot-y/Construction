@@ -15,7 +15,7 @@ import { API, login, apiGet, apiPost, apiPatch, unwrap, Session } from './helper
 
 const RUN = Date.now();
 const PASSWORD = 'I3Overflow#2026';
-const TRADE = `I3 Electricals ${RUN}`;
+const TRADE = 'Syokimau Electricals';
 
 const S: {
   admin?: Session;
@@ -34,7 +34,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 async function register(request: APIRequestContext): Promise<Session> {
   const email = `admin.${RUN}@i3-overflow.test`;
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
-    data: { companyName: `I3 Build Contractors ${RUN}`, adminFullName: 'Anne Wanjiru', email, phone: '+254712000999', password: PASSWORD },
+    data: { companyName: 'Syokimau Builders Ltd', adminFullName: 'Anne Wanjiru', email, phone: '+254712000999', password: PASSWORD },
   });
   expect(r.status(), await r.text()).toBe(201);
   return login(request, email, PASSWORD);
@@ -52,7 +52,7 @@ async function invite(request: APIRequestContext, admin: Session, key: string, r
 
 async function newProject(request: APIRequestContext, owner: Session): Promise<string> {
   const q = await apiPost(request, owner, '/api/v1/quotes', {
-    title: `Kileleshwa Office Fit-Out ${RUN}`, clientName: 'Delta Properties Ltd', clientEmail: `c.${RUN}@i3-overflow.test`, siteLocation: 'Kileleshwa, Nairobi',
+    title: 'Kileleshwa Office Fit-Out', clientName: 'Delta Properties Ltd', clientEmail: `c.${RUN}@i3-overflow.test`, siteLocation: 'Kileleshwa, Nairobi',
     currency: 'KES', taxPct: 16, depositPct: 30, items: [{ description: 'Office fit-out works', unit: 'sum', quantity: 1, unitRate: 8000000 }],
   });
   expect(q.status(), await q.text()).toBe(201);

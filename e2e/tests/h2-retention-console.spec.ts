@@ -18,7 +18,7 @@ const RUN = Date.now();
 const PASSWORD = 'H2Ret#2026';
 const SHA = execSync('git rev-parse --short HEAD', { cwd: `${__dirname}/..` }).toString().trim();
 const SHOTS = `../docs/evidence/visual/${SHA}/h2-retention-console`;
-const TRADE = `H2 Electricals ${RUN}`;
+const TRADE = 'Nyota Electricals';
 
 const S: {
   admin?: Session;
@@ -33,7 +33,7 @@ const S: {
 async function register(request: APIRequestContext): Promise<Session> {
   const email = `admin.${RUN}@h2-retention.test`;
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
-    data: { companyName: `H2 Contractors ${RUN}`, adminFullName: 'Peter Mwangi', email, phone: '+254712000888', password: PASSWORD },
+    data: { companyName: 'Kileleshwa Contractors Ltd', adminFullName: 'Peter Mwangi', email, phone: '+254712000888', password: PASSWORD },
   });
   expect(r.status(), await r.text()).toBe(201);
   return login(request, email, PASSWORD);
@@ -51,7 +51,7 @@ async function invite(request: APIRequestContext, admin: Session, key: string, r
 
 async function newProject(request: APIRequestContext, owner: Session): Promise<string> {
   const q = await apiPost(request, owner, '/api/v1/quotes', {
-    title: `Kilimani Offices ${RUN}`, clientName: 'Mr. Daniel Kiptoo', clientEmail: `c.${RUN}@h2-retention.test`, siteLocation: 'Kilimani, Nairobi',
+    title: 'Kilimani Offices', clientName: 'Mr. Daniel Kiptoo', clientEmail: `c.${RUN}@h2-retention.test`, siteLocation: 'Kilimani, Nairobi',
     currency: 'KES', taxPct: 16, depositPct: 30, items: [{ description: 'Office fit-out', unit: 'sum', quantity: 1, unitRate: 6000000 }],
   });
   expect(q.status(), await q.text()).toBe(201);

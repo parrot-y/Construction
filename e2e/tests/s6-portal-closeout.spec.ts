@@ -44,7 +44,7 @@ const S: {
 async function register(request: APIRequestContext): Promise<Session> {
   const email = `admin.${RUN}@s6-portal.test`;
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
-    data: { companyName: `S6 Portal Builders ${RUN}`, adminFullName: 'Wanjiru S6', email, phone: '+254712000777', password: PASSWORD },
+    data: { companyName: 'Lavington Construction Ltd', adminFullName: 'Wanjiru S6', email, phone: '+254712000777', password: PASSWORD },
   });
   expect(r.status(), await r.text()).toBe(201);
   return login(request, email, PASSWORD);
@@ -62,7 +62,7 @@ async function invite(request: APIRequestContext, admin: Session, key: string, r
 
 async function newProject(request: APIRequestContext, owner: Session): Promise<string> {
   const q = await apiPost(request, owner, '/api/v1/quotes', {
-    title: `Lavington Closeout ${RUN}`, clientName: 'Mrs. Achieng Otieno', clientEmail: `c.${RUN}@s6-portal.test`, siteLocation: 'Lavington, Nairobi',
+    title: 'Lavington Closeout', clientName: 'Mrs. Achieng Otieno', clientEmail: `c.${RUN}@s6-portal.test`, siteLocation: 'Lavington, Nairobi',
     currency: 'KES', taxPct: 16, depositPct: 30, items: [{ description: 'Closeout residence', unit: 'sum', quantity: 1, unitRate: 5000000 }],
   });
   expect(q.status(), await q.text()).toBe(201);
@@ -76,7 +76,7 @@ async function newProject(request: APIRequestContext, owner: Session): Promise<s
 
 const mkLink = async (request: APIRequestContext, portalType: string, extra: Record<string, unknown> = {}) => {
   const r = await apiPost(request, S.admin!, `/api/v1/projects/${S.projectId}/portals/links`, {
-    portalType, stakeholderName: `S6 ${portalType} ${RUN}`, expiresInDays: 30, ...extra,
+    portalType, stakeholderName: `S6 ${portalType}`, expiresInDays: 30, ...extra,
   });
   expect(r.status(), `${portalType} link: ${await r.text()}`).toBe(201);
   return unwrap(await r.json()).token as string;
@@ -119,23 +119,23 @@ test.describe.serial('Stage 6 — portal closeout journeys', () => {
     const pid = S.projectId;
 
     // Snag 1 — awaiting consultant verification.
-    S.snagForConsultant = await createSnag(request, 'GENERAL', `Grouting void beside patio door ${RUN}`);
+    S.snagForConsultant = await createSnag(request, 'GENERAL', 'Grouting void beside patio door');
     await walkTo(request, S.snagForConsultant!, 'READY_FOR_REVIEW');
 
     // Subcontractor package + its own snag (will be verified closed).
-    const TRADE = `S6-TILING-${RUN}`;
+    const TRADE = 'S6-TILING';
     const pkg = await apiPost(request, S.admin, `/api/v1/projects/${pid}/subcontractors`, {
-      tradeCategory: TRADE, firmName: `S6 Tile Works ${RUN}`, subcontractSum: '400000.00', retentionRatePct: '10.00', status: 'ACTIVE',
+      tradeCategory: TRADE, firmName: 'S6 Tile Works', subcontractSum: '400000.00', retentionRatePct: '10.00', status: 'ACTIVE',
     });
     expect(pkg.status(), await pkg.text()).toBeLessThan(300);
     const pkgBody = unwrap(await pkg.json());
     const pkgId = pkgBody.id || pkgBody.package?.id || pkgBody.data?.id;
 
-    S.packageSnag = await createSnag(request, TRADE, `Tiles chipped at stair nosing ${RUN}`);
+    S.packageSnag = await createSnag(request, TRADE, 'Tiles chipped at stair nosing');
     await walkTo(request, S.packageSnag!, 'VERIFIED_CLOSED');
 
     // Sub valuation approved for payment -> retention held on the package.
-    S.subToken = await mkLink(request, 'SUBCONTRACTOR', { stakeholderName: `S6 Tile Works ${RUN}`, subcontractorPackageId: pkgId });
+    S.subToken = await mkLink(request, 'SUBCONTRACTOR', { stakeholderName: 'S6 Tile Works', subcontractorPackageId: pkgId });
     const submit = await request.post(`${API}/api/v1/portals/subcontractor/${S.subToken}/valuations`, {
       data: { grossWorkCertifiedKes: '150000.00', notes: 'First tiling claim' },
     });
@@ -152,7 +152,7 @@ test.describe.serial('Stage 6 — portal closeout journeys', () => {
 
     // Practical completion certificate (admin/PM/QS authority).
     const pc = await apiPost(request, S.admin, `/api/v1/projects/${pid}/certificates`, {
-      certificateType: 'PRACTICAL_COMPLETION', certificateReference: `PC-${RUN}`,
+      certificateType: 'PRACTICAL_COMPLETION', certificateReference: 'PC-S6-001',
       issueDate: iso(0), effectiveDate: iso(0), dlpDurationMonths: 6,
       architectName: 'Arch. Wanjiru M', architectBoraqsNo: 'A 4321',
       qsName: 'QS Otieno K', qsBoraqsNo: 'Q 8765',
@@ -164,11 +164,11 @@ test.describe.serial('Stage 6 — portal closeout journeys', () => {
     S.clientToken = await mkLink(request, 'CLIENT');
 
     const sup = await apiPost(request, S.admin, '/api/v1/suppliers', {
-      name: `S6 Builders Merchants ${RUN}`, contactPerson: 'Supplier Contact',
+      name: 'S6 Builders Merchants', contactPerson: 'Supplier Contact',
     });
     expect(sup.status(), await sup.text()).toBe(201);
     const supplierId = unwrap(await sup.json()).id;
-    S.supplierToken = await mkLink(request, 'SUPPLIER', { stakeholderName: `S6 Builders Merchants ${RUN}`, supplierId });
+    S.supplierToken = await mkLink(request, 'SUPPLIER', { stakeholderName: 'S6 Builders Merchants', supplierId });
     S.complianceToken = await mkLink(request, 'COMPLIANCE');
   });
 
@@ -180,7 +180,7 @@ test.describe.serial('Stage 6 — portal closeout journeys', () => {
 
     await page.getByRole('button', { name: /Snag Verification/ }).click();
     // snag_number desc order — pick the card for OUR snag by its description.
-    const card = page.locator('[data-testid^="consultant-snag-"]', { hasText: `Grouting void beside patio door ${RUN}` });
+    const card = page.locator('[data-testid^="consultant-snag-"]', { hasText: 'Grouting void beside patio door' });
     await expect(card).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/02-consultant-snags.png`, fullPage: true });
 
