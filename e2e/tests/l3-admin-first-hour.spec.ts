@@ -119,7 +119,7 @@ test.describe('L3 — admin first-hour journey (UI only)', () => {
     await emailInput.fill(`siteengineer.${RUN}@firsthour.test`);
     const roleSelect = page.locator('select').first();
     if (await roleSelect.isVisible().catch(() => false)) {
-      await roleSelect.selectOption({ label: /site engineer/i }).catch(async () => {
+      await roleSelect.selectOption('SITE_ENGINEER').catch(async () => {
         await roleSelect.selectOption({ index: 1 }).catch(() => {});
       });
     }

@@ -214,19 +214,21 @@ async function sweep(page: Page, label: string, scopeSelector = 'main', maxItems
       new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 12_000)),
     ]);
     if (raced === 'timeout') {
-      const stuckUrl = await page.url().catch(() => '?');
+      const stuckUrl = page.url();
       offenders.push(`[${label}] wedged page (>12s) at ${stuckUrl}: "${desc || meta.href}"`);
       await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
       return offenders;
     }
-    if (raced.kind === 'unclickable') {
-      offenders.push(`[${label}] unclickable: "${desc || meta.href}"`);
+    if (raced.kind !== 'ok') {
+      if (raced.kind === 'unclickable') {
+        offenders.push(`[${label}] unclickable: "${desc || meta.href}"`);
+      }
+      // 'gone' — re-rendered away, not a defect.
       continue;
     }
-    if (raced.kind === 'gone') continue; // re-rendered away — not a defect
-    const { before, after } = raced;
+    const { before, after, popups: clickPopups } = raced;
     let acted = before.url !== after.url || after.mut > before.mut || before.dialogs !== after.dialogs
-      || reqCount > reqBefore || raced.popups > popupBefore;
+      || reqCount > reqBefore || clickPopups > popupBefore;
     if (!acted) {
       // Confirmation pass with a REAL click — DOM .click() can land on a
       // node mid-remount (SPA transition) and silently do nothing. If a
@@ -324,7 +326,7 @@ test.describe.serial('L2 — click-through sweep', () => {
     S.admin = await register(request);
     S.pm = await invite(request, S.admin, 'pm', 'PM_QS', 'Faith Achieng');
 
-    const p = await apiPost(request, S.admin, '/api/v1/projects', {
+    const p = await apiPost(request, S.admin!, '/api/v1/projects', {
       name: 'L2 Sweep Site Office', code: `L2-${String(RUN).slice(-6)}`, location: 'Kilimani, Nairobi',
       description: 'Sweep fixture project', contractValue: '9800000',
       startDate: '2026-11-01', targetEndDate: '2027-02-28',
@@ -332,11 +334,11 @@ test.describe.serial('L2 — click-through sweep', () => {
     expect(p.status(), await p.text()).toBeLessThan(300);
     const pb = unwrap(await p.json());
     S.projectId = pb.id || pb.data?.id || pb.project?.id;
-    const m = await apiPost(request, S.admin, `/api/v1/projects/${S.projectId}/members`, { userId: S.pm.user.id, role: 'PM_QS' });
+    const m = await apiPost(request, S.admin!, `/api/v1/projects/${S.projectId}/members`, { userId: S.pm.user.id, role: 'PM_QS' });
     expect([200, 201, 409]).toContain(m.status());
 
     const mkLink = async (portalType: string, extra: Record<string, unknown> = {}) => {
-      const r = await apiPost(request, S.admin, `/api/v1/projects/${S.projectId}/portals/links`, {
+      const r = await apiPost(request, S.admin!, `/api/v1/projects/${S.projectId}/portals/links`, {
         portalType, stakeholderName: `${portalType} contact`, expiresInDays: 30, ...extra,
       });
       expect(r.status(), `${portalType} link: ${await r.text()}`).toBeLessThan(300);
