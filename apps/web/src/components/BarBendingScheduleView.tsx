@@ -447,7 +447,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
                   {selectedSchedule.scheduleNumber}: {selectedSchedule.elementName}
 </h3>
 <p className="text-xs text-gray-500">
-                  Total Calculated Tonnage:<strong>{selectedSchedule.totalTonnage} Tonnes</strong> • Drawing: {selectedSchedule.drawingRef}
+                  Total Calculated Tonnage: <strong>{selectedSchedule.totalTonnage} Tonnes</strong> • Drawing: {selectedSchedule.drawingRef}
 </p>
 </div>
 <button onClick={() => setSelectedSchedule(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">
@@ -657,8 +657,8 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
               {/* Real-time Math Summary Preview */}
 <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4 text-xs space-y-1 text-blue-900">
 <p><strong>Live Takeoff Preview:</strong></p>
-<p>Cut Length:<strong>{cutLengthMeters.toFixed(3)}m</strong> • Total Bars:<strong>{totalBarsPreview}</strong> • Total Linear:<strong>{totalLengthMeters.toFixed(3)}m</strong></p>
-<p>Total Weight:<strong>{totalWeightKg.toFixed(2)} kg</strong> ({ (totalWeightKg / 1000).toFixed(3)} Tonnes) • 12m Stock Bars:<strong>{standardBars12m}</strong></p>
+<p>Cut Length: <strong>{cutLengthMeters.toFixed(3)}m</strong> • Total Bars: <strong>{totalBarsPreview}</strong> • Total Linear: <strong>{totalLengthMeters.toFixed(3)}m</strong></p>
+<p>Total Weight: <strong>{totalWeightKg.toFixed(2)} kg</strong> ({ (totalWeightKg / 1000).toFixed(3)} Tonnes) • 12m Stock Bars: <strong>{standardBars12m}</strong></p>
 </div>
 </div>
 

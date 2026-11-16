@@ -494,7 +494,7 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                       {batch.coreThicknessMm ? (
 <div>
 <div className="text-xs text-gray-900">
-                            Thick:<strong>{batch.coreThicknessMm} mm</strong>
+                            Thick: <strong>{batch.coreThicknessMm} mm</strong>
 </div>
 <div className="text-xs text-emerald-700 font-bold">
                             Comp: {batch.compactionPercent}%

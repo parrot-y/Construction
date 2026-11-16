@@ -404,10 +404,10 @@ export default function QuotesManagementView(): React.JSX.Element {
 
 <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
 <span className="text-slate-600">
-              Subtotal:<strong>{formatMoney(itemSubtotal, form.currency)}</strong>
-              {' • '}Tax ({taxPctNum}%):<strong>{formatMoney(taxAmt)}</strong>
-              {' • '}Total:<strong>{formatMoney(total, form.currency)}</strong>
-              {' • '}Deposit ({depositPctNum}%):<strong>{formatMoney(depositAmt)}</strong>
+              Subtotal: <strong>{formatMoney(itemSubtotal, form.currency)}</strong>
+              {' • '}Tax ({taxPctNum}%): <strong>{formatMoney(taxAmt)}</strong>
+              {' • '}Total: <strong>{formatMoney(total, form.currency)}</strong>
+              {' • '}Deposit ({depositPctNum}%): <strong>{formatMoney(depositAmt)}</strong>
 </span>
 <button type="submit" disabled={busyId === 'create'}
               className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50">

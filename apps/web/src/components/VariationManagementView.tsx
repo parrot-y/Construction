@@ -313,7 +313,7 @@ export default function VariationManagementView({
 
                 {/* Reason snippet */}
 <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/60 p-2.5 rounded-lg border border-slate-100">
-<strong className="text-slate-700">Justification:</strong>
+<strong className="text-slate-700">Justification:</strong>{' '}
                   {vo.reason}
 </p>
 

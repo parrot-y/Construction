@@ -482,9 +482,9 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 
 <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
 <span className="text-slate-600">
-              Subtotal:<strong>{formatMoney(itemSubtotal, form.currency)}</strong>
-              {' • '}VAT ({taxPctNum}%):<strong>{formatMoney(taxAmt)}</strong>
-              {' • '}Total:<strong>{formatMoney(total, form.currency)}</strong>
+              Subtotal: <strong>{formatMoney(itemSubtotal, form.currency)}</strong>
+              {' • '}VAT ({taxPctNum}%): <strong>{formatMoney(taxAmt)}</strong>
+              {' • '}Total: <strong>{formatMoney(total, form.currency)}</strong>
 </span>
 <button type="submit" disabled={busyId === 'create'}
               className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50">
@@ -595,9 +595,9 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 </table>
 
 <div className="text-[11px] text-slate-600 space-x-3">
-<span>Subtotal:<strong>{formatMoney(detail.subtotal, detail.currency)}</strong></span>
-<span>VAT ({detail.tax_pct}%):<strong>{formatMoney(detail.tax_amount, detail.currency)}</strong></span>
-<span>Total:<strong>{formatMoney(detail.total, detail.currency)}</strong></span>
+<span>Subtotal: <strong>{formatMoney(detail.subtotal, detail.currency)}</strong></span>
+<span>VAT ({detail.tax_pct}%): <strong>{formatMoney(detail.tax_amount, detail.currency)}</strong></span>
+<span>Total: <strong>{formatMoney(detail.total, detail.currency)}</strong></span>
 </div>
 
                             {(detail.payments ?? []).length > 0 && (
