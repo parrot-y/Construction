@@ -20,7 +20,6 @@ import {
   PaymentCertificatePdf,
   ProjectSummaryData,
   ProjectSummaryPdf,
-  PDF_TX_OPTIONS,
   renderPdfToBufferLimited,
   SectionSummaryEntry,
   SiteDiaryReportData,
@@ -73,7 +72,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       try {
-        const { buffer, projectCode } = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, projectCode } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -208,34 +208,35 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             },
           };
 
-          const docElement = React.createElement(PaymentCertificatePdf, { data: certData });
-          const renderedBuffer = await renderPdfToBufferLimited(docElement);
+          return { pdfData: certData, projectCode: project.code };
+        });
 
-          // Append-only audit log
-          await recordAuditLog(tx, {
-            tenantId,
-            actorId: sub,
-            projectId,
-            action: 'REPORT_GENERATED',
-            entityType: 'IPC',
-            entityId: project.id,
-            changes: {
-              reportType: 'IPC',
-              certificateNo: certData.certificateNo,
-              valuationDate: certData.valuationDate,
-              netAmountDue: certData.financials.netAmountDue,
-              timestamp: new Date().toISOString(),
-            },
-          });
+        const renderedBuffer = await renderPdfToBufferLimited(
+          React.createElement(PaymentCertificatePdf, { data: pdfData }),
+        );
 
-          return { buffer: renderedBuffer, projectCode: project.code };
-        }, PDF_TX_OPTIONS);
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          projectId,
+          action: 'REPORT_GENERATED',
+          entityType: 'IPC',
+          entityId: projectId,
+          changes: {
+            reportType: 'IPC',
+            certificateNo: pdfData.certificateNo,
+            valuationDate: pdfData.valuationDate,
+            netAmountDue: pdfData.financials.netAmountDue,
+            timestamp: new Date().toISOString(),
+          },
+        }));
 
         const filename = `IPC-${projectCode}.pdf`;
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${filename}"`)
-          .send(buffer);
+          .send(renderedBuffer);
       } catch (err: any) {
         if (err.status) {
           if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
@@ -279,7 +280,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       try {
-        const { buffer, projectCode, entryDateFormatted } = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, projectCode, entryDateFormatted, audit } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -372,38 +374,43 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             }),
           };
 
-          const docElement = React.createElement(SiteDiaryReportPdf, { data: reportData });
-          const renderedBuffer = await renderPdfToBufferLimited(docElement);
-
-          // Append-only audit log
-          await recordAuditLog(tx, {
-            tenantId,
-            actorId: sub,
-            projectId,
-            action: 'REPORT_GENERATED',
-            entityType: 'SITE_DIARY',
-            entityId: diary.id,
-            changes: {
-              reportType: 'SITE_DIARY',
-              diaryId: diary.id,
-              entryDate: entryDateStr,
-              totalHeadcount,
-              timestamp: new Date().toISOString(),
-            },
-          });
-
           return {
-            buffer: renderedBuffer,
+            pdfData: reportData,
             projectCode: project.code,
             entryDateFormatted: entryDateStr,
+            audit: {
+              entityId: diary.id,
+              changes: {
+                reportType: 'SITE_DIARY',
+                diaryId: diary.id,
+                entryDate: entryDateStr,
+                totalHeadcount,
+                timestamp: new Date().toISOString(),
+              },
+            },
           };
-        }, PDF_TX_OPTIONS);
+        });
+
+        const renderedBuffer = await renderPdfToBufferLimited(
+          React.createElement(SiteDiaryReportPdf, { data: pdfData }),
+        );
+
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          projectId,
+          action: 'REPORT_GENERATED',
+          entityType: 'SITE_DIARY',
+          entityId: audit.entityId,
+          changes: audit.changes,
+        }));
 
         const filename = `SiteDiary-${projectCode}-${entryDateFormatted}.pdf`;
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${filename}"`)
-          .send(buffer);
+          .send(renderedBuffer);
       } catch (err: any) {
         if (err.status) {
           if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
@@ -447,7 +454,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       try {
-        const { buffer, projectCode } = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, projectCode, audit } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -590,33 +598,41 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             sections: sectionsList,
           };
 
-          const docElement = React.createElement(ProjectSummaryPdf, { data: summaryData });
-          const renderedBuffer = await renderPdfToBufferLimited(docElement);
-
-          // Append-only audit log
-          await recordAuditLog(tx, {
-            tenantId,
-            actorId: sub,
-            projectId,
-            action: 'REPORT_GENERATED',
-            entityType: 'PROJECT_SUMMARY',
-            entityId: project.id,
-            changes: {
-              reportType: 'PROJECT_SUMMARY',
-              budgetUsedPercentage,
-              physicalProgressPercentage,
-              timestamp: new Date().toISOString(),
+          return {
+            pdfData: summaryData,
+            projectCode: project.code,
+            audit: {
+              entityId: project.id,
+              changes: {
+                reportType: 'PROJECT_SUMMARY',
+                budgetUsedPercentage,
+                physicalProgressPercentage,
+                timestamp: new Date().toISOString(),
+              },
             },
-          });
+          };
+        });
 
-          return { buffer: renderedBuffer, projectCode: project.code };
-        }, PDF_TX_OPTIONS);
+        const renderedBuffer = await renderPdfToBufferLimited(
+          React.createElement(ProjectSummaryPdf, { data: pdfData }),
+        );
+
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          projectId,
+          action: 'REPORT_GENERATED',
+          entityType: 'PROJECT_SUMMARY',
+          entityId: audit.entityId,
+          changes: audit.changes,
+        }));
 
         const filename = `ProjectSummary-${projectCode}.pdf`;
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${filename}"`)
-          .send(buffer);
+          .send(renderedBuffer);
       } catch (err: any) {
         if (err.status) {
           if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
@@ -663,7 +679,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       try {
-        const { buffer, inspectionCode } = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, inspectionCode } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -777,33 +794,37 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             securityHash,
           };
 
-          const renderedBuffer = await renderPdfToBufferLimited(
-            React.createElement(IndependentInspectionReportPdf, { data: inspectionData }),
-          );
+          return {
+            pdfData: inspectionData,
+            inspectionCode: inspection.inspection_code,
+          };
+        });
 
-          await recordAuditLog(tx, {
-            tenantId,
-            actorId: sub,
-            projectId,
-            action: 'REPORT_GENERATED',
-            entityType: 'INDEPENDENT_INSPECTION_PDF',
-            entityId: inspection.id,
-            changes: {
-              reportType: 'INDEPENDENT_INSPECTION_PDF',
-              inspectionCode: inspection.inspection_code,
-              securityHash,
-              timestamp: new Date().toISOString(),
-            },
-          });
+        const renderedBuffer = await renderPdfToBufferLimited(
+          React.createElement(IndependentInspectionReportPdf, { data: pdfData }),
+        );
 
-          return { buffer: renderedBuffer, inspectionCode: inspection.inspection_code };
-        }, PDF_TX_OPTIONS);
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          projectId,
+          action: 'REPORT_GENERATED',
+          entityType: 'INDEPENDENT_INSPECTION_PDF',
+          entityId: inspectionId,
+          changes: {
+            reportType: 'INDEPENDENT_INSPECTION_PDF',
+            inspectionCode,
+            securityHash: pdfData.securityHash,
+            timestamp: new Date().toISOString(),
+          },
+        }));
 
         const filename = `${inspectionCode}.pdf`;
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${filename}"`)
-          .send(buffer);
+          .send(renderedBuffer);
       } catch (err: any) {
         if (err.status) {
           if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));

@@ -15,7 +15,7 @@ import { listParams, listPage } from '../lib/pagination';
 import { nextDocumentNumber } from '../lib/counters';
 import { evaluateSelfApproval } from '../plugins/makerChecker';
 import { recordInvoicePaymentTx } from '../services/invoicePayments';
-import { PDF_TX_OPTIONS, renderPdfToBufferLimited } from '../reports/renderPdf';
+import { renderPdfToBufferLimited } from '../reports/renderPdf';
 import { InvoicePdf, InvoicePdfData } from '../reports/InvoicePdf';
 import type { RouteError } from '../types/errors';
 
@@ -610,7 +610,8 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
       }
 
       try {
-        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, invoiceProjectId } = await withTenantTx(prisma, tenantId, async (tx) => {
           const invoice = await tx.invoice.findFirst({
             where: { id },
             include: {
@@ -671,22 +672,25 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             })),
           };
 
-          const buffer = await renderPdfToBufferLimited(React.createElement(InvoicePdf, { data: pdfData }));
+          return { pdfData, invoiceProjectId: invoice.project_id };
+        });
 
-          await recordAuditLog(tx, {
-            tenantId,
-            projectId: invoice.project_id,
-            actorId: sub,
-            action: 'INVOICE_PDF_GENERATED',
-            entityType: 'Invoice',
-            entityId: id,
-            changes: { invoiceNo: pdfData.invoiceNo },
-            ipAddress: request.ip,
-            userAgent: (request.headers['user-agent'] as string) || null,
-          });
+        const buffer = await renderPdfToBufferLimited(React.createElement(InvoicePdf, { data: pdfData }));
 
-          return { buffer, invoiceNo: pdfData.invoiceNo };
-        }, PDF_TX_OPTIONS);
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          projectId: invoiceProjectId,
+          actorId: sub,
+          action: 'INVOICE_PDF_GENERATED',
+          entityType: 'Invoice',
+          entityId: id,
+          changes: { invoiceNo: pdfData.invoiceNo },
+          ipAddress: request.ip,
+          userAgent: (request.headers['user-agent'] as string) || null,
+        }));
+
+        const result = { buffer, invoiceNo: pdfData.invoiceNo };
 
         return reply
           .type('application/pdf')

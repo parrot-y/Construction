@@ -93,6 +93,24 @@ describe('PDF concurrency limits', () => {
     for (const r of ok) expect(r.headers['content-type']).toContain('application/pdf');
   });
 
+  it('I6: 10 concurrent PDFs do not exhaust the pool — a normal request stays under 500ms', async () => {
+    // PDF reads now run in a short tx, render happens outside it, and the
+    // audit write is a second short tx — so a burst of renders holds at
+    // most one brief connection each, never a render-length one.
+    await server.inject({ method: 'GET', url: `/api/v1/invoices/${invoiceId}/pdf`, headers: authed() });
+    const pdfs = Array.from({ length: 10 }, () =>
+      server.inject({ method: 'GET', url: `/api/v1/invoices/${invoiceId}/pdf`, headers: authed() }),
+    );
+    const t0 = performance.now();
+    const normal = await server.inject({ method: 'GET', url: '/api/v1/projects', headers: authed() });
+    const normalMs = performance.now() - t0;
+    const results = await Promise.all(pdfs);
+    const statuses = results.map((r) => r.statusCode).join(',');
+    console.log(`[pdf-pool] normal GET during 10-PDF burst: ${normalMs.toFixed(0)}ms (limit 500ms); pdf statuses: ${statuses}`);
+    expect(normal.statusCode).toBe(200);
+    expect(normalMs, `normal request delayed ${normalMs.toFixed(0)}ms > 500ms during PDF burst`).toBeLessThan(500);
+  });
+
   it('10 concurrent PDF requests keep event-loop p95 lag under 100ms', async () => {
     // Warm the renderer + settle GC so the measurement reflects steady-state
     // burst behaviour, not first-render JIT/font-loading or GC noise.
