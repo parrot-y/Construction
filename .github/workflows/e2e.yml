@@ -32,6 +32,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Evidence hygiene (no local paths / host names in docs/evidence)
+        # Committed evidence must be machine-independent: no /home/, /Users/,
+        # C:\Users or the dev workstation host name. See scripts/README note
+        # in scripts/check-evidence-hygiene.sh.
+        run: bash scripts/check-evidence-hygiene.sh
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:

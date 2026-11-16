@@ -1,7 +1,7 @@
 ================================================================================
 PLATFORM LOCAL CI VERIFICATION REPLICA
 Commit:   0c4c86d
-Log file: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/evidence/verify-0c4c86d.log
+Log file: <repo>/docs/evidence/verify-0c4c86d.log
 Started:  2026-11-13T14:32:06Z
 ================================================================================
 Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
@@ -297,16 +297,16 @@ $ turbo run test --force
 @construction/money:test: $ vitest run
 @construction/db:test: $ vitest run
 @construction/permissions:test: 
-@construction/permissions:test:  RUN  v3.2.7 /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/packages/permissions
+@construction/permissions:test:  RUN  v3.2.7 <repo>/packages/permissions
 @construction/permissions:test: 
 @construction/db:test: 
-@construction/db:test:  RUN  v3.2.7 /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/packages/db
+@construction/db:test:  RUN  v3.2.7 <repo>/packages/db
 @construction/db:test: 
 @construction/money:test: 
-@construction/money:test:  RUN  v3.2.7 /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/packages/money
+@construction/money:test:  RUN  v3.2.7 <repo>/packages/money
 @construction/money:test: 
 @construction/web:test: 
-@construction/web:test:  RUN  v3.2.7 /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/apps/web
+@construction/web:test:  RUN  v3.2.7 <repo>/apps/web
 @construction/web:test: 
 @construction/permissions:test:  ✓ src/index.test.ts (9 tests) 106ms
 @construction/permissions:test: 
@@ -325,7 +325,7 @@ $ turbo run test --force
 @construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > A5 Cross-Tenant Write Rejection: writing with mismatched tenant_id throws PostgreSQL RLS error
 @construction/db:test: prisma:error 
 @construction/db:test: Invalid `tx.project.create()` invocation in
-@construction/db:test: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/packages/db/src/isolation.test.ts:200:26
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:200:26
 @construction/db:test: 
 @construction/db:test:   197 // Scoped to Tenant A, but attempting to insert a row with tenant_id = tenantBId
 @construction/db:test:   198 await expect(
@@ -351,7 +351,7 @@ $ turbo run test --force
 @construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Financial Immutability: database trigger blocks UPDATE of amount and DELETE on cost_entries
 @construction/db:test: prisma:error 
 @construction/db:test: Invalid `tx.costEntry.update()` invocation in
-@construction/db:test: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/packages/db/src/isolation.test.ts:331:28
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:331:28
 @construction/db:test: 
 @construction/db:test:   328 // 1. Attempting to change the financial amount throws trigger exception
 @construction/db:test:   329 await expect(
@@ -363,7 +363,7 @@ $ turbo run test --force
 @construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Financial Immutability: database trigger blocks UPDATE of amount and DELETE on cost_entries
 @construction/db:test: prisma:error 
 @construction/db:test: Invalid `tx.costEntry.delete()` invocation in
-@construction/db:test: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/packages/db/src/isolation.test.ts:341:28
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:341:28
 @construction/db:test: 
 @construction/db:test:   338 // 2. Attempting to delete the cost entry throws trigger exception
 @construction/db:test:   339 await expect(
@@ -375,7 +375,7 @@ $ turbo run test --force
 @construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Variation Immutability: database trigger blocks financial tampering on finalized variation_orders
 @construction/db:test: prisma:error 
 @construction/db:test: Invalid `tx.variationOrder.update()` invocation in
-@construction/db:test: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/packages/db/src/isolation.test.ts:378:33
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:378:33
 @construction/db:test: 
 @construction/db:test:   375 // Attempting to modify net_amount of an APPROVED variation order throws trigger exception
 @construction/db:test:   376 await expect(
@@ -387,7 +387,7 @@ $ turbo run test --force
 @construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Variation Immutability: database trigger blocks financial tampering on finalized variation_orders
 @construction/db:test: prisma:error 
 @construction/db:test: Invalid `tx.variationOrder.delete()` invocation in
-@construction/db:test: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/packages/db/src/isolation.test.ts:388:33
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:388:33
 @construction/db:test: 
 @construction/db:test:   385 // Attempting to delete a variation order throws trigger exception
 @construction/db:test:   386 await expect(
@@ -410,16 +410,16 @@ $ turbo run test --force
 @construction/db:test: 
 @construction/web:test: stderr | src/components/AppDialog.test.tsx > AppErrorBoundary > a throwing module shows the fallback with ref id and keeps the shell alive
 @construction/web:test: Error: module exploded
-@construction/web:test:     at Bomb [90m(/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/apps/web/[39msrc/components/AppDialog.test.tsx:23:44[90m)[39m
-@construction/web:test:     at Object.react_stack_bottom_frame (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:28571:20)
-@construction/web:test:     at renderWithHooks (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:8030:22)
-@construction/web:test:     at updateFunctionComponent (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:10569:19)
-@construction/web:test:     at beginWork (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:12205:18)
-@construction/web:test:     at runWithFiberInDEV (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:1048:13)
-@construction/web:test:     at performUnitOfWork (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:19176:22)
-@construction/web:test:     at workLoopSync (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:19004:41)
-@construction/web:test:     at renderRootSync (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18985:11)
-@construction/web:test:     at performWorkOnRoot (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18094:35) {
+@construction/web:test:     at Bomb [90m(<repo>/apps/web/[39msrc/components/AppDialog.test.tsx:23:44[90m)[39m
+@construction/web:test:     at Object.react_stack_bottom_frame (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:28571:20)
+@construction/web:test:     at renderWithHooks (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:8030:22)
+@construction/web:test:     at updateFunctionComponent (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:10569:19)
+@construction/web:test:     at beginWork (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:12205:18)
+@construction/web:test:     at runWithFiberInDEV (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:1048:13)
+@construction/web:test:     at performUnitOfWork (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:19176:22)
+@construction/web:test:     at workLoopSync (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:19004:41)
+@construction/web:test:     at renderRootSync (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18985:11)
+@construction/web:test:     at performWorkOnRoot (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18094:35) {
 @construction/web:test:   [stack]: [36m[Getter/Setter][39m,
 @construction/web:test:   [message]: [32m'module exploded'[39m
 @construction/web:test: }
@@ -575,7 +575,7 @@ $ turbo run test --force
 @construction/web:test:    Duration  17.94s (transform 7.33s, setup 0ms, collect 13.26s, tests 3.02s, environment 11.71s, prepare 2.96s)
 @construction/web:test: 
 @construction/web:test: [ELIFECYCLE] Test failed. See above for more details.
-@construction/web#test:  ERROR  command (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/apps/web) /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/.bin/pnpm run test exited (1)
+@construction/web#test:  ERROR  command (<repo>/apps/web) <repo>/.bin/pnpm run test exited (1)
 
  Tasks:    3 successful, 5 total
 Cached:    0 cached, 5 total

@@ -1,7 +1,7 @@
 ================================================================================
 PLATFORM LOCAL CI VERIFICATION REPLICA
 Commit:   aae66e4
-Log file: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/evidence/verify-aae66e4.log
+Log file: <repo>/docs/evidence/verify-aae66e4.log
 Started:  2026-11-08T13:19:29Z
 ================================================================================
 Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
@@ -251,7 +251,7 @@ $ turbo run typecheck
 @construction/api:typecheck: $ tsc --noEmit
 @construction/web:typecheck: src/components/console/sections/MoneySection.tsx(30,3): error TS2304: Cannot find name 'useEffect'.
 @construction/web:typecheck: [ELIFECYCLE] Command failed with exit code 2.
-@construction/web#typecheck:  ERROR  command (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/apps/web) /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/.bin/pnpm run typecheck exited (2)
+@construction/web#typecheck:  ERROR  command (<repo>/apps/web) <repo>/.bin/pnpm run typecheck exited (2)
 
  Tasks:    5 successful, 7 total
 Cached:    2 cached, 7 total

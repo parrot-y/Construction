@@ -1,7 +1,7 @@
 ================================================================================
 PLATFORM LOCAL CI VERIFICATION REPLICA
 Commit:   de25693
-Log file: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/evidence/verify-de25693.log
+Log file: <repo>/docs/evidence/verify-de25693.log
 Started:  2026-11-15T17:37:15Z
 ================================================================================
 Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
@@ -240,7 +240,7 @@ $ turbo run typecheck
 @construction/e2e:typecheck: tests/h5-portal-journeys.spec.ts(240,40): error TS2345: Argument of type 'Session | undefined' is not assignable to parameter of type 'Session'.
 @construction/e2e:typecheck:   Type 'undefined' is not assignable to type 'Session'.
 @construction/e2e:typecheck: [ELIFECYCLE] Command failed with exit code 2.
-@construction/e2e#typecheck:  ERROR  command (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/e2e) /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/.bin/pnpm run typecheck exited (2)
+@construction/e2e#typecheck:  ERROR  command (<repo>/e2e) <repo>/.bin/pnpm run typecheck exited (2)
 
  Tasks:    2 successful, 7 total
 Cached:    2 cached, 7 total
