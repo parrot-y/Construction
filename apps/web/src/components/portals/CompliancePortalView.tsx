@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { ResponsiveTable, SavedDataNotice, formatDate } from '../../ui';
 import { fetchJsonCached } from '../../services/offline-cache';
+import { statusLabel } from '../../lib/status-labels';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -399,7 +400,7 @@ export default function CompliancePortalView({
 <p className="text-slate-500 text-[11px]">Inspection Date: {insp.scheduled_date} • {insp.category}</p>
 </div>
 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {insp.status}
+                {statusLabel(insp.status)}
 </span>
 </div>
 ))}
@@ -503,13 +504,13 @@ export default function CompliancePortalView({
                 : v.outcome === 'NON_COMPLIANT' ? 'bg-rose-100 text-rose-800 border-rose-200'
                 : 'bg-amber-100 text-amber-800 border-amber-200'
               }`}>
-                {v.outcome.replace(/_/g, ' ')}
+                {statusLabel(v.outcome)}
 </span>
 </div>
               {(v.actions || []).map((a) => (
 <p key={a.id} className="text-[11px] text-slate-600 pl-3 border-l-2 border-rose-200">
                   Required: {a.description}{a.dueDate ? ` — due ${formatDate(a.dueDate)}` : ''}
-                  {a.status ? ` (${String(a.status).replace(/_/g, ' ').toLowerCase()})` : ''}
+                  {a.status ? ` (${statusLabel(a.status).toLowerCase()})` : ''}
 </p>
 ))}
 </div>

@@ -1,6 +1,8 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes, ResponsiveTable } from '../ui';
 import { api } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
+import { canReviewRetentionRelease, canDirectRetentionRelease } from '@construction/permissions';
 
 export interface RetentionReleaseItem {
   id: string;
@@ -60,11 +62,13 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   releases: initialReleases,
   bonds: initialBonds,
   summary: initialSummary,
-  userRole: _userRole,
+  userRole = '',
   onCreateRelease,
   onReviewRelease,
   onCreateBond,
 }) => {
+  const canReviewRelease = canReviewRetentionRelease(userRole);
+  const canDirectRelease = canDirectRetentionRelease(userRole);
   const [activeTab, setActiveTab] = useState<'RETENTION' | 'BONDS'>('RETENTION');
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [showBondModal, setShowBondModal] = useState(false);
@@ -503,7 +507,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                           : 'bg-amber-100 text-amber-800'
                       }`}
                     >
-                      {rel.status}
+                      {statusLabel(rel.status)}
 </span>
                   ),
                   className: 'text-center',
@@ -513,24 +517,39 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     rel.status === 'PAID' ? (
                       <span className="text-[10px] tabular-nums text-slate-500">{rel.disbursementRef}</span>
                     ) : rel.status === 'REJECTED' ? (
-                      <span className="text-[10px] text-slate-400">Rejected</span>
+                      <span className="text-[10px] text-slate-400">{statusLabel(rel.status)}</span>
+                    ) : !canReviewRelease ? (
+                      <span className="text-[10px] text-slate-400">QS or director review required</span>
                     ) : (
                       <div className="flex flex-col items-center gap-1">
-                        <button
-                          onClick={() =>
-                            rel.status === 'APPROVED_BY_DIRECTOR'
-                              ? handleDisburseClick(rel.id)
-                              : handleReview(rel.id, rel.status === 'PENDING_QS_REVIEW' ? 'RECOMMEND' : 'APPROVE')
+                        {(() => {
+                          const needsDirector = rel.status === 'QS_RECOMMENDED' || rel.status === 'APPROVED_BY_DIRECTOR';
+                          const allowed = needsDirector ? canDirectRelease : canReviewRelease;
+                          if (!allowed) {
+                            return (
+                              <span className="text-[10px] text-slate-400">
+                                {needsDirector ? 'Waiting for a director' : 'Waiting for QS review'}
+                              </span>
+                            );
                           }
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
-                        >
-                          {rel.status === 'PENDING_QS_REVIEW'
-                            ? 'QS Recommend'
-                            : rel.status === 'QS_RECOMMENDED'
-                            ? 'Director Approve'
-                            : 'Disburse M-Pesa B2C'}
-</button>
-                        {rel.status !== 'APPROVED_BY_DIRECTOR' && (
+                          return (
+                            <button
+                              onClick={() =>
+                                rel.status === 'APPROVED_BY_DIRECTOR'
+                                  ? handleDisburseClick(rel.id)
+                                  : handleReview(rel.id, rel.status === 'PENDING_QS_REVIEW' ? 'RECOMMEND' : 'APPROVE')
+                              }
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
+                            >
+                              {rel.status === 'PENDING_QS_REVIEW'
+                                ? 'QS Recommend'
+                                : rel.status === 'QS_RECOMMENDED'
+                                ? 'Director Approve'
+                                : 'Disburse M-Pesa B2C'}
+                            </button>
+                          );
+                        })()}
+                        {rel.status !== 'APPROVED_BY_DIRECTOR' && canReviewRelease && (
 <button
                             onClick={() => handleReview(rel.id, 'REJECT')}
                             className="text-[10px] text-rose-600 hover:underline"
@@ -570,7 +589,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               cells: [
                 { content: bnd.bondReferenceNo, className: 'font-mono tabular-nums font-bold text-slate-900' },
                 {
-                  content: <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{bnd.bondType.replace(/_/g, ' ')}</span>,
+                  content: <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{statusLabel(bnd.bondType)}</span>,
                   className: 'text-xs',
                 },
                 { content: bnd.issuingInstitution, className: 'font-semibold' },
@@ -586,7 +605,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                           : 'bg-slate-100 text-slate-800'
                       }`}
                     >
-                      {bnd.claimStatus}
+                      {statusLabel(bnd.claimStatus)}
 </span>
                   ),
                   className: 'text-center',

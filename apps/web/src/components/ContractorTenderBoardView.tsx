@@ -1,6 +1,7 @@
 import React, { useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { PRODUCT_NAME } from '../lib/product';
+import { statusLabel } from '../lib/status-labels';
 
 export type TenderStatus = 'OPEN' | 'UNDER_REVIEW' | 'AWARDED';
 
@@ -459,7 +460,7 @@ export default function ContractorTenderBoardView({
 <div className="flex justify-between items-start gap-2">
 <span className="tabular-nums text-xs font-bold text-slate-700">{tender.tenderRef}</span>
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(tender.status)}`}>
-                  {tender.status}
+                  {statusLabel(tender.status)}
 </span>
 </div>
 <h4 className="text-xs font-bold text-slate-900 mt-2 line-clamp-2">{tender.title}</h4>
@@ -489,7 +490,7 @@ export default function ContractorTenderBoardView({
 <div className="flex items-center gap-2">
 <span className="tabular-nums text-sm font-bold text-purple-800">{activeTender.tenderRef}</span>
 <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${getStatusBadge(activeTender.status)}`}>
-                  {activeTender.status}
+                  {statusLabel(activeTender.status)}
 </span>
 <span className="text-xs text-slate-500 font-medium">Category: {activeTender.category}</span>
 </div>

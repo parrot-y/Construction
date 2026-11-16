@@ -4,6 +4,7 @@ import { useAppDialog } from './AppDialog';
 import { api, ApiError } from '../lib/apiClient';
 import { formatKes } from '../ui';
 import PaymentReviewPanel from './PaymentReviewPanel';
+import { statusLabel } from '../lib/status-labels';
 
 interface InvoiceItem {
   id?: string;
@@ -345,7 +346,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
 }`}
           >
-            {f.replace('_', ' ')}
+            {statusLabel(f)}
 </button>
 ))}
 </div>
@@ -528,7 +529,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <td className="py-2.5 pr-3 text-slate-500">{fmtDate(inv.due_date)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.DRAFT}`}>
-                        {inv.status.replace('_', ' ')}
+                        {statusLabel(inv.status)}
 </span>
 </td>
 <td className="py-2.5 space-x-1.5 whitespace-nowrap">
@@ -603,7 +604,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <div className="space-y-1">
                                   {detail.payments!.map((p) => (
 <div key={p.id} className="flex justify-between text-[11px] text-slate-600">
-<span>{fmtDate(p.paid_at)} • {p.method.replace('_', ' ')}{p.reference ? ` • ${p.reference}` : ''}{p.note ? ` — ${p.note}` : ''}</span>
+<span>{fmtDate(p.paid_at)} • {statusLabel(p.method)}{p.reference ? ` • ${p.reference}` : ''}{p.note ? ` — ${p.note}` : ''}</span>
 <span className="font-mono tabular-nums font-semibold">{formatMoney(p.amount, detail.currency)}</span>
 </div>
 ))}
@@ -652,7 +653,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Method</label>
 <select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value})}
                                     className="w-full text-[11px] p-1.5 border border-slate-300 rounded">
-                                    {PAYMENT_METHODS.map((m) =><option key={m} value={m}>{m.replace('_', ' ')}</option>)}
+                                    {PAYMENT_METHODS.map((m) =><option key={m} value={m}>{statusLabel(m)}</option>)}
 </select>
 </div>
 <div>

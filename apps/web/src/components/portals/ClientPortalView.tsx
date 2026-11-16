@@ -4,6 +4,7 @@ import { formatKes, SavedDataNotice, formatDate } from '../../ui';
 import { fetchJsonCached } from '../../services/offline-cache';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { useAppDialog } from '../AppDialog';
+import { statusLabel } from '../../lib/status-labels';
 
 interface CoItem {
   id: string;
@@ -261,13 +262,13 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
           {extra.closeout.snags.length > 0 && (
             <div>
               <p className="text-[11px] font-bold text-slate-500 mb-1.5">
-                Snag list — {Object.entries(extra.closeout.snagCounts).map(([s, n]) => `${n} ${s.replace(/_/g, ' ').toLowerCase()}`).join(' · ')}
+                Snag list — {Object.entries(extra.closeout.snagCounts).map(([s, n]) => `${n} ${statusLabel(s).toLowerCase()}`).join(' · ')}
               </p>
               <ul className="space-y-1">
                 {extra.closeout.snags.map((sn) => (
                   <li key={sn.id} className="flex items-center justify-between text-[11px] bg-slate-50 rounded-lg px-3 py-1.5">
                     <span className="text-slate-700">SN-{String(sn.snagNumber).padStart(3, '0')} — {sn.description}</span>
-                    <span className={`ml-2 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${sn.status === 'VERIFIED_CLOSED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{sn.status.replace(/_/g, ' ')}</span>
+                    <span className={`ml-2 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${sn.status === 'VERIFIED_CLOSED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{statusLabel(sn.status)}</span>
                   </li>
                 ))}
               </ul>
@@ -310,7 +311,7 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
 </span>
 <span className="text-sm font-bold text-slate-900">{co.title}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLES[co.status] || STATUS_STYLES.DRAFT}`}>
-                    {co.status.replace(/_/g, ' ')}
+                    {statusLabel(co.status)}
 </span>
 </div>
 <span className={`text-sm tabular-nums font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>

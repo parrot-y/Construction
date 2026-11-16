@@ -24,6 +24,7 @@ import InboxView from './InboxView';
 import IntegrationsView from './IntegrationsView';
 import ScheduledReportsView from './ScheduledReportsView';
 import { useAppDialog } from './AppDialog';
+import { statusLabel } from '../lib/status-labels';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -271,7 +272,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </td>
 <td className="p-3">
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${p.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                      {p.status}
+                      {statusLabel(p.status)}
 </span>
 </td>
 <td className="p-3">
@@ -453,7 +454,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <RetentionAndBondsView
         projectId={pid}
         projectName={selectedProjectName}
-        userRole="COMPANY_ADMIN"
+        userRole={user.role}
       />
 
 </div>

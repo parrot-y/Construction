@@ -3,6 +3,7 @@ import { formatKes } from '../ui';
 import CostCaptureModal from './CostCaptureModal';
 import { useAppDialog } from './AppDialog';
 import { api, ApiError } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
 
 export interface CostItem {
   id: string;
@@ -173,7 +174,7 @@ export default function CostManagementView({
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
 }`}
           >
-            {filter} {filter === 'PENDING' ? `(${costs.filter((c) => c.status === 'PENDING').length})` : ''}
+            {statusLabel(filter)} {filter === 'PENDING' ? `(${costs.filter((c) => c.status === 'PENDING').length})` : ''}
 </button>
 ))}
 </div>
@@ -235,7 +236,7 @@ export default function CostManagementView({
                               : 'bg-slate-200 text-slate-600 line-through'
 }`}
                     >
-                      {cost.status}
+                      {statusLabel(cost.status)}
 </span>
                     {cost.self_approved && (
 <span className="ml-1 inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-violet-100 text-violet-800 border border-violet-200" title="Approved by the person who entered it, with a recorded reason">

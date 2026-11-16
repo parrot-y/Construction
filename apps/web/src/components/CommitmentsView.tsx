@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import { useAppDialog } from './AppDialog';
 import { api } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
 
 interface PaymentApplication {
   id: string;
@@ -178,7 +179,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 }
     try {
       const body = await api.post<{ data: { status: string } }>(`/api/v1/projects/${projectId}/commitments/${commitmentId}/applications/${app.id}/action`, { action, comments, paidReference });
-      setFeedback(`Application #${app.application_no} → ${body.data.status}`);
+      setFeedback(`Application #${app.application_no} → ${statusLabel(body.data.status)}`);
       await load();
 } catch (err) {
       setError((err as { message?: string })?.message || 'Action failed');

@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import ConcreteCubeTestModal from './ConcreteCubeTestModal';
+import { statusLabel } from '../lib/status-labels';
 
 export type ChecklistType =
   | 'PRE_POUR_CONCRETE'
@@ -412,7 +413,7 @@ export default function QualityControlView({
                     selectedChecklist.status
 )}`}
                 >
-                  {selectedChecklist.status}
+                  {statusLabel(selectedChecklist.status)}
 </span>
 
                 {canApprove && (
@@ -472,7 +473,7 @@ export default function QualityControlView({
                               : 'bg-amber-50 text-amber-800 border-amber-200'
 }`}
                         >
-                          {item.status}
+                          {statusLabel(item.status)}
 </span>
 </td>
 <td className="p-3 text-right whitespace-nowrap">

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConsole } from './console/ConsoleContext';
+import { statusLabel } from '../lib/status-labels';
 
 interface ChecklistStep {
   key: string;
@@ -59,7 +60,7 @@ export default function ProjectChecklist({ projectId }: { projectId: string }): 
       { key: 'diary', label: 'First site diary', hint: 'Daily site log filed by the supervisor', done: firstDiary, section: 'site', tab: 'dailylog' },
       { key: 'cert', label: 'First certificate', hint: 'Interim payment certificate certified', done: firstCert, section: 'money', tab: 'certificates' },
       { key: 'invoice', label: 'First invoice paid', hint: 'A client invoice recorded as paid', done: firstInvoicePaid, section: 'money', tab: 'invoices' },
-      { key: 'closeout', label: 'Closeout', hint: closeoutStage && closeoutStage !== 'IN_PROGRESS' ? `Closeout stage: ${closeoutStage.replace(/_/g, ' ')}` : 'Practical completion through to closed', done: closed, section: 'money', tab: 'certificates' },
+      { key: 'closeout', label: 'Closeout', hint: closeoutStage && closeoutStage !== 'IN_PROGRESS' ? `Closeout stage: ${statusLabel(closeoutStage)}` : 'Practical completion through to closed', done: closed, section: 'money', tab: 'certificates' },
     ]);
   }, [projectId]);
 

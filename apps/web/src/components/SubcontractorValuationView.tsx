@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { formatKes, SavedDataNotice } from '../ui';
 import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
 import { api, ApiError } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
 
 export interface SubcontractorValuationItem {
   id: string;
@@ -288,7 +289,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
                         : 'bg-amber-100 text-amber-800'
 }`}
                   >
-                    {val.paymentStatus.replace(/_/g, ' ')}
+                    {statusLabel(val.paymentStatus)}
 </span>
                   {val.paymentReference && (
 <p className="text-xs text-slate-400 tabular-nums mt-0.5">{val.paymentReference}</p>

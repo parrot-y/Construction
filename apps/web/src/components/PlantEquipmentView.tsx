@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { statusLabel } from '../lib/status-labels';
 
 export interface PlantEquipmentItem {
   id: string;
@@ -501,7 +502,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 </td>
 <td className="px-4 py-3">
 <span className="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                        {item.status}
+                        {statusLabel(item.status)}
 </span>
 </td>
 </tr>

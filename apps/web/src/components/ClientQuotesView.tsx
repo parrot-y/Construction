@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
+import { statusLabel } from '../lib/status-labels';
 
 interface ClientQuoteItem {
   id: string;
@@ -131,7 +132,7 @@ export default function ClientQuotesView(): React.JSX.Element {
 </p>
 </div>
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[q.status] ?? 'bg-slate-100 text-slate-700 border-slate-300'}`}>
-                  {q.status}
+                  {statusLabel(q.status)}
 </span>
 </div>
 

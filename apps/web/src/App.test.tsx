@@ -266,9 +266,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('Append-Only Financial Ledger');
     expect(html).toContain('Project Cost Entries &amp; Approvals');
     expect(html).toContain('Log Cost Entry');
-    expect(html).toContain('ALL');
-    expect(html).toContain('PENDING');
-    expect(html).toContain('APPROVED');
+    expect(html).toContain('All');
+    expect(html).toContain('Pending');
+    expect(html).toContain('Approved');
         });
 
   it('renders OfflineSyncBanner with connection status and IndexedDB queue count', () => {
@@ -371,7 +371,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('BOQ Section-by-Section Spend Breakdown');
       expect(html).toContain('Section 1: Preliminaries &amp; General');
       expect(html).toContain('Section 2: Substructure &amp; Earthworks');
-      expect(html).toContain('NORMAL');
+      expect(html).toContain('Normal');
 
       // Strict neutrality check
       expect(html).not.toMatch(/fraud|theft|stolen|loss|bleeding|overbilled|overcharge/i);
@@ -423,8 +423,8 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain(
         'Cost consumption is significantly ahead of recorded physical progress. Review project costs and progress records.',
 );
-      expect(html).toContain('OVERRUN');
-      expect(html).toContain('WATCH');
+      expect(html).toContain('Overrun');
+      expect(html).toContain('Watch');
       expect(html).not.toMatch(/fraud|theft|stolen|loss|bleeding|overcharge/i);
 });
 
@@ -570,9 +570,9 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       expect(html).toContain('+ New Change Order');
 
       // ADR-010 status badges + trigger label
-      expect(html).toContain('PM REVIEW');
-      expect(html).toContain('OWNER REVIEW');
-      expect(html).toContain('APPROVED');
+      expect(html).toContain('With PM review');
+      expect(html).toContain('Waiting for owner approval');
+      expect(html).toContain('Approved');
       expect(html).toContain('Unforeseen condition');
 
       // Formatted KES amounts and time extensions
@@ -626,11 +626,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
       const qsHtml = renderToString(<PmQsDashboard session={qsSession} />);
       expect(qsHtml).toContain('Change Orders');
       expect(qsHtml).toContain('+ New Change Order');
-      expect(qsHtml).toContain('PM REVIEW');
+      expect(qsHtml).toContain('With PM review');
 
       const clientHtml = renderToString(<ClientDashboard session={clientSession} />);
       expect(clientHtml).toContain('Change Orders');
-      expect(clientHtml).toContain('OWNER REVIEW');
+      expect(clientHtml).toContain('Waiting for owner approval');
       expect(clientHtml).not.toContain('+ New Change Order');
 });
 });
@@ -773,7 +773,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
       // Variation management view is embedded with approval capabilities
       expect(html).toContain('Change Orders');
-      expect(html).toContain('OWNER REVIEW');
+      expect(html).toContain('Waiting for owner approval');
 
       // Requesting change orders is restricted to contractors/QS
       expect(html).not.toContain('+ New Change Order');
@@ -1570,6 +1570,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 <RetentionAndBondsView
           projectId="proj-test-1"
           projectName="Riverside Commercial Plaza"
+          userRole="EXECUTIVE"
         />
 ).replace(/<!-- -->/g, '');
 
@@ -2085,7 +2086,7 @@ it('renders ContractorTenderBoardView with active tenders, 70/30 technical/finan
       expect(html).toContain('SSF-TND-2026-STR-01');
       expect(html).toContain('Reinforced Concrete Framing &amp; Suspended Slabs Package');
       expect(html).toContain('18,500,000.00');
-      expect(html).toContain('UNDER_REVIEW');
+      expect(html).toContain('Under review');
 
       // Ranked bids & evaluation view
       expect(html).toContain('Evaluation Metric: Technical 70% | Financial 30%');
@@ -2222,8 +2223,8 @@ it('renders ContractorTenderBoardView with active tenders, 70/30 technical/finan
       expect(html).toContain('Accounts Receivable');
       expect(html).toContain('Invoicing &amp; Payments');
       expect(html).toContain('New Invoice');
-      expect(html).toContain('OVERDUE');
-      expect(html).toContain('PART PAID');
+      expect(html).toContain('Overdue');
+      expect(html).toContain('Part paid');
       expect(html).toContain('Loading invoices');
 });
 

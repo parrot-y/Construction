@@ -3,6 +3,7 @@ import { formatKes, formatDate, formatDateTime } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
 import { useAppDialog } from './AppDialog';
 import { api } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
 
 export interface VariationItemData {
   id: string;
@@ -157,7 +158,7 @@ export default function VariationManagementView({
       const updatedVo = await postAction(variationId, action, comments);
       setVariations((prev) => prev.map((v) => (v.id === variationId ? updatedVo : v)));
       if (onVariationUpdated) onVariationUpdated(updatedVo);
-      setActionFeedback(`CO-${String(updatedVo.variation_no).padStart(4, '0')} is now ${updatedVo.status}`);
+      setActionFeedback(`CO-${String(updatedVo.variation_no).padStart(4, '0')} is now ${statusLabel(updatedVo.status)}`);
 } catch (err: any) {
       setActionError(err?.message || 'Action failed');
 }
@@ -246,7 +247,7 @@ export default function VariationManagementView({
                 : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
 }`}
           >
-            {filter.replace(/_/g, ' ')}
+            {statusLabel(filter)}
 </button>
 ))}
 </div>
@@ -281,7 +282,7 @@ export default function VariationManagementView({
 <h4 className="text-xs font-bold text-slate-900">{vo.title}</h4>
 
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${STATUS_STYLES[status] || STATUS_STYLES.DRAFT}`}>
-                      {status.replace(/_/g, ' ')}
+                      {statusLabel(status)}
 </span>
                     {vo.trigger_type && vo.trigger_type !== 'OTHER' && (
 <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-slate-50 text-slate-500 border border-slate-200">

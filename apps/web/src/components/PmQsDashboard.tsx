@@ -592,7 +592,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <RetentionAndBondsView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
-          userRole="PM_QS"
+          userRole={user.role}
         />
 )}
 

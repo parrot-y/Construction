@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
 import { SavedDataNotice, formatDate } from '../ui';
+import { statusLabel } from '../lib/status-labels';
 
 interface PublicQuoteItem {
   id: string;
@@ -137,7 +138,7 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
           : quote.status === 'DECLINED' ? 'bg-rose-500/20 text-rose-300 border-rose-400/40'
           : 'bg-blue-500/20 text-blue-300 border-blue-400/40'
 }`}>
-          {quote.status}
+          {statusLabel(quote.status)}
 </span>
 </div>
 

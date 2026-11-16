@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { api } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
 
 interface QuoteItem {
   id?: string;
@@ -451,7 +452,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <td className="py-2.5 pr-3 tabular-nums text-slate-600">{formatMoney(q.deposit_amount, q.currency)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[q.status] ?? STATUS_STYLES.DRAFT}`}>
-                        {q.status}
+                        {statusLabel(q.status)}
 </span>
                       {q.responded_by &&<span className="block text-[10px] text-slate-400 mt-0.5">by {q.responded_by}</span>}
 </td>

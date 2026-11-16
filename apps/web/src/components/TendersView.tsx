@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
+import { statusLabel } from '../lib/status-labels';
 
 interface Tender {
   id: string; tenderCode: string; title: string; tradeCategory?: string;
@@ -228,7 +229,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <div className="flex items-center gap-2">
 <span className="text-[10px] font-bold text-slate-500">{t.bidsCount} bid{t.bidsCount === 1 ? '' : 's'}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLE[t.status] || 'bg-slate-100 text-slate-600'}`}>
-                      {t.status.replace(/_/g, ' ')}
+                      {statusLabel(t.status)}
 </span>
 </div>
 </div>

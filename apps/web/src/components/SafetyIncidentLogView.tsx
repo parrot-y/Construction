@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { queueOfflineMutation } from '../services/offline-sync';
 import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
 import { SavedDataNotice } from '../ui';
+import { statusLabel } from '../lib/status-labels';
 
 export interface SafetyIncident {
   id: string;
@@ -334,7 +335,7 @@ export default function SafetyIncidentLogView({
 <div className="flex-1 min-w-0">
 <div className="flex flex-wrap items-center gap-2 mb-2">
 <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
-                      {item.incident_type.replace('_', ' ')}
+                      {statusLabel(item.incident_type)}
 </span>
                     {getSeverityBadge(item.severity)}
                     {item.is_osha_reportable && (
@@ -379,7 +380,7 @@ export default function SafetyIncidentLogView({
 <span className="text-xs text-slate-400 block mb-1">Investigation Status</span>
                     {canInvestigate ? (
 <select
-                        value={item.status}
+                        value={statusLabel(item.status)}
                         onChange={(e) => handleStatusChange(item.id, e.target.value as any)}
                         className="text-xs font-semibold border border-slate-300 rounded px-2.5 py-1 bg-white text-slate-800 focus:outline-none"
                       >
@@ -390,7 +391,7 @@ export default function SafetyIncidentLogView({
 </select>
 ) : (
 <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded">
-                        {item.status}
+                        {statusLabel(item.status)}
 </span>
 )}
 </div>

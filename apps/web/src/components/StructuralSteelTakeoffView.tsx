@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { statusLabel } from '../lib/status-labels';
 
 export interface StructuralSteelMemberItem {
   id: string;
@@ -410,7 +411,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
       case 'ERECTED':
         return<span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800">Site Erected</span>;
       default:
-        return<span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-gray-100 text-gray-700">{status}</span>;
+        return<span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-gray-100 text-gray-700">{statusLabel(status)}</span>;
 }
 };
 

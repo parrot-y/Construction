@@ -16,6 +16,7 @@ import AnnouncementsView from './AnnouncementsView';
 import InboxView from './InboxView';
 import ClientRequestView from './ClientRequestView';
 import ClientAccountView from './ClientAccountView';
+import { statusLabel } from '../lib/status-labels';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -283,7 +284,7 @@ export default function ClientDashboard({
                 className={`text-left p-4 rounded-xl border transition ${projectData.id === st.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-emerald-400'}`}>
 <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{st.name}</p>
 <p className="text-[11px] text-slate-400 mt-0.5">{st.code}{st.location ? ` · ${st.location}` : ''}</p>
-                {st.status &&<span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{st.status}</span>}
+                {st.status &&<span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{statusLabel(st.status)}</span>}
 </button>
 ))}
 </div>

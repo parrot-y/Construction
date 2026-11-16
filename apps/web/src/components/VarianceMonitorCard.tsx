@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { formatKes, EmptyState } from '../ui';
+import { statusLabel } from '../lib/status-labels';
 
 export interface SectionBreakdownItem {
   sectionId: string;
@@ -335,7 +336,7 @@ export default function VarianceMonitorCard({
 <td className="p-3 text-right tabular-nums font-bold">{`${sec.consumptionPercentage}%`}</td>
 <td className="p-3 text-center">
 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${tagClass}`}>
-                        {sec.status}
+                        {statusLabel(sec.status)}
 </span>
 </td>
 </tr>

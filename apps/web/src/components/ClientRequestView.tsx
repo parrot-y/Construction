@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { statusLabel } from '../lib/status-labels';
 
 const PROJECT_TYPES = [
   'New house / bungalow', 'Maisonette or villa', 'Apartments / flats',
@@ -138,7 +139,7 @@ export default function ClientRequestView(): React.JSX.Element {
 <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{r.description}</p>
 </div>
 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusStyle[r.status] || statusStyle.NEW}`}>
-                  {r.status}
+                  {statusLabel(r.status)}
 </span>
 </div>
 ))}

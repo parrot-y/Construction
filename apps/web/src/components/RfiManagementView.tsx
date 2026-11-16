@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import CreateRfiModal, { RfiPriority, ConsultantRole} from './CreateRfiModal';
+import { statusLabel } from '../lib/status-labels';
 
 export type RfiStatus = 'SUBMITTED' | 'ANSWERED' | 'CLOSED';
 
@@ -410,7 +411,7 @@ export default function RfiManagementView({
                             rfi.status
 )}`}
                         >
-                          {rfi.status}
+                          {statusLabel(rfi.status)}
 </span>
 </td>
 <td className="p-3 whitespace-nowrap text-slate-500 tabular-nums text-[11px]">

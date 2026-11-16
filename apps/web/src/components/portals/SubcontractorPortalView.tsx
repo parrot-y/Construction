@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { formatKes, ResponsiveTable, SavedDataNotice } from '../../ui';
 import { fetchJsonCached } from '../../services/offline-cache';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
+import { statusLabel } from '../../lib/status-labels';
 
 export interface SubcontractorSnag {
   id: string;
@@ -576,7 +577,7 @@ export default function SubcontractorPortalView({
                       : 'bg-slate-100 text-slate-600 border-slate-300'
                   }`}
                 >
-                  {m.status.replace('_', ' ')}
+                  {statusLabel(m.status)}
 </span>,
               ],
             }))}
@@ -600,7 +601,7 @@ export default function SubcontractorPortalView({
                         : retentionRelease.status === 'PENDING'
                         ? 'bg-amber-100 text-amber-800 border-amber-300'
                         : 'bg-slate-100 text-slate-700 border-slate-300'
-}`}>{retentionRelease.status}</span>
+}`}>{statusLabel(retentionRelease.status)}</span>
 </div>
 
 {retentionReleases.length > 0 && (
@@ -608,9 +609,9 @@ export default function SubcontractorPortalView({
                   {retentionReleases.map((r) => (
 <li key={r.id} className="flex items-center justify-between text-[11px] bg-slate-50 rounded-lg px-3 py-2">
 <span className="font-mono tabular-nums font-semibold text-slate-800">{r.releaseNo}</span>
-<span className="text-slate-500">{String(r.moietyStage || '').replace(/_/g, ' ')}</span>
+<span className="text-slate-500">{statusLabel(r.moietyStage)}</span>
 <span className="tabular-nums font-bold text-slate-900">{formatKes(r.releaseAmount)}</span>
-<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' : r.status === 'REJECTED' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{r.status.replace(/_/g, ' ')}</span>
+<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' : r.status === 'REJECTED' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{statusLabel(r.status)}</span>
 </li>
 ))}
 </ul>

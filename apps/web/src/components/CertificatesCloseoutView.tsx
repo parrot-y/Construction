@@ -3,6 +3,7 @@ import { formatKes, CopyWhatsAppButton } from '../ui';
 import { useAppDialog } from './AppDialog';
 import { PRODUCT_NAME } from '../lib/product';
 import { api } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
 
 interface PaymentCertificate {
   id: string;
@@ -220,7 +221,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 
     try {
       const body = await api.post<{ data: { status: string } }>(`/api/v1/projects/${projectId}/payment-certificates/${cert.id}/action`, { action, comments, paidReference });
-      setFeedback(`IPC-${String(cert.certificate_no).padStart(3, '0')} → ${body.data.status}`);
+      setFeedback(`IPC-${String(cert.certificate_no).padStart(3, '0')} → ${statusLabel(body.data.status)}`);
       await load();
 } catch (err: any) {
       setError(err?.message || 'Action failed');
@@ -502,7 +503,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 <div className="flex items-center gap-2 flex-wrap">
 <span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">IPC-{String(c.certificate_no).padStart(3, '0')}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${CERT_STATUS_STYLES[c.status] || CERT_STATUS_STYLES.DRAFT}`}>
-                    {c.status.replace(/_/g, ' ')}
+                    {statusLabel(c.status)}
 </span>
 <span className="text-[11px] text-slate-500">
                     {c.period_start} → {c.period_end}
@@ -556,7 +557,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 <span className="text-[11px] text-slate-500">Awaiting invoice payment</span>
 )}
 <CopyWhatsAppButton
-                        message={`Payment certificate IPC-${String(c.certificate_no).padStart(3, '0')} (${c.period_start} → ${c.period_end}) is ${c.status.replace(/_/g, ' ').toLowerCase()} — net payable ${formatKes(c.net_payable)}${c.invoice_id ? ' (invoice raised, awaiting payment)' : c.status === 'CERTIFIED' ? ' — invoice can now be raised' : ''}. — ${PRODUCT_NAME}`}
+                        message={`Payment certificate IPC-${String(c.certificate_no).padStart(3, '0')} (${c.period_start} → ${c.period_end}) is ${statusLabel(c.status).toLowerCase()} — net payable ${formatKes(c.net_payable)}${c.invoice_id ? ' (invoice raised, awaiting payment)' : c.status === 'CERTIFIED' ? ' — invoice can now be raised' : ''}. — ${PRODUCT_NAME}`}
                       />
 </div>
 </div>

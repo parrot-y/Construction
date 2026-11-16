@@ -14,6 +14,7 @@ import {
   CreateContractorBondSchema,
 } from '@construction/validation';
 import { PRODUCT_NAME } from '../lib/product';
+import { RETENTION_REVIEW_ROLES, RETENTION_DIRECTOR_ROLES } from '@construction/permissions';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -1022,10 +1023,10 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
 
       // H2 maker-checker: the QS recommends, a director approves and pays.
       // Field/site roles and portal stakeholders cannot move money here.
-      const QS_ROLES = ['PM_QS', 'ADMIN', 'COMPANY_ADMIN'];
-      const DIRECTOR_ROLES = ['EXECUTIVE', 'ADMIN', 'COMPANY_ADMIN'];
+      const QS_ROLES = [...RETENTION_REVIEW_ROLES];
+      const DIRECTOR_ROLES = [...RETENTION_DIRECTOR_ROLES];
       const needsDirector = action === 'APPROVE' || action === 'MARK_PAID';
-      const allowed = needsDirector ? DIRECTOR_ROLES : [...QS_ROLES, ...DIRECTOR_ROLES];
+      const allowed: readonly string[] = needsDirector ? DIRECTOR_ROLES : [...QS_ROLES, ...DIRECTOR_ROLES];
       if (!allowed.includes(actorRole)) {
         return reply.status(403).send({
           statusCode: 403,

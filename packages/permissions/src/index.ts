@@ -504,3 +504,18 @@ export function hasPermission(role: Role, permission: Permission): boolean {
   }
   return allowed.includes(permission);
 }
+
+/**
+ * J2 — subcontractor retention-release review roles, shared by the API
+ * gate and the console UI so buttons match what the server will accept.
+ * Mirrors POST .../subcontractor-retention-releases/:id/review.
+ */
+export const RETENTION_REVIEW_ROLES = ['PM_QS', 'ADMIN', 'COMPANY_ADMIN', 'EXECUTIVE'] as const;
+export const RETENTION_DIRECTOR_ROLES = ['EXECUTIVE', 'ADMIN', 'COMPANY_ADMIN'] as const;
+
+export function canReviewRetentionRelease(role: string): boolean {
+  return (RETENTION_REVIEW_ROLES as readonly string[]).includes(role);
+}
+export function canDirectRetentionRelease(role: string): boolean {
+  return (RETENTION_DIRECTOR_ROLES as readonly string[]).includes(role);
+}

@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { fetchJsonCached } from '../../services/offline-cache';
 import { SavedDataNotice, formatDate } from '../../ui';
+import { statusLabel } from '../../lib/status-labels';
 
 export interface ConsultantRfiItem {
   id: string;
@@ -542,7 +543,7 @@ export default function ConsultantPortalView({
 <p className="text-xs text-slate-500">Scheduled Date: {insp.scheduled_date} • Category: {insp.category}</p>
 </div>
 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  {insp.status}
+                  {statusLabel(insp.status)}
 </span>
 </div>
 
@@ -590,7 +591,7 @@ export default function ConsultantPortalView({
                           : reviewable
                           ? 'bg-amber-50 text-amber-700 border border-amber-200'
                           : 'bg-slate-100 text-slate-700 border border-slate-200'
-}`}>{sn.status.replace(/_/g, ' ')}</span>
+}`}>{statusLabel(sn.status)}</span>
 </div>
 <h3 className="text-sm font-bold text-slate-900">{sn.description}</h3>
 <p className="text-xs text-slate-500">

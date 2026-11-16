@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { statusLabel } from '../lib/status-labels';
 
 export interface TelematicsDeviceItem {
   id: string;
@@ -949,7 +950,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
 }`}
                     >
-                      {alert.status}
+                      {statusLabel(alert.status)}
 </span>
 </div>
 <h4 className="font-bold text-slate-900 text-sm">{alert.title}</h4>
