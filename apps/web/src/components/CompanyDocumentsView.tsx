@@ -124,7 +124,7 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 <div className="flex items-center gap-2 flex-wrap">
 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title or reference…"
           className="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs w-56 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-<button onClick={() => setExpiringOnly((v) => !v)}
+<button onClick={() => setExpiringOnly((v) => !v)} aria-pressed={expiringOnly}
           className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg ${expiringOnly ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
           Expiring soon
 </button>
@@ -132,7 +132,7 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 
 <div className="flex gap-1 flex-wrap border-b border-slate-100 pb-2">
         {['ALL', 'UNFILED', ...CATEGORIES].map((c) => (
-<button key={c} onClick={() => setTab(c)}
+<button key={c} onClick={() => setTab(c)} aria-pressed={tab === c}
             className={`px-2.5 py-1 text-[11px] font-semibold rounded-md ${tab === c ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
             {c === 'ALL' ? 'All' : c === 'UNFILED' ? 'Unfiled' : CAT_LABEL[c]}
 </button>

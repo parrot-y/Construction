@@ -340,6 +340,7 @@ export default function SnaggingListView({
 <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
+                aria-pressed={statusFilter === st}
                 className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
                   statusFilter === st
                     ? 'bg-white text-rose-900 shadow-xs'

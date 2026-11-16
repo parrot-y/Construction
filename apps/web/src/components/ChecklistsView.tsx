@@ -179,8 +179,8 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 </select>
 )}
 <div className="flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
-<button onClick={() => setTab('assignments')} className={`px-3 py-1.5 ${tab === 'assignments' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Assignments</button>
-<button onClick={() => setTab('templates')} className={`px-3 py-1.5 ${tab === 'templates' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Templates</button>
+<button onClick={() => setTab('assignments')} aria-pressed={tab === 'assignments'} className={`px-3 py-1.5 ${tab === 'assignments' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Assignments</button>
+<button onClick={() => setTab('templates')} aria-pressed={tab === 'templates'} className={`px-3 py-1.5 ${tab === 'templates' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Templates</button>
 </div>
           {canManage && tab === 'templates' && (
 <button onClick={() => setShowTemplateForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">

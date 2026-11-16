@@ -334,7 +334,7 @@ export default function SubcontractorPortalView({
 
       {/* Navigation Tabs */}
 <div className="flex border-b border-slate-200 gap-2">
-<button
+<button aria-pressed={activeTab === 'DEFECTS'}
           onClick={() => setActiveTab('DEFECTS')}
           className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition ${
             activeTab === 'DEFECTS'
@@ -344,7 +344,7 @@ export default function SubcontractorPortalView({
         >
            Defect Rectification Register ({openCount} open)
 </button>
-<button
+<button aria-pressed={activeTab === 'VALUATIONS'}
           onClick={() => setActiveTab('VALUATIONS')}
           data-testid="subcontractor-valuations-tab"
           className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition ${

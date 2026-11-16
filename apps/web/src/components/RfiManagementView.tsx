@@ -294,7 +294,7 @@ export default function RfiManagementView({
           {/* Status buttons */}
 <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
             {(['ALL', 'SUBMITTED', 'ANSWERED', 'CLOSED'] as const).map((st) => (
-<button
+<button aria-pressed={statusFilter === st}
                 key={st}
                 onClick={() => setStatusFilter(st)}
                 className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${

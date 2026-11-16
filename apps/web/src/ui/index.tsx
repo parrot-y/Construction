@@ -155,7 +155,7 @@ export function FilterTabs({
       {tabs.map((t) => (
         <button
           key={t.id}
-          {...(ariaRole ? { role: 'tab', 'aria-selected': active === t.id } : {})}
+          {...(ariaRole ? { role: 'tab', 'aria-selected': active === t.id } : { 'aria-pressed': active === t.id })}
           onClick={() => onChange(t.id)}
           className={`${tabClassName} ${active === t.id ? activeClassName : inactiveClassName}`}
         >

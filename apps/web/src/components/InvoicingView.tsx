@@ -341,6 +341,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <button
             key={f}
             onClick={() => setStatusFilter(f)}
+            aria-pressed={statusFilter === f}
             className={`px-2.5 py-1 text-[10px] font-bold rounded-full border transition ${
               statusFilter === f
                 ? 'bg-slate-800 text-white border-slate-800'

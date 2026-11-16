@@ -167,7 +167,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 
 <div className="flex gap-1.5 flex-wrap">
         {DISCIPLINES.map((d) => (
-<button key={d.key} onClick={() => setDiscipline(d.key)}
+<button key={d.key} onClick={() => setDiscipline(d.key)} aria-pressed={discipline === d.key}
             className={`px-3 py-1 text-[11px] font-semibold rounded-full border transition ${discipline === d.key ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-300'}`}>
             {d.label}
 </button>

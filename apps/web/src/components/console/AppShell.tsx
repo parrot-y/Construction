@@ -281,7 +281,7 @@ function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
 <IconSpark className="w-5 h-5" />
         {mobile &&<span>AI</span>}
 </button>
-<button onClick={() => setSection('home')} aria-label="Home" className={itemCls(section === 'home')}>
+<button onClick={() => setSection('home')} aria-label="Home" aria-current={section === 'home' ? 'page' : undefined} className={itemCls(section === 'home')}>
         {React.createElement(SECTION_ICONS.home, { className: 'w-5 h-5'})}
         {mobile &&<span>Home</span>}
 </button>
@@ -289,7 +289,7 @@ function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
         const Icon = iconFor(s.id);
         const active = section === s.id;
         return (
-<button key={s.id} onClick={() => setSection(s.id)} aria-label={s.label} className={`${itemCls(active)} relative`}>
+<button key={s.id} onClick={() => setSection(s.id)} aria-label={s.label} aria-current={active ? 'page' : undefined} className={`${itemCls(active)} relative`}>
             {React.createElement(Icon, { className: 'w-5 h-5'})}
             {s.id === 'money' && reviewCount > 0 && (
 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center" aria-label={`${reviewCount} payments to review`}>

@@ -308,7 +308,7 @@ export default function ConsultantPortalView({
 
       {/* Tabs */}
 <div className="flex flex-wrap border-b border-slate-200 gap-x-4 gap-y-1 text-xs font-semibold">
-<button
+<button aria-pressed={activeTab === 'rfis'}
           onClick={() => setActiveTab('rfis')}
           className={`pb-2 border-b-2 transition ${
             activeTab === 'rfis'
@@ -318,7 +318,7 @@ export default function ConsultantPortalView({
         >
           Architectural & Structural RFIs ({rfis.length})
 </button>
-<button
+<button aria-pressed={activeTab === 'cubes'}
           onClick={() => setActiveTab('cubes')}
           className={`pb-2 border-b-2 transition ${
             activeTab === 'cubes'
@@ -328,7 +328,7 @@ export default function ConsultantPortalView({
         >
           Concrete Cube Strength Tests ({cubeTests.length})
 </button>
-<button
+<button aria-pressed={activeTab === 'inspections'}
           onClick={() => setActiveTab('inspections')}
           className={`pb-2 border-b-2 transition ${
             activeTab === 'inspections'
@@ -338,7 +338,7 @@ export default function ConsultantPortalView({
         >
           Pre-Pour QA Checklists ({inspections.length})
 </button>
-<button
+<button aria-pressed={activeTab === 'snags'}
           onClick={() => setActiveTab('snags')}
           className={`pb-2 border-b-2 transition ${
             activeTab === 'snags'
