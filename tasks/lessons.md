@@ -113,3 +113,20 @@ isolation. Rule: run them sequentially.
 5s interactive-transaction timeout under load (P2028 → 500). Fixed by
 `PDF_TX_OPTIONS` (30s) on all six render-inside-tx routes; the worker's
 own 15s render timeout still bounds the render itself.
+
+## 2026-11 — Dead "New project" button shipped through 340 green tests
+
+Pattern: a rendered button with NO onClick (or a handler with no visible
+effect) passed every API-level auditor spec because nothing clicked it.
+340 passing tests did not catch it — the owner found it in 10 seconds.
+
+Prevention rules:
+- Any new/changed interactive control needs a UI-level click assertion —
+  API tests cannot see a missing onClick.
+- Active-state pills/tabs MUST carry aria-pressed/aria-current so both
+  assistive tech and automation can distinguish "clicked the active
+  filter" (legitimate no-op) from a dead control.
+- Click-sweep harnesses must click by signature (href|text), never by
+  DOM index — SPA re-renders drift indices onto different elements.
+- window.open exports count as actions via context-level request/popup
+  events, not page-level request events.

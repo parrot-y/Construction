@@ -204,3 +204,11 @@ Frontend:
 - J5 fresh-seed capture: fixture names de-timestamped; fresh DB, each journey once — visual/ed3cdac (24 PNGs).
 - J6: quote page, consultant, client, subcontractor recaptures in visual/ed3cdac/portal-flows.
 - All 6 auditor hashes verified unchanged; evidence hygiene clean.
+
+## Round L review
+
+- L1 (937514b): NewProjectModal shared by console; l1-new-project.spec 6/6 both viewports.
+- L2 (0042963): l2-click-sweep.spec walks admin+PM consoles (all sections/tabs) and 4 portal landings at chromium+mobile-390. Findings fixed: missing aria-pressed/aria-current on ~10 filter/tab/nav controls (all had working handlers — sweep now distinguishes active-state no-ops). No genuinely dead handler found beyond L1's button.
+- L3 (166a91c): l3-admin-first-hour.spec UI-only journey, 12 shots @390px. FINDING: no UI path to add BoQ items (BoqWorkbookView read-only, BoqImportModal unmounted). Fixed VerifyEmailView StrictMode double-POST.
+- L4 (0bc6aac): label:value spacing sweep (Justification + invoice/quote/commitments/takeoff labels).
+- Pending: final solo Playwright + verify-local on 0bc6aac, evidence files, push.
