@@ -1,5 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { queueOfflineMutation } from '../services/offline-sync';
+import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
+import { SavedDataNotice } from '../ui';
 
 export interface SafetyIncident {
   id: string;
@@ -37,11 +39,15 @@ export default function SafetyIncidentLogView({
   const [incidents, setIncidents] = useState<SafetyIncident[]>(initialIncidents ?? []);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
   const load = async () => {
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/safety-incidents`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load safety incidents');
-      const body = await res.json();
+      const { body, savedAt: staleAt } = await fetchJsonCached(
+        `/api/v1/projects/${projectId}/safety-incidents`,
+        `safety-incidents:${projectId}`,
+      );
+      if (staleAt) setSavedAt(staleAt);
       const sevMap: Record<string, SafetyIncident['severity']> = { MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' };
       setIncidents((body.incidents || []).map((i: any): SafetyIncident => ({
         id: i.id,
@@ -60,7 +66,7 @@ export default function SafetyIncidentLogView({
       })));
       setLoadError(null);
     } catch (e: any) {
-      setLoadError(e.message || 'Failed to load safety incidents');
+      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : (e.message || 'Failed to load safety incidents'));
     }
   };
 
@@ -310,6 +316,7 @@ export default function SafetyIncidentLogView({
 </div>
 </div>
 
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       {loadError && (
 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">{loadError}</div>
 )}

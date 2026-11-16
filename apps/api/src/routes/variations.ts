@@ -596,8 +596,19 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
             const authority = await resolveCoApprovalAuthority(tx, tenantId, sub, role);
 
-            // OWNER_REVIEW stage may only be decided by owner-side actors.
-            if (currentStatus === 'OWNER_REVIEW' && !authority.unlimited) {
+            // OWNER-portal actors decide the owner stage only — they must
+            // not pre-empt PM/QS review by approving while still in PM_REVIEW.
+            if (role === 'OWNER' && currentStatus !== 'OWNER_REVIEW') {
+              throw {
+                status: 409,
+                message: 'Change order is still in PM review — only the project team can decide this stage',
+              };
+            }
+
+            // OWNER_REVIEW stage may only be decided by owner-side actors
+            // (staff admins/client side, or the OWNER portal role itself).
+            const isOwnerSideActor = authority.unlimited || role === 'OWNER';
+            if (currentStatus === 'OWNER_REVIEW' && !isOwnerSideActor) {
               throw {
                 status: 403,
                 message: `Change order requires owner approval — role "${role}" cannot decide OWNER_REVIEW stage`,

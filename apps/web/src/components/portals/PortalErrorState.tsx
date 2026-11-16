@@ -1,3 +1,5 @@
+import { formatDate } from '../../lib/format';
+
 export type PortalLinkKind = 'link' | 'rateLimited' | 'offline' | 'error';
 
 /**
@@ -82,7 +84,7 @@ export function PortalExpiryBanner({ expiresAt }: { expiresAt?: string | null })
     <div className={`px-4 py-2.5 text-xs font-medium border-b ${daysLeft <= 0 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
       {daysLeft <= 0
         ? 'This portal link has expired — contact the project team for a new link.'
-        : `This portal link expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'} (${new Date(expiresAt).toLocaleDateString('en-KE')}).`}
+        : `This portal link expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'} (${formatDate(expiresAt)}).`}
     </div>
   );
 }

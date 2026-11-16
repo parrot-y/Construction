@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../ui';
+import { formatKes, SavedDataNotice } from '../ui';
+import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
 import { api, ApiError } from '../lib/apiClient';
 
 export interface SubcontractorValuationItem {
@@ -56,16 +57,18 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
   const [valuations, setValuations] = useState<SubcontractorValuationItem[]>(initialValuations ?? []);
   const [livePackages, setLivePackages] = useState<{ id: string; firmName: string; tradeCategory: string}[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const effectivePackages = subcontractorPackages ?? livePackages;
 
   const load = async () => {
     try {
       const [vb, pb] = await Promise.all([
-        api.get<{ valuations?: SubcontractorValuationItem[] }>(`/api/v1/projects/${projectId}/subcontractor-valuations`),
+        fetchJsonCached(`/api/v1/projects/${projectId}/subcontractor-valuations`, `sub-valuations:${projectId}`),
         api.get<unknown>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => null),
       ]);
-      setValuations(initialValuations ?? (vb.valuations || []));
+      if (vb.savedAt) setSavedAt(vb.savedAt);
+      setValuations(initialValuations ?? (vb.body.valuations || vb.body.data?.valuations || []));
       if (!subcontractorPackages && pb) {
         const rows = (pb as { packages?: unknown[]; subcontractors?: unknown[] }).packages
           || (pb as { subcontractors?: unknown[] }).subcontractors || pb;
@@ -76,7 +79,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       }
       setLoadError(null);
     } catch (e: any) {
-      setLoadError(e.message || 'Failed to load valuations');
+      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : (e.message || 'Failed to load valuations'));
     }
   };
 
@@ -196,6 +199,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </button>
 </div>
 
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       {loadError && (
 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">{loadError}</div>
 )}

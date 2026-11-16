@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes, ResponsiveTable } from '../../ui';
-import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
+import { formatKes, ResponsiveTable, SavedDataNotice } from '../../ui';
+import { fetchJsonCached } from '../../services/offline-cache';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 
 export interface SubcontractorSnag {
   id: string;
@@ -78,16 +79,19 @@ export default function SubcontractorPortalView({
   const [retentionRelease, setRetentionRelease] = useState<any>(null);
   const [retentionReleases, setRetentionReleases] = useState<any[]>([]);
   const [releaseBusy, setReleaseBusy] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/portals/subcontractor/${token}`, { credentials: 'include' });
-        const body = await res.json();
-        if (!res.ok) throw portalHttpError(body.message || 'This portal link is invalid or has expired', res.status);
+        const { body, savedAt: staleAt } = await fetchJsonCached(
+          `/api/v1/portals/subcontractor/${token}`,
+          `portal:subcontractor:${token}`,
+        );
         if (cancelled) return;
+        if (staleAt) setSavedAt(staleAt);
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', trade: d.stakeholder.trade || '' });
         if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
@@ -252,6 +256,7 @@ export default function SubcontractorPortalView({
 
   return (
 <div className="w-full max-w-5xl mx-auto space-y-6" data-testid="subcontractor-portal-view">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

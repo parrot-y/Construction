@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDateTime } from '../lib/format';
 
 /** Product UI kit — see docs/DESIGN_SYSTEM.md. */
 
@@ -314,5 +315,17 @@ export function CopyWhatsAppButton({
     >
       {copied ? 'Copied!' : label}
 </button>
+);
+}
+
+// ---------------------------------------------------------------- shared dates
+export { formatDate, formatDateTime } from '../lib/format';
+
+/** Amber notice shown above last-saved data rendered while offline. */
+export function SavedDataNotice({ savedAt, className = '' }: { savedAt: string; className?: string }) {
+  return (
+<div className={`px-4 py-2.5 text-xs font-medium rounded-lg border bg-amber-50 border-amber-200 text-amber-800 ${className}`}>
+      Showing saved information from {formatDateTime(savedAt)}
+</div>
 );
 }

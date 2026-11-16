@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { formatKes } from '../ui';
+import { formatKes, formatDate, formatDateTime } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
 import { useAppDialog } from './AppDialog';
 import { api } from '../lib/apiClient';
@@ -383,7 +383,7 @@ export default function VariationManagementView({
                           {vo.events.map((ev) => (
 <li key={ev.id} className="flex items-start gap-2 text-[11px] text-slate-600">
 <span className="font-mono tabular-nums text-slate-400 shrink-0">
-                                {new Date(ev.created_at).toLocaleString()}
+                                {formatDateTime(ev.created_at)}
 </span>
 <span>
 <strong>{ev.actor_name}</strong> — {ev.event}
@@ -400,9 +400,9 @@ export default function VariationManagementView({
                 {/* Action Buttons Row */}
 <div className="flex flex-wrap items-center justify-between pt-1 border-t border-slate-100 text-[11px] gap-2">
 <span className="text-slate-400">
-                    Logged: {new Date(vo.created_at).toLocaleDateString()}
-                    {vo.submitted_at && ` • Submitted: ${new Date(vo.submitted_at).toLocaleDateString()}`}
-                    {vo.approved_at && ` • Approved: ${new Date(vo.approved_at).toLocaleDateString()}`}
+                    Logged: {formatDate(vo.created_at)}
+                    {vo.submitted_at && ` • Submitted: ${formatDate(vo.submitted_at)}`}
+                    {vo.approved_at && ` • Approved: ${formatDate(vo.approved_at)}`}
 </span>
 
 <div className="flex items-center gap-1.5">
@@ -427,7 +427,10 @@ export default function VariationManagementView({
 )}
 
                     {/* Approve (pending stages; server enforces limits) */}
-                    {canApprove && isPending(status) && (
+                    {/* Approve only appears when the order can actually be decided:
+                    owner-side viewers (OWNER/CLIENT) act solely at OWNER_REVIEW;
+                    staff approvers act at either pending stage (limits enforced server-side). */}
+                {canApprove && (['OWNER', 'CLIENT'].includes(userRole) ? status === 'OWNER_REVIEW' : isPending(status)) && (
 <button
                         onClick={() => void handleReviewAction(vo.id, 'APPROVE')}
                         className="px-2.5 py-1 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition shadow-xs"

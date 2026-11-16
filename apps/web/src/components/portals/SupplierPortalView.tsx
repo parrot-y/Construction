@@ -1,7 +1,8 @@
 import React, { useEffect, useState} from 'react';
-import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { PRODUCT_NAME } from '../../lib/product';
-import { formatKes } from '../../ui';
+import { formatKes, SavedDataNotice, formatDate } from '../../ui';
+import { fetchJsonCached } from '../../services/offline-cache';
 
 export interface SupplierDelivery {
   id: string;
@@ -95,12 +96,16 @@ export default function SupplierPortalView({
   const [showAllDeliveries, setShowAllDeliveries] = useState(false);
   const PAGE_SIZE = 10;
 
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
   const load = async () => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
     try {
-      const res = await fetch(`/api/v1/portals/supplier/${token}`, { credentials: 'include' });
-      const body = await res.json();
-      if (!res.ok) throw portalHttpError(body.message || 'This portal link is invalid or has expired', res.status);
+      const { body, savedAt: staleAt } = await fetchJsonCached(
+        `/api/v1/portals/supplier/${token}`,
+        `portal:supplier:${token}`,
+      );
+      if (staleAt) setSavedAt(staleAt);
       const d = body.data || body;
       if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', category: d.stakeholder.vendorType || '' });
       if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
@@ -253,8 +258,8 @@ export default function SupplierPortalView({
 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{po.statusLabel}</span>
 </div>
 <p className="text-[11px] text-slate-500 mt-1">
-                      Ordered {po.orderDate ? String(po.orderDate).slice(0, 10) : '—'}
-                      {po.expectedDeliveryDate ? ` · expected ${String(po.expectedDeliveryDate).slice(0, 10)}` : ''}
+                      Ordered {po.orderDate ? formatDate(po.orderDate) : '—'}
+                      {po.expectedDeliveryDate ? ` · expected ${formatDate(po.expectedDeliveryDate)}` : ''}
 </p>
 </div>
 <span className="tabular-nums font-bold text-slate-900">{formatKes(po.totalAmount)}</span>
@@ -395,7 +400,7 @@ export default function SupplierPortalView({
                 {del.delivery_note_number}
 </span>
 <span className="text-xs text-slate-500">
-                Site Date: {new Date(del.siteDate).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric'})}
+                Site Date: {formatDate(del.siteDate)}
 </span>
 </div>
 
@@ -476,6 +481,7 @@ export default function SupplierPortalView({
 
   return (
 <div className="w-full max-w-5xl mx-auto space-y-6" data-testid="supplier-portal-view">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
 <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

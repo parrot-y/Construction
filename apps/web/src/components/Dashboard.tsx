@@ -18,7 +18,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ session, onLogout}: DashboardProps): React.JSX.Element {
-  const { user, permissions} = session;
+  const { user } = session;
   const [previewPortal, setPreviewPortal] = useState<{
     type: string;
     token: string;
@@ -171,25 +171,6 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
 </div>
 </div>
 </header>
-
-      {/* Permissions context bar */}
-<div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 flex items-center gap-2 text-[11px] overflow-x-auto">
-<span className="font-semibold text-slate-500 shrink-0">{permissions.length} permissions</span>
-<span className="text-slate-300 shrink-0">•</span>
-<div className="flex gap-1">
-          {permissions.slice(0, 8).map((p) => (
-<span
-              key={p}
-              className="text-[10px] px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded border border-slate-100 whitespace-nowrap"
-            >
-              {p}
-</span>
-))}
-          {permissions.length > 8 && (
-<span className="text-[10px] text-slate-400 px-1 py-0.5">+{permissions.length - 8}</span>
-)}
-</div>
-</div>
 
       {/* Role-Specific Dashboard Content */}
       {renderRoleDashboard()}

@@ -255,7 +255,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 };
         setClockEvents([newEvent, ...clockEvents]);
 }
-      const offlineSuffix = isOffline ? ' (Stored locally in IndexedDB offline queue)' : '';
+      const offlineSuffix = isOffline ? ' (saved on this phone — will send when you have signal)' : '';
       setFeedback(
         status === 'WITHIN_GEOFENCE'
           ? ` Verified On-Site Attendance: ${selectedWorker} clocked in at ${dist}m from centroid.${offlineSuffix}`

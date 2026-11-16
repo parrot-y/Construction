@@ -50,7 +50,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
     try {
       const result = await flushSyncQueue();
       if (result.syncedCount > 0) {
-        setSyncMessage(` Synced ${result.syncedCount} offline record(s) to server`);
+        setSyncMessage(` Sent ${result.syncedCount} saved ${result.syncedCount === 1 ? 'entry' : 'entries'}`);
 }
       await refreshQueue();
 } catch {
@@ -70,7 +70,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
 <span className="text-emerald-600 hidden sm:inline">• Real-time connection to {PRODUCT_NAME} Cloud</span>
 </div>
 <span className="text-[10px] px-2 py-0.5 bg-emerald-100 rounded border border-emerald-200 font-semibold">
-          IndexedDB Offline Queue Active
+          All sent
 </span>
 </div>
 );
@@ -92,12 +92,14 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
         />
 <div>
 <span className="font-bold">
-            {!isOnline ? 'Offline Mode (Working Locally)' : 'Connected • Offline Queue Sync'}
+            {!isOnline ? 'Working offline' : 'Connected'}
 </span>
 <p className="text-[11px] opacity-90 mt-0.5">
             {!isOnline
-              ? 'Site diaries, progress updates, and photos will be saved locally in IndexedDB and uploaded when network restores.'
-              : `${queue.length} field mutation(s) stored in client queue waiting to sync.`}
+              ? 'Saved on this phone — will send when you have signal.'
+              : queue.length > 0
+                ? `${queue.length} entry(s) saved on this phone, sending now…`
+                : 'All sent.'}
 </p>
 </div>
 </div>

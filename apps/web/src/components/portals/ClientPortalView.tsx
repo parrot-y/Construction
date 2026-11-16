@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
-import { formatKes } from '../../ui';
-import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
+import { formatKes, SavedDataNotice, formatDate } from '../../ui';
+import { fetchJsonCached } from '../../services/offline-cache';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { useAppDialog } from '../AppDialog';
 
 interface CoItem {
@@ -80,23 +81,22 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
   const [feedback, setFeedback] = useState<string | null>(null);
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [extra, setExtra] = useState<ClientExtra | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/portals/client/${encodeURIComponent(token)}/change-orders`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw portalHttpError(body.message || 'Invalid or expired access link', res.status);
-}
-      const json = await res.json();
+      const { body: json, savedAt: staleAt } = await fetchJsonCached(
+        `/api/v1/portals/client/${encodeURIComponent(token)}/change-orders`,
+        `portal:client:${token}`,
+      );
+      if (staleAt) setSavedAt(staleAt);
       setData(json.data);
       if (json.data?.linkExpiresAt) setLinkExpiresAt(json.data.linkExpiresAt);
       // Best-effort load of the read-only project feed (photos, certificates, invoices)
-      fetch(`/api/v1/portals/client/${encodeURIComponent(token)}`, { credentials: 'include' })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((b) => { if (b?.data) { setExtra(b.data); if (b.data.linkExpiresAt) setLinkExpiresAt(b.data.linkExpiresAt); } })
+      fetchJsonCached(`/api/v1/portals/client/${encodeURIComponent(token)}`, `portal:client-feed:${token}`)
+        .then(({ body: b }) => { if (b?.data) { setExtra(b.data); if (b.data.linkExpiresAt) setLinkExpiresAt(b.data.linkExpiresAt); } })
         .catch(() => {});
 } catch (err: any) {
       setError(err?.message || 'Failed to load change orders');
@@ -197,6 +197,7 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
 <div className="flex items-start justify-between gap-4">
 <div>
@@ -239,12 +240,12 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
             <div className="text-xs space-y-1">
               <p className="text-slate-700">
                 <span className="font-semibold">Certificate {extra.closeout.practicalCompletion.certificateReference}</span>
-                {' '}issued {extra.closeout.practicalCompletion.issueDate ? new Date(extra.closeout.practicalCompletion.issueDate).toLocaleDateString('en-KE') : ''}
+                {' '}issued {extra.closeout.practicalCompletion.issueDate ? formatDate(extra.closeout.practicalCompletion.issueDate) : ''}
               </p>
               {extra.closeout.practicalCompletion.dlpExpiryDate && (
                 <p className="text-slate-600">
                   Defects liability period ends{' '}
-                  <span className="font-semibold">{new Date(extra.closeout.practicalCompletion.dlpExpiryDate).toLocaleDateString('en-KE')}</span>
+                  <span className="font-semibold">{formatDate(extra.closeout.practicalCompletion.dlpExpiryDate)}</span>
                   {' '}({extra.closeout.practicalCompletion.dlpDurationMonths ?? 6} months)
                 </p>
               )}
@@ -277,7 +278,7 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
             extra.closeout.acknowledged ? (
               <p className="text-[11px] text-emerald-700 font-semibold">
                 Practical completion acknowledged by {extra.closeout.acknowledged.byName} on{' '}
-                {new Date(extra.closeout.acknowledged.at).toLocaleDateString('en-KE')}
+                {formatDate(extra.closeout.acknowledged.at)}
               </p>
             ) : (
               <button
@@ -362,7 +363,7 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
               <div className="space-y-1.5">
                 {extra.progressRecords.map((pr) => (
                   <div key={pr.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
-                    <span className="text-slate-600">{pr.recordDate ? new Date(pr.recordDate).toLocaleDateString('en-KE') : '—'}</span>
+                    <span className="text-slate-600">{pr.recordDate ? formatDate(pr.recordDate) : '—'}</span>
                     <span className="font-semibold text-slate-900">{pr.overallProgress != null ? `${pr.overallProgress}%` : '—'}</span>
                   </div>
                 ))}
@@ -392,7 +393,7 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
                   <div key={c.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
                     <div>
                       <span className="font-mono tabular-nums font-semibold text-slate-900">{c.certificateNo}</span>
-                      <span className="text-slate-500 ml-2">{c.periodEnd ? new Date(c.periodEnd).toLocaleDateString('en-KE') : ''}</span>
+                      <span className="text-slate-500 ml-2">{c.periodEnd ? formatDate(c.periodEnd) : ''}</span>
                     </div>
                     <div className="text-right">
                       <span className="font-semibold text-slate-900">{formatKes(c.netPayable)}</span>

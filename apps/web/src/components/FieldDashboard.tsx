@@ -15,6 +15,8 @@ import SiteDiaryModal from './SiteDiaryModal';
 import SafetyIncidentLogView from './SafetyIncidentLogView';
 import SnaggingListView from './SnaggingListView';
 import OfflineSyncBanner from './OfflineSyncBanner';
+import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
+import { SavedDataNotice, formatDate } from '../ui';
 
 interface ProjectOpt { id: string; name: string; code: string}
 
@@ -24,6 +26,18 @@ interface DiaryRow {
 }
 
 type FieldSection = 'today' | 'messages' | 'site' | 'more';
+type SiteJob = 'menu' | 'snags' | 'safety' | 'inspections' | 'drawings' | 'schedule' | 'rfis' | 'observations' | 'correspondence';
+
+const SITE_JOBS: { id: Exclude<SiteJob, 'menu'>; label: string; hint: string }[] = [
+  { id: 'snags', label: 'Snags', hint: 'Defects to fix and sign off' },
+  { id: 'safety', label: 'Safety', hint: 'Incidents and hazards' },
+  { id: 'inspections', label: 'Inspections', hint: 'Checklists and inspections' },
+  { id: 'drawings', label: 'Drawings', hint: 'Latest drawings and revisions' },
+  { id: 'schedule', label: 'Schedule', hint: 'Programme and look-ahead' },
+  { id: 'rfis', label: 'RFIs', hint: 'Requests for information' },
+  { id: 'observations', label: 'Observations', hint: 'Site observations' },
+  { id: 'correspondence', label: 'Letters', hint: 'Site correspondence' },
+];
 
 const SECTIONS: { id: FieldSection; label: string; icon: string}[] = [
   { id: 'today', label: 'Today', icon: ''},
@@ -44,32 +58,44 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
   const [section, setSection] = useState<FieldSection>('today');
   const [diaryOpen, setDiaryOpen] = useState(false);
   const [diaries, setDiaries] = useState<DiaryRow[]>([]);
+  const [siteJob, setSiteJob] = useState<SiteJob>('menu');
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const can = (p: string) => permissions.includes(p);
   const canDiary = can('site.diary_create') || can('site.diary_view');
   const canTenders = can('tender.view');
 
-  useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
-      .then((j) => {
-        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
-        setProjects(list);
-        if (list.length) setProjectId(list[0].id);
-})
-      .catch(() => setProjects([]));
-}, []);
+  const applyProjects = (rows: any[]) => {
+    const list = (rows || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
+    setProjects(list);
+    setProjectId((cur) => cur || list[0]?.id || '');
+  };
 
   useEffect(() => {
+    fetchJsonCached('/api/v1/projects', `field:projects:${user.id}`)
+      .then(({ body, savedAt: staleAt }) => {
+        const rows = body.data || body.projects || (Array.isArray(body) ? body : []);
+        if (staleAt) setSavedAt(staleAt);
+        applyProjects(rows);
+      })
+      .catch(() => setProjects([]));
+  }, [user.id]);
+
+  const loadDiaries = () => {
     if (!projectId || !canDiary) { setDiaries([]); return; }
-    fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'})
-      .then((r) => r.ok ? r.json() : { data: [] })
-      .then((j) => {
-        const rows = j.data || j.diaries || j.rows || (Array.isArray(j) ? j : []);
+    fetchJsonCached(`/api/v1/projects/${projectId}/site-diaries`, `field:diaries:${projectId}`)
+      .then(({ body, savedAt: staleAt }) => {
+        if (staleAt) setSavedAt(staleAt);
+        const rows = body.data || body.diaries || body.rows || (Array.isArray(body) ? body : []);
         setDiaries(rows.slice(0, 10));
       })
-      .catch(() => setDiaries([]));
-  }, [projectId, canDiary]);
+      .catch((e) => {
+        // Offline with nothing saved — show an empty list, never "Failed to fetch".
+        if (!isOfflineError(e)) setDiaries([]);
+      });
+  };
+
+  useEffect(() => { loadDiaries(); }, [projectId, canDiary]);
 
   const projectName = projects.find((p) => p.id === projectId)?.name || '';
 
@@ -86,6 +112,7 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
   return (
 <div className="space-y-6 pb-24 sm:pb-6">
       <OfflineSyncBanner />
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       {/* Desktop pills */}
 <div className="hidden sm:flex items-center gap-2 bg-white rounded-xl border border-slate-200 p-1.5 w-fit">
         {SECTIONS.map((s) => (
@@ -118,7 +145,7 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
                 <ul className="divide-y divide-slate-100">
                   {diaries.map((d) => (
                     <li key={d.id} className="py-2 text-xs">
-                      <span className="font-semibold text-slate-800">{d.entry_date}</span>
+                      <span className="font-semibold text-slate-800">{formatDate(d.entry_date)}</span>
                       <span className="text-slate-500"> — {d.weather || '—'} • {d.site_status || '—'}</span>
                       {d.general_notes && <p className="text-slate-500 mt-0.5 truncate">{d.general_notes}</p>}
                     </li>
@@ -132,13 +159,7 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
                 projectName={projectName}
                 onDiarySubmitted={() => {
                   setDiaryOpen(false);
-                  fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'})
-                    .then((r) => r.ok ? r.json() : { data: [] })
-                    .then((j) => {
-                      const rows = j.data || j.diaries || j.rows || (Array.isArray(j) ? j : []);
-                      setDiaries(rows.slice(0, 10));
-                    })
-                    .catch(() => {});
+                  loadDiaries();
                 }}
               />
 </div>
@@ -159,14 +180,54 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
       {section === 'site' && (
 <>
           {projectPicker}
-          {projectId &&<ProjectScheduleGanttView projectId={projectId} canEdit={!readOnly} />}
-          {projectId &&<DrawingsView projectId={projectId} canManage={!readOnly} />}
-          {projectId &&<RfiManagementView projectId={projectId} projectName={projectName} canCreate={!readOnly} />}
-          {projectId &&<ObservationsView projectId={projectId} canManage={!readOnly} />}
-          {projectId &&<CorrespondenceView canManage={!readOnly} />}
-          {projectId &&<SafetyIncidentLogView projectId={projectId} canLog={!readOnly} canInvestigate={!readOnly} />}
-          {projectId &&<SnaggingListView projectId={projectId} />}
-          {!projectId &&<p className="text-sm text-slate-500">Select a project to view site workflows.</p>}
+          {siteJob === 'menu' ? (
+<div className="space-y-3" data-testid="field-site-menu">
+              <button
+                onClick={() => setSection('today')}
+                className="w-full text-left bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-3 hover:border-slate-300 transition"
+              >
+                <span>
+                  <span className="block text-sm font-bold text-slate-900">Daily diary &amp; attendance</span>
+                  <span className="block text-xs text-slate-500 mt-0.5">Today's work, weather and headcounts</span>
+                </span>
+                <span className="text-slate-300">›</span>
+</button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {SITE_JOBS.map((job) => (
+<button
+                    key={job.id}
+                    onClick={() => setSiteJob(job.id)}
+                    data-testid={`field-job-${job.id}`}
+                    className="text-left bg-white rounded-xl border border-slate-200 p-4 hover:border-slate-300 transition"
+                  >
+                    <span className="block text-sm font-bold text-slate-900">{job.label}</span>
+                    <span className="block text-xs text-slate-500 mt-0.5">{job.hint}</span>
+</button>
+))}
+</div>
+              {!projectId &&<p className="text-sm text-slate-500">Select a project to view site workflows.</p>}
+</div>
+) : (
+<div className="space-y-4" data-testid={`field-job-view-${siteJob}`}>
+<button
+                onClick={() => setSiteJob('menu')}
+                className="text-xs font-semibold text-blue-700 hover:underline"
+                data-testid="field-job-back"
+              >
+                ‹ All site jobs
+</button>
+              {!projectId ? (
+<p className="text-sm text-slate-500">Select a project to view site workflows.</p>
+) : siteJob === 'snags' ? <SnaggingListView projectId={projectId} />
+              : siteJob === 'safety' ? <SafetyIncidentLogView projectId={projectId} canLog={!readOnly} canInvestigate={!readOnly} />
+              : siteJob === 'inspections' ? <ChecklistsView canManage={!readOnly} />
+              : siteJob === 'drawings' ? <DrawingsView projectId={projectId} canManage={!readOnly} />
+              : siteJob === 'schedule' ? <ProjectScheduleGanttView projectId={projectId} canEdit={!readOnly} />
+              : siteJob === 'rfis' ? <RfiManagementView projectId={projectId} projectName={projectName} canCreate={!readOnly} />
+              : siteJob === 'observations' ? <ObservationsView projectId={projectId} canManage={!readOnly} />
+              : <CorrespondenceView canManage={!readOnly} />}
+</div>
+)}
 </>
 )}
 

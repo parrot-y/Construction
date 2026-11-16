@@ -146,3 +146,29 @@ Frontend:
 - UI fixes in the same commit: ClientPortalView Back → real button;
   390px header search → icon that expands the real input (Escape/result
   collapses).
+
+## Round I plan (2026-11-16)
+
+- [ ] I1: Playwright suite ALONE on final commit → 0 failed/skipped/flaky;
+      fix timeout causes not timeouts; commit e2e-<sha>.md. (RUN LAST)
+- [ ] I2: strip /home/, /Users/, C:\Users, hostname from all committed
+      evidence logs; CI step failing on violation (show red then green);
+      verify-local.sh sanitises its own log output.
+- [ ] I3: shared responsive table (<640px stacked cards) for compliance
+      portal, sub valuations/retention, QS retention console + any other
+      sideways-scrolling table; overflow test at 390px; supplier portal
+      action-first + collapse completed + invoice button only when due;
+      owner/executive variation titles wrap.
+- [ ] I4: remove permission chips from user headers (admin-only "My
+      access" page); plain offline wording; offline shows saved data +
+      timestamp not "Failed to fetch"; shared date formatter everywhere;
+      field Site tab → short job menu; owner approve only in owner-review
+      state (UI + API 409 + failing test).
+- [ ] I5: thousands separators for all money via packages/money helper +
+      test; quote deposit single source + terms contradiction warning;
+      "•Prepared" missing space; public quote Back link.
+- [ ] I6: render PDFs outside withTenantTx (short read tx → render →
+      short audit tx) OR prove 10 concurrent renders don't exhaust pool
+      / delay normal request >500ms — commit numbers.
+- [ ] I7: varied believable seed data; re-capture portal journeys at
+      390px under final sha; report which screenshots changed.

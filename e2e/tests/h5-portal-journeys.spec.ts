@@ -40,6 +40,7 @@ const SUPPLIER_NAME = 'East Africa Cement Suppliers';
 const MEMBERS = [
   { key: 'foreman', role: 'FOREMAN', name: 'Joseph Mwangi', email: 'foreman@nyota-builders.co.ke' },
   { key: 'owner', role: 'OWNER', name: 'Peter Karanja', email: 'owner@nyota-builders.co.ke' },
+  { key: 'qs', role: 'PM_QS', name: 'Faith Njeri', email: 'qs@nyota-builders.co.ke' },
 ];
 
 const iso = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
@@ -142,8 +143,8 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
     S.projectId = await ensureProject(request, S.admin);
     const pid = S.projectId!;
 
-    // Field + owner roles must be project members to see the project.
-    for (const role of ['FOREMAN', 'OWNER'] as const) {
+    // Field + owner + QS roles must be project members to see the project.
+    for (const role of ['FOREMAN', 'OWNER', 'PM_QS'] as const) {
       const who = sessions.get(role)!;
       const m = await apiPost(request, S.admin, `/api/v1/projects/${pid}/members`, { userId: who.user.id, role });
       expect([200, 201, 409]).toContain(m.status());
@@ -294,6 +295,18 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
       comments: 'Rates verified against the 2026 supplier schedule.',
     });
     expect(evalRes.status(), `evaluate: ${await evalRes.text()}`).toBeLessThan(300);
+
+    // Escalate to OWNER_REVIEW: the QS has no co-approval limit, so their
+    // approve attempt pushes the order to the owner — the only stage where
+    // the owner dashboard shows Approve (I4 gate).
+    const qs = sessions.get('PM_QS')!;
+    const esc = await apiPost(request, qs, `/api/v1/projects/${pid}/variations/${S.variationId}/review`, {
+      action: 'APPROVE',
+      comments: 'Above QS authority — escalating to owner.',
+    });
+    expect(esc.status(), `escalate: ${await esc.text()}`).toBeLessThan(300);
+    const escBody = unwrap(await esc.json());
+    expect(String(escBody.status || escBody.variation?.status)).toBe('OWNER_REVIEW');
   });
 
   // -------------------------------------------------------------------------
@@ -384,6 +397,7 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
     // Go offline, then log a safety incident — it must queue locally.
     await context.setOffline(true);
     await page.locator('button:visible', { hasText: /^Site$/ }).click();
+    await page.getByTestId('field-job-safety').click();
     await page.getByRole('button', { name: 'Log Safety Incident' }).click();
     await page.locator('input[placeholder*="Scaffolding"]').fill('Scaffolding Grid B-4, Level 2');
     await page.locator('textarea[placeholder*="Detailed narrative"]').fill('A scaffold board slipped during strike — no injury, area cordoned immediately.');
@@ -408,13 +422,14 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
     await expect(page.getByText('Owner Portal')).toBeVisible({ timeout: 30000 });
     await page.screenshot({ path: `${SHOTS}/h5-11-owner-dashboard.png`, fullPage: true });
 
-    // The pending CO card carries an Approve button (approved ones don't).
+    // The pending CO card carries an Owner Approve button (approved and
+    // still-in-PM-review ones don't — I4 gate).
     const coCard = page
       .locator('div.rounded-xl.border', { hasText: 'Additional basement waterproofing' })
-      .filter({ has: page.getByRole('button', { name: 'Approve', exact: true }) })
+      .filter({ has: page.getByRole('button', { name: 'Owner Approve', exact: true }) })
       .last();
     await expect(coCard).toBeVisible({ timeout: 15000 });
-    await coCard.getByRole('button', { name: 'Approve', exact: true }).click();
+    await coCard.getByRole('button', { name: 'Owner Approve', exact: true }).click();
     await page.fill('#app-dialog-input', 'Approved — proceed with the upgraded tanking as quoted.');
     await page.getByRole('button', { name: 'Submit', exact: true }).click();
     await expect(page.getByText(/is now APPROVED/i)).toBeVisible({ timeout: 15000 });

@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
-import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
-import { ResponsiveTable } from '../../ui';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
+import { ResponsiveTable, SavedDataNotice, formatDate } from '../../ui';
+import { fetchJsonCached } from '../../services/offline-cache';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -78,16 +79,19 @@ export default function CompliancePortalView({
   const [visitForm, setVisitForm] = useState({ visitDate: new Date().toISOString().slice(0, 10), outcome: 'COMPLIANT' as ComplianceVisit['outcome'], notes: '', actionDescription: '', actionDueDate: '' });
   const [visitBusy, setVisitBusy] = useState(false);
   const [visitFeedback, setVisitFeedback] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/portals/compliance/${token}`, { credentials: 'include' });
-        const body = await res.json();
-        if (!res.ok) throw portalHttpError(body.message || 'This portal link is invalid or has expired', res.status);
+        const { body, savedAt: staleAt } = await fetchJsonCached(
+          `/api/v1/portals/compliance/${token}`,
+          `portal:compliance:${token}`,
+        );
         if (cancelled) return;
+        if (staleAt) setSavedAt(staleAt);
         const d = body.data || body;
         if (d.regulatoryAuditor) setAuditor({ name: d.regulatoryAuditor.name || '', agency: d.regulatoryAuditor.agency || '' });
         if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
@@ -215,6 +219,7 @@ export default function CompliancePortalView({
 
   return (
 <div className="w-full max-w-5xl mx-auto space-y-6" data-testid="compliance-portal-view">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -319,8 +324,8 @@ export default function CompliancePortalView({
                 { content: p.issuer, className: 'font-semibold text-slate-900' },
                 { content: p.permitNumber, className: 'font-mono tabular-nums font-bold text-blue-700' },
                 { content: p.notes || PERMIT_TYPE_LABELS[p.permitType] || p.permitType, className: 'text-slate-600 max-w-xs' },
-                { content: p.issuedDate ? String(p.issuedDate).slice(0, 10) : '—', className: 'text-slate-600' },
-                { content: p.expiryDate ? `Expires ${String(p.expiryDate).slice(0, 10)}` : '—', className: 'text-slate-600' },
+                { content: p.issuedDate ? formatDate(p.issuedDate) : '—', className: 'text-slate-600' },
+                { content: p.expiryDate ? `Expires ${formatDate(p.expiryDate)}` : '—', className: 'text-slate-600' },
                 <span
                   key="st"
                   className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getPermitStatusBadge(p.status)}`}
@@ -490,7 +495,7 @@ export default function CompliancePortalView({
 <div key={v.id} className="py-3 space-y-1" data-testid={`visit-${v.id}`}>
 <div className="flex justify-between items-center gap-3">
 <div>
-<p className="font-bold text-slate-900">{new Date(v.visitDate).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+<p className="font-bold text-slate-900">{formatDate(v.visitDate)}</p>
 <p className="text-slate-500 text-[11px]">{v.recordedByName || 'Inspector'}{v.notes ? ` • ${v.notes}` : ''}</p>
 </div>
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -503,7 +508,7 @@ export default function CompliancePortalView({
 </div>
               {(v.actions || []).map((a) => (
 <p key={a.id} className="text-[11px] text-slate-600 pl-3 border-l-2 border-rose-200">
-                  Required: {a.description}{a.dueDate ? ` — due ${String(a.dueDate).slice(0, 10)}` : ''}
+                  Required: {a.description}{a.dueDate ? ` — due ${formatDate(a.dueDate)}` : ''}
                   {a.status ? ` (${String(a.status).replace(/_/g, ' ').toLowerCase()})` : ''}
 </p>
 ))}

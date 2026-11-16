@@ -273,7 +273,7 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
 
   it('renders OfflineSyncBanner with connection status and IndexedDB queue count', () => {
     const html = renderToString(<OfflineSyncBanner />);
-    expect(html).toContain('IndexedDB Offline Queue Active');
+    expect(html).toContain('All sent');
     expect(html).toContain('Online &amp; Synchronized');
 });
 

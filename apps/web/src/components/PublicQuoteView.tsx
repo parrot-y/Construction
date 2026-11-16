@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { toCurrencyString} from '@construction/money';
+import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
+import { SavedDataNotice, formatDate } from '../ui';
 
 interface PublicQuoteItem {
   id: string;
@@ -47,18 +49,21 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/public/quotes/${token}`);
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'This quote link is invalid or has expired');
+      const { body, savedAt: staleAt } = await fetchJsonCached(
+        `/api/public/quotes/${token}`,
+        `public-quote:${token}`,
+      );
+      if (staleAt) setSavedAt(staleAt);
       setQuote(body.quote);
       setContractor(body.contractor?.name ?? '');
 } catch (e: any) {
-      setError(e.message);
+      setError(isOfflineError(e) ? 'You appear to be offline — check your connection and try again.' : e.message);
 } finally {
       setLoading(false);
 }
@@ -116,6 +121,7 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm max-w-3xl mx-auto overflow-hidden">
+      {savedAt && <div className="px-6 pt-4"><SavedDataNotice savedAt={savedAt} /></div>}
 <div className="bg-slate-900 text-white px-6 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
 <p className="text-[10px] text-slate-400">Quotation</p>
@@ -168,7 +174,7 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 <p className="text-base font-bold text-slate-900">Total:<span className="tabular-nums">{quote.currency} {toCurrencyString(quote.total)}</span></p>
 <p className="text-emerald-700 font-semibold">Deposit required ({quote.deposit_pct}%):<span className="tabular-nums">{quote.currency} {toCurrencyString(quote.deposit_amount)}</span></p>
           {quote.valid_until && (
-<p className="text-[11px] text-slate-400 pt-1">Valid until {new Date(quote.valid_until).toLocaleDateString()}</p>
+<p className="text-[11px] text-slate-400 pt-1">Valid until {formatDate(quote.valid_until)}</p>
 )}
 </div>
 

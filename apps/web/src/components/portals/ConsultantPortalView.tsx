@@ -1,5 +1,7 @@
 import React, { useEffect, useState} from 'react';
-import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
+import { fetchJsonCached } from '../../services/offline-cache';
+import { SavedDataNotice, formatDate } from '../../ui';
 
 export interface ConsultantRfiItem {
   id: string;
@@ -97,16 +99,19 @@ export default function ConsultantPortalView({
   const [rejectReason, setRejectReason] = useState('');
   const [rejectPhoto, setRejectPhoto] = useState<File | null>(null);
   const [snagBusy, setSnagBusy] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/portals/consultant/${token}`, { credentials: 'include' });
-        const body = await res.json();
-        if (!res.ok) throw portalHttpError(body.message || 'This portal link is invalid or has expired', res.status);
+        const { body, savedAt: staleAt } = await fetchJsonCached(
+          `/api/v1/portals/consultant/${token}`,
+          `portal:consultant:${token}`,
+        );
         if (cancelled) return;
+        if (staleAt) setSavedAt(staleAt);
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', role: d.stakeholder.role || '' });
         if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
@@ -268,6 +273,7 @@ export default function ConsultantPortalView({
 
   return (
 <div className="w-full max-w-5xl mx-auto space-y-6" data-testid="consultant-portal-view">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Portal header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -589,8 +595,8 @@ export default function ConsultantPortalView({
 <h3 className="text-sm font-bold text-slate-900">{sn.description}</h3>
 <p className="text-xs text-slate-500">
                   {[sn.locationFloor, sn.locationRoom].filter(Boolean).join(' • ')}
-                  {sn.rectifiedAt ? ` • Rectified ${new Date(sn.rectifiedAt).toLocaleDateString()}` : ''}
-                  {sn.verifiedAt ? ` • Verified ${new Date(sn.verifiedAt).toLocaleDateString()}` : ''}
+                  {sn.rectifiedAt ? ` • Rectified ${formatDate(sn.rectifiedAt)}` : ''}
+                  {sn.verifiedAt ? ` • Verified ${formatDate(sn.verifiedAt)}` : ''}
 </p>
 {sn.photos && sn.photos.length > 0 && (
 <div className="flex gap-2 flex-wrap">
