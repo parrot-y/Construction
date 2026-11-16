@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState} from 'react';
 import { PRODUCT_NAME } from '../lib/product';
+import { formatDateTime } from '../lib/format';
 
 export type InspectionStage = 'substructure' | 'framing' | 'slab' | 'roofing' | 'finishes' | 'borehole';
 export type InspectionStatus = 'REQUESTED' | 'DISPATCHED' | 'COMPLETED' | 'CLIENT_REVIEWED';
@@ -158,7 +159,7 @@ const applyInspectionDetail = (insp: SiteInspectionReport, d: any): SiteInspecti
         ? `${Number(p.gpsLatitude).toFixed(6)}, ${Number(p.gpsLongitude).toFixed(6)}`
         : '—',
     timestamp: p.capturedAt
-      ? new Date(p.capturedAt).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi'}) + ' EAT'
+      ? formatDateTime(new Date(p.capturedAt)) + ' EAT'
       : '',
 }));
   const hasReview = !!(d.clientReviewNotes || d.clientSatisfactionRating != null);
@@ -340,7 +341,7 @@ export default function IndependentSiteReportView({
     const review: ClientReview = {
       rating: reviewRating,
       feedbackNotes: reviewNotes.trim(),
-      signedOffAt: new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi'}) + ' EAT',
+      signedOffAt: formatDateTime(new Date()) + ' EAT',
       clientName: reviewClientName.trim() || 'Diaspora Property Owner',
 };
 

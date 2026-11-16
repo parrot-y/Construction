@@ -2,6 +2,7 @@ import React, { useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { PRODUCT_NAME } from '../lib/product';
 import { statusLabel } from '../lib/status-labels';
+import { formatDateTime } from '../lib/format';
 
 export type TenderStatus = 'OPEN' | 'UNDER_REVIEW' | 'AWARDED';
 
@@ -305,7 +306,7 @@ export default function ContractorTenderBoardView({
       contactPerson: bidContactPerson.trim() || 'Managing Director',
       contactPhone: bidContactPhone.trim(),
       pastProjectsSummary: bidPastProjects.trim() || 'Past commercial construction works verified.',
-      submittedAt: new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi'}) + ' EAT',
+      submittedAt: formatDateTime(new Date()) + ' EAT',
 };
 
     const updatedBids = calculateRankedBids([...activeTender.bids, newBid]);
@@ -341,7 +342,7 @@ export default function ContractorTenderBoardView({
           ...t,
           status: 'AWARDED' as TenderStatus,
           awardedBidId: bidId,
-          awardedAt: new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi'}) + ' EAT',
+          awardedAt: formatDateTime(new Date()) + ' EAT',
 };
 }
       return t;

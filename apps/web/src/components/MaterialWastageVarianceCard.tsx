@@ -1,5 +1,6 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
 
 export interface MaterialWastageItem {
   id: string;
@@ -306,7 +307,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 <tr key={rec.id} className="hover:bg-slate-50/80 transition">
 <td className="py-3 px-4">
 <p className="font-semibold text-slate-900">{rec.periodName}</p>
-<p className="text-xs text-slate-400">{new Date(rec.createdAt).toLocaleDateString()}</p>
+<p className="text-xs text-slate-400">{formatDate(new Date(rec.createdAt))}</p>
 </td>
 <td className="py-3 px-4 font-medium text-slate-800">
                     {rec.materialName}

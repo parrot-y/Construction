@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
 
 interface CompanyDoc {
   id: string; title: string; category?: string | null; reference_no?: string | null;
@@ -183,7 +184,7 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 )}
 </div>
 <p className="text-[11px] text-slate-500 mt-0.5">
-                  {d.reference_no ? `Ref: ${d.reference_no} · ` : ''}{d.file_name ? `${d.file_name} · ` : ''}{d.uploaded_by_name} · {new Date(d.created_at).toLocaleDateString()}
+                  {d.reference_no ? `Ref: ${d.reference_no} · ` : ''}{d.file_name ? `${d.file_name} · ` : ''}{d.uploaded_by_name} · {formatDate(new Date(d.created_at))}
 </p>
                 {d.notes &&<p className="text-[11px] text-slate-600 mt-1">{d.notes}</p>}
 </div>

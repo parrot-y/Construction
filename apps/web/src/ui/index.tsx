@@ -318,7 +318,7 @@ export function CopyWhatsAppButton({
 }
 
 // ---------------------------------------------------------------- shared dates
-export { formatDate, formatDateTime } from '../lib/format';
+export { formatDate, formatDateTime, formatTime } from '../lib/format';
 
 /** Amber notice shown above last-saved data rendered while offline. */
 export function SavedDataNotice({ savedAt, className = '' }: { savedAt: string; className?: string }) {

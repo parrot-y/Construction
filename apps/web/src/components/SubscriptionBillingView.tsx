@@ -1,5 +1,6 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
+import { formatDate, formatDateTime } from '../lib/format';
 
 export interface SubscriptionTransactionItem {
   id: string;
@@ -315,10 +316,10 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 )}
 </td>
 <td className="p-3 text-slate-500">
-                    {tx.subscriptionPeriodEnd ? new Date(tx.subscriptionPeriodEnd).toLocaleDateString('en-KE') : '—'}
+                    {tx.subscriptionPeriodEnd ? formatDate(new Date(tx.subscriptionPeriodEnd)) : '—'}
 </td>
 <td className="p-3 text-slate-400">
-                    {new Date(tx.createdAt).toLocaleString('en-KE')}
+                    {formatDateTime(new Date(tx.createdAt))}
 </td>
 </tr>
 ))}

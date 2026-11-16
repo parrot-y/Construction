@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatTime } from '../lib/format';
 
 export interface WebhookLogItem {
   id: string;
@@ -363,7 +364,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                       {log.senderName}<span className="tabular-nums text-xs font-normal text-slate-500">({log.senderPhone})</span>
 </div>
 <div className="text-[11px] text-slate-400">
-                      {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})} • Via Meta WhatsApp Cloud API
+                      {formatTime(new Date(log.createdAt))} • Via Meta WhatsApp Cloud API
 </div>
 </div>
 </div>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
 
 interface Template {
   id: string; title: string; trade_category: string; kind: string;
@@ -297,7 +298,7 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 <p className="text-[11px] text-slate-500 mt-0.5">
                       Trade: {a.trade}{a.assigned_to_name ? ` · → ${a.assigned_to_name}` : ''}
                       {a.due_date ? ` · due ${a.due_date}` : ''}
-                      {a.submitted_at ? ` · submitted ${new Date(a.submitted_at).toLocaleDateString()}` : ''}
+                      {a.submitted_at ? ` · submitted ${formatDate(new Date(a.submitted_at))}` : ''}
 </p>
                     {a.review_notes &&<p className="text-[11px] text-slate-500 mt-1 italic">Review: {a.review_notes}{a.reviewed_by_name ? ` — ${a.reviewed_by_name}` : ''}</p>}
 </div>

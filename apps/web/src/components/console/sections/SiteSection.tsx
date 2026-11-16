@@ -11,6 +11,7 @@ import QualityControlView from '../../QualityControlView';
 import IndependentSiteReportView from '../../IndependentSiteReportView';
 import SiteDiaryModal from '../../SiteDiaryModal';
 import { IconPlus} from '../icons';
+import { formatDate } from '../../../lib/format';
 
 function EmptyProject({ what}: { what: string}): React.JSX.Element {
   return (
@@ -84,7 +85,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 <div key={key} className="px-4 py-3 flex items-center justify-between gap-3">
 <div className="min-w-0">
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                        {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short'})}
+                        {formatDate(d)}
                         {isToday &&<span className="ml-2 text-[10px] font-bold text-orange-600 ">Today</span>}
 </p>
 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">

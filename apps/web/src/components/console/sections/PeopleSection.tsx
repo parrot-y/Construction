@@ -5,6 +5,7 @@ import CrewsView from '../../CrewsView';
 import SubcontractorManagementView from '../../SubcontractorManagementView';
 import { IconPlus} from '../icons';
 import { useAppDialog } from '../../AppDialog';
+import { formatDate } from '../../../lib/format';
 
 const ASSIGN_ROLES = ['COMPANY_ADMIN','CLIENT','ARCHITECT','PM_QS','QA_QC','OWNER','EXECUTIVE','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE','ADMIN','SITE_SUPERVISOR'];
 const ROLE_LABELS: Record<string, string> = {
@@ -247,7 +248,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
                 {inv.status}
 </span>
 <span className="text-[10px] text-slate-400">
-                expires {new Date(inv.expiresAt).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
+                expires {formatDate(new Date(inv.expiresAt))}
 </span>
 <div className="ml-auto flex items-center gap-3">
                   {inv.status === 'PENDING' && (

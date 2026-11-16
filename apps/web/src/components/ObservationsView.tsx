@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
 
 interface Observation {
   id: string;
@@ -236,7 +237,7 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 <span className="tabular-nums text-[10px] font-bold text-slate-400">{o.ref}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${TYPE_STYLE[o.type] || 'bg-slate-100 text-slate-600'}`}>{o.type[0] + o.type.slice(1).toLowerCase()}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${OBS_STATUS_STYLE[o.status]}`}>{o.status.replace('_', ' ')}</span>
-<span className="text-[10px] text-slate-400">{o.priority} · {o.raised_by_name} · {new Date(o.created_at).toLocaleDateString()}</span>
+<span className="text-[10px] text-slate-400">{o.priority} · {o.raised_by_name} · {formatDate(new Date(o.created_at))}</span>
 </div>
 <h4 className="text-sm font-bold text-slate-900 mt-1">{o.title}</h4>
                       {o.location &&<p className="text-[11px] text-slate-500"> {o.location}</p>}
@@ -299,7 +300,7 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 <div className="min-w-0">
 <div className="flex items-center gap-2 flex-wrap">
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${a.effective_status === 'OVERDUE' ? 'bg-rose-50 text-rose-700' : a.effective_status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{a.effective_status}</span>
-<span className="text-[10px] text-slate-400">Owner: {a.owner_name}{a.due_date ? ` · due ${new Date(a.due_date).toLocaleDateString()}` : ''}</span>
+<span className="text-[10px] text-slate-400">Owner: {a.owner_name}{a.due_date ? ` · due ${formatDate(new Date(a.due_date))}` : ''}</span>
                         {a.observation &&<span className="px-2 py-0.5 text-[10px] font-mono tabular-nums bg-indigo-50 text-indigo-700 rounded-full">OBS-{String(a.observation.obs_number).padStart(3, '0')}</span>}
                         {a.source_ref &&<span className="text-[10px] text-slate-400 font-mono tabular-nums">src: {a.source_ref}</span>}
 </div>

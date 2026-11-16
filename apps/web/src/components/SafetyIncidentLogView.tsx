@@ -3,6 +3,7 @@ import { queueOfflineMutation } from '../services/offline-sync';
 import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
 import { SavedDataNotice } from '../ui';
 import { statusLabel } from '../lib/status-labels';
+import { formatDateTime } from '../lib/format';
 
 export interface SafetyIncident {
   id: string;
@@ -344,7 +345,7 @@ export default function SafetyIncidentLogView({
 </span>
 )}
 <span className="text-xs text-slate-400">
-                      • {new Date(item.incident_date).toLocaleString()}
+                      • {formatDateTime(new Date(item.incident_date))}
 </span>
 </div>
 

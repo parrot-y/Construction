@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
 
 export interface SoilTestRecord {
   id: string;
@@ -379,7 +380,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 <td className="px-4 py-3">
 <div className="font-semibold text-gray-900">{test.testNumber}</div>
 <div className="text-xs text-gray-500 font-mono tabular-nums mt-0.5">
-                        {new Date(test.testDate).toLocaleDateString()}
+                        {formatDate(new Date(test.testDate))}
 </div>
 <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
                         {test.testMethod.replace('_', ' ')}

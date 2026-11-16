@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatDate, formatDateTime } from '../../lib/format';
 
 interface SessionRow {
   id: string;
@@ -53,7 +54,7 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
                     {s.current &&<span className="ml-2 text-[10px] font-bold text-emerald-600">THIS DEVICE</span>}
 </p>
 <p className="text-[10px] text-slate-400">
-                    Signed in {new Date(s.createdAt).toLocaleString()} · expires {new Date(s.expiresAt).toLocaleDateString()}
+                    Signed in {formatDateTime(new Date(s.createdAt))} · expires {formatDate(new Date(s.expiresAt))}
 </p>
 </div>
                 {!s.current && (

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../lib/apiClient';
 import { formatKes } from '../ui';
+import { formatDate } from '../lib/format';
 
 /**
  * G1 — "Payments to review" panel for money-approval roles. Lists provider
@@ -118,7 +119,7 @@ export default function PaymentReviewPanel({
 <span className="text-[10px] text-slate-400 uppercase font-bold">{c.provider}</span>
 </div>
 <p className="text-[11px] text-slate-600">
-              Invoice #{c.invoiceNo ?? c.invoiceId.slice(0, 8)} · ref {c.reference} · {new Date(c.createdAt).toLocaleDateString()}
+              Invoice #{c.invoiceNo ?? c.invoiceId.slice(0, 8)} · ref {c.reference} · {formatDate(new Date(c.createdAt))}
 </p>
 <p className="text-[11px] text-amber-800"><span className="font-bold">Held because:</span> {plainReason(c.reason)}</p>
 

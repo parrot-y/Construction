@@ -5,6 +5,7 @@ import { api, ApiError } from '../lib/apiClient';
 import { formatKes } from '../ui';
 import PaymentReviewPanel from './PaymentReviewPanel';
 import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
 
 interface InvoiceItem {
   id?: string;
@@ -309,7 +310,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
     window.open(`/api/v1/invoices/${id}/pdf`, '_blank');
 };
 
-  const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
+  const fmtDate = (d?: string | null) => (d ? formatDate(new Date(d)) : '—');
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">

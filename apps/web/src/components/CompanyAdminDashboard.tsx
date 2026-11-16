@@ -25,6 +25,7 @@ import IntegrationsView from './IntegrationsView';
 import ScheduledReportsView from './ScheduledReportsView';
 import { useAppDialog } from './AppDialog';
 import { statusLabel } from '../lib/status-labels';
+import { formatDateTime } from '../lib/format';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -361,7 +362,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
 <div>
 <p className="font-semibold text-slate-800">{a.action} • {a.entity_type}</p>
-<p className="text-[11px] text-slate-500">{a.created_at ? new Date(a.created_at).toLocaleString() : ''}</p>
+<p className="text-[11px] text-slate-500">{a.created_at ? formatDateTime(new Date(a.created_at)) : ''}</p>
 </div>
 </div>
 )) : (

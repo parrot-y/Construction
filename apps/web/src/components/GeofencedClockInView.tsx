@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { queueOfflineMutation} from '../services/offline-sync';
+import { formatTime } from '../lib/format';
 
 export interface GeofenceItem {
   id: string;
@@ -600,7 +601,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                     {evt.photoSelfieUrl ? 'Photo Verified' : 'No Photo'}
 </td>
 <td className="p-3 text-slate-400">
-                    {new Date(evt.eventTimestamp).toLocaleTimeString('en-KE')}
+                    {formatTime(new Date(evt.eventTimestamp))}
 </td>
 </tr>
 ))}

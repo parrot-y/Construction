@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { api } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
+import { formatDate, formatDateTime } from '../lib/format';
 
 interface QuoteItem {
   id?: string;
@@ -456,7 +457,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 </span>
                       {q.responded_by &&<span className="block text-[10px] text-slate-400 mt-0.5">by {q.responded_by}</span>}
 </td>
-<td className="py-2.5 pr-3 text-slate-500">{q.valid_until ? new Date(q.valid_until).toLocaleDateString() : '—'}</td>
+<td className="py-2.5 pr-3 text-slate-500">{q.valid_until ? formatDate(new Date(q.valid_until)) : '—'}</td>
 <td className="py-2.5 space-x-1.5 whitespace-nowrap">
                       {(q.status === 'DRAFT' || q.status === 'SENT') && (
 <button onClick={() => handleSend(q)} disabled={busyId === q.id}
@@ -526,7 +527,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <span className="font-bold text-slate-800">{ev.event}</span>
                                     {ev.actor_name ? ` — ${ev.actor_name}` : ''}
 <span className="block text-[10px] text-slate-400">
-                                      {ev.actor_type} • {new Date(ev.created_at).toLocaleString()}
+                                      {ev.actor_type} • {formatDateTime(new Date(ev.created_at))}
                                       {ev.note ? ` • ${ev.note}` : ''}
 </span>
 </li>

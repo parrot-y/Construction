@@ -4,6 +4,7 @@ import CostCaptureModal from './CostCaptureModal';
 import { useAppDialog } from './AppDialog';
 import { api, ApiError } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
 
 export interface CostItem {
   id: string;
@@ -205,7 +206,7 @@ export default function CostManagementView({
 <td className="py-3 px-3 font-sans">
 <span className="font-semibold text-slate-900 block">{cost.vendor_name || 'Direct Site Expense'}</span>
 <span className="text-[10px] text-slate-400 block font-mono tabular-nums">
-                      {new Date(cost.created_at).toLocaleDateString()} {cost.invoice_ref ? `• ${cost.invoice_ref}` : ''}
+                      {formatDate(new Date(cost.created_at))} {cost.invoice_ref ? `• ${cost.invoice_ref}` : ''}
 </span>
 </td>
 <td className="py-3 px-3 font-sans">

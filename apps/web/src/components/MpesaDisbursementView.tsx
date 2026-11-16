@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { formatTime } from '../lib/format';
 
 export interface MpesaDisbursementItem {
   id: string;
@@ -269,7 +270,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
                   {tx.mpesaTransactionId || '—'}
 </td>
 <td className="px-4 py-3 text-right text-xs text-gray-500">
-                  {tx.completedAt ? new Date(tx.completedAt).toLocaleTimeString() : '—'}
+                  {tx.completedAt ? formatTime(new Date(tx.completedAt)) : '—'}
 </td>
 <td className="px-4 py-3 text-center">
                   {isLive && tx.status === 'PENDING_APPROVAL' && (

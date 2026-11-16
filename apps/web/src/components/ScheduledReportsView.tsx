@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDateTime } from '../lib/format';
 
 interface ScheduledReport {
   id: string; name: string; report_type: string; frequency: string;
@@ -186,7 +187,7 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
                     {r.project ? `${r.project.code} — ${r.project.name}` : 'All projects'} · → {r.recipients.join(', ')}
 </p>
 <p className="text-[10px] text-slate-400 mt-0.5">
-                    Next: {r.next_run_at ? new Date(r.next_run_at).toLocaleString() : '—'} · Last: {r.last_run_at ? new Date(r.last_run_at).toLocaleString() : 'never'}
+                    Next: {r.next_run_at ? formatDateTime(new Date(r.next_run_at)) : '—'} · Last: {r.last_run_at ? formatDateTime(new Date(r.last_run_at)) : 'never'}
 </p>
 </div>
 <div className="flex flex-col gap-1 shrink-0">
@@ -214,7 +215,7 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
 ) : (
                     (runs[r.id] || []).map((run: any) => (
 <div key={run.id} className="flex items-center justify-between text-[11px]">
-<span className="text-slate-600">{new Date(run.ran_at).toLocaleString()}</span>
+<span className="text-slate-600">{formatDateTime(new Date(run.ran_at))}</span>
 <span className={`font-bold ${run.status === 'SUCCESS' ? 'text-emerald-600' : 'text-rose-600'}`}>{run.status}</span>
 </div>
 ))

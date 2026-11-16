@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatTime } from '../lib/format';
 
 export interface RmcSlumpTestRecord {
   id: string;
@@ -566,7 +567,7 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
 <td className="px-4 py-3">
                         {getTransitBadge(elapsedMinutes)}
 <div className="text-xs text-gray-400 mt-1">
-                          Dispatched: {new Date(delivery.dispatchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                          Dispatched: {formatTime(new Date(delivery.dispatchedAt))}
 </div>
 </td>
 <td className="px-4 py-3">

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CopyWhatsAppButton } from '../ui';
 import { PRODUCT_NAME } from '../lib/product';
+import { formatDate } from '../lib/format';
 
 export interface PortalLinkItem {
   id: string;
@@ -174,7 +175,7 @@ export default function PortalAccessLinkManager({
     }
   };
 
-  const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never');
+  const fmt = (iso?: string | null) => (iso ? formatDate(new Date(iso)) : 'Never');
 
   return (
     <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4" data-testid="portal-link-manager">

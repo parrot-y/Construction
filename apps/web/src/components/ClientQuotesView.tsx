@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
 
 interface ClientQuoteItem {
   id: string;
@@ -126,8 +127,8 @@ export default function ClientQuotesView(): React.JSX.Element {
                     Q-{String(q.quote_no).padStart(4, '0')} — {q.title}
 </p>
 <p className="text-[11px] text-slate-500">
-                    Issued {new Date(q.created_at).toLocaleDateString()}
-                    {q.valid_until ? ` • Valid until ${new Date(q.valid_until).toLocaleDateString()}` : ''}
+                    Issued {formatDate(new Date(q.created_at))}
+                    {q.valid_until ? ` • Valid until ${formatDate(new Date(q.valid_until))}` : ''}
                     {q.responded_by ? ` • Responded by ${q.responded_by}` : ''}
 </p>
 </div>
@@ -200,7 +201,7 @@ export default function ClientQuotesView(): React.JSX.Element {
 
               {q.status === 'ACCEPTED' && (
 <p className="text-[11px] font-semibold text-emerald-700 border-t border-slate-100 pt-2">
-                   Accepted{q.responded_at ? ` on ${new Date(q.responded_at).toLocaleDateString()}` : ''}
+                   Accepted{q.responded_at ? ` on ${formatDate(new Date(q.responded_at))}` : ''}
                   {q.responded_by ? ` by ${q.responded_by}` : ''}. The contractor will commence project setup.
 </p>
 )}

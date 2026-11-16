@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import CreateRfiModal, { RfiPriority, ConsultantRole} from './CreateRfiModal';
 import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
 
 export type RfiStatus = 'SUBMITTED' | 'ANSWERED' | 'CLOSED';
 
@@ -440,7 +441,7 @@ export default function RfiManagementView({
                                     Submitted by: {rfi.submittedBy}
 </span>
 <span className="mx-1">•</span>
-<span>{new Date(rfi.submittedAt).toLocaleDateString()}</span>
+<span>{formatDate(new Date(rfi.submittedAt))}</span>
 </div>
 <span className="text-purple-700 font-semibold">
                                   Assigned to: {rfi.assignedConsultant}
@@ -498,7 +499,7 @@ export default function RfiManagementView({
 </div>
 </div>
 <span className="text-[11px] text-slate-500 tabular-nums">
-                                        {new Date(resp.respondedAt).toLocaleDateString()}
+                                        {formatDate(new Date(resp.respondedAt))}
 </span>
 </div>
 <p className="text-slate-800 leading-relaxed font-sans">

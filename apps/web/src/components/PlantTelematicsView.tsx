@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { statusLabel } from '../lib/status-labels';
+import { formatTime } from '../lib/format';
 
 export interface TelematicsDeviceItem {
   id: string;
@@ -897,7 +898,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 )}
 </td>
 <td className="p-3 text-slate-400">
-                      {new Date(evt.pingTimestamp).toLocaleTimeString('en-KE')}
+                      {formatTime(new Date(evt.pingTimestamp))}
 </td>
 </tr>
 ))
@@ -963,7 +964,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                   {alert.status === 'ACKNOWLEDGED' && alert.acknowledgedBy && (
 <p className="text-[11px] text-emerald-700 font-medium">
                        Acknowledged by {alert.acknowledgedBy} at{' '}
-                      {alert.acknowledgedAt ? new Date(alert.acknowledgedAt).toLocaleTimeString('en-KE') : 'recently'}
+                      {alert.acknowledgedAt ? formatTime(new Date(alert.acknowledgedAt)) : 'recently'}
 </p>
 )}
 </div>
@@ -1186,7 +1187,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </span>
 )}
 </td>
-<td className="p-3 text-slate-400">{new Date(p.pingTimestamp).toLocaleTimeString('en-KE')}</td>
+<td className="p-3 text-slate-400">{formatTime(new Date(p.pingTimestamp))}</td>
 </tr>
 ))}
 </tbody>

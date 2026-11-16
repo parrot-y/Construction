@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import CreateSnagModal, { SnagSeverity, TradeCategory} from './CreateSnagModal';
+import { formatDate } from '../lib/format';
 
 export type SnagStatus = 'OPEN' | 'IN_PROGRESS' | 'READY_FOR_REVIEW' | 'RECTIFIED_BY_CONTRACTOR' | 'VERIFIED_CLOSED' | 'CONTESTED' | 'REJECTED';
 
@@ -464,7 +465,7 @@ export default function SnaggingListView({
                       Raised by:<span className="font-medium text-slate-700">{snag.raisedBy}</span>
 </span>
 <span>•</span>
-<span>{new Date(snag.raisedAt).toLocaleDateString()}</span>
+<span>{formatDate(new Date(snag.raisedAt))}</span>
                     {snag.rectifiedBy && (
 <>
 <span>•</span>

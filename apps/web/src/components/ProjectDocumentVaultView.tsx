@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
 
 export interface ProjectDocument {
   id: string;
@@ -311,7 +312,7 @@ export default function ProjectDocumentVaultView({
 
 <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-2">
 <span className="text-[11px] text-slate-400">
-                  {new Date(doc.uploaded_at).toLocaleDateString()}
+                  {formatDate(new Date(doc.uploaded_at))}
 </span>
 <a
                   href={doc.file_url}

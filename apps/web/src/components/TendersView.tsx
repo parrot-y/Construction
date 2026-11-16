@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
 
 interface Tender {
   id: string; tenderCode: string; title: string; tradeCategory?: string;
@@ -223,7 +224,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <span className="tabular-nums text-indigo-600">{t.tenderCode}</span> — {t.title}
 </p>
 <p className="text-[10px] text-slate-500 mt-0.5">
-                      {t.tradeCategory || 'General'} · Budget {fmt(t.budgetKes)} · {t.durationWeeks}w · due {new Date(t.submissionDeadline).toLocaleDateString()}
+                      {t.tradeCategory || 'General'} · Budget {fmt(t.budgetKes)} · {t.durationWeeks}w · due {formatDate(new Date(t.submissionDeadline))}
 </p>
 </div>
 <div className="flex items-center gap-2">

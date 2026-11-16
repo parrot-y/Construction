@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDate, formatDateTime } from '../lib/format';
 
 interface Announcement {
   id: string;
@@ -203,8 +204,8 @@ export default function AnnouncementsView({ canManage = true}: { canManage?: boo
 </div>
 <p className="text-xs text-slate-600 mt-1.5 whitespace-pre-wrap">{a.body}</p>
 <p className="text-[10px] text-slate-400 mt-2">
-                    {a.published_at ? new Date(a.published_at).toLocaleString() : 'Draft'}
-                    {a.expires_at ? ` · expires ${new Date(a.expires_at).toLocaleDateString()}` : ''}
+                    {a.published_at ? formatDateTime(new Date(a.published_at)) : 'Draft'}
+                    {a.expires_at ? ` · expires ${formatDate(new Date(a.expires_at))}` : ''}
                     {' · '}{a.read_count} read{a.read_count === 1 ? '' : 's'}
 </p>
 </div>
@@ -235,7 +236,7 @@ export default function AnnouncementsView({ canManage = true}: { canManage?: boo
                       {(readers[a.id] || []).map((r) => (
 <li key={r.user_id} className="text-[11px] text-slate-600 flex justify-between">
 <span>{r.user?.full_name || r.user?.email || r.user_id.slice(0, 8)}</span>
-<span className="font-mono tabular-nums text-slate-400">{new Date(r.read_at).toLocaleString()}</span>
+<span className="font-mono tabular-nums text-slate-400">{formatDateTime(new Date(r.read_at))}</span>
 </li>
 ))}
 </ul>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { formatDate, formatTime } from '../lib/format';
 
 export interface InventoryItem {
   id: string;
@@ -427,7 +428,7 @@ export default function SiteInventoryManagementView({
                 return (
 <tr key={m.id} className="hover:bg-slate-50">
 <td className="py-2.5 px-3 text-slate-500">
-                      {new Date(m.recorded_at).toLocaleDateString()} {new Date(m.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                      {formatDate(new Date(m.recorded_at))} {formatTime(new Date(m.recorded_at))}
 </td>
 <td className="py-2.5 px-3">
 <span

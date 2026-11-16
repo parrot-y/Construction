@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AuthSession } from '../types/auth';
 import { PRODUCT_NAME } from '../lib/product';
+import { formatDate } from '../lib/format';
 
 interface InviteInfo {
   email: string;
@@ -198,7 +199,7 @@ export default function InviteAcceptView({
           </p>
           {invite.expiresAt && (
             <p className="mt-1 text-xs text-slate-500">
-              Link expires {new Date(invite.expiresAt).toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}
+              Link expires {formatDate(new Date(invite.expiresAt))}
             </p>
           )}
         </div>

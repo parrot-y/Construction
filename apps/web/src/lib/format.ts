@@ -39,3 +39,11 @@ export function formatDateTime(value?: string | Date | null): string {
   if (isNaN(d.getTime())) return formatDate(value);
   return `${formatDate(d)}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/** "07:45" — 24-hour local time for timestamps where only the time matters. */
+export function formatTime(value?: string | Date | null): string {
+  if (value == null || value === '') return '—';
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (isNaN(d.getTime())) return '—';
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

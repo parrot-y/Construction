@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatTime } from '../lib/format';
 
 interface Laborer { id: string; full_name: string; worker_code: string; trade_category: string}
 interface AttRow {
@@ -206,8 +207,8 @@ export default function AttendanceView({ projectId, canManage = true}: { project
                   {row && (
 <>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLE[row.status] || 'bg-slate-100 text-slate-600'}`}>{row.status.replace('_', ' ')}</span>
-                      {row.check_in_at &&<span className="text-[10px] text-slate-400">in {new Date(row.check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}</span>}
-                      {row.check_out_at &&<span className="text-[10px] text-slate-400">out {new Date(row.check_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}{row.hours_worked ? ` (${row.hours_worked}h)` : ''}</span>}
+                      {row.check_in_at &&<span className="text-[10px] text-slate-400">in {formatTime(new Date(row.check_in_at))}</span>}
+                      {row.check_out_at &&<span className="text-[10px] text-slate-400">out {formatTime(new Date(row.check_out_at))}{row.hours_worked ? ` (${row.hours_worked}h)` : ''}</span>}
 </>
 )}
                   {canManage && !row?.check_in_at && (
