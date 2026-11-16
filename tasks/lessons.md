@@ -98,3 +98,18 @@ The live dev API uses `construction_demo`, tests/verify use `construction_test` 
 - verify-local.sh is the real gate: the API suite runs ~10min and catches drift the targeted runs miss — always re-run it on the FINAL sha before claiming done.
 - Token-scoped portal POST routes must be added to route-guard.test.ts UNAUTHENTICATED_ALLOWLIST with a justification — the static scan fails otherwise.
 - Evidence folder named for the commit that CAPTURED it can drift from later fix commits; decide once (capture-commit vs final-commit) and document — do not rename per fix or the trail churns.
+
+## 2026-11-16 — never run verify-local and Playwright concurrently
+
+Running `scripts/verify-local.sh` (vitest API suite) and the full
+Playwright matrix on the same host starves both: PDF worker renders
+exceeded their 15s timeout, Prisma transactions expired (P2028),
+browser fetches timed out, and 3 e2e tests flaked. All passed in
+isolation. Rule: run them sequentially.
+
+## 2026-11-16 — PDF renders must not share the 5s tenant-tx lease
+
+`renderPdfToBufferLimited` inside `withTenantTx` hit Prisma's default
+5s interactive-transaction timeout under load (P2028 → 500). Fixed by
+`PDF_TX_OPTIONS` (30s) on all six render-inside-tx routes; the worker's
+own 15s render timeout still bounds the render itself.
