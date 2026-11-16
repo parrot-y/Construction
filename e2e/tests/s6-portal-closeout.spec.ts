@@ -219,7 +219,7 @@ test.describe.serial('Stage 6 — portal closeout journeys', () => {
 
     const card = page.getByTestId('sub-retention-release-card');
     await expect(card).toBeVisible({ timeout: 15000 });
-    await expect(card.getByText(/Held/)).toBeVisible();
+    await expect(card.getByText(/Held KES/)).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/06-sub-retention-held.png`, fullPage: true });
 
     await card.getByTestId('request-retention-release-btn').click();

@@ -156,7 +156,7 @@ test.describe.serial('H2 — subcontractor retention console review', () => {
     await page.screenshot({ path: `${SHOTS}/01-qs-retention-pending-390.png`, fullPage: true });
 
     await row.getByRole('button', { name: 'QS Recommend' }).click();
-    await expect(row).toContainText('QS_RECOMMENDED', { timeout: 15_000 });
+    await expect(row).toContainText('Recommended by QS', { timeout: 15_000 });
     await page.screenshot({ path: `${SHOTS}/02-qs-recommended-390.png`, fullPage: true });
   });
 
