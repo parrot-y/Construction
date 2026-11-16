@@ -316,9 +316,11 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
         reason: 'Client requested upgraded basement tanking after the geotechnical review.',
         triggerType: 'CLIENT_REQUEST',
         timeExtensionDays: 5,
+        // K4: the Nyota tenant persists across runs — vary the rates by the
+        // number of existing variations so no two COs ever share title+amount.
         items: [
-          { description: 'Extra basement tanking membrane and protection board', unit: 'm2', quantity: 850, unitRate: 1450 },
-          { description: 'Additional site supervision for tanking works', unit: 'day', quantity: 10, unitRate: 8500 },
+          { description: 'Extra basement tanking membrane and protection board', unit: 'm2', quantity: 850, unitRate: 1450 + vos.length * 31 },
+          { description: 'Additional site supervision for tanking works', unit: 'day', quantity: 10, unitRate: 8500 + vos.length * 137 },
         ],
       });
       expect(vo.status(), `variation: ${await vo.text()}`).toBeLessThan(300);

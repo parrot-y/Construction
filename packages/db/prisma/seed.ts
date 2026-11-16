@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword, withTenantTx } from '../src/index';
+import { VARIATION_SEEDS } from '../src/variation-seeds';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -292,40 +293,7 @@ export async function seed() {
     // Variations — different titles, amounts and lifecycle states.
     if ((await tx.variationOrder.count({ where: { project_id: project.id } })) === 0) {
       const maxNo = (await tx.variationOrder.aggregate({ where: { project_id: project.id }, _max: { variation_no: true } }))._max.variation_no ?? 0;
-      const variationSeeds = [
-        {
-          title: 'Additional basement waterproofing membrane',
-          reason: 'Geotechnical review recommended upgraded tanking below water table.',
-          trigger_type: 'UNFORESEEN_CONDITION', status: 'APPROVED',
-          net_amount: 486000, time_extension_days: 5,
-          items: [{ description: 'Torch-on waterproofing, basement slab and walls', unit: 'm2', quantity: 1850, unit_rate: 262.16 }],
-          submittedDaysAgo: 62, approvedDaysAgo: 40,
-        },
-        {
-          title: 'Upgrade lobby flooring to Italian porcelain',
-          reason: 'Client requested premium finish in double-volume lobby.',
-          trigger_type: 'OWNER_REQUEST', status: 'OWNER_REVIEW',
-          net_amount: 1247500, time_extension_days: 0,
-          items: [{ description: 'Supply and lay 600x600 porcelain tiles', unit: 'm2', quantity: 420, unit_rate: 2970 }],
-          submittedDaysAgo: 9,
-        },
-        {
-          title: 'Relocate switchroom for DIB approval',
-          reason: 'County planning feedback required switchroom away from boundary.',
-          trigger_type: 'CODE_COMPLIANCE', status: 'PM_REVIEW',
-          net_amount: 218400, time_extension_days: 3,
-          items: [{ description: 'Relocate LV switchgear and containment', unit: 'item', quantity: 1, unit_rate: 218400 }],
-          submittedDaysAgo: 4,
-        },
-        {
-          title: 'Extra drainage soak-away for roof runoff',
-          reason: 'Hydraulic calculation showed undersized yard drain.',
-          trigger_type: 'DESIGN_CLARIFICATION', status: 'DRAFT',
-          net_amount: -96000, time_extension_days: 0,
-          items: [{ description: 'Omit duplicate soak-away chamber (credit)', unit: 'item', quantity: 1, unit_rate: -96000 }],
-          submittedDaysAgo: null,
-        },
-      ];
+      const variationSeeds = VARIATION_SEEDS;
       let seq = maxNo;
       for (const v of variationSeeds) {
         seq += 1;
