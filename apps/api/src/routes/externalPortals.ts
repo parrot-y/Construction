@@ -2090,15 +2090,6 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           itemId = item.id;
         }
 
-        // Over-invoice detection: invoiced-to-date (non-rejected) + this
-        // invoice vs the PO total. Over-limit claims are flagged REVIEW_REQUIRED
-        // and notified to the PM — cost posting stays blocked until reviewed.
-        const invoicedToDate = po.invoices
-          .filter((i) => i.status !== 'REJECTED')
-          .reduce((acc, i) => acc.plus(toDecimal(i.amount.toString())), toDecimal('0'));
-        const poTotal = toDecimal(po.total_amount_kes.toString());
-        const overInvoiced = invoicedToDate.plus(amount).gt(poTotal);
-
         // replacesInvoiceRef: the corrected invoice supersedes the rejected
         // one — mark the original REJECTED so match maths ignore it.
         if (body.replacesInvoiceRef) {
@@ -2108,6 +2099,22 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           });
         }
 
+        // Over-invoice refusal (K5): cumulative non-rejected invoicing plus
+        // this invoice must not exceed the PO total — the API rejects it
+        // outright instead of queueing a REVIEW_REQUIRED row.
+        const replacedRef = body.replacesInvoiceRef ? String(body.replacesInvoiceRef).trim() : null;
+        const invoicedToDate = po.invoices
+          .filter((i) => i.status !== 'REJECTED' && i.reference !== replacedRef)
+          .reduce((acc, i) => acc.plus(toDecimal(i.amount.toString())), toDecimal('0'));
+        const poTotal = toDecimal(po.total_amount_kes.toString());
+        if (invoicedToDate.plus(amount).gt(poTotal)) {
+          const remaining = poTotal.minus(invoicedToDate);
+          throw {
+            status: 409,
+            message: `Invoice refused — it would exceed the purchase order total. Remaining uninvoiced balance: ${remaining.toFixed(2)} KES.`,
+          };
+        }
+
         const invoice = await tx.purchaseOrderInvoice.create({
           data: {
             tenant_id: link.tenant_id,
@@ -2115,7 +2122,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             purchase_order_item_id: itemId,
             reference: invoiceRef,
             amount: amount.toFixed(2),
-            status: overInvoiced ? 'REVIEW_REQUIRED' : 'SUBMITTED',
+            status: 'SUBMITTED',
             note: body.note || null,
             submitted_by_name: link.stakeholder_name,
           },
@@ -2128,12 +2135,10 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           action: 'SUPPLIER_PO_INVOICE_SUBMITTED',
           entityType: 'PurchaseOrderInvoice',
           entityId: invoice.id,
-          changes: { poId: po.id, poNumber: po.po_number, reference: invoice.reference, amount: invoice.amount.toString(), overInvoiced },
+          changes: { poId: po.id, poNumber: po.po_number, reference: invoice.reference, amount: invoice.amount.toString() },
         });
 
-        const bodyText = overInvoiced
-          ? `OVER-INVOICE flag: supplier ${link.stakeholder_name} submitted invoice ${invoice.reference} for ${amount.toFixed(2)} KES on PO ${po.po_number} — cumulative invoicing exceeds the PO total. PM review required before any cost posting.`
-          : `Supplier ${link.stakeholder_name} submitted invoice ${invoice.reference} for ${amount.toFixed(2)} KES on PO ${po.po_number}.`;
+        const bodyText = `Supplier ${link.stakeholder_name} submitted invoice ${invoice.reference} for ${amount.toFixed(2)} KES on PO ${po.po_number}.`;
         await notifyTeam(tx, {
           tenantId: link.tenant_id,
           projectId: link.project_id,
@@ -2142,9 +2147,9 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
           body: bodyText,
         });
 
-        return { invoice, overInvoiced };
+        return { invoice };
       });
-      return reply.status(201).send({ statusCode: 201, data: result.invoice, overInvoiced: result.overInvoiced });
+      return reply.status(201).send({ statusCode: 201, data: result.invoice });
     } catch (err: any) {
       const st = err?.status ?? 400;
       return reply.status(st).send({ statusCode: st, error: st === 404 ? 'Not Found' : 'Conflict', message: err?.message || 'Submit failed' });

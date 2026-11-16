@@ -326,7 +326,7 @@ export default function SupplierPortalView({
                         className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50"
                         data-testid={`po-invoice-open-${po.poNumber}`}
                       >
-                        Submit invoice
+                        {po.invoices.some((iv) => iv.status !== 'REJECTED') ? 'Submit another invoice' : 'Submit invoice'}
 </button>
 ) : (
 <div className="space-y-2" data-testid={`po-invoice-form-${po.poNumber}`}>
@@ -370,7 +370,7 @@ export default function SupplierPortalView({
                             className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-blue-700 hover:bg-blue-800 text-white disabled:opacity-50"
                             data-testid={`po-invoice-submit-${po.poNumber}`}
                           >
-                            {poBusy === po.id ? 'Submitting…' : 'Submit invoice'}
+                            {poBusy === po.id ? 'Submitting…' : po.invoices.some((iv) => iv.status !== 'REJECTED') ? 'Submit another invoice' : 'Submit invoice'}
 </button>
 <button
                             type="button"

@@ -39,6 +39,9 @@ const PAYLOAD = {
       ] }),
       po({ id: 'po2', poNumber: 'PO-1002', status: 'DELIVERED' }),
       po({ id: 'po3', poNumber: 'PO-1003', status: 'ISSUED' }),
+      po({ id: 'po4', poNumber: 'PO-1004', status: 'ACCEPTED', invoices: [
+        { id: 'iv2', reference: 'INV/2026/0051', amount: '200000.00', status: 'SUBMITTED', createdAt: '2026-11-13T00:00:00Z' },
+      ] }),
     ],
   },
 };
@@ -73,6 +76,19 @@ describe('SupplierPortalView — J3 states', () => {
     const card1 = container.querySelector('[data-testid="supplier-po-PO-1001"]')!;
     expect(card1.querySelector('[data-testid^="po-invoice-open-"]')).toBeNull();
     expect(card1.querySelector('[data-testid="po-invoice-submitted-PO-1001"]')).not.toBeNull();
+    await act(async () => { root.unmount(); });
+    container.remove();
+  });
+
+  it('partial invoice shows "Submit another invoice"; fully invoiced shows none', async () => {
+    const { container, root } = await renderPortal();
+    // PO-1004: 200k invoiced of 500k → action remains, relabelled.
+    const card4 = container.querySelector('[data-testid="supplier-po-PO-1004"]')!;
+    const openBtn = card4.querySelector('[data-testid="po-invoice-open-PO-1004"]') as HTMLButtonElement;
+    expect(openBtn.textContent).toBe('Submit another invoice');
+    // PO-1001: fully invoiced → no invoice action at all.
+    const card1 = container.querySelector('[data-testid="supplier-po-PO-1001"]')!;
+    expect(card1.querySelector('[data-testid^="po-invoice-open-"]')).toBeNull();
     await act(async () => { root.unmount(); });
     container.remove();
   });

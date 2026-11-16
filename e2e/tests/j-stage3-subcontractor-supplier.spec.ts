@@ -419,25 +419,25 @@ test.describe('Stage 3 — subcontractor & supplier portals', () => {
     });
     expect(diary.status(), await diary.text()).toBeLessThan(300);
 
-    // Supplier submits an over-limit invoice -> flagged, PM notified, cost posting blocked.
+    // K5: an invoice that would push cumulative invoicing past the PO total
+    // (200×750 + 500×95 = KES 197,500) is refused outright — no REVIEW row.
     const overInvoice = await request.post(`${API}${CONTRACT.poInvoice(state.linkA!, state.poId!)}`, {
       data: { reference: 'SUP-INV-OVER', amount: 999999 },
     });
-    expect(overInvoice.status(), await overInvoice.text()).toBeLessThan(300);
-    const oi = unwrap(await overInvoice.json());
-    state.poInvoiceId = oi.id || oi.invoice?.id || oi.supplierInvoice?.id;
-    const oiStatus = String(oi.status || oi.invoice?.status || '');
-    expect(oiStatus, 'over-invoice must be flagged for review').toMatch(/REVIEW|OVER|PENDING/i);
+    expect(overInvoice.status(), 'over-invoice must be refused').toBeGreaterThanOrEqual(400);
+    expect(overInvoice.status(), 'over-invoice must be refused').toBeLessThan(500);
+    expect((await overInvoice.text()).toUpperCase()).toMatch(/EXCEED|TOTAL|BALANCE/i);
 
-    // PM inbox notified about the over-invoice.
-    const inboxText = await (await apiGet(request, pm, CONTRACT.inbox)).text();
-    expect(inboxText.toUpperCase()).toMatch(/OVER.?INVOIC|PURCHASE ORDER|SUPPLIER INVOICE/i);
-
-    // Review accept with override -> actuals post.
-    const review = await apiPost(request, pm, CONTRACT.poInvoiceReview(pid, state.poId!, state.poInvoiceId!), {
-      action: 'ACCEPT', reason: 'Price variance approved by director', approveOverInvoice: true,
+    // Partial then topping-up invoices are accepted; anything past the
+    // remaining balance is refused (PO total KES 197,500).
+    const good = await request.post(`${API}${CONTRACT.poInvoice(state.linkA!, state.poId!)}`, {
+      data: { reference: 'SUP-INV-OK', amount: 150000 },
     });
-    expect(review.status(), await review.text()).toBeLessThan(300);
+    expect(good.status(), await good.text()).toBeLessThan(300);
+    const topUp = await request.post(`${API}${CONTRACT.poInvoice(state.linkA!, state.poId!)}`, {
+      data: { reference: 'SUP-INV-TOPUP', amount: 47500 },
+    });
+    expect(topUp.status(), await topUp.text()).toBeLessThan(300);
 
     // Match view: ordered/delivered/invoiced quantities + amounts + status.
     const match = await apiGet(request, pm, CONTRACT.poMatch(pid, state.poId!));
@@ -452,11 +452,10 @@ test.describe('Stage 3 — subcontractor & supplier portals', () => {
     }
     expect(m.status || m.matchStatus || m.overallStatus, 'match view must return a status').toMatch(/MATCHED|PART_DELIVERED|OVER_INVOICED|MISMATCH/);
 
-    // A second, correct invoice can also be submitted and accepted normally.
-    const good = await request.post(`${API}${CONTRACT.poInvoice(state.linkA!, state.poId!)}`, {
-      data: { reference: 'SUP-INV-OK', amount: 212500 },
+    const oneCent = await request.post(`${API}${CONTRACT.poInvoice(state.linkA!, state.poId!)}`, {
+      data: { reference: 'SUP-INV-EXTRA', amount: 0.01 },
     });
-    expect(good.status(), await good.text()).toBeLessThan(300);
+    expect(oneCent.status(), 'invoice past the PO total must be refused').toBeGreaterThanOrEqual(400);
   });
 
   // -------------------------------------------------------------------------
