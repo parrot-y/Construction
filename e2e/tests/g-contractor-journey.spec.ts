@@ -471,8 +471,17 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     }
 
     // The console defaults to the newest project; the journey data lives on
-    // Riverside, so select it explicitly via its project card.
-    await page.getByRole('button', { name: /Riverside Commercial Plaza/ }).first().click();
+    // the project state.projectId points at. Select it by its unique project
+    // CODE, not name — the shared demo tenant can hold several projects with
+    // similar names (e.g. API-suite fixtures), and .first() on the name picked
+    // the wrong card on mobile-390 (I1: "0 of 7 done").
+    const adminApi = await login(request, 'admin@apexbuilders.co.ke');
+    const projRes = await apiGet(request, adminApi, `/api/v1/projects/${state.projectId}`);
+    const projBody = unwrap(await projRes.json());
+    const projCode = String(projBody?.code || projBody?.data?.code || '');
+    expect(projCode, 'project code for card selection').toBeTruthy();
+    const escaped = projCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await page.getByRole('button', { name: new RegExp(escaped) }).first().click();
 
     await expect(page.getByText('Project checklist')).toBeVisible({ timeout: 20_000 });
     for (const step of ['Quote accepted', 'BoQ imported', 'Team assigned', 'First site diary', 'First certificate', 'First invoice paid', 'Closeout']) {

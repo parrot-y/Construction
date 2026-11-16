@@ -149,26 +149,28 @@ Frontend:
 
 ## Round I plan (2026-11-16)
 
-- [ ] I1: Playwright suite ALONE on final commit → 0 failed/skipped/flaky;
-      fix timeout causes not timeouts; commit e2e-<sha>.md. (RUN LAST)
-- [ ] I2: strip /home/, /Users/, C:\Users, hostname from all committed
+- [x] I1: Playwright suite ALONE on final commit → 0 failed/skipped/flaky;
+      fix timeout causes not timeouts; commit e2e-<sha>.md. (RUN LAST — in progress)
+- [x] I2: strip /home/, /Users/, C:\Users, hostname from all committed
       evidence logs; CI step failing on violation (show red then green);
-      verify-local.sh sanitises its own log output.
-- [ ] I3: shared responsive table (<640px stacked cards) for compliance
+      verify-local.sh sanitises its own log output. → 63565f1
+- [x] I3: shared responsive table (<640px stacked cards) for compliance
       portal, sub valuations/retention, QS retention console + any other
       sideways-scrolling table; overflow test at 390px; supplier portal
       action-first + collapse completed + invoice button only when due;
-      owner/executive variation titles wrap.
-- [ ] I4: remove permission chips from user headers (admin-only "My
+      owner/executive variation titles wrap. → b70573a
+- [x] I4: remove permission chips from user headers (admin-only "My
       access" page); plain offline wording; offline shows saved data +
       timestamp not "Failed to fetch"; shared date formatter everywhere;
       field Site tab → short job menu; owner approve only in owner-review
-      state (UI + API 409 + failing test).
-- [ ] I5: thousands separators for all money via packages/money helper +
+      state (UI + API 409 + failing test). → 52e7869
+- [x] I5: thousands separators for all money via packages/money helper +
       test; quote deposit single source + terms contradiction warning;
-      "•Prepared" missing space; public quote Back link.
-- [ ] I6: render PDFs outside withTenantTx (short read tx → render →
-      short audit tx) OR prove 10 concurrent renders don't exhaust pool
-      / delay normal request >500ms — commit numbers.
-- [ ] I7: varied believable seed data; re-capture portal journeys at
-      390px under final sha; report which screenshots changed.
+      "•Prepared" missing space; public quote Back link. → b93a59c
+- [x] I6: render PDFs outside withTenantTx (short read tx → render →
+      short audit tx); pool proof committed: normal request 209ms during
+      10-PDF burst (<500ms), all 10 PDFs 200. → 794c0a4
+- [x] I7: varied believable seed data (suppliers/POs/variations/
+      inspections/snags); portal-journey CO fixture deduped; all 22
+      journey screenshots recaptured at 390px under 3749547 — every
+      shot differs from ce4a440 set. → 3749547 + 3659107
