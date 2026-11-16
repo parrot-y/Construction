@@ -93,6 +93,8 @@ export default function SupplierPortalView({
   const [acceptDate, setAcceptDate] = useState<Record<string, string>>({});
   const [invForm, setInvForm] = useState<Record<string, { reference: string; amount: string; itemId: string; note: string; open: boolean }>>({});
   const [showAllPos, setShowAllPos] = useState(false);
+  const [showFinishedPos, setShowFinishedPos] = useState(false);
+  const [showConfirmedDeliveries, setShowConfirmedDeliveries] = useState(false);
   const [showAllDeliveries, setShowAllDeliveries] = useState(false);
   const PAGE_SIZE = 10;
 
@@ -224,6 +226,12 @@ export default function SupplierPortalView({
   // completed records collapse behind a count / "show more".
   const actionPos = purchaseOrders.filter((po) => po.status === 'ISSUED');
   const settledPos = purchaseOrders.filter((po) => po.status !== 'ISSUED');
+  // J3: truly finished orders collapse behind a count — the page was
+  // ~10,000px on a phone. Still-open settled orders (accepted, part
+  // delivered) stay visible because they may still need an invoice.
+  const isFinishedPo = (po: SupplierPurchaseOrder) => ['DELIVERED', 'CLOSED', 'CANCELLED'].includes(po.status);
+  const openSettledPos = settledPos.filter((po) => !isFinishedPo(po));
+  const finishedPos = settledPos.filter(isFinishedPo);
   const pendingDeliveries = deliveries.filter((d) => d.status === 'PENDING');
   const settledDeliveries = deliveries.filter((d) => d.status !== 'PENDING');
   const filteredSettled = settledDeliveries.filter((d) => {
@@ -242,8 +250,6 @@ export default function SupplierPortalView({
       .reduce((sum, iv) => sum + Number(iv.amount || 0), 0);
     return Number(po.totalAmount) - invoiced > 0.004;
   };
-  const invoicedTotal = (po: SupplierPurchaseOrder): number =>
-    po.invoices.filter((iv) => iv.status !== 'REJECTED').reduce((sum, iv) => sum + Number(iv.amount || 0), 0);
 
   const renderPoCard = (po: SupplierPurchaseOrder) => {
     const f = invForm[po.id] || { reference: '', amount: '', itemId: '', note: '', open: false };
@@ -379,11 +385,22 @@ export default function SupplierPortalView({
 </div>
 )}
 
-                {!canInvoice && !canAccept && ['ACCEPTED', 'PART_DELIVERED', 'DELIVERED'].includes(po.status) && invoicedTotal(po) > 0 && (
-<p className="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
-                    Fully invoiced — {formatKes(invoicedTotal(po))} submitted, awaiting contractor review.
-</p>
-)}
+                {!canInvoice && !canAccept && ['ACCEPTED', 'PART_DELIVERED', 'DELIVERED'].includes(po.status) && (() => {
+                  const submitted = po.invoices.filter((iv) => iv.status !== 'REJECTED');
+                  const latest = submitted[submitted.length - 1];
+                  if (!latest) return null;
+                  const invLabel = latest.status === 'ACCEPTED' ? 'Accepted' : latest.status === 'REJECTED' ? 'Rejected' : latest.status === 'REVIEW_REQUIRED' ? 'Under review' : 'Submitted';
+                  return (
+<div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2" data-testid={`po-invoice-submitted-${po.poNumber}`}>
+<span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        Invoice submitted
+</span>
+<span className="text-[11px] text-slate-500">
+                        {latest.reference} · {formatKes(latest.amount)} · {invLabel} — awaiting contractor review
+</span>
+</div>
+                  );
+                })()}
 </div>
     );
   };
@@ -564,20 +581,33 @@ export default function SupplierPortalView({
 </div>
 )}
 
-      {/* Purchase orders — settled orders, paginated */}
+      {/* Purchase orders — open settled orders paginated; finished ones collapsed */}
       {settledPos.length > 0 && (
 <div className="space-y-3" data-testid="supplier-po-list">
 <h2 className="text-sm font-bold text-slate-800">Your purchase orders</h2>
-          {(showAllPos ? settledPos : settledPos.slice(0, PAGE_SIZE)).map(renderPoCard)}
-          {settledPos.length > PAGE_SIZE && (
+          {(showAllPos ? openSettledPos : openSettledPos.slice(0, PAGE_SIZE)).map(renderPoCard)}
+          {openSettledPos.length > PAGE_SIZE && (
 <button
               type="button"
               onClick={() => setShowAllPos((v) => !v)}
               className="px-3.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
               data-testid="show-all-pos-btn"
             >
-              {showAllPos ? 'Show fewer' : `Show all ${settledPos.length} orders`}
+              {showAllPos ? 'Show fewer' : `Show all ${openSettledPos.length} open orders`}
 </button>
+)}
+          {finishedPos.length > 0 && (
+<div className="pt-1">
+<button
+                type="button"
+                onClick={() => setShowFinishedPos((v) => !v)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100"
+                data-testid="show-finished-pos-btn"
+              >
+                {showFinishedPos ? 'Hide completed orders' : `${finishedPos.length} completed order${finishedPos.length === 1 ? '' : 's'} — show`}
+</button>
+              {showFinishedPos && <div className="mt-3 space-y-3">{finishedPos.map(renderPoCard)}</div>}
+</div>
 )}
 </div>
 )}
@@ -619,17 +649,37 @@ export default function SupplierPortalView({
               : 'No deliveries match this filter.'}
 </div>
 )}
-        {(showAllDeliveries ? filteredSettled : filteredSettled.slice(0, PAGE_SIZE)).map(renderDeliveryCard)}
-        {filteredSettled.length > PAGE_SIZE && (
+        {(() => {
+          const confirmedCount = filteredSettled.filter((d) => d.status === 'RECEIVED').length;
+          const visible = filteredSettled.filter(
+            (d) => d.status !== 'RECEIVED' || showConfirmedDeliveries || filter === 'RECEIVED',
+          );
+          return (
+            <>
+              {(showAllDeliveries ? visible : visible.slice(0, PAGE_SIZE)).map(renderDeliveryCard)}
+              {confirmedCount > 0 && filter !== 'RECEIVED' && (
 <button
-            type="button"
-            onClick={() => setShowAllDeliveries((v) => !v)}
-            className="px-3.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
-            data-testid="show-all-deliveries-btn"
-          >
-            {showAllDeliveries ? 'Show fewer' : `Show all ${filteredSettled.length} deliveries`}
+                  type="button"
+                  onClick={() => setShowConfirmedDeliveries((v) => !v)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100"
+                  data-testid="show-confirmed-deliveries-btn"
+                >
+                  {showConfirmedDeliveries ? 'Hide confirmed deliveries' : `${confirmedCount} confirmed deliver${confirmedCount === 1 ? 'y' : 'ies'} — show`}
 </button>
-)}
+              )}
+              {visible.length > PAGE_SIZE && !showConfirmedDeliveries && (
+<button
+                type="button"
+                onClick={() => setShowAllDeliveries((v) => !v)}
+                className="px-3.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
+                data-testid="show-all-deliveries-btn"
+              >
+                {showAllDeliveries ? 'Show fewer' : `Show all ${visible.length} deliveries`}
+</button>
+              )}
+            </>
+          );
+        })()}
 </div>
 
       {/* PO Invoicing Modal */}
