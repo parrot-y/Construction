@@ -154,7 +154,7 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     await page.locator('xpath=//label[contains(., "Amount *")]/following-sibling::input').fill('11600');
     await page.getByPlaceholder(/M-Pesa code/).fill(`UI-PAY-${stamp}`);
     await page.getByRole('button', { name: 'Save payment' }).click();
-    await expect(invRow.getByText(/PART PAID|PAID/).first()).toBeVisible({ timeout: 20_000 });
+    await expect(invRow.getByText(/part paid|paid/i).first()).toBeVisible({ timeout: 20_000 });
 
     // ---- SUB CONTRACTOR VALUATIONS: new claim → issued row ----
     await openMoneyTab(page, 'Sub valuations');
