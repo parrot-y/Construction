@@ -171,6 +171,27 @@ export function ResetPasswordView({ token, apiBaseUrl = '', onDone }: BaseProps 
   );
 }
 
+// React StrictMode double-invokes effects in dev: without this cache the
+// second mount re-POSTs an already-consumed token and shows a false
+// "invalid or already used" error to a user whose verify actually worked.
+const verifyCache = new Map<string, Promise<{ ok: boolean; message?: string }>>();
+
+function verifyEmail(token: string, apiBaseUrl: string) {
+  let p = verifyCache.get(token);
+  if (!p) {
+    p = fetch(`${apiBaseUrl}/api/v1/auth/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, message: data.message as string | undefined };
+    }).catch(() => ({ ok: false, message: 'Could not reach the server. Try again later.' }));
+    verifyCache.set(token, p);
+  }
+  return p;
+}
+
 /** Consumes a `?verify=<token>` link issued after signup/invite acceptance. */
 export function VerifyEmailView({ token, apiBaseUrl = '', onDone }: BaseProps & { token: string; onDone: () => void }): React.JSX.Element {
   const [state, setState] = useState<'working' | 'ok' | 'error'>('working');
@@ -178,27 +199,15 @@ export function VerifyEmailView({ token, apiBaseUrl = '', onDone }: BaseProps & 
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${apiBaseUrl}/api/v1/auth/verify-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    })
-      .then(async (res) => {
-        const data = await res.json();
-        if (cancelled) return;
-        if (res.ok) {
-          setState('ok');
-        } else {
-          setState('error');
-          setMessage(data.message || 'This verification link is invalid or has expired.');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setState('error');
-          setMessage('Could not reach the server. Try again later.');
-        }
-      });
+    verifyEmail(token, apiBaseUrl).then((r) => {
+      if (cancelled) return;
+      if (r.ok) {
+        setState('ok');
+      } else {
+        setState('error');
+        setMessage(r.message || 'This verification link is invalid or has expired.');
+      }
+    });
     return () => {
       cancelled = true;
     };
