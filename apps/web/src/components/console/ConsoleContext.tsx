@@ -14,6 +14,7 @@ interface ConsoleCtx {
   projects: ProjectOpt[];
   projectId: string;
   setProjectId: (id: string) => void;
+  refreshProjects: () => void;
   currency: 'KES' | 'USD';
   setCurrency: (c: 'KES' | 'USD') => void;
   section: string;
@@ -81,6 +82,12 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
       .then((r) => (r.ok ? r.json() : { data: { modules: [] }}))
       .then((j) => configureRuntimeModules(j?.data?.modules ?? []))
       .catch(() => configureRuntimeModules([]));
+    refreshProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+  /** Re-fetch the project list (e.g. after creating a project). */
+  const refreshProjects = () => {
     fetch('/api/v1/projects', { credentials: 'include'})
       .then((r) => (r.ok ? r.json() : { data: []}))
       .then((j) => {
@@ -89,8 +96,7 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
         if (list.length) setProjectId((cur) => cur || list[0].id);
 })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('sitesafi-currency');
@@ -159,7 +165,7 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
 
   const value: ConsoleCtx = {
     session, role, roleLabel: ROLE_LABELS[role] || role,
-    nav, projects, projectId, setProjectId: navProject, currency, setCurrency,
+    nav, projects, projectId, setProjectId: navProject, refreshProjects, currency, setCurrency,
     section, setSection: navSection, tab, setTab: navTab, aiOpen, setAiOpen,
     newMenuOpen, setNewMenuOpen, dark, toggleDark,
     portalPreview, setPortalPreview,
