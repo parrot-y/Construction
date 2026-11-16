@@ -194,3 +194,13 @@ Frontend:
       run each journey once, re-capture under final sha.
 - [ ] J6: confirm captures — public quote 390px separators+deposit,
       consultant/client/subcontractor portals post-wording.
+
+## Round J review (checklist 39–43) — complete on 8eff7e1
+
+- J1 offline privacy: read-cache keys hashed per user+company (portal tokens hashed, never stored raw), 7-day TTL, cleared on sign-out / forced-401 / portal auth failures; write queue owner-scoped so a new sign-in cannot replay the previous user's mutations. 8 tests in offline-privacy.test.ts (red run d3e66da).
+- J2 plain-words statuses: shared statusLabel() across all console/portal screens; retention actions gated by shared RETENTION_REVIEW/DIRECTOR_ROLES (same source as API). status-labels.test.tsx 11 tests.
+- J3 supplier portal: "Invoice submitted" badge with reference; finished orders and confirmed deliveries collapse behind counts.
+- J4 dates: formatDate/formatDateTime/formatTime everywhere; source gate + rendered-output test fail on M/D/YYYY.
+- J5 fresh-seed capture: fixture names de-timestamped; fresh DB, each journey once — visual/ed3cdac (24 PNGs).
+- J6: quote page, consultant, client, subcontractor recaptures in visual/ed3cdac/portal-flows.
+- All 6 auditor hashes verified unchanged; evidence hygiene clean.
