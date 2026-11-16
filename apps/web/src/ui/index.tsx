@@ -119,6 +119,53 @@ export function Tabs({ tabs, active, onChange}: { tabs: { id: string; label: str
 );
 }
 
+// ----------------------------------------------------------------- FilterTabs
+/**
+ * Shared filter/tab strip — wraps onto multiple lines instead of clipping
+ * off-screen at phone widths (J2/K2). Used by the change-order filters and
+ * the console tab bars so every strip behaves identically.
+ */
+export function FilterTabs({
+  tabs,
+  active,
+  onChange,
+  className = '',
+  activeClassName = '',
+  inactiveClassName = '',
+  tabClassName = 'px-3 py-1.5 text-xs font-semibold whitespace-nowrap rounded-lg transition',
+  ariaRole = false,
+  testId,
+}: {
+  tabs: { id: string; label: string }[];
+  active: string;
+  onChange: (id: string) => void;
+  className?: string;
+  activeClassName?: string;
+  inactiveClassName?: string;
+  tabClassName?: string;
+  ariaRole?: boolean;
+  testId?: string;
+}) {
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-1.5 ${className}`}
+      {...(ariaRole ? { role: 'tablist' } : {})}
+      {...(testId ? { 'data-testid': testId } : {})}
+    >
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          {...(ariaRole ? { role: 'tab', 'aria-selected': active === t.id } : {})}
+          onClick={() => onChange(t.id)}
+          className={`${tabClassName} ${active === t.id ? activeClassName : inactiveClassName}`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------- Modal
 export function Modal({ open, onClose, title, children, wide}: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; wide?: boolean}) {
   React.useEffect(() => {

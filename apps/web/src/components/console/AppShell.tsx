@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useRef, useState} from 'react';
 import { ConsoleProvider, useConsole} from './ConsoleContext';
 import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection} from './navConfig';
+import { FilterTabs } from '../../ui';
 import ReportProblemModal from '../ReportProblemModal';
 import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSun, IconMoon} from './icons';
 import SessionsModal from './SessionsModal';
@@ -342,14 +343,15 @@ function SubNav(): React.JSX.Element | null {
     const homeTabs = nav.homeTabs;
     if (!homeTabs || homeTabs.length<= 1) return null;
     return (
-<div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist">
-        {homeTabs.map((t) => (
-<button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${tab === t ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-            {SUBTAB_LABELS[t] || t}
-</button>
-))}
-</div>
+<FilterTabs ariaRole
+          tabs={homeTabs.map((t) => ({ id: t, label: SUBTAB_LABELS[t] || t }))}
+          active={tab}
+          onChange={setTab}
+          className="pb-1"
+          tabClassName="px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition"
+          activeClassName="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+          inactiveClassName="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+        />
 );
 }
   const def = nav.sections.find((s) => s.id === section);
@@ -357,14 +359,15 @@ function SubNav(): React.JSX.Element | null {
   const pname = projects.find((p) => p.id === projectId)?.name;
   return (
 <div>
-<div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist">
-        {def.tabs.map((t) => (
-<button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${tab === t ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-            {SUBTAB_LABELS[t] || t}
-</button>
-))}
-</div>
+<FilterTabs ariaRole
+          tabs={def.tabs.map((t) => ({ id: t, label: SUBTAB_LABELS[t] || t }))}
+          active={tab}
+          onChange={setTab}
+          className="pb-1"
+          tabClassName="px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition"
+          activeClassName="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+          inactiveClassName="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+        />
       {pname &&<p className="text-[11px] text-slate-400 mt-1">Context: {pname}</p>}
 </div>
 );

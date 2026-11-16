@@ -123,9 +123,9 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
         {approvals.length > 0 && (
           <div className="space-y-1.5">
             {approvals.slice(0, 8).map((a: any, i: number) => (
-              <div key={a.id || i} className="flex items-start justify-between gap-3 text-xs bg-white/70 border border-amber-100 rounded-lg px-3 py-2">
-                <span className="font-semibold text-slate-800 min-w-0 break-words">{a.title || 'Item'}</span>
-                <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
+              <div key={a.id || i} className="text-xs bg-white/70 border border-amber-100 rounded-lg px-3 py-2 space-y-1.5">
+                <p className="font-semibold text-slate-800 break-words" data-testid="owner-approval-title">{a.title || 'Item'}</p>
+                <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
                   {plainStatus(a.status)}
                   {a.amount ? ` • ${formatKes(String(a.amount))}` : ''}
                 </span>

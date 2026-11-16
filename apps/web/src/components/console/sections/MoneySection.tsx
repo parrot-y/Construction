@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../../../ui';
+import { formatKes, FilterTabs } from '../../../ui';
 import BoqWorkbookView from './BoqWorkbookView';
 import { useConsole} from '../ConsoleContext';
 import CostManagementView from '../../CostManagementView';
@@ -65,14 +65,15 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
 <a href={`/api/v1/projects/${projectId}/reports/financials.xlsx`} download className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white">Export Excel</a>
 </div>
 </div>
-<div className="flex gap-1.5 overflow-x-auto">
-        {FIN_TABS.map((t) => (
-<button key={t} onClick={() => setFt(t)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap capitalize transition ${ft === t ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-            {t === 'boq' ? 'Bill of quantities' : t}
-</button>
-))}
-</div>
+<FilterTabs
+          testId="money-fin-tabs"
+          tabs={FIN_TABS.map((t) => ({ id: t, label: t === 'boq' ? 'Bill of quantities' : t }))}
+          active={ft}
+          onChange={(id) => setFt(id as typeof ft)}
+          tabClassName="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap capitalize transition"
+          activeClassName="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+          inactiveClassName="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+        />
       {ft === 'overview' && (
 <div className="space-y-4">
 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { formatKes, formatDate, formatDateTime } from '../ui';
+import { FilterTabs, formatKes, formatDate, formatDateTime } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
 import { useAppDialog } from './AppDialog';
 import { api } from '../lib/apiClient';
@@ -235,22 +235,17 @@ export default function VariationManagementView({
 </div>
 )}
 
-      {/* Filter Tabs */}
-<div className="flex items-center gap-1 border-b border-slate-100 pb-2 overflow-x-auto text-xs">
-        {FILTERS.map((filter) => (
-<button
-            key={filter}
-            onClick={() => setActiveFilter(filter)}
-            className={`px-3 py-1.5 font-semibold rounded-lg transition whitespace-nowrap ${
-              activeFilter === filter
-                ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-}`}
-          >
-            {statusLabel(filter)}
-</button>
-))}
-</div>
+      {/* Filter Tabs — shared wrapping strip, never clipped at phone width */}
+      <FilterTabs
+        testId="variation-filter-tabs"
+        tabs={FILTERS.map((f) => ({ id: f, label: statusLabel(f) }))}
+        active={activeFilter}
+        onChange={(id) => setActiveFilter(id as typeof activeFilter)}
+        className="border-b border-slate-100 pb-2 text-xs"
+        tabClassName="px-3 py-1.5 font-semibold rounded-lg transition whitespace-nowrap"
+        activeClassName="bg-purple-50 text-purple-700 border border-purple-200"
+        inactiveClassName="text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+      />
 
       {/* Variations List */}
 <div className="space-y-3">
