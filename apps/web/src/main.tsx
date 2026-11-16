@@ -1,4 +1,5 @@
 import React from 'react';
+import { clearReadCache, setOfflineUserScope } from './services/offline-cache';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
@@ -132,6 +133,10 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
       const retry = await originalFetch(input, init);
       return isGet && retry.ok ? fetchAllPages(retry, url) : retry;
     }
+    // J1: forced sign-out — the session is dead. Purge every cached read so
+    // the next person on this device can't see this user's saved data.
+    clearReadCache();
+    setOfflineUserScope(null);
     return res;
   }
   if (isGet && isApi && url.includes('/api/v1/') && res.ok) {

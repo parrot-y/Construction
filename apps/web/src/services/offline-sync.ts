@@ -19,6 +19,8 @@ export interface OfflineMutationRecord {
   status: 'PENDING' | 'SYNCING' | 'FAILED' | 'SYNCED';
   retry_count: number;
   last_error?: string;
+  /** J1: scope of the user who queued this write — never flushed under another session. */
+  owner_scope?: string;
 }
 
 const DB_NAME = 'sitesafi_offline_db';
@@ -28,6 +30,26 @@ const STORE_NAME = 'mutations_queue';
 const DB_VERSION = 1;
 
 const LS_KEY = 'sitesafi_offline_queue';
+
+// J1: queued writes belong to the user who created them. flushSyncQueue and
+// getQueuedMutations only expose records owned by the CURRENT scope, so a
+// different person signing in on the same phone can never send (or even
+// see the count of) the previous user's offline work. Records written
+// before scoping existed (no owner_scope) are adopted by the current
+// scope — same one-time-migration reasoning as migrateOfflineStorage().
+let syncScope = 'anon';
+
+export function setOfflineSyncScope(scope: string | null): void {
+  syncScope = scope ?? 'anon';
+}
+
+export function currentSyncScope(): string {
+  return syncScope;
+}
+
+function ownedByCurrentScope(r: OfflineMutationRecord): boolean {
+  return !r.owner_scope || r.owner_scope === syncScope;
+}
 const LEGACY_LS_KEY = 'mjengo_offline_queue';
 const PREV_LS_KEY = 'buildsasa_offline_queue';
 
@@ -188,6 +210,7 @@ export async function queueOfflineMutation(
     client_timestamp: new Date().toISOString(),
     status: 'PENDING',
     retry_count: 0,
+    owner_scope: syncScope,
   };
 
   try {
@@ -225,13 +248,13 @@ export async function getQueuedMutations(): Promise<OfflineMutationRecord[]> {
       const req = store.getAll();
       req.onsuccess = () => {
         const records: OfflineMutationRecord[] = req.result || [];
-        resolve(records.filter((r) => r.status === 'PENDING' || r.status === 'FAILED'));
+        resolve(records.filter((r) => (r.status === 'PENDING' || r.status === 'FAILED') && ownedByCurrentScope(r)));
       };
       req.onerror = () => reject(req.error);
     });
   } catch {
     try {
-      return readLsQueue().filter((r) => r.status === 'PENDING' || r.status === 'FAILED');
+      return readLsQueue().filter((r) => (r.status === 'PENDING' || r.status === 'FAILED') && ownedByCurrentScope(r));
     } catch {
       return [];
     }

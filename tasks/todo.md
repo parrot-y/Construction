@@ -174,3 +174,23 @@ Frontend:
       inspections/snags); portal-journey CO fixture deduped; all 22
       journey screenshots recaptured at 390px under 3749547 — every
       shot differs from ce4a440 set. → 3749547 + 3659107
+
+## Round J plan (2026-11-16)
+
+- [ ] J1: offline read-cache privacy — scope keys by hash(user+tenant) /
+      hash(token), 7-day expiry, clear on sign-out/forced-401/portal
+      401/403/404/410/revoked-429, no POST caching, no tokens in keys;
+      offline-sync queue owner-scoped so user B never flushes user A's
+      writes. Tests first (red run committed).
+- [ ] J2: status enums → plain words via one shared helper + render test
+      scanning retention/cert/invoice/variation/valuation screens; hide
+      or explain role-blocked actions (Director Approve for PM) using
+      the same permission check as the API; sweep money screens.
+- [ ] J3: supplier portal — "Invoice submitted (ref)" state; completed
+      orders/deliveries collapse behind a count.
+- [ ] J4: safety register + everywhere → shared date helper; unit test
+      scanning rendered output for M/D/YYYY patterns.
+- [ ] J5: fresh-seed capture — no timestamped names in visible text,
+      run each journey once, re-capture under final sha.
+- [ ] J6: confirm captures — public quote 390px separators+deposit,
+      consultant/client/subcontractor portals post-wording.

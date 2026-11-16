@@ -7,7 +7,7 @@ import {
   setOfflineUserScope,
   isOfflineError,
 } from './offline-cache';
-import { queueOfflineMutation, getQueuedMutations, flushSyncQueue, setOfflineSyncScopeForTest } from './offline-sync';
+import { queueOfflineMutation, getQueuedMutations, flushSyncQueue, setOfflineSyncScope } from './offline-sync';
 
 /**
  * J1 — the offline read-cache and write-queue must never leak one person's
@@ -38,8 +38,6 @@ describe('offline read-cache privacy (J1)', () => {
 
   it('scopes entries per user — user B never sees user A cached rows', async () => {
     setOfflineUserScope(userA);
-    await fetchJsonCached('/api/v1/projects', 'field:projects', undefined);
-    // force a cached entry without fetch by writing directly
     readCacheSet('field:diaries:proj-1', { diaries: [{ id: 'secret-diary' }] });
 
     setOfflineUserScope(userB);
@@ -122,7 +120,7 @@ describe('offline write-queue ownership (J1)', () => {
   beforeEach(() => {
     localStorage.clear();
     setOfflineUserScope(null);
-    setOfflineSyncScopeForTest(null);
+    setOfflineSyncScope(null);
     vi.unstubAllGlobals();
   });
 

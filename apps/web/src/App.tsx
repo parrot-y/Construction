@@ -16,6 +16,7 @@ const ClientPortalView = lazy(() => import('./components/portals/ClientPortalVie
 const PublicQuoteView = lazy(() => import('./components/PublicQuoteView'));
 import { AuthSession} from './types/auth';
 import { migrateOfflineStorage } from './services/offline-sync';
+import { setOfflineUserScope, clearReadCache } from './services/offline-cache';
 import { PRODUCT_NAME } from './lib/product';
 
 const PageFallback = <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
@@ -68,6 +69,13 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  // J1: offline caches/queues are scoped to the signed-in user+tenant —
+  // a different person on the same phone sees none of the previous
+  // user's saved reads, and queued writes only flush for their owner.
+  useEffect(() => {
+    setOfflineUserScope(session?.user ?? null);
+  }, [session]);
 
   useEffect(() => {
     // One-time migration of legacy offline queue keys to `sitesafi_*`
@@ -136,6 +144,7 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
 } catch {
       // Ignore network errors on logout
 }
+    clearReadCache();
     setSession(null);
     setShowLoginForm(false);
 };
