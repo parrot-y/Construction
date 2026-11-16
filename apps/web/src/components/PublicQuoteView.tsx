@@ -162,7 +162,7 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 </td>
 <td className="py-2 pr-3 text-slate-500">{it.unit}</td>
 <td className="py-2 pr-3 text-right tabular-nums">{it.quantity}</td>
-<td className="py-2 pr-3 text-right tabular-nums">{it.unit_rate}</td>
+<td className="py-2 pr-3 text-right tabular-nums">{formatMoney(it.unit_rate, quote.currency)}</td>
 <td className="py-2 text-right tabular-nums font-semibold">{formatMoney(it.total_amount, quote.currency)}</td>
 </tr>
 ))}
@@ -170,10 +170,10 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 </table>
 
 <div className="text-right space-y-1 text-xs ml-auto max-w-xs">
-<p className="text-slate-600">Subtotal:<span className="tabular-nums">{formatMoney(quote.subtotal, quote.currency)}</span></p>
-<p className="text-slate-600">Tax ({quote.tax_pct}%):<span className="tabular-nums">{formatMoney(quote.tax_amount, quote.currency)}</span></p>
-<p className="text-base font-bold text-slate-900">Total:<span className="tabular-nums">{formatMoney(quote.total, quote.currency)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit required ({quote.deposit_pct}%):<span className="tabular-nums">{formatMoney(quote.deposit_amount, quote.currency)}</span></p>
+<p className="text-slate-600">Subtotal: <span className="tabular-nums">{formatMoney(quote.subtotal, quote.currency)}</span></p>
+<p className="text-slate-600">Tax ({quote.tax_pct}%): <span className="tabular-nums">{formatMoney(quote.tax_amount, quote.currency)}</span></p>
+<p className="text-base font-bold text-slate-900">Total: <span className="tabular-nums">{formatMoney(quote.total, quote.currency)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit required ({quote.deposit_pct}%): <span className="tabular-nums">{formatMoney(quote.deposit_amount, quote.currency)}</span></p>
           {quote.valid_until && (
 <p className="text-[11px] text-slate-400 pt-1">Valid until {formatDate(quote.valid_until)}</p>
 )}
