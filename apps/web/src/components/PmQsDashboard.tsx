@@ -1,4 +1,4 @@
-import { formatKes} from '../ui';
+import { formatKes, ResponsiveTable} from '../ui';
 import React, { useEffect, useState} from 'react';
 import { AuthSession} from '../types/auth';
 import BoqImportModal from './BoqImportModal';
@@ -369,31 +369,23 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </div>
 
 <div className="border border-slate-200 rounded-lg overflow-hidden">
-<table className="w-full text-left text-xs">
-<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold ">
-<tr>
-<th className="p-3">BOQ Section</th>
-<th className="p-3">Standard Reference</th>
-<th className="p-3">Original Budget</th>
-<th className="p-3">Current Budget</th>
-<th className="p-3">Actual Cost</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100 text-slate-700">
-{(budgetSummary?.sectionBreakdown || []).length === 0 && (
-<tr><td colSpan={5} className="p-6 text-center text-sm text-slate-400">No BOQ sections yet — import a BOQ to populate this baseline.</td></tr>
-)}
-{(budgetSummary?.sectionBreakdown || []).map((sec: any) => (
-<tr key={sec.sectionId || sec.title} className="hover:bg-slate-50/50">
-<td className="p-3 font-semibold text-slate-900">{sec.title || sec.sectionTitle || 'Section'}</td>
-<td className="p-3 text-slate-500">{sec.itemCount != null ? `${sec.itemCount} items` : '—'}</td>
-<td className="p-3 tabular-nums font-medium">{formatKes(sec.allocatedBudget)}</td>
-<td className="p-3 tabular-nums font-medium">{formatKes(sec.allocatedBudget)}</td>
-<td className="p-3 tabular-nums text-slate-400">{formatKes(sec.actualSpent)}</td>
-</tr>
-))}
-</tbody>
-</table>
+<ResponsiveTable
+            head={['BOQ Section', 'Standard Reference', 'Original Budget', 'Current Budget', 'Actual Cost']}
+            className="text-xs"
+            headClassName="bg-slate-50"
+            empty="No BOQ sections yet — import a BOQ to populate this baseline."
+            rows={(budgetSummary?.sectionBreakdown || []).map((sec: any) => ({
+              key: sec.sectionId || sec.title,
+              className: 'hover:bg-slate-50/50',
+              cells: [
+                { content: sec.title || sec.sectionTitle || 'Section', className: 'font-semibold text-slate-900' },
+                { content: sec.itemCount != null ? `${sec.itemCount} items` : '—', className: 'text-slate-500' },
+                { content: formatKes(sec.allocatedBudget), className: 'tabular-nums font-medium' },
+                { content: formatKes(sec.allocatedBudget), className: 'tabular-nums font-medium' },
+                { content: formatKes(sec.actualSpent), className: 'tabular-nums text-slate-400' },
+              ],
+            }))}
+          />
 </div>
 </div>
 

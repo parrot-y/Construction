@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
+import { ResponsiveTable } from '../../ui';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -307,43 +308,28 @@ export default function CompliancePortalView({
 </span>
 </div>
 
-<div className="overflow-x-auto">
-<table className="w-full text-xs text-left">
-<thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-<tr>
-<th className="p-3">Statutory Authority</th>
-<th className="p-3">Permit / Reference No</th>
-<th className="p-3">Scope / Approval Scope</th>
-<th className="p-3">Issue Date</th>
-<th className="p-3">Expiry</th>
-<th className="p-3">Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100">
-              {statutoryPermits.length === 0 && (
-<tr><td colSpan={6} className="p-6 text-center text-sm text-slate-400">No statutory permits on file yet — the contractor registers NEMA, county and NCA permits here.</td></tr>
-)}
-              {statutoryPermits.map((p) => (
-<tr key={p.id} className="hover:bg-slate-50">
-<td className="p-3 font-semibold text-slate-900">{p.issuer}</td>
-<td className="p-3 font-mono tabular-nums font-bold text-blue-700">{p.permitNumber}</td>
-<td className="p-3 text-slate-600 max-w-xs">{p.notes || PERMIT_TYPE_LABELS[p.permitType] || p.permitType}</td>
-<td className="p-3 text-slate-600">{p.issuedDate ? String(p.issuedDate).slice(0, 10) : '—'}</td>
-<td className="p-3 text-slate-600">{p.expiryDate ? `Expires ${String(p.expiryDate).slice(0, 10)}` : '—'}</td>
-<td className="p-3">
-<span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getPermitStatusBadge(
-                        p.status
-)}`}
-                    >
-                      {p.statusLabel || p.status.replace(/_/g, ' ')}
-</span>
-</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
+<ResponsiveTable
+            head={['Statutory Authority', 'Permit / Reference No', 'Scope / Approval Scope', 'Issue Date', 'Expiry', 'Status']}
+            className="text-xs"
+            empty="No statutory permits on file yet — the contractor registers NEMA, county and NCA permits here."
+            rows={statutoryPermits.map((p) => ({
+              key: p.id,
+              className: 'hover:bg-slate-50',
+              cells: [
+                { content: p.issuer, className: 'font-semibold text-slate-900' },
+                { content: p.permitNumber, className: 'font-mono tabular-nums font-bold text-blue-700' },
+                { content: p.notes || PERMIT_TYPE_LABELS[p.permitType] || p.permitType, className: 'text-slate-600 max-w-xs' },
+                { content: p.issuedDate ? String(p.issuedDate).slice(0, 10) : '—', className: 'text-slate-600' },
+                { content: p.expiryDate ? `Expires ${String(p.expiryDate).slice(0, 10)}` : '—', className: 'text-slate-600' },
+                <span
+                  key="st"
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getPermitStatusBadge(p.status)}`}
+                >
+                  {p.statusLabel || p.status.replace(/_/g, ' ')}
+</span>,
+              ],
+            }))}
+          />
 </div>
 
       {/* Concrete Cube Crushing Register */}
@@ -358,57 +344,36 @@ export default function CompliancePortalView({
 </span>
 </div>
 
-<div className="overflow-x-auto">
-<table className="w-full text-xs text-left">
-<thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-<tr>
-<th className="p-3">Batch Ref</th>
-<th className="p-3">Pour Date</th>
-<th className="p-3">Element / Structural Location</th>
-<th className="p-3">Design Grade</th>
-<th className="p-3">7-Day Test</th>
-<th className="p-3">28-Day Test</th>
-<th className="p-3">Compliance Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100">
-              {cubeTests.length === 0 && (
-<tr><td colSpan={7} className="p-6 text-center text-sm text-slate-400">No concrete cube tests recorded yet — cube results appear here once the contractor logs batch tests.</td></tr>
-)}
-              {cubeTests.map((c) => {
-                const day7 = c.break_results?.find((b: any) => b.age_days === 7);
-                const day28 = c.break_results?.find((b: any) => b.age_days === 28);
-                const allPassed = c.break_results?.every((b: any) => b.is_pass) ?? true;
-
-                return (
-<tr key={c.id} className="hover:bg-slate-50">
-<td className="p-3 font-mono tabular-nums font-bold text-blue-700">{c.batch_reference}</td>
-<td className="p-3 text-slate-600">{c.pour_date}</td>
-<td className="p-3 font-medium text-slate-900">{c.element_location}</td>
-<td className="p-3 font-bold text-slate-800">C{c.design_grade_mpa}</td>
-<td className="p-3 tabular-nums">
-                      {day7 ? `${day7.compressive_strength_mpa} MPa` : '—'}
-</td>
-<td className="p-3 tabular-nums">
-                      {day28 ? `${day28.compressive_strength_mpa} MPa` : 'In Curing Tank'}
-</td>
-<td className="p-3">
-<span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          allPassed
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-red-100 text-red-800'
-}`}
-                      >
-                        {allPassed ? 'Compliant' : 'Investigation Required'}
-</span>
-</td>
-</tr>
-);
-})}
-</tbody>
-</table>
-</div>
+<ResponsiveTable
+            head={['Batch Ref', 'Pour Date', 'Element / Structural Location', 'Design Grade', '7-Day Test', '28-Day Test', 'Compliance Status']}
+            className="text-xs"
+            empty="No concrete cube tests recorded yet — cube results appear here once the contractor logs batch tests."
+            rows={cubeTests.map((c) => {
+              const day7 = c.break_results?.find((b: any) => b.age_days === 7);
+              const day28 = c.break_results?.find((b: any) => b.age_days === 28);
+              const allPassed = c.break_results?.every((b: any) => b.is_pass) ?? true;
+              return {
+                key: c.id,
+                className: 'hover:bg-slate-50',
+                cells: [
+                  { content: c.batch_reference, className: 'font-mono tabular-nums font-bold text-blue-700' },
+                  { content: c.pour_date, className: 'text-slate-600' },
+                  { content: c.element_location, className: 'font-medium text-slate-900' },
+                  { content: `C${c.design_grade_mpa}`, className: 'font-bold text-slate-800' },
+                  { content: day7 ? `${day7.compressive_strength_mpa} MPa` : '—', className: 'tabular-nums' },
+                  { content: day28 ? `${day28.compressive_strength_mpa} MPa` : 'In Curing Tank', className: 'tabular-nums' },
+                  <span
+                    key="st"
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                      allPassed ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {allPassed ? 'Compliant' : 'Investigation Required'}
+</span>,
+                ],
+              };
+            })}
+          />
 </div>
 
       {/* Pre-pour QA Register */}

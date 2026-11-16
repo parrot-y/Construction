@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../ui';
+import { formatKes, ResponsiveTable } from '../ui';
 import { api } from '../lib/apiClient';
 
 export interface RetentionReleaseItem {
@@ -466,97 +466,85 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               {reviewError}
 </div>
 )}
-<div className="overflow-x-auto">
-<table className="w-full text-left border-collapse text-sm">
-<thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
-<th className="py-3 px-4">Certificate #</th>
-<th className="py-3 px-4">Subcontractor Firm</th>
-<th className="py-3 px-4">Trade</th>
-<th className="py-3 px-4">Moiety Stage</th>
-<th className="py-3 px-4 text-right">Retention Held (KES)</th>
-<th className="py-3 px-4 text-center">Release %</th>
-<th className="py-3 px-4 text-right">Release Sum (KES)</th>
-<th className="py-3 px-4 text-center">Status</th>
-<th className="py-3 px-4 text-center">Action</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
-                {releases.map((rel) => (
-<tr key={rel.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono tabular-nums font-semibold text-slate-900 dark:text-white">
-                      {rel.releaseNo}
-</td>
-<td className="py-3 px-4 font-bold">{rel.firmName}</td>
-<td className="py-3 px-4 text-xs">{rel.tradeCategory}</td>
-<td className="py-3 px-4 text-xs">
-<span className="bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-medium">
-                        {rel.moietyStage === 'FIRST_MOIETY_PRACTICAL_COMPLETION' ? '1st Moiety (PC)' : '2nd Moiety (Final DLP)'}
+<ResponsiveTable
+            head={['Certificate #', 'Subcontractor Firm', 'Trade', 'Moiety Stage', 'Retention Held (KES)', 'Release %', 'Release Sum (KES)', 'Status', 'Action']}
+            className="text-sm"
+            headClassName="bg-slate-50"
+            bodyClassName="text-slate-700"
+            cellClassName=""
+            rows={releases.map((rel) => ({
+              key: rel.id,
+              className: 'hover:bg-slate-50/50 transition-colors',
+              cells: [
+                { content: rel.releaseNo, className: 'font-mono tabular-nums font-semibold text-slate-900' },
+                { content: rel.firmName, className: 'font-bold' },
+                { content: rel.tradeCategory, className: 'text-xs' },
+                {
+                  content: (
+                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium text-xs">
+                      {rel.moietyStage === 'FIRST_MOIETY_PRACTICAL_COMPLETION' ? '1st Moiety (PC)' : '2nd Moiety (Final DLP)'}
 </span>
-</td>
-<td className="py-3 px-4 text-right font-medium">
-                      {formatKes(rel.totalRetentionHeld)}
-</td>
-<td className="py-3 px-4 text-center font-bold text-blue-600 dark:text-blue-400">
-                      {rel.releasePercentage}%
-</td>
-<td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                      {formatKes(rel.releaseAmount)}
-</td>
-<td className="py-3 px-4 text-center">
-<span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          rel.status === 'PAID'
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                            : rel.status === 'APPROVED_BY_DIRECTOR'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                  ),
+                  className: 'text-xs',
+                },
+                { content: formatKes(rel.totalRetentionHeld), className: 'text-right font-medium' },
+                { content: `${rel.releasePercentage}%`, className: 'text-center font-bold text-blue-600' },
+                { content: formatKes(rel.releaseAmount), className: 'text-right font-bold text-emerald-600' },
+                {
+                  content: (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        rel.status === 'PAID'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : rel.status === 'APPROVED_BY_DIRECTOR'
+                          ? 'bg-blue-100 text-blue-800'
+                          : rel.status === 'QS_RECOMMENDED'
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {rel.status}
+</span>
+                  ),
+                  className: 'text-center',
+                },
+                {
+                  content:
+                    rel.status === 'PAID' ? (
+                      <span className="text-[10px] tabular-nums text-slate-500">{rel.disbursementRef}</span>
+                    ) : rel.status === 'REJECTED' ? (
+                      <span className="text-[10px] text-slate-400">Rejected</span>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                        <button
+                          onClick={() =>
+                            rel.status === 'APPROVED_BY_DIRECTOR'
+                              ? handleDisburseClick(rel.id)
+                              : handleReview(rel.id, rel.status === 'PENDING_QS_REVIEW' ? 'RECOMMEND' : 'APPROVE')
+                          }
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
+                        >
+                          {rel.status === 'PENDING_QS_REVIEW'
+                            ? 'QS Recommend'
                             : rel.status === 'QS_RECOMMENDED'
-                            ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
-                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-}`}
-                      >
-                        {rel.status}
-</span>
-</td>
-<td className="py-3 px-4 text-center">
-                      {rel.status === 'PAID' ? (
-<span className="text-[10px] tabular-nums text-slate-500">
-                          {rel.disbursementRef}
-</span>
-) : rel.status === 'REJECTED' ? (
-<span className="text-[10px] text-slate-400">Rejected</span>
-) : (
-<div className="flex flex-col items-center gap-1">
+                            ? 'Director Approve'
+                            : 'Disburse M-Pesa B2C'}
+</button>
+                        {rel.status !== 'APPROVED_BY_DIRECTOR' && (
 <button
-                            onClick={() =>
-                              rel.status === 'APPROVED_BY_DIRECTOR'
-                                ? handleDisburseClick(rel.id)
-                                : handleReview(rel.id, rel.status === 'PENDING_QS_REVIEW' ? 'RECOMMEND' : 'APPROVE')
-                            }
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
+                            onClick={() => handleReview(rel.id, 'REJECT')}
+                            className="text-[10px] text-rose-600 hover:underline"
                           >
-                            {rel.status === 'PENDING_QS_REVIEW'
-                              ? 'QS Recommend'
-                              : rel.status === 'QS_RECOMMENDED'
-                              ? 'Director Approve'
-                              : 'Disburse M-Pesa B2C'}
-</button>
-                          {rel.status !== 'APPROVED_BY_DIRECTOR' && (
-<button
-                              onClick={() => handleReview(rel.id, 'REJECT')}
-                              className="text-[10px] text-rose-600 hover:underline"
-                            >
-                              Reject
+                            Reject
 </button>
 )}
 </div>
-)}
-</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
+                    ),
+                  className: 'text-center',
+                },
+              ],
+            }))}
+          />
 </div>
 )}
 
@@ -571,52 +559,41 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               Standard 10% Contractor Security under JBC 1999
 </span>
 </div>
-<div className="overflow-x-auto">
-<table className="w-full text-left border-collapse text-sm">
-<thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
-<th className="py-3 px-4">Bond Reference #</th>
-<th className="py-3 px-4">Bond Type</th>
-<th className="py-3 px-4">Guarantor (Bank / Insurer)</th>
-<th className="py-3 px-4 text-right">Guaranteed Sum (KES)</th>
-<th className="py-3 px-4">Effective Date</th>
-<th className="py-3 px-4">Expiry Date</th>
-<th className="py-3 px-4 text-center">Claim Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
-                {bonds.map((bnd) => (
-<tr key={bnd.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono tabular-nums font-bold text-slate-900 dark:text-white">
-                      {bnd.bondReferenceNo}
-</td>
-<td className="py-3 px-4 text-xs">
-<span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                        {bnd.bondType.replace(/_/g, ' ')}
+<ResponsiveTable
+            head={['Bond Reference #', 'Bond Type', 'Guarantor (Bank / Insurer)', 'Guaranteed Sum (KES)', 'Effective Date', 'Expiry Date', 'Claim Status']}
+            className="text-sm"
+            headClassName="bg-slate-50"
+            bodyClassName="text-slate-700"
+            rows={bonds.map((bnd) => ({
+              key: bnd.id,
+              className: 'hover:bg-slate-50/50 transition-colors',
+              cells: [
+                { content: bnd.bondReferenceNo, className: 'font-mono tabular-nums font-bold text-slate-900' },
+                {
+                  content: <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{bnd.bondType.replace(/_/g, ' ')}</span>,
+                  className: 'text-xs',
+                },
+                { content: bnd.issuingInstitution, className: 'font-semibold' },
+                { content: formatKes(bnd.bondAmount), className: 'text-right font-bold text-slate-900' },
+                { content: bnd.effectiveDate, className: 'tabular-nums text-xs' },
+                { content: bnd.expiryDate, className: 'tabular-nums text-xs' },
+                {
+                  content: (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        bnd.claimStatus === 'ACTIVE'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-slate-100 text-slate-800'
+                      }`}
+                    >
+                      {bnd.claimStatus}
 </span>
-</td>
-<td className="py-3 px-4 font-semibold">{bnd.issuingInstitution}</td>
-<td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
-                      {formatKes(bnd.bondAmount)}
-</td>
-<td className="py-3 px-4 tabular-nums text-xs">{bnd.effectiveDate}</td>
-<td className="py-3 px-4 tabular-nums text-xs">{bnd.expiryDate}</td>
-<td className="py-3 px-4 text-center">
-<span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          bnd.claimStatus === 'ACTIVE'
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                            : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
-}`}
-                      >
-                         {bnd.claimStatus}
-</span>
-</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
+                  ),
+                  className: 'text-center',
+                },
+              ],
+            }))}
+          />
 </div>
 )}
 

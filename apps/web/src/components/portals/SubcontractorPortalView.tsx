@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../../ui';
+import { formatKes, ResponsiveTable } from '../../ui';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, portalHttpError, type PortalLinkKind } from './PortalErrorState';
 
 export interface SubcontractorSnag {
@@ -538,82 +538,44 @@ export default function SubcontractorPortalView({
 </button>
 </div>
 
-{/* Stacked cards on phones — the six-column table clips at 390px */}
-<div className="sm:hidden space-y-3">
-                  {commercialSummary.milestones.length === 0 && (
-<p className="text-sm text-slate-400 text-center py-6">No valuation claims certified yet — submit a milestone claim below and the QS will certify it here.</p>
-)}
-                  {commercialSummary.milestones.map((m) => (
-<div key={m.id} className="bg-slate-50 rounded-xl p-3.5 space-y-2 border border-slate-100">
-<div className="flex items-start justify-between gap-2">
-<span className="text-xs font-bold text-slate-900">{m.milestoneName}</span>
-<span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded border ${
-                        m.status === 'PAID'
-                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                          : m.status === 'CERTIFIED'
-                          ? 'bg-blue-100 text-blue-800 border-blue-300'
-                          : 'bg-slate-100 text-slate-600 border-slate-300'
-                      }`}>
-                        {m.status.replace('_', ' ')}
-</span>
-</div>
-{m.certifiedDate && <p className="text-[10px] text-slate-400">Certified: {m.certifiedDate}</p>}
-<div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-<div className="flex justify-between"><span className="text-slate-500">Weight</span><span className="font-bold text-slate-700">{m.pct}%</span></div>
-<div className="flex justify-between"><span className="text-slate-500">Gross</span><span className="tabular-nums font-bold text-slate-900">{formatKes(m.grossKes)}</span></div>
-<div className="flex justify-between"><span className="text-slate-500">{commercialSummary.retentionRatePct}% Retention</span><span className="tabular-nums text-purple-700">{formatKes(m.retentionKes)}</span></div>
-<div className="flex justify-between"><span className="text-slate-500">Net payable</span><span className="tabular-nums font-bold text-emerald-700">{formatKes(m.netKes)}</span></div>
-</div>
-</div>
-))}
-</div>
-
-<div className="hidden sm:block overflow-x-auto">
-<table className="w-full text-xs text-left">
-<thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-<tr>
-<th className="p-3">Milestone Scope of Work</th>
-<th className="p-3">Weight (%)</th>
-<th className="p-3">Contract Value</th>
-<th className="p-3">{commercialSummary.retentionRatePct}% Retention</th>
-<th className="p-3">Net Payable</th>
-<th className="p-3">Claim Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100">
-                  {commercialSummary.milestones.length === 0 && (
-<tr><td colSpan={6} className="p-6 text-center text-sm text-slate-400">No valuation claims certified yet — submit a milestone claim below and the QS will certify it here.</td></tr>
-)}
-                  {commercialSummary.milestones.map((m) => (
-<tr key={m.id} className="hover:bg-slate-50">
-<td className="p-3 font-medium text-slate-900">
-                          {m.milestoneName}
-                          {m.certifiedDate && (
+<ResponsiveTable
+            head={['Milestone Scope of Work', 'Weight (%)', 'Contract Value', `${commercialSummary.retentionRatePct}% Retention`, 'Net Payable', 'Claim Status']}
+            className="text-xs"
+            empty="No valuation claims certified yet — submit a milestone claim below and the QS will certify it here."
+            rows={commercialSummary.milestones.map((m) => ({
+              key: m.id,
+              className: 'hover:bg-slate-50',
+              cells: [
+                {
+                  content: (
+                    <>
+                      {m.milestoneName}
+                      {m.certifiedDate && (
 <span className="block text-[10px] text-slate-400">Certified: {m.certifiedDate}</span>
 )}
-</td>
-<td className="p-3 font-bold text-slate-700">{m.pct}%</td>
-<td className="p-3 tabular-nums font-bold text-slate-900">{formatKes(m.grossKes)}</td>
-<td className="p-3 tabular-nums text-purple-700">{formatKes(m.retentionKes)}</td>
-<td className="p-3 tabular-nums font-bold text-emerald-700">{formatKes(m.netKes)}</td>
-<td className="p-3">
-<span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                              m.status === 'PAID'
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : m.status === 'CERTIFIED'
-                                ? 'bg-blue-100 text-blue-800 border-blue-300'
-                                : 'bg-slate-100 text-slate-600 border-slate-300'
-}`}
-                          >
-                            {m.status.replace('_', ' ')}
-</span>
-</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
+                    </>
+                  ),
+                  className: 'font-medium text-slate-900',
+                },
+                { content: `${m.pct}%`, className: 'font-bold text-slate-700' },
+                { content: formatKes(m.grossKes), className: 'tabular-nums font-bold text-slate-900' },
+                { content: formatKes(m.retentionKes), className: 'tabular-nums text-purple-700' },
+                { content: formatKes(m.netKes), className: 'tabular-nums font-bold text-emerald-700' },
+                <span
+                  key="st"
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                    m.status === 'PAID'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : m.status === 'CERTIFIED'
+                      ? 'bg-blue-100 text-blue-800 border-blue-300'
+                      : 'bg-slate-100 text-slate-600 border-slate-300'
+                  }`}
+                >
+                  {m.status.replace('_', ' ')}
+</span>,
+              ],
+            }))}
+          />
 </div>
 
 {/* Stage 6: retention release request */}

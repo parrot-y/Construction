@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { formatKes } from '../ui';
+import { formatKes, ResponsiveTable } from '../ui';
 import { AuthSession } from '../types/auth';
 import PhotoEvidenceGallery from './PhotoEvidenceGallery';
 import VariationManagementView from './VariationManagementView';
@@ -123,8 +123,8 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
         {approvals.length > 0 && (
           <div className="space-y-1.5">
             {approvals.slice(0, 8).map((a: any, i: number) => (
-              <div key={a.id || i} className="flex items-center justify-between gap-3 text-xs bg-white/70 border border-amber-100 rounded-lg px-3 py-2">
-                <span className="font-semibold text-slate-800 truncate">{a.title || 'Item'}</span>
+              <div key={a.id || i} className="flex items-start justify-between gap-3 text-xs bg-white/70 border border-amber-100 rounded-lg px-3 py-2">
+                <span className="font-semibold text-slate-800 min-w-0 break-words">{a.title || 'Item'}</span>
                 <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
                   {plainStatus(a.status)}
                   {a.amount ? ` • ${formatKes(String(a.amount))}` : ''}
@@ -166,32 +166,26 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
         {certs.length === 0 ? (
           <p className="text-xs text-slate-400">{loading ? 'Loading…' : 'No certificates issued yet.'}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
-                  <th className="py-2 px-3">Certificate</th>
-                  <th className="py-2 px-3">Period</th>
-                  <th className="py-2 px-3">Net payable</th>
-                  <th className="py-2 px-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {certs.map((c: any) => (
-                  <tr key={c.id}>
-                    <td className="py-2 px-3 font-mono tabular-nums font-bold text-slate-800">{c.certificate_no}</td>
-                    <td className="py-2 px-3 text-slate-600">{c.period_start} → {c.period_end}</td>
-                    <td className="py-2 px-3 font-mono tabular-nums">{formatKes(String(c.net_payable ?? '0'))}</td>
-                    <td className="py-2 px-3">
-                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${c.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-sky-100 text-sky-800 border-sky-300'}`}>
-                        {plainStatus(c.status)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable
+            head={['Certificate', 'Period', 'Net payable', 'Status']}
+            className="border-collapse text-xs"
+            empty="No certificates issued yet."
+            rows={certs.map((c: any) => ({
+              key: c.id,
+              cells: [
+                { content: c.certificate_no, className: 'font-mono tabular-nums font-bold text-slate-800' },
+                { content: `${c.period_start} → ${c.period_end}`, className: 'text-slate-600' },
+                { content: formatKes(String(c.net_payable ?? '0')), className: 'font-mono tabular-nums' },
+                {
+                  content: (
+                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${c.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-sky-100 text-sky-800 border-sky-300'}`}>
+                      {plainStatus(c.status)}
+</span>
+                  ),
+                },
+              ],
+            }))}
+          />
         )}
       </div>
 
@@ -200,32 +194,26 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
         {invoices.length === 0 ? (
           <p className="text-xs text-slate-400">{loading ? 'Loading…' : 'No invoices yet.'}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
-                  <th className="py-2 px-3">Invoice</th>
-                  <th className="py-2 px-3">Total</th>
-                  <th className="py-2 px-3">Balance due</th>
-                  <th className="py-2 px-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {invoices.slice(0, 10).map((inv: any) => (
-                  <tr key={inv.id}>
-                    <td className="py-2 px-3 font-semibold text-slate-800">{inv.title || `Invoice #${inv.invoice_no ?? ''}`}</td>
-                    <td className="py-2 px-3 font-mono tabular-nums">{formatKes(String(inv.total ?? '0'))}</td>
-                    <td className="py-2 px-3 font-mono tabular-nums font-bold">{formatKes(String(inv.balance_due ?? inv.balanceDue ?? '0'))}</td>
-                    <td className="py-2 px-3">
-                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full border bg-slate-100 text-slate-700 border-slate-300">
-                        {plainStatus(inv.status)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable
+            head={['Invoice', 'Total', 'Balance due', 'Status']}
+            className="border-collapse text-xs"
+            empty="No invoices yet."
+            rows={invoices.slice(0, 10).map((inv: any) => ({
+              key: inv.id,
+              cells: [
+                { content: inv.title || `Invoice #${inv.invoice_no ?? ''}`, className: 'font-semibold text-slate-800' },
+                { content: formatKes(String(inv.total ?? '0')), className: 'font-mono tabular-nums' },
+                { content: formatKes(String(inv.balance_due ?? inv.balanceDue ?? '0')), className: 'font-mono tabular-nums font-bold' },
+                {
+                  content: (
+                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full border bg-slate-100 text-slate-700 border-slate-300">
+                      {plainStatus(inv.status)}
+</span>
+                  ),
+                },
+              ],
+            }))}
+          />
         )}
       </div>
 

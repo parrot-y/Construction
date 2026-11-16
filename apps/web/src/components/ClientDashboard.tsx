@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../ui';
+import { formatKes, ResponsiveTable } from '../ui';
 import { AuthSession} from '../types/auth';
 import MilestoneTimeline, { TimelineItem} from './MilestoneTimeline';
 import PhotoEvidenceGallery from './PhotoEvidenceGallery';
@@ -360,8 +360,8 @@ export default function ClientDashboard({
 </div>
 <div className="space-y-1.5">
             {approvals.slice(0, 6).map((a: any, i: number) => (
-<div key={a.id || i} className="flex items-center justify-between gap-3 text-xs bg-white/70 border border-amber-100 rounded-lg px-3 py-2">
-<span className="font-semibold text-slate-800 truncate">{a.title || a.certificate_no || 'Item'}</span>
+<div key={a.id || i} className="flex items-start justify-between gap-3 text-xs bg-white/70 border border-amber-100 rounded-lg px-3 py-2">
+<span className="font-semibold text-slate-800 min-w-0 break-words">{a.title || a.certificate_no || 'Item'}</span>
 <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
                   {a.type === 'VARIATION' ? 'Variation order' : a.type === 'CERTIFICATE' ? 'Payment certificate' : a.type === 'QUOTE' ? 'Quote' : 'Approval'}
                   {a.amount ? ` • ${formatKes(String(a.amount))}` : ''}
@@ -398,53 +398,54 @@ export default function ClientDashboard({
         {invoices.length === 0 ? (
 <p className="text-xs text-slate-400">No invoices yet.</p>
 ) : (
-<div className="overflow-x-auto">
-<table className="w-full text-left text-xs border-collapse">
-<thead>
-<tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
-<th className="py-2 px-3">Invoice</th>
-<th className="py-2 px-3">Status</th>
-<th className="py-2 px-3">Total</th>
-<th className="py-2 px-3">Balance due</th>
-<th className="py-2 px-3">Payments</th>
-<th className="py-2 px-3"></th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100">
-              {invoices.slice(0, 10).map((inv: any) => {
-                const statusLabel: Record<string, string> = {
-                  DRAFT: 'Draft', SENT: 'Sent — awaiting payment', VIEWED: 'Viewed',
-                  PART_PAID: 'Part paid', PAID: 'Paid', OVERDUE: 'Overdue', CANCELLED: 'Cancelled',
-                };
-                const balance = parseFloat(inv.balance_due ?? inv.balanceDue ?? '0');
-                const history = inv.payment_history || inv.paymentHistory || inv.payments || [];
-                const notices = inv.payment_notices || inv.paymentNotices || [];
-                return (
-<tr key={inv.id}>
-<td className="py-2 px-3 font-semibold text-slate-800">{inv.title || `Invoice #${inv.invoice_no ?? ''}`}</td>
-<td className="py-2 px-3">
-<span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : balance > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+<ResponsiveTable
+            head={['Invoice', 'Status', 'Total', 'Balance due', 'Payments', '']}
+            className="border-collapse text-xs"
+            rows={invoices.slice(0, 10).map((inv: any) => {
+              const statusLabel: Record<string, string> = {
+                DRAFT: 'Draft', SENT: 'Sent — awaiting payment', VIEWED: 'Viewed',
+                PART_PAID: 'Part paid', PAID: 'Paid', OVERDUE: 'Overdue', CANCELLED: 'Cancelled',
+              };
+              const balance = parseFloat(inv.balance_due ?? inv.balanceDue ?? '0');
+              const history = inv.payment_history || inv.paymentHistory || inv.payments || [];
+              const notices = inv.payment_notices || inv.paymentNotices || [];
+              return {
+                key: inv.id,
+                cells: [
+                  { content: inv.title || `Invoice #${inv.invoice_no ?? ''}`, className: 'font-semibold text-slate-800' },
+                  {
+                    content: (
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : balance > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
                         {statusLabel[inv.status] || inv.status}
 </span>
-</td>
-<td className="py-2 px-3 tabular-nums">{formatKes(String(inv.total ?? '0'))}</td>
-<td className="py-2 px-3 tabular-nums font-bold text-slate-900">{formatKes(String(balance))}</td>
-<td className="py-2 px-3 text-slate-500">
+                    ),
+                  },
+                  { content: formatKes(String(inv.total ?? '0')), className: 'tabular-nums' },
+                  { content: formatKes(String(balance)), className: 'tabular-nums font-bold text-slate-900' },
+                  {
+                    content: (
+                      <>
                         {history.length > 0 ? `${history.length} payment${history.length === 1 ? '' : 's'} recorded` : '—'}
                         {notices.length > 0 && <span className="block text-[10px] text-sky-600">{notices.length} notice{notices.length === 1 ? '' : 's'} sent</span>}
-</td>
-<td className="py-2 px-3 text-right">
+                      </>
+                    ),
+                    className: 'text-slate-500',
+                  },
+                  {
+                    content: (
+                      <div className="flex flex-col items-end gap-1">
                         {balance > 0 && !['PAID', 'CANCELLED', 'DRAFT'].includes(inv.status) && (
 <InvoicePayNotice invoice={inv} onSent={(id) => { setNoticeSent(id); setTimeout(() => setNoticeSent(null), 4000); }} />
 )}
                         {noticeSent === inv.id && <span className="text-[10px] font-bold text-emerald-700">Notice sent to contractor</span>}
-</td>
-</tr>
-);
-              })}
-</tbody>
-</table>
-</div>
+                      </div>
+                    ),
+                    className: 'text-right',
+                  },
+                ],
+              };
+            })}
+          />
 )}
 </div>
 
@@ -744,44 +745,31 @@ export default function ClientDashboard({
 </div>
 
         {/* Certified IPCs Table */}
-<div className="overflow-x-auto">
-<table className="w-full text-left text-xs border-collapse">
-<thead>
-<tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
-<th className="py-2.5 px-3">Certificate Ref</th>
-<th className="py-2.5 px-3">Milestone Scope</th>
-<th className="py-2.5 px-3">Date Certified</th>
-<th className="py-2.5 px-3">Gross Certified ({selectedCurrency})</th>
-<th className="py-2.5 px-3">Retention Held ({selectedCurrency})</th>
-<th className="py-2.5 px-3">Net Payment ({selectedCurrency})</th>
-<th className="py-2.5 px-3 text-right">Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100">
-{(paymentCertificates || []).map((c: any) => (
-<tr key={c.id} className="hover:bg-slate-50/60">
-<td className="py-2.5 px-3 font-mono tabular-nums font-bold text-slate-800">{c.certificate_no}</td>
-<td className="py-2.5 px-3 text-slate-700">{c.period_start} → {c.period_end}</td>
-<td className="py-2.5 px-3 text-slate-500 font-mono tabular-nums">{c.certified_at ? c.certified_at.split('T')[0] : '—'}</td>
-<td className="py-2.5 px-3 font-mono tabular-nums font-bold text-slate-900">{formatWithCurrency(c.this_period_amount)}</td>
-<td className="py-2.5 px-3 tabular-nums text-amber-700">{formatWithCurrency(c.retention_held)}</td>
-<td className="py-2.5 px-3 tabular-nums font-bold text-emerald-700">{formatWithCurrency(c.net_payable)}</td>
-<td className="py-2.5 px-3 text-right">
-<span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${c.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-sky-100 text-sky-800 border-sky-300'}`}>
-                    {c.status === 'PAID' ? 'Paid' : 'Certified'}
+<ResponsiveTable
+            head={['Certificate Ref', `Milestone Scope`, 'Date Certified', `Gross Certified (${selectedCurrency})`, `Retention Held (${selectedCurrency})`, `Net Payment (${selectedCurrency})`, 'Status']}
+            className="border-collapse text-xs"
+            empty={hydrated ? 'No certified payment certificates yet.' : 'Loading certificates…'}
+            rows={(paymentCertificates || []).map((c: any) => ({
+              key: c.id,
+              className: 'hover:bg-slate-50/60',
+              cells: [
+                { content: c.certificate_no, className: 'font-mono tabular-nums font-bold text-slate-800' },
+                { content: `${c.period_start} → ${c.period_end}`, className: 'text-slate-700' },
+                { content: c.certified_at ? c.certified_at.split('T')[0] : '—', className: 'text-slate-500 font-mono tabular-nums' },
+                { content: formatWithCurrency(c.this_period_amount), className: 'font-mono tabular-nums font-bold text-slate-900' },
+                { content: formatWithCurrency(c.retention_held), className: 'tabular-nums text-amber-700' },
+                { content: formatWithCurrency(c.net_payable), className: 'tabular-nums font-bold text-emerald-700' },
+                {
+                  content: (
+                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${c.status === 'PAID' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-sky-100 text-sky-800 border-sky-300'}`}>
+                      {c.status === 'PAID' ? 'Paid' : 'Certified'}
 </span>
-</td>
-</tr>
-))}
-{hydrated && (paymentCertificates || []).length === 0 && (
-<tr><td colSpan={7} className="py-8 text-center text-slate-400">No certified payment certificates yet.</td></tr>
-)}
-{!hydrated && (
-<tr><td colSpan={7} className="py-8 text-center text-slate-400">Loading certificates…</td></tr>
-)}
-</tbody>
-</table>
-</div>
+                  ),
+                  className: 'text-right',
+                },
+              ],
+            }))}
+          />
 </div>
 
       {/* Project Milestones Timeline & Kenyan Retention Terms */}

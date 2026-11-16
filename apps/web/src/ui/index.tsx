@@ -206,6 +206,90 @@ export function Table({ head, children}: { head: string[]; children: React.React
 );
 }
 
+// ------------------------------------------------------------ ResponsiveTable
+/**
+ * Shared responsive table: normal table on ≥640px; below that every row
+ * becomes a stacked card of label/value pairs (see `table.rt` rules in
+ * index.css). Semantic <table>/<tr>/<td> markup is preserved.
+ *
+ * Each cell is either a ReactNode or `{ content, className }` to carry
+ * per-cell classes (alignment, tabular-nums, …). Column labels are taken
+ * from `head` and emitted as each td's `data-label`.
+ */
+export type ResponsiveTableCell = React.ReactNode | { content: React.ReactNode; className?: string };
+
+export interface ResponsiveTableRow {
+  key: React.Key;
+  cells: ResponsiveTableCell[];
+  className?: string;
+}
+
+function isCellObject(cell: ResponsiveTableCell): cell is { content: React.ReactNode; className?: string } {
+  return (
+    typeof cell === 'object' &&
+    cell !== null &&
+    !React.isValidElement(cell) &&
+    'content' in (cell as Record<string, unknown>)
+  );
+}
+
+export function ResponsiveTable({
+  head,
+  rows,
+  empty,
+  className = '',
+  headClassName = '',
+  bodyClassName = '',
+  cellClassName = '',
+}: {
+  head: string[];
+  rows: ResponsiveTableRow[];
+  /** Rendered as a colspan row when `rows` is empty. */
+  empty?: React.ReactNode;
+  className?: string;
+  headClassName?: string;
+  bodyClassName?: string;
+  cellClassName?: string;
+}) {
+  return (
+<div className="overflow-x-auto">
+<table className={`rt w-full text-left ${className}`}>
+<thead>
+<tr className={`border-b border-slate-200 text-[11px] font-bold text-slate-600 ${headClassName}`}>
+            {head.map((h) => (
+<th key={h} className="py-2.5 px-3 whitespace-nowrap">{h}</th>
+))}
+</tr>
+</thead>
+<tbody className={`divide-y divide-slate-100 ${bodyClassName}`}>
+            {rows.length === 0 ? (
+              empty != null && (
+<tr><td colSpan={head.length} className="py-8 px-3 text-center text-sm text-slate-400">{empty}</td></tr>
+)
+) : (
+              rows.map((row) => (
+<tr key={row.key} className={row.className}>
+                  {row.cells.map((cell, i) => {
+                    const obj = isCellObject(cell) ? cell : null;
+                    return (
+<td
+                        key={i}
+                        data-label={head[i] ?? ''}
+                        className={`py-2.5 px-3 ${cellClassName} ${obj?.className ?? ''}`}
+                      >
+                        {obj ? obj.content : (cell as React.ReactNode)}
+</td>
+);
+                  })}
+</tr>
+))
+)}
+</tbody>
+</table>
+</div>
+);
+}
+
 // ------------------------------------------------------- CopyWhatsAppButton
 /** Copies a prefilled WhatsApp message (link + context). Sending stays simulated — this only copies text. */
 export function CopyWhatsAppButton({

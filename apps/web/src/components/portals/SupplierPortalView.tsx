@@ -82,7 +82,7 @@ export default function SupplierPortalView({
   const [stakeholder, setStakeholder] = useState({ name: supplierName || '', category: supplierCategory || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
   const [deliveries, setDeliveries] = useState<SupplierDelivery[]>([]);
-  const [filter, setFilter] = useState<'ALL' | 'RECEIVED' | 'PENDING'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'RECEIVED' | 'REJECTED'>('ALL');
   const [showPoModal, setShowPoModal] = useState(false);
   const [actionInputs, setActionInputs] = useState<Record<string, { invoiceRef: string; note: string }>>({});
   const [actionBusy, setActionBusy] = useState<string | null>(null);
@@ -91,6 +91,9 @@ export default function SupplierPortalView({
   const [poBusy, setPoBusy] = useState<string | null>(null);
   const [acceptDate, setAcceptDate] = useState<Record<string, string>>({});
   const [invForm, setInvForm] = useState<Record<string, { reference: string; amount: string; itemId: string; note: string; open: boolean }>>({});
+  const [showAllPos, setShowAllPos] = useState(false);
+  const [showAllDeliveries, setShowAllDeliveries] = useState(false);
+  const PAGE_SIZE = 10;
 
   const load = async () => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
@@ -212,14 +215,268 @@ export default function SupplierPortalView({
     );
   }
 
-  const filteredDeliveries = deliveries.filter((d) => {
+  // Action-first ordering: things awaiting the supplier float to the top;
+  // completed records collapse behind a count / "show more".
+  const actionPos = purchaseOrders.filter((po) => po.status === 'ISSUED');
+  const settledPos = purchaseOrders.filter((po) => po.status !== 'ISSUED');
+  const pendingDeliveries = deliveries.filter((d) => d.status === 'PENDING');
+  const settledDeliveries = deliveries.filter((d) => d.status !== 'PENDING');
+  const filteredSettled = settledDeliveries.filter((d) => {
     if (filter === 'ALL') return true;
-    return d.status === filter;
-});
+    if (filter === 'RECEIVED') return d.status === 'RECEIVED';
+    if (filter === 'REJECTED') return d.status === 'REJECTED';
+    return true;
+  });
+
+  // An invoice is only "due" while the PO still has uninvoiced value —
+  // accepted-but-fully-invoiced orders must not show a Submit invoice button.
+  const invoiceStillDue = (po: SupplierPurchaseOrder): boolean => {
+    if (!['ACCEPTED', 'PART_DELIVERED', 'DELIVERED'].includes(po.status)) return false;
+    const invoiced = po.invoices
+      .filter((iv) => iv.status !== 'REJECTED')
+      .reduce((sum, iv) => sum + Number(iv.amount || 0), 0);
+    return Number(po.totalAmount) - invoiced > 0.004;
+  };
+  const invoicedTotal = (po: SupplierPurchaseOrder): number =>
+    po.invoices.filter((iv) => iv.status !== 'REJECTED').reduce((sum, iv) => sum + Number(iv.amount || 0), 0);
+
+  const renderPoCard = (po: SupplierPurchaseOrder) => {
+    const f = invForm[po.id] || { reference: '', amount: '', itemId: '', note: '', open: false };
+    const canInvoice = invoiceStillDue(po);
+    const canAccept = po.status === 'ISSUED';
+    return (
+<div key={po.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4" data-testid={`supplier-po-${po.poNumber}`}>
+<div className="flex flex-wrap items-start justify-between gap-2">
+<div>
+<div className="flex items-center gap-2">
+<span className="tabular-nums font-bold text-slate-900">{po.poNumber}</span>
+<span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{po.statusLabel}</span>
+</div>
+<p className="text-[11px] text-slate-500 mt-1">
+                      Ordered {po.orderDate ? String(po.orderDate).slice(0, 10) : '—'}
+                      {po.expectedDeliveryDate ? ` · expected ${String(po.expectedDeliveryDate).slice(0, 10)}` : ''}
+</p>
+</div>
+<span className="tabular-nums font-bold text-slate-900">{formatKes(po.totalAmount)}</span>
+</div>
+
+<ul className="mt-3 space-y-1">
+                  {po.items.map((it) => (
+<li key={it.id} className="text-xs text-slate-600 flex justify-between gap-3">
+<span>{it.description} <span className="text-slate-400">({it.unit})</span></span>
+<span className="font-mono tabular-nums">{it.quantity} × {formatKes(it.rate)}</span>
+</li>
+))}
+</ul>
+
+                {po.invoices.length > 0 && (
+<div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
+                    {po.invoices.map((iv) => (
+<div key={iv.id} className="flex items-center justify-between text-[11px]">
+<span className="font-mono tabular-nums text-slate-700">{iv.reference}</span>
+<span className="text-slate-500">
+                          {formatKes(iv.amount)} · {iv.status === 'ACCEPTED' ? 'Accepted' : iv.status === 'REJECTED' ? 'Rejected' : iv.status === 'REVIEW_REQUIRED' ? 'Under review' : 'Submitted'}
+</span>
+</div>
+))}
+</div>
+)}
+
+                {canAccept && (
+<div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-end gap-2" data-testid={`po-accept-${po.poNumber}`}>
+<label className="text-[11px] font-semibold text-slate-600">
+                      Expected delivery date
+<input
+                        type="date"
+                        className="mt-1 block px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                        value={acceptDate[po.id] || ''}
+                        onChange={(e) => setAcceptDate((prev) => ({ ...prev, [po.id]: e.target.value }))}
+                        data-testid={`po-accept-date-${po.poNumber}`}
+                      />
+</label>
+<button
+                      type="button"
+                      disabled={poBusy === po.id}
+                      onClick={() => void acceptPo(po.id)}
+                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-50"
+                      data-testid={`po-accept-submit-${po.poNumber}`}
+                    >
+                      {poBusy === po.id ? 'Accepting…' : 'Accept PO'}
+</button>
+</div>
+)}
+
+                {canInvoice && (
+<div className="mt-3 pt-3 border-t border-slate-100">
+                    {!f.open ? (
+<button
+                        type="button"
+                        onClick={() => setInvForm((prev) => ({ ...prev, [po.id]: { reference: '', amount: '', itemId: '', note: '', open: true } }))}
+                        className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50"
+                        data-testid={`po-invoice-open-${po.poNumber}`}
+                      >
+                        Submit invoice
+</button>
+) : (
+<div className="space-y-2" data-testid={`po-invoice-form-${po.poNumber}`}>
+<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+<input
+                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                            placeholder="Invoice reference *"
+                            value={f.reference}
+                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, reference: e.target.value } }))}
+                            data-testid={`po-invoice-ref-${po.poNumber}`}
+                          />
+<input
+                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                            type="number" min="0" step="0.01"
+                            placeholder="Amount (KES) *"
+                            value={f.amount}
+                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, amount: e.target.value } }))}
+                            data-testid={`po-invoice-amount-${po.poNumber}`}
+                          />
+<select
+                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                            value={f.itemId}
+                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, itemId: e.target.value } }))}
+                            data-testid={`po-invoice-item-${po.poNumber}`}
+                          >
+                            <option value="">Whole PO (unallocated)</option>
+                            {po.items.map((it) => <option key={it.id} value={it.id}>{it.description}</option>)}
+</select>
+</div>
+<input
+                          className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+                          placeholder="Note (optional)"
+                          value={f.note}
+                          onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, note: e.target.value } }))}
+                        />
+<div className="flex gap-2">
+<button
+                            type="button"
+                            disabled={poBusy === po.id}
+                            onClick={() => void submitPoInvoice(po.id)}
+                            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-blue-700 hover:bg-blue-800 text-white disabled:opacity-50"
+                            data-testid={`po-invoice-submit-${po.poNumber}`}
+                          >
+                            {poBusy === po.id ? 'Submitting…' : 'Submit invoice'}
+</button>
+<button
+                            type="button"
+                            onClick={() => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, open: false } }))}
+                            className="px-3 py-1.5 text-[11px] font-bold text-slate-500"
+                          >
+                            Cancel
+</button>
+</div>
+</div>
+)}
+</div>
+)}
+
+                {!canInvoice && !canAccept && ['ACCEPTED', 'PART_DELIVERED', 'DELIVERED'].includes(po.status) && invoicedTotal(po) > 0 && (
+<p className="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+                    Fully invoiced — {formatKes(invoicedTotal(po))} submitted, awaiting contractor review.
+</p>
+)}
+</div>
+    );
+  };
+
+  const renderDeliveryCard = (del: SupplierDelivery) => (
+<div
+      key={del.id}
+      className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3"
+      data-testid={`supplier-delivery-${del.delivery_note_number}`}
+    >
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+<div className="flex items-center gap-2">
+<span className="font-mono tabular-nums text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                {del.delivery_note_number}
+</span>
+<span className="text-xs text-slate-500">
+                Site Date: {new Date(del.siteDate).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric'})}
+</span>
+</div>
+
+<span
+          className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+            del.status === 'RECEIVED'
+              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+              : del.status === 'REJECTED'
+              ? 'bg-rose-100 text-rose-800 border border-rose-200'
+              : 'bg-amber-100 text-amber-800 border border-amber-200'
+          }`}
+        >
+          {del.status === 'RECEIVED' ? 'Site Acknowledged & Cast' : del.status === 'REJECTED' ? 'Disputed' : 'Scheduled / Dispatched'}
+</span>
+</div>
+
+<div>
+<h3 className="text-sm font-bold text-slate-900">{del.material_description}</h3>
+<p className="text-xs font-semibold text-slate-600 mt-0.5">
+          Quantity:<span className="text-slate-900 font-bold">{del.quantity} {del.unit}</span>
+</p>
+</div>
+
+        {del.notes && (
+<div className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded border border-slate-200">
+<span className="font-semibold text-slate-900">Site Inspection Note:</span> {del.notes}
+</div>
+)}
+
+        {del.received_by && (
+<p className="text-[11px] text-slate-500 flex items-center gap-1">
+<span className="text-emerald-600 font-bold"></span> Received &amp; Slump Tested by: {del.received_by}
+</p>
+)}
+        {del.supplier_invoice_ref && (
+<p className="text-[11px] text-slate-500">Invoice ref: {del.supplier_invoice_ref}</p>
+)}
+        {del.status === 'PENDING' && (
+<div className="space-y-2 pt-1">
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+<input
+              type="text"
+              placeholder="Supplier invoice ref (optional)"
+              value={actionInputs[del.id]?.invoiceRef || ''}
+              onChange={(e) => setActionInputs((prev) => ({ ...prev, [del.id]: { ...prev[del.id], invoiceRef: e.target.value, note: prev[del.id]?.note || '' } }))}
+              className="text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+<input
+              type="text"
+              placeholder="Dispute reason (required to dispute)"
+              value={actionInputs[del.id]?.note || ''}
+              onChange={(e) => setActionInputs((prev) => ({ ...prev, [del.id]: { ...prev[del.id], note: e.target.value, invoiceRef: prev[del.id]?.invoiceRef || '' } }))}
+              className="text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
+</div>
+<div className="flex gap-2">
+<button
+              type="button"
+              disabled={actionBusy === del.id}
+              onClick={() => confirmDelivery(del.id, 'CONFIRM')}
+              className="px-3 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50"
+            >
+              {actionBusy === del.id ? 'Saving…' : 'Confirm Delivery'}
+</button>
+<button
+              type="button"
+              disabled={actionBusy === del.id}
+              onClick={() => confirmDelivery(del.id, 'DISPUTE')}
+              className="px-3 py-1.5 text-xs font-bold bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 rounded-lg disabled:opacity-50"
+            >
+              Dispute
+</button>
+</div>
+</div>
+)}
+</div>
+  );
 
   return (
 <div className="w-full max-w-5xl mx-auto space-y-6" data-testid="supplier-portal-view">
-      <PortalExpiryBanner expiresAt={linkExpiresAt} />
+<PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
 <div>
@@ -271,10 +528,10 @@ export default function SupplierPortalView({
 <p className="text-2xl font-bold text-emerald-700 mt-1">{deliveries.filter((d) => d.status === 'RECEIVED').length}</p>
 </div>
 )}
-{deliveries.filter((d) => d.status === 'PENDING').length > 0 && (
+{pendingDeliveries.length > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500">Awaiting Confirmation</p>
-<p className="text-2xl font-bold text-amber-700 mt-1">{deliveries.filter((d) => d.status === 'PENDING').length}</p>
+<p className="text-2xl font-bold text-amber-700 mt-1">{pendingDeliveries.length}</p>
 </div>
 )}
 {deliveries.filter((d) => d.status === 'REJECTED').length > 0 && (
@@ -290,159 +547,46 @@ export default function SupplierPortalView({
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg">{feedback}</div>
 )}
 
-      {/* Purchase orders — supplier accept + invoice submission (Stage 3/4) */}
-      {purchaseOrders.length > 0 && (
-        <div className="space-y-3" data-testid="supplier-po-list">
-          <h2 className="text-sm font-bold text-slate-800">Your purchase orders</h2>
-          {purchaseOrders.map((po) => {
-            const f = invForm[po.id] || { reference: '', amount: '', itemId: '', note: '', open: false };
-            const canInvoice = ['ISSUED', 'ACCEPTED', 'PART_DELIVERED', 'DELIVERED'].includes(po.status);
-            const canAccept = po.status === 'ISSUED';
-            return (
-              <div key={po.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4" data-testid={`supplier-po-${po.poNumber}`}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="tabular-nums font-bold text-slate-900">{po.poNumber}</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{po.statusLabel}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Ordered {po.orderDate ? String(po.orderDate).slice(0, 10) : '—'}
-                      {po.expectedDeliveryDate ? ` · expected ${String(po.expectedDeliveryDate).slice(0, 10)}` : ''}
-                    </p>
-                  </div>
-                  <span className="tabular-nums font-bold text-slate-900">{formatKes(po.totalAmount)}</span>
-                </div>
+      {/* Needs your action — orders awaiting acceptance, deliveries awaiting confirmation */}
+{(actionPos.length > 0 || pendingDeliveries.length > 0) && (
+<div className="space-y-3" data-testid="supplier-action-needed">
+<h2 className="text-sm font-bold text-slate-800">
+            Needs your action ({actionPos.length + pendingDeliveries.length})
+</h2>
+          {actionPos.map(renderPoCard)}
+          {pendingDeliveries.map(renderDeliveryCard)}
+</div>
+)}
 
-                <ul className="mt-3 space-y-1">
-                  {po.items.map((it) => (
-                    <li key={it.id} className="text-xs text-slate-600 flex justify-between gap-3">
-                      <span>{it.description} <span className="text-slate-400">({it.unit})</span></span>
-                      <span className="font-mono tabular-nums">{it.quantity} × {formatKes(it.rate)}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                {po.invoices.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
-                    {po.invoices.map((iv) => (
-                      <div key={iv.id} className="flex items-center justify-between text-[11px]">
-                        <span className="font-mono tabular-nums text-slate-700">{iv.reference}</span>
-                        <span className="text-slate-500">
-                          {formatKes(iv.amount)} · {iv.status === 'ACCEPTED' ? 'Accepted' : iv.status === 'REJECTED' ? 'Rejected' : iv.status === 'REVIEW_REQUIRED' ? 'Under review' : 'Submitted'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {canAccept && (
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-end gap-2" data-testid={`po-accept-${po.poNumber}`}>
-                    <label className="text-[11px] font-semibold text-slate-600">
-                      Expected delivery date
-                      <input
-                        type="date"
-                        className="mt-1 block px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
-                        value={acceptDate[po.id] || ''}
-                        onChange={(e) => setAcceptDate((prev) => ({ ...prev, [po.id]: e.target.value }))}
-                        data-testid={`po-accept-date-${po.poNumber}`}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      disabled={poBusy === po.id}
-                      onClick={() => void acceptPo(po.id)}
-                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-50"
-                      data-testid={`po-accept-submit-${po.poNumber}`}
-                    >
-                      {poBusy === po.id ? 'Accepting…' : 'Accept PO'}
-                    </button>
-                  </div>
-                )}
-
-                {canInvoice && !canAccept && (
-                  <div className="mt-3 pt-3 border-t border-slate-100">
-                    {!f.open ? (
-                      <button
-                        type="button"
-                        onClick={() => setInvForm((prev) => ({ ...prev, [po.id]: { reference: '', amount: '', itemId: '', note: '', open: true } }))}
-                        className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50"
-                        data-testid={`po-invoice-open-${po.poNumber}`}
-                      >
-                        Submit invoice
-                      </button>
-                    ) : (
-                      <div className="space-y-2" data-testid={`po-invoice-form-${po.poNumber}`}>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <input
-                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
-                            placeholder="Invoice reference *"
-                            value={f.reference}
-                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, reference: e.target.value } }))}
-                            data-testid={`po-invoice-ref-${po.poNumber}`}
-                          />
-                          <input
-                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
-                            type="number" min="0" step="0.01"
-                            placeholder="Amount (KES) *"
-                            value={f.amount}
-                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, amount: e.target.value } }))}
-                            data-testid={`po-invoice-amount-${po.poNumber}`}
-                          />
-                          <select
-                            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
-                            value={f.itemId}
-                            onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, itemId: e.target.value } }))}
-                            data-testid={`po-invoice-item-${po.poNumber}`}
-                          >
-                            <option value="">Whole PO (unallocated)</option>
-                            {po.items.map((it) => <option key={it.id} value={it.id}>{it.description}</option>)}
-                          </select>
-                        </div>
-                        <input
-                          className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
-                          placeholder="Note (optional)"
-                          value={f.note}
-                          onChange={(e) => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, note: e.target.value } }))}
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={poBusy === po.id}
-                            onClick={() => void submitPoInvoice(po.id)}
-                            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-blue-700 hover:bg-blue-800 text-white disabled:opacity-50"
-                            data-testid={`po-invoice-submit-${po.poNumber}`}
-                          >
-                            {poBusy === po.id ? 'Submitting…' : 'Submit invoice'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setInvForm((prev) => ({ ...prev, [po.id]: { ...f, open: false } }))}
-                            className="px-3 py-1.5 text-[11px] font-bold text-slate-500"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Purchase orders — settled orders, paginated */}
+      {settledPos.length > 0 && (
+<div className="space-y-3" data-testid="supplier-po-list">
+<h2 className="text-sm font-bold text-slate-800">Your purchase orders</h2>
+          {(showAllPos ? settledPos : settledPos.slice(0, PAGE_SIZE)).map(renderPoCard)}
+          {settledPos.length > PAGE_SIZE && (
+<button
+              type="button"
+              onClick={() => setShowAllPos((v) => !v)}
+              className="px-3.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
+              data-testid="show-all-pos-btn"
+            >
+              {showAllPos ? 'Show fewer' : `Show all ${settledPos.length} orders`}
+</button>
+)}
+</div>
+)}
 
       <p className="text-[11px] text-slate-400">
         Accept each purchase order and submit invoices against it above — the contractor's
         quantity surveyor reviews them against confirmed deliveries. Confirm each delivery
-        below so the site diary stays accurate.
-      </p>
+        above so the site diary stays accurate.
+</p>
 
-      {/* Filter and stats */}
+      {/* Delivery history — completed deliveries only, filterable + paginated */}
+<div className="space-y-4">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <div className="flex gap-2">
-          {(['ALL', 'RECEIVED', 'PENDING'] as const).map((mode) => (
+          {(['ALL', 'RECEIVED', 'REJECTED'] as const).map((mode) => (
 <button
               key={mode}
               onClick={() => setFilter(mode)}
@@ -452,7 +596,7 @@ export default function SupplierPortalView({
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
 }`}
             >
-              {mode === 'ALL' ? 'All Deliveries' : mode === 'RECEIVED' ? 'Site Verified' : 'Scheduled / En Route'}
+              {mode === 'ALL' ? 'All Deliveries' : mode === 'RECEIVED' ? 'Site Verified' : 'Disputed'}
 </button>
 ))}
 </div>
@@ -462,101 +606,24 @@ export default function SupplierPortalView({
 </p>
 </div>
 
-      {/* Deliveries List */}
-<div className="space-y-4">
-        {filteredDeliveries.length === 0 && (
+        {filteredSettled.length === 0 && (
 <div className="bg-white p-8 rounded-xl border border-slate-200 text-center text-sm text-slate-400">
-            No deliveries recorded for this project yet — purchase orders and site deliveries will appear here for confirmation.
+            {settledDeliveries.length === 0
+              ? 'No completed deliveries yet — confirmed and disputed deliveries will appear here.'
+              : 'No deliveries match this filter.'}
 </div>
 )}
-        {filteredDeliveries.map((del) => (
-<div
-            key={del.id}
-            className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3"
-            data-testid={`supplier-delivery-${del.delivery_note_number}`}
+        {(showAllDeliveries ? filteredSettled : filteredSettled.slice(0, PAGE_SIZE)).map(renderDeliveryCard)}
+        {filteredSettled.length > PAGE_SIZE && (
+<button
+            type="button"
+            onClick={() => setShowAllDeliveries((v) => !v)}
+            className="px-3.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
+            data-testid="show-all-deliveries-btn"
           >
-<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-<div className="flex items-center gap-2">
-<span className="font-mono tabular-nums text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                  {del.delivery_note_number}
-</span>
-<span className="text-xs text-slate-500">
-                  Site Date: {new Date(del.siteDate).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric'})}
-</span>
-</div>
-
-<span
-                className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                  del.status === 'RECEIVED'
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                    : 'bg-amber-100 text-amber-800 border border-amber-200'
-}`}
-              >
-                {del.status === 'RECEIVED' ? 'Site Acknowledged & Cast' : 'Scheduled / Dispatched'}
-</span>
-</div>
-
-<div>
-<h3 className="text-sm font-bold text-slate-900">{del.material_description}</h3>
-<p className="text-xs font-semibold text-slate-600 mt-0.5">
-                Quantity:<span className="text-slate-900 font-bold">{del.quantity} {del.unit}</span>
-</p>
-</div>
-
-            {del.notes && (
-<div className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded border border-slate-200">
-<span className="font-semibold text-slate-900">Site Inspection Note:</span> {del.notes}
-</div>
-)}
-
-            {del.received_by && (
-<p className="text-[11px] text-slate-500 flex items-center gap-1">
-<span className="text-emerald-600 font-bold"></span> Received &amp; Slump Tested by: {del.received_by}
-</p>
-)}
-            {del.supplier_invoice_ref && (
-<p className="text-[11px] text-slate-500">Invoice ref: {del.supplier_invoice_ref}</p>
-)}
-            {del.status === 'PENDING' && (
-<div className="space-y-2 pt-1">
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-<input
-                    type="text"
-                    placeholder="Supplier invoice ref (optional)"
-                    value={actionInputs[del.id]?.invoiceRef || ''}
-                    onChange={(e) => setActionInputs((prev) => ({ ...prev, [del.id]: { ...prev[del.id], invoiceRef: e.target.value, note: prev[del.id]?.note || '' } }))}
-                    className="text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-<input
-                    type="text"
-                    placeholder="Dispute reason (required to dispute)"
-                    value={actionInputs[del.id]?.note || ''}
-                    onChange={(e) => setActionInputs((prev) => ({ ...prev, [del.id]: { ...prev[del.id], note: e.target.value, invoiceRef: prev[del.id]?.invoiceRef || '' } }))}
-                    className="text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-</div>
-<div className="flex gap-2">
-<button
-                    type="button"
-                    disabled={actionBusy === del.id}
-                    onClick={() => confirmDelivery(del.id, 'CONFIRM')}
-                    className="px-3 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50"
-                  >
-                    {actionBusy === del.id ? 'Saving…' : 'Confirm Delivery'}
+            {showAllDeliveries ? 'Show fewer' : `Show all ${filteredSettled.length} deliveries`}
 </button>
-<button
-                    type="button"
-                    disabled={actionBusy === del.id}
-                    onClick={() => confirmDelivery(del.id, 'DISPUTE')}
-                    className="px-3 py-1.5 text-xs font-bold bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 rounded-lg disabled:opacity-50"
-                  >
-                    Dispute
-</button>
-</div>
-</div>
 )}
-</div>
-))}
 </div>
 
       {/* PO Invoicing Modal */}
