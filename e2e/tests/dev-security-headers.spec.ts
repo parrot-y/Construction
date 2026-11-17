@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * The SPA must be served with a strict CSP (no unsafe-inline scripts),
  * HSTS, X-Frame-Options DENY, nosniff, Referrer-Policy and Permissions-Policy
  * in every non-dev environment — enforced here against the dev server which
- * emits the identical header set via vite.config.ts (parity with nginx.conf).
+ * emits the identical header set via vite.config.ts (parity with nginx.conf.template).
  */
 test.describe('Web security headers', () => {
   test('root document carries the full header set', async ({ request }) => {

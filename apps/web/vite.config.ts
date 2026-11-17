@@ -3,7 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Security headers — parity with apps/web/nginx.conf so dev/preview and
+// Security headers — parity with apps/web/nginx.conf.template so dev/preview and
 // production emit identical policy (CSP on in every served environment).
 const cspDirectives =
   "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; " +
