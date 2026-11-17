@@ -14,6 +14,8 @@ function ExecHome(): React.JSX.Element {
   const [openSnags, setOpenSnags] = useState(0);
   const [logToday, setLogToday] = useState<boolean | null>(null);
   const [clientRequests, setClientRequests] = useState(0);
+  const [gettingStarted, setGettingStarted] = useState<{ hasBoq: boolean; hasTeam: boolean; hasQuote: boolean; hasPayments: boolean } | null>(null);
+  const [invoiceStats, setInvoiceStats] = useState<{ unpaid: number; overdue: number } | null>(null);
 
   useEffect(() => {
     fetch('/api/v1/dashboard', { credentials: 'include'})
@@ -56,6 +58,45 @@ function ExecHome(): React.JSX.Element {
       .catch(() => {});
 }, [projectId]);
 
+  // A6 — get-started signals + invoice attention, fetched once per mount.
+  useEffect(() => {
+    const opts = { credentials: 'include' as const };
+    const firstProject = projects[0]?.id;
+    const get = (url: string) => fetch(url, opts).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+    void (async () => {
+      const [members, invites, quotes, payments, boq] = await Promise.all([
+        get('/api/v1/company/members'),
+        get('/api/v1/invitations'),
+        get('/api/v1/quotes'),
+        get('/api/v1/company/payment-instructions'),
+        firstProject && /^[0-9a-f-]{36}$/i.test(firstProject)
+          ? fetch(`/api/v1/projects/${firstProject}/boq`, opts).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      const memberList = members?.data || members?.members || [];
+      const inviteList = invites?.data || invites || [];
+      const quoteList = quotes?.quotes || quotes?.data || [];
+      const payRaw = payments?.data?.paymentInstructions ?? payments?.paymentInstructions ?? null;
+      const paymentsReady = payRaw != null && (typeof payRaw === 'string' ? payRaw.trim().length > 0 : Object.values(payRaw).some((v) => v != null && String(v).trim() !== ''));
+      setGettingStarted({
+        hasBoq: Boolean(boq?.data),
+        hasTeam: memberList.length > 1 || (Array.isArray(inviteList) && inviteList.length > 0),
+        hasQuote: Array.isArray(quoteList) && quoteList.length > 0,
+        hasPayments: paymentsReady,
+      });
+    })();
+
+    void get('/api/v1/invoices').then((j) => {
+      const list = j?.invoices || j?.data || [];
+      if (!Array.isArray(list)) return;
+      const today = new Date().toISOString().slice(0, 10);
+      const unpaid = list.filter((i: any) => !['PAID', 'VOID', 'WRITTEN_OFF'].includes(String(i.status)));
+      const overdue = unpaid.filter((i: any) => i.due_date && String(i.due_date).slice(0, 10) < today);
+      setInvoiceStats({ unpaid: unpaid.length, overdue: overdue.length });
+    });
+  }, [projects]);
+
   const m = dash?.metrics || {};
   const firstName = ((session.user.fullName || session.user.email || 'there').split(' ')[0] || 'there').toUpperCase();
   const hour = new Date().getHours();
@@ -77,6 +118,20 @@ function ExecHome(): React.JSX.Element {
     ? 'No open change orders — budgets are stable. Maintain current commercial controls.'
     : `${openCO + pendingApproval} change order${openCO + pendingApproval === 1 ? '' : 's'} need attention — review under Projects → Change orders.`;
 
+  // A6 — get-started checklist. Shows on a brand-new company and stays
+  // until every step is done; each step deep-links to its screen.
+  const gs = gettingStarted;
+  const hasProject = projects.length > 0;
+  const steps = [
+    { label: 'Create your first project', done: hasProject, go: () => { setSection('projects'); setTab('all'); } },
+    { label: 'Add a Bill of Quantities', done: Boolean(gs?.hasBoq), go: () => { setSection('money'); setTab('financials'); } },
+    { label: 'Invite your team', done: Boolean(gs?.hasTeam), go: () => { setSection('people'); setTab('team'); } },
+    { label: 'Create a quote', done: Boolean(gs?.hasQuote), go: () => { setSection('money'); setTab('quotes'); } },
+    { label: 'Set up how you get paid', done: Boolean(gs?.hasPayments), go: () => { setSection('money'); setTab('invoices'); } },
+  ];
+  const stepsDone = steps.filter((s) => s.done).length;
+  const showChecklist = !gs || stepsDone < steps.length;
+
   return (
 <div className="space-y-6">
 <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 rounded-2xl p-6 text-white relative overflow-hidden">
@@ -88,6 +143,30 @@ function ExecHome(): React.JSX.Element {
           Open projects →
 </button>
 </div>
+
+      {showChecklist && (
+<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<div className="flex items-center justify-between mb-3">
+<div>
+<h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Get started</h3>
+<p className="text-[11px] text-slate-400 mt-0.5">{stepsDone} of {steps.length} done — each step opens the exact screen.</p>
+</div>
+<span className="text-[11px] font-bold text-slate-400">{Math.round((stepsDone / steps.length) * 100)}%</span>
+</div>
+<div className="space-y-1.5">
+            {steps.map((s, i) => (
+<button key={s.label} onClick={s.go}
+                className="w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition">
+<span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${s.done ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'}`}>
+                  {s.done ? '✓' : i + 1}
+</span>
+<span className={`text-xs font-semibold ${s.done ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-100'}`}>{s.label}</span>
+<span className="ml-auto text-[10px] font-bold text-orange-600">{s.done ? 'Done' : 'Open →'}</span>
+</button>
+))}
+</div>
+</div>
+)}
 
 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3 flex items-start gap-3">
 <IconSpark className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
@@ -107,9 +186,9 @@ function ExecHome(): React.JSX.Element {
 </button>
 )}
             {clientRequests > 0 && (
-<div className="w-full flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-200">
+<button onClick={() => { setSection('projects'); setTab('correspondence');}} className="w-full text-left flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-200 hover:underline">
 <span>{clientRequests} new client project request{clientRequests === 1 ? '' : 's'}</span><span className="text-orange-600">Review →</span>
-</div>
+</button>
 )}
             {openSnags > 0 && (
 <button onClick={() => { setSection('site'); setTab('punch');}} className="w-full text-left flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-200 hover:underline">
@@ -120,13 +199,37 @@ function ExecHome(): React.JSX.Element {
 </div>
 )}
 
+      {projects.length > 0 && invoiceStats && (
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'Projects needing attention', value: projects.filter((p) => p.status && !/COMPLETED|CLOSED|ARCHIVED/i.test(p.status)).length, warn: false, go: () => { setSection('projects'); setTab('all'); } },
+            { label: 'Money waiting approval', value: pendingApproval, warn: pendingApproval > 0, go: () => { setSection('projects'); setTab('changeorders'); } },
+            { label: 'Overdue invoices', value: invoiceStats.overdue, warn: invoiceStats.overdue > 0, go: () => { setSection('money'); setTab('invoices'); } },
+            { label: 'Unpaid invoices', value: invoiceStats.unpaid, warn: invoiceStats.unpaid > 0, go: () => { setSection('money'); setTab('invoices'); } },
+          ].map((s) => (
+<button key={s.label} onClick={s.go}
+              className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-left hover:border-orange-400 transition">
+<p className="text-[10px] font-bold text-slate-400">{s.label}</p>
+<p className={`text-xl font-bold mt-1 ${s.warn ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{s.value}</p>
+<p className="text-[10px] text-orange-600 font-bold mt-0.5">Open list →</p>
+</button>
+))}
+</div>
+)}
+
 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {kpis.map((k) => (
-<div key={k.label} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+<button key={k.label} type="button"
+          onClick={() => {
+            if (k.label === 'Open snags') { setSection('site'); setTab('punch'); }
+            else if (k.label === 'Active projects' || k.label === 'At-risk (>7d)') { setSection('projects'); setTab('all'); }
+            else { setSection('projects'); setTab('changeorders'); }
+          }}
+          className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-left hover:border-orange-400 transition">
 <p className="text-[10px] font-bold text-slate-400">{k.label}</p>
 <p className={`text-xl font-bold mt-1 ${k.warn ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{k.value}</p>
 <p className="text-[10px] text-slate-400 mt-0.5">{k.sub}</p>
-</div>
+</button>
 ))}
 </div>
 
