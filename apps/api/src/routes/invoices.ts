@@ -133,7 +133,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           where,
           include: {
             items: true,
-            project: { select: { id: true, name: true, code: true } },
+            project: { select: { id: true, name: true, code: true, project_type: true, project_subtype: true } },
             _count: { select: { payments: true } },
           },
           orderBy: { invoice_no: 'desc' },
@@ -272,7 +272,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           include: {
             items: { orderBy: { sort_order: 'asc' } },
             payments: { orderBy: { paid_at: 'asc' } },
-            project: { select: { id: true, name: true, code: true } },
+            project: { select: { id: true, name: true, code: true, project_type: true, project_subtype: true } },
             quote: { select: { id: true, quote_no: true, title: true } },
           },
         });
@@ -617,7 +617,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             include: {
               items: { orderBy: { sort_order: 'asc' } },
               payments: { orderBy: { paid_at: 'asc' } },
-              project: { select: { id: true, name: true, code: true, location: true, nca_project_no: true } },
+              project: { select: { id: true, name: true, code: true, location: true, nca_project_no: true, project_type: true, project_subtype: true } },
             },
           });
           if (!invoice) throw { status: 404, message: 'Invoice not found' };
@@ -643,7 +643,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
               currency: invoice.currency,
             },
             project: invoice.project
-              ? { name: invoice.project.name, code: invoice.project.code, location: invoice.project.location }
+              ? { name: invoice.project.name, code: invoice.project.code, location: invoice.project.location, projectType: invoice.project.project_type, projectSubtype: invoice.project.project_subtype }
               : null,
             items: invoice.items.map((it) => ({
               description: it.description,

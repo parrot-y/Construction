@@ -5,6 +5,10 @@ import {
   CreateProjectDetailsSchema,
   UpdateProjectDetailsSchema,
   AssignProjectMemberSchema,
+  PROJECT_TYPE_CATEGORIES,
+  PROJECT_TYPE_KEYS,
+  projectTypeCategory,
+  subtypeBelongsToType,
 } from '@construction/validation';
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { requirePermission } from '../plugins/rbac';
@@ -15,6 +19,74 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 function toDateOnly(iso: string): Date {
   return new Date(`${iso}T00:00:00.000Z`);
+}
+
+const PROJECT_TYPE_KEY_SET = new Set<string>(PROJECT_TYPE_KEYS);
+
+/** Phase 2.8: validate the taxonomy pair — unknown type or a subtype that
+ *  does not belong to the chosen type is a 400, never silently stored. */
+function validateProjectType(type: string | null | undefined, subtype: string | null | undefined): string | null {
+  if (type == null || type === '') {
+    return subtype ? 'projectSubtype requires projectType' : null;
+  }
+  if (!PROJECT_TYPE_KEY_SET.has(type)) return `Unknown project type "${type}"`;
+  if (subtype && !subtypeBelongsToType(type, subtype)) {
+    return `Subtype "${subtype}" does not belong to project type "${type}"`;
+  }
+  return null;
+}
+
+function pctOrThrow(v: string): string {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0 || n > 100) throw { status: 400, message: 'Retention percentages must be between 0 and 100' };
+  return n.toFixed(2);
+}
+
+/** Seed removable starter content for the chosen project type: BoQ section
+ *  headers, schedule milestones and draft checklist assignments. Everything
+ *  created is an ordinary row the user can edit or delete. */
+async function seedProjectStarters(
+  tx: any,
+  tenantId: string,
+  project: { id: string; project_type?: string | null; start_date?: Date | null },
+): Promise<void> {
+  const category = projectTypeCategory(project.project_type ?? null);
+  if (!category) return;
+  const start = project.start_date ?? new Date();
+
+  if (category.starter.boqSections.length) {
+    const boq = await tx.bOQ.create({
+      data: { tenant_id: tenantId, project_id: project.id, version: 1, status: 'ACTIVE', source_filename: 'Starter sections (project type)' },
+      select: { id: true },
+    });
+    await tx.bOQSection.createMany({
+      data: category.starter.boqSections.map((title, i) => ({
+        tenant_id: tenantId, boq_id: boq.id, order_idx: i, title,
+      })),
+    });
+  }
+
+  if (category.starter.milestones.length) {
+    await tx.projectScheduleTask.createMany({
+      data: category.starter.milestones.map((m, i) => {
+        const s = new Date(start); s.setUTCDate(s.getUTCDate() + i * 14);
+        const e = new Date(s); e.setUTCDate(e.getUTCDate() + 14);
+        return {
+          tenant_id: tenantId, project_id: project.id, wbs_phase: m.wbs,
+          task_name: m.name, planned_start_date: s, planned_end_date: e,
+          duration_days: 14, order_index: i, status: 'PLANNED',
+        };
+      }),
+    });
+  }
+
+  if (category.starter.checklists.length) {
+    await tx.checklistAssignment.createMany({
+      data: category.starter.checklists.map((c) => ({
+        tenant_id: tenantId, project_id: project.id, title: c.title, trade: c.trade, status: 'DRAFT',
+      })),
+    });
+  }
 }
 
 export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
@@ -167,6 +239,11 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
       const body = parseResult.data;
 
+      const typeError = validateProjectType(body.projectType, body.projectSubtype);
+      if (typeError) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: typeError });
+      }
+
       const result = await withTenantTx(prisma, tenantId, async (tx) => {
         // Legacy aliases: budget / originalContractSum / currentApprovedBudget
         const legacyValue =
@@ -190,6 +267,11 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             contract_currency: body.contractCurrency || 'KES',
             money_at_risk_kes: body.moneyAtRiskKes ? toDecimal(body.moneyAtRiskKes) : null,
             nca_project_no: body.ncaProjectNo ?? null,
+            project_type: body.projectType ?? null,
+            project_subtype: body.projectSubtype ?? null,
+            ...(body.retentionRatePct != null ? { retention_rate_pct: pctOrThrow(body.retentionRatePct) } : {}),
+            ...(body.retentionCapPct != null ? { retention_cap_pct: pctOrThrow(body.retentionCapPct) } : {}),
+            ...(body.retentionFirstMoietyPct != null ? { retention_first_moiety_pct: pctOrThrow(body.retentionFirstMoietyPct) } : {}),
             status: body.status || 'PLANNING',
             original_contract_sum: contractValue ?? 0,
             current_approved_budget: approvedBudget,
@@ -219,6 +301,8 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             status: project.status,
           },
         });
+
+        await seedProjectStarters(tx, tenantId, project);
 
         return project;
       });
@@ -267,6 +351,14 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
           if (body.contractCurrency !== undefined) data.contract_currency = body.contractCurrency;
           if (body.moneyAtRiskKes !== undefined) data.money_at_risk_kes = body.moneyAtRiskKes === null ? null : toDecimal(body.moneyAtRiskKes);
           if (body.ncaProjectNo !== undefined) data.nca_project_no = body.ncaProjectNo;
+          if (body.projectType !== undefined || body.projectSubtype !== undefined) {
+            const nextType = body.projectType !== undefined ? body.projectType : existing.project_type;
+            const nextSubtype = body.projectSubtype !== undefined ? body.projectSubtype : existing.project_subtype;
+            const typeError = validateProjectType(nextType, nextSubtype);
+            if (typeError) throw { status: 400, message: typeError };
+            data.project_type = nextType ?? null;
+            data.project_subtype = nextSubtype ?? null;
+          }
           if (body.status !== undefined) data.status = body.status;
           if (body.startDate !== undefined) data.start_date = body.startDate === null ? null : toDateOnly(body.startDate);
           if (body.targetEndDate !== undefined) data.target_end_date = body.targetEndDate === null ? null : toDateOnly(body.targetEndDate);
@@ -472,6 +564,76 @@ export const projectRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
 
       return reply.status(200).send({ success: true, message: 'Member removed from project' });
+    },
+  );
+
+  // GET /api/v1/project-types — shared taxonomy + the tenant's editable NCA
+  // class bands. Any authenticated user may read (the wizard and filters need
+  // it); only COMPANY_MANAGE holders may edit the bands.
+  server.get(
+    '/api/v1/project-types',
+    {
+      preHandler: [server.authenticate],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const rules = await withTenantTx(prisma, tenantId, async (tx) =>
+        tx.ncaClassRule.findMany({ orderBy: [{ trade: 'asc' }, { class_label: 'asc' }] }),
+      );
+      return reply.status(200).send({
+        data: {
+          categories: PROJECT_TYPE_CATEGORIES,
+          ncaRules: rules,
+        },
+      });
+    },
+  );
+
+  // PATCH /api/v1/project-types/nca-rules/:id — adjust an NCA band when NCA
+  // publishes new limits. Company admins only; audited.
+  server.patch(
+    '/api/v1/project-types/nca-rules/:id',
+    {
+      preHandler: [server.authenticate, requirePermission(Permissions.COMPANY_MANAGE)],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { id } = request.params as { id: string };
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(404).send({ error: 'Not Found', message: 'NCA rule not found' });
+      }
+      const body = (request.body || {}) as Record<string, any>;
+      const data: Record<string, any> = {};
+      if (body.minContractValue !== undefined) data.min_contract_value = body.minContractValue === null ? null : toDecimal(String(body.minContractValue));
+      if (body.maxContractValue !== undefined) data.max_contract_value = body.maxContractValue === null ? null : toDecimal(String(body.maxContractValue));
+      if (body.notes !== undefined) data.notes = body.notes === null ? null : String(body.notes).slice(0, 255);
+      if (body.trade !== undefined) data.trade = String(body.trade).slice(0, 60);
+      if (body.classLabel !== undefined) data.class_label = String(body.classLabel).slice(0, 10);
+      if (!Object.keys(data).length) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No fields to update' });
+      }
+
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const existing = await tx.ncaClassRule.findUnique({ where: { id } });
+          if (!existing) throw { status: 404, message: 'NCA rule not found' };
+          const rule = await tx.ncaClassRule.update({ where: { id }, data });
+          await recordAuditLog(tx, {
+            tenantId,
+            actorId: sub,
+            action: 'NCA_RULE_UPDATED',
+            entityType: 'NcaClassRule',
+            entityId: id,
+            changes: { fields: Object.keys(data) },
+          });
+          return rule;
+        });
+        return reply.status(200).send({ data: updated });
+      } catch (err: any) {
+        if (err.status) return reply.status(err.status).send({ error: 'Not Found', message: err.message });
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to update NCA rule' });
+      }
     },
   );
 };

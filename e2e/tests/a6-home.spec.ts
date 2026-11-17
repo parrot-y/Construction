@@ -74,9 +74,20 @@ test.describe('A6 — Home dashboard', () => {
     await page.getByRole('button', { name: /create your first project/i }).click();
     await page.getByRole('button', { name: 'New project' }).click();
     const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
+    await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByLabel(/Project name/).fill('A6 Home Site');
     await dialog.getByLabel(/Project code/).fill(`A6-${String(RUN).slice(-6)}`);
-    await dialog.getByRole('button', { name: 'Create project' }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    // Footer primary swaps Continue→submit at the same spot; a fast click can
+  // submit early — click submit only if the modal is still open.
+  const npSubmit = dialog.locator('button[type=\"submit\"]');
+  await dialog.page().waitForTimeout(400);
+  if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
+    await npSubmit.click({ timeout: 10_000 }).catch(() => {});
+  }
     await expect(page.locator('button', { hasText: 'A6 Home Site' }).first()).toBeVisible({ timeout: 20_000 });
 
     // Back to Home — the first step must now read Done.

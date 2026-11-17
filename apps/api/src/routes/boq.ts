@@ -499,7 +499,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
     return boqTotal;
   }
 
-  async function activeOrNewBoq(tx: any, tenantId: string, projectId: string, sub: string) {
+  async function activeOrNewBoq(tx: any, tenantId: string, projectId: string) {
     let boq = await tx.bOQ.findFirst({
       where: { project_id: projectId, tenant_id: tenantId, status: 'ACTIVE' },
     });
@@ -556,7 +556,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
         });
         if (!project) return { error: 'Project not found in current company workspace', status: 404 as const };
 
-        const boq = await activeOrNewBoq(tx, tenantId, projectId, sub);
+        const boq = await activeOrNewBoq(tx, tenantId, projectId);
 
         // Resolve target section: explicit title match, else first section.
         let section = null;
@@ -613,7 +613,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
         return { item, boqId: boq.id };
       });
 
-      if ('error' in result) return reply.status(result.status).send({ error: result.error });
+      if ('error' in result) return reply.status(result.status ?? 400).send({ error: result.error });
       return reply.status(201).send({ data: result.item });
     },
   );

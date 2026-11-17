@@ -1,15 +1,11 @@
 import React, { useEffect, useState} from 'react';
 import { statusLabel } from '../lib/status-labels';
 
-const PROJECT_TYPES = [
-  'New house / bungalow', 'Maisonette or villa', 'Apartments / flats',
-  'Commercial building', 'Renovation / remodeling', 'Kitchen or bathroom remodel',
-  'Interior design & finishes', 'Fencing & gates', 'Borehole / water works',
-  'Solar / electrical installation', 'CCTV & security', 'Landscaping & gardening',
-  'Roads, drainage or civil works', 'Land clearing & surveying', 'Other',
-];
-const BUDGET_RANGES = ['Below KES 1M', 'KES 1M - 5M', 'KES 5M - 20M', 'KES 20M - 50M', 'Above KES 50M', 'Not sure yet'];
-const START_TFRAMES = ['As soon as possible', 'Within 3 months', 'In 3 - 6 months', 'In 6 - 12 months', 'Just planning for now'];
+import { CLIENT_PROJECT_REQUEST_TYPES, CLIENT_BUDGET_RANGES, CLIENT_START_TIMEFRAMES } from '@construction/validation';
+
+const PROJECT_TYPES = CLIENT_PROJECT_REQUEST_TYPES;
+const BUDGET_RANGES = CLIENT_BUDGET_RANGES;
+const START_TFRAMES = CLIENT_START_TIMEFRAMES;
 
 interface ClientRequest { id: string; project_type: string; location_text: string; budget_range?: string | null; start_timeframe?: string | null; description: string; status: string; created_at: string}
 

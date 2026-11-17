@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { PROJECT_TYPE_CATEGORIES, projectTypeCategory } from '@construction/validation';
 import { formatKes } from '../../../ui';
 import { useConsole} from '../ConsoleContext';
 import { SUBTAB_LABELS} from '../navConfig';
@@ -21,6 +22,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
   const [showSettings, setShowSettings] = useState(false);
   const livePidCheck = /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
   const [filter, setFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('All');
   const [recentCos, setRecentCos] = useState<any[]>([]);
   const [coCounts, setCoCounts] = useState<Record<string, { count: number; value: number}>>({});
 
@@ -50,6 +52,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
   const statusOf = (p: any) => (p.status || 'ACTIVE').toUpperCase();
   const visible = projects.filter((p) => {
     const st = statusOf(p);
+    if (typeFilter !== 'All' && (p.project_type || 'UNTYPED') !== typeFilter) return false;
     if (filter === 'All') return true;
     if (filter === 'Active') return st === 'ACTIVE' || st === 'ON_TRACK';
     if (filter === 'At Risk') return st === 'AT_RISK';
@@ -71,6 +74,16 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
               {f}
 </button>
 ))}
+<select
+            aria-label="Filter by project type"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+          >
+            <option value="All">All types</option>
+            {PROJECT_TYPE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            <option value="UNTYPED">No type set</option>
+</select>
 </div>
         {canEdit && (
 <button onClick={() => setShowCreate(true)}
@@ -105,6 +118,11 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 <div>
 <p className="text-[10px] font-bold text-slate-400">{p.code}</p>
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 leading-snug">{p.name}</h3>
+{(() => { const cat = projectTypeCategory(p.project_type); return cat ? (
+<span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600">
+                    {cat.label}{p.project_subtype ? ` · ${cat.subtypes.find((x) => x.key === p.project_subtype)?.label ?? p.project_subtype}` : ''}
+</span>
+) : null; })()}
 </div>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border shrink-0 ${
                   statusOf(p) === 'ACTIVE' || statusOf(p) === 'ON_TRACK'

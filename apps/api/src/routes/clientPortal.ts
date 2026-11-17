@@ -11,6 +11,11 @@ import {
 } from '@construction/money';
 import { requirePermission } from '../plugins/rbac';
 import { notifyTeam } from '../lib/notify';
+import {
+  CLIENT_PROJECT_REQUEST_TYPES,
+  CLIENT_BUDGET_RANGES,
+  CLIENT_START_TIMEFRAMES,
+} from '@construction/validation';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -491,17 +496,11 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
   // ---------------------------------------------------------------------------
   // Client-initiated project requests ("Request a project" portal flow)
   // ---------------------------------------------------------------------------
-  const PROJECT_TYPES = [
-    // Auditor contract sends enum-style types; keep both vocabularies.
-    'RESIDENTIAL', 'COMMERCIAL', 'INDUSTRIAL', 'INSTITUTIONAL', 'OTHER_WORKS',
-    'New house / bungalow', 'Maisonette or villa', 'Apartments / flats',
-    'Commercial building', 'Renovation / remodeling', 'Kitchen or bathroom remodel',
-    'Interior design & finishes', 'Fencing & gates', 'Borehole / water works',
-    'Solar / electrical installation', 'CCTV & security', 'Landscaping & gardening',
-    'Roads, drainage or civil works', 'Land clearing & surveying', 'Other',
-  ];
-  const BUDGET_RANGES = ['Below KES 1M', 'KES 1M - 5M', 'KES 5M - 20M', 'KES 20M - 50M', 'Above KES 50M', 'Not sure yet'];
-  const START_TFRAMES = ['As soon as possible', 'Within 3 months', 'In 3 - 6 months', 'In 6 - 12 months', 'Just planning for now'];
+  // Shared vocabulary lives in @construction/validation project-types.ts —
+  // the web form and this route validate against the same list.
+  const PROJECT_TYPES: readonly string[] = CLIENT_PROJECT_REQUEST_TYPES;
+  const BUDGET_RANGES: readonly string[] = CLIENT_BUDGET_RANGES;
+  const START_TFRAMES: readonly string[] = CLIENT_START_TIMEFRAMES;
 
   server.post(
     '/api/v1/client/project-requests',

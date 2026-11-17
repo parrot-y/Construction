@@ -1,4 +1,5 @@
 import React from 'react';
+import { projectTypeLabel } from '@construction/validation';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
 export interface InvoicePdfData {
@@ -19,7 +20,7 @@ export interface InvoicePdfData {
     kraPin?: string | null;
     currency: string;
   };
-  project?: { name: string; code: string; location?: string | null } | null;
+  project?: { name: string; code: string; location?: string | null; projectType?: string | null; projectSubtype?: string | null } | null;
   items: {
     description: string;
     section?: string | null;
@@ -124,6 +125,7 @@ export function InvoicePdf({ data }: { data: InvoicePdfData }): React.JSX.Elemen
               <>
                 <Text style={styles.partyName}>{data.project.name}</Text>
                 <Text style={styles.partyLine}>Code: {data.project.code}</Text>
+                {data.project.projectType && <Text style={styles.partyLine}>Type: {projectTypeLabel(data.project.projectType, data.project.projectSubtype)}</Text>}
                 {data.project.location ? <Text style={styles.partyLine}>{data.project.location}</Text> : null}
               </>
             ) : (

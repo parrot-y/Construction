@@ -1,4 +1,5 @@
 import React from 'react';
+import { projectTypeLabel } from '@construction/validation';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { PaymentCertificateData } from './types';
 import { PRODUCT_NAME } from '../lib/product';
@@ -337,6 +338,12 @@ export const PaymentCertificatePdf: React.FC<{ data: PaymentCertificateData }> =
               <Text style={styles.infoLabel}>NCA Reg. Number:</Text>
               <Text style={styles.infoValue}>{project.ncaRegistrationNo || 'NCA-PRJ-2026'}</Text>
             </View>
+            {project.projectType && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Type:</Text>
+              <Text style={styles.infoValue}>{projectTypeLabel(project.projectType, project.projectSubtype)}</Text>
+            </View>
+            )}
           </View>
 
           <View style={styles.card}>

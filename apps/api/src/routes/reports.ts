@@ -176,6 +176,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               code: project.code,
               location: project.location,
               ncaRegistrationNo: project.nca_project_no,
+              projectType: project.project_type,
+              projectSubtype: project.project_subtype,
               startDate: project.start_date ? project.start_date.toISOString().split('T')[0] : null,
               targetEndDate: project.target_end_date ? project.target_end_date.toISOString().split('T')[0] : null,
             },
@@ -328,6 +330,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               code: project.code,
               location: project.location,
               ncaRegistrationNo: project.nca_project_no,
+              projectType: project.project_type,
+              projectSubtype: project.project_subtype,
             },
             contractor: {
               id: tenant.id,
@@ -570,6 +574,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               code: project.code,
               location: project.location,
               ncaRegistrationNo: project.nca_project_no,
+              projectType: project.project_type,
+              projectSubtype: project.project_subtype,
               startDate: project.start_date ? project.start_date.toISOString().split('T')[0] : null,
               targetEndDate: project.target_end_date ? project.target_end_date.toISOString().split('T')[0] : null,
             },
@@ -737,6 +743,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               code: project.code,
               location: project.location || 'Nairobi County',
               ncaRegistrationNo: project.nca_project_no || 'NCA/PRJ/CERT-2026',
+              projectType: project.project_type,
+              projectSubtype: project.project_subtype,
               startDate: project.start_date?.toISOString(),
               targetEndDate: project.target_end_date?.toISOString(),
             },
@@ -863,7 +871,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       const data = await withTenantTx(prisma, tenantId, async (tx) => {
-        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true } });
+        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true, project_type: true, project_subtype: true } });
         const [invoices, costs, variations, commitments] = await Promise.all([
           tx.invoice.findMany({ where: { project_id: projectId }, orderBy: { created_at: 'desc' }, take: 500 }),
           tx.costEntry.findMany({ where: { project_id: projectId }, orderBy: { created_at: 'desc' }, take: 500 }),
@@ -950,7 +958,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       const data = await withTenantTx(prisma, tenantId, async (tx) => {
-        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true } });
+        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true, project_type: true, project_subtype: true } });
         const costs = await tx.costEntry.findMany({
           where: { project_id: projectId },
           orderBy: { created_at: 'desc' },

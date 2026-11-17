@@ -4,6 +4,8 @@ export interface ProjectHeaderInfo {
   code: string;
   location?: string | null;
   ncaRegistrationNo?: string | null;
+  projectType?: string | null;
+  projectSubtype?: string | null;
   startDate?: string | null;
   targetEndDate?: string | null;
 }

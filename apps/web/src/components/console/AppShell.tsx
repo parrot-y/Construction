@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef, useState} from 'react';
 import { ConsoleProvider, useConsole} from './ConsoleContext';
+import { projectTypeCategory } from '@construction/validation';
 import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection} from './navConfig';
 import { FilterTabs } from '../../ui';
 import ReportProblemModal from '../ReportProblemModal';
@@ -94,7 +95,10 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
           title={projects.find((p) => p.id === projectId)?.name}
           className="border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold max-w-[104px] sm:max-w-[180px] lg:max-w-[220px]"
         >
-          {projects.map((p) =><option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+          {projects.map((p) => {
+            const cat = projectTypeCategory(p.project_type);
+            return <option key={p.id} value={p.id}>{p.code} — {p.name}{cat ? ` · ${cat.label}` : ''}</option>;
+          })}
 </select>
 )}
 
@@ -355,7 +359,9 @@ function SubNav(): React.JSX.Element | null {
 }
   const def = nav.sections.find((s) => s.id === section);
   if (!def || !def.tabs || def.tabs.length<= 1) return null;
-  const pname = projects.find((p) => p.id === projectId)?.name;
+  const sel = projects.find((p) => p.id === projectId);
+  const pname = sel?.name;
+  const ptype = sel ? projectTypeCategory(sel.project_type) : undefined;
   return (
 <div>
 <FilterTabs ariaRole
@@ -367,7 +373,7 @@ function SubNav(): React.JSX.Element | null {
           activeClassName="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
           inactiveClassName="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
         />
-      {pname &&<p className="text-[11px] text-slate-400 mt-1">Context: {pname}</p>}
+      {pname &&<p className="text-[11px] text-slate-400 mt-1">Context: {pname}{ptype ? ` · ${ptype.label}` : ''}</p>}
 </div>
 );
 }

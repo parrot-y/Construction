@@ -6,6 +6,7 @@ import {
   FieldLoginSchema,
   LoginRequestSchema,
   RegisterCompanySchema,
+  defaultNcaRules,
   RequestPasswordResetSchema,
   ResetPasswordSchema,
   VerifyEmailSchema,
@@ -450,6 +451,17 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
         });
         const membership = await tx.membership.create({
           data: { tenant_id: tenant.id, user_id: user.id, role: 'COMPANY_ADMIN' },
+        });
+        // Phase 2.8: seed the editable NCA class-band table for the new tenant.
+        await tx.ncaClassRule.createMany({
+          data: defaultNcaRules().map((r) => ({
+            tenant_id: tenant.id,
+            trade: r.trade,
+            class_label: r.classLabel,
+            min_contract_value: r.minContractValue,
+            max_contract_value: r.maxContractValue,
+            notes: 'Default band — confirm current NCA limits before registration',
+          })),
         });
         await recordAuditLog(tx, {
           tenantId: tenant.id,

@@ -165,6 +165,10 @@ model Project {
   contract_currency    String          @default("KES") @db.VarChar(3) // Gate-4 S8: KES-first, USD optional
   money_at_risk_kes    Decimal?        @db.Decimal(15, 2) // Gate-4 S8: observed money-at-risk field
   nca_project_no       String?         @db.VarChar(100) // NCA Project Registration ID
+  // Phase 2.8 project taxonomy — keys validated against
+  // @construction/validation project-types.ts; NULL = untyped (legacy rows).
+  project_type         String?         @db.VarChar(30)
+  project_subtype      String?         @db.VarChar(60)
   status               String          @default("ACTIVE") @db.VarChar(50) // "PLANNING", "ACTIVE", "COMPLETED", "ON_HOLD"
   original_contract_sum Decimal        @default(0.00) @db.Decimal(15, 2)
   current_approved_budget Decimal      @default(0.00) @db.Decimal(15, 2)
@@ -3460,4 +3464,26 @@ model ProviderPaymentCharge {
   @@index([tenant_id, invoice_id])
   @@index([tenant_id, status])
   @@map("provider_payment_charges")
+}
+
+// -----------------------------------------------------------------------------
+// NCA CLASS RULES — editable per-tenant table of NCA registration class bands
+// (trade × class → contract-value limits). National Construction Authority
+// value limits change, so they are NEVER hard-coded: seeded defaults live here
+// and admins can adjust them as NCA publishes new bands.
+// -----------------------------------------------------------------------------
+model NcaClassRule {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenant_id           String    @db.Uuid
+  trade               String    @db.VarChar(60)  // e.g. "Building", "Roads and earthworks"
+  class_label         String    @db.VarChar(10)  // "NCA-1" … "NCA-8"
+  min_contract_value  Decimal?  @db.Decimal(15, 2) // inclusive lower band (KES); NULL = no floor
+  max_contract_value  Decimal?  @db.Decimal(15, 2) // exclusive upper band (KES); NULL = no ceiling
+  notes               String?   @db.VarChar(255)
+  created_at          DateTime  @default(now()) @db.Timestamptz
+  updated_at          DateTime  @updatedAt @db.Timestamptz
+
+  @@unique([tenant_id, trade, class_label])
+  @@index([tenant_id, trade])
+  @@map("nca_class_rules")
 }

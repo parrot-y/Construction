@@ -2093,7 +2093,14 @@ export const CreateProjectDetailsSchema = z.object({
   status: ProjectHealthStatusEnum.optional().nullable(),
   startDate: IsoDate.optional().nullable(),
   targetEndDate: IsoDate.optional().nullable(),
-});
+  // Phase 2.8: project taxonomy — validated against the shared config in
+  // project-types.ts (unknown keys rejected server-side).
+  projectType: z.string().max(30).optional().nullable(),
+  projectSubtype: z.string().max(60).optional().nullable(),
+  retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  retentionCapPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  retentionFirstMoietyPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+}).refine((v) => !v.projectSubtype || !!v.projectType, { message: 'projectSubtype requires projectType', path: ['projectSubtype'] });
 export type CreateProjectDetails = z.infer<typeof CreateProjectDetailsSchema>;
 
 export const UpdateProjectDetailsSchema = z.object({
@@ -2116,7 +2123,10 @@ export const UpdateProjectDetailsSchema = z.object({
   retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
   retentionCapPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
   retentionFirstMoietyPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
-}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field must be provided' });
+  projectType: z.string().max(30).optional().nullable(),
+  projectSubtype: z.string().max(60).optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field must be provided' })
+  .refine((v) => !v.projectSubtype || !!v.projectType, { message: 'projectSubtype requires projectType', path: ['projectSubtype'] });
 export type UpdateProjectDetails = z.infer<typeof UpdateProjectDetailsSchema>;
 
 export const AssignProjectMemberSchema = z.object({
@@ -2589,3 +2599,5 @@ export const OperatorAdminAccountSchema = z.object({
   newPassword: z.string().min(8).max(200).optional(),
 });
 export type OperatorAdminAccountInput = z.infer<typeof OperatorAdminAccountSchema>;
+
+export * from './project-types';

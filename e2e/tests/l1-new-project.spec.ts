@@ -54,11 +54,22 @@ test.describe('L1 — New project from the console', () => {
     const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
     await expect(dialog).toBeVisible();
 
+    await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByLabel(/Project name/).fill('L1 Riverside Offices');
     await dialog.getByLabel(/Project code/).fill(`L1-${String(RUN).slice(-6)}`);
     await dialog.getByLabel('Location').fill('Kileleshwa, Nairobi');
     await dialog.getByLabel(/Contract value/).fill('12500000');
-    await dialog.getByRole('button', { name: 'Create project' }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    // Footer primary swaps Continue→submit at the same spot; a fast click can
+  // submit early — click submit only if the modal is still open.
+  const npSubmit = dialog.locator('button[type=\"submit\"]');
+  await dialog.page().waitForTimeout(400);
+  if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
+    await npSubmit.click({ timeout: 10_000 }).catch(() => {});
+  }
 
     // The new card appears and is selected — no reload.
     const card = page.locator('button', { hasText: 'L1 Riverside Offices' }).first();
@@ -75,9 +86,20 @@ test.describe('L1 — New project from the console', () => {
     await expect(dialog).toBeVisible();
 
     // Duplicate code → API 409/400 → inline error must render.
+    await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByLabel(/Project name/).fill('Duplicate Code Project');
     await dialog.getByLabel(/Project code/).fill(`L1-${String(RUN).slice(-6)}`);
-    await dialog.getByRole('button', { name: 'Create project' }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    // Footer primary swaps Continue→submit at the same spot; a fast click can
+  // submit early — click submit only if the modal is still open.
+  const npSubmit = dialog.locator('button[type=\"submit\"]');
+  await dialog.page().waitForTimeout(400);
+  if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
+    await npSubmit.click({ timeout: 10_000 }).catch(() => {});
+  }
     await expect(dialog.getByText(/could not|failed|already|exist|invalid/i)).toBeVisible({ timeout: 15_000 });
     await expect(dialog).toBeVisible(); // dialog stays open for retry
   });

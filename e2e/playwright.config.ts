@@ -23,6 +23,17 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    launchOptions: {
+      args: [
+        // Memory-constrained CI/dev boxes: keep the renderer lean so long
+        // suites don't get OOM-killed mid-test.
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-extensions',
+        '--mute-audio',
+        '--js-flags=--max-old-space-size=512',
+      ],
+    },
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

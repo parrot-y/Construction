@@ -1,4 +1,5 @@
 import React from 'react';
+import { projectTypeLabel } from '@construction/validation';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { IndependentInspectionReportData } from './types';
 import { PRODUCT_NAME } from '../lib/product';
@@ -292,6 +293,12 @@ export const IndependentInspectionReportPdf: React.FC<{
               <Text style={styles.metaLabel}>NCA Reg No:</Text>
               <Text style={styles.metaValue}>{data.project.ncaRegistrationNo || 'NCA/PRJ/CERT'}</Text>
             </View>
+            {data.project.projectType && (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Type:</Text>
+              <Text style={styles.metaValue}>{projectTypeLabel(data.project.projectType, data.project.projectSubtype)}</Text>
+            </View>
+            )}
           </View>
 
           {/* Neutral Inspector */}

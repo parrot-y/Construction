@@ -79,12 +79,23 @@ test.describe('L3 — admin first-hour journey (UI only)', () => {
     await page.getByRole('button', { name: 'New project' }).click();
     const dlg = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
     await expect(dlg).toBeVisible();
+    await dlg.getByRole('button', { name: 'Commercial', exact: true }).click();
+    await dlg.getByRole('button', { name: 'Continue' }).click();
+    await dlg.getByRole('button', { name: 'Skip — decide later' }).click();
+    await dlg.getByRole('button', { name: 'Continue' }).click();
     await dlg.getByLabel(/Project name/).fill('Kileleshwa Mixed-Use Development');
     await dlg.getByLabel(/Project code/).fill(`MUD-${String(RUN).slice(-5)}`);
     await dlg.getByLabel('Location').fill('Kileleshwa, Nairobi');
     await dlg.getByLabel(/Contract value/).fill('186000000');
     await shot(page, '05-new-project-form');
-    await dlg.getByRole('button', { name: 'Create project' }).click();
+    await dlg.getByRole('button', { name: 'Continue' }).click();
+    // Footer primary swaps Continue→submit at the same spot; a fast click can
+  // submit early — click submit only if the modal is still open.
+  const npSubmit = dlg.locator('button[type=\"submit\"]');
+  await dlg.page().waitForTimeout(400);
+  if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
+    await npSubmit.click({ timeout: 10_000 }).catch(() => {});
+  }
     const card = page.locator('button', { hasText: 'Kileleshwa Mixed-Use Development' }).first();
     await expect(card).toBeVisible({ timeout: 20_000 });
     await shot(page, '06-project-created');

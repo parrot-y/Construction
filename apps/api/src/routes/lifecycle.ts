@@ -18,6 +18,7 @@ import {
   CreateDefectsCertificateSchema,
   ConsultantReviewSchema,
   SnagPhotoUploadSchema,
+  projectTypeLabel,
 } from '@construction/validation';
 import { Permissions } from '@construction/permissions';
 import { requirePermission } from '../plugins/rbac';
@@ -1157,7 +1158,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
 
       try {
         const { rows, project } = await withTenantTx(prisma, tenantId, async (tx) => {
-          const project = await tx.project.findFirst({ where: { id: projectId }, select: { code: true, name: true } });
+          const project = await tx.project.findFirst({ where: { id: projectId }, select: { code: true, name: true, project_type: true, project_subtype: true } });
           if (!project) throw { status: 404, message: 'Project not found' };
           const rows = await tx.snagItem.findMany({
             where: { project_id: projectId },
@@ -1190,6 +1191,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
             data: {
               projectName: project.name,
               projectCode: project.code,
+              projectTypeLabel: project.project_type ? projectTypeLabel(project.project_type, project.project_subtype) : null,
               generatedAt: new Date().toISOString().slice(0, 10),
               totalCount: rows.length,
               openCount: rows.filter((r: { status: string }) => openStatuses.includes(r.status)).length,

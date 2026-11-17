@@ -57,10 +57,22 @@ async function createProjectUi(page: Page, name: string, code: string, contractV
   await page.goto('/app/projects/all');
   await page.getByRole('button', { name: 'New project' }).click();
   const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
+  // 2.8 wizard: type → subtype → details → terms.
+  await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Continue' }).click();
+  await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
+  await dialog.getByRole('button', { name: 'Continue' }).click();
   await dialog.getByLabel(/Project name/).fill(name);
   await dialog.getByLabel(/Project code/).fill(code);
   if (contractValue) await dialog.getByLabel(/Contract value/).fill(contractValue);
-  await dialog.getByRole('button', { name: 'Create project' }).click({ force: true });
+  await dialog.getByRole('button', { name: 'Continue' }).click();
+  // Footer primary swaps Continue→submit at the same spot; a fast click can
+  // submit early — click submit only if the modal is still open.
+  const npSubmit = dialog.locator('button[type=\"submit\"]');
+  await dialog.page().waitForTimeout(400);
+  if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
+    await npSubmit.click({ timeout: 10_000 }).catch(() => {});
+  }
   await expect(page.locator('button', { hasText: name }).first()).toBeVisible({ timeout: 25_000 });
   projectName = name;
 }

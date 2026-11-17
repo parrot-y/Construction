@@ -4,7 +4,7 @@ import { configureRuntimeModules } from '../../lib/modules';
 import { AuthSession} from '../../types/auth';
 import { getRoleNav, RoleNav} from './navConfig';
 
-export interface ProjectOpt { id: string; name: string; code: string; status?: string; location?: string; original_contract_sum?: number | string; contract_currency?: string}
+export interface ProjectOpt { id: string; name: string; code: string; status?: string; location?: string; original_contract_sum?: number | string; contract_currency?: string; project_type?: string | null; project_subtype?: string | null}
 
 interface ConsoleCtx {
   session: AuthSession;
@@ -91,7 +91,7 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
     fetch('/api/v1/projects', { credentials: 'include'})
       .then((r) => (r.ok ? r.json() : { data: []}))
       .then((j) => {
-        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status, location: p.location, original_contract_sum: p.original_contract_sum, contract_currency: p.contract_currency}));
+        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status, location: p.location, original_contract_sum: p.original_contract_sum, contract_currency: p.contract_currency, project_type: p.project_type ?? null, project_subtype: p.project_subtype ?? null}));
         setProjects(list);
         if (list.length) setProjectId((cur) => {
           if (cur && list.some((p: ProjectOpt) => p.id === cur)) return cur;
