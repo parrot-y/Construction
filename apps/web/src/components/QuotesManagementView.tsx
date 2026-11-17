@@ -190,6 +190,12 @@ export default function QuotesManagementView(): React.JSX.Element {
     try {
       const body = await api.post<{ quote: Quote }>('/api/v1/quotes', {
           ...form,
+          // Optional contact fields: empty string fails server email/phone
+          // validation — send null instead.
+          clientEmail: form.clientEmail.trim() || null,
+          clientPhone: form.clientPhone.trim() || null,
+          siteLocation: form.siteLocation.trim() || null,
+          terms: form.terms.trim() || null,
           taxPct: taxPctNum,
           depositPct: depositPctNum,
           validDays: parseInt(form.validDays, 10) || null,

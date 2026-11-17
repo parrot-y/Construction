@@ -68,7 +68,7 @@ export default function PortalAccessLinkManager({
     if (portalType !== 'SUBCONTRACTOR' || packages.length > 0 || !projectId) return;
     fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include' })
       .then((r) => r.json())
-      .then((b) => setPackages((b.data || b || []).map((p: any) => ({ id: p.id, tradeCategory: p.trade_category || p.tradeCategory, firmName: p.firm_name || p.firmName }))))
+      .then((b) => setPackages((b.packages || b.data || b || []).map((p: any) => ({ id: p.id, tradeCategory: p.trade_category || p.tradeCategory, firmName: p.firm_name || p.firmName }))))
       .catch(() => setPackages([]));
   }, [portalType, packages.length, projectId]);
 

@@ -11,7 +11,16 @@ const SubcontractorPortalView = lazy(() => import('../portals/SubcontractorPorta
 const SupplierPortalView = lazy(() => import('../portals/SupplierPortalView'));
 const CompliancePortalView = lazy(() => import('../portals/CompliancePortalView'));
 
-const SectionFallback = <div className="min-h-[40vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
+// Skeleton rows — sections lazy-load on navigation; a skeleton keeps the
+// layout stable (no blank-page spinner, no layout jump when data lands).
+const SectionFallback = (
+<div className="space-y-3" aria-busy="true" aria-label="Loading section">
+<div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+<div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
+<div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
+<div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
+</div>
+);
 
 const HomeSection = lazy(() => import('./sections/HomeSection'));
 const ProjectsSection = lazy(() => import('./sections/ProjectsSection'));

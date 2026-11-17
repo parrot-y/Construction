@@ -11,12 +11,14 @@ import { IconPlus} from '../icons';
 import PortalAccessLinkManager from '../../PortalAccessLinkManager';
 import ProjectChecklist from '../../ProjectChecklist';
 import NewProjectModal from '../../NewProjectModal';
+import ProjectSettingsModal from '../../ProjectSettingsModal';
 
 const FILTERS = ['All', 'Active', 'At Risk', 'Planning', 'Closing', 'Archived'];
 
 function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
   const { projects, projectId, setProjectId, setPortalPreview, refreshProjects} = useConsole();
   const [showCreate, setShowCreate] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const livePidCheck = /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
   const [filter, setFilter] = useState('All');
   const [recentCos, setRecentCos] = useState<any[]>([]);
@@ -130,6 +132,18 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 </button>
 ))}
 </div>
+)}
+
+      {livePidCheck && canEdit && (
+<div className="flex justify-end">
+<button onClick={() => setShowSettings(true)}
+            className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+            Project settings
+</button>
+</div>
+)}
+      {showSettings && livePidCheck && (
+<ProjectSettingsModal projectId={livePidCheck} onClose={() => setShowSettings(false)} onSaved={() => refreshProjects()} />
 )}
 
       {livePidCheck && (
