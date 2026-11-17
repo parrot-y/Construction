@@ -127,6 +127,11 @@ jobs:
         # VITE_DEMO_MODE === 'true' and dead-code-eliminated otherwise.
         run: bash scripts/check-demo-bundle.sh
 
+      - name: Web→API reachability (deploy contract)
+        # Phase 0.2: the production web build must use same-origin /api so the
+        # nginx proxy in front of the API service can reach it.
+        run: bash scripts/check-web-api-reachability.sh
+
       - name: Initial JS bundle budget (C2)
         # Entry chunks must stay ≤450KB raw / ≤140KB gzip — route-level
         # React.lazy keeps heavy modules out of the initial payload.
