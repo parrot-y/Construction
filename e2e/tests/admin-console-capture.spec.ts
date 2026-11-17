@@ -27,23 +27,29 @@ const TABS: [string, string][] = [
   ['files', 'reports'], ['files', 'companydocs'], ['files', 'unfiled'],
 ];
 
-async function uiLogin(page: any) {
-  await page.goto('/');
-  const signIn = page.getByRole('button', { name: 'Sign in to your workspace' });
-  if (await signIn.isVisible().catch(() => false)) await signIn.click();
-  else await page.getByRole('button', { name: 'Sign in', exact: true }).first().click();
-  await page.locator('#email').fill('admin@apexbuilders.co.ke');
-  await page.locator('#password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in to workspace' }).click();
-  await expect(page.locator('nav[aria-label="Workspace sections"]').first()).toBeVisible({ timeout: 30_000 });
+async function uiLogin(page: any, request: any) {
+  // Cookie-injected session (same as the login form produces) — the capture
+  // run must not flake on the auth form under load.
+  const res = await request.post(`${process.env.E2E_API_URL || 'http://localhost:4199'}/api/v1/auth/login`, {
+    data: { email: 'admin@apexbuilders.co.ke', password: PASSWORD },
+  });
+  expect(res.status()).toBe(200);
+  const setCookie = res.headers()['set-cookie'] || '';
+  const cookies = setCookie.split(/,(?=[^;]+=)/).map((c: string) => {
+    const [pair] = c.split(';'); const i = pair.indexOf('=');
+    return { name: pair.slice(0, i).trim(), value: pair.slice(i + 1).trim(), domain: 'localhost', path: '/' };
+  });
+  await page.context().addCookies(cookies);
+  await page.goto('/app');
+  await expect(page.locator('nav[aria-label="Workspace sections"]:visible').first()).toBeVisible({ timeout: 60_000 });
 }
 
 test.describe('Admin console captures', () => {
-  test('capture every sidebar tab at 390px and desktop', async ({ page, browserName }) => {
+  test('capture every sidebar tab at 390px and desktop', async ({ page, browserName, request }) => {
     test.setTimeout(600_000);
     mkdirSync(`${OUT}/mobile-390`, { recursive: true });
     mkdirSync(`${OUT}/desktop`, { recursive: true });
-    await uiLogin(page);
+    await uiLogin(page, request);
     const vp = test.info().project.name === 'mobile-390' ? 'mobile-390' : 'desktop';
     const shots: string[] = [];
     for (const [section, tab] of TABS) {
