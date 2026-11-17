@@ -74,7 +74,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <header className="sticky top-0 z-30 h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 px-4">
 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 shrink-0">
 <span className="hidden sm:inline">Viewing as</span>
-<span className="font-bold text-slate-800 dark:text-slate-200">{roleLabel}</span>
+<span className="hidden sm:inline font-bold text-slate-800 dark:text-slate-200">{roleLabel}</span>
 </div>
 
       {projects.length > 0 && (
@@ -82,7 +82,8 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
           aria-label="Active project"
-          className="hidden md:block border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold max-w-[220px]"
+          title={projects.find((p) => p.id === projectId)?.name}
+          className="border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold max-w-[104px] sm:max-w-[180px] lg:max-w-[220px]"
         >
           {projects.map((p) =><option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
 </select>
@@ -159,7 +160,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <button
           onClick={() => setCurrency(currency === 'KES' ? 'USD' : 'KES')}
           aria-label={`Currency: ${currency}`}
-          className="px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+          className="hidden sm:block px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
         >
           {currency}
 </button>
@@ -258,7 +259,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 const REVIEW_BADGE_ROLES = new Set(['ADMIN', 'COMPANY_ADMIN', 'PM_QS', 'EXECUTIVE', 'SUPERINTENDENT']);
 
 function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
-  const { nav, section, setSection, setAiOpen, session, projects, projectId, setProjectId} = useConsole();
+  const { nav, section, setSection, setAiOpen, session} = useConsole();
   const [reviewCount, setReviewCount] = useState(0);
   useEffect(() => {
     if (!REVIEW_BADGE_ROLES.has(session.user.role)) { setReviewCount(0); return; }
@@ -302,17 +303,6 @@ function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
 })}
       {!mobile && (
 <div className="mt-auto flex flex-col items-center gap-2 pb-1">
-          {projects.length > 0 && (
-<select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              aria-label="Active project"
-              className="w-11 h-11 rounded-xl bg-slate-800 text-orange-300 text-[10px] font-bold border-0 text-center appearance-none cursor-pointer"
-              title={projects.find((p) => p.id === projectId)?.name}
-            >
-              {projects.map((p) =><option key={p.id} value={p.id}>{p.code}</option>)}
-</select>
-)}
 <div className="w-11 h-11 rounded-xl bg-orange-600/20 border border-orange-600/40 text-orange-300 text-xs font-bold flex items-center justify-center" title={session.user.tenant?.name || 'Workspace'}>
             {(session.user.tenant?.name || 'S').slice(0, 1).toUpperCase()}
 </div>

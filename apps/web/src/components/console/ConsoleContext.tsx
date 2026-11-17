@@ -93,7 +93,12 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status, location: p.location, original_contract_sum: p.original_contract_sum, contract_currency: p.contract_currency}));
         setProjects(list);
-        if (list.length) setProjectId((cur) => cur || list[0].id);
+        if (list.length) setProjectId((cur) => {
+          if (cur && list.some((p: ProjectOpt) => p.id === cur)) return cur;
+          const stored = localStorage.getItem('sitesafi-project-id');
+          if (stored && list.some((p: ProjectOpt) => p.id === stored)) return stored;
+          return list[0].id;
+        });
 })
       .catch(() => {});
   };
@@ -119,6 +124,12 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
       return next;
 });
 };
+
+  // Remember the active project across sign-out/in and reloads (A7/W10) —
+  // the selector must never silently reset to the first project.
+  useEffect(() => {
+    if (projectId) localStorage.setItem('sitesafi-project-id', projectId);
+  }, [projectId]);
 
   // when section changes, keep a still-valid tab (deep links) else default to first
   useEffect(() => {
