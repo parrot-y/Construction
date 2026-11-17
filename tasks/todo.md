@@ -212,3 +212,21 @@ Frontend:
 - L3 (166a91c): l3-admin-first-hour.spec UI-only journey, 12 shots @390px. FINDING: no UI path to add BoQ items (BoqWorkbookView read-only, BoqImportModal unmounted). Fixed VerifyEmailView StrictMode double-POST.
 - L4 (0bc6aac): label:value spacing sweep (Justification + invoice/quote/commitments/takeoff labels).
 - Pending: final solo Playwright + verify-local on 0bc6aac, evidence files, push.
+
+## Round A — Admin console (replaces round L scope; items 47-52 + A1-A8 + W1-W10 + speed)
+
+Plan (checkable):
+- [ ] A-inv: docs/evidence/admin-console-inventory.md — one row per sidebar tab, honest status
+- [ ] A1: New project (done in L: 937514b) — verify against new acceptance gates
+- [ ] A2: click sweep exists (l2) — extend skip list w/ reasons; console-error gate
+- [ ] A3: first-hour journey — add BoQ type+import, retention/deposit, pending-invite visibility, open project
+- [ ] BoQ manual item CRUD: API (BOQ_EDIT) + UI in BoqWorkbookView + mount BoqImportModal in console
+- [ ] Project settings UI: edit contract sum, retention rate/cap, NCA, dates (PATCH exists)
+- [ ] A4: fresh-seed varied captures (seed already varied; re-capture under final sha)
+- [ ] A5: spacing sweep done (0bc6aac) — verify no stragglers
+- [ ] A6: Home get-started checklist + attention/money/overdue widgets w/ links
+- [ ] A7: mobile project picker + always-visible selector + active states + 44px targets
+- [ ] A8: permission-driven gating + no-403 test
+- [ ] Speed: skeletons, waterfall fix (ProjectsSection N+1), double-submit guards, throttled-3G spec + admin-speed-<sha>.md
+- [ ] W1-W10 click-through workflow specs
+- [ ] Final: solo suite 0/0/0 + verify-local + evidence + push

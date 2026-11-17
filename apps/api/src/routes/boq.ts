@@ -469,4 +469,265 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       return reply.status(200).send({ data: paged.data, page: paged.page });
     },
   );
+  // ---------------------------------------------------------------
+  // Round A: manual BoQ item entry — a contractor can type items by
+  // hand, not only import Excel. Writes land on the ACTIVE BOQ (one is
+  // created on first use) and section/BOQ totals are recomputed.
+  // ---------------------------------------------------------------
+
+  async function recomputeBoqTotals(tx: any, boqId: string) {
+    const sections = await tx.bOQSection.findMany({
+      where: { boq_id: boqId },
+      include: { items: { select: { total_amount: true } } },
+    });
+    let boqTotal = new Decimal(0);
+    for (const section of sections) {
+      const sectionTotal = section.items.reduce(
+        (sum: Decimal, item: { total_amount: unknown }) => sum.plus(new Decimal(item.total_amount?.toString() ?? '0')),
+        new Decimal(0),
+      );
+      boqTotal = boqTotal.plus(sectionTotal);
+      await tx.bOQSection.update({
+        where: { id: section.id },
+        data: { total_amount: sectionTotal.toFixed(2) },
+      });
+    }
+    await tx.bOQ.update({
+      where: { id: boqId },
+      data: { total_amount: boqTotal.toFixed(2) },
+    });
+    return boqTotal;
+  }
+
+  async function activeOrNewBoq(tx: any, tenantId: string, projectId: string, sub: string) {
+    let boq = await tx.bOQ.findFirst({
+      where: { project_id: projectId, tenant_id: tenantId, status: 'ACTIVE' },
+    });
+    if (!boq) {
+      boq = await tx.bOQ.create({
+        data: {
+          tenant_id: tenantId,
+          project_id: projectId,
+          version: 1,
+          status: 'ACTIVE',
+          source_filename: 'manual-entry',
+        },
+      });
+      await tx.bOQSection.create({
+        data: { tenant_id: tenantId, boq_id: boq.id, order_idx: 0, title: 'General' },
+      });
+    }
+    return boq;
+  }
+
+  function validItemBody(body: any): string | null {
+    if (!body || typeof body.description !== 'string' || body.description.trim().length < 3) {
+      return 'Description is required (at least 3 characters).';
+    }
+    const qty = Number(body.quantity);
+    const rate = Number(body.unitRate);
+    if (!Number.isFinite(qty) || qty <= 0) return 'Quantity must be a number greater than zero.';
+    if (!Number.isFinite(rate) || rate < 0) return 'Rate must be zero or more.';
+    if (typeof body.unit !== 'string' || !body.unit.trim()) return 'Unit is required (e.g. M3, SM, ITEM).';
+    return null;
+  }
+
+  // POST /api/v1/projects/:projectId/boq/items - add one item by hand
+  server.post(
+    '/api/v1/projects/:projectId/boq/items',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_EDIT),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      const body = request.body as any;
+
+      const invalid = validItemBody(body);
+      if (invalid) return reply.status(400).send({ error: invalid });
+
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const project = await tx.project.findFirst({
+          where: { id: projectId, tenant_id: tenantId },
+          select: { id: true },
+        });
+        if (!project) return { error: 'Project not found in current company workspace', status: 404 as const };
+
+        const boq = await activeOrNewBoq(tx, tenantId, projectId, sub);
+
+        // Resolve target section: explicit title match, else first section.
+        let section = null;
+        const sections = await tx.bOQSection.findMany({
+          where: { boq_id: boq.id },
+          orderBy: { order_idx: 'asc' },
+        });
+        if (body.sectionTitle?.trim()) {
+          section = sections.find((s) => s.title.toLowerCase() === body.sectionTitle.trim().toLowerCase()) ?? null;
+          if (!section) {
+            section = await tx.bOQSection.create({
+              data: {
+                tenant_id: tenantId,
+                boq_id: boq.id,
+                order_idx: sections.length,
+                title: body.sectionTitle.trim(),
+              },
+            });
+          }
+        } else {
+          section = sections[0] ?? await tx.bOQSection.create({
+            data: { tenant_id: tenantId, boq_id: boq.id, order_idx: 0, title: 'General' },
+          });
+        }
+
+        const qty = new Decimal(Number(body.quantity));
+        const rate = new Decimal(Number(body.unitRate));
+        const item = await tx.bOQItem.create({
+          data: {
+            tenant_id: tenantId,
+            section_id: section.id,
+            item_code: (body.itemCode ?? '').toString().slice(0, 50),
+            description: body.description.trim(),
+            unit: body.unit.trim().toUpperCase().slice(0, 20),
+            quantity: qty.toString(),
+            unit_rate: rate.toString(),
+            total_amount: qty.times(rate).toFixed(2),
+            is_provisional: Boolean(body.isProvisional),
+          },
+        });
+
+        await recomputeBoqTotals(tx, boq.id);
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            actor_id: sub,
+            project_id: projectId,
+            action: 'boq.item.create',
+            entity_type: 'BOQItem',
+            entity_id: item.id,
+            changes: { description: item.description, quantity: qty.toString(), unitRate: rate.toString() },
+          },
+        });
+        return { item, boqId: boq.id };
+      });
+
+      if ('error' in result) return reply.status(result.status).send({ error: result.error });
+      return reply.status(201).send({ data: result.item });
+    },
+  );
+
+  // PATCH /api/v1/projects/:projectId/boq/items/:itemId - edit one item
+  server.patch(
+    '/api/v1/projects/:projectId/boq/items/:itemId',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_EDIT),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, itemId } = request.params as { projectId: string; itemId: string };
+      const body = request.body as any;
+
+      const merged = {
+        description: body.description ?? undefined,
+        unit: body.unit ?? undefined,
+        quantity: body.quantity ?? undefined,
+        unitRate: body.unitRate ?? undefined,
+        itemCode: body.itemCode ?? undefined,
+        isProvisional: body.isProvisional ?? undefined,
+      };
+      // Validate against the effective (merged) values.
+      const existing = await withTenantTx(prisma, tenantId, async (tx) =>
+        tx.bOQItem.findFirst({
+          where: { id: itemId, tenant_id: tenantId, section: { boq: { project_id: projectId, status: 'ACTIVE' } } },
+        }),
+      );
+      if (!existing) return reply.status(404).send({ error: 'BoQ item not found on the active BOQ' });
+
+      const eff = {
+        description: merged.description ?? existing.description,
+        unit: merged.unit ?? existing.unit,
+        quantity: merged.quantity ?? Number(existing.quantity),
+        unitRate: merged.unitRate ?? Number(existing.unit_rate),
+      };
+      const invalid = validItemBody(eff);
+      if (invalid) return reply.status(400).send({ error: invalid });
+
+      const item = await withTenantTx(prisma, tenantId, async (tx) => {
+        const qty = new Decimal(Number(eff.quantity));
+        const rate = new Decimal(Number(eff.unitRate));
+        const updated = await tx.bOQItem.update({
+          where: { id: itemId },
+          data: {
+            ...(merged.description !== undefined ? { description: merged.description.trim() } : {}),
+            ...(merged.unit !== undefined ? { unit: merged.unit.trim().toUpperCase().slice(0, 20) } : {}),
+            ...(merged.itemCode !== undefined ? { item_code: String(merged.itemCode).slice(0, 50) } : {}),
+            ...(merged.isProvisional !== undefined ? { is_provisional: Boolean(merged.isProvisional) } : {}),
+            quantity: qty.toString(),
+            unit_rate: rate.toString(),
+            total_amount: qty.times(rate).toFixed(2),
+          },
+        });
+        await recomputeBoqTotals(tx, existing.section_id ? (await tx.bOQSection.findUnique({ where: { id: existing.section_id }, select: { boq_id: true } }))!.boq_id : '');
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            actor_id: sub,
+            project_id: projectId,
+            action: 'boq.item.update',
+            entity_type: 'BOQItem',
+            entity_id: itemId,
+            changes: { quantity: qty.toString(), unitRate: rate.toString() },
+          },
+        });
+        return updated;
+      });
+
+      return reply.status(200).send({ data: item });
+    },
+  );
+
+  // DELETE /api/v1/projects/:projectId/boq/items/:itemId - remove one item
+  server.delete(
+    '/api/v1/projects/:projectId/boq/items/:itemId',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_EDIT),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, itemId } = request.params as { projectId: string; itemId: string };
+
+      const done = await withTenantTx(prisma, tenantId, async (tx) => {
+        const existing = await tx.bOQItem.findFirst({
+          where: { id: itemId, tenant_id: tenantId, section: { boq: { project_id: projectId, status: 'ACTIVE' } } },
+          include: { section: { select: { boq_id: true } } },
+        });
+        if (!existing) return false;
+        await tx.bOQItem.delete({ where: { id: itemId } });
+        await recomputeBoqTotals(tx, existing.section.boq_id);
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            actor_id: sub,
+            project_id: projectId,
+            action: 'boq.item.delete',
+            entity_type: 'BOQItem',
+            entity_id: itemId,
+            changes: { description: existing.description },
+          },
+        });
+        return true;
+      });
+
+      if (!done) return reply.status(404).send({ error: 'BoQ item not found on the active BOQ' });
+      return reply.status(200).send({ data: { deleted: true } });
+    },
+  );
 };
