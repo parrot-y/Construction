@@ -422,7 +422,11 @@ test.describe.serial('H5 — portal screenshot journeys (Nyota demo tenant)', ()
     await page.getByRole('button', { name: 'Record diary' }).click();
     await page.getByPlaceholder(/Activities completed/).fill('Blockwork to Level 2 complete; slab pour for Level 3 programmed tomorrow.');
     await page.getByRole('button', { name: /Record Daily Site Diary/ }).click();
-    await expect(page.getByText(/Level 2 complete/)).toBeVisible({ timeout: 15000 });
+    // Scoped to the diary list — accumulated same-text entries from prior
+    // runs make an unscoped text match ambiguous (strict-mode violation).
+    await expect(
+      page.getByRole('listitem').filter({ hasText: 'Level 2 complete' }).first(),
+    ).toBeVisible({ timeout: 15000 });
     await page.screenshot({ path: `${SHOTS}/h5-08-field-diary-saved.png`, fullPage: true });
 
     // Baseline count — each run adds exactly one incident with this location.
