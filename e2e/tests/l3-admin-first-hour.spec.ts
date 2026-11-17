@@ -33,9 +33,8 @@ async function shot(page: Page, name: string) {
 
 test.describe('L3 — admin first-hour journey (UI only)', () => {
   test('day-one journey at 390px', async ({ page }, testInfo) => {
-    // Evidence contract: screenshots are the 390px phone captures — the
-    // journey is viewport-agnostic, so only the mobile project runs it.
-    test.skip(testInfo.project.name !== 'mobile-390', '390px evidence project only');
+    // Runs on both projects for coverage; the mobile-390 project runs
+    // second and its captures are the canonical 390px evidence set.
     test.setTimeout(420_000);
 
     // 1. Register the company through the public signup form.
