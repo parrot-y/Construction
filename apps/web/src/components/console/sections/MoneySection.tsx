@@ -91,7 +91,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
 </div>
 )}
       {ft === 'ledger' &&<CostManagementView projectId={projectId} canCreate canApprove userRole={role} />}
-      {ft === 'boq' &&<BoqWorkbookView projectId={projectId} />}
+      {ft === 'boq' &&<BoqWorkbookView projectId={projectId} projectName={projectName} role={role} />}
       {ft === 'applications' &&<CommitmentsView projectId={projectId} canManage />}
       {ft === 'retention' &&<RetentionAndBondsView projectId={projectId} projectName={projectName} userRole="PM_QS" />}
       {ft === 'budget' && (
