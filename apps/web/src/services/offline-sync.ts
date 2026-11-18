@@ -8,6 +8,8 @@
  * by the rename.
  */
 
+import { apiTransport } from '../lib/api';
+
 export interface OfflineMutationRecord {
   id: string;
   idempotency_key: string;
@@ -273,9 +275,8 @@ export async function flushSyncQueue(): Promise<{ syncedCount: number; failedCou
 
   for (const item of queue) {
     try {
-      const res = await fetch(item.endpoint, {
+      const res = await apiTransport(item.endpoint, {
         method: item.method,
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Idempotency-Key': item.idempotency_key,

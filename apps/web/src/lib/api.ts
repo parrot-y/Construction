@@ -240,6 +240,30 @@ async function request<T>(path: string, opts: RequestOptions): Promise<T> {
   throw lastErr;
 }
 
+/**
+ * Low-level transport for infrastructure callers (the offline queue/cache)
+ * that must inspect the raw Response themselves. Same credentials + timeout
+ * guarantees as api.*; error mapping is the caller's job.
+ */
+export async function apiTransport(path: string, init: { method?: string; headers?: Record<string, string>; body?: BodyInit; signal?: AbortSignal; timeoutMs?: number } = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), init.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const onOuter = () => controller.abort();
+  init.signal?.addEventListener('abort', onOuter, { once: true });
+  try {
+    return await fetch(path, {
+      method: init.method ?? 'GET',
+      credentials: 'include',
+      headers: init.headers,
+      body: init.body,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+    init.signal?.removeEventListener('abort', onOuter);
+  }
+}
+
 /** Escape hatch for non-JSON responses (blob downloads). Still goes through
  *  the timeout/refresh/error-kind pipeline; caller reads res.blob() etc. */
 export async function rawFetch(path: string, opts: RequestOptions = {}): Promise<Response> {

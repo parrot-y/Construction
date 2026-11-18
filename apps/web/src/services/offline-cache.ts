@@ -17,6 +17,7 @@
  */
 
 import { setOfflineSyncScope } from './offline-sync';
+import { apiTransport } from '../lib/api';
 
 const PREFIX = 'sitesafi:read-cache:';
 const MAX_ENTRIES = 60;
@@ -188,7 +189,12 @@ export async function fetchJsonCached(
   const scope = scopeForUrl(url);
 
   try {
-    const res = await fetch(url, { credentials: 'include', ...init });
+    const res = await apiTransport(url, {
+      method: init?.method,
+      headers: init?.headers as Record<string, string> | undefined,
+      body: init?.body ?? undefined,
+      signal: init?.signal ?? undefined,
+    });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       const revoked = res.status === 429 && REVOKED_RE.test(body?.message || body?.code || '');
