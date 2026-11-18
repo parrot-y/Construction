@@ -208,6 +208,7 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
   'GET /api/v1/me/approvals': 'Caller-scoped "waiting for you" approval feed',
   'GET /api/v1/product': 'Product metadata for any authenticated member',
   'GET /api/v1/company/modules': 'Own-tenant module flags — member-readable pilot scope',
+  'GET /api/v1/project-types': 'Project-type taxonomy + tenant NCA bands — reference data any console member needs for project creation/filtering',
   'POST /api/v1/problem-reports': 'Self-service problem report — actor/tenant bound to session',
   'GET /api/v1/company/payment-instructions': 'Payment instructions any member (incl. CLIENT) may read to pay the contractor',
   'POST /api/v1/client/invoices/:invoiceId/payment-notice': 'Client self-service payment notice on own invoice (non-mutating, notifies staff)',

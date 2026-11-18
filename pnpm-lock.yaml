@@ -339,6 +339,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@construction/validation':
+        specifier: workspace:*
+        version: link:../validation
       '@prisma/client':
         specifier: ^6.4.1
         version: 6.19.3(prisma@6.19.3(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)

@@ -15,7 +15,8 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@prisma/client": "^6.4.1"
+    "@prisma/client": "^6.4.1",
+    "@construction/validation": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

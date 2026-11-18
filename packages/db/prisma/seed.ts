@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword, withTenantTx } from '../src/index';
 import { VARIATION_SEEDS } from '../src/variation-seeds';
+import { defaultNcaRules } from '@construction/validation';
 
 const prisma = new PrismaClient({
   datasources: {
@@ -44,6 +45,20 @@ export async function seed() {
         create: { tenant_id: tenant.id, module: m, enabled: true, updated_by: 'seed' },
       });
     }
+    // Phase 2.8: demo tenant gets the editable NCA class-band table too —
+    // registerCompany seeds it for signups; the seed path needs it as well.
+    // deleteMany first keeps re-seeding idempotent (no unique constraint).
+    await tx.ncaClassRule.deleteMany({});
+    await tx.ncaClassRule.createMany({
+      data: defaultNcaRules().map((r) => ({
+        tenant_id: tenant.id,
+        trade: r.trade,
+        class_label: r.classLabel,
+        min_contract_value: r.minContractValue,
+        max_contract_value: r.maxContractValue,
+        notes: 'Default band — confirm current NCA limits before registration',
+      })),
+    });
   });
 
   const defaultPasswordHash = await hashPassword('Password123!');
