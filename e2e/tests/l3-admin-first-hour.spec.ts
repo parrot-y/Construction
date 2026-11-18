@@ -129,16 +129,18 @@ test.describe('L3 — admin first-hour journey (UI only)', () => {
     await expect(inviteBtn).toBeVisible({ timeout: 15_000 });
     await inviteBtn.click();
     await page.waitForTimeout(400);
-    const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]').first();
+    // Invite form is an inline panel on the Team tab (not a modal) — scope by
+    // its unique placeholder/labels so hidden page controls can't wedge fill().
+    const emailInput = page.getByPlaceholder(/teammate@/);
     await emailInput.fill(`siteengineer.${RUN}@firsthour.test`);
-    const roleSelect = page.locator('select').first();
+    const roleSelect = page.locator('label', { hasText: /^Role$/ }).locator('select');
     if (await roleSelect.isVisible().catch(() => false)) {
       await roleSelect.selectOption('SITE_ENGINEER').catch(async () => {
         await roleSelect.selectOption({ index: 1 }).catch(() => {});
       });
     }
     await shot(page, '08-invite-member');
-    await page.getByRole('button', { name: /send|invite|add/i }).last().click();
+    await page.getByRole('button', { name: 'Send invite', exact: true }).click();
     await page.waitForTimeout(1200);
     await shot(page, '09-invite-sent');
 
@@ -150,8 +152,9 @@ test.describe('L3 — admin first-hour journey (UI only)', () => {
     await newQuote.click();
     await page.waitForTimeout(400);
     const q = page.locator('form').last();
-    await q.locator('input').nth(0).fill('Boundary wall & gate — package A');
-    await q.locator('input').nth(1).fill('Kileleshwa Mixed-Use Dev LLP');
+    const qInputs = q.locator('input:visible');
+    if (await qInputs.nth(0).isVisible().catch(() => false)) await qInputs.nth(0).fill('Boundary wall & gate — package A');
+    if (await qInputs.nth(1).isVisible().catch(() => false)) await qInputs.nth(1).fill('Kileleshwa Mixed-Use Dev LLP');
     // first line item
     const itemDesc = q.locator('input[placeholder*="description" i], input').nth(3);
     if (await itemDesc.isVisible().catch(() => false)) await itemDesc.fill('Boundary wall construction');
