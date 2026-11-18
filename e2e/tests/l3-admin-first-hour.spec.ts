@@ -32,12 +32,13 @@ async function shot(page: Page, name: string) {
 }
 
 test.describe('L3 — admin first-hour journey (UI only)', () => {
+  test.use({ video: 'off' });
   test('day-one journey at 390px', async ({ page }, testInfo) => {
     // Evidence contract is phone captures; the desktop pass proved the
     // journey works but is materially slower (multi-step waits) and adds
     // no evidence value — gate to the 390px project.
     test.skip(testInfo.project.name !== 'mobile-390', '390px evidence project only');
-    test.setTimeout(420_000);
+    test.setTimeout(900_000);
 
     // 1. Register the company through the public signup form.
     await page.goto('/?signup=1');

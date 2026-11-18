@@ -153,7 +153,7 @@ test.describe('W1–W10 admin workflows', () => {
     await page.getByRole('button', { name: /invite/i }).first().click();
     await page.locator('input[type="email"], input[placeholder*="@"]').first().fill(`site.engineer.${SLUG}@wflows.test`);
     await page.getByRole('button', { name: /send invite/i }).click();
-    await expect(page.getByText(new RegExp(`site\\.engineer\\.${SLUG}`, 'i'))).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(new RegExp(`site\\.engineer\\.${SLUG}`, 'i')).first()).toBeVisible({ timeout: 20_000 });
     // Pending invite listed with a revoke control.
     await expect(page.getByRole('button', { name: /revoke/i }).first()).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: /revoke/i }).first().click();

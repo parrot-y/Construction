@@ -1,5 +1,21 @@
 # tasks/todo.md — active plan
 
+## MASTER PLAN — Phase 2 (admin console end-to-end) — closeout in progress
+
+- [x] 0 deploy groundwork — f381a3b/dd0cd83/dbcbaae
+- [x] 2.1 New project wired — 64f5b97/937514b
+- [x] 2.2 inventory — docs/evidence/admin-console-inventory.md
+- [x] 2.3 per-screen acceptance — a3/a6/a7/l1/l2 specs
+- [x] 2.4 day-one journey — l3-admin-first-hour @390px
+- [x] 2.5 W1–W10 by clicks — ec00767 (chromium 11/11 + mobile)
+- [x] 2.6 permissions on screen — a8-permissions spec
+- [x] 2.7 demo data + wording — 0bc6aac
+- [x] 2.8 project types end-to-end — 9954343 + a334cbc
+      (migration 0025, shared config, 4-step wizard, NCA rules table,
+      starters, filters, PDFs; p2 spec 10/10; api tests 10/10)
+- [ ] Phase 2 closeout: solo full Playwright suite (0 fail/skip/flaky)
+      + verify-local.sh + phase report table → STOP for auditor review
+
 ## Current: Round H (checklist 14/15 review, 28–32)
 
 Rules: aud-* specs + sha256 immutable; tests first with RED RUN COMMITTED;

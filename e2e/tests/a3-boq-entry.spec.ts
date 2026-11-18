@@ -85,8 +85,16 @@ test.describe('A3 — BoQ entry from the admin console', () => {
   test('0. fixture: fresh company admin + one project', async ({ request, page }) => {
     admin = await register(request);
     expect(admin.user.email).toContain('a3-boq.test');
-    await uiLogin(page);
-    await createProjectViaUi(page);
+    // Fixture project via API, deliberately WITHOUT a project type: typed
+    // projects now seed starter BoQ sections server-side (Phase 2.8), and
+    // this spec needs a genuinely empty BoQ. UI project creation itself is
+    // covered by l1/p2/w-admin specs.
+    const cookie = (admin.cookie || '');
+    const created = await request.post(`${API}/api/v1/projects`, {
+      headers: { cookie },
+      data: { name: 'A3 BoQ Site', code: `A3-${String(RUN).slice(-6)}` },
+    });
+    expect(created.status(), await created.text()).toBe(201);
   });
 
   test('1. empty BoQ offers typed entry and Excel import', async ({ page }) => {
