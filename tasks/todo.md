@@ -13,8 +13,9 @@
 - [x] 2.8 project types end-to-end — 9954343 + a334cbc
       (migration 0025, shared config, 4-step wizard, NCA rules table,
       starters, filters, PDFs; p2 spec 10/10; api tests 10/10)
-- [ ] Phase 2 closeout: solo full Playwright suite (0 fail/skip/flaky)
-      + verify-local.sh + phase report table → STOP for auditor review
+- [x] Phase 2 closeout — DONE @120506e: solo suite 428/0/0/0 (29.7m),
+      verify-local green (api 675 web 146 db 18 money 77 perms 9),
+      evidence e2e-2dadc75.md + verify-70153c7.log → awaiting auditor review
 
 ## Current: Round H (checklist 14/15 review, 28–32)
 
