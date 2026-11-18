@@ -80,6 +80,8 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Skip the 20s internal timeout (long-running exports etc.). */
   timeoutMs?: number;
+  /** Return the raw Response (blob/download/SSE) instead of parsed JSON. */
+  raw?: boolean;
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -145,8 +147,13 @@ async function rawRequest<T>(path: string, opts: RequestOptions, retried: boolea
   const headers: Record<string, string> = { ...(opts.headers ?? {}) };
   let body: BodyInit | undefined;
   if (opts.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-    body = JSON.stringify(opts.body);
+    if (opts.body instanceof FormData) {
+      // Let the browser set the multipart boundary — never JSON-encode files.
+      body = opts.body;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(opts.body);
+    }
   }
   const needsKey = opts.idempotencyKey || (opts.money && method !== 'GET');
   if (needsKey && !headers['Idempotency-Key'] && !headers['idempotency-key']) {
@@ -179,6 +186,18 @@ async function rawRequest<T>(path: string, opts: RequestOptions, retried: boolea
   if (res.status === 401 && !retried && !path.startsWith('/api/v1/auth/')) {
     if (await tryRefresh()) return rawRequest<T>(path, opts, true, attempt);
     throw new ApiError('auth', undefined, { status: 401 });
+  }
+
+  if (opts.raw) {
+    if (!res.ok) {
+      const payload = await parseBody(res).catch(() => null);
+      const kind = statusToKind(res.status);
+      throw new ApiError(kind, payload?.message || payload?.error || PLAIN_MESSAGES[kind], {
+        status: res.status,
+        code: payload?.code ?? (typeof payload?.error === 'string' ? payload.error : undefined),
+      });
+    }
+    return res as unknown as T;
   }
 
   const json = await parseBody(res);
@@ -219,6 +238,12 @@ async function request<T>(path: string, opts: RequestOptions): Promise<T> {
     }
   }
   throw lastErr;
+}
+
+/** Escape hatch for non-JSON responses (blob downloads). Still goes through
+ *  the timeout/refresh/error-kind pipeline; caller reads res.blob() etc. */
+export async function rawFetch(path: string, opts: RequestOptions = {}): Promise<Response> {
+  return request<Response>(path, { ...opts, raw: true });
 }
 
 export const api = {
