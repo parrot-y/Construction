@@ -169,7 +169,7 @@ export function readCacheStorageKeys(): string[] {
 }
 
 /**
- * fetch() + JSON parse + read-cache. On success the body is cached under
+ * HTTP GET + JSON parse + read-cache. On success the body is cached under
  * `cacheKey` (scoped to the user or link token) and `{ body, savedAt: null }`
  * is returned. On a network-level failure a cached body is returned as
  * `{ body, savedAt }` so the caller can render last-saved data with a
