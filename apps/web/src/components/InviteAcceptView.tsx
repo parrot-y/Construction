@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AuthSession } from '../types/auth';
 import { PRODUCT_NAME } from '../lib/product';
 import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface InviteInfo {
   email: string;
@@ -48,15 +49,13 @@ export default function InviteAcceptView({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${apiBaseUrl}/api/v1/invitations/lookup/${encodeURIComponent(token)}`)
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Invitation not found');
+    api.get<any>(`${apiBaseUrl}/api/v1/invitations/lookup/${encodeURIComponent(token)}`)
+      .then((data) => {
         if (!cancelled) setInvite(data.data as InviteInfo);
       })
       .catch((err) => {
         if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : 'Could not load invitation');
+          setLoadError(apiErrorMessage(err, 'Invitation not found'));
         }
       });
     return () => {
@@ -78,21 +77,12 @@ export default function InviteAcceptView({
     }
     setIsLoading(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/invitations/accept`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+      const data = await api.post<any>(`${apiBaseUrl}/api/v1/invitations/accept`, {
           token,
           email: invite.email,
           fullName,
           password,
-        }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Could not accept invitation');
-      }
       const acceptData = data.data || {};
       // New accounts must verify their email before first sign-in.
       if (acceptData.pendingVerification) {
@@ -104,14 +94,10 @@ export default function InviteAcceptView({
         return;
       }
       // Sign in immediately with the credentials just confirmed/set.
-      const loginRes = await fetch(`${apiBaseUrl}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: invite.email, password }),
-      });
-      const session = await loginRes.json();
-      if (!loginRes.ok) {
+      try {
+        const session = await api.post<AuthSession>(`${apiBaseUrl}/api/v1/auth/login`, { email: invite.email, password });
+        onLoginSuccess(session);
+      } catch {
         // Invite accepted but sign-in is still gated (e.g. verification
         // pending on an existing unverified account).
         setErrorMessage(
@@ -119,9 +105,8 @@ export default function InviteAcceptView({
         );
         return;
       }
-      onLoginSuccess(session as AuthSession);
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Something went wrong');
+    } catch (err) {
+      setErrorMessage(apiErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

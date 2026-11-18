@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { useAppDialog } from './AppDialog';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Drawing {
   id: string; title: string; category: string; drawing_reference?: string | null;
@@ -49,13 +50,12 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 
   useEffect(() => {
     if (projectId) return;
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<any>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
         if (list.length) setPid(list[0].id);
-})
+      })
       .catch(() => setProjects([]));
 }, [projectId]);
 
@@ -64,12 +64,10 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/documents`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load drawings');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${pid}/documents`);
       setDocs(((json.documents || []) as any[]).filter((d) => DRAWING_CATS.includes(d.category)));
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -78,8 +76,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
   const loadAnnotations = async (docId: string) => {
     if (!pid) return;
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/documents/${docId}/annotations`, { credentials: 'include'});
-      const j = await res.json();
+      const j = await api.get<any>(`/api/v1/projects/${pid}/documents/${docId}/annotations`);
       setAnnotations(j.data || []);
 } catch { setAnnotations([]);}
 };
@@ -88,20 +85,20 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
     if (!preview || !pendingPin) return;
     const note = await dialog.prompt({ title: 'Add annotation', inputLabel: 'Annotation note', confirmLabel: 'Add', minLength: 2 });
     if (!note || note.trim().length< 2) { setPendingPin(null); return;}
-    const res = await fetch(`/api/v1/projects/${pid}/documents/${preview.id}/annotations`, {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify({ xPct: pendingPin.x, yPct: pendingPin.y, note: note.trim()}),
+    try {
+      await api.post(`/api/v1/projects/${pid}/documents/${preview.id}/annotations`, {
+        xPct: pendingPin.x, yPct: pendingPin.y, note: note.trim(),
 });
+      await loadAnnotations(preview.id);
+    } catch { /* intentionally ignored: annotation add failure keeps modal open */ }
     setPendingPin(null);
-    if (res.ok) await loadAnnotations(preview.id);
 };
 
   const toggleResolved = async (ann: any) => {
     if (!preview) return;
-    await fetch(`/api/v1/projects/${pid}/documents/${preview.id}/annotations/${ann.id}`, {
-      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify({ resolved: !ann.resolved}),
-});
+    await api.patch(`/api/v1/projects/${pid}/documents/${preview.id}/annotations/${ann.id}`, {
+      resolved: !ann.resolved,
+}).catch(() => { /* intentionally ignored: annotation update failure still reloads list */ });
     await loadAnnotations(preview.id);
 };
 
@@ -115,26 +112,21 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/documents`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          title: form.title,
-          category: form.category,
-          drawingReference: form.drawingReference || null,
-          revisionCode: form.revisionCode || 'Rev 0',
-          storageKey: form.storageKey,
-          uploadedByName: 'Site team',
-          notes: form.notes || null,
-          status: 'APPROVED_FOR_CONSTRUCTION',
-}),
+      await api.post(`/api/v1/projects/${pid}/documents`, {
+        title: form.title,
+        category: form.category,
+        drawingReference: form.drawingReference || null,
+        revisionCode: form.revisionCode || 'Rev 0',
+        storageKey: form.storageKey,
+        uploadedByName: 'Site team',
+        notes: form.notes || null,
+        status: 'APPROVED_FOR_CONSTRUCTION',
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowForm(false);
       setForm({ title: '', category: 'ARCHITECTURAL_DRAWING', drawingReference: '', revisionCode: 'Rev 0', storageKey: '', notes: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Register failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Register failed'));
 } finally {
       setSaving(false);
 }
@@ -198,12 +190,10 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
                 try {
                   const fd = new FormData();
                   fd.append('file', f);
-                  const up = await fetch(`/api/v1/projects/${pid}/uploads`, { method: 'POST', credentials: 'include', body: fd});
-                  const uj = await up.json().catch(() => null);
-                  if (!up.ok) throw new Error(uj?.message || 'Upload failed');
+                  const uj = await api.post<any>(`/api/v1/projects/${pid}/uploads`, fd);
                   setForm((prev) => ({ ...prev, storageKey: uj?.data?.storageKey || uj?.storageKey || ''}));
-} catch (err: any) {
-                  setError(err?.message || 'Upload failed');
+} catch (err) {
+                  setError(apiErrorMessage(err, 'Upload failed'));
 } finally {
                   setUploading(false);
 }

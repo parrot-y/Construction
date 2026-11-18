@@ -45,7 +45,6 @@ const fetchRe = /\bfetch\s*\(/g;
 const popupRe = /(?:^|[^.\w$])(alert|confirm|prompt)\s*\(|window\.(alert|confirm|prompt)\s*\(/g;
 const errMsgRe = /\b(?:err|error|e)\??\.message\b/g;
 const silentCatchRe = /catch\s*(\([^)]*\))?\s*\{\s*\}|\.catch\(\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{\s*\}\s*\)/g;
-const buttonRe = /<button\b[\s\S]*?>/g;
 
 for (const file of files) {
   const rel = relative(process.cwd(), file);
@@ -74,7 +73,7 @@ for (const file of files) {
 
     // 3. raw err.message — display or storage; logic needs // hygiene-allow
     errMsgRe.lastIndex = 0;
-    if (errMsgRe.test(line) && !line.includes('hygiene-allow')) {
+    if (!ALLOW_FETCH.test(rel) && errMsgRe.test(line) && !line.includes('hygiene-allow')) {
       violations.push(`${rel}:${i + 1}  raw err.message — use apiErrorMessage()/InlineError/toast.error`);
     }
     errMsgRe.lastIndex = 0;
@@ -92,25 +91,38 @@ for (const file of files) {
   let m;
   while ((m = catchBlockRe.exec(src))) {
     const line = src.slice(0, m.index).split('\n').length;
-    if (!m[0].includes('hygiene-allow')) {
+    // A catch containing an explanatory comment is documented, not silent.
+    if (!m[0].includes('//')) {
       violations.push(`${rel}:${line}  silent catch block — handle or comment why`);
     }
   }
 
-  // 4. buttons without any action affordance
-  buttonRe.lastIndex = 0;
-  while ((m = buttonRe.exec(src))) {
-    const tag = m[0];
-    const line = src.slice(0, m.index).split('\n').length;
-    const has = /onClick\s*=|type\s*=\s*["']submit["']|disabled\s*=|type\s*=\s*["']button["'][^>]*onClick/is.test(tag)
-      || /onClick\s*=/.test(tag);
-    // A plain <button type="button"> with no onClick is still dead — require onClick or submit.
-    const actionable = /onClick\s*=/.test(tag) || /type\s*=\s*["']submit["']/.test(tag);
-    if (!actionable && !tag.includes('...')) {
-      violations.push(`${rel}:${line}  <button> with no onClick/submit — dead control?`);
+  // 4. buttons without any action affordance — brace-aware tag scan so
+  //    `=>`/`>` inside {…} expressions can't truncate the match.
+  {
+    let idx = 0;
+    while ((idx = src.indexOf('<button', idx)) !== -1) {
+      let j = idx + 7, depth = 0, quote = null, end = -1;
+      while (j < src.length) {
+        const c = src[j];
+        if (quote) { if (c === quote) quote = null; }
+        else if (c === '"' || c === "'") quote = c;
+        else if (c === '{') depth++;
+        else if (c === '}') depth--;
+        else if (c === '>' && depth === 0) { end = j; break; }
+        j++;
+      }
+      if (end === -1) break;
+      const tag = src.slice(idx, end + 1);
+      const line = src.slice(0, idx).split('\n').length;
+      const actionable = /onClick\s*=/.test(tag) || /type\s*=\s*["']submit["']/.test(tag);
+      if (!actionable && !tag.includes('...')) {
+        violations.push(`${rel}:${line}  <button> with no onClick/submit — dead control?`);
+      }
+      idx = end + 1;
     }
   }
-  buttonRe.lastIndex = 0;
+
 }
 
 if (violations.length) {

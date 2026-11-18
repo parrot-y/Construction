@@ -3,6 +3,7 @@ import { formatKes } from '../../../ui';
 import { useConsole} from '../ConsoleContext';
 import CompanyDocumentsView from '../../CompanyDocumentsView';
 import ScheduledReportsView from '../../ScheduledReportsView';
+import { api } from '../../../lib/api';
 
 const PERIODS = ['7D', '30D', 'QTD', 'YTD'];
 
@@ -23,8 +24,7 @@ function ReportsView(): React.JSX.Element {
 
   useEffect(() => {
     if (!livePid) { setCoMetrics(null); return;}
-    fetch(`/api/v1/projects/${livePid}/variations`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: any[] }>(`/api/v1/projects/${livePid}/variations`)
       .then((j) => {
         const rows = (j.data || j || []) as any[];
         if (!rows.length) { setCoMetrics(null); return;}

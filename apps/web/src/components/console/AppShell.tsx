@@ -33,6 +33,7 @@ const AskAiPanel = lazy(() => import('./AskAiPanel'));
 import OfflineSyncBanner from '../OfflineSyncBanner';
 
 import { AuthSession} from '../../types/auth';
+import { api } from '../../lib/api';
 import AppErrorBoundary from '../AppErrorBoundary';
 
 function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
@@ -49,10 +50,11 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const canSeeAccess = ['COMPANY_ADMIN', 'ADMIN'].includes(session.user.role);
 
   useEffect(() => {
-    fetch('/api/v1/company/members', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: any[] }>('/api/v1/company/members')
       .then((j) => setMembers(j.data || []))
-      .catch(() => {});
+      .catch(() => {
+        // intentionally ignored: member search just returns no results
+      });
 }, []);
 
   useEffect(() => {
@@ -277,10 +279,11 @@ function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
   useEffect(() => {
     if (!REVIEW_BADGE_ROLES.has(session.user.role)) { setReviewCount(0); return; }
     let alive = true;
-    fetch('/api/v1/payments/charges/review', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { data: [] }))
+    api.get<{ data?: any[] }>('/api/v1/payments/charges/review')
       .then((j) => { if (alive) setReviewCount((j.data || []).length); })
-      .catch(() => {});
+      .catch(() => {
+        // intentionally ignored: badge count stays hidden on failure
+      });
     return () => { alive = false; };
   }, [session.user.role]);
   const cls = mobile

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { statusLabel } from '../lib/status-labels';
 import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Tender {
   id: string; tenderCode: string; title: string; tradeCategory?: string;
@@ -42,8 +43,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 
   useEffect(() => {
     if (projectId) return;
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<any>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
@@ -57,11 +57,9 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/tenders`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load tenders');
-      setTenders(await res.json());
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+      setTenders(await api.get<any>(`/api/v1/projects/${pid}/tenders`));
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
       setTenders([]);
 } finally {
       setLoading(false);
@@ -75,11 +73,8 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
     setExpanded(id);
     if (!bids[id]) {
       try {
-        const res = await fetch(`/api/v1/projects/${pid}/tenders/${id}/bids`, { credentials: 'include'});
-        if (res.ok) {
-          const json = await res.json();
-          setBids((prev) => ({ ...prev, [id]: json.bids || json.data || []}));
-}
+        const json = await api.get<any>(`/api/v1/projects/${pid}/tenders/${id}/bids`);
+        setBids((prev) => ({ ...prev, [id]: json.bids || json.data || []}));
 } catch { /* leave empty */}
 }
 };
@@ -87,25 +82,20 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
   const createTender = async () => {
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/tenders`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          tenderCode: tForm.tenderCode || undefined,
-          title: tForm.title,
-          tradeCategory: tForm.tradeCategory || undefined,
-          scopeOfWork: tForm.scopeOfWork,
-          budgetKes: tForm.budgetKes || undefined,
-          durationWeeks: Number(tForm.durationWeeks) || 24,
-          submissionDeadline: new Date(tForm.submissionDeadline).toISOString(),
-}),
+      await api.post(`/api/v1/projects/${pid}/tenders`, {
+        tenderCode: tForm.tenderCode || undefined,
+        title: tForm.title,
+        tradeCategory: tForm.tradeCategory || undefined,
+        scopeOfWork: tForm.scopeOfWork,
+        budgetKes: tForm.budgetKes || undefined,
+        durationWeeks: Number(tForm.durationWeeks) || 24,
+        submissionDeadline: new Date(tForm.submissionDeadline).toISOString(),
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowTenderForm(false);
       setTForm({ tenderCode: '', title: '', tradeCategory: '', scopeOfWork: '', budgetKes: '', durationWeeks: '24', submissionDeadline: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -114,26 +104,21 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
   const submitBid = async (tenderId: string) => {
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/tenders/${tenderId}/bids`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          contractorName: bForm.contractorName,
-          contractorNcaCategory: bForm.contractorNcaCategory,
-          amountKes: bForm.amountKes,
-          durationWeeks: Number(bForm.durationWeeks) || 12,
-          technicalScore: Number(bForm.technicalScore) || 70,
-          proposalNotes: bForm.proposalNotes || null,
-}),
+      await api.post(`/api/v1/projects/${pid}/tenders/${tenderId}/bids`, {
+        contractorName: bForm.contractorName,
+        contractorNcaCategory: bForm.contractorNcaCategory,
+        amountKes: bForm.amountKes,
+        durationWeeks: Number(bForm.durationWeeks) || 12,
+        technicalScore: Number(bForm.technicalScore) || 70,
+        proposalNotes: bForm.proposalNotes || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowBidForm(null);
       setBids((prev) => { const next = { ...prev}; delete next[tenderId]; return next;});
       setExpanded(tenderId);
       await toggle(tenderId); // refetch bids
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Bid failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Bid failed'));
 } finally {
       setSaving(false);
 }
@@ -142,16 +127,13 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
   const award = async (tenderId: string, bidId: string) => {
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/tenders/${tenderId}/bids/${bidId}/award`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ awardReason: 'Best combined score — technical & financial evaluation'}),
+      await api.post(`/api/v1/projects/${pid}/tenders/${tenderId}/bids/${bidId}/award`, {
+        awardReason: 'Best combined score — technical & financial evaluation',
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       await load();
       await toggle(tenderId);
-} catch (err: any) {
-      setError(err?.message || 'Award failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Award failed'));
 } finally {
       setSaving(false);
 }

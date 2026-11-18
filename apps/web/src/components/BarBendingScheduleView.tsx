@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface BarBendingItem {
   id: string;
@@ -112,9 +113,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/bar-bending-schedules`);
       const list = (json.schedules || []) as any[];
       setSchedules(list.map((s) => ({
         ...s,
@@ -172,12 +171,9 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
   const handleViewSchedule = async (schedule: BarBendingScheduleItem) => {
     if (isLive && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(schedule.id)) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules/${schedule.id}`, { credentials: 'include'});
-        if (res.ok) {
-          const detail = await res.json();
-          setSelectedSchedule({ ...schedule, ...detail, items: detail.items ?? []});
-          return;
-}
+        const detail = await api.get<any>(`/api/v1/projects/${projectId}/bar-bending-schedules/${schedule.id}`);
+        setSelectedSchedule({ ...schedule, ...detail, items: detail.items ?? []});
+        return;
 } catch { /* fall through to local view */}
 }
     setSelectedSchedule(schedule);
@@ -192,37 +188,29 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            scheduleNumber,
-            elementName,
-            drawingRef: drawingRef || null,
-            steelGrade,
-            items: [
-              {
-                memberTag,
-                barMark,
-                barType,
-                numberOfMembers,
-                barsPerMember,
-                shapeCode,
-                dimensionAMm: dimA,
-                dimensionBMm: shapeCode !== '00' ? dimB : null,
+        await api.post(`/api/v1/projects/${projectId}/bar-bending-schedules`, {
+          scheduleNumber,
+          elementName,
+          drawingRef: drawingRef || null,
+          steelGrade,
+          items: [
+            {
+              memberTag,
+              barMark,
+              barType,
+              numberOfMembers,
+              barsPerMember,
+              shapeCode,
+              dimensionAMm: dimA,
+              dimensionBMm: shapeCode !== '00' ? dimB : null,
 },
-            ],
-}),
+          ],
 });
-        if (res.ok) {
-          await reload();
-          setIsModalOpen(false);
-          setFeedback(` Created Bar Bending Schedule ${scheduleNumber}`);
-} else {
-          const errJson = await res.json().catch(() => null);
-          setFeedback(`Error: ${errJson?.message || `Request failed (${res.status})`}`);
-}
-} catch {
-        setFeedback('Error: Network request failed');
+        await reload();
+        setIsModalOpen(false);
+        setFeedback(` Created Bar Bending Schedule ${scheduleNumber}`);
+} catch (err) {
+        setFeedback(`Error: ${apiErrorMessage(err)}`);
 }
       return;
 }
@@ -283,27 +271,19 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
       setSchedules([newSchedule, ...schedules]);
       setIsModalOpen(false);
       setFeedback(` Created Bar Bending Schedule ${scheduleNumber} (${tonnage} Tonnes calculated)`);
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 }
 };
 
   const handleStatusChange = async (scheduleId: string, newStatus: string) => {
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules/${scheduleId}/status`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ status: newStatus}),
-});
-        if (res.ok) {
-          await reload();
-          setFeedback(` Schedule status updated to ${newStatus}`);
-} else {
-          const errJson = await res.json().catch(() => null);
-          setFeedback(`Error: ${errJson?.message || `Request failed (${res.status})`}`);
-}
-} catch {
-        setFeedback('Error: Network request failed');
+        await api.patch(`/api/v1/projects/${projectId}/bar-bending-schedules/${scheduleId}/status`, { status: newStatus});
+        await reload();
+        setFeedback(` Schedule status updated to ${newStatus}`);
+} catch (err) {
+        setFeedback(`Error: ${apiErrorMessage(err)}`);
 }
       return;
 }
@@ -315,8 +295,8 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
         schedules.map((s) => (s.id === scheduleId ? { ...s, status: newStatus as any} : s))
 );
       setFeedback(` Schedule status updated to ${newStatus}`);
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 }
 };
 

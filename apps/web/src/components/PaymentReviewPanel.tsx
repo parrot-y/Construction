@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '../lib/apiClient';
+import { api, apiErrorMessage } from '../lib/apiClient';
 import { formatKes } from '../ui';
 import { formatDate } from '../lib/format';
 
@@ -95,7 +95,7 @@ export default function PaymentReviewPanel({
       await load();
       onChanged?.();
     } catch (e) {
-      setError(e instanceof ApiError || e instanceof Error ? e.message : 'Resolution failed');
+      setError(apiErrorMessage(e, 'Resolution failed'));
     } finally {
       setBusyId(null);
     }

@@ -19,6 +19,7 @@ import { AuthSession} from './types/auth';
 import { migrateOfflineStorage } from './services/offline-sync';
 import { setOfflineUserScope, clearReadCache } from './services/offline-cache';
 import { PRODUCT_NAME } from './lib/product';
+import { api } from './lib/api';
 
 const PageFallback = <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
 
@@ -64,10 +65,9 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
   // C1: restore the session from the HttpOnly cookie on reload/deep links.
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/v1/auth/me', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!cancelled && j?.user) setSession(j as AuthSession); })
-      .catch(() => {});
+    api.get('/api/v1/auth/me')
+      .then((j: any) => { if (!cancelled && j?.user) setSession(j as AuthSession); })
+      .catch(() => { /* intentionally ignored: no valid session cookie or offline — stay logged out */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -101,7 +101,7 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
             }
           }
         } catch {
-          // Corrupt storage — fall through to the normal landing flow.
+          // hygiene-allow: intentionally ignored — corrupt storage, fall through to the normal landing flow.
         }
 }
       if (params.get('signup') === '1') {
@@ -132,18 +132,15 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
         window.sessionStorage.removeItem(PORTAL_STORAGE_KEY);
       }
     } catch {
-      // Storage unavailable (private mode etc.) — portal still works in-memory.
+      // hygiene-allow: intentionally ignored — storage unavailable (private mode), portal still works in-memory.
     }
   }, [externalPortal]);
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/v1/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-});
+      await api.post('/api/v1/auth/logout');
 } catch {
-      // Ignore network errors on logout
+      // hygiene-allow: intentionally ignored — network errors on logout are fine, session is cleared locally anyway.
 }
     clearReadCache();
     setSession(null);
@@ -169,19 +166,11 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
     const email = DEMO_LOGINS[role.toUpperCase()];
     if (!email) return;
     try {
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password: 'Password123!' }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSession(data as AuthSession);
-        setDemoPreview(true);
-      }
+      const data = await api.post<AuthSession>('/api/v1/auth/login', { email, password: 'Password123!' });
+      setSession(data);
+      setDemoPreview(true);
     } catch {
-      // Preview unavailable — user can still sign in normally
+      // hygiene-allow: intentionally ignored — preview unavailable, user can still sign in normally.
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState} from 'react';
 import { AuthSession} from '../types/auth';
 import { PRODUCT_NAME } from '../lib/product';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface LoginFormProps {
   onLoginSuccess: (session: AuthSession) => void;
@@ -32,26 +33,10 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPasswo
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        credentials: 'include',
-        body: JSON.stringify({ email, password}),
-});
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed. Please check your credentials.');
-}
-
-      onLoginSuccess(data as AuthSession);
-} catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMessage(err.message);
-} else {
-        setErrorMessage('An unexpected authentication error occurred.');
-}
+      const data = await api.post<AuthSession>(`${apiBaseUrl}/api/v1/auth/login`, { email, password });
+      onLoginSuccess(data);
+} catch (err) {
+      setErrorMessage(apiErrorMessage(err, 'Login failed. Please check your credentials.'));
 } finally {
       setIsLoading(false);
 }

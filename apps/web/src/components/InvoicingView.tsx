@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { useAppDialog } from './AppDialog';
-import { api, ApiError } from '../lib/apiClient';
+import { api, ApiError, apiErrorMessage } from '../lib/apiClient';
 import { formatKes } from '../ui';
 import PaymentReviewPanel from './PaymentReviewPanel';
 import { statusLabel } from '../lib/status-labels';
@@ -135,7 +135,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       const body = await api.get<{ invoices?: Invoice[] }>(`/api/v1/invoices${qs}`);
       setInvoices(body.invoices ?? []);
 } catch (e: any) {
-      setError(e.message);
+      setError(apiErrorMessage(e));
 } finally {
       setLoading(false);
 }
@@ -165,7 +165,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       const body = await api.get<{ invoice: Invoice }>(`/api/v1/invoices/${id}`);
       setDetail(body.invoice);
 } catch {
-      // detail is best-effort
+      // detail is best-effort — hygiene-allow: intentionally ignored
 }
 };
 
@@ -227,7 +227,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       setNotice(`Invoice INV-${String(body.invoice.invoice_no).padStart(5, '0')} created as draft`);
       load();
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setBusyId(null);
 }
@@ -242,7 +242,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       try {
         await sendOnce();
       } catch (err) {
-        if (err instanceof ApiError && err.status === 409 && /selfApprovalReason|different approver/i.test(err.message)) {
+        if (err instanceof ApiError && err.status === 409 && /selfApprovalReason|different approver/i.test(err.message)) { // hygiene-allow
           if (!['COMPANY_ADMIN', 'ADMIN'].includes(userRole)) {
             throw new Error('A different approver is required.');
           }
@@ -257,7 +257,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       load();
       if (expandedId === inv.id) refreshDetail(inv.id);
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setBusyId(null);
 }
@@ -274,7 +274,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       load();
       if (expandedId === inv.id) refreshDetail(inv.id);
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setBusyId(null);
 }
@@ -300,7 +300,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       load();
       refreshDetail(inv.id);
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setBusyId(null);
 }

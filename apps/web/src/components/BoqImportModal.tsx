@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { formatKes } from '../ui';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface BOQItemPreview {
   itemCode: string;
@@ -74,17 +75,11 @@ export default function BoqImportModal({
     try {
       const form = new FormData();
       form.append('file', selectedFile);
-      const res = await fetch(`/api/v1/projects/${projectId}/boq/preview`, {
-        method: 'POST',
-        credentials: 'include',
-        body: form,
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || json.message || 'Parse failed');
+      const json = await api.post<{ data: BOQPreviewData }>(`/api/v1/projects/${projectId}/boq/preview`, form);
       setPreviewData(json.data);
       setStep('PREVIEW');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to parse workbook');
+    } catch (err) {
+      setErrorMsg(apiErrorMessage(err, 'Failed to parse workbook'));
       setStep('UPLOAD');
     }
   };
@@ -93,22 +88,15 @@ export default function BoqImportModal({
     if (!previewData) return;
     setStep('COMMITTING');
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/boq/confirm`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceFilename: previewData.sourceFilename,
-          sections: previewData.sections,
-          excludeRejected,
-        }),
+      const json = await api.post<{ data: any }>(`/api/v1/projects/${projectId}/boq/confirm`, {
+        sourceFilename: previewData.sourceFilename,
+        sections: previewData.sections,
+        excludeRejected,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || json.message || 'Import failed');
       onImportSuccess(json.data);
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to commit BOQ import');
+    } catch (err) {
+      setErrorMsg(apiErrorMessage(err, 'Failed to commit BOQ import'));
       setStep('PREVIEW');
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState} from 'react';
 import { SNAG_TRADE_CATEGORIES} from '@construction/validation';
 import { queueOfflineMutation } from '../services/offline-sync';
+import { api, apiErrorMessage } from '../lib/api';
 
 export type SnagSeverity = 'COSMETIC' | 'FUNCTIONAL' | 'CRITICAL_SAFETY';
 export type SnagPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -112,18 +113,10 @@ export default function CreateSnagModal({
         return;
       }
 
-      const res = await fetch(`/api/v1/projects/${projectId}/snags`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(payload),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed to log snag (${res.status})`);
-
+      const body = await api.post(`/api/v1/projects/${projectId}/snags`, payload);
       if (onSnagCreated) {
         onSnagCreated(body);
-}
+      }
 
       setRoom('');
       setDescription('');
@@ -131,8 +124,8 @@ export default function CreateSnagModal({
       setPhotoBase64(null);
       setPhotoName('');
       onClose();
-} catch (err: any) {
-      setError(err?.message || 'Failed to log snag item');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to log snag item'));
 } finally {
       setIsSubmitting(false);
 }

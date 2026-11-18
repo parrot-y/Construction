@@ -17,6 +17,7 @@ import InboxView from './InboxView';
 import ClientRequestView from './ClientRequestView';
 import ClientAccountView from './ClientAccountView';
 import { statusLabel } from '../lib/status-labels';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface ClientDashboardProps {
   session: AuthSession;
@@ -99,9 +100,7 @@ export default function ClientDashboard({
   // Hydrate from the live client-portal endpoint (real project data).
   const loadProject = async (pid: string) => {
       try {
-        const res = await fetch(`/api/v1/projects/${pid}/client-portal`, { credentials: 'include'});
-        if (!res.ok) return;
-        const json = await res.json();
+        const json = await api.get<any>(`/api/v1/projects/${pid}/client-portal`);
         const d = json.data || json;
         if (!d?.project) return;
         setProjectData({
@@ -153,9 +152,7 @@ export default function ClientDashboard({
     let cancelled = false;
     (async () => {
       try {
-        const plist = await fetch('/api/v1/projects', { credentials: 'include'});
-        if (!plist.ok) return;
-        const pj = await plist.json();
+        const pj = await api.get<any>('/api/v1/projects');
         const list = pj.data || [];
         if (!cancelled) setSites(list.map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status, location: p.location})));
         const first = list[0];
@@ -172,26 +169,26 @@ export default function ClientDashboard({
     (async () => {
       try {
         const [appr, inv, fx] = await Promise.all([
-          fetch('/api/v1/me/approvals', { credentials: 'include'}),
-          fetch('/api/v1/me/invoices', { credentials: 'include'}),
-          fetch('/api/v1/fx-rates', { credentials: 'include'}),
+          api.get<any>('/api/v1/me/approvals').catch(() => null),
+          api.get<any>('/api/v1/me/invoices').catch(() => null),
+          api.get<any>('/api/v1/fx-rates').catch(() => null),
         ]);
         if (cancelled) return;
-        if (appr.ok) {
-          const j = await appr.json();
+        if (appr) {
+          const j = appr;
           const d = j.data ?? j;
           setApprovals(Array.isArray(d) ? d : d?.items || d?.approvals || []);
         }
-        if (inv.ok) {
-          const j = await inv.json();
+        if (inv) {
+          const j = inv;
           const d = j.data ?? j;
           const list = Array.isArray(d) ? d : d?.invoices || [];
           setInvoices(list);
           const pi = d?.paymentInstructions ?? j.paymentInstructions ?? null;
           if (pi) setPaymentInstructions((prev: any) => prev ?? pi);
         }
-        if (fx.ok) {
-          const j = await fx.json();
+        if (fx) {
+          const j = fx;
           const d = j.data ?? j;
           if (d?.rates) setFxFeed(d);
         }
@@ -903,25 +900,16 @@ function InvoicePayNotice({ invoice, onSent }: { invoice: any; onSent: (id: stri
   const submit = async () => {
     setBusy(true); setError('');
     try {
-      const res = await fetch(`/api/v1/client/invoices/${invoice.id}/payment-notice`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: parseFloat(amount) || 0,
-          method,
-          reference: reference || undefined,
-          note: note || undefined,
-        }),
+      await api.post(`/api/v1/client/invoices/${invoice.id}/payment-notice`, {
+        amount: parseFloat(amount) || 0,
+        method,
+        reference: reference || undefined,
+        note: note || undefined,
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.message || 'Could not send notice');
-      }
       onSent(invoice.id);
       setOpen(false);
-    } catch (e: any) {
-      setError(e.message || 'Could not send notice');
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Could not send notice'));
     } finally {
       setBusy(false);
     }

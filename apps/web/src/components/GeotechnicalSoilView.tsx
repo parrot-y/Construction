@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface SoilTestRecord {
   id: string;
@@ -122,9 +123,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/soil-tests`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/soil-tests`);
       const list = (json.tests || []) as any[];
       setTests(list.map((t) => ({
         id: t.id,
@@ -210,29 +209,24 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 
       if (isLive) {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/soil-tests`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              testNumber: newRecord.testNumber,
-              testDate: newRecord.testDate,
-              locationElement: newRecord.locationElement,
-              layerType: newRecord.layerType,
-              testMethod: newRecord.testMethod,
-              laboratoryMddGCm3: newRecord.laboratoryMddGCm3,
-              laboratoryOmcPercent: newRecord.laboratoryOmcPercent,
-              fieldWetDensityGCm3: newRecord.fieldWetDensityGCm3,
-              fieldMoisturePercent: newRecord.fieldMoisturePercent,
-              requiredCompactionPercent: newRecord.requiredCompactionPercent,
-              dcpBlowsPer100mm: newRecord.dcpBlowsPer100mm,
-              inspectedBy: newRecord.inspectedBy,
-}),
+          await api.post(`/api/v1/projects/${projectId}/soil-tests`, {
+            testNumber: newRecord.testNumber,
+            testDate: newRecord.testDate,
+            locationElement: newRecord.locationElement,
+            layerType: newRecord.layerType,
+            testMethod: newRecord.testMethod,
+            laboratoryMddGCm3: newRecord.laboratoryMddGCm3,
+            laboratoryOmcPercent: newRecord.laboratoryOmcPercent,
+            fieldWetDensityGCm3: newRecord.fieldWetDensityGCm3,
+            fieldMoisturePercent: newRecord.fieldMoisturePercent,
+            requiredCompactionPercent: newRecord.requiredCompactionPercent,
+            dcpBlowsPer100mm: newRecord.dcpBlowsPer100mm,
+            inspectedBy: newRecord.inspectedBy,
 });
-          if (res.ok) {
-            await reload();
-            setShowAddModal(false);
-            setLocationElement('');
-            return;
-}
+          await reload();
+          setShowAddModal(false);
+          setLocationElement('');
+          return;
 } catch { /* fall through to local */}
 }
 
@@ -243,8 +237,8 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
       setTests([newRecord, ...tests]);
       setShowAddModal(false);
       setLocationElement('');
-} catch (err: any) {
-      setErrorMessage(err.message || 'Failed to submit soil test to server');
+} catch (err) {
+      setErrorMessage(apiErrorMessage(err, 'Failed to submit soil test to server'));
 } finally {
       setIsSubmitting(false);
 }

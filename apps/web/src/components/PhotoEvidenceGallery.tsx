@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import PhotoLightboxModal, { PhotoEvidenceItem} from './PhotoLightboxModal';
+import { api } from '../lib/api';
 
 interface PhotoEvidenceGalleryProps {
   photos?: PhotoEvidenceItem[];
@@ -18,10 +19,8 @@ export default function PhotoEvidenceGallery({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
-      const diaries = (json.data || []) as any[];
+      const json = await api.get<{ data?: any[] }>(`/api/v1/projects/${projectId}/site-diaries`);
+      const diaries = json.data || [];
       const mapped: PhotoEvidenceItem[] = diaries
         .flatMap((d) => (d.photos || []).map((p: any) => ({
           id: p.id,

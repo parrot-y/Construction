@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import CreateSnagModal, { SnagSeverity, TradeCategory} from './CreateSnagModal';
 import { formatDate } from '../lib/format';
+import { api } from '../lib/api';
 
 export type SnagStatus = 'OPEN' | 'IN_PROGRESS' | 'READY_FOR_REVIEW' | 'RECTIFIED_BY_CONTRACTOR' | 'VERIFIED_CLOSED' | 'CONTESTED' | 'REJECTED';
 
@@ -69,9 +70,7 @@ export default function SnaggingListView({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/snags`, { credentials: 'include'});
-        if (!res.ok) return;
-        const rows = await res.json();
+        const rows: any = await api.get(`/api/v1/projects/${projectId}/snags`);
         if (!Array.isArray(rows) || cancelled) return;
         setSnags(rows.map((s: any): SnagItemData => {
           const defectPhoto = (s.photos || []).find((p: any) => p.photo_type === 'DEFECT') || s.photos?.[0];
@@ -111,7 +110,7 @@ export default function SnaggingListView({
 };
 }));
 } catch {
-        // API unreachable — keep demo register
+        // hygiene-allow: intentionally ignored — API unreachable, keep demo register
 }
 })();
     return () => { cancelled = true;};
@@ -119,14 +118,9 @@ export default function SnaggingListView({
 
   const putStatus = async (id: string, status: string) => {
     try {
-      await fetch(`/api/v1/projects/${projectId}/snags/${id}/status`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
+      await api.put(`/api/v1/projects/${projectId}/snags/${id}/status`, { status});
 } catch {
-      // best-effort; local state still updates for demo mode
+      // hygiene-allow: intentionally ignored — best-effort; local state still updates for demo mode
 }
 };
 

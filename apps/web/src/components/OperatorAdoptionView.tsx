@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PRODUCT_NAME } from '../lib/product';
+import { api, ApiError } from '../lib/api';
 
 const fmtTs = (iso: string) => iso.replace('T', ' ').slice(0, 16) + ' UTC';
 
@@ -31,14 +32,16 @@ export default function OperatorAdoptionView(): React.JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/operator/adoption', { headers: { 'x-operator-key': key } });
-      if (res.status === 403) { setError('Invalid operator key.'); return; }
-      if (!res.ok) { setError(`Request failed (${res.status})`); return; }
-      const json = await res.json();
+      const json = await api.get<{ data: { generatedAt: string; windowDays: number; tenants: AdoptionTenant[] } }>(
+        '/api/v1/operator/adoption',
+        { headers: { 'x-operator-key': key } },
+      );
       setData(json.data);
       sessionStorage.setItem('operator_key', key);
-    } catch {
-      setError("Can't reach SiteSafi — check your connection.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) { setError('Invalid operator key.'); }
+      else if (err instanceof ApiError && err.status) { setError(`Request failed (${err.status})`); }
+      else { setError("Can't reach SiteSafi — check your connection."); }
     } finally {
       setLoading(false);
     }

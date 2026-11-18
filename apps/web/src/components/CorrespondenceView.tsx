@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface CorrItem {
   id: string; ref: string; type: string; direction: string; subject: string;
@@ -33,13 +34,12 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
   const [form, setForm] = useState({ type: 'LETTER', direction: 'OUTGOING', subject: '', fromName: '', toName: '', reference: '', letterDate: '', body: ''});
 
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<any>('/api/v1/projects')
       .then((j) => {
-        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
+        const list = (j?.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
         if (list.length) setProjectId(list[0].id);
-})
+      })
       .catch(() => setProjects([]));
 }, []);
 
@@ -52,12 +52,10 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
       if (typeFilter) params.set('type', typeFilter);
       if (directionFilter) params.set('direction', directionFilter);
       if (statusFilter) params.set('status', statusFilter);
-      const res = await fetch(`/api/v1/projects/${projectId}/correspondence?${params}`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load correspondence');
-      const json = await res.json();
-      setItems(json.data || []);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+      const json: any = await api.get(`/api/v1/projects/${projectId}/correspondence?${params}`);
+      setItems(json?.data || []);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -69,22 +67,17 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/correspondence`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          type: form.type, direction: form.direction, subject: form.subject,
-          fromName: form.fromName, toName: form.toName,
-          reference: form.reference || null, letterDate: form.letterDate || null,
-          body: form.body || null,
-}),
+      await api.post(`/api/v1/projects/${projectId}/correspondence`, {
+        type: form.type, direction: form.direction, subject: form.subject,
+        fromName: form.fromName, toName: form.toName,
+        reference: form.reference || null, letterDate: form.letterDate || null,
+        body: form.body || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowForm(false);
       setForm({ type: 'LETTER', direction: 'OUTGOING', subject: '', fromName: '', toName: '', reference: '', letterDate: '', body: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -92,12 +85,11 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
 
   const setStatus = async (id: string, status: string) => {
     try {
-      await fetch(`/api/v1/projects/${projectId}/correspondence/${id}`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
+      await api.patch(`/api/v1/projects/${projectId}/correspondence/${id}`, { status});
       await load();
-} catch { /* ignore */}
+} catch {
+      /* intentionally ignored: status update is best-effort; the list reloads on the next filter change */
+}
 };
 
   if (loading && !items.length) {

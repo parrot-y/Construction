@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { statusLabel } from '../lib/status-labels';
 import { formatTime } from '../lib/format';
 import { useToast } from './feedback/Toast';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface TelematicsDeviceItem {
   id: string;
@@ -245,24 +246,22 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const [pingRes, alertRes, equipRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/telematics-pings`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/maintenance-alerts`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/equipment`, { credentials: 'include'}),
+      const [pingJson, alertJson, equipJson] = await Promise.all([
+        api.get<any>(`/api/v1/projects/${projectId}/telematics-pings`).catch(() => null), // intentionally ignored: demo data stays when a feed fails
+        api.get<any>(`/api/v1/projects/${projectId}/maintenance-alerts`).catch(() => null), // intentionally ignored: demo data stays when a feed fails
+        api.get<any>(`/api/v1/projects/${projectId}/equipment`).catch(() => null), // intentionally ignored: demo data stays when a feed fails
       ]);
 
       const equipMap: Record<string, string> = {};
-      if (equipRes.ok) {
-        const ej = await equipRes.json();
-        for (const e of (ej.equipment || []) as any[]) {
+      if (equipJson) {
+        for (const e of (equipJson.equipment || []) as any[]) {
           if (e.equipmentCode && e.id) equipMap[e.equipmentCode] = e.id;
 }
         setEquipmentIdByCode(equipMap);
 }
 
-      if (pingRes.ok) {
-        const pj = await pingRes.json();
-        const list = ((pj.pings || []) as any[]).map((p) => ({
+      if (pingJson) {
+        const list = ((pingJson.pings || []) as any[]).map((p) => ({
           ...p,
           latitude: p.latitude?.toString?.() ?? String(p.latitude ?? ''),
           longitude: p.longitude?.toString?.() ?? String(p.longitude ?? ''),
@@ -298,9 +297,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
         setDevices([...byImei.values()]);
 }
 
-      if (alertRes.ok) {
-        const aj = await alertRes.json();
-        const list = ((aj.alerts || []) as any[]).map((a) => ({
+      if (alertJson) {
+        const list = ((alertJson.alerts || []) as any[]).map((a) => ({
           ...a,
           hoursMeterAtAlert: a.hoursMeterAtAlert?.toString?.() ?? String(a.hoursMeterAtAlert ?? 0),
 })) as PlantMaintenanceAlertItem[];
@@ -483,8 +481,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
           ? ` CRITICAL FUEL DISCREPANCY ALERT: Rapid fuel drop of ${dropLiters.toFixed(1)}L detected while engine ${simEngineStatus}. Automatic WhatsApp safety alert dispatched!`
           : ` Telematics ping ingested: ${equipName} (${previewFuelLiters.toFixed(1)}L / ${simFuelPct}%) - Status: ${simEngineStatus}.`
 );
-} catch (err: any) {
-      setFeedback(`Ping Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Ping Error: ${apiErrorMessage(err)}`);
 } finally {
       setIsSubmitting(false);
 }
@@ -501,21 +499,18 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
     e.preventDefault();
     try {
       if (isLive) {
-        const res = await fetch(`/api/v1/projects/${projectId}/telematics-devices`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
+        try {
+          await api.post(`/api/v1/projects/${projectId}/telematics-devices`, {
             equipmentId: equipmentIdByCode[newEquipCode] || Object.values(equipmentIdByCode)[0] || '',
             deviceImei: newImei,
             protocol: newProtocol,
             simPhoneNumber: newSimPhone || null,
             calibrationTankCapacityLiters: newTankCap,
-}),
 });
-        if (res.ok) {
           await reload();
           setShowDeviceModal(false);
           return;
-}
+} catch { /* fall through to local */ }
 }
 
       const resolvedEquipmentId = equipmentIdByCode[newEquipCode] || Object.values(equipmentIdByCode)[0] || '';
@@ -567,15 +562,14 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 
     try {
       if (isLive) {
-        const res = await fetch(`/api/v1/projects/${projectId}/maintenance-alerts/${alertToAcknowledge.id}/acknowledge`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ acknowledgedBy: ackBy, actionNotes: ackNotes}),
+        try {
+          await api.patch(`/api/v1/projects/${projectId}/maintenance-alerts/${alertToAcknowledge.id}/acknowledge`, {
+            acknowledgedBy: ackBy, actionNotes: ackNotes,
 });
-        if (res.ok) {
           await reload();
           setAlertToAcknowledge(null);
           return;
-}
+} catch { /* fall through to local */ }
 }
 
       if (onAcknowledgeAlert) {
@@ -600,8 +594,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 );
 
       setAlertToAcknowledge(null);
-} catch (err: any) {
-      setAckError(err.message || 'Failed to acknowledge maintenance alert');
+} catch (err) {
+      setAckError(apiErrorMessage(err, 'Failed to acknowledge maintenance alert'));
 } finally {
       setIsAcking(false);
 }

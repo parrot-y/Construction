@@ -1,4 +1,5 @@
 import React, { useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface CostCaptureModalProps {
   isOpen: boolean;
@@ -65,26 +66,13 @@ export default function CostCaptureModal({
         ];
 }
 
-      const res = await fetch(`/api/v1/projects/${projectId}/costs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-},
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to log cost (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData: any = await api.post(`/api/v1/projects/${projectId}/costs`, payload);
       if (onCostCreated) {
-        onCostCreated(resData.data);
+        onCostCreated(resData?.data);
 }
       onClose();
-} catch (err: any) {
-      setError(err.message || 'Failed to submit cost entry');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to submit cost entry'));
 } finally {
       setIsSubmitting(false);
 }

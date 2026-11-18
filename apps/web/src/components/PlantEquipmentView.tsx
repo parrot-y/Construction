@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
 
 export interface PlantEquipmentItem {
   id: string;
@@ -153,9 +154,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/equipment`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<{ equipment?: any[] }>(`/api/v1/projects/${projectId}/equipment`);
       const list = (json.equipment || []) as any[];
       setEquipmentList(list.map((e) => ({
         ...e,
@@ -226,17 +225,12 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/equipment`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) {
-          await reload();
-          setShowAddMachineModal(false);
-          setEquipmentCode('');
-          setName('');
-          return;
-}
+        await api.post(`/api/v1/projects/${projectId}/equipment`, payload);
+        await reload();
+        setShowAddMachineModal(false);
+        setEquipmentCode('');
+        setName('');
+        return;
 } catch { /* fall through to local */}
 }
 
@@ -283,15 +277,10 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/equipment-logs`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) {
-          await reload();
-          setShowAddLogModal(false);
-          return;
-}
+        await api.post(`/api/v1/projects/${projectId}/equipment-logs`, payload);
+        await reload();
+        setShowAddLogModal(false);
+        return;
 } catch { /* fall through to local */}
 }
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState} from 'react';
 import { PRODUCT_NAME } from '../lib/product';
 import { formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export type InspectionStage = 'substructure' | 'framing' | 'slab' | 'roofing' | 'finishes' | 'borehole';
 export type InspectionStatus = 'REQUESTED' | 'DISPATCHED' | 'COMPLETED' | 'CLIENT_REVIEWED';
@@ -242,9 +243,7 @@ export default function IndependentSiteReportView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/independent-inspections`);
       const list = (Array.isArray(json) ? json : json.inspections || json.data || []) as any[];
       setInspections(list.map(mapListItemToReport));
       setSelectedInspectionId((prev) =>
@@ -263,9 +262,7 @@ export default function IndependentSiteReportView({
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${selectedInspectionId}`, { credentials: 'include'});
-        if (!res.ok) return;
-        const detail = await res.json();
+        const detail = await api.get<any>(`/api/v1/projects/${projectId}/independent-inspections/${selectedInspectionId}`);
         if (cancelled) return;
         loadedDetailsRef.current.add(selectedInspectionId);
         setInspections((prev) => prev.map((i) => (i.id === selectedInspectionId ? applyInspectionDetail(i, detail) : i)));
@@ -282,15 +279,9 @@ export default function IndependentSiteReportView({
     if (!activeInspection) return;
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${activeInspection.id}/notify-client`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ channel: 'WHATSAPP'}),
-});
-        if (res.ok) {
-          const j = await res.json();
-          setWhatsappStatus(`WhatsApp digest dispatched to ${j.recipientPhone}: ${j.message}`);
-          return;
-}
+        const j = await api.post<any>(`/api/v1/projects/${projectId}/independent-inspections/${activeInspection.id}/notify-client`, { channel: 'WHATSAPP'});
+        setWhatsappStatus(`WhatsApp digest dispatched to ${j.recipientPhone}: ${j.message}`);
+        return;
 } catch { /* fall through to local digest */}
 }
     const isCritical = activeInspection.variancePct<= -10;
@@ -303,28 +294,20 @@ export default function IndependentSiteReportView({
     e.preventDefault();
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
+        const created = await api.post<any>(`/api/v1/projects/${projectId}/independent-inspections`, {
             stage: bookStage.toUpperCase(),
             scopeDescription: `${STAGE_LABELS[bookStage]} — Focus: ${bookSpecialFocus}`,
             scheduledDate: new Date().toISOString(),
             inspectorName: 'Clerk of Works Dispatching...',
             inspectorLicense: 'NCA Independent Inspector Registry',
-}),
 });
-        if (res.ok) {
-          const created = await res.json();
-          await reload();
-          if (created?.id) setSelectedInspectionId(created.id);
-          setShowBookingModal(false);
-          setBookingSuccess(`Neutral inspection ${created?.inspectionCode ?? ''} successfully booked for ${STAGE_LABELS[bookStage]}! Dispatch notification sent to neutral Clerk of Works.`);
-          return;
-}
-        const errBody = await res.json().catch(() => null);
-        throw new Error(errBody?.message || `Booking failed (${res.status})`);
-} catch (err: any) {
-          setBookingError(err?.message || 'Booking failed — check your connection and try again.');
+        await reload();
+        if (created?.id) setSelectedInspectionId(created.id);
+        setShowBookingModal(false);
+        setBookingSuccess(`Neutral inspection ${created?.inspectionCode ?? ''} successfully booked for ${STAGE_LABELS[bookStage]}! Dispatch notification sent to neutral Clerk of Works.`);
+        return;
+} catch (err) {
+          setBookingError(apiErrorMessage(err, 'Booking failed — check your connection and try again.'));
           return;
 }
 }
@@ -347,29 +330,24 @@ export default function IndependentSiteReportView({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${targetId}/client-review`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
+        await api.patch<any>(`/api/v1/projects/${projectId}/independent-inspections/${targetId}/client-review`, {
             clientReviewNotes: review.feedbackNotes,
             clientSatisfactionRating: review.rating,
             clientDiscrepancyFlagged: activeInspection.variancePct<= -10,
-}),
 });
-        if (res.ok) {
-          loadedDetailsRef.current.delete(targetId);
-          await reload();
-          setInspections((prev) =>
-            prev.map((insp) =>
-              insp.id === targetId
-                ? { ...insp, status: 'CLIENT_REVIEWED' as InspectionStatus, clientReview: review}
-                : insp
+        loadedDetailsRef.current.delete(targetId);
+        await reload();
+        setInspections((prev) =>
+          prev.map((insp) =>
+            insp.id === targetId
+              ? { ...insp, status: 'CLIENT_REVIEWED' as InspectionStatus, clientReview: review}
+              : insp
 )
 );
-          setReviewSubmitted(`Inspection report ${targetRef} verified and signed off successfully.`);
-          setReviewNotes('');
-          if (onReviewSubmit) onReviewSubmit(targetId, review);
-          return;
-}
+        setReviewSubmitted(`Inspection report ${targetRef} verified and signed off successfully.`);
+        setReviewNotes('');
+        if (onReviewSubmit) onReviewSubmit(targetId, review);
+        return;
 } catch { /* fall through to local update */}
 }
 

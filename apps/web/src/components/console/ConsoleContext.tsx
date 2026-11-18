@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { configureRuntimeModules } from '../../lib/modules';
 import { AuthSession} from '../../types/auth';
 import { getRoleNav, RoleNav} from './navConfig';
+import { api } from '../../lib/api';
 
 export interface ProjectOpt { id: string; name: string; code: string; status?: string; location?: string; original_contract_sum?: number | string; contract_currency?: string; project_type?: string | null; project_subtype?: string | null}
 
@@ -78,18 +79,19 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
   const [portalPreview, setPortalPreview] = useState<{ type: string; token: string; name: string; role?: string} | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/company/modules', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: { modules: [] }}))
+    api.get<{ data?: { modules?: string[] } }>('/api/v1/company/modules')
       .then((j) => configureRuntimeModules(j?.data?.modules ?? []))
-      .catch(() => configureRuntimeModules([]));
+      .catch(() => {
+        // intentionally ignored: modules fall back to defaults on failure
+        configureRuntimeModules([]);
+      });
     refreshProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
   /** Re-fetch the project list (e.g. after creating a project). */
   const refreshProjects = () => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: any[] }>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status, location: p.location, original_contract_sum: p.original_contract_sum, contract_currency: p.contract_currency, project_type: p.project_type ?? null, project_subtype: p.project_subtype ?? null}));
         setProjects(list);
@@ -97,10 +99,12 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
           if (cur && list.some((p: ProjectOpt) => p.id === cur)) return cur;
           const stored = localStorage.getItem('sitesafi-project-id');
           if (stored && list.some((p: ProjectOpt) => p.id === stored)) return stored;
-          return list[0].id;
+          return list[0]!.id;
         });
 })
-      .catch(() => {});
+      .catch(() => {
+        // intentionally ignored: project list stays empty until data arrives
+      });
   };
 
   useEffect(() => {

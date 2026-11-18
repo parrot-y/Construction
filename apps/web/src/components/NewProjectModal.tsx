@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PROJECT_TYPE_CATEGORIES, type ProjectTypeCategory } from '@construction/validation';
+import { api, apiErrorMessage } from '../lib/api';
 
 // ---------------------------------------------------------------------------
 // New project — four short steps (type → subtype → details → terms), draft
@@ -67,8 +68,7 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
     if (!category || !draft.contractValue) { setNcaHint(null); return; }
     const value = Number(draft.contractValue);
     if (!Number.isFinite(value) || value <= 0) { setNcaHint(null); return; }
-    fetch('/api/v1/project-types', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
+    api.get<{ data?: { ncaRules?: any[] } }>('/api/v1/project-types')
       .then((j) => {
         const rules: any[] = j?.data?.ncaRules || [];
         for (const trade of category.ncaTrades) {
@@ -105,12 +105,8 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
     if (!draft.name.trim() || !draft.code.trim()) { setError('Name and project code are required.'); return; }
     setBusy(true); setError(null);
     try {
-      const res = await fetch('/api/v1/projects', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: draft.name.trim(),
+      const body = await api.post<{ data?: { id?: string }; id?: string }>('/api/v1/projects', {
+        name: draft.name.trim(),
           code: draft.code.trim().toUpperCase(),
           location: draft.location.trim() || undefined,
           description: [draft.clientName.trim() && `Client: ${draft.clientName.trim()}`, draft.description.trim()].filter(Boolean).join(' — ') || undefined,
@@ -124,14 +120,11 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
           retentionRatePct: draft.retentionRatePct || undefined,
           retentionCapPct: draft.retentionCapPct || undefined,
           retentionFirstMoietyPct: draft.retentionFirstMoietyPct || undefined,
-        }),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Could not create the project');
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
       onCreated(body.data?.id || body.id);
-    } catch (err: any) {
-      setError(err.message || 'Could not create the project');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not create the project'));
       setBusy(false);
     }
   };

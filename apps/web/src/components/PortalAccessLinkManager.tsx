@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CopyWhatsAppButton } from '../ui';
 import { PRODUCT_NAME } from '../lib/product';
 import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface PortalLinkItem {
   id: string;
@@ -51,12 +52,10 @@ export default function PortalAccessLinkManager({
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/portals/links`, { credentials: 'include' });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Failed to load portal links');
+      const body = await api.get<{ data?: PortalLinkItem[] }>(`/api/v1/projects/${projectId}/portals/links`);
       setLinks(body.data || []);
-    } catch (e: any) {
-      setLoadError(e.message || 'Failed to load portal links');
+    } catch (e) {
+      setLoadError(apiErrorMessage(e, 'Failed to load portal links'));
     } finally {
       setLoading(false);
     }
@@ -66,8 +65,7 @@ export default function PortalAccessLinkManager({
 
   useEffect(() => {
     if (portalType !== 'SUBCONTRACTOR' || packages.length > 0 || !projectId) return;
-    fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include' })
-      .then((r) => r.json())
+    api.get<any>(`/api/v1/projects/${projectId}/subcontractors`)
       .then((b) => setPackages((b.packages || b.data || b || []).map((p: any) => ({ id: p.id, tradeCategory: p.trade_category || p.tradeCategory, firmName: p.firm_name || p.firmName }))))
       .catch(() => setPackages([]));
   }, [portalType, packages.length, projectId]);
@@ -83,20 +81,13 @@ export default function PortalAccessLinkManager({
     setGenerating(true);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/portals/links`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          portalType,
-          stakeholderName: stakeholderName.trim(),
-          stakeholderRole: stakeholderRole.trim() || undefined,
-          expiresInDays: 30,
-          subcontractorPackageId: portalType === 'SUBCONTRACTOR' ? subcontractorPackageId : undefined,
-        }),
+      const body = await api.post<{ data: any }>(`/api/v1/projects/${projectId}/portals/links`, {
+        portalType,
+        stakeholderName: stakeholderName.trim(),
+        stakeholderRole: stakeholderRole.trim() || undefined,
+        expiresInDays: 30,
+        subcontractorPackageId: portalType === 'SUBCONTRACTOR' ? subcontractorPackageId : undefined,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Failed to create portal link');
       // Freshly created links carry the one-time token — keep it for Copy.
       setLinks((prev) => [{ ...body.data, token: body.data.token, linkUrl: body.data.linkUrl }, ...prev]);
       setFeedback({ kind: 'ok', text: `Link created for ${body.data.stakeholderName}. Copy it now — the token is shown only once.` });
@@ -104,8 +95,8 @@ export default function PortalAccessLinkManager({
       setStakeholderName('');
       setStakeholderRole('');
       setSubcontractorPackageId('');
-    } catch (err: any) {
-      setFeedback({ kind: 'err', text: err.message || 'Failed to create portal link' });
+    } catch (err) {
+      setFeedback({ kind: 'err', text: apiErrorMessage(err, 'Failed to create portal link') });
     } finally {
       setGenerating(false);
     }
@@ -130,18 +121,14 @@ export default function PortalAccessLinkManager({
     setBusyId(link.id);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/portals/links/${link.id}/regenerate`, {
-        method: 'POST', credentials: 'include',
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Regenerate failed');
+      const body = await api.post<{ data: any }>(`/api/v1/projects/${projectId}/portals/links/${link.id}/regenerate`);
       setLinks((prev) => [
         { ...body.data, token: body.data.token, linkUrl: body.data.linkUrl },
         ...prev.map((l) => (l.id === link.id ? { ...l, isActive: false } : l)),
       ]);
       setFeedback({ kind: 'ok', text: `New link generated for ${body.data.stakeholderName} — the previous token is revoked. Copy the new link now.` });
-    } catch (err: any) {
-      setFeedback({ kind: 'err', text: err.message || 'Regenerate failed' });
+    } catch (err) {
+      setFeedback({ kind: 'err', text: apiErrorMessage(err, 'Regenerate failed') });
     } finally {
       setBusyId(null);
     }
@@ -151,15 +138,11 @@ export default function PortalAccessLinkManager({
     setBusyId(link.id);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/portals/links/${link.id}`, {
-        method: 'DELETE', credentials: 'include',
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Revoke failed');
+      await api.delete(`/api/v1/projects/${projectId}/portals/links/${link.id}`);
       setLinks((prev) => prev.map((l) => (l.id === link.id ? { ...l, isActive: false } : l)));
       setFeedback({ kind: 'ok', text: `Link for ${link.stakeholderName} revoked.` });
-    } catch (err: any) {
-      setFeedback({ kind: 'err', text: err.message || 'Revoke failed' });
+    } catch (err) {
+      setFeedback({ kind: 'err', text: apiErrorMessage(err, 'Revoke failed') });
     } finally {
       setBusyId(null);
     }

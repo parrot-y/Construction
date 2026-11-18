@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatTime } from '../lib/format';
+import { api } from '../lib/api';
 
 export interface WebhookLogItem {
   id: string;
@@ -70,17 +71,12 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
   const reload = React.useCallback(async () => {
     if (!isLive || !projectId) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/site-alerts`, { credentials: 'include'});
-      if (res.ok) {
-        const aj = await res.json();
-        setAlerts((aj.alerts || []) as SiteAlertItem[]);
-}
+      const aj = await api.get<any>(`/api/v1/projects/${projectId}/site-alerts`);
+      setAlerts((aj.alerts || []) as SiteAlertItem[]);
 } catch { /* keep demo */}
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/site-webhook-logs`, { credentials: 'include'});
-      if (res.ok) {
-        const lj = await res.json();
-        setLogs(((lj.logs || []) as any[]).map((l) => ({
+      const lj = await api.get<any>(`/api/v1/projects/${projectId}/site-webhook-logs`);
+      setLogs(((lj.logs || []) as any[]).map((l) => ({
           id: l.id,
           senderPhone: l.senderPhone || '***',
           senderName: l.senderName || 'Unknown',
@@ -91,9 +87,6 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
           replyMessage: l.replyMessage || '',
           createdAt: l.createdAt || '',
 })));
-} else {
-        setLogs([]);
-}
 } catch { setLogs([]);}
     setLiveLoaded(true);
 }, [isLive, projectId]);
@@ -232,18 +225,15 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
     if (isLive && projectId) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/site-alerts`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              recipientPhone,
-              recipientName,
-              recipientRole,
-              alertType,
-              messageBody: alertMessage,
-              deliveryChannel: 'WHATSAPP',
-}),
+          await api.post(`/api/v1/projects/${projectId}/site-alerts`, {
+            recipientPhone,
+            recipientName,
+            recipientRole,
+            alertType,
+            messageBody: alertMessage,
+            deliveryChannel: 'WHATSAPP',
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowAlertModal(false);

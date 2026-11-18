@@ -3,6 +3,7 @@ import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkK
 import { fetchJsonCached } from '../../services/offline-cache';
 import { SavedDataNotice, formatDate } from '../../ui';
 import { statusLabel } from '../../lib/status-labels';
+import { api, apiErrorMessage } from '../../lib/api';
 
 export interface ConsultantRfiItem {
   id: string;
@@ -177,8 +178,8 @@ export default function ConsultantPortalView({
           verifiedAt: s.verifiedAt,
           photos: s.photos || [],
         })));
-      } catch (e: any) {
-        if (!cancelled) { setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
+      } catch (e) {
+        if (!cancelled) { setLoadError(apiErrorMessage(e, 'Failed to load portal')); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -203,26 +204,16 @@ export default function ConsultantPortalView({
     setFeedback(null);
 
     try {
-      const res = await fetch(`/api/v1/portals/consultant/${token}/rfis/${rfiId}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          officialAnswer: replyText.trim(),
-          consultantName: stakeholder.name,
-          consultantBoraqsNo: stakeholder.role,
-}),
+      await api.post(`/api/v1/portals/consultant/${token}/rfis/${rfiId}/reply`, {
+        officialAnswer: replyText.trim(),
+        consultantName: stakeholder.name,
+        consultantBoraqsNo: stakeholder.role,
 });
-
-      if (res.ok) {
-        setFeedback('Official Consultant Answer recorded successfully.');
-        setReplyText('');
-        setSelectedRfi(null);
-} else {
-        const err = await res.json().catch(() => ({}));
-        setFeedback(err.message || 'Failed to submit response. Please retry.');
-}
-} catch (e: any) {
-      setFeedback(e.message || 'Network error — answer not submitted.');
+      setFeedback('Official Consultant Answer recorded successfully.');
+      setReplyText('');
+      setSelectedRfi(null);
+} catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — answer not submitted.'));
 } finally {
       setSubmitting(false);
 }
@@ -238,25 +229,20 @@ export default function ConsultantPortalView({
       if (action === 'REJECT' && rejectPhoto) {
         const fd = new FormData();
         fd.append('file', rejectPhoto);
-        const up = await fetch(`/api/v1/portals/consultant/${token}/uploads`, { method: 'POST', body: fd });
-        const upBody = await up.json().catch(() => ({}));
-        if (!up.ok) throw new Error(upBody.message || 'Photo upload failed');
+        const upBody = await api.post<any>(`/api/v1/portals/consultant/${token}/uploads`, fd);
         photoStorageKey = upBody.data?.storageKey || upBody.storageKey;
       }
-      const res = await fetch(`/api/v1/portals/consultant/${token}/snags/${snagId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, reason: rejectReason || undefined, photoStorageKey }),
+      await api.post(`/api/v1/portals/consultant/${token}/snags/${snagId}/review`, {
+        action,
+        reason: rejectReason || undefined,
+        photoStorageKey,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Review failed');
       setFeedback(action === 'VERIFY' ? 'Snag verified and closed.' : 'Snag rejected — sent back for rework.');
       setRejectingSnag(null);
       setRejectReason('');
       setRejectPhoto(null);
       // Refresh snag list in place.
-      const fresh = await fetch(`/api/v1/portals/consultant/${token}`, { credentials: 'include' });
-      const fb = await fresh.json();
+      const fb = await api.get<any>(`/api/v1/portals/consultant/${token}`);
       const d = fb.data || fb;
       setSnags((d.snags || []).map((s: any) => ({
         id: s.id, snagNumber: s.snagNumber, description: s.description,
@@ -265,8 +251,8 @@ export default function ConsultantPortalView({
         identifiedAt: s.identifiedAt, rectifiedAt: s.rectifiedAt, verifiedAt: s.verifiedAt,
         photos: s.photos || [],
       })));
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — review not submitted.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — review not submitted.'));
     } finally {
       setSnagBusy(null);
     }

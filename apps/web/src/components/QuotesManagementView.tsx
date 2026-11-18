@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
-import { api } from '../lib/apiClient';
+import { api, apiErrorMessage } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
 import { formatDate, formatDateTime } from '../lib/format';
 
@@ -133,7 +133,7 @@ export default function QuotesManagementView(): React.JSX.Element {
       const body = await api.get<{ quotes?: Quote[] }>('/api/v1/quotes');
       setQuotes(body.quotes ?? []);
 } catch (e: any) {
-      setError(e.message);
+      setError(apiErrorMessage(e));
 } finally {
       setLoading(false);
 }
@@ -157,7 +157,7 @@ export default function QuotesManagementView(): React.JSX.Element {
         setDetail(body.quote);
       } catch { /* detail is best-effort */ }
 } catch {
-      // detail is best-effort
+      // detail is best-effort — hygiene-allow: intentionally ignored
 }
 };
 
@@ -215,7 +215,7 @@ export default function QuotesManagementView(): React.JSX.Element {
       setItems([{ section: '', description: '', unit: 'item', quantity: '1', unitRate: ''}]);
       load();
 } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed');
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }
@@ -232,7 +232,7 @@ export default function QuotesManagementView(): React.JSX.Element {
       load();
       openDetail(q.id);
 } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed');
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }
@@ -250,7 +250,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 );
       load();
 } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed');
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }

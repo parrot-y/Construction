@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { formatMoney } from '@construction/money';
 import { statusLabel } from '../lib/status-labels';
 import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface ClientQuoteItem {
   id: string;
@@ -55,12 +56,10 @@ export default function ClientQuotesView(): React.JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/client/quotes', { credentials: 'include'});
-      if (!res.ok) throw new Error(`Failed to load quotes (${res.status})`);
-      const body = await res.json();
+      const body = await api.get<{ quotes?: ClientQuote[] }>('/api/v1/client/quotes');
       setQuotes(body.quotes ?? []);
 } catch (e: any) {
-      setError(e.message);
+      setError(apiErrorMessage(e));
 } finally {
       setLoading(false);
 }
@@ -74,21 +73,16 @@ export default function ClientQuotesView(): React.JSX.Element {
     setRespondingId(q.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/client/quotes/${q.id}/respond`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action, typedName: typedName || undefined, note: note || undefined}),
+      await api.post(`/api/v1/client/quotes/${q.id}/respond`, {
+        action, typedName: typedName || undefined, note: note || undefined,
 });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Response failed');
       setNotice(action === 'accept' ? `Quote Q-${String(q.quote_no).padStart(4, '0')} accepted — the contractor has been notified` : `Quote Q-${String(q.quote_no).padStart(4, '0')} declined`);
       setRespondingId(null);
       setTypedName('');
       setNote('');
       load();
 } catch (e: any) {
-      setError(e.message);
+      setError(apiErrorMessage(e));
       setRespondingId(null);
 }
 };

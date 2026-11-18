@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/api';
 
 export interface StatutoryTaxCertificate {
   id: string;
@@ -42,10 +43,8 @@ export default function StatutoryTaxManagementView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/tax-certificates`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
-      const list = (json.certificates || []) as any[];
+      const json: any = await api.get(`/api/v1/projects/${projectId}/tax-certificates`);
+      const list = (json?.certificates || []) as any[];
       setCerts(list.map((c) => ({
         ...c,
         gross_amount: c.gross_amount?.toString?.() ?? String(c.gross_amount ?? 0),
@@ -117,20 +116,17 @@ export default function StatutoryTaxManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/tax-certificates`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              payeeType: created.payee_type,
-              payeeName: created.payee_name,
-              payeeKraPin: created.payee_kra_pin,
-              invoiceOrIpcRef: created.invoice_or_ipc_ref,
-              grossAmount: created.gross_amount,
-              whtRatePct: created.wht_rate_pct,
-              whvatRatePct: created.whvat_rate_pct,
-}),
+          await api.post(`/api/v1/projects/${projectId}/tax-certificates`, {
+            payeeType: created.payee_type,
+            payeeName: created.payee_name,
+            payeeKraPin: created.payee_kra_pin,
+            invoiceOrIpcRef: created.invoice_or_ipc_ref,
+            grossAmount: created.gross_amount,
+            whtRatePct: created.wht_rate_pct,
+            whvatRatePct: created.whvat_rate_pct,
 });
-          if (res.ok) await reload();
-} catch { /* keep local */}
+          await reload();
+} catch { /* intentionally ignored: keep local demo state on failure */ }
 })();
       setShowModal(false);
       setPayeeName('');
@@ -152,12 +148,9 @@ export default function StatutoryTaxManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/tax-certificates/${remitModalId}/remit`, {
-            method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ status: 'ACKNOWLEDGED', itaxAcknowledgementReceipt: receiptInput.trim()}),
-});
-          if (res.ok) await reload();
-} catch { /* keep local */}
+          await api.put(`/api/v1/projects/${projectId}/tax-certificates/${remitModalId}/remit`, { status: 'ACKNOWLEDGED', itaxAcknowledgementReceipt: receiptInput.trim()});
+          await reload();
+} catch { /* intentionally ignored: keep local demo state on failure */ }
 })();
       setRemitModalId(null);
       setReceiptInput('');

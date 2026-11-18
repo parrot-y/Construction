@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConsole } from './console/ConsoleContext';
 import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
 
 interface ChecklistStep {
   key: string;
@@ -24,10 +25,7 @@ export default function ProjectChecklist({ projectId }: { projectId: string }): 
   const load = useCallback(async () => {
     if (!/^[0-9a-f-]{36}$/i.test(projectId)) { setSteps(null); return; }
     setError(false);
-    const get = (url: string) =>
-      fetch(url, { credentials: 'include' })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null);
+    const get = (url: string) => api.get<any>(url).catch(() => null); // best-effort: null on any failure
 
     const [project, quotes, diaries, certs, invoices, closeout] = await Promise.all([
       get(`/api/v1/projects/${projectId}`),

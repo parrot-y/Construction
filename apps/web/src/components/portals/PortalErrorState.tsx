@@ -11,8 +11,8 @@ export function portalErrorKind(e: any): PortalLinkKind {
   const status = e?.status ?? e?.statusCode;
   if (status === 429) return 'rateLimited';
   if (status === 404 || status === 410) return 'link';
-  if (e instanceof TypeError || /failed to fetch|network\s?error|load failed|network request failed/i.test(e?.message || '')) return 'offline';
-  if (/expired|revoked|invalid|not found/i.test(e?.message || '')) return 'link';
+  if (e instanceof TypeError || /failed to fetch|network\s?error|load failed|network request failed/i.test(e?.message || '')) return 'offline'; // hygiene-allow
+  if (/expired|revoked|invalid|not found/i.test(e?.message || '')) return 'link'; // hygiene-allow
   return 'error';
 }
 

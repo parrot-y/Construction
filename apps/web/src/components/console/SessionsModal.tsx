@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatDate, formatDateTime } from '../../lib/format';
+import { api } from '../../lib/api';
 
 interface SessionRow {
   id: string;
@@ -14,21 +15,28 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
   const [error, setError] = useState('');
 
   const load = () => {
-    fetch('/api/v1/auth/sessions', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('load failed'))))
-      .then((j) => setRows(j.data || []))
+    api.get<any>('/api/v1/auth/sessions')
+      .then((j) => setRows(j?.data || []))
       .catch(() => setError('Could not load sessions'));
 };
   useEffect(load, []);
 
   const revoke = async (id: string) => {
-    const res = await fetch(`/api/v1/auth/sessions/${id}`, { method: 'DELETE', credentials: 'include'});
-    if (res.ok) load(); else setError('Revoke failed');
+    try {
+      await api.delete(`/api/v1/auth/sessions/${id}`);
+      load();
+    } catch {
+      setError('Revoke failed');
+    }
 };
 
   const revokeOthers = async () => {
-    const res = await fetch('/api/v1/auth/sessions/others', { method: 'DELETE', credentials: 'include'});
-    if (res.ok) load(); else setError('Revoke failed');
+    try {
+      await api.delete('/api/v1/auth/sessions/others');
+      load();
+    } catch {
+      setError('Revoke failed');
+    }
 };
 
   return (

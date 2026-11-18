@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface CrossSectionStationRecord {
   id?: string;
@@ -245,10 +246,8 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/topographic-surveys`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const list = (await res.json()) as any[];
-      const mapped = await Promise.all(list.map(async (s) => {
+      const list = await api.get<any>(`/api/v1/projects/${projectId}/topographic-surveys`);
+      const mapped = await Promise.all(list.map(async (s: any) => {
         const base: TopographicSurveyRecord = {
           id: s.id,
           surveyCode: s.surveyCode,
@@ -272,10 +271,8 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
           createdAt: s.createdAt,
 };
         try {
-          const dres = await fetch(`/api/v1/projects/${projectId}/topographic-surveys/${s.id}`, { credentials: 'include'});
-          if (dres.ok) {
-            const detail = await dres.json();
-            base.stations = ((detail.stations || []) as any[]).map((st) => ({
+          const detail = await api.get<any>(`/api/v1/projects/${projectId}/topographic-surveys/${s.id}`);
+          base.stations = ((detail.stations || []) as any[]).map((st) => ({
               id: st.id,
               stationIndex: st.stationIndex,
               chainageMeters: st.chainageMeters,
@@ -294,7 +291,6 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
               intervalNetVolumeM3: st.intervalNetVolumeM3,
               cumulativeMassOrdinateM3: st.cumulativeMassOrdinateM3,
 }));
-}
 } catch { /* keep survey without stations */}
         return base;
 }));
@@ -431,17 +427,11 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
 
       if (isLive) {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/topographic-surveys`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify(payload),
-});
-          if (res.ok) {
-            const created = await res.json().catch(() => null);
-            await reload();
-            if (created?.id) setSelectedSurveyId(created.id);
-            setShowModal(false);
-            return;
-}
+          const created = await api.post<any>(`/api/v1/projects/${projectId}/topographic-surveys`, payload);
+          await reload();
+          if (created?.id) setSelectedSurveyId(created.id);
+          setShowModal(false);
+          return;
 } catch { /* fall through to local */}
 }
 
@@ -547,8 +537,8 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
       setSurveys([createdRecord, ...surveys]);
       setSelectedSurveyId(newId);
       setShowModal(false);
-} catch (err: any) {
-      setErrorBanner(err.message || 'Failed to register topographic survey.');
+} catch (err) {
+      setErrorBanner(apiErrorMessage(err, 'Failed to register topographic survey.'));
 } finally {
       setIsSubmitting(false);
 }

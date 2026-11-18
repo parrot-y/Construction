@@ -1,6 +1,6 @@
 import React, { useState} from 'react';
 import { queueOfflineMutation, compressImageClientSide} from '../services/offline-sync';
-import { api } from '../lib/apiClient';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface SiteDiaryModalProps {
   isOpen: boolean;
@@ -71,7 +71,7 @@ export default function SiteDiaryModal({
         compressedKB: Math.round(compressed.compressedSize / 1024),
 });
 } catch {
-      // Ignored
+      // hygiene-allow: intentionally ignored — client-side compression is best-effort
 }
 };
 
@@ -88,14 +88,9 @@ export default function SiteDiaryModal({
       try {
         const fd = new FormData();
         fd.append('file', photoFile);
-        const up = await fetch(`/api/v1/projects/${projectId}/uploads`, {
-          method: 'POST', credentials: 'include', body: fd,
-});
-        if (up.ok) {
-          const uj = await up.json();
-          uploadedStorageKey = uj?.data?.storageKey || null;
-}
-} catch { /* fall through to metadata-only */}
+        const uj: any = await api.post(`/api/v1/projects/${projectId}/uploads`, fd);
+        uploadedStorageKey = uj?.data?.storageKey || null;
+} catch { /* intentionally ignored: photo upload is best-effort — diary saves without it */ }
 }
 
     const equipmentLog = equipmentName.trim()
@@ -150,8 +145,8 @@ export default function SiteDiaryModal({
 });
 }
         onClose();
-} catch (err: any) {
-        setError(err.message || 'Failed to queue offline diary');
+} catch (err) {
+        setError(apiErrorMessage(err, 'Failed to queue offline diary'));
 } finally {
         setIsSubmitting(false);
 }

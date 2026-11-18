@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api } from '../lib/api';
 
 export interface ScheduleTask {
   id: string;
@@ -94,9 +95,7 @@ export default function ProjectScheduleGanttView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/tasks`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/tasks`);
       const list = (json.tasks || json.data || []) as any[];
       setTasks(list.map((t) => ({
         ...t,
@@ -162,18 +161,15 @@ export default function ProjectScheduleGanttView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/tasks`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              wbsPhase: newPhase, taskName: newTaskName.trim(),
-              description: newDesc.trim() || null,
-              plannedStartDate: newStartDate, plannedEndDate: newEndDate,
-              durationDays: newDuration,
-              assignedTrade: newTrade.trim() || null,
-              orderIndex: tasks.length + 1,
-}),
-});
-          if (res.ok) await reload();
+          await api.post(`/api/v1/projects/${projectId}/tasks`, {
+            wbsPhase: newPhase, taskName: newTaskName.trim(),
+            description: newDesc.trim() || null,
+            plannedStartDate: newStartDate, plannedEndDate: newEndDate,
+            durationDays: newDuration,
+            assignedTrade: newTrade.trim() || null,
+            orderIndex: tasks.length + 1,
+          });
+          await reload();
 } catch { /* ignore */}
 })();
 } else {
@@ -190,10 +186,7 @@ export default function ProjectScheduleGanttView({
     if (isLive) {
       void (async () => {
         try {
-          await fetch(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
-            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ progressPercentage: String(newProgress), status: nextStatus}),
-});
+          await api.patch(`/api/v1/projects/${projectId}/tasks/${taskId}`, { progressPercentage: String(newProgress), status: nextStatus });
           await reload();
 } catch { /* ignore */}
 })();

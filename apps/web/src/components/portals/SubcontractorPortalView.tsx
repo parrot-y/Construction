@@ -3,6 +3,7 @@ import { formatKes, ResponsiveTable, SavedDataNotice } from '../../ui';
 import { fetchJsonCached } from '../../services/offline-cache';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { statusLabel } from '../../lib/status-labels';
+import { api, apiErrorMessage } from '../../lib/api';
 
 export interface SubcontractorSnag {
   id: string;
@@ -115,8 +116,8 @@ export default function SubcontractorPortalView({
         setRetentionRelease(d.retentionRelease || null);
         setRetentionReleases(d.retentionReleases || []);
         if ((d.packages || []).length > 0) setClaimPackageId(d.packages[0].id);
-      } catch (e: any) {
-        if (!cancelled) { setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
+      } catch (e) {
+        if (!cancelled) { setLoadError(apiErrorMessage(e, 'Failed to load portal')); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -185,23 +186,17 @@ export default function SubcontractorPortalView({
     setSubmitting(true);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/portals/subcontractor/${token}/snags/${snagId}/rectify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          photoStorageKey: rectifyPhotoKey.trim(),
-          notes: rectifyNotes.trim() || `Rectified by ${stakeholder.name}`,
-        }),
+      await api.post(`/api/v1/portals/subcontractor/${token}/snags/${snagId}/rectify`, {
+        photoStorageKey: rectifyPhotoKey.trim(),
+        notes: rectifyNotes.trim() || `Rectified by ${stakeholder.name}`,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Error updating snag rectification.');
       setFeedback('Defect marked as rectified! Awaiting Site Supervisor sign-off.');
       setSnagList((prev) => prev.map((s) => s.id === snagId ? { ...s, status: 'RECTIFIED_BY_CONTRACTOR' } : s));
       setSelectedSnagId(null);
       setRectifyPhotoKey('');
       setRectifyNotes('');
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — rectification not submitted.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — rectification not submitted.'));
     } finally {
       setSubmitting(false);
     }
@@ -217,19 +212,17 @@ export default function SubcontractorPortalView({
     setSubmitting(true);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/portals/subcontractor/${token}/valuations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageId: claimPackageId, grossWorkCertifiedKes: gross, notes: claimNotes.trim() || undefined }),
+      const body = await api.post<{ data?: any }>(`/api/v1/portals/subcontractor/${token}/valuations`, {
+        packageId: claimPackageId,
+        grossWorkCertifiedKes: gross,
+        notes: claimNotes.trim() || undefined,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Valuation submission failed.');
       setFeedback(`Valuation ${body.data?.certificate_no || ''} submitted to QS for verification.`);
       setShowClaimModal(false);
       setClaimAmount('');
       setClaimNotes('');
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — valuation not submitted.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — valuation not submitted.'));
     } finally {
       setSubmitting(false);
     }
@@ -239,17 +232,14 @@ export default function SubcontractorPortalView({
     setReleaseBusy(true);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/portals/subcontractor/${token}/retention-release`, { method: 'POST' });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Retention release request failed.');
+      const body = await api.post<{ data?: any }>(`/api/v1/portals/subcontractor/${token}/retention-release`);
       setFeedback(`Retention release ${body.data?.releaseNo || ''} requested — awaiting QS review.`);
-      const fresh = await fetch(`/api/v1/portals/subcontractor/${token}`, { credentials: 'include' });
-      const fb = await fresh.json();
+      const fb = await api.get<any>(`/api/v1/portals/subcontractor/${token}`);
       const d = fb.data || fb;
       setRetentionRelease(d.retentionRelease || null);
       setRetentionReleases(d.retentionReleases || []);
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — release not requested.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — release not requested.'));
     } finally {
       setReleaseBusy(false);
     }
@@ -459,13 +449,11 @@ export default function SubcontractorPortalView({
                               try {
                                 const fd = new FormData();
                                 fd.append('file', file);
-                                const up = await fetch(`/api/v1/portals/subcontractor/${token}/snags/${snag.id}/upload`, { method: 'POST', body: fd });
-                                const ub = await up.json().catch(() => ({}));
-                                if (!up.ok) throw new Error(ub.message || 'Photo upload failed');
+                                const ub = await api.post<any>(`/api/v1/portals/subcontractor/${token}/snags/${snag.id}/upload`, fd);
                                 setRectifyPhotoKey(ub.data?.storageKey || '');
                                 setFeedback('Photo uploaded — submit to mark the defect rectified.');
-                              } catch (err: any) {
-                                setFeedback(err.message || 'Photo upload failed');
+                              } catch (err) {
+                                setFeedback(apiErrorMessage(err, 'Photo upload failed'));
                               } finally {
                                 setUploadingPhoto(false);
                                 e.target.value = '';

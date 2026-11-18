@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { formatKes, EmptyState } from '../ui';
+import { api } from '../lib/api';
 
 export interface BudgetSummaryData {
   approvedBudget: string;
@@ -39,9 +40,8 @@ export default function BudgetSummaryCard({
     if (summary || !projectId) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/v1/projects/${projectId}/budget/summary`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
+    api.get(`/api/v1/projects/${projectId}/budget/summary`)
+      .then((j: any) => {
         if (cancelled || !j) return;
         const d = j.data || j;
         if (d?.approvedBudget) {
@@ -57,7 +57,7 @@ export default function BudgetSummaryCard({
           });
         }
       })
-      .catch(() => {})
+      .catch(() => { /* intentionally ignored: budget card is best-effort — falls back to empty state */ })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [summary, projectId]);

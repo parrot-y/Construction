@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Laborer { id: string; full_name: string; worker_code: string; trade_category: string}
 interface AttRow {
@@ -38,9 +39,8 @@ export default function AttendanceView({ projectId, canManage = true}: { project
 
   useEffect(() => {
     if (projectId) return;
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
-      .then((j) => {
+    api.get('/api/v1/projects')
+      .then((j: any) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
         if (list.length) setPid(list[0].id);
@@ -53,14 +53,12 @@ export default function AttendanceView({ projectId, canManage = true}: { project
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/attendance?date=${date}`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load attendance');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${pid}/attendance?date=${date}`);
       setRows(json.data || []);
       setLaborers(json.laborers || []);
       setSummary(json.summary || null);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err));
 } finally {
       setLoading(false);
 }
@@ -75,15 +73,10 @@ export default function AttendanceView({ projectId, canManage = true}: { project
     setError(null);
     try {
       const url = kind === 'record' ? `/api/v1/projects/${pid}/attendance` : `/api/v1/projects/${pid}/attendance/${kind}`;
-      const res = await fetch(url, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(kind === 'record' ? { laborerId, status, workDate: date} : { laborerId, workDate: date}),
-});
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+      await api.post(url, kind === 'record' ? { laborerId, status, workDate: date} : { laborerId, workDate: date});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Action failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Action failed'));
 } finally {
       setBusy(null);
 }
@@ -160,17 +153,12 @@ export default function AttendanceView({ projectId, canManage = true}: { project
               onClick={async () => {
                 setLabSaving(true); setError(null);
                 try {
-                  const res = await fetch(`/api/v1/projects/${pid}/laborers`, {
-                    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-                    body: JSON.stringify(labForm),
-});
-                  const json = await res.json().catch(() => ({}));
-                  if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+                  await api.post(`/api/v1/projects/${pid}/laborers`, labForm);
                   setShowLaborerForm(false);
                   setLabForm({ workerCode: '', fullName: '', nationalIdNo: '', phoneNumber: '', tradeCategory: 'CASUAL_LABORER', skillLevel: 'SEMI_SKILLED', dailyRateKes: '800'});
                   await load();
-} catch (err: any) {
-                  setError(err?.message || 'Registration failed');
+} catch (err) {
+                  setError(apiErrorMessage(err, 'Registration failed'));
 } finally {
                   setLabSaving(false);
 }

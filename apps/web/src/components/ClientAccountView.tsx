@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { AuthSession} from '../types/auth';
+import { api, apiErrorMessage } from '../lib/api';
 
 const input = 'w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500';
 const label = 'block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1';
@@ -20,16 +21,11 @@ export default function ClientAccountView({ session, onSaved}: { session: AuthSe
     e.preventDefault();
     setSaving(true); setMsg(null);
     try {
-      const res = await fetch('/api/v1/auth/me', {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ fullName: form.fullName, phoneNumber: form.phoneNumber || null, country: form.country || null}),
-});
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.message || 'Save failed');
+      await api.patch('/api/v1/auth/me', { fullName: form.fullName, phoneNumber: form.phoneNumber || null, country: form.country || null});
       setMsg({ ok: true, text: 'Profile saved.'});
       onSaved?.();
-} catch (err: any) {
-      setMsg({ ok: false, text: err.message});
+} catch (err) {
+      setMsg({ ok: false, text: apiErrorMessage(err, 'Save failed')});
 } finally {
       setSaving(false);
 }

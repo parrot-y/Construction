@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import ConcreteCubeTestModal from './ConcreteCubeTestModal';
 import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
 
 export type ChecklistType =
   | 'PRE_POUR_CONCRETE'
@@ -137,20 +138,14 @@ export default function QualityControlView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const [chkRes, cubeRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/inspections`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/cube-tests`, { credentials: 'include'}),
+      const [chkList, cubeList] = await Promise.all([
+        api.get<any>(`/api/v1/projects/${projectId}/inspections`),
+        api.get<any>(`/api/v1/projects/${projectId}/cube-tests`),
       ]);
-      if (chkRes.ok) {
-        const list = (await chkRes.json()) as any[];
-        const mapped = (Array.isArray(list) ? list : []).map(mapApiChecklist);
-        setChecklists(mapped);
-        setSelectedChecklistId((prev) => (mapped.some((c) => c.id === prev) ? prev : mapped[0]?.id || prev));
-}
-      if (cubeRes.ok) {
-        const list = (await cubeRes.json()) as any[];
-        setCubeTests((Array.isArray(list) ? list : []).map(mapApiCubeTest));
-}
+      const mapped = (Array.isArray(chkList) ? chkList : []).map(mapApiChecklist);
+      setChecklists(mapped);
+      setSelectedChecklistId((prev) => (mapped.some((c) => c.id === prev) ? prev : mapped[0]?.id || prev));
+      setCubeTests((Array.isArray(cubeList) ? cubeList : []).map(mapApiCubeTest));
 } catch { /* keep demo fixtures */}
     setLiveLoaded(true);
 }, [isLive, projectId]);
@@ -169,14 +164,10 @@ export default function QualityControlView({
     if (isLive && selectedChecklist) {
       void (async () => {
         try {
-          const res = await fetch(
-            `/api/v1/projects/${projectId}/inspections/${selectedChecklist.id}/items/${itemId}`,
-            {
-              method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-              body: JSON.stringify({ result: nextStatus, deficiencyNotes: target?.notes || null}),
-}
-);
-          if (res.ok) await reload();
+          await api.put(`/api/v1/projects/${projectId}/inspections/${selectedChecklist.id}/items/${itemId}`, {
+            result: nextStatus, deficiencyNotes: target?.notes || null,
+          });
+          await reload();
 } catch { /* keep local */}
 })();
 }
@@ -210,21 +201,16 @@ export default function QualityControlView({
             'Class 15/20': 'CLASS_15_20', 'Class 20/20': 'CLASS_20_20', 'Class 25/20': 'CLASS_25_20',
             'Class 30/20': 'CLASS_30_20', 'Class 35/20': 'CLASS_35_20', 'Class 40/20': 'CLASS_40_20',
 };
-          const res = await fetch(`/api/v1/projects/${projectId}/cube-tests`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              batchReference: newTest.testNo || `CUBE-${Date.now()}`,
-              pourLocation: newTest.pourLocation,
-              pourDate: newTest.pourDate,
-              concreteClass: classMap[newTest.concreteClass] || 'CLASS_25_20',
-              targetStrengthMpa: String(newTest.targetStrengthMpa ?? 25),
-              slumpTestedMm: newTest.slumpMm ?? null,
-              deliveryDocketNo: newTest.batchTicket || null,
-              notes: `Testing lab: ${newTest.testingLab || 'On-site'}`,
-}),
-});
-          if (!res.ok) return;
-          const created = await res.json();
+          const created = await api.post<any>(`/api/v1/projects/${projectId}/cube-tests`, {
+            batchReference: newTest.testNo || `CUBE-${Date.now()}`,
+            pourLocation: newTest.pourLocation,
+            pourDate: newTest.pourDate,
+            concreteClass: classMap[newTest.concreteClass] || 'CLASS_25_20',
+            targetStrengthMpa: String(newTest.targetStrengthMpa ?? 25),
+            slumpTestedMm: newTest.slumpMm ?? null,
+            deliveryDocketNo: newTest.batchTicket || null,
+            notes: `Testing lab: ${newTest.testingLab || 'On-site'}`,
+          });
           const breaks: any[] = [];
           if (newTest.sevenDayStrengthMpa != null) {
             breaks.push({ cubeNumber: 1, breakAgeDays: 7, scheduledBreakDate: newTest.sevenDayBreakDate, compressiveMpa: String(newTest.sevenDayStrengthMpa), labName: newTest.testingLab});
@@ -233,10 +219,7 @@ export default function QualityControlView({
             breaks.push({ cubeNumber: 2, breakAgeDays: 28, scheduledBreakDate: newTest.twentyEightDayBreakDate, compressiveMpa: String(newTest.twentyEightDayStrengthMpa), labName: newTest.testingLab});
 }
           for (const b of breaks) {
-            await fetch(`/api/v1/projects/${projectId}/cube-tests/${created.id}/breaks`, {
-              method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-              body: JSON.stringify(b),
-});
+            await api.post(`/api/v1/projects/${projectId}/cube-tests/${created.id}/breaks`, b);
 }
           await reload();
 } catch { /* keep local */}

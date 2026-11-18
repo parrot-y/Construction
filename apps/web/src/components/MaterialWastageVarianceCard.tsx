@@ -1,6 +1,7 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
 import { formatDate } from '../lib/format';
+import { api } from '../lib/api';
 
 export interface MaterialWastageItem {
   id: string;
@@ -88,9 +89,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/material-wastage`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/material-wastage`);
       const list = (json.reconciliations || json.data || []) as any[];
       setReconciliations(list.map((r) => ({
         id: r.id,
@@ -176,22 +175,17 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/material-wastage`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) {
-          await reload();
-          setIsSubmitting(false);
-          setIsModalOpen(false);
-          setPeriodName('');
-          setMaterialName('');
-          setTheoreticalQuantity('');
-          setActualConsumedQuantity('');
-          setUnitCostKes('');
-          setInvestigationNotes('');
-          return;
-}
+        await api.post(`/api/v1/projects/${projectId}/material-wastage`, payload);
+        await reload();
+        setIsSubmitting(false);
+        setIsModalOpen(false);
+        setPeriodName('');
+        setMaterialName('');
+        setTheoreticalQuantity('');
+        setActualConsumedQuantity('');
+        setUnitCostKes('');
+        setInvestigationNotes('');
+        return;
 } catch { /* fall through to local */}
 }
 

@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { queueOfflineMutation} from '../services/offline-sync';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface PhysicalProgressModalProps {
   isOpen: boolean;
@@ -61,8 +62,8 @@ export default function PhysicalProgressModal({
           onProgressRecorded({ ...payload, isOfflineQueued: true});
 }
         onClose();
-} catch (err: any) {
-        setError(err.message || 'Failed to queue progress offline');
+} catch (err) {
+        setError(apiErrorMessage(err, 'Failed to queue progress offline'));
 } finally {
         setIsSubmitting(false);
 }
@@ -70,18 +71,7 @@ export default function PhysicalProgressModal({
 }
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/progress`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to record progress (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData = await api.post<{ data?: any }>(`/api/v1/projects/${projectId}/progress`, payload);
       if (onProgressRecorded) onProgressRecorded(resData.data);
       onClose();
 } catch {

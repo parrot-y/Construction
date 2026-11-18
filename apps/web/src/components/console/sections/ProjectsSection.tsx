@@ -13,6 +13,7 @@ import PortalAccessLinkManager from '../../PortalAccessLinkManager';
 import ProjectChecklist from '../../ProjectChecklist';
 import NewProjectModal from '../../NewProjectModal';
 import ProjectSettingsModal from '../../ProjectSettingsModal';
+import { api } from '../../../lib/api';
 
 const FILTERS = ['All', 'Active', 'At Risk', 'Planning', 'Closing', 'Archived'];
 
@@ -30,9 +31,8 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
     // Latest change orders across projects for the activity strip
     Promise.all(
       projects.slice(0, 5).map((p) =>
-        fetch(`/api/v1/projects/${p.id}/variations`, { credentials: 'include'})
-          .then((r) => (r.ok ? r.json() : { data: []}))
-          .then((j) => (j.data || []).map((v: any) => ({ ...v, projectName: p.name})))
+        api.get<any>(`/api/v1/projects/${p.id}/variations`)
+          .then((j) => (j?.data || []).map((v: any) => ({ ...v, projectName: p.name})))
           .catch(() => []),
 ),
 ).then((lists) => {

@@ -3,6 +3,7 @@ import { formatKes, ResponsiveTable } from '../ui';
 import { AuthSession } from '../types/auth';
 import PhotoEvidenceGallery from './PhotoEvidenceGallery';
 import VariationManagementView from './VariationManagementView';
+import { api } from '../lib/api';
 
 interface OwnerDashboardProps {
   session: AuthSession;
@@ -40,24 +41,22 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
     let cancelled = false;
     (async () => {
       try {
-        const plist = await fetch('/api/v1/projects', { credentials: 'include' });
-        if (!plist.ok) return;
-        const pj = await plist.json();
-        const list = pj.data || [];
+        const pj = await api.get<{ data?: any[] }>('/api/v1/projects')
+          .catch(() => null); // intentionally ignored: dashboard renders empty state on load failure
+        const list = pj?.data || [];
         if (cancelled || list.length === 0) return;
         const pid = list[0].id;
         setProjectId(pid);
 
         const [portal, appr, inv] = await Promise.all([
-          fetch(`/api/v1/projects/${pid}/client-portal`, { credentials: 'include' }),
-          fetch('/api/v1/me/approvals', { credentials: 'include' }),
-          fetch('/api/v1/me/invoices', { credentials: 'include' }),
+          api.get<any>(`/api/v1/projects/${pid}/client-portal`).catch(() => null), // intentionally ignored: portal section stays empty on failure
+          api.get<any>('/api/v1/me/approvals').catch(() => null), // intentionally ignored: approvals section stays empty on failure
+          api.get<any>('/api/v1/me/invoices').catch(() => null), // intentionally ignored: invoices section stays empty on failure
         ]);
         if (cancelled) return;
 
-        if (portal.ok) {
-          const j = await portal.json();
-          const d = j.data || j;
+        if (portal) {
+          const d = portal.data || portal;
           setProject(d);
           if (Array.isArray(d?.photo_evidence)) {
             setPhotos(d.photo_evidence.map((p: any) => ({
@@ -69,14 +68,12 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
             })));
           }
         }
-        if (appr.ok) {
-          const j = await appr.json();
-          const d = j.data ?? j;
+        if (appr) {
+          const d = appr.data ?? appr;
           setApprovals(Array.isArray(d) ? d : d?.items || d?.approvals || []);
         }
-        if (inv.ok) {
-          const j = await inv.json();
-          const d = j.data ?? j;
+        if (inv) {
+          const d = inv.data ?? inv;
           setInvoices(Array.isArray(d) ? d : d?.invoices || []);
         }
       } finally {

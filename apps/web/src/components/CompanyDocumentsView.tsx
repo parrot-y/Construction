@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface CompanyDoc {
   id: string; title: string; category?: string | null; reference_no?: string | null;
@@ -39,12 +40,10 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
       else if (tab !== 'ALL') params.set('category', tab);
       if (expiringOnly) params.set('expiring', '1');
       if (q.trim()) params.set('q', q.trim());
-      const res = await fetch(`/api/v1/company/documents?${params}`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load documents');
-      const json = await res.json();
+      const json = await api.get<{ data?: CompanyDoc[] }>(`/api/v1/company/documents?${params}`);
       setDocs(json.data || []);
 } catch (err: any) {
-      setError(err?.message || 'Load failed');
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -65,23 +64,19 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
       if (form.category) payload.category = form.category;
       if (form.fileName) payload.fileName = form.fileName;
 
-      const res = editing
-        ? await fetch(`/api/v1/company/documents/${editing.id}`, {
-            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ title: form.title, category: form.category || null, referenceNo: form.referenceNo || null, expiryDate: form.expiryDate || null, notes: form.notes || null}),
-})
-        : await fetch('/api/v1/company/documents', {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify(payload),
+      if (editing) {
+        await api.patch(`/api/v1/company/documents/${editing.id}`, {
+          title: form.title, category: form.category || null, referenceNo: form.referenceNo || null, expiryDate: form.expiryDate || null, notes: form.notes || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+      } else {
+        await api.post('/api/v1/company/documents', payload);
+      }
       setShowForm(false);
       setEditing(null);
       setForm({ title: '', category: '', referenceNo: '', expiryDate: '', fileName: '', notes: ''});
       await load();
 } catch (err: any) {
-      setError(err?.message || 'Save failed');
+      setError(apiErrorMessage(err, 'Save failed'));
 } finally {
       setSaving(false);
 }
@@ -89,12 +84,11 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 
   const archive = async (id: string) => {
     try {
-      await fetch(`/api/v1/company/documents/${id}`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status: 'ARCHIVED'}),
-});
+      await api.patch(`/api/v1/company/documents/${id}`, { status: 'ARCHIVED'});
       await load();
-} catch { /* ignore */}
+} catch {
+      // hygiene-allow: intentionally ignored — archive failures leave the list unchanged
+}
 };
 
   if (loading) {

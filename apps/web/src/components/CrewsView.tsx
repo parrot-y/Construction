@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface CrewMember { id: string; name: string; trade?: string | null; phone?: string | null; daily_rate_kes?: string | null}
 interface Crew {
@@ -25,12 +26,10 @@ export default function CrewsView({ canManage = true}: { canManage?: boolean}): 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/crews?status=ACTIVE', { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load crews');
-      const json = await res.json();
+      const json = await api.get<any>('/api/v1/crews?status=ACTIVE');
       setCrews(json.data || []);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -42,17 +41,14 @@ export default function CrewsView({ canManage = true}: { canManage?: boolean}): 
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/crews', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ name: form.name, trade: form.trade, foremanName: form.foremanName || null, notes: form.notes || null}),
+      await api.post('/api/v1/crews', {
+        name: form.name, trade: form.trade, foremanName: form.foremanName || null, notes: form.notes || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowForm(false);
       setForm({ name: '', trade: 'Masonry', foremanName: '', notes: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -60,9 +56,9 @@ export default function CrewsView({ canManage = true}: { canManage?: boolean}): 
 
   const deactivate = async (id: string) => {
     try {
-      await fetch(`/api/v1/crews/${id}`, { method: 'DELETE', credentials: 'include'});
+      await api.delete(`/api/v1/crews/${id}`);
       await load();
-} catch { /* ignore */}
+} catch { /* intentionally ignored: list refresh failure keeps prior state */ }
 };
 
   const addMember = async (crewId: string) => {
@@ -70,22 +66,21 @@ export default function CrewsView({ canManage = true}: { canManage?: boolean}): 
     if (!f?.name?.trim()) return;
     setSaving(true);
     try {
-      await fetch(`/api/v1/crews/${crewId}/members`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ name: f.name.trim(), trade: f.trade || null, phone: f.phone || null}),
+      await api.post(`/api/v1/crews/${crewId}/members`, {
+        name: f.name.trim(), trade: f.trade || null, phone: f.phone || null,
 });
       setMemberForm((prev) => ({ ...prev, [crewId]: { name: '', trade: '', phone: ''}}));
       await load();
-} catch { /* ignore */} finally {
+} catch { /* intentionally ignored: member add failure leaves form unchanged */ } finally {
       setSaving(false);
 }
 };
 
   const removeMember = async (crewId: string, memberId: string) => {
     try {
-      await fetch(`/api/v1/crews/${crewId}/members/${memberId}`, { method: 'DELETE', credentials: 'include'});
+      await api.delete(`/api/v1/crews/${crewId}/members/${memberId}`);
       await load();
-} catch { /* ignore */}
+} catch { /* intentionally ignored: member removal failure keeps prior state */ }
 };
 
   if (loading) {

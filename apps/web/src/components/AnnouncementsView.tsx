@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatDate, formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Announcement {
   id: string;
@@ -48,12 +49,10 @@ export default function AnnouncementsView({ canManage = true}: { canManage?: boo
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/announcements', { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load announcements');
-      const json = await res.json();
+      const json = await api.get<{ data?: Announcement[] }>('/api/v1/announcements');
       setItems(json.data || []);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err));
 } finally {
       setLoading(false);
 }
@@ -63,7 +62,7 @@ export default function AnnouncementsView({ canManage = true}: { canManage?: boo
 
   const markRead = async (id: string) => {
     try {
-      await fetch(`/api/v1/announcements/${id}/read`, { method: 'POST', credentials: 'include'});
+      await api.post(`/api/v1/announcements/${id}/read`);
       setItems((prev) => prev.map((a) => (a.id === id ? { ...a, read_by_me: true, read_count: a.read_count + 1} : a)));
 } catch { /* best-effort */}
 };
@@ -73,11 +72,8 @@ export default function AnnouncementsView({ canManage = true}: { canManage?: boo
     setExpanded(id);
     if (!readers[id]) {
       try {
-        const res = await fetch(`/api/v1/announcements/${id}/readers`, { credentials: 'include'});
-        if (res.ok) {
-          const json = await res.json();
-          setReaders((prev) => ({ ...prev, [id]: json.data || []}));
-}
+        const json = await api.get<{ data?: Reader[] }>(`/api/v1/announcements/${id}/readers`);
+        setReaders((prev) => ({ ...prev, [id]: json.data || []}));
 } catch { /* ignore */}
 }
 };
@@ -86,25 +82,18 @@ export default function AnnouncementsView({ canManage = true}: { canManage?: boo
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/announcements', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          title: form.title,
-          body: form.body,
-          priority: form.priority,
-          audience: form.audience,
-          expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
-}),
+      await api.post('/api/v1/announcements', {
+        title: form.title,
+        body: form.body,
+        priority: form.priority,
+        audience: form.audience,
+        expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowCompose(false);
       setForm({ title: '', body: '', priority: 'NORMAL', audience: 'ALL', expiresAt: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Publish failed');
+} catch (err) {
+      setError(apiErrorMessage(err));
 } finally {
       setSaving(false);
 }
@@ -112,12 +101,7 @@ export default function AnnouncementsView({ canManage = true}: { canManage?: boo
 
   const archive = async (id: string) => {
     try {
-      await fetch(`/api/v1/announcements/${id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status: 'ARCHIVED'}),
-});
+      await api.patch(`/api/v1/announcements/${id}`, { status: 'ARCHIVED'});
       await load();
 } catch { /* ignore */}
 };

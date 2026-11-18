@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { statusLabel } from '../lib/status-labels';
 
+import { api, apiErrorMessage } from '../lib/api';
 import { CLIENT_PROJECT_REQUEST_TYPES, CLIENT_BUDGET_RANGES, CLIENT_START_TIMEFRAMES } from '@construction/validation';
 
 const PROJECT_TYPES = CLIENT_PROJECT_REQUEST_TYPES;
@@ -21,10 +22,11 @@ export default function ClientRequestView(): React.JSX.Element {
   const [sent, setSent] = useState(false);
 
   const load = () => {
-    fetch('/api/v1/client/project-requests', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: ClientRequest[] }>('/api/v1/client/project-requests')
       .then((j) => setRequests(j.data || []))
-      .catch(() => {});
+      .catch(() => {
+        // intentionally ignored: list load failure is non-blocking — the request form still works
+      });
 };
   useEffect(load, []);
 
@@ -32,17 +34,12 @@ export default function ClientRequestView(): React.JSX.Element {
     e.preventDefault();
     setSaving(true); setError(null);
     try {
-      const res = await fetch('/api/v1/client/project-requests', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(form),
-});
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.message || 'Failed to send request');
+      await api.post('/api/v1/client/project-requests', form);
       setSent(true); setShowForm(false);
       setForm({ projectType: '', locationText: '', budgetRange: '', startTimeframe: '', description: '', contactPhone: ''});
       load();
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setSaving(false);
 }

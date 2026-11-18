@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/api';
 
 export interface MaterialRequisitionItem {
   id: string;
@@ -93,9 +94,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/material-requisitions`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/material-requisitions`);
       const list = (json.requisitions || json.data || []) as any[];
       setRequisitions(list.map((r) => ({
         id: r.id,
@@ -176,20 +175,15 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/material-requisitions`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) {
-          await reload();
-          setIsSubmitting(false);
-          setIsModalOpen(false);
-          setItemDescription('');
-          setRequestedQuantity('');
-          setEstimatedUnitCostKes('');
-          setSupplierName('');
-          return;
-}
+        await api.post(`/api/v1/projects/${projectId}/material-requisitions`, payload);
+        await reload();
+        setIsSubmitting(false);
+        setIsModalOpen(false);
+        setItemDescription('');
+        setRequestedQuantity('');
+        setEstimatedUnitCostKes('');
+        setSupplierName('');
+        return;
 } catch { /* fall through to local */}
 }
 
@@ -226,11 +220,8 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
   const handleStatusChange = async (reqId: string, newStatus: 'APPROVED' | 'PO_ISSUED' | 'REJECTED') => {
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/material-requisitions/${reqId}`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ status: newStatus, approvedBy: null, rejectionReason: null}),
-});
-        if (res.ok) { await reload(); return;}
+        await api.patch(`/api/v1/projects/${projectId}/material-requisitions/${reqId}`, { status: newStatus, approvedBy: null, rejectionReason: null});
+        await reload(); return;
 } catch { /* fall through to local */}
 }
     if (onReviewRequisition) {

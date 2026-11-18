@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api } from '../lib/api';
 
 export interface SafetyAuditItem {
   id: string;
@@ -96,9 +97,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/safety-audits`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/safety-audits`);
       const list = (json.audits || json.data || []) as any[];
       setAuditsList(list.map((a) => ({
         ...a,
@@ -172,11 +171,9 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/safety-audits`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) { await reload(); return;}
+        await api.post(`/api/v1/projects/${projectId}/safety-audits`, payload);
+        await reload();
+        return;
 } catch { /* fall through */}
 }
     if (onCreateAudit) {

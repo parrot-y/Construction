@@ -3,6 +3,7 @@ import { useConsole} from '../ConsoleContext';
 import InboxView from '../../InboxView';
 import AnnouncementsView from '../../AnnouncementsView';
 import { IconSpark} from '../icons';
+import { api } from '../../../lib/api';
 
 const CO_STATUSES = ['DRAFT', 'PM_REVIEW', 'OWNER_REVIEW', 'APPROVED', 'REJECTED'];
 
@@ -18,51 +19,45 @@ function ExecHome(): React.JSX.Element {
   const [invoiceStats, setInvoiceStats] = useState<{ unpaid: number; overdue: number } | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/dashboard', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => j?.data && setDash(j.data))
-      .catch(() => {});
-    fetch('/api/v1/client/project-requests', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((j) => {
-        const list = j.data || [];
+    api.get('/api/v1/dashboard')
+      .then((j: any) => { if (j?.data) setDash(j.data); })
+      .catch(() => { /* intentionally ignored: dashboard metrics are optional */ });
+    api.get('/api/v1/client/project-requests')
+      .then((j: any) => {
+        const list = j?.data || [];
         setClientRequests(list.filter((r: any) => r.status === 'NEW').length);
-})
-      .catch(() => {});
+      })
+      .catch(() => { /* intentionally ignored: attention badge is optional */ });
 }, []);
 
   useEffect(() => {
     if (!projectId || !/^[0-9a-f-]{36}$/i.test(projectId)) return;
-    fetch(`/api/v1/projects/${projectId}/variations`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((j) => {
+    api.get(`/api/v1/projects/${projectId}/variations`)
+      .then((j: any) => {
         const counts: Record<string, number> = {};
-        for (const v of j.data || []) counts[v.status] = (counts[v.status] || 0) + 1;
+        for (const v of j?.data || []) counts[v.status] = (counts[v.status] || 0) + 1;
         setCoStats(counts);
-})
-      .catch(() => {});
-    fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((j) => {
+      })
+      .catch(() => { /* intentionally ignored: CO stats are optional */ });
+    api.get(`/api/v1/projects/${projectId}/site-diaries`)
+      .then((j: any) => {
         const today = new Date().toISOString().slice(0, 10);
-        const list = j.data || j || [];
+        const list = j?.data || j || [];
         setLogToday(Array.isArray(list) && list.some((d: any) => String(d.entry_date || d.date || '').slice(0, 10) === today));
-})
+      })
       .catch(() => setLogToday(null));
-    fetch(`/api/v1/projects/${projectId}/snags`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((j) => {
-        const list = j.data || j || [];
+    api.get(`/api/v1/projects/${projectId}/snags`)
+      .then((j: any) => {
+        const list = j?.data || j || [];
         setOpenSnags(list.filter?.((s: any) => ['OPEN', 'IN_PROGRESS', 'READY_FOR_REVIEW'].includes(s.status))?.length ?? 0);
-})
-      .catch(() => {});
+      })
+      .catch(() => { /* intentionally ignored: snag count is optional */ });
 }, [projectId]);
 
   // A6 — get-started signals + invoice attention, fetched once per mount.
   useEffect(() => {
-    const opts = { credentials: 'include' as const };
     const firstProject = projects[0]?.id;
-    const get = (url: string) => fetch(url, opts).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const get = (url: string) => api.get<any>(url).catch(() => null);
 
     void (async () => {
       const [members, invites, quotes, payments, boq] = await Promise.all([
@@ -71,7 +66,7 @@ function ExecHome(): React.JSX.Element {
         get('/api/v1/quotes'),
         get('/api/v1/company/payment-instructions'),
         firstProject && /^[0-9a-f-]{36}$/i.test(firstProject)
-          ? fetch(`/api/v1/projects/${firstProject}/boq`, opts).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+          ? get(`/api/v1/projects/${firstProject}/boq`)
           : Promise.resolve(null),
       ]);
       const memberList = members?.data || members?.members || [];
@@ -307,26 +302,22 @@ function FieldHome(): React.JSX.Element {
       setLogToday(null); setOpenSnags(0); setPresentToday(null);
       return;
     }
-    const opts: RequestInit = { credentials: 'include' };
-    fetch(`/api/v1/projects/${projectId}/site-diaries`, opts)
-      .then((r) => (r.ok ? r.json() : { data: [] }))
-      .then((j) => {
+    api.get(`/api/v1/projects/${projectId}/site-diaries`)
+      .then((j: any) => {
         const today = new Date().toISOString().slice(0, 10);
-        const list = j.data || j || [];
+        const list = j?.data || j || [];
         setLogToday(Array.isArray(list) && list.some((d: any) => String(d.entry_date || d.date || '').slice(0, 10) === today));
       })
       .catch(() => setLogToday(null));
-    fetch(`/api/v1/projects/${projectId}/snags`, opts)
-      .then((r) => (r.ok ? r.json() : { data: [] }))
-      .then((j) => {
-        const list = j.data || j || [];
+    api.get(`/api/v1/projects/${projectId}/snags`)
+      .then((j: any) => {
+        const list = j?.data || j || [];
         setOpenSnags(list.filter?.((s: any) => ['OPEN', 'IN_PROGRESS', 'READY_FOR_REVIEW'].includes(s.status))?.length ?? 0);
       })
-      .catch(() => {});
-    fetch(`/api/v1/projects/${projectId}/attendance`, opts)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => setPresentToday(typeof j?.summary?.present === 'number' ? j.summary.present : null))
-      .catch(() => {});
+      .catch(() => { /* intentionally ignored: snag count is optional */ });
+    api.get(`/api/v1/projects/${projectId}/attendance`)
+      .then((j: any) => setPresentToday(typeof j?.summary?.present === 'number' ? j.summary.present : null))
+      .catch(() => { /* intentionally ignored: headcount is optional */ });
   }, [projectId]);
 
   if (tab === 'announcements') return <AnnouncementsView canManage={false} />;

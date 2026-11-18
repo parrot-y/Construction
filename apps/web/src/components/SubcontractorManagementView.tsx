@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/api';
 
 export interface SubcontractorPackage {
   id: string;
@@ -41,9 +42,7 @@ export default function SubcontractorManagementView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/subcontractors`);
       const list = (json.packages || []) as any[];
       setPackages(list.map((p) => ({
         ...p,
@@ -103,20 +102,17 @@ export default function SubcontractorManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractors`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              tradeCategory: created.trade_category,
-              firmName: created.firm_name,
-              contactPerson: created.contact_person,
-              phoneNumber: created.phone_number,
-              subcontractSum: String(created.subcontract_sum),
-              retentionRatePct: String(created.retention_rate_pct),
-              status: 'ACTIVE',
-              scopeDescription: created.scope_description,
-}),
+          await api.post(`/api/v1/projects/${projectId}/subcontractors`, {
+            tradeCategory: created.trade_category,
+            firmName: created.firm_name,
+            contactPerson: created.contact_person,
+            phoneNumber: created.phone_number,
+            subcontractSum: String(created.subcontract_sum),
+            retentionRatePct: String(created.retention_rate_pct),
+            status: 'ACTIVE',
+            scopeDescription: created.scope_description,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowModal(false);
@@ -142,11 +138,8 @@ export default function SubcontractorManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractors/${packageId}`, {
-            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ status: status === 'PENDING' ? 'AWARDED' : status}),
-});
-          if (res.ok) await reload();
+          await api.patch(`/api/v1/projects/${projectId}/subcontractors/${packageId}`, { status: status === 'PENDING' ? 'AWARDED' : status});
+          await reload();
 } catch { /* ignore */}
 })();
       return;

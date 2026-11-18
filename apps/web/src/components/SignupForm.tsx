@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthSession } from '../types/auth';
 import { PRODUCT_NAME } from '../lib/product';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface SignupFormProps {
   onLoginSuccess?: (session: AuthSession) => void;
@@ -27,26 +28,17 @@ export default function SignupForm({ apiBaseUrl = '' }: SignupFormProps): React.
     }
     setIsLoading(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/auth/register-company`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ companyName, adminFullName, email, phone, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Registration failed. Please try again.');
-      }
+      const data: any = await api.post(`${apiBaseUrl}/api/v1/auth/register-company`, { companyName, adminFullName, email, phone, password });
       // Account created but gated: the admin must verify their email (or be
       // activated) before the first sign-in.
-      const verificationToken = data.data?.verificationToken;
+      const verificationToken = data?.data?.verificationToken;
       setRegistered({
-        companyName: data.data?.tenant?.name || companyName,
+        companyName: data?.data?.tenant?.name || companyName,
         email,
         verifyUrl: verificationToken ? `${window.location.origin}/?verify=${verificationToken}` : null,
       });
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Registration failed.');
+      setErrorMessage(apiErrorMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setIsLoading(false);
     }

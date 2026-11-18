@@ -26,6 +26,7 @@ import ScheduledReportsView from './ScheduledReportsView';
 import { useAppDialog } from './AppDialog';
 import { statusLabel } from '../lib/status-labels';
 import { formatDateTime } from '../lib/format';
+import { api } from '../lib/api';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -54,28 +55,28 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
   const ASSIGN_ROLES = ['ADMIN','COMPANY_ADMIN','EXECUTIVE','PM_QS','SITE_SUPERVISOR','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CLIENT','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE'];
   const handleRoleChange = async (membershipId: string, role: string) => {
     try {
-      const r = await fetch(`/api/v1/company/members/${membershipId}/role`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ role}),
-});
-      if (r.ok) setMembers((prev) => prev ? prev.map((m: any) => m.membershipId === membershipId ? { ...m, role} : m) : prev);
-} catch { /* leave unchanged */}
+      await api.patch(`/api/v1/company/members/${membershipId}/role`, { role });
+      setMembers((prev) => prev ? prev.map((m: any) => m.membershipId === membershipId ? { ...m, role} : m) : prev);
+} catch {
+      // hygiene-allow: intentionally ignored — on failure leave the member list unchanged
+}
 };
   const handleRevoke = async (membershipId: string) => {
     const ok = await dialog.confirm({ title: 'Revoke member access', message: 'Revoke this member’s access to the workspace?', confirmLabel: 'Revoke', danger: true });
     if (!ok) return;
     try {
-      const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include'});
-      if (r.ok) setMembers((prev) => prev ? prev.filter((m: any) => m.membershipId !== membershipId) : prev);
-} catch { /* leave unchanged */}
+      await api.delete(`/api/v1/company/members/${membershipId}`);
+      setMembers((prev) => prev ? prev.filter((m: any) => m.membershipId !== membershipId) : prev);
+} catch {
+      // hygiene-allow: intentionally ignored — on failure leave the member list unchanged
+}
 };
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<{ data?: { id: string; name: string; code: string }[] }>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
-        if (list.length) setPid(list[0].id);
+        if (list.length) setPid(list[0]!.id);
 })
       .catch(() => setProjects([]));
 }, []);
@@ -84,14 +85,16 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
   const [dash, setDash] = useState<any>(null);
   const [members, setMembers] = useState<any[] | null>(null);
   useEffect(() => {
-    fetch('/api/v1/dashboard', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
+    api.get<{ data?: any }>('/api/v1/dashboard')
       .then((j) => { if (j?.data) setDash(j.data);})
-      .catch(() => {});
-    fetch('/api/v1/company/members', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => {
+        // intentionally ignored: dashboard stays on demo fixtures until data arrives
+      });
+    api.get<{ data?: any[] }>('/api/v1/company/members')
       .then((j) => { if (j?.data) setMembers(j.data);})
-      .catch(() => {});
+      .catch(() => {
+        // intentionally ignored: member list stays empty until data arrives
+      });
 }, []);
   const metrics = dash?.metrics;
   const liveProjects: any[] = dash?.projects || [];

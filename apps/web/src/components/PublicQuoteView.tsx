@@ -3,6 +3,7 @@ import { formatMoney } from '@construction/money';
 import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
 import { SavedDataNotice, formatDate } from '../ui';
 import { statusLabel } from '../lib/status-labels';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface PublicQuoteItem {
   id: string;
@@ -63,8 +64,8 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
       if (staleAt) setSavedAt(staleAt);
       setQuote(body.quote);
       setContractor(body.contractor?.name ?? '');
-} catch (e: any) {
-      setError(isOfflineError(e) ? 'You appear to be offline — check your connection and try again.' : e.message);
+} catch (ex: any) {
+      setError(isOfflineError(ex) ? 'You appear to be offline — check your connection and try again.' : (ex instanceof Error ? ex.message : 'Could not load quotation'));
 } finally {
       setLoading(false);
 }
@@ -79,17 +80,13 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/public/quotes/${token}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action, typedName: typedName || undefined, note: note || undefined}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Submission failed');
+      const body = await api.post<any>(`/api/public/quotes/${token}/respond`, {
+        action, typedName: typedName || undefined, note: note || undefined,
+      });
       setDone(action === 'accept' ? 'accepted' : 'declined');
       setQuote(body.quote);
-} catch (e: any) {
-      setError(e.message);
+} catch (ex: unknown) {
+      setError(apiErrorMessage(ex));
 } finally {
       setSubmitting(false);
 }

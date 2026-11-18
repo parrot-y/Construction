@@ -54,6 +54,7 @@ import ContractorTenderBoardView from './ContractorTenderBoardView';
 import { isModuleEnabled } from '../lib/modules';
 import QuotesManagementView from './QuotesManagementView';
 import InvoicingView from './InvoicingView';
+import { api } from '../lib/api';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -71,12 +72,11 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
   const [projects, setProjects] = useState<{ id: string; name: string; code: string}[]>([]);
   const [pid, setPid] = useState('');
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<{ data?: { id: string; name: string; code: string }[] }>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
-        if (list.length) setPid(list[0].id);
+        if (list.length) setPid(list[0]!.id);
 })
       .catch(() => setProjects([]));
 }, []);
@@ -84,14 +84,12 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
   useEffect(() => {
     if (!pid) return;
     let cancelled = false;
-    fetch(`/api/v1/projects/${pid}`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
+    api.get<any>(`/api/v1/projects/${pid}`)
       .then((j) => { if (!cancelled && j) setProjectDetail(j.data || j); })
-      .catch(() => {});
-    fetch(`/api/v1/projects/${pid}/budget/summary`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => { /* intentionally ignored: best-effort project detail */ });
+    api.get<any>(`/api/v1/projects/${pid}/budget/summary`)
       .then((j) => { if (!cancelled && j) setBudgetSummary(j.data || j); })
-      .catch(() => {});
+      .catch(() => { /* intentionally ignored: best-effort budget summary */ });
     return () => { cancelled = true; };
   }, [pid]);
   const [tabGroup, setTabGroup] = useState<'all' | 'core' | 'field' | 'money' | 'collab'>('core');

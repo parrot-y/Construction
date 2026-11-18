@@ -12,6 +12,7 @@ import IndependentSiteReportView from '../../IndependentSiteReportView';
 import SiteDiaryModal from '../../SiteDiaryModal';
 import { IconPlus} from '../icons';
 import { formatDate } from '../../../lib/format';
+import { api } from '../../../lib/api';
 
 function EmptyProject({ what}: { what: string}): React.JSX.Element {
   return (
@@ -29,9 +30,8 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
   const [logDate, setLogDate] = useState<string | undefined>(undefined);
 
   const load = () => {
-    fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((j) => setDiaries(j.data || []))
+    api.get<any>(`/api/v1/projects/${projectId}/site-diaries`)
+      .then((j) => setDiaries(j?.data || []))
       .catch(() => setDiaries([]))
       .finally(() => setLoading(false));
 };
@@ -158,9 +158,8 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/v1/projects/${projectId}/checklist-assignments`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((j) => setAssignments(j.data || j || []))
+    api.get<any>(`/api/v1/projects/${projectId}/checklist-assignments`)
+      .then((j) => setAssignments(j?.data || j || []))
       .catch(() => setAssignments([]))
       .finally(() => setLoading(false));
 }, [projectId]);

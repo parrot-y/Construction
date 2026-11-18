@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { FilterTabs, formatKes, formatDate, formatDateTime } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
 import { useAppDialog } from './AppDialog';
-import { api } from '../lib/apiClient';
+import { api, apiErrorMessage } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
 
 export interface VariationItemData {
@@ -99,7 +99,7 @@ export default function VariationManagementView({
       const json = await api.get<{ data?: VariationOrderData[] }>(`/api/v1/projects/${projectId}/variations`);
       setVariations(json.data || []);
 } catch {
-      // offline/demo — keep current list
+      // offline/demo — keep current list — hygiene-allow: intentionally ignored
 } finally {
       setLoading(false);
 }
@@ -160,7 +160,7 @@ export default function VariationManagementView({
       if (onVariationUpdated) onVariationUpdated(updatedVo);
       setActionFeedback(`CO-${String(updatedVo.variation_no).padStart(4, '0')} is now ${statusLabel(updatedVo.status)}`);
 } catch (err: any) {
-      setActionError(err?.message || 'Action failed');
+      setActionError(apiErrorMessage(err, 'Action failed'));
 }
 };
 
@@ -172,7 +172,7 @@ export default function VariationManagementView({
       if (onVariationUpdated) onVariationUpdated(updatedVo);
       setActionFeedback(`CO-${String(updatedVo.variation_no).padStart(4, '0')} submitted for PM review`);
 } catch (err: any) {
-      setActionError(err?.message || 'Submit failed');
+      setActionError(apiErrorMessage(err, 'Submit failed'));
 }
 };
 

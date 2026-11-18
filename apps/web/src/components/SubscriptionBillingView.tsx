@@ -1,6 +1,7 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
 import { formatDate, formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface SubscriptionTransactionItem {
   id: string;
@@ -48,26 +49,20 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
   useEffect(() => {
     (async () => {
       try {
-        const [sRes, tRes] = await Promise.all([
-          fetch('/api/v1/billing/subscription-status', { credentials: 'include'}),
-          fetch('/api/v1/billing/transactions', { credentials: 'include'}),
+        const [sb, tb] = await Promise.all([
+          api.get<any>('/api/v1/billing/subscription-status'),
+          api.get<any>('/api/v1/billing/transactions'),
         ]);
-        if (sRes.ok) {
-          const sb = await sRes.json();
-          if (!initialSubState) setSubscriptionState(sb.subscriptionState);
-          if (!initialActivePlan) setActivePlan(sb.activePlan);
-          if (!initialFee) setMonthlyFee(sb.monthlyFeeKes);
-          if (initialDays === undefined) setDaysRemaining(sb.daysRemaining);
-          if (initialReceipt === undefined) setLastPaymentRef(sb.lastPaymentRef);
-          if (!tenantName) setTenantLabel(sb.tenantName);
-        }
-        if (tRes.ok) {
-          const tb = await tRes.json();
-          if (!initialTransactions) setTransactions(tb.transactions || []);
-        }
+        if (!initialSubState) setSubscriptionState(sb.subscriptionState);
+        if (!initialActivePlan) setActivePlan(sb.activePlan);
+        if (!initialFee) setMonthlyFee(sb.monthlyFeeKes);
+        if (initialDays === undefined) setDaysRemaining(sb.daysRemaining);
+        if (initialReceipt === undefined) setLastPaymentRef(sb.lastPaymentRef);
+        if (!tenantName) setTenantLabel(sb.tenantName);
+        if (!initialTransactions) setTransactions(tb.transactions || []);
         setLoadError(null);
-      } catch (e: any) {
-        setLoadError(e.message || 'Failed to load billing status');
+      } catch (e) {
+        setLoadError(apiErrorMessage(e, 'Failed to load billing status'));
       }
     })();
   }, []);
@@ -96,17 +91,9 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 
       // Real API call — server records an INITIATED transaction and reports
       // SIMULATED until live Daraja credentials are configured.
-      const res = await fetch('/api/v1/billing/mpesa-express', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ phoneNumber: formattedPhone, planCode: selectedPlan, amount}),
-});
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => null);
-        throw new Error(errBody?.message || `STK push failed (${res.status})`);
-}
-      const created = await res.json();
+      const created = await api.post<any>('/api/v1/billing/mpesa-express',
+        { phoneNumber: formattedPhone, planCode: selectedPlan, amount},
+        { money: true });
 
       const newTx: SubscriptionTransactionItem = {
         id: created.transactionId ?? `tx-${Date.now()}`,
@@ -126,8 +113,8 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
         setShowStkModal(false);
         setStkFeedback(null);
 }, 1500);
-} catch (err: any) {
-      setStkFeedback(`Failed: ${err.message || 'M-Pesa STK push error'}`);
+} catch (err) {
+      setStkFeedback(`Failed: ${apiErrorMessage(err, 'M-Pesa STK push error')}`);
 } finally {
       setIsSubmitting(false);
 }

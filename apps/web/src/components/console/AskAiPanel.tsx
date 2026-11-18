@@ -4,6 +4,7 @@ import { useConsole} from './ConsoleContext';
 import { IconSend, IconSpark, IconX} from './icons';
 import { SUBTAB_LABELS} from './navConfig';
 import { PRODUCT_NAME } from '../../lib/product';
+import { api } from '../../lib/api';
 
 interface Msg { role: 'user' | 'bot'; text: string; link?: { section: string; tab: string; label: string}}
 
@@ -42,7 +43,10 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
     pattern: /how many|count|number of|status of|open/i,
     run: async (projectId: string) => {
       if (!projectId) return '';
-      const get = (u: string) => fetch(u, { credentials: 'include'}).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const get = (u: string) => api.get<any>(u).catch(() => {
+        // intentionally ignored: one failed feed shouldn't blank the whole answer
+        return null;
+      });
       const [snags, variations, attendance] = await Promise.all([
         get(`/api/v1/projects/${projectId}/snags`),
         get(`/api/v1/projects/${projectId}/variations`),
@@ -64,7 +68,10 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
     pattern: /overdue|unpaid|outstanding/i,
     run: async (projectId: string) => {
       if (!projectId) return '';
-      const j = await fetch(`/api/v1/invoices?projectId=${projectId}`, { credentials: 'include'}).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const j = await api.get<any>(`/api/v1/invoices?projectId=${projectId}`).catch(() => {
+        // intentionally ignored: unanswered intent falls back to the generic reply
+        return null;
+      });
       const rows = (j?.invoices || j?.data || []) as any[];
       if (!rows.length) return '';
       const outstanding = rows.filter((i) => Number(i.balance_due_num ?? i.balance_due ?? 0) > 0);
@@ -76,7 +83,10 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
     pattern: /attendance|muster|who.*site|labou?r.*today/i,
     run: async (projectId: string) => {
       if (!projectId) return '';
-      const j = await fetch(`/api/v1/projects/${projectId}/attendance`, { credentials: 'include'}).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const j = await api.get<any>(`/api/v1/projects/${projectId}/attendance`).catch(() => {
+        // intentionally ignored: unanswered intent falls back to the generic reply
+        return null;
+      });
       const n = j?.summary?.present ?? j?.count;
       return typeof n === 'number' ? `${n} labourer${n === 1 ? '' : 's'} recorded present today.` : '';
 },

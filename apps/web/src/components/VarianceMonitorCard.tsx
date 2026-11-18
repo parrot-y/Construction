@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { formatKes, EmptyState } from '../ui';
 import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
 
 export interface SectionBreakdownItem {
   sectionId: string;
@@ -74,8 +75,7 @@ export default function VarianceMonitorCard({
     if (!needsLive) return;
     let cancelled = false;
     setLiveLoading(true);
-    fetch('/api/v1/dashboard', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
+    api.get<any>('/api/v1/dashboard')
       .then((j) => {
         if (cancelled || !j) return;
         const rows = j.data?.projects || j.projects || j.data || [];
@@ -98,7 +98,7 @@ export default function VarianceMonitorCard({
           });
         }
       })
-      .catch(() => {})
+      .catch(() => { /* intentionally ignored: variance card is best-effort; props still render */ })
       .finally(() => { if (!cancelled) setLiveLoading(false); });
     return () => { cancelled = true; };
   }, [needsLive, projectId]);

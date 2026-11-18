@@ -3,6 +3,7 @@ import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkK
 import { ResponsiveTable, SavedDataNotice, formatDate } from '../../ui';
 import { fetchJsonCached } from '../../services/offline-cache';
 import { statusLabel } from '../../lib/status-labels';
+import { api, apiErrorMessage } from '../../lib/api';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -147,8 +148,8 @@ export default function CompliancePortalView({
           recordedByName: v.recordedByName,
           actions: v.actions || [],
         })));
-      } catch (e: any) {
-        if (!cancelled) { setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
+      } catch (e) {
+        if (!cancelled) { setLoadError(apiErrorMessage(e, 'Failed to load portal')); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -164,18 +165,12 @@ export default function CompliancePortalView({
       const actions = visitForm.actionDescription.trim()
         ? [{ description: visitForm.actionDescription.trim(), dueDate: visitForm.actionDueDate || null }]
         : [];
-      const res = await fetch(`/api/v1/portals/compliance/${token}/visits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          visitDate: visitForm.visitDate,
-          outcome: visitForm.outcome,
-          notes: visitForm.notes || null,
-          actions,
-        }),
+      const body = await api.post<{ data?: any }>(`/api/v1/portals/compliance/${token}/visits`, {
+        visitDate: visitForm.visitDate,
+        outcome: visitForm.outcome,
+        notes: visitForm.notes || null,
+        actions,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Could not record the visit');
       const created = body.data || body;
       setVisits((prev) => [{
         id: created.id,
@@ -187,8 +182,8 @@ export default function CompliancePortalView({
       }, ...prev]);
       setVisitForm((f) => ({ ...f, notes: '', actionDescription: '', actionDueDate: '' }));
       setVisitFeedback('Visit recorded — the site team has been notified.');
-    } catch (e: any) {
-      setVisitFeedback(e.message || 'Network error — visit not recorded.');
+    } catch (e) {
+      setVisitFeedback(apiErrorMessage(e, 'Network error — visit not recorded.'));
     } finally {
       setVisitBusy(false);
     }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 const inputCls =
   'w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[44px]';
@@ -23,16 +24,13 @@ export function RequestPasswordResetView({ apiBaseUrl = '', onBack = () => {} }:
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/auth/request-password-reset`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Could not request a reset link');
+      const data = await api.post<{ data?: { resetUrl?: string | null } }>(
+        `${apiBaseUrl}/api/v1/auth/request-password-reset`,
+        { email },
+      );
       setSent({ resetUrl: data.data?.resetUrl ?? null });
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Something went wrong');
+      setErrorMessage(apiErrorMessage(err, 'Something went wrong'));
     } finally {
       setIsLoading(false);
     }
@@ -108,16 +106,10 @@ export function ResetPasswordView({ token, apiBaseUrl = '', onDone }: BaseProps 
     }
     setIsLoading(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Could not reset password');
+      await api.post(`${apiBaseUrl}/api/v1/auth/reset-password`, { token, password });
       setDone(true);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Something went wrong');
+      setErrorMessage(apiErrorMessage(err, 'Something went wrong'));
     } finally {
       setIsLoading(false);
     }
@@ -179,14 +171,9 @@ const verifyCache = new Map<string, Promise<{ ok: boolean; message?: string }>>(
 function verifyEmail(token: string, apiBaseUrl: string) {
   let p = verifyCache.get(token);
   if (!p) {
-    p = fetch(`${apiBaseUrl}/api/v1/auth/verify-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    }).then(async (res) => {
-      const data = await res.json().catch(() => ({}));
-      return { ok: res.ok, message: data.message as string | undefined };
-    }).catch(() => ({ ok: false, message: 'Could not reach the server. Try again later.' }));
+    p = api.post(`${apiBaseUrl}/api/v1/auth/verify-email`, { token })
+      .then(() => ({ ok: true, message: undefined as string | undefined }))
+      .catch((err) => ({ ok: false, message: apiErrorMessage(err, 'Could not reach the server. Try again later.') }));
     verifyCache.set(token, p);
   }
   return p;

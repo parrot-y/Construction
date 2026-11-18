@@ -1,7 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes, SavedDataNotice } from '../ui';
 import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
-import { api, ApiError } from '../lib/apiClient';
+import { api, apiErrorMessage } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
 
 export interface SubcontractorValuationItem {
@@ -80,7 +80,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       }
       setLoadError(null);
     } catch (e: any) {
-      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : (e.message || 'Failed to load valuations'));
+      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : apiErrorMessage(e, 'Failed to load valuations'));
     }
   };
 
@@ -142,7 +142,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       try {
         await api.post(`/api/v1/projects/${projectId}/subcontractor-valuations`, payload);
       } catch (e) {
-        setLoadError(e instanceof ApiError || e instanceof Error ? e.message : 'Network error — valuation not recorded');
+        setLoadError(apiErrorMessage(e, 'Network error — valuation not recorded'));
         setIsSubmitting(false);
         return;
       }
@@ -166,7 +166,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       try {
         await api.patch(`/api/v1/projects/${projectId}/subcontractor-valuations/${selectedValId}`, { paymentStatus: 'PAID', paymentReference });
       } catch (e) {
-        setLoadError(e instanceof ApiError || e instanceof Error ? e.message : 'Network error — payment not recorded');
+        setLoadError(apiErrorMessage(e, 'Network error — payment not recorded'));
         setIsSubmitting(false);
         return;
       }

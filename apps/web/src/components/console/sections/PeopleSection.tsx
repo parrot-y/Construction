@@ -6,6 +6,7 @@ import SubcontractorManagementView from '../../SubcontractorManagementView';
 import { IconPlus} from '../icons';
 import { useAppDialog } from '../../AppDialog';
 import { formatDate } from '../../../lib/format';
+import { api, apiErrorMessage, rawFetch } from '../../../lib/api';
 
 const ASSIGN_ROLES = ['COMPANY_ADMIN','CLIENT','ARCHITECT','PM_QS','QA_QC','OWNER','EXECUTIVE','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE','ADMIN','SITE_SUPERVISOR'];
 const ROLE_LABELS: Record<string, string> = {
@@ -28,14 +29,15 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
     try {
       const qs = new URLSearchParams({ format});
       if (entity) qs.set('entity', entity);
-      const r = await fetch(`/api/v1/company/export?${qs}`, { credentials: 'include'});
-      if (!r.ok) { setMsg('Export failed — company admin access required'); return; }
+      const r = await rawFetch(`/api/v1/company/export?${qs}`);
       const blob = await r.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = format === 'csv' ? `${entity}-export.csv` : 'company-export.json';
       a.click();
       URL.revokeObjectURL(a.href);
+    } catch (err) {
+      setMsg(apiErrorMessage(err, 'Export failed — company admin access required'));
     } finally {
       setExportBusy(false);
     }
@@ -45,48 +47,53 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
   const [msg, setMsg] = useState('');
 
   const load = () => {
-    fetch('/api/v1/company/members', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: any[] }>('/api/v1/company/members')
       .then((j) => setMembers(j.data || []))
-      .catch(() => setMembers([]));
+      .catch(() => setMembers([])); // intentionally ignored: empty list on failure
 };
   useEffect(load, []);
 
   const changeRole = async (membershipId: string, role: string) => {
-    const r = await fetch(`/api/v1/company/members/${membershipId}/role`, {
-      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify({ role}),
-});
-    if (r.ok) setMembers((prev) => prev?.map((m) => (m.membershipId === membershipId ? { ...m, role} : m)) ?? prev);
-    else { const j = await r.json().catch(() => ({})); setMsg(j.message || 'Role change failed');}
+    try {
+      await api.patch(`/api/v1/company/members/${membershipId}/role`, { role });
+      setMembers((prev) => prev?.map((m) => (m.membershipId === membershipId ? { ...m, role} : m)) ?? prev);
+    } catch (err) {
+      setMsg(apiErrorMessage(err, 'Role change failed'));
+    }
 };
 
   const revoke = async (membershipId: string) => {
     const ok = await dialog.confirm({ title: 'Revoke member access', message: 'Revoke this member’s access?', confirmLabel: 'Revoke', danger: true });
     if (!ok) return;
-    const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include'});
-    if (r.ok) setMembers((prev) => prev?.filter((m) => m.membershipId !== membershipId) ?? prev);
+    try {
+      await api.delete(`/api/v1/company/members/${membershipId}`);
+      setMembers((prev) => prev?.filter((m) => m.membershipId !== membershipId) ?? prev);
+    } catch (err) {
+      setMsg(apiErrorMessage(err, 'Could not revoke access'));
+    }
 };
 
   const sendInvite = async () => {
-    const r = await fetch('/api/v1/invitations', {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify({ email: invite.email, role: invite.role}),
-});
-    const j = await r.json().catch(() => ({}));
-    const link = r.ok && j.data?.inviteUrl ? ` Copy and send this link to ${invite.email}: ${j.data.inviteUrl}` : '';
-    setMsg(r.ok ? `Invitation created for ${invite.email}.${link}` : (j.message || 'Invite failed'));
-    if (r.ok) { setInvite({ email: '', role: 'SITE_ENGINEER', open: false}); loadInvites();}
+    try {
+      const j = await api.post<{ data?: { inviteUrl?: string } }>('/api/v1/invitations', {
+        email: invite.email, role: invite.role,
+      });
+      const link = j.data?.inviteUrl ? ` Copy and send this link to ${invite.email}: ${j.data.inviteUrl}` : '';
+      setMsg(`Invitation created for ${invite.email}.${link}`);
+      setInvite({ email: '', role: 'SITE_ENGINEER', open: false});
+      loadInvites();
+    } catch (err) {
+      setMsg(apiErrorMessage(err, 'Invite failed'));
+    }
 };
 
   const [invites, setInvites] = useState<any[] | null>(null);
   const [inviteMsg, setInviteMsg] = useState('');
 
   const loadInvites = () => {
-    fetch('/api/v1/invitations', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: any[] }>('/api/v1/invitations')
       .then((j) => setInvites(j.data || []))
-      .catch(() => setInvites([]));
+      .catch(() => setInvites([])); // intentionally ignored: empty list on failure
 };
   useEffect(loadInvites, []);
 
@@ -100,9 +107,13 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 };
 
   const resetMemberPassword = async (userId: string, email: string) => {
-    const r = await fetch(`/api/v1/company/members/${userId}/password-reset`, { method: 'POST', credentials: 'include'});
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) { setMsg(j.message || 'Could not generate reset link'); return; }
+    let j: any;
+    try {
+      j = await api.post(`/api/v1/company/members/${userId}/password-reset`);
+    } catch (err) {
+      setMsg(apiErrorMessage(err, 'Could not generate reset link'));
+      return;
+    }
     const url = j.data?.resetUrl;
     try {
       await navigator.clipboard.writeText(url);
@@ -113,23 +124,32 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 };
 
   const activateMember = async (userId: string, email: string) => {
-    const r = await fetch(`/api/v1/company/members/${userId}/activate`, { method: 'POST', credentials: 'include'});
-    const j = await r.json().catch(() => ({}));
-    if (r.ok) { setMsg(`${email} activated — they can sign in now.`); load(); }
-    else setMsg(j.message || 'Activation failed');
+    try {
+      await api.post(`/api/v1/company/members/${userId}/activate`);
+      setMsg(`${email} activated — they can sign in now.`);
+      load();
+    } catch (err) {
+      setMsg(apiErrorMessage(err, 'Activation failed'));
+    }
 };
 
   const revokeInvite = async (id: string) => {
-    const r = await fetch(`/api/v1/invitations/${id}/revoke`, { method: 'POST', credentials: 'include'});
-    if (r.ok) loadInvites();
-    else { const j = await r.json().catch(() => ({})); setInviteMsg(j.message || 'Revoke failed');}
+    try {
+      await api.post(`/api/v1/invitations/${id}/revoke`);
+      loadInvites();
+    } catch (err) {
+      setInviteMsg(apiErrorMessage(err, 'Revoke failed'));
+    }
 };
 
   const regenerateInvite = async (id: string) => {
-    const r = await fetch(`/api/v1/invitations/${id}/regenerate`, { method: 'POST', credentials: 'include'});
-    const j = await r.json().catch(() => ({}));
-    if (r.ok) { setInviteMsg('New invite link generated — the old link no longer works.'); loadInvites();}
-    else setInviteMsg(j.message || 'Regenerate failed');
+    try {
+      await api.post(`/api/v1/invitations/${id}/regenerate`);
+      setInviteMsg('New invite link generated — the old link no longer works.');
+      loadInvites();
+    } catch (err) {
+      setInviteMsg(apiErrorMessage(err, 'Regenerate failed'));
+    }
 };
 
   return (
@@ -281,11 +301,13 @@ function DirectoryView(): React.JSX.Element {
   const [subs, setSubs] = useState<any[]>([]);
   const [cat, setCat] = useState<(typeof DIR_CATS)[number]>('All');
   useEffect(() => {
-    fetch('/api/v1/company/members', { credentials: 'include'}).then((r) => r.ok ? r.json() : { data: []}).then((j) => setMembers(j.data || [])).catch(() => {});
+    api.get<{ data?: any[] }>('/api/v1/company/members')
+      .then((j) => setMembers(j.data || []))
+      .catch(() => { /* intentionally ignored: directory shows empty team */ });
     if (projectId && /^[0-9a-f-]{36}$/i.test(projectId)) {
-      fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'})
-        .then((r) => (r.ok ? r.json() : { data: []}))
-        .then((j) => setSubs(j.data || j || [])).catch(() => {});
+      api.get<any>(`/api/v1/projects/${projectId}/subcontractors`)
+        .then((j) => setSubs(j.data || j || []))
+        .catch(() => { /* intentionally ignored: directory shows empty subs */ });
 }
 }, [projectId]);
   return (

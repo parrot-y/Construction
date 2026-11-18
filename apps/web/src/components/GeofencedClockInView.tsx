@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { queueOfflineMutation} from '../services/offline-sync';
 import { formatTime } from '../lib/format';
 import { useToast } from './feedback/Toast';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface GeofenceItem {
   id: string;
@@ -58,23 +59,20 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const [geoRes, evtRes, labRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/geofences`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/clock-events`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/laborers`, { credentials: 'include'}),
+      const [gj, ej, lj] = await Promise.all([
+        api.get<any>(`/api/v1/projects/${projectId}/geofences`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
+        api.get<any>(`/api/v1/projects/${projectId}/clock-events`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
+        api.get<any>(`/api/v1/projects/${projectId}/laborers`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
       ]);
-      if (geoRes.ok) {
-        const gj = await geoRes.json();
+      if (gj) {
         const list = (gj.geofences || []) as GeofenceItem[];
         setGeofences(list);
 }
-      if (evtRes.ok) {
-        const ej = await evtRes.json();
+      if (ej) {
         const list = (ej.events || []) as WorkerClockEventItem[];
         setClockEvents(list);
 }
-      if (labRes.ok) {
-        const lj = await labRes.json();
+      if (lj) {
         const list = (lj.laborers || lj.data || []) as any[];
         const mapped: SiteLaborerOption[] = list.map((l) => ({
           id: l.id,
@@ -221,22 +219,14 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
         if (!selectedLaborerId) {
           throw new Error('No registered site laborer selected — register laborers first.');
 }
-        const res = await fetch(`/api/v1/projects/${projectId}/clock-in`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            laborerId: selectedLaborerId,
-            clockType,
-            capturedLatitude: capturedLat,
-            capturedLongitude: capturedLng,
-            photoSelfieUrl: selfieUrl || null,
-            deviceUserAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-}),
+        const created = await api.post<any>(`/api/v1/projects/${projectId}/clock-in`, {
+          laborerId: selectedLaborerId,
+          clockType,
+          capturedLatitude: capturedLat,
+          capturedLongitude: capturedLng,
+          photoSelfieUrl: selfieUrl || null,
+          deviceUserAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
 });
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => null);
-          throw new Error(errBody?.message || `Clock-in failed (${res.status})`);
-}
-        const created = await res.json();
         dist = created.calculatedDistanceMeters ?? dist;
         status = created.verificationStatus ?? status;
         await reload();
@@ -264,8 +254,8 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
           ? ` Verified On-Site Attendance: ${selectedWorker} clocked in at ${dist}m from centroid.${offlineSuffix}`
           : ` Off-Site Warning Flagged: ${selectedWorker} is ${dist}m away (exceeds ${activeGeofence?.radiusMeters}m radius).${offlineSuffix}`
 );
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 } finally {
       setIsSubmitting(false);
 }
@@ -275,19 +265,12 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
     e.preventDefault();
     try {
       if (isLive) {
-        const res = await fetch(`/api/v1/projects/${projectId}/geofences`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            geofenceName: geoName,
-            centerLatitude: geoLat,
-            centerLongitude: geoLng,
-            radiusMeters: geoRadius,
-}),
+        await api.post(`/api/v1/projects/${projectId}/geofences`, {
+          geofenceName: geoName,
+          centerLatitude: geoLat,
+          centerLongitude: geoLng,
+          radiusMeters: geoRadius,
 });
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => null);
-          throw new Error(errBody?.message || `Geofence save failed (${res.status})`);
-}
         await reload();
         setShowGeofenceModal(false);
         return;
@@ -310,7 +293,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 };
       setGeofences([newG, ...geofences]);
       setShowGeofenceModal(false);
-} catch (err: any) {
+} catch (err) {
       toast.error(err, 'Could not save the geofence. Try again.');
 }
 };

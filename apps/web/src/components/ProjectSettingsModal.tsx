@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 /**
  * Project settings — edit name/code/location/contract sum and the Kenyan
@@ -14,8 +15,7 @@ export default function ProjectSettingsModal({ projectId, onClose, onSaved }: { 
 
   useEffect(() => {
     let alive = true;
-    fetch(`/api/v1/projects/${projectId}`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('load failed'))))
+    api.get<any>(`/api/v1/projects/${projectId}`)
       .then((j) => {
         if (!alive) return;
         const p = j?.data || {};
@@ -33,7 +33,7 @@ export default function ProjectSettingsModal({ projectId, onClose, onSaved }: { 
         });
         setLoading(false);
       })
-      .catch(() => { if (alive) { setError('Could not load project settings.'); setLoading(false); } });
+      .catch(() => { if (alive) { setError('Could not load project settings.'); setLoading(false); } });  // intentionally kept generic on load
     return () => { alive = false; };
   }, [projectId]);
 
@@ -56,18 +56,11 @@ export default function ProjectSettingsModal({ projectId, onClose, onSaved }: { 
         startDate: form.startDate || null,
         targetEndDate: form.targetEndDate || null,
       };
-      const res = await fetch(`/api/v1/projects/${projectId}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j?.message || j?.error || 'Could not save project settings');
+      await api.patch(`/api/v1/projects/${projectId}`, body);
       onSaved();
       onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Could not save project settings');
+    } catch (err: unknown) {
+      setError(apiErrorMessage(err, 'Could not save project settings'));
       setBusy(false);
     }
   };

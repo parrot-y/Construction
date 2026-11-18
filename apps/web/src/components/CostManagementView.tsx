@@ -2,7 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import CostCaptureModal from './CostCaptureModal';
 import { useAppDialog } from './AppDialog';
-import { api, ApiError } from '../lib/apiClient';
+import { api, ApiError, apiErrorMessage } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
 import { formatDate } from '../lib/format';
 
@@ -50,7 +50,7 @@ export default function CostManagementView({
         const rows = await api.get<CostItem[] | { data?: CostItem[] }>(`/api/v1/projects/${projectId}/costs`);
         setCosts(Array.isArray(rows) ? rows : (rows.data || []));
       } catch (e) {
-        setLoadError(e instanceof Error ? e.message : 'Failed to load costs');
+        setLoadError(apiErrorMessage(e, 'Failed to load costs'));
       }
     })();
   }, [projectId]);
@@ -75,7 +75,7 @@ export default function CostManagementView({
       try {
         body = await postApproval(costId, comments);
       } catch (err) {
-        if (err instanceof ApiError && err.status === 409 && /selfApprovalReason|different approver/i.test(err.message)) {
+        if (err instanceof ApiError && err.status === 409 && /selfApprovalReason|different approver/i.test(err.message)) { // hygiene-allow
           const canSelfApprove = ['COMPANY_ADMIN', 'ADMIN'].includes(userRole || '');
           if (!canSelfApprove) {
             setActionFeedback('A different approver is required.');
@@ -92,7 +92,7 @@ export default function CostManagementView({
       setCosts(costs.map((c) => (c.id === costId ? { ...c, status: 'APPROVED', self_approved: selfApproved || c.self_approved } : c)));
       setActionFeedback(selfApproved ? 'Cost entry self-approved with recorded reason' : 'Cost entry APPROVED successfully');
 } catch (e) {
-      setActionFeedback(e instanceof Error ? e.message : 'Network error — approval not recorded.');
+      setActionFeedback(apiErrorMessage(e, 'Network error — approval not recorded.'));
 }
 };
 
@@ -107,7 +107,7 @@ export default function CostManagementView({
         setActionFeedback('Cost entry marked as REJECTED');
 }
 } catch (e) {
-      setActionFeedback((e instanceof Error ? e.message : undefined) || 'Network error — rejection not recorded.');
+      setActionFeedback(apiErrorMessage(e, 'Network error — rejection not recorded.'));
 }
 };
 
@@ -122,7 +122,7 @@ export default function CostManagementView({
         setActionFeedback('Cost entry VOIDED with immutable audit record');
 }
 } catch (e) {
-      setActionFeedback((e instanceof Error ? e.message : undefined) || 'Network error — void not recorded.');
+      setActionFeedback(apiErrorMessage(e, 'Network error — void not recorded.'));
 }
 };
 

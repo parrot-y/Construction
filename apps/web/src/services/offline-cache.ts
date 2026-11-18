@@ -110,7 +110,7 @@ function eachCacheEntry(fn: (storageKey: string) => void): void {
 export function isOfflineError(e: any): boolean {
   return (
     e instanceof TypeError ||
-    /failed to fetch|network\s?error|load failed|network request failed|err_internet|err_network/i.test(e?.message || '')
+    /failed to fetch|network\s?error|load failed|network request failed|err_internet|err_network/i.test(e?.message || '') // hygiene-allow: logic check, not display
   );
 }
 

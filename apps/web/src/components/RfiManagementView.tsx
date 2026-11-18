@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import CreateRfiModal, { RfiPriority, ConsultantRole} from './CreateRfiModal';
 import { statusLabel } from '../lib/status-labels';
 import { formatDate } from '../lib/format';
+import { api } from '../lib/api';
 
 export type RfiStatus = 'SUBMITTED' | 'ANSWERED' | 'CLOSED';
 
@@ -81,9 +82,7 @@ export default function RfiManagementView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/rfis`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const data = await res.json();
+      const data = await api.get<any>(`/api/v1/projects/${projectId}/rfis`);
       setRfis((data || []).map(mapApiRfi));
       setLiveLoaded(true);
 } catch {
@@ -105,17 +104,14 @@ export default function RfiManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/rfis`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              title: newRfi.title,
-              question: newRfi.query,
-              drawingReference: newRfi.drawingRef || null,
-              priority: newRfi.priority,
-              assignedToRole: Object.entries(CONSULTANT_MAP).find(([, v]) => v === newRfi.assignedConsultant)?.[0] || 'QS',
-}),
-});
-          if (res.ok) await reload();
+          await api.post(`/api/v1/projects/${projectId}/rfis`, {
+            title: newRfi.title,
+            question: newRfi.query,
+            drawingReference: newRfi.drawingRef || null,
+            priority: newRfi.priority,
+            assignedToRole: Object.entries(CONSULTANT_MAP).find(([, v]) => v === newRfi.assignedConsultant)?.[0] || 'QS',
+          });
+          await reload();
 } catch { /* keep local */}
 })();
       return;
@@ -132,8 +128,8 @@ export default function RfiManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/rfis/${id}/close`, { method: 'POST', credentials: 'include'});
-          if (res.ok) await reload();
+          await api.post(`/api/v1/projects/${projectId}/rfis/${id}/close`);
+          await reload();
 } catch { /* ignore */}
 })();
       return;
@@ -150,11 +146,9 @@ export default function RfiManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/rfis/${rfiId}/responses`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ officialAnswer: text, isAccepted: true}),
-});
-          if (res.ok) { setReplyText((prev) => ({ ...prev, [rfiId]: ''})); await reload();}
+          await api.post(`/api/v1/projects/${projectId}/rfis/${rfiId}/responses`, { officialAnswer: text, isAccepted: true });
+          setReplyText((prev) => ({ ...prev, [rfiId]: ''}));
+          await reload();
 } catch { /* ignore */}
 })();
       return;

@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api } from '../lib/api';
 
 export interface ETimsInvoiceItem {
   id: string;
@@ -88,21 +89,18 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive || !projectId) return;
     try {
-      const [invRes, tccRes, pkgRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/etims-invoices`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractor-tcc`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'}),
+      const [ij, tj, pj] = await Promise.all([
+        api.get<any>(`/api/v1/projects/${projectId}/etims-invoices`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
+        api.get<any>(`/api/v1/projects/${projectId}/subcontractor-tcc`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
+        api.get<any>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
       ]);
-      if (invRes.ok) {
-        const ij = await invRes.json();
+      if (ij) {
         setInvoices((ij.invoices || []) as ETimsInvoiceItem[]);
 }
-      if (tccRes.ok) {
-        const tj = await tccRes.json();
+      if (tj) {
         setTccRecords((tj.records || []) as SubcontractorTccItem[]);
 }
-      if (pkgRes.ok) {
-        const pj = await pkgRes.json();
+      if (pj) {
         setSubPkgs((pj.packages || []).map((p: any) => ({ id: p.id, firm_name: p.firm_name})));
 }
 } catch { /* keep demo */}
@@ -228,27 +226,24 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
     if (isLive && projectId) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/etims-invoices`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              invoiceNumber,
-              cuInvoiceNumber: cuNo,
-              invoiceType: 'ORIGINAL',
-              buyerPin,
-              buyerName,
-              totalTaxableAmount: taxable.toFixed(2),
-              totalTaxAmount: vat16.toFixed(2),
-              totalInvoiceAmount: gross.toFixed(2),
-              taxBreakdown16: vat16.toFixed(2),
-              taxBreakdown8: '0.00',
-              taxBreakdown0: '0.00',
-              taxBreakdownExempt: '0.00',
-              // Server assigns the sandbox QR/signature; schema requires the fields.
-              qrCodeUrl: 'urn:etims:pending-kra-transmission',
-              cryptographicSignature: 'PENDING',
-}),
+          await api.post(`/api/v1/projects/${projectId}/etims-invoices`, {
+            invoiceNumber,
+            cuInvoiceNumber: cuNo,
+            invoiceType: 'ORIGINAL',
+            buyerPin,
+            buyerName,
+            totalTaxableAmount: taxable.toFixed(2),
+            totalTaxAmount: vat16.toFixed(2),
+            totalInvoiceAmount: gross.toFixed(2),
+            taxBreakdown16: vat16.toFixed(2),
+            taxBreakdown8: '0.00',
+            taxBreakdown0: '0.00',
+            taxBreakdownExempt: '0.00',
+            // Server assigns the sandbox QR/signature; schema requires the fields.
+            qrCodeUrl: 'urn:etims:pending-kra-transmission',
+            cryptographicSignature: 'PENDING',
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowInvoiceModal(false);
@@ -285,20 +280,17 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
       if (!tccPackageId) return;
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-tcc`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              subcontractorPackageId: tccPackageId,
-              pinNumber: tccPin,
-              taxpayerName: firmName,
-              tccNumber,
-              tccExpiryDate: tccExpiry,
-              complianceStatus: newTcc.complianceStatus,
-              withholdingTaxRate: newTcc.withholdingTaxRate,
-              withholdingVatRate: newTcc.withholdingVatRate,
-}),
+          await api.post(`/api/v1/projects/${projectId}/subcontractor-tcc`, {
+            subcontractorPackageId: tccPackageId,
+            pinNumber: tccPin,
+            taxpayerName: firmName,
+            tccNumber,
+            tccExpiryDate: tccExpiry,
+            complianceStatus: newTcc.complianceStatus,
+            withholdingTaxRate: newTcc.withholdingTaxRate,
+            withholdingVatRate: newTcc.withholdingVatRate,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowTccModal(false);

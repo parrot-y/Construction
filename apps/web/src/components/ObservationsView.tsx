@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Observation {
   id: string;
@@ -62,19 +63,15 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
       const qs = new URLSearchParams();
       if (statusFilter) qs.set('status', statusFilter);
       if (typeFilter) qs.set('type', typeFilter);
-      const [oRes, aRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/observations?${qs}`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/corrective-actions`, { credentials: 'include'}),
+      const [oJson, aJson] = await Promise.all([
+        api.get<{ data?: Observation[] }>(`/api/v1/projects/${projectId}/observations?${qs}`),
+        api.get<{ data?: CorrectiveAction[] }>(`/api/v1/projects/${projectId}/corrective-actions`)
+          .catch(() => null), // intentionally ignored: actions list is supplementary — observations still render
       ]);
-      if (!oRes.ok) throw new Error('Failed to load observations');
-      const oJson = await oRes.json();
       setObs(oJson.data || []);
-      if (aRes.ok) {
-        const aJson = await aRes.json();
-        setActions(aJson.data || []);
-}
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+      setActions(aJson?.data || []);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -86,20 +83,15 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/observations`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          title: obsForm.title, type: obsForm.type, priority: obsForm.priority,
-          location: obsForm.location || null, description: obsForm.description,
-}),
+      await api.post(`/api/v1/projects/${projectId}/observations`, {
+        title: obsForm.title, type: obsForm.type, priority: obsForm.priority,
+        location: obsForm.location || null, description: obsForm.description,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowObsForm(false);
       setObsForm({ title: '', type: 'QUALITY', priority: 'MEDIUM', location: '', description: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -107,36 +99,28 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 
   const setObsStatus = async (id: string, status: string) => {
     try {
-      await fetch(`/api/v1/projects/${projectId}/observations/${id}/status`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
+      await api.patch(`/api/v1/projects/${projectId}/observations/${id}/status`, { status});
       await load();
-} catch { /* ignore */}
+} catch { /* intentionally ignored: status toggle is best-effort; reload on next visit */ }
 };
 
   const createAction = async () => {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/corrective-actions`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          title: actForm.title,
-          ownerName: actForm.ownerName,
-          dueDate: actForm.dueDate || null,
-          observationId: actForm.observationId || null,
-          sourceRef: actForm.sourceRef || null,
-          steps: actForm.steps.split('\n').map((s) => s.trim()).filter(Boolean),
-}),
+      await api.post(`/api/v1/projects/${projectId}/corrective-actions`, {
+        title: actForm.title,
+        ownerName: actForm.ownerName,
+        dueDate: actForm.dueDate || null,
+        observationId: actForm.observationId || null,
+        sourceRef: actForm.sourceRef || null,
+        steps: actForm.steps.split('\n').map((s) => s.trim()).filter(Boolean),
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowActionForm(false);
       setActForm({ title: '', ownerName: '', dueDate: '', observationId: '', sourceRef: '', steps: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -144,12 +128,9 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 
   const setActionStatus = async (id: string, status: string) => {
     try {
-      await fetch(`/api/v1/projects/${projectId}/corrective-actions/${id}`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
+      await api.patch(`/api/v1/projects/${projectId}/corrective-actions/${id}`, { status});
       await load();
-} catch { /* ignore */}
+} catch { /* intentionally ignored: status toggle is best-effort; reload on next visit */ }
 };
 
   if (loading) {

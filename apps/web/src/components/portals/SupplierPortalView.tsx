@@ -3,6 +3,7 @@ import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkK
 import { PRODUCT_NAME } from '../../lib/product';
 import { formatKes, SavedDataNotice, formatDate } from '../../ui';
 import { fetchJsonCached } from '../../services/offline-cache';
+import { api, apiErrorMessage } from '../../lib/api';
 
 export interface SupplierDelivery {
   id: string;
@@ -128,8 +129,8 @@ export default function SupplierPortalView({
         dispute_reason: m.disputeReason,
       })));
       setPurchaseOrders(d.purchaseOrders || []);
-    } catch (e: any) {
-      setLoadError(e.message || 'Failed to load portal'); setErrorKind(portalErrorKind(e));
+    } catch (e) {
+      setLoadError(apiErrorMessage(e, 'Failed to load portal')); setErrorKind(portalErrorKind(e));
     } finally {
       setLoading(false);
     }
@@ -141,21 +142,15 @@ export default function SupplierPortalView({
     setActionBusy(deliveryId);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/portals/supplier/${token}/deliveries/${deliveryId}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          invoiceRef: actionInputs[deliveryId]?.invoiceRef || undefined,
-          note: actionInputs[deliveryId]?.note || undefined,
-        }),
+      await api.post(`/api/v1/portals/supplier/${token}/deliveries/${deliveryId}/confirm`, {
+        action,
+        invoiceRef: actionInputs[deliveryId]?.invoiceRef || undefined,
+        note: actionInputs[deliveryId]?.note || undefined,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Action failed');
       setFeedback(action === 'CONFIRM' ? 'Delivery confirmed.' : 'Delivery disputed — the site team has been notified.');
       await load();
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — action not recorded.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — action not recorded.'));
     } finally {
       setActionBusy(null);
     }
@@ -167,17 +162,13 @@ export default function SupplierPortalView({
     setPoBusy(poId);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/portals/supplier/${token}/purchase-orders/${poId}/accept`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expectedDeliveryDate }),
+      await api.post(`/api/v1/portals/supplier/${token}/purchase-orders/${poId}/accept`, {
+        expectedDeliveryDate,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Accept failed');
       setFeedback('Purchase order accepted — the contractor has been notified.');
       await load();
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — acceptance not recorded.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — acceptance not recorded.'));
     } finally {
       setPoBusy(null);
     }
@@ -189,23 +180,17 @@ export default function SupplierPortalView({
     setPoBusy(poId);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/portals/supplier/${token}/purchase-orders/${poId}/invoices`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reference: f.reference.trim(),
-          amount: Number(f.amount),
-          purchaseOrderItemId: f.itemId || null,
-          note: f.note || null,
-        }),
+      await api.post(`/api/v1/portals/supplier/${token}/purchase-orders/${poId}/invoices`, {
+        reference: f.reference.trim(),
+        amount: Number(f.amount),
+        purchaseOrderItemId: f.itemId || null,
+        note: f.note || null,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Invoice submission failed');
       setFeedback('Invoice submitted — the contractor will review it against deliveries.');
       setInvForm((prev) => ({ ...prev, [poId]: { reference: '', amount: '', itemId: '', note: '', open: false } }));
       await load();
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — invoice not submitted.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — invoice not submitted.'));
     } finally {
       setPoBusy(null);
     }

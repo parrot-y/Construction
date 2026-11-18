@@ -15,6 +15,15 @@ import { RetentionAndBondsView} from '../../RetentionAndBondsView';
 import { ProjectSCurveCashFlowCard} from '../../ProjectSCurveCashFlowCard';
 import CertificatesCloseoutView from '../../CertificatesCloseoutView';
 import { SubcontractorValuationView} from '../../SubcontractorValuationView';
+import { ApiError, api } from '../../../lib/api';
+
+// Non-2xx responses degrade to an empty list (as the old `r.ok ? json : {data:[]}`
+// did); transport failures (offline/network/timeout — ApiError without a status)
+// still reject so the KPI cards keep showing '—' instead of fake zeros.
+const emptyOnHttpError = (err: unknown): { data: never[] } => {
+  if (err instanceof ApiError && err.status !== undefined) return { data: [] };
+  throw err;
+};
 
 function EmptyProject({ what}: { what: string}): React.JSX.Element {
   return (
@@ -36,12 +45,12 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
     let cancelled = false;
     const money = (v: any) => Number(v ?? 0);
     Promise.all([
-      fetch(`/api/v1/invoices?projectId=${projectId}`, { credentials: 'include'}).then((r) => (r.ok ? r.json() : { data: []})),
-      fetch(`/api/v1/projects/${projectId}/costs`, { credentials: 'include'}).then((r) => (r.ok ? r.json() : { data: []})),
+      api.get<any>(`/api/v1/invoices?projectId=${projectId}`).catch(emptyOnHttpError),
+      api.get<any>(`/api/v1/projects/${projectId}/costs`).catch(emptyOnHttpError),
     ]).then(([invJ, costJ]) => {
       if (cancelled) return;
-      const invoices = invJ.data || invJ || [];
-      const costs = costJ.data || costJ || [];
+      const invoices = invJ?.data || invJ || [];
+      const costs = costJ?.data || costJ || [];
       const cashIn = invoices.reduce((a: number, i: any) => a + money(i.amount_paid), 0);
       const deposits = invoices
         .filter((i: any) => /deposit|advance|mobilization/i.test(i.title || ''))
@@ -50,7 +59,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
         .filter((c: any) => ['APPROVED', 'POSTED', 'PAID'].includes(c.status) || !c.status)
         .reduce((a: number, c: any) => a + money(c.amount ?? c.total_amount ?? c.value), 0);
       setKpis({ cashIn, deposits, cashOut, net: cashIn - cashOut});
-}).catch(() => {});
+}).catch(() => { /* intentionally ignored: KPI cards keep showing '—' */ });
     return () => { cancelled = true;};
 }, [projectId]);
   return (

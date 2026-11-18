@@ -5,6 +5,7 @@ import { fetchJsonCached } from '../../services/offline-cache';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { useAppDialog } from '../AppDialog';
 import { statusLabel } from '../../lib/status-labels';
+import { api, apiErrorMessage } from '../../lib/api';
 
 interface CoItem {
   id: string;
@@ -98,9 +99,9 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
       // Best-effort load of the read-only project feed (photos, certificates, invoices)
       fetchJsonCached(`/api/v1/portals/client/${encodeURIComponent(token)}`, `portal:client-feed:${token}`)
         .then(({ body: b }) => { if (b?.data) { setExtra(b.data); if (b.data.linkExpiresAt) setLinkExpiresAt(b.data.linkExpiresAt); } })
-        .catch(() => {});
-} catch (err: any) {
-      setError(err?.message || 'Failed to load change orders');
+        .catch(() => { /* intentionally ignored: best-effort portal feed */ });
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to load change orders'));
       setErrorKind(portalErrorKind(err));
 } finally {
       setLoading(false);
@@ -135,22 +136,15 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
 }
 
     try {
-      const res = await fetch(
-        `/api/v1/portals/client/${encodeURIComponent(token)}/change-orders/${co.id}/respond`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ action, signedName: signedName.trim(), comments: comments || undefined}),
-},
-);
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body.message || `Request failed (${res.status})`);
-}
+      await api.post(`/api/v1/portals/client/${encodeURIComponent(token)}/change-orders/${co.id}/respond`, {
+        action,
+        signedName: signedName.trim(),
+        comments: comments || undefined,
+});
       setFeedback(`CO-${String(co.variation_no).padStart(4, '0')} ${action === 'APPROVE' ? 'approved' : 'rejected'} — thank you.`);
       await load();
-} catch (err: any) {
-      setFeedback(err?.message || 'Failed to submit decision');
+} catch (err) {
+      setFeedback(apiErrorMessage(err, 'Failed to submit decision'));
 }
 };
 
@@ -164,21 +158,16 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
     });
     if (!typedName || typedName.trim().length < 3) return;
     try {
-      const res = await fetch(`/api/v1/portals/client/${encodeURIComponent(token)}/closeout/acknowledge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typedName: typedName.trim() }),
+      await api.post(`/api/v1/portals/client/${encodeURIComponent(token)}/closeout/acknowledge`, {
+        typedName: typedName.trim(),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Request failed (${res.status})`);
       setFeedback('Practical completion acknowledged — thank you.');
       // Refresh the read-only feed so the acknowledged state shows.
-      fetch(`/api/v1/portals/client/${encodeURIComponent(token)}`, { credentials: 'include' })
-        .then((r) => (r.ok ? r.json() : null))
+      api.get<any>(`/api/v1/portals/client/${encodeURIComponent(token)}`)
         .then((b) => { if (b?.data) setExtra(b.data); })
-        .catch(() => {});
-} catch (err: any) {
-      setFeedback(err?.message || 'Failed to record acknowledgement');
+        .catch(() => { /* intentionally ignored: best-effort portal feed refresh */ });
+} catch (err) {
+      setFeedback(apiErrorMessage(err, 'Failed to record acknowledgement'));
 }
 };
 

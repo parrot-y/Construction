@@ -1,7 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { useAppDialog } from './AppDialog';
 import { formatKes, ResponsiveTable } from '../ui';
-import { api } from '../lib/apiClient';
+import { api, apiErrorMessage } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
 import { canReviewRetentionRelease, canDirectRetentionRelease } from '@construction/permissions';
 
@@ -282,7 +282,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
         await reload();
         return;
       } catch (err: any) {
-        const msg = String(err?.message ?? err ?? '');
+        const msg = String(err?.message ?? err ?? ''); // hygiene-allow
         // Maker-checker override: the API demands a >=15-char reason when the
         // approver is also the requester/recommender.
         if (action === 'APPROVE' && /overrideReason/i.test(msg)) {
@@ -300,14 +300,14 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               await reload();
               return;
             } catch (err2: any) {
-              setReviewError(String(err2?.message ?? err2));
+              setReviewError(apiErrorMessage(err2));
               return;
             }
           }
           setReviewError('Approval cancelled — an override reason is required for self-approval.');
           return;
         }
-        setReviewError(msg || `Could not ${action.toLowerCase()} the release.`);
+        setReviewError(apiErrorMessage(err, `Could not ${action.toLowerCase()} the release.`));
         return;
       }
     }

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState} from 'react';
 import { formatKes, CopyWhatsAppButton } from '../ui';
 import { useAppDialog } from './AppDialog';
 import { PRODUCT_NAME } from '../lib/product';
-import { api } from '../lib/apiClient';
+import { api, apiErrorMessage } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
 
 interface PaymentCertificate {
@@ -115,7 +115,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
         if (Number.isFinite(n)) setProjectRetentionPct(String(n));
       }
 } catch (err: any) {
-      setError(err?.message || 'Load failed');
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -136,7 +136,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
       const today = new Date().toISOString().slice(0, 10);
       setBuilder((b) => ({ ...b, periodStart: b.periodStart || today, periodEnd: b.periodEnd || today, retentionPct: b.retentionPct || projectRetentionPct }));
 } catch (err: any) {
-      setError(err?.message || 'Could not build certificate preview');
+      setError(apiErrorMessage(err, 'Could not build certificate preview'));
       setPreviewLines([]);
 } finally {
       setPreviewLoading(false);
@@ -189,7 +189,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
       setPreviewLines([]);
       await load();
 } catch (err: any) {
-      setError(err?.message || 'Create failed');
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -224,7 +224,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
       setFeedback(`IPC-${String(cert.certificate_no).padStart(3, '0')} → ${statusLabel(body.data.status)}`);
       await load();
 } catch (err: any) {
-      setError(err?.message || 'Action failed');
+      setError(apiErrorMessage(err, 'Action failed'));
 }
 };
 
@@ -249,7 +249,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
       setInvoiceForm({ clientName: '', clientEmail: '', dueDays: '30', notes: ''});
       await load();
 } catch (err: any) {
-      setError(err?.message || 'Invoice creation failed');
+      setError(apiErrorMessage(err, 'Invoice creation failed'));
 } finally {
       setInvoiceSaving(false);
 }
@@ -267,7 +267,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
       setFeedback(`Closeout → ${STAGE_LABELS[closeout.nextStage]}`);
       await load();
 } catch (err: any) {
-      setError(err?.message || 'Transition failed');
+      setError(apiErrorMessage(err, 'Transition failed'));
 }
 };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/api';
 
 export interface ProjectDelayEvent {
   id: string;
@@ -82,9 +83,7 @@ export default function WeatherDelayClaimsView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/delay-events`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/delay-events`);
       const list = (json.delayEvents || []) as any[];
       setEvents(list.map((e) => ({
         ...e,
@@ -154,22 +153,19 @@ export default function WeatherDelayClaimsView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/delay-events`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              delayType: created.delay_type,
-              title: created.title,
-              startDate: created.start_date,
-              endDate: created.end_date,
-              daysClaimed: created.days_claimed,
-              criticalPathImpact: created.critical_path_impact,
-              dailyLadRateKes: created.daily_lad_rate_kes,
-              siteDiaryReference: created.site_diary_reference,
-              meteorologicalProof: created.meteorological_proof,
-              notes: created.notes,
-}),
+          await api.post(`/api/v1/projects/${projectId}/delay-events`, {
+            delayType: created.delay_type,
+            title: created.title,
+            startDate: created.start_date,
+            endDate: created.end_date,
+            daysClaimed: created.days_claimed,
+            criticalPathImpact: created.critical_path_impact,
+            dailyLadRateKes: created.daily_lad_rate_kes,
+            siteDiaryReference: created.site_diary_reference,
+            meteorologicalProof: created.meteorological_proof,
+            notes: created.notes,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowModal(false);
@@ -206,16 +202,13 @@ export default function WeatherDelayClaimsView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/delay-events/${id}/review`, {
-            method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              status: 'APPROVED_BY_ARCHITECT',
-              approvedDays,
-              certifyingAuthority: updates.certifying_authority,
-              notes: target.notes || null,
-}),
+          await api.put(`/api/v1/projects/${projectId}/delay-events/${id}/review`, {
+            status: 'APPROVED_BY_ARCHITECT',
+            approvedDays,
+            certifyingAuthority: updates.certifying_authority,
+            notes: target.notes || null,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
 }

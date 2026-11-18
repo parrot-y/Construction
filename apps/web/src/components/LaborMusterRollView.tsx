@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/api';
 
 export interface SiteLaborerItem {
   id: string;
@@ -142,12 +143,12 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const [labRes, rollRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/laborers`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/muster-rolls`, { credentials: 'include'}),
+      const [labRes, rollRes] = await Promise.allSettled([
+        api.get<any>(`/api/v1/projects/${projectId}/laborers`),
+        api.get<any>(`/api/v1/projects/${projectId}/muster-rolls`),
       ]);
-      if (labRes.ok) {
-        const lj = await labRes.json();
+      if (labRes.status === 'fulfilled') {
+        const lj = labRes.value;
         const labs = (lj.laborers || lj.data || []) as any[];
         setLaborerList(labs.map((l) => ({
           id: l.id, workerCode: l.workerCode, fullName: l.fullName,
@@ -157,8 +158,8 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
           isActive: l.isActive ?? true, createdAt: l.createdAt ?? '',
 })));
 }
-      if (rollRes.ok) {
-        const rj = await rollRes.json();
+      if (rollRes.status === 'fulfilled') {
+        const rj = rollRes.value;
         const rolls = (rj.musterRolls || rj.data || []) as any[];
         setMusterRollsList(rolls.map((r) => ({
           id: r.id, payrollNo: r.payrollNo, weekEndingDate: r.weekEndingDate,
@@ -223,11 +224,8 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/laborers`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) { await reload(); setShowAddWorkerModal(false); setWorkerCode(''); setFullName(''); setNationalIdNo(''); return;}
+        await api.post(`/api/v1/projects/${projectId}/laborers`, payload);
+        await reload(); setShowAddWorkerModal(false); setWorkerCode(''); setFullName(''); setNationalIdNo(''); return;
 } catch { /* fall through to local */}
 }
     if (onCreateLaborer) {
@@ -290,11 +288,8 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/muster-rolls`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) { await reload(); return;}
+        await api.post(`/api/v1/projects/${projectId}/muster-rolls`, payload);
+        await reload(); return;
 } catch { /* fall through */}
 }
     if (onCreateMusterRoll) {
@@ -327,11 +322,8 @@ export const LaborMusterRollView: React.FC<LaborMusterRollViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/muster-rolls/${selectedRollForReview.id}`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ status: reviewStatus, disbursementReference: disbursementRef}),
-});
-        if (res.ok) await reload();
+        await api.patch(`/api/v1/projects/${projectId}/muster-rolls/${selectedRollForReview.id}`, { status: reviewStatus, disbursementReference: disbursementRef});
+        await reload();
 } catch { /* ignore */}
 }
     if (onReviewMusterRoll) {

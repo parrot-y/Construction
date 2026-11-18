@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface InboxMessage {
   id: string;
@@ -39,19 +40,16 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [mRes, pRes] = await Promise.all([
-        fetch(`/api/v1/inbox${unreadOnly ? '?unread=true' : ''}`, { credentials: 'include'}),
-        fetch('/api/v1/projects', { credentials: 'include'}).catch(() => null),
+      const [mJson, pJson] = await Promise.all([
+        api.get<any>(`/api/v1/inbox${unreadOnly ? '?unread=true' : ''}`),
+        api.get<any>('/api/v1/projects').catch(() => { /* intentionally ignored: project picker is optional */ return null; }),
       ]);
-      if (!mRes.ok) throw new Error('Failed to load inbox');
-      const mJson = await mRes.json();
       setMessages(mJson.data || []);
-      if (pRes?.ok) {
-        const pJson = await pRes.json();
+      if (pJson) {
         setProjects((pJson.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code})));
 }
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -61,9 +59,9 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
 
   const markRead = async (id: string) => {
     try {
-      await fetch(`/api/v1/inbox/${id}/read`, { method: 'POST', credentials: 'include'});
+      await api.post(`/api/v1/inbox/${id}/read`);
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, read_by_me: true} : m)));
-} catch { /* best effort */}
+} catch { /* intentionally ignored: best-effort mark-read */ }
 };
 
   const send = async () => {
@@ -71,26 +69,19 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
     setSending(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/inbox', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          body: body.trim(),
-          projectId: projectId || null,
-          audience,
-          targetRoles: audience === 'ROLE' ? targetRoles.split(',').map((r) => r.trim()).filter(Boolean) : undefined,
-          parentId: replyTo?.id ?? null,
-}),
+      await api.post('/api/v1/inbox', {
+        body: body.trim(),
+        projectId: projectId || null,
+        audience,
+        targetRoles: audience === 'ROLE' ? targetRoles.split(',').map((r) => r.trim()).filter(Boolean) : undefined,
+        parentId: replyTo?.id ?? null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Send failed (${res.status})`);
       setBody('');
       setReplyTo(null);
       setShowCompose(false);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Send failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Send failed'));
 } finally {
       setSending(false);
 }

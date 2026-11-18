@@ -3,6 +3,7 @@ import { formatKes } from '../../../ui';
 import { hasPermission, Permissions, type Role } from '@construction/permissions';
 import BoqImportModal from '../../BoqImportModal';
 import { useAppDialog } from '../../AppDialog';
+import { api, ApiError, apiErrorMessage } from '../../../lib/api';
 
 interface BoqItem {
   id: string;
@@ -69,12 +70,7 @@ export default function BoqWorkbookView({
 
   const load = useCallback(() => {
     setState('loading');
-    fetch(`/api/v1/projects/${projectId}/boq`, { credentials: 'include' })
-      .then((r) => {
-        if (r.status === 404) return null;
-        if (!r.ok) throw new Error('load failed');
-        return r.json();
-      })
+    api.get<{ data?: Boq }>(`/api/v1/projects/${projectId}/boq`)
       .then((j) => {
         if (j?.data) {
           setBoq(j.data);
@@ -84,24 +80,19 @@ export default function BoqWorkbookView({
           setState('empty');
         }
       })
-      .catch(() => setState('error'));
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 404) {
+          setBoq(null);
+          setState('empty');
+          return;
+        }
+        setState('error');
+      });
   }, [projectId]);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  const api = async (url: string, method: string, body?: unknown) => {
-    const res = await fetch(url, {
-      method,
-      credentials: 'include',
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(j?.error || j?.message || `Request failed (${res.status})`);
-    return j;
-  };
 
   const submitItem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +101,7 @@ export default function BoqWorkbookView({
     setError(null);
     try {
       const chosen = boq?.sections.find((sec) => sec.id === sectionId);
-      await api(`/api/v1/projects/${projectId}/boq/items`, 'POST', {
+      await api.post(`/api/v1/projects/${projectId}/boq/items`, {
         itemCode: form.item_code.trim() || undefined,
         description: form.description.trim(),
         unit: form.unit.trim() || 'm',
@@ -124,7 +115,7 @@ export default function BoqWorkbookView({
       setAdding(false);
       load();
     } catch (err: any) {
-      setError(err?.message || 'Could not save the item. Check the fields and try again.');
+      setError(apiErrorMessage(err, 'Could not save the item. Check the fields and try again.'));
     } finally {
       setBusy(false);
     }
@@ -147,7 +138,7 @@ export default function BoqWorkbookView({
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/v1/projects/${projectId}/boq/items/${itemId}`, 'PATCH', {
+      await api.patch(`/api/v1/projects/${projectId}/boq/items/${itemId}`, {
         itemCode: editForm.item_code.trim() || undefined,
         description: editForm.description.trim(),
         unit: editForm.unit.trim() || undefined,
@@ -157,7 +148,7 @@ export default function BoqWorkbookView({
       setEditingId(null);
       load();
     } catch (err: any) {
-      setError(err?.message || 'Could not update the item. Try again.');
+      setError(apiErrorMessage(err, 'Could not update the item. Try again.'));
     } finally {
       setBusy(false);
     }
@@ -175,10 +166,10 @@ export default function BoqWorkbookView({
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/v1/projects/${projectId}/boq/items/${itemId}`, 'DELETE');
+      await api.delete(`/api/v1/projects/${projectId}/boq/items/${itemId}`);
       load();
     } catch (err: any) {
-      setError(err?.message || 'Could not delete the item. Try again.');
+      setError(apiErrorMessage(err, 'Could not delete the item. Try again.'));
     } finally {
       setBusy(false);
     }

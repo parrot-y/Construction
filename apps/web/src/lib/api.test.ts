@@ -61,8 +61,9 @@ describe('api request layer (P1.1)', () => {
     vi.useFakeTimers();
     // POST = single attempt, so one 50ms timer is enough.
     const p = api.post('/api/v1/x', {}, { timeoutMs: 50 });
+    const assertion = expect(p).rejects.toMatchObject({ kind: 'timeout' });
     await vi.advanceTimersByTimeAsync(60);
-    await expect(p).rejects.toMatchObject({ kind: 'timeout' });
+    await assertion;
   });
 
   it.each([

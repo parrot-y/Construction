@@ -1,4 +1,5 @@
 import React, { useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 /** Reference-observed inspection categories (12 types). */
 export const INSPECTION_TYPES = [
@@ -50,9 +51,7 @@ export default function InspectionRequestModal({ projectId, projectName, open, o
     e.preventDefault();
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/inspections`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      await api.post(`/api/v1/projects/${projectId}/inspections`, {
           inspectionType: form.inspectionType,
           assignedConsultant: form.assignedConsultant || null,
           checklistType: form.checklistType,
@@ -63,13 +62,10 @@ export default function InspectionRequestModal({ projectId, projectName, open, o
           inspectorRole: form.inspectorRole || null,
           summaryNotes: form.summaryNotes || null,
           requiresConsultantReview: form.requiresConsultantReview,
-}),
 });
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.message || 'Failed to create inspection request');
       onCreated(); onClose();
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to create inspection request'));
 } finally {
       setSaving(false);
 }

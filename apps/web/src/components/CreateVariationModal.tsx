@@ -1,6 +1,7 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState, useMemo} from 'react';
 import { calculateLineTotal, Decimal} from '@construction/money';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface VariationItemDraft {
   id: string;
@@ -54,12 +55,10 @@ export default function CreateVariationModal({
 
   useEffect(() => {
     if (!projectId || !/^[0-9a-f-]{36}$/i.test(projectId)) return;
-    fetch(`/api/v1/projects/${projectId}/rfis`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<any>(`/api/v1/projects/${projectId}/rfis`)
       .then((j) => setRfis(j.data || j || []))
-      .catch(() => {});
-    fetch(`/api/v1/projects/${projectId}`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => { /* intentionally ignored: optional dropdown data */ });
+    api.get<any>(`/api/v1/projects/${projectId}`)
       .then((j) => {
         const p = j?.data || j;
         setMembers((p?.members || []).map((m: any) => ({
@@ -68,7 +67,7 @@ export default function CreateVariationModal({
           role: m.role,
 })));
 })
-      .catch(() => {});
+      .catch(() => { /* intentionally ignored: optional dropdown data */ });
 }, [projectId]);
 
   // Compute line total for each item and overall live net amount
@@ -191,27 +190,13 @@ export default function CreateVariationModal({
 }),
 };
 
-      const res = await fetch(`/api/v1/projects/${projectId}/variations`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-},
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to submit variation order (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData = await api.post<{ data?: any }>(`/api/v1/projects/${projectId}/variations`, payload);
       if (onVariationCreated) {
         onVariationCreated(resData.data);
-}
+      }
       onClose();
-} catch (err: any) {
-      setError(err.message || 'Failed to submit variation order');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to submit variation order'));
 } finally {
       setIsSubmitting(false);
 }

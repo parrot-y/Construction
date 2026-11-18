@@ -4,6 +4,7 @@ import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
 import { SavedDataNotice } from '../ui';
 import { statusLabel } from '../lib/status-labels';
 import { formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface SafetyIncident {
   id: string;
@@ -67,8 +68,8 @@ export default function SafetyIncidentLogView({
         reported_at: i.created_at,
       })));
       setLoadError(null);
-    } catch (e: any) {
-      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : (e.message || 'Failed to load safety incidents'));
+    } catch (e) {
+      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : apiErrorMessage(e, 'Failed to load safety incidents'));
     }
   };
 
@@ -123,31 +124,24 @@ export default function SafetyIncidentLogView({
 
     if (!isOffline) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/safety-incidents`, {
-          method: 'POST', credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          const body = await res.json();
-          const i = body.data ?? body;
-          created = {
-            id: i.id,
-            incident_date: i.incident_date,
-            location_on_site: i.exact_location,
-            incident_type: i.incident_type,
-            severity: ({ MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' } as const)[i.severity as 'MINOR'] || 'MEDIUM',
-            description: i.description,
-            affected_person: i.affected_person_name,
-            immediate_action: i.immediate_action,
-            corrective_action: i.preventative_action,
-            is_osha_reportable: !!i.is_osha_reportable,
-            status: 'OPEN',
-            recorded_by: { full_name: i.investigated_by || 'Site team' },
-            reported_at: i.created_at,
-          };
-        }
-      } catch { /* fall through to queue */ }
+        const body: any = await api.post(`/api/v1/projects/${projectId}/safety-incidents`, payload);
+        const i = body?.data ?? body;
+        created = {
+          id: i.id,
+          incident_date: i.incident_date,
+          location_on_site: i.exact_location,
+          incident_type: i.incident_type,
+          severity: ({ MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' } as const)[i.severity as 'MINOR'] || 'MEDIUM',
+          description: i.description,
+          affected_person: i.affected_person_name,
+          immediate_action: i.immediate_action,
+          corrective_action: i.preventative_action,
+          is_osha_reportable: !!i.is_osha_reportable,
+          status: 'OPEN',
+          recorded_by: { full_name: i.investigated_by || 'Site team' },
+          reported_at: i.created_at,
+        };
+      } catch { /* intentionally ignored: fall through to offline queue */ }
     }
 
     if (!created) {
