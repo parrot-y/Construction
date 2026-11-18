@@ -85,6 +85,16 @@ export interface RequestOptions {
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+
+// P1.5 — unreachable-server signal for the banner/health poll.
+const unreachableListeners = new Set<() => void>();
+export function onApiUnreachable(cb: () => void): () => void {
+  unreachableListeners.add(cb);
+  return () => { unreachableListeners.delete(cb); };
+}
+function emitUnreachable() {
+  unreachableListeners.forEach((cb) => { try { cb(); } catch { /* listener errors never break requests */ } });
+}
 const GET_RETRIES = 2;
 const RETRYABLE_KINDS = new Set<ApiErrorKind>(['network', 'timeout', 'server']);
 
@@ -232,6 +242,7 @@ async function request<T>(path: string, opts: RequestOptions): Promise<T> {
       return await rawRequest<T>(path, opts, false, attempt);
     } catch (err) {
       lastErr = err;
+      if (err instanceof ApiError && err.kind === 'network') emitUnreachable();
       const retryable = err instanceof ApiError && RETRYABLE_KINDS.has(err.kind);
       if (!retryable || attempt === maxAttempts - 1) throw err;
       await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));

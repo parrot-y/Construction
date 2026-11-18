@@ -271,10 +271,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('Approved');
         });
 
-  it('renders OfflineSyncBanner with connection status and IndexedDB queue count', () => {
+  it('renders OfflineSyncBanner as a compact status dot when online with empty queue', () => {
     const html = renderToString(<OfflineSyncBanner />);
-    expect(html).toContain('All sent');
-    expect(html).toContain('Online &amp; Synchronized');
+    // P1.5: no permanent banner — a status dot + word only.
+    expect(html).toContain('aria-label="Online"');
+    expect(html).not.toContain('Online &amp; Synchronized');
 });
 
   it('renders SiteDiaryModal with weather, headcount matrix, material deliveries, and photo compression preview', () => {
