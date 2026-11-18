@@ -31,8 +31,9 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: path.join(SHOT_DIR, `${name}.png`), fullPage: false });
 }
 
+test.use({ video: 'off' }); // heavy single-journey spec — ffmpeg video encoding is a real CPU cost on constrained boxes; trace+screenshots remain
+
 test.describe('L3 — admin first-hour journey (UI only)', () => {
-  test.use({ video: 'off' });
   test('day-one journey at 390px', async ({ page }, testInfo) => {
     // Evidence contract is phone captures; the desktop pass proved the
     // journey works but is materially slower (multi-step waits) and adds
