@@ -58,6 +58,38 @@ async function getActorName(tx: any, userId: string): Promise<string> {
 
 export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ---------------------------------------------------------------------------
+  // 0. GET /api/v1/variations/summary — per-project CO counts + net totals in
+  // ONE query. The Projects screen used to fan out one /variations request
+  // per project on every list refresh (P1.7 speed fix).
+  // ---------------------------------------------------------------------------
+  server.get(
+    '/api/v1/variations/summary',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.PROJECT_VIEW),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const rows = await withTenantTx(prisma, tenantId, async (tx) =>
+        tx.variationOrder.groupBy({
+          by: ['project_id'],
+          _count: { _all: true },
+          _sum: { net_amount: true },
+        }),
+      );
+      return reply.status(200).send({
+        data: rows.map((r) => ({
+          project_id: r.project_id,
+          count: r._count._all,
+          net_total: r._sum.net_amount ? r._sum.net_amount.toString() : '0',
+        })),
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
   // 1. GET /api/v1/projects/:projectId/variations - List Project Change Orders
   // ---------------------------------------------------------------------------
   server.get(
