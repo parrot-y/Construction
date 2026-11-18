@@ -72,18 +72,30 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
     },
     async (request, reply) => {
       const { tenantId } = request.user;
-      const rows = await withTenantTx(prisma, tenantId, async (tx) =>
-        tx.variationOrder.groupBy({
-          by: ['project_id'],
-          _count: { _all: true },
-          _sum: { net_amount: true },
-        }),
-      );
+      const { rows, recent } = await withTenantTx(prisma, tenantId, async (tx) => {
+        const [grouped, latest] = await Promise.all([
+          tx.variationOrder.groupBy({
+            by: ['project_id'],
+            _count: { _all: true },
+            _sum: { net_amount: true },
+          }),
+          tx.variationOrder.findMany({
+            orderBy: { created_at: 'desc' },
+            take: 6,
+            include: { project: { select: { name: true } } },
+          }),
+        ]);
+        return { rows: grouped, recent: latest };
+      });
       return reply.status(200).send({
         data: rows.map((r) => ({
           project_id: r.project_id,
           count: r._count._all,
           net_total: r._sum.net_amount ? r._sum.net_amount.toString() : '0',
+        })),
+        recent: recent.map((v: any) => ({
+          ...formatVariation(v),
+          projectName: v.project?.name ?? '',
         })),
       });
     },

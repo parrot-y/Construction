@@ -28,25 +28,17 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
   const [coCounts, setCoCounts] = useState<Record<string, { count: number; value: number}>>({});
 
   useEffect(() => {
-    // Latest change orders across projects for the activity strip
-    Promise.all(
-      projects.slice(0, 5).map((p) =>
-        api.get<any>(`/api/v1/projects/${p.id}/variations`)
-          .then((j) => (j?.data || []).map((v: any) => ({ ...v, projectName: p.name})))
-          .catch(() => []),
-),
-).then((lists) => {
-      const all = lists.flat().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 6);
-      setRecentCos(all);
-      const counts: Record<string, { count: number; value: number}> = {};
-      for (const v of lists.flat()) {
-        const k = v.project_id || v.projectName;
-        counts[k] = counts[k] || { count: 0, value: 0};
-        counts[k].count += 1;
-        counts[k].value += Number(v.net_amount ?? v.amount ?? 0) || 0;
-}
-      setCoCounts(counts);
-});
+    // P1.7 — ONE summary call replaces the per-project /variations fan-out.
+    api.get<{ data?: any[]; recent?: any[] }>('/api/v1/variations/summary')
+      .then((j) => {
+        setRecentCos((j.recent || []).slice(0, 6));
+        const counts: Record<string, { count: number; value: number}> = {};
+        for (const row of j.data || []) {
+          counts[row.project_id] = { count: row.count, value: Number(row.net_total) || 0 };
+        }
+        setCoCounts(counts);
+      })
+      .catch(() => { /* intentionally ignored: CO strip stays empty on failure */ });
 }, [projects]);
 
   const statusOf = (p: any) => (p.status || 'ACTIVE').toUpperCase();

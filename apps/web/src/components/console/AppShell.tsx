@@ -444,6 +444,22 @@ function PortalPreview(): React.JSX.Element | null {
 
 function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const { section, portalPreview} = useConsole();
+  // P1.7 — warm the lazy section chunks once the shell is idle so sidebar
+  // navigation doesn't pay a dynamic-import round trip on throttled links.
+  useEffect(() => {
+    const warm = () => {
+      void import('./sections/HomeSection');
+      void import('./sections/ProjectsSection');
+      void import('./sections/SiteSection');
+      void import('./sections/MoneySection');
+      void import('./sections/PeopleSection');
+      void import('./sections/FilesSection');
+    };
+    const ric = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => number) | undefined;
+    if (ric) return ric(warm, { timeout: 4000 }) as unknown as void;
+    const t = setTimeout(warm, 1500);
+    return () => clearTimeout(t);
+  }, []);
   if (portalPreview) return<PortalPreview />;
   return (
 <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">

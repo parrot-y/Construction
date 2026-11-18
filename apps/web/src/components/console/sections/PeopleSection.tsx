@@ -20,7 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
 /** Team — members table with live role editing + invite + revoke. */
 function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
   const dialog = useAppDialog();
-  const { session, role} = useConsole();
+  const { session, role } = useConsole();
   const isCompanyAdmin = role === 'COMPANY_ADMIN' || role === 'ADMIN';
   const [exportBusy, setExportBusy] = useState(false);
 
@@ -36,8 +36,8 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
       a.download = format === 'csv' ? `${entity}-export.csv` : 'company-export.json';
       a.click();
       URL.revokeObjectURL(a.href);
-    } catch (err) {
-      setMsg(apiErrorMessage(err, 'Export failed — company admin access required'));
+    } catch {
+      setMsg('Export failed — company admin access required');
     } finally {
       setExportBusy(false);
     }
@@ -47,15 +47,15 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
   const [msg, setMsg] = useState('');
 
   const load = () => {
-    api.get<{ data?: any[] }>('/api/v1/company/members')
-      .then((j) => setMembers(j.data || []))
-      .catch(() => setMembers([])); // intentionally ignored: empty list on failure
+    api.get<any>('/api/v1/company/members')
+      .then((j) => setMembers(j?.data || []))
+      .catch(() => setMembers([]));
 };
   useEffect(load, []);
 
   const changeRole = async (membershipId: string, role: string) => {
     try {
-      await api.patch(`/api/v1/company/members/${membershipId}/role`, { role });
+      await api.patch(`/api/v1/company/members/${membershipId}/role`, { role});
       setMembers((prev) => prev?.map((m) => (m.membershipId === membershipId ? { ...m, role} : m)) ?? prev);
     } catch (err) {
       setMsg(apiErrorMessage(err, 'Role change failed'));
@@ -68,17 +68,15 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
     try {
       await api.delete(`/api/v1/company/members/${membershipId}`);
       setMembers((prev) => prev?.filter((m) => m.membershipId !== membershipId) ?? prev);
-    } catch (err) {
-      setMsg(apiErrorMessage(err, 'Could not revoke access'));
+    } catch {
+      /* intentionally ignored: failed revoke leaves the row; admin can retry */
     }
 };
 
   const sendInvite = async () => {
     try {
-      const j = await api.post<{ data?: { inviteUrl?: string } }>('/api/v1/invitations', {
-        email: invite.email, role: invite.role,
-      });
-      const link = j.data?.inviteUrl ? ` Copy and send this link to ${invite.email}: ${j.data.inviteUrl}` : '';
+      const j: any = await api.post('/api/v1/invitations', { email: invite.email, role: invite.role});
+      const link = j?.data?.inviteUrl ? ` Copy and send this link to ${invite.email}: ${j.data.inviteUrl}` : '';
       setMsg(`Invitation created for ${invite.email}.${link}`);
       setInvite({ email: '', role: 'SITE_ENGINEER', open: false});
       loadInvites();
@@ -91,9 +89,9 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
   const [inviteMsg, setInviteMsg] = useState('');
 
   const loadInvites = () => {
-    api.get<{ data?: any[] }>('/api/v1/invitations')
-      .then((j) => setInvites(j.data || []))
-      .catch(() => setInvites([])); // intentionally ignored: empty list on failure
+    api.get<any>('/api/v1/invitations')
+      .then((j) => setInvites(j?.data || []))
+      .catch(() => setInvites([]));
 };
   useEffect(loadInvites, []);
 
@@ -107,19 +105,17 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 };
 
   const resetMemberPassword = async (userId: string, email: string) => {
-    let j: any;
     try {
-      j = await api.post(`/api/v1/company/members/${userId}/password-reset`);
+      const j: any = await api.post(`/api/v1/company/members/${userId}/password-reset`);
+      const url = j?.data?.resetUrl;
+      try {
+        await navigator.clipboard.writeText(url);
+        setMsg(`One-time reset link for ${email} copied — send it to them. It expires in 30 minutes.`);
+      } catch {
+        setMsg(`Reset link for ${email}: ${url}`);
+      }
     } catch (err) {
       setMsg(apiErrorMessage(err, 'Could not generate reset link'));
-      return;
-    }
-    const url = j.data?.resetUrl;
-    try {
-      await navigator.clipboard.writeText(url);
-      setMsg(`One-time reset link for ${email} copied — send it to them. It expires in 30 minutes.`);
-    } catch {
-      setMsg(`Reset link for ${email}: ${url}`);
     }
 };
 
@@ -301,13 +297,13 @@ function DirectoryView(): React.JSX.Element {
   const [subs, setSubs] = useState<any[]>([]);
   const [cat, setCat] = useState<(typeof DIR_CATS)[number]>('All');
   useEffect(() => {
-    api.get<{ data?: any[] }>('/api/v1/company/members')
-      .then((j) => setMembers(j.data || []))
-      .catch(() => { /* intentionally ignored: directory shows empty team */ });
+    api.get<any>('/api/v1/company/members')
+      .then((j) => setMembers(j?.data || []))
+      .catch(() => { /* intentionally ignored: directory degrades to empty lists */ });
     if (projectId && /^[0-9a-f-]{36}$/i.test(projectId)) {
       api.get<any>(`/api/v1/projects/${projectId}/subcontractors`)
-        .then((j) => setSubs(j.data || j || []))
-        .catch(() => { /* intentionally ignored: directory shows empty subs */ });
+        .then((j) => setSubs(j?.data || j || []))
+        .catch(() => { /* intentionally ignored: directory degrades to empty lists */ });
 }
 }, [projectId]);
   return (
