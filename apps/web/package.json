@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "check:hygiene": "node ../../scripts/check-frontend-hygiene.mjs --root src"
   },
   "dependencies": {
     "@construction/money": "workspace:*",

@@ -55,6 +55,11 @@ jobs:
       - name: Brand check (no legacy/competitor names in shipped source)
         run: bash scripts/check-brand.sh
 
+      - name: Frontend hygiene guard (P1.4)
+        # Fails on raw fetch( outside lib/api, native popups, raw err.message
+        # display, dead <button>s and silent catches in apps/web/src.
+        run: node scripts/check-frontend-hygiene.mjs
+
       - name: Secret Scanning (Check for live secrets in committed files)
         run: |
           if git grep -E "(BEGIN (RSA|OPENSSH|PGP) PRIVATE KEY|AKIA[0-9A-Z]{16}|SG\.[0-9a-zA-Z_-]{22}\.[0-9a-zA-Z_-]{43})" -- ':!*.example' ':!*.md'; then
