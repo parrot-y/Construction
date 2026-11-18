@@ -28,6 +28,9 @@ const SHOT_DIR = path.resolve(
 );
 
 async function shot(page: Page, name: string) {
+  // Evidence contract is 390px phone captures — the desktop pass exercises
+  // the same journey but must not overwrite them.
+  if ((page.viewportSize()?.width ?? 0) > 500) return;
   await page.screenshot({ path: path.join(SHOT_DIR, `${name}.png`), fullPage: false });
 }
 
@@ -35,10 +38,6 @@ test.use({ video: 'off' }); // heavy single-journey spec — ffmpeg video encodi
 
 test.describe('L3 — admin first-hour journey (UI only)', () => {
   test('day-one journey at 390px', async ({ page }, testInfo) => {
-    // Evidence contract is phone captures; the desktop pass proved the
-    // journey works but is materially slower (multi-step waits) and adds
-    // no evidence value — gate to the 390px project.
-    test.skip(testInfo.project.name !== 'mobile-390', '390px evidence project only');
     test.setTimeout(900_000);
 
     // 1. Register the company through the public signup form.
