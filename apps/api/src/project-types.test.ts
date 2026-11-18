@@ -34,7 +34,7 @@ describe('2.8 project types end-to-end', () => {
 
   it('creates one project of every configured type with matching subtype', async () => {
     for (const cat of PROJECT_TYPE_CATEGORIES) {
-      const sub = cat.subtypes[0];
+      const sub = cat.subtypes[0]!;
       const res = await createProject({ projectType: cat.key, projectSubtype: sub.key });
       expect(res.statusCode, `${cat.key}: ${res.body}`).toBe(201);
       const project = JSON.parse(res.body).data;
