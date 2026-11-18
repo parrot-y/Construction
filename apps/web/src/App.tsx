@@ -3,6 +3,7 @@ import LoginForm from './components/LoginForm';
 const SignupForm = lazy(() => import('./components/SignupForm'));
 const InviteAcceptView = lazy(() => import('./components/InviteAcceptView'));
 import AppErrorBoundary from './components/AppErrorBoundary';
+import { ToastProvider } from './components/feedback/Toast';
 const RequestPasswordResetView = lazy(() => import('./components/PasswordResetViews').then((m) => ({ default: m.RequestPasswordResetView })));
 const ResetPasswordView = lazy(() => import('./components/PasswordResetViews').then((m) => ({ default: m.ResetPasswordView })));
 const VerifyEmailView = lazy(() => import('./components/PasswordResetViews').then((m) => ({ default: m.VerifyEmailView })));
@@ -44,7 +45,7 @@ export default function App({ initialPortal}: AppProps = {}): React.JSX.Element 
     if (path === '/privacy') return <Suspense fallback={PageFallback}><PrivacyPage /></Suspense>;
     if (path === '/operator') return <Suspense fallback={PageFallback}><OperatorAdoptionView /></Suspense>;
   }
-  return <AppErrorBoundary label="app-shell"><AppShell initialPortal={initialPortal} /></AppErrorBoundary>;
+  return <ToastProvider><AppErrorBoundary label="app-shell"><AppShell initialPortal={initialPortal} /></AppErrorBoundary></ToastProvider>;
 }
 
 function AppShell({ initialPortal}: AppProps): React.JSX.Element {

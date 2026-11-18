@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { useAppDialog } from './AppDialog';
 import { formatKes, ResponsiveTable } from '../ui';
 import { api } from '../lib/apiClient';
 import { statusLabel } from '../lib/status-labels';
@@ -67,6 +68,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   onReviewRelease,
   onCreateBond,
 }) => {
+  const dialog = useAppDialog();
   const canReviewRelease = canReviewRetentionRelease(userRole);
   const canDirectRelease = canDirectRetentionRelease(userRole);
   const [activeTab, setActiveTab] = useState<'RETENTION' | 'BONDS'>('RETENTION');
@@ -284,7 +286,14 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
         // Maker-checker override: the API demands a >=15-char reason when the
         // approver is also the requester/recommender.
         if (action === 'APPROVE' && /overrideReason/i.test(msg)) {
-          const reason = window.prompt('You recommended or requested this release — approval needs an override reason (min 15 characters):');
+          const reason = await dialog.prompt({
+            title: 'Override approval reason required',
+            message: 'You recommended or requested this release — approval needs an override reason (min 15 characters).',
+            inputLabel: 'Override reason',
+            confirmLabel: 'Approve anyway',
+            minLength: 15,
+            danger: true,
+          });
           if (reason && reason.trim().length >= 15) {
             try {
               await post({ ...extra, overrideReason: reason.trim() });
@@ -872,6 +881,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 };

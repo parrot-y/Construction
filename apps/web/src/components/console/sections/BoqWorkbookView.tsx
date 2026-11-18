@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { formatKes } from '../../../ui';
 import { hasPermission, Permissions, type Role } from '@construction/permissions';
 import BoqImportModal from '../../BoqImportModal';
+import { useAppDialog } from '../../AppDialog';
 
 interface BoqItem {
   id: string;
@@ -52,6 +53,7 @@ export default function BoqWorkbookView({
   projectName?: string;
   role?: Role | string;
 }): React.JSX.Element {
+  const dialog = useAppDialog();
   const canEdit = hasPermission((role || 'VIEWER') as Role, Permissions.BOQ_EDIT);
   const [boq, setBoq] = useState<Boq | null>(null);
   const [state, setState] = useState<'loading' | 'empty' | 'error' | 'ready'>('loading');
@@ -163,7 +165,13 @@ export default function BoqWorkbookView({
 
   const removeItem = async (itemId: string) => {
     if (busy) return;
-    if (!window.confirm('Delete this BoQ line? The project total will be recalculated.')) return;
+    const ok = await dialog.confirm({
+      title: 'Delete BoQ line',
+      message: 'Delete this BoQ line? The project total will be recalculated.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -346,6 +354,7 @@ export default function BoqWorkbookView({
           projectName={projectName}
         />
       )}
+      {dialog.element}
     </div>
   );
 }

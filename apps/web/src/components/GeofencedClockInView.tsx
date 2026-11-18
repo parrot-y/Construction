@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { queueOfflineMutation} from '../services/offline-sync';
 import { formatTime } from '../lib/format';
+import { useToast } from './feedback/Toast';
 
 export interface GeofenceItem {
   id: string;
@@ -48,6 +49,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   onRecordClockIn,
   onCreateGeofence,
 }) => {
+  const toast = useToast();
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [liveLoaded, setLiveLoaded] = useState(!isLive);
   const [laborers, setLaborers] = useState<SiteLaborerOption[]>([]);
@@ -309,7 +311,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
       setGeofences([newG, ...geofences]);
       setShowGeofenceModal(false);
 } catch (err: any) {
-      alert(`Geofence error: ${err.message}`);
+      toast.error(err, 'Could not save the geofence. Try again.');
 }
 };
 

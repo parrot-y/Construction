@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { statusLabel } from '../lib/status-labels';
 import { formatTime } from '../lib/format';
+import { useToast } from './feedback/Toast';
 
 export interface TelematicsDeviceItem {
   id: string;
@@ -87,6 +88,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   onIngestPing,
   onAcknowledgeAlert,
 }) => {
+  const toast = useToast();
   const [devices, setDevices] = useState<TelematicsDeviceItem[]>(
     initialDevices || (import.meta.env.DEV ? [
       {
@@ -553,7 +555,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
       setDevices([newDev, ...devices]);
       setShowDeviceModal(false);
 } catch (err: any) {
-      alert(`Registration error: ${err.message}`);
+      toast.error(err, 'Could not register the device. Try again.');
 }
 };
 
