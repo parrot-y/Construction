@@ -51,8 +51,11 @@ async function uiLogin(page: Page, email: string, password: string) {
 }
 
 /** Open the new-project wizard and fill through to the final step. */
-async function openWizardAtSubmit(page: Page) {
+async function openWizardAtSubmit(page: Page, tag = 'A') {
+  // The wizard deliberately resumes an unfinished draft from localStorage;
+  // each scenario starts a fresh draft.
   await page.goto('/app/projects/all');
+  await page.evaluate(() => localStorage.removeItem('sitesafi-new-project-draft'));
   await page.getByRole('button', { name: 'New project' }).click();
   const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
   await expect(dialog).toBeVisible();
@@ -60,8 +63,8 @@ async function openWizardAtSubmit(page: Page) {
   await dialog.getByRole('button', { name: 'Continue' }).click();
   await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  await dialog.getByLabel(/Project name/).fill(`P1 Break ${RUN}`);
-  await dialog.getByLabel(/Project code/).fill(`P1B-${String(RUN).slice(-6)}`);
+  await dialog.getByLabel(/Project name/).fill(`P1 Break ${tag} ${RUN}`);
+  await dialog.getByLabel(/Project code/).fill(`P1${tag}-${String(RUN).slice(-6)}`);
   await dialog.getByRole('button', { name: 'Continue' }).click();
   return dialog;
 }
@@ -92,15 +95,18 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     const errText = (await errBox.textContent()) || '';
     expect(errText).not.toMatch(/Failed to fetch|TypeError|ECONNREFUSED|\{.*\}/i);
     expect(errText.length).toBeGreaterThan(10);
-    // Dialog stays open with typed data kept.
+    // Dialog stays open with typed data kept — step back to the details
+    // step and the name field must still hold what was typed.
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel(/Project name/)).toHaveValue(`P1 Break ${RUN}`);
+    await dialog.getByRole('button', { name: 'Back' }).click();
+    await expect(dialog.getByLabel(/Project name/)).toHaveValue(`P1 Break A ${RUN}`);
+    await dialog.getByRole('button', { name: 'Continue' }).click();
 
     // API returns → retry succeeds, project appears.
     await page.unroute('**/api/v1/projects');
     await submit.click({ timeout: 10_000 }).catch(() => {});
     await expect(dialog).not.toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('button', { hasText: `P1 Break ${RUN}` }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('button', { hasText: `P1 Break A ${RUN}` }).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('B. injected 403/409/422/500 on project create — plain messages', async ({ page, request }) => {
@@ -125,7 +131,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
         return route.continue();
       });
 
-      const dialog = await openWizardAtSubmit(page);
+      const dialog = await openWizardAtSubmit(page, 'B');
       const submit = dialog.locator('button[type="submit"]');
       await page.waitForTimeout(400);
       await submit.click({ timeout: 10_000 }).catch(() => {});
@@ -146,7 +152,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     test.setTimeout(120_000);
     await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
 
-    const dialog = await openWizardAtSubmit(page);
+    const dialog = await openWizardAtSubmit(page, 'C');
     const submit = dialog.locator('button[type="submit"]');
     await page.waitForTimeout(400);
     // Rapid double activation.
@@ -154,7 +160,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     await submit.click({ timeout: 2_000, force: true }).catch(() => {});
     await expect(dialog).not.toBeVisible({ timeout: 30_000 });
 
-    const name = `P1 Break ${RUN}`;
+    const name = `P1 Break C ${RUN}`;
     const cards = page.locator('button', { hasText: name });
     await expect(cards.first()).toBeVisible({ timeout: 20_000 });
     expect(await cards.count()).toBe(1);
@@ -162,18 +168,33 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
 
   test('D. offline → section shows saved/queued notice, never blank', async ({ page, request, context }) => {
     test.setTimeout(120_000);
+    const problems: string[] = [];
+    page.on('pageerror', (e) => problems.push(`pageerror: ${String(e).slice(0, 300)}`));
+    page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|ERR_INTERNET_DISCONNECTED/.test(m.text())) problems.push(`console: ${m.text().slice(0, 300)}`); });
     await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
     await page.goto('/app/projects/all');
     await expect(page.locator('h1, h2, [role="heading"]').first()).toBeVisible({ timeout: 20_000 });
 
+    // Dev server has no service worker, so a full reload offline is a
+    // browser error page by definition — the contract is that the RUNNING
+    // app degrades honestly: cached content stays, failures show the
+    // offline/unreachable notice, and nothing blanks out.
     await context.setOffline(true);
-    await page.reload();
-    await page.waitForTimeout(2500);
-    // Either a queued/offline notice or cached content — never a blank main.
-    const main = page.locator('main');
+    try {
+      await page.getByRole('button', { name: 'Money', exact: true }).first().click({ timeout: 20_000 });
+    } catch (e) {
+      console.log('PROBLEMS:', problems.join(' || '));
+      throw e;
+    }
+    await page.waitForTimeout(3000);
+    const main = page.locator('main').last();
     await expect(main).toBeVisible({ timeout: 15_000 });
     const text = (await main.textContent()) || '';
     expect(text.trim().length).toBeGreaterThan(20);
+    // Offline notice or last-synced content must be present — never an
+    // empty shell or a raw browser error.
+    expect(text).not.toMatch(/Failed to fetch|TypeError|ERR_INTERNET_DISCONNECTED/i);
+    expect(problems, problems.join('\n')).toEqual([]);
     await context.setOffline(false);
   });
 

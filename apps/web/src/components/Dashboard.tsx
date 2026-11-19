@@ -1,14 +1,15 @@
-import React, { Suspense, lazy, useState} from 'react';
+import React, { Suspense, useState} from 'react';
 import { AuthSession} from '../types/auth';
-const ClientDashboard = lazy(() => import('./ClientDashboard'));
+import { lazyChunk } from '../lib/lazyChunk';
+const ClientDashboard = lazyChunk(() => import('./ClientDashboard'));
 
-const OwnerDashboard = lazy(() => import('./OwnerDashboard'));
-const FieldDashboard = lazy(() => import('./FieldDashboard'));
-const AppShell = lazy(() => import('./console/AppShell'));
-const ConsultantPortalView = lazy(() => import('./portals/ConsultantPortalView'));
-const SubcontractorPortalView = lazy(() => import('./portals/SubcontractorPortalView'));
-const SupplierPortalView = lazy(() => import('./portals/SupplierPortalView'));
-const CompliancePortalView = lazy(() => import('./portals/CompliancePortalView'));
+const OwnerDashboard = lazyChunk(() => import('./OwnerDashboard'));
+const FieldDashboard = lazyChunk(() => import('./FieldDashboard'));
+const AppShell = lazyChunk(() => import('./console/AppShell'));
+const ConsultantPortalView = lazyChunk(() => import('./portals/ConsultantPortalView'));
+const SubcontractorPortalView = lazyChunk(() => import('./portals/SubcontractorPortalView'));
+const SupplierPortalView = lazyChunk(() => import('./portals/SupplierPortalView'));
+const CompliancePortalView = lazyChunk(() => import('./portals/CompliancePortalView'));
 
 const Fallback = <div className="min-h-[40vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
 

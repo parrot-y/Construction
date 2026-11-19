@@ -1,25 +1,26 @@
-import React, { Suspense, lazy, useState, useEffect} from 'react';
+import React, { Suspense, useState, useEffect} from 'react';
 import LoginForm from './components/LoginForm';
-const SignupForm = lazy(() => import('./components/SignupForm'));
-const InviteAcceptView = lazy(() => import('./components/InviteAcceptView'));
+const SignupForm = lazyChunk(() => import('./components/SignupForm'));
+const InviteAcceptView = lazyChunk(() => import('./components/InviteAcceptView'));
 import AppErrorBoundary from './components/AppErrorBoundary';
 import { ToastProvider } from './components/feedback/Toast';
-const RequestPasswordResetView = lazy(() => import('./components/PasswordResetViews').then((m) => ({ default: m.RequestPasswordResetView })));
-const ResetPasswordView = lazy(() => import('./components/PasswordResetViews').then((m) => ({ default: m.ResetPasswordView })));
-const VerifyEmailView = lazy(() => import('./components/PasswordResetViews').then((m) => ({ default: m.VerifyEmailView })));
+const RequestPasswordResetView = lazyChunk(() => import('./components/PasswordResetViews').then((m) => ({ default: m.RequestPasswordResetView })));
+const ResetPasswordView = lazyChunk(() => import('./components/PasswordResetViews').then((m) => ({ default: m.ResetPasswordView })));
+const VerifyEmailView = lazyChunk(() => import('./components/PasswordResetViews').then((m) => ({ default: m.VerifyEmailView })));
 import Dashboard from './components/Dashboard';
 import LandingPortalHub from './components/LandingPortalHub';
-const ConsultantPortalView = lazy(() => import('./components/portals/ConsultantPortalView'));
-const SubcontractorPortalView = lazy(() => import('./components/portals/SubcontractorPortalView'));
-const SupplierPortalView = lazy(() => import('./components/portals/SupplierPortalView'));
-const CompliancePortalView = lazy(() => import('./components/portals/CompliancePortalView'));
-const ClientPortalView = lazy(() => import('./components/portals/ClientPortalView'));
-const PublicQuoteView = lazy(() => import('./components/PublicQuoteView'));
+const ConsultantPortalView = lazyChunk(() => import('./components/portals/ConsultantPortalView'));
+const SubcontractorPortalView = lazyChunk(() => import('./components/portals/SubcontractorPortalView'));
+const SupplierPortalView = lazyChunk(() => import('./components/portals/SupplierPortalView'));
+const CompliancePortalView = lazyChunk(() => import('./components/portals/CompliancePortalView'));
+const ClientPortalView = lazyChunk(() => import('./components/portals/ClientPortalView'));
+const PublicQuoteView = lazyChunk(() => import('./components/PublicQuoteView'));
 import { AuthSession} from './types/auth';
 import { migrateOfflineStorage } from './services/offline-sync';
 import { setOfflineUserScope, clearReadCache } from './services/offline-cache';
 import { PRODUCT_NAME } from './lib/product';
 import { api } from './lib/api';
+import { lazyChunk } from './lib/lazyChunk';
 
 const PageFallback = <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
 
@@ -27,9 +28,9 @@ const PageFallback = <div className="min-h-[50vh] flex items-center justify-cent
 // bar on consume (C1), so the active portal context is kept in sessionStorage
 // instead — per-tab, cleared on tab close, never in history or screenshots.
 const PORTAL_STORAGE_KEY = 'sitesafi_portal_link';
-const TermsPage = lazy(() => import('./components/LegalPage').then((m) => ({ default: m.TermsPage })));
-const PrivacyPage = lazy(() => import('./components/LegalPage').then((m) => ({ default: m.PrivacyPage })));
-const OperatorAdoptionView = lazy(() => import('./components/OperatorAdoptionView'));
+const TermsPage = lazyChunk(() => import('./components/LegalPage').then((m) => ({ default: m.TermsPage })));
+const PrivacyPage = lazyChunk(() => import('./components/LegalPage').then((m) => ({ default: m.PrivacyPage })));
+const OperatorAdoptionView = lazyChunk(() => import('./components/OperatorAdoptionView'));
 
 interface AppProps {
   initialPortal?: {

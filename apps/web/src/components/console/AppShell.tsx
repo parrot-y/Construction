@@ -1,4 +1,5 @@
-import React, { Suspense, lazy, useEffect, useRef, useState} from 'react';
+import React, { Suspense, useEffect, useRef, useState} from 'react';
+import { lazyChunk, warmChunk } from '../../lib/lazyChunk';
 import { ConsoleProvider, useConsole} from './ConsoleContext';
 import { projectTypeCategory } from '@construction/validation';
 import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection} from './navConfig';
@@ -7,10 +8,10 @@ import ReportProblemModal from '../ReportProblemModal';
 import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSun, IconMoon} from './icons';
 import SessionsModal from './SessionsModal';
 import MyAccessModal from '../MyAccessModal';
-const ConsultantPortalView = lazy(() => import('../portals/ConsultantPortalView'));
-const SubcontractorPortalView = lazy(() => import('../portals/SubcontractorPortalView'));
-const SupplierPortalView = lazy(() => import('../portals/SupplierPortalView'));
-const CompliancePortalView = lazy(() => import('../portals/CompliancePortalView'));
+const ConsultantPortalView = lazyChunk(() => import('../portals/ConsultantPortalView'));
+const SubcontractorPortalView = lazyChunk(() => import('../portals/SubcontractorPortalView'));
+const SupplierPortalView = lazyChunk(() => import('../portals/SupplierPortalView'));
+const CompliancePortalView = lazyChunk(() => import('../portals/CompliancePortalView'));
 
 // Skeleton rows — sections lazy-load on navigation; a skeleton keeps the
 // layout stable (no blank-page spinner, no layout jump when data lands).
@@ -23,13 +24,13 @@ const SectionFallback = (
 </div>
 );
 
-const HomeSection = lazy(() => import('./sections/HomeSection'));
-const ProjectsSection = lazy(() => import('./sections/ProjectsSection'));
-const SiteSection = lazy(() => import('./sections/SiteSection'));
-const MoneySection = lazy(() => import('./sections/MoneySection'));
-const PeopleSection = lazy(() => import('./sections/PeopleSection'));
-const FilesSection = lazy(() => import('./sections/FilesSection'));
-const AskAiPanel = lazy(() => import('./AskAiPanel'));
+const HomeSection = lazyChunk(() => import('./sections/HomeSection'));
+const ProjectsSection = lazyChunk(() => import('./sections/ProjectsSection'));
+const SiteSection = lazyChunk(() => import('./sections/SiteSection'));
+const MoneySection = lazyChunk(() => import('./sections/MoneySection'));
+const PeopleSection = lazyChunk(() => import('./sections/PeopleSection'));
+const FilesSection = lazyChunk(() => import('./sections/FilesSection'));
+const AskAiPanel = lazyChunk(() => import('./AskAiPanel'));
 import OfflineSyncBanner from '../OfflineSyncBanner';
 
 import { AuthSession} from '../../types/auth';
@@ -448,12 +449,12 @@ function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   // navigation doesn't pay a dynamic-import round trip on throttled links.
   useEffect(() => {
     const warm = () => {
-      void import('./sections/HomeSection');
-      void import('./sections/ProjectsSection');
-      void import('./sections/SiteSection');
-      void import('./sections/MoneySection');
-      void import('./sections/PeopleSection');
-      void import('./sections/FilesSection');
+      warmChunk(() => import('./sections/HomeSection'));
+      warmChunk(() => import('./sections/ProjectsSection'));
+      warmChunk(() => import('./sections/SiteSection'));
+      warmChunk(() => import('./sections/MoneySection'));
+      warmChunk(() => import('./sections/PeopleSection'));
+      warmChunk(() => import('./sections/FilesSection'));
     };
     const ric = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => number) | undefined;
     if (ric) {
