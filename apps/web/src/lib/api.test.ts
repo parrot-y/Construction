@@ -138,4 +138,36 @@ describe('api request layer (P1.1)', () => {
     expect(apiErrorMessage(new Error('raw secret internals'))).not.toContain('raw secret');
     expect(isApiError(err)).toBe(true);
   });
+
+  it('P4.2 — concurrent identical GETs share one in-flight request', async () => {
+    let resolveFetch: ((r: Response) => void) | undefined;
+    const f = vi.fn().mockImplementation(() => new Promise<Response>((res) => { resolveFetch = res; }));
+    vi.stubGlobal('fetch', f);
+    const p1 = api.get('/api/v1/shared');
+    const p2 = api.get('/api/v1/shared');
+    const p3 = api.get('/api/v1/shared');
+    expect(f).toHaveBeenCalledTimes(1);
+    resolveFetch!(jsonRes(200, { ok: 1 }));
+    await expect(p1).resolves.toEqual({ ok: 1 });
+    await expect(p2).resolves.toEqual({ ok: 1 });
+    await expect(p3).resolves.toEqual({ ok: 1 });
+    // Entry cleared after settle — a later call fetches again.
+    const p4 = api.get('/api/v1/shared');
+    expect(f).toHaveBeenCalledTimes(2);
+    resolveFetch!(jsonRes(200, { ok: 2 }));
+    await expect(p4).resolves.toEqual({ ok: 2 });
+  });
+
+  it('P4.2 — GETs with a caller signal or headers are never deduped', async () => {
+    const f = vi.fn().mockImplementation(() => Promise.resolve(jsonRes(200, {})));
+    vi.stubGlobal('fetch', f);
+    const ac = new AbortController();
+    await Promise.all([
+      api.get('/api/v1/sig', { signal: ac.signal }),
+      api.get('/api/v1/sig', { signal: ac.signal }),
+      api.get('/api/v1/sig', { headers: { 'x-trace': '1' } }),
+      api.get('/api/v1/sig', { headers: { 'x-trace': '1' } }),
+    ]);
+    expect(f).toHaveBeenCalledTimes(4);
+  });
 });

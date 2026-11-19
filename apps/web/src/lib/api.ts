@@ -282,9 +282,25 @@ export async function rawFetch(path: string, opts: RequestOptions = {}): Promise
   return request<Response>(path, { ...opts, raw: true });
 }
 
+// P4.2 — in-flight GET dedupe: two components mounting in the same tick
+// (or a retry racing a fresh call) share ONE network request. The entry is
+// removed as soon as the request settles, so this never serves stale data —
+// it only collapses genuinely concurrent duplicates.
+const inflightGets = new Map<string, Promise<unknown>>();
+
 export const api = {
-  get: <T = unknown>(path: string, opts: Omit<RequestOptions, 'method' | 'body'> = {}) =>
-    request<T>(path, { ...opts, method: 'GET' }),
+  get: <T = unknown>(path: string, opts: Omit<RequestOptions, 'method' | 'body'> = {}) => {
+    const dedupeable =
+      opts.signal == null && !opts.raw && opts.headers == null && opts.timeoutMs == null;
+    if (!dedupeable) return request<T>(path, { ...opts, method: 'GET' });
+    const existing = inflightGets.get(path);
+    if (existing) return existing as Promise<T>;
+    const p = request<T>(path, { ...opts, method: 'GET' }).finally(() => {
+      inflightGets.delete(path);
+    });
+    inflightGets.set(path, p);
+    return p;
+  },
   post: <T = unknown>(path: string, body?: unknown, opts: Omit<RequestOptions, 'method' | 'body'> = {}) =>
     request<T>(path, { ...opts, method: 'POST', body, money: opts.money ?? isMoneyPath(path) }),
   put: <T = unknown>(path: string, body?: unknown, opts: Omit<RequestOptions, 'method' | 'body'> = {}) =>
