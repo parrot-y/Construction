@@ -282,3 +282,11 @@ Plan:
 - Regressions fixed en route: a6-home aggregate attention stats, a7/l1 duplicate-button locators, p1 mobile More-sheet scoping, c1 back-button timing.
 - Final: full solo suite on 60c0220 — 452/452 green (e2e-60c0220.md);
   verify-local 6/6 green (verify-60c0220.log). Phase 3 ready for review.
+
+## Phase 4 — speed (plan)
+
+- [ ] P4.1: GET /api/v1/home/summary — one call replaces Home dashboard fan-outs (money/project N+1, milestones N+1, site health 3 calls, latest photos); share cash-flow fetch between Progress/Cash blocks; fix snag severity/status + incident semantics vs real enums.
+- [ ] P4.2: in-flight GET dedupe in lib/api (same-tick duplicate requests share one promise — kills mount-time dupes, zero staleness); hover/focus warmChunk prefetch on nav entries.
+- [ ] P4.3: loading=lazy on remaining photo <img>s; compressImageClientSide on snag/observation uploads; client-side Pager on heaviest lists (diaries, invoices, members); uploads cache header note + index.html no-cache in nginx template.
+- [ ] P4.4: CLS via PerformanceObserver in measure-admin-speed.mjs; ui-speed-<sha>.md before/after; report misses honestly.
+- [ ] Closeout: focused specs + full solo suite + verify-local + P4 report table.

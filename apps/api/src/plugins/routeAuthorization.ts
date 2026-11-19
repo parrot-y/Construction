@@ -234,6 +234,7 @@ export const IN_HANDLER_GUARDED: Record<string, string> = {
   'PATCH /api/v1/projects/:projectId/independent-inspections/:inspectionId/submit': 'Handler role-gates + inspection.submit permission',
   'POST /api/v1/projects/:projectId/tenders': 'Handler role-gates tender creation',
   'PATCH /api/v1/projects/:projectId/tenders/:tenderId/bids/:bidId/award': 'Handler role-gates tender award',
+  'GET /api/v1/home/summary': 'Handler gates fields by COST_VIEW+INVOICE_VIEW / SITE_DIARY_VIEW and project membership',
   'GET /uploads/*': 'Handler enforces tenant match + project membership per storage key',
   'GET /api/v1/auth/sessions': 'Self-service — lists caller’s own sessions',
   'DELETE /api/v1/auth/sessions/:id': 'Self-service — revokes caller’s own sessions',

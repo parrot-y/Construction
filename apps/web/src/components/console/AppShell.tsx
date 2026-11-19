@@ -38,25 +38,16 @@ import { api } from '../../lib/api';
 import AppErrorBoundary from '../AppErrorBoundary';
 
 function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
-  const { session, roleLabel, projects, projectId, setProjectId, currency, setCurrency, setAiOpen, newMenuOpen, setNewMenuOpen, setSection, setTab} = useConsole();
+  const { session, roleLabel, projects, members, projectId, setProjectId, currency, setCurrency, setAiOpen, newMenuOpen, setNewMenuOpen, setSection, setTab} = useConsole();
   const searchRef = useRef<HTMLInputElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileSearch, setMobileSearch] = useState(false);
-  const [members, setMembers] = useState<any[]>([]);
   const [q, setQ] = useState('');
   const [userMenu, setUserMenu] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
   const canSeeAccess = ['COMPANY_ADMIN', 'ADMIN'].includes(session.user.role);
-
-  useEffect(() => {
-    api.get<{ data?: any[] }>('/api/v1/company/members')
-      .then((j) => setMembers(j.data || []))
-      .catch(() => {
-        // intentionally ignored: member search just returns no results
-      });
-}, []);
 
   useEffect(() => {
     if (mobileSearch) searchRef.current?.focus();

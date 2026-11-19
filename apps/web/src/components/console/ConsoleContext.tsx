@@ -13,6 +13,8 @@ interface ConsoleCtx {
   roleLabel: string;
   nav: RoleNav;
   projects: ProjectOpt[];
+  projectsLoaded: boolean;
+  members: any[];
   projectId: string;
   setProjectId: (id: string) => void;
   refreshProjects: () => void;
@@ -69,6 +71,8 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
   const pendingPush = useRef(false);
   const applyingUrl = useRef(false);
   const [projects, setProjects] = useState<ProjectOpt[]>([]);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
   const [projectId, setProjectId] = useState('');
   const [currency, setCurrencyState] = useState<'KES' | 'USD'>('KES');
   const [section, setSection] = useState<string>('home');
@@ -84,6 +88,13 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
       .catch(() => {
         // intentionally ignored: modules fall back to defaults on failure
         configureRuntimeModules([]);
+      });
+    // P4.1 — one members fetch shared by the top-bar search and Home
+    // checklist (previously each component fetched it independently).
+    api.get<{ data?: any[] }>('/api/v1/company/members')
+      .then((j) => setMembers(j?.data || []))
+      .catch(() => {
+        // intentionally ignored: member search/checklist degrade gracefully
       });
     refreshProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,10 +112,11 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
           if (stored && list.some((p: ProjectOpt) => p.id === stored)) return stored;
           return list[0]!.id;
         });
-})
+      })
       .catch(() => {
         // intentionally ignored: project list stays empty until data arrives
-      });
+      })
+      .finally(() => setProjectsLoaded(true));
   };
 
   useEffect(() => {
@@ -188,7 +200,7 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
 
   const value: ConsoleCtx = {
     session, role, roleLabel: ROLE_LABELS[role] || role,
-    nav, projects, projectId, setProjectId: navProject, refreshProjects, currency, setCurrency,
+    nav, projects, projectsLoaded, members, projectId, setProjectId: navProject, refreshProjects, currency, setCurrency,
     section, setSection: navSection, tab, setTab: navTab, aiOpen, setAiOpen,
     newMenuOpen, setNewMenuOpen, dark, toggleDark,
     portalPreview, setPortalPreview,

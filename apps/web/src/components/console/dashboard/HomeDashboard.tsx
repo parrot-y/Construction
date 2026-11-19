@@ -16,12 +16,15 @@ import { formatDate } from '../../../lib/format';
 
 interface Project { id: string; name: string; code?: string; status?: string; original_contract_sum?: string | number | null; project_type?: string | null; }
 interface Milestone { id: string; task_name?: string; title?: string; planned_start_date?: string; planned_end_date?: string; status?: string; progress_percentage?: number | string; projectName?: string; }
-interface Diary { id: string; entry_date?: string; photos?: { id?: string; storage_key?: string; client_visible?: boolean; caption?: string }[]; }
-interface Snag { id: string; snag_number?: number; description?: string; severity?: string; status?: string; priority?: string; identified_at?: string; due_date?: string | null; }
-interface Incident { id: string; incident_type?: string; severity?: string; occurred_at?: string; status?: string; title?: string; }
-interface Cert { id: string; status?: string; this_period_amount?: string | number; cumulative_certified?: string | number; retention_held?: string | number; }
-interface InvoiceRow { id: string; project_id?: string | null; total?: string | number; amount_paid?: string | number; status?: string; }
 interface Attention { label: string; detail?: string; section?: string; tab?: string; tone?: 'warn' | 'bad' | 'info'; }
+
+// One aggregate call (P4.1) replaces the per-project fan-outs.
+interface HomeSummary {
+  moneyPerProject?: { projectId: string; certified: number; invoiced: number; paid: number; retention: number }[] | null;
+  milestones?: (Milestone & { projectName?: string })[] | null;
+  siteHealth?: { openSnags: number; snagsBySeverity: Record<string, number>; recentIncidents30d: number; diaryDays14: number; missedDiaryDays: number } | null;
+  latestPhotos?: { id: string; storage_key: string; caption?: string | null; client_visible?: boolean; entry_date?: string }[] | null;
+}
 
 function SkeletonRows({ rows = 3 }: { rows?: number }) {
   return <div className="space-y-2">{Array.from({ length: rows }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>;
@@ -106,8 +109,8 @@ function NeedsYouNow({ items, stats, loading, error, onNavigate }: { items: Atte
 }
 
 // --- Block: Progress against plan (S-curve) ---------------------------------
-function ProgressPlan({ projectId, projectName, clientView }: { projectId?: string; projectName?: string; clientView: boolean }) {
-  const { data, loading, error } = useFetch<any>(projectId ? `/api/v1/projects/${projectId}/cash-flow` : null);
+function ProgressPlan({ projectId, projectName, clientView, cash }: { projectId?: string; projectName?: string; clientView: boolean; cash: { data?: any; loading: boolean; error?: string | null } }) {
+  const { data, loading, error } = cash;
   const wrap = (inner: React.ReactNode) => (
     <Block title={`Progress against plan — ${projectName || 'project'}`} finding="Planned value versus earned value by month.">
       {inner}
@@ -160,38 +163,8 @@ function ProgressPlan({ projectId, projectName, clientView }: { projectId?: stri
 }
 
 // --- Block: Money per project (bars) ----------------------------------------
-function MoneyPerProject({ projects, clientView }: { projects: Project[]; clientView: boolean }) {
-  const [rows, setRows] = useState<Record<string, { certified: number; invoiced: number; paid: number; retention: number }>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    const ids = projects.map((p) => p.id);
-    if (!ids.length) { setLoading(false); return; }
-    setLoading(true); setError(null);
-    Promise.all([
-      api.get<any>('/api/v1/invoices').catch(() => ({ data: [] })),
-      Promise.all(ids.map((id) => api.get<any>(`/api/v1/projects/${id}/payment-certificates`).catch(() => ({ data: [] })))).catch(() => [] as any[]),
-    ]).then(([invRes, certLists]: any) => {
-      if (!live) return;
-      const invoices: InvoiceRow[] = invRes?.data || invRes?.invoices || [];
-      const out: typeof rows = {};
-      for (const p of projects) {
-        const inv = invoices.filter((i) => i.project_id === p.id && !['DRAFT', 'VOID', 'CANCELLED'].includes(String(i.status)));
-        const certs: Cert[] = (certLists[ids.indexOf(p.id)]?.data || []).filter((c: Cert) => !['DRAFT', 'VOID'].includes(String(c.status)));
-        out[p.id] = {
-          certified: certs.reduce((s, c) => s + num(c.this_period_amount), 0),
-          invoiced: inv.reduce((s, i) => s + num(i.total), 0),
-          paid: inv.reduce((s, i) => s + num(i.amount_paid ?? (i.status === 'PAID' ? i.total : 0)), 0),
-          retention: certs.reduce((s, c) => Math.max(s, num(c.retention_held)), 0),
-        };
-      }
-      setRows(out); setLoading(false);
-    }).catch((err) => { if (live) { setError(apiErrorMessage(err, 'Could not load money per project')); setLoading(false); } });
-    return () => { live = false; };
-  }, [projects.map((p) => p.id).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
-
+function MoneyPerProject({ projects, clientView, summary, loading, error }: { projects: Project[]; clientView: boolean; summary?: HomeSummary; loading: boolean; error?: string | null }) {
+  const moneyRows = summary?.moneyPerProject || [];
   const wrap = (inner: React.ReactNode) => (
     <Block title="Money per project" finding="Contract, certified, invoiced, paid and retention held per project.">
       {inner}
@@ -200,6 +173,12 @@ function MoneyPerProject({ projects, clientView }: { projects: Project[]; client
   if (loading) return wrap(<SkeletonRows rows={4} />);
   if (error) return wrap(<InlineError error={error} />);
   if (!projects.length) return wrap(<EmptyState title="No projects yet" hint="Money per project appears once you have projects." />);
+  if (summary && summary.moneyPerProject === null) {
+    return wrap(<EmptyState title="Money details aren't shared with your role" hint="Ask your admin for cost-view access to see certified, invoiced and paid amounts." />);
+  }
+
+  const rows: Record<string, { certified: number; invoiced: number; paid: number; retention: number }> = {};
+  for (const m of moneyRows) rows[m.projectId] = { certified: m.certified, invoiced: m.invoiced, paid: m.paid, retention: m.retention };
 
   const contract = (p: Project) => num(p.original_contract_sum);
   const maxV = Math.max(1, ...projects.map((p) => Math.max(contract(p), rows[p.id]?.certified || 0)));
@@ -250,8 +229,8 @@ function MoneyPerProject({ projects, clientView }: { projects: Project[]; client
 }
 
 // --- Block: Next-weeks cash timeline ----------------------------------------
-function CashTimeline({ projectId, projectName, clientView }: { projectId?: string; projectName?: string; clientView: boolean }) {
-  const { data, loading, error } = useFetch<any>(projectId ? `/api/v1/projects/${projectId}/cash-flow` : null);
+function CashTimeline({ projectId, projectName, clientView, cash }: { projectId?: string; projectName?: string; clientView: boolean; cash: { data?: any; loading: boolean; error?: string | null } }) {
+  const { data, loading, error } = cash;
   const wrap = (inner: React.ReactNode) => (
     <Block title={`Cash forecast — ${projectName || 'project'}`} finding="Net cash flow per month from the EVM forecast.">
       {inner}
@@ -292,28 +271,28 @@ function CashTimeline({ projectId, projectName, clientView }: { projectId?: stri
 }
 
 // --- Block: Site health ------------------------------------------------------
-function SiteHealth({ projectId, projectName, clientView }: { projectId?: string; projectName?: string; clientView: boolean }) {
-  const snags = useFetch<{ data?: Snag[] }>(projectId ? `/api/v1/projects/${projectId}/snags` : null);
-  const incidents = useFetch<{ data?: Incident[] }>(projectId ? `/api/v1/projects/${projectId}/safety-incidents` : null);
-  const diaries = useFetch<{ data?: Diary[] }>(projectId ? `/api/v1/projects/${projectId}/site-diaries` : null);
+function SiteHealth({ projectId, projectName, clientView, summary, loading, error }: { projectId?: string; projectName?: string; clientView: boolean; summary?: HomeSummary; loading: boolean; error?: string | null }) {
   if (!projectId) return null;
-  const loading = snags.loading || incidents.loading || diaries.loading;
-  const error = snags.error || incidents.error || diaries.error;
+  const health = summary?.siteHealth;
   const wrap = (inner: React.ReactNode) => (
-    <Block title={`Site health — ${projectName || 'project'}`} finding="Open snags by severity, open incidents and diary gaps in the last two weeks.">
+    <Block title={`Site health — ${projectName || 'project'}`} finding="Open snags by severity, recent incidents and diary gaps in the last two weeks.">
       {inner}
     </Block>
   );
   if (loading) return wrap(<SkeletonRows rows={3} />);
   if (error) return wrap(<InlineError error={error} />);
+  if (!health) {
+    const denied = summary != null && summary.siteHealth === null;
+    return wrap(<EmptyState
+      title={denied ? "Site health isn't shared with your role" : 'No site data yet'}
+      hint={denied ? 'Ask your admin for site-diary access to see snags, incidents and diary gaps.' : 'Snags, incidents and diaries appear here once site work is recorded.'}
+    />);
+  }
 
-  const openSnags = (snags.data?.data || []).filter((s) => !['CLOSED', 'VERIFIED', 'RESOLVED'].includes(String(s.status)));
-  const bySev = ['CRITICAL', 'MAJOR', 'MINOR', 'COSMETIC'].map((sev) => ({ sev, n: openSnags.filter((s) => String(s.severity).toUpperCase() === sev).length })).filter((x) => x.n > 0);
-  const openIncidents = (incidents.data?.data || []).filter((i) => !['CLOSED', 'RESOLVED'].includes(String(i.status)));
-  const diaryList = diaries.data?.data || [];
-  const cutoff = Date.now() - 14 * 864e5;
-  const recentDiaries = diaryList.filter((d) => new Date(d.entry_date || 0).getTime() >= cutoff);
-  const missedDays = Math.max(0, 10 - recentDiaries.length); // ~2 working weeks minus filed diaries
+  const openSnags = health.openSnags;
+  const bySev = Object.entries(health.snagsBySeverity || {}).filter(([, n]) => n > 0);
+  const openIncidents = health.recentIncidents30d;
+  const missedDays = health.missedDiaryDays;
 
   if (clientView) return null; // client view shows only progress/money/photos/milestones
 
@@ -321,12 +300,12 @@ function SiteHealth({ projectId, projectName, clientView }: { projectId?: string
     <Block title={`Site health — ${projectName || 'project'}`} finding="Open snags by severity, open incidents and diary gaps in the last two weeks.">
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
-          <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{openSnags.length}</p>
+          <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{openSnags}</p>
           <p className="text-xs text-slate-500">Open snags</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
-          <p className={`text-xl font-bold ${openIncidents.length ? 'text-rose-600' : 'text-slate-900 dark:text-slate-100'}`}>{openIncidents.length}</p>
-          <p className="text-xs text-slate-500">Open incidents</p>
+          <p className={`text-xl font-bold ${openIncidents ? 'text-rose-600' : 'text-slate-900 dark:text-slate-100'}`}>{openIncidents}</p>
+          <p className="text-xs text-slate-500">Incidents (30 days)</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
           <p className={`text-xl font-bold ${missedDays > 2 ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{missedDays}</p>
@@ -335,21 +314,20 @@ function SiteHealth({ projectId, projectName, clientView }: { projectId?: string
       </div>
       {bySev.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {bySev.map(({ sev, n }) => (
-            <span key={sev} className={`rounded-full px-2 py-0.5 text-xs font-bold ${sev === 'CRITICAL' ? 'bg-rose-100 text-rose-700' : sev === 'MAJOR' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
-              {sev.toLowerCase()} ×{n}
+          {bySev.map(([sev, n]) => (
+            <span key={sev} className={`rounded-full px-2 py-0.5 text-xs font-bold ${sev === 'CRITICAL_SAFETY' ? 'bg-rose-100 text-rose-700' : sev === 'FUNCTIONAL' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+              {sev.toLowerCase().replace(/_/g, ' ')} ×{n}
             </span>
           ))}
         </div>
       )}
-      {openSnags.length === 0 && openIncidents.length === 0 && <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400">No open snags or incidents.</p>}
+      {openSnags === 0 && openIncidents === 0 && <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400">No open snags or incidents.</p>}
     </Block>
   );
 }
 
 // --- Block: Latest photos ----------------------------------------------------
-function LatestPhotos({ projectId, projectName, clientView }: { projectId?: string; projectName?: string; clientView: boolean }) {
-  const { data, loading, error } = useFetch<{ data?: Diary[] }>(projectId ? `/api/v1/projects/${projectId}/site-diaries` : null);
+function LatestPhotos({ projectId, projectName, clientView, summary, loading, error }: { projectId?: string; projectName?: string; clientView: boolean; summary?: HomeSummary; loading: boolean; error?: string | null }) {
   const wrapPhotos = (inner: React.ReactNode) => (
     <Block title={`Latest site photos — ${projectName || 'project'}`} finding={clientView ? 'Recent progress photos shared with you.' : 'Most recent diary photos, newest first.'}>
       {inner}
@@ -358,8 +336,10 @@ function LatestPhotos({ projectId, projectName, clientView }: { projectId?: stri
   if (!projectId) return null;
   if (loading) return wrapPhotos(<SkeletonRows rows={2} />);
   if (error) return wrapPhotos(<InlineError error={error} />);
-  const photos = (data?.data || [])
-    .flatMap((d) => (d.photos || []).map((p) => ({ ...p, diaryDate: d.entry_date })))
+  if (summary != null && summary.latestPhotos === null) {
+    return wrapPhotos(<EmptyState title="Site photos aren't shared with your role" hint="Ask your admin for site-diary access to see progress photos." />);
+  }
+  const photos = (summary?.latestPhotos || [])
     .filter((p) => !clientView || p.client_visible === true)
     .slice(0, 6);
   if (!photos.length) return wrapPhotos(<EmptyState title="No site photos yet" hint="Photos filed in daily diaries will appear here." />);
@@ -375,31 +355,8 @@ function LatestPhotos({ projectId, projectName, clientView }: { projectId?: stri
 }
 
 // --- Block: Next milestones --------------------------------------------------
-function NextMilestones({ projects, clientView }: { projects: Project[]; clientView: boolean }) {
-  const [items, setItems] = useState<Milestone[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    const ids = projects.map((p) => p.id);
-    if (!ids.length) { setLoading(false); return; }
-    setLoading(true); setError(null);
-    Promise.all(ids.map((id) => api.get<any>(`/api/v1/projects/${id}/tasks`).catch(() => ({ data: [] }))))
-      .then((results: any[]) => {
-        if (!live) return;
-        const all: (Milestone & { projectName: string })[] = [];
-        results.forEach((r, i) => {
-          const list: Milestone[] = r?.data || [];
-          list.filter((t) => !['COMPLETED', 'DONE'].includes(String(t.status).toUpperCase()))
-            .forEach((t) => all.push({ ...t, projectName: projects[i]?.name || '' }));
-        });
-        all.sort((a, b) => String(a.planned_start_date || '').localeCompare(String(b.planned_start_date || '')));
-        setItems(all.slice(0, 5)); setLoading(false);
-      })
-      .catch((err) => { if (live) { setError(apiErrorMessage(err, 'Could not load milestones')); setLoading(false); } });
-    return () => { live = false; };
-  }, [projects.map((p) => p.id).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+function NextMilestones({ clientView, summary, loading, error }: { clientView: boolean; summary?: HomeSummary; loading: boolean; error?: string | null }) {
+  const items = (summary?.milestones || []).slice(0, 5);
 
   const wrap = (inner: React.ReactNode) => (
     <Block title="Next milestones" finding={clientView ? 'The next key dates across your projects.' : 'The next five open schedule tasks across all projects.'}>
@@ -408,6 +365,9 @@ function NextMilestones({ projects, clientView }: { projects: Project[]; clientV
   );
   if (loading) return wrap(<SkeletonRows rows={3} />);
   if (error) return wrap(<InlineError error={error} />);
+  if (summary != null && summary.milestones === null) {
+    return wrap(<EmptyState title="Milestones aren't shared with your role" hint="Ask your admin for site-diary access to see the project schedule." />);
+  }
   if (!items.length) return wrap(<EmptyState title="No upcoming milestones" hint="Schedule tasks appear here as they are planned." />);
   return wrap(
       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -428,12 +388,13 @@ function NextMilestones({ projects, clientView }: { projects: Project[]; clientV
 }
 
 // --- Dashboard orchestrator --------------------------------------------------
-export default function HomeDashboard({ attentionItems, attentionStats = [], attentionLoading, attentionError, projects, selectedProject, onNavigate }: {
+export default function HomeDashboard({ attentionItems, attentionStats = [], attentionLoading, attentionError, projects, projectsReady = true, selectedProject, onNavigate }: {
   attentionItems: Attention[];
   attentionStats?: AttentionStat[];
   attentionLoading: boolean;
   attentionError?: string | null;
   projects: Project[];
+  projectsReady?: boolean;
   selectedProject?: Project;
   onNavigate?: (section: string, tab: string) => void;
 }) {
@@ -441,18 +402,26 @@ export default function HomeDashboard({ attentionItems, attentionStats = [], att
   const sel = selectedProject || projects[0];
   const selId = sel?.id;
 
+  // P4.1: ONE summary call feeds money/milestones/site-health/photos; the
+  // cash-flow response is shared by the S-curve and cash-timeline blocks.
+  // Wait for the project list before firing so we don't fetch twice.
+  const summary = useFetch<HomeSummary>(projectsReady ? `/api/v1/home/summary${selId ? `?projectId=${selId}` : ''}` : null, [selId, projectsReady]);
+  const cash = useFetch<any>(projectsReady && selId ? `/api/v1/projects/${selId}/cash-flow` : null, [selId, projectsReady]);
+  const blockState = { summary: summary.data, loading: !projectsReady || summary.loading, error: summary.error };
+  const cashState = { ...cash, loading: !projectsReady || cash.loading };
+
   const order = clientView
     ? ['needs', 'progress', 'money', 'photos', 'milestones']
     : ['needs', 'progress', 'money', 'cash', 'health', 'photos', 'milestones'];
 
   const blocks: Record<string, React.ReactNode> = {
     needs: <Block key="needs" title="Needs you now"><NeedsYouNow items={attentionItems} stats={attentionStats} loading={attentionLoading} error={attentionError} onNavigate={onNavigate} /></Block>,
-    progress: <ProgressPlan key="progress" projectId={selId} projectName={sel?.name} clientView={clientView} />,
-    money: <MoneyPerProject key="money" projects={projects} clientView={clientView} />,
-    cash: !clientView ? <CashTimeline key="cash" projectId={selId} projectName={sel?.name} clientView={clientView} /> : null,
-    health: !clientView ? <SiteHealth key="health" projectId={selId} projectName={sel?.name} clientView={clientView} /> : null,
-    photos: <LatestPhotos key="photos" projectId={selId} projectName={sel?.name} clientView={clientView} />,
-    milestones: <NextMilestones key="milestones" projects={projects} clientView={clientView} />,
+    progress: <ProgressPlan key="progress" projectId={selId} projectName={sel?.name} clientView={clientView} cash={cashState} />,
+    money: <MoneyPerProject key="money" projects={projects} clientView={clientView} {...blockState} />,
+    cash: !clientView ? <CashTimeline key="cash" projectId={selId} projectName={sel?.name} clientView={clientView} cash={cashState} /> : null,
+    health: !clientView ? <SiteHealth key="health" projectId={selId} projectName={sel?.name} clientView={clientView} {...blockState} /> : null,
+    photos: <LatestPhotos key="photos" projectId={selId} projectName={sel?.name} clientView={clientView} {...blockState} />,
+    milestones: <NextMilestones key="milestones" clientView={clientView} {...blockState} />,
   };
 
   return (

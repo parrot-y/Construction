@@ -7,7 +7,7 @@ import HomeDashboard from '../dashboard/HomeDashboard';
 
 /** Executive / admin / viewer home — portfolio KPIs + change-order pulse. */
 function ExecHome(): React.JSX.Element {
-  const { session, projects, projectId, setSection, setTab} = useConsole();
+  const { session, projects, projectsLoaded, members, projectId, setSection, setTab} = useConsole();
   const [coStats, setCoStats] = useState<Record<string, number>>({});
   const [openSnags, setOpenSnags] = useState(0);
   const [logToday, setLogToday] = useState<boolean | null>(null);
@@ -48,32 +48,28 @@ function ExecHome(): React.JSX.Element {
       .catch(() => { /* intentionally ignored: snag count is optional */ });
 }, [projectId]);
 
-  // A6 — get-started signals + invoice attention, fetched once per mount.
+  // A6 — get-started signals + invoice attention. These five calls do not
+  // depend on the project list, so they run once on mount (P4.1: the old
+  // [projects] dep refired them all when the list populated).
   useEffect(() => {
-    const firstProject = projects[0]?.id;
     const get = (url: string) => api.get<any>(url).catch(() => null);
 
     void (async () => {
-      const [members, invites, quotes, payments, boq] = await Promise.all([
-        get('/api/v1/company/members'),
+      const [invites, quotes, payments] = await Promise.all([
         get('/api/v1/invitations'),
         get('/api/v1/quotes'),
         get('/api/v1/company/payment-instructions'),
-        firstProject && /^[0-9a-f-]{36}$/i.test(firstProject)
-          ? get(`/api/v1/projects/${firstProject}/boq`)
-          : Promise.resolve(null),
       ]);
-      const memberList = members?.data || members?.members || [];
       const inviteList = invites?.data || invites || [];
       const quoteList = quotes?.quotes || quotes?.data || [];
       const payRaw = payments?.data?.paymentInstructions ?? payments?.paymentInstructions ?? null;
       const paymentsReady = payRaw != null && (typeof payRaw === 'string' ? payRaw.trim().length > 0 : Object.values(payRaw).some((v) => v != null && String(v).trim() !== ''));
-      setGettingStarted({
-        hasBoq: Boolean(boq?.data),
-        hasTeam: memberList.length > 1 || (Array.isArray(inviteList) && inviteList.length > 0),
+      setGettingStarted((prev) => ({
+        hasBoq: prev?.hasBoq ?? false,
+        hasTeam: Array.isArray(inviteList) && inviteList.length > 0,
         hasQuote: Array.isArray(quoteList) && quoteList.length > 0,
         hasPayments: paymentsReady,
-      });
+      }));
     })();
 
     void get('/api/v1/invoices').then((j) => {
@@ -84,7 +80,27 @@ function ExecHome(): React.JSX.Element {
       const overdue = unpaid.filter((i: any) => i.due_date && String(i.due_date).slice(0, 10) < today);
       setInvoiceStats({ unpaid: unpaid.length, overdue: overdue.length });
     });
-  }, [projects]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- members is read via closure at render, not needed here
+  }, []);
+
+  // BoQ presence depends on the first project — fetched separately so the
+  // checklist doesn't refire the whole batch when projects load.
+  const firstProjectId = projects[0]?.id;
+  useEffect(() => {
+    if (!firstProjectId || !/^[0-9a-f-]{36}$/i.test(firstProjectId)) return;
+    api.get(`/api/v1/projects/${firstProjectId}/boq`)
+      .then((j: any) => {
+        setGettingStarted((prev) => ({
+          hasBoq: Boolean(j?.data),
+          hasTeam: prev?.hasTeam ?? false,
+          hasQuote: prev?.hasQuote ?? false,
+          hasPayments: prev?.hasPayments ?? false,
+        }));
+      })
+      .catch(() => {
+        // intentionally ignored: BoQ presence is optional
+      });
+  }, [firstProjectId]);
 
   const firstName = ((session.user.fullName || session.user.email || 'there').split(' ')[0] || 'there');
   const hour = new Date().getHours();
@@ -98,7 +114,7 @@ function ExecHome(): React.JSX.Element {
   const steps = [
     { label: 'Create your first project', done: hasProject, go: () => { setSection('projects'); setTab('all'); } },
     { label: 'Add a Bill of Quantities', done: Boolean(gs?.hasBoq), go: () => { setSection('money'); setTab('financials'); } },
-    { label: 'Invite your team', done: Boolean(gs?.hasTeam), go: () => { setSection('people'); setTab('team'); } },
+    { label: 'Invite your team', done: Boolean(gs?.hasTeam) || members.length > 1, go: () => { setSection('people'); setTab('team'); } },
     { label: 'Create a quote', done: Boolean(gs?.hasQuote), go: () => { setSection('money'); setTab('quotes'); } },
     { label: 'Set up how you get paid', done: Boolean(gs?.hasPayments), go: () => { setSection('money'); setTab('invoices'); } },
   ];
@@ -166,6 +182,7 @@ function ExecHome(): React.JSX.Element {
         attentionStats={attentionStats}
         attentionLoading={false}
         projects={projects as any}
+        projectsReady={projectsLoaded}
         selectedProject={selectedProject as any}
         onNavigate={(sec, tab) => { setSection(sec as any); setTab(tab as any); }}
       />
