@@ -135,7 +135,7 @@ test.describe('P3.1 design gate — three screens', () => {
       }
       // Active section expands to its tabs — one tab level.
       await sidebar.getByRole('button', { name: 'Projects', exact: true }).click();
-      await expect(sidebar.getByRole('button', { name: 'Change orders' })).toBeVisible();
+      await expect(sidebar.getByRole('tab', { name: 'Change orders' })).toBeVisible();
       await shot(page, ti, '08-sidebar-tabs');
       // Collapse to icons and remember.
       await sidebar.getByRole('button', { name: 'Collapse sidebar' }).click();
