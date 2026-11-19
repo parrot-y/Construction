@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PRODUCT_NAME } from '../lib/product';
 import { api, ApiError } from '../lib/api';
+import { InlineError } from './feedback/InlineError';
 
 const fmtTs = (iso: string) => iso.replace('T', ' ').slice(0, 16) + ' UTC';
 
@@ -67,7 +68,7 @@ export default function OperatorAdoptionView(): React.JSX.Element {
             {loading ? 'Loading…' : 'Load'}
           </button>
         </div>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <InlineError error={error} />}
         {data && (
           <div className="space-y-4">
             <p className="text-[10px] text-slate-400">Generated {fmtTs(data.generatedAt)} · window {data.windowDays}d</p>

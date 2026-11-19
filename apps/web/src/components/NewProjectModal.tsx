@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PROJECT_TYPE_CATEGORIES, type ProjectTypeCategory } from '@construction/validation';
 import { api, apiErrorMessage } from '../lib/api';
+import { InlineError } from './feedback/InlineError';
 
 // ---------------------------------------------------------------------------
 // New project — four short steps (type → subtype → details → terms), draft
@@ -285,7 +286,7 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
             </div>
           )}
 
-          {error && <p className="text-xs font-semibold text-rose-600 mt-3">{error}</p>}
+          {error && <InlineError error={error} className="mt-3" />}
           <div className="flex justify-between gap-2 pt-4">
             <button type="button" onClick={draft.step === 0 ? onClose : back} className="px-4 py-2 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
               {draft.step === 0 ? 'Cancel' : 'Back'}

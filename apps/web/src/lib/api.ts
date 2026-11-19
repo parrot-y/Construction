@@ -64,6 +64,7 @@ export function isApiError(err: unknown): err is ApiError {
 
 /** Plain message for ANY thrown value — never a raw TypeError/err.message. */
 export function apiErrorMessage(err: unknown, fallback = 'Something went wrong. Try again.'): string {
+  if (typeof err === 'string' && err.trim()) return err;
   if (err instanceof ApiError) return err.message;
   if (err instanceof DOMException && err.name === 'AbortError') return PLAIN_MESSAGES.timeout;
   return fallback;

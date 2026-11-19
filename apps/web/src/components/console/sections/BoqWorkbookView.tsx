@@ -4,6 +4,7 @@ import { hasPermission, Permissions, type Role } from '@construction/permissions
 import BoqImportModal from '../../BoqImportModal';
 import { useAppDialog } from '../../AppDialog';
 import { api, ApiError, apiErrorMessage } from '../../../lib/api';
+import { InlineError } from '../../feedback/InlineError';
 
 interface BoqItem {
   id: string;
@@ -425,7 +426,7 @@ function renderForm(
           <input type="number" min="0" step="any" value={form.unit_rate} onChange={(e) => setForm({ ...form, unit_rate: e.target.value })} required placeholder="0" className={`${input} mt-1`} />
         </label>
       </div>
-      {error && <p className="mt-2 text-[11px] font-semibold text-red-600">{error}</p>}
+      {error && <InlineError error={error} className="mt-2" />}
       <div className="mt-3 flex items-center gap-3">
         <button
           type="submit"

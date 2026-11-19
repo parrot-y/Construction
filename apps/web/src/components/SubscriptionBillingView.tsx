@@ -2,6 +2,7 @@ import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
 import { formatDate, formatDateTime } from '../lib/format';
 import { api, apiErrorMessage } from '../lib/api';
+import { InlineError } from './feedback/InlineError';
 
 export interface SubscriptionTransactionItem {
   id: string;
@@ -257,7 +258,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div>
 <h3 className="font-bold text-slate-800 text-sm">Daraja M-Pesa Subscription Transactions</h3>
 <p className="text-xs text-slate-500">Real-time payment audit log for tenant: {tenantLabel || 'your workspace'}</p>
-{loadError && <p className="text-xs text-rose-600 mt-1">{loadError}</p>}
+{loadError && <InlineError error={loadError} className="mt-1" />}
 </div>
 <span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-600 rounded">
             {transactions.length} Transactions

@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { formatDate, formatDateTime } from '../../lib/format';
 import { api } from '../../lib/api';
+import { InlineError } from '../feedback/InlineError';
 
 interface SessionRow {
   id: string;
@@ -50,7 +51,7 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
 </div>
 <div className="px-5 py-4 max-h-80 overflow-y-auto">
-          {error &&<p className="text-xs text-red-500 mb-3">{error}</p>}
+          {error && <InlineError error={error} className="mb-3" />}
           {rows === null &&<p className="text-xs text-slate-400">Loading…</p>}
           {rows?.length === 0 &&<p className="text-xs text-slate-400">No active sessions found.</p>}
 <ul className="space-y-2">

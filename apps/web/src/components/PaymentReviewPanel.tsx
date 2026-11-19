@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, apiErrorMessage } from '../lib/apiClient';
 import { formatKes } from '../ui';
 import { formatDate } from '../lib/format';
+import { InlineError } from './feedback/InlineError';
 
 /**
  * G1 — "Payments to review" panel for money-approval roles. Lists provider
@@ -109,7 +110,7 @@ export default function PaymentReviewPanel({
 <h4 className="text-xs font-bold text-amber-900">Payments to review ({charges.length})</h4>
 <p className="text-[10px] text-amber-700">Money received online that could not be applied automatically.</p>
 </div>
-      {error && <p className="text-[11px] font-semibold text-rose-700">{error}</p>}
+      {error && <InlineError error={error} />}
       {charges.map((c) => {
         const open = openId === c.id;
         return (

@@ -3,6 +3,7 @@ import { statusLabel } from '../lib/status-labels';
 
 import { api, apiErrorMessage } from '../lib/api';
 import { CLIENT_PROJECT_REQUEST_TYPES, CLIENT_BUDGET_RANGES, CLIENT_START_TIMEFRAMES } from '@construction/validation';
+import { InlineError } from './feedback/InlineError';
 
 const PROJECT_TYPES = CLIENT_PROJECT_REQUEST_TYPES;
 const BUDGET_RANGES = CLIENT_BUDGET_RANGES;
@@ -109,7 +110,7 @@ export default function ClientRequestView(): React.JSX.Element {
 <label className={label}>Phone or WhatsApp, so we can call you *</label>
 <input required value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value})} placeholder="+254…" className={input} />
 </div>
-          {error &&<p className="text-xs font-semibold text-red-600">{error}</p>}
+          {error && <InlineError error={error} />}
 <button type="submit" disabled={saving}
             className="px-5 py-2.5 text-sm font-bold bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-lg">
             {saving ? 'Sending…' : 'Send request'}

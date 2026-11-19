@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatDateTime } from '../lib/format';
 import { formatMoney } from '@construction/money';
+import { InlineError } from '../components/feedback/InlineError';
 
 /** Product UI kit — see docs/DESIGN_SYSTEM.md. */
 
@@ -47,7 +48,7 @@ export function Input({ label, error, className = '', id, ...props}: React.Input
         className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus-visible:outline-2 focus-visible:outline-brand-600"
         {...props}
       />
-      {error &&<p className="mt-1 text-xs text-danger-600">{error}</p>}
+      {error && <InlineError error={error} className="mt-1" />}
 </div>
 );
 }
