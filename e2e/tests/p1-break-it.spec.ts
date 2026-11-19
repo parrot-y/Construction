@@ -213,7 +213,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     for (const section of ['Money', 'People', 'Site', 'Files & reports', 'Home']) {
       await page.getByRole('button', { name: section, exact: true }).first().click();
       // Within 3s the section must show skeleton, content, or an error state.
-      const main = page.locator('main');
+      const main = page.locator('main').last();
       await expect(main).toBeVisible({ timeout: 10_000 });
       await page.waitForTimeout(1200);
       const busy = await page.locator('[aria-busy="true"], [class*="skeleton"], [class*="animate-pulse"]').count();
