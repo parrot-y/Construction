@@ -283,10 +283,10 @@ Plan:
 - Final: full solo suite on 60c0220 — 452/452 green (e2e-60c0220.md);
   verify-local 6/6 green (verify-60c0220.log). Phase 3 ready for review.
 
-## Phase 4 — speed (plan)
+## Phase 4 — speed
 
-- [ ] P4.1: GET /api/v1/home/summary — one call replaces Home dashboard fan-outs (money/project N+1, milestones N+1, site health 3 calls, latest photos); share cash-flow fetch between Progress/Cash blocks; fix snag severity/status + incident semantics vs real enums.
-- [ ] P4.2: in-flight GET dedupe in lib/api (same-tick duplicate requests share one promise — kills mount-time dupes, zero staleness); hover/focus warmChunk prefetch on nav entries.
-- [ ] P4.3: loading=lazy on remaining photo <img>s; compressImageClientSide on snag/observation uploads; client-side Pager on heaviest lists (diaries, invoices, members); uploads cache header note + index.html no-cache in nginx template.
-- [ ] P4.4: CLS via PerformanceObserver in measure-admin-speed.mjs; ui-speed-<sha>.md before/after; report misses honestly.
-- [ ] Closeout: focused specs + full solo suite + verify-local + P4 report table.
+- [x] P4.1: GET /api/v1/home/summary — one call replaces Home dashboard fan-outs; shared cash-flow fetch; real snag/incident enums; members moved into ConsoleContext (kills duplicate shell fetches); get-started effect dep fixed (7b30cf1 + earlier P4 commits)
+- [x] P4.2: in-flight GET dedupe in lib/api.ts; section chunks warm on idle via warmChunk (AppShell) — hover prefetch unnecessary once idle-warm; charts are inline SVG (no heavy lib to defer); background revalidation NOT added — nav data measured 250–450 ms, far under the 1.5 s budget (honest partial)
+- [x] P4.3: loading=lazy on list photos; compressImageClientSide on portal uploads; usePagedList on diaries/invoices/members; immutable cache headers for hashed assets + no-cache sw.js in nginx template (7b30cf1)
+- [x] P4.4: CLS via PerformanceObserver + per-section shell/data timing in measure-admin-speed.mjs; wizard driver rewritten as draft-state machine (fixed stale 4-step flow + backdrop-close race + 409 stale-draft submit); latest run: 18/19 budgets, first-screen 3415 ms MISS documented honestly
+- [ ] Closeout: full solo suite + verify-local + P4 report table → ui-speed-<sha>.md
