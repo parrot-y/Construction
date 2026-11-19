@@ -92,8 +92,7 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
 
   const stepValid = (): boolean => {
     if (draft.step === 0) return !!draft.projectType;
-    if (draft.step === 1) return !draft.projectSubtype || !!category?.subtypes.some((s) => s.key === draft.projectSubtype);
-    if (draft.step === 2) return draft.name.trim().length >= 2 && !!draft.code.trim();
+    if (draft.step === 1) return draft.name.trim().length >= 2 && !!draft.code.trim();
     return true;
   };
 
@@ -130,13 +129,13 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
     }
   };
 
-  const input = 'w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-2 focus:outline-orange-500';
-  const lbl = 'block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1';
-  const STEPS = ['Project type', 'Subtype', 'Details', 'Terms & team'];
+  const input = 'w-full px-3 py-2 text-base sm:text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-2 focus:outline-orange-500';
+  const lbl = 'block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1';
+  const STEPS = ['Type', 'Basics', 'Commercial', 'Team'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">New project</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
@@ -145,65 +144,66 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
           {STEPS.map((label, i) => (
             <div key={label} className="flex-1">
               <div className={`h-1 rounded-full ${i <= draft.step ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'}`} />
-              <p className={`text-[10px] mt-1 font-semibold ${i === draft.step ? 'text-orange-600' : 'text-slate-400'}`}>{label}</p>
+              <p className={`text-xs mt-1 font-semibold ${i === draft.step ? 'text-orange-600' : 'text-slate-400'}`}>{label}</p>
             </div>
           ))}
         </div>
 
         <form onSubmit={submit}>
           {draft.step === 0 && (
-            <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto pr-1">
-              {PROJECT_TYPE_CATEGORIES.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => { set('projectType', c.key); set('projectSubtype', ''); }}
-                  className={`text-left px-3 py-2.5 rounded-xl border text-xs font-semibold transition ${
-                    draft.projectType === c.key
-                      ? 'border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200'
-                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {draft.step === 1 && category && (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-500 dark:text-slate-400">What kind of {category.label.toLowerCase()} project is this?</p>
-              <div className="space-y-1.5">
-                {category.subtypes.map((st) => (
+            <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-2">
+                {PROJECT_TYPE_CATEGORIES.map((c) => (
                   <button
-                    key={st.key}
+                    key={c.key}
                     type="button"
-                    onClick={() => set('projectSubtype', st.key)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border text-xs font-semibold ${
-                      draft.projectSubtype === st.key
+                    onClick={() => { set('projectType', c.key); set('projectSubtype', ''); }}
+                    className={`text-left px-3 py-2.5 rounded-lg border text-xs font-semibold transition ${
+                      draft.projectType === c.key
                         ? 'border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
                     }`}
                   >
-                    {st.label}
+                    {c.label}
                   </button>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => set('projectSubtype', '')}
-                  className={`w-full text-left px-3 py-2 rounded-lg border text-xs font-semibold ${
-                    !draft.projectSubtype
-                      ? 'border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200'
-                      : 'border-slate-200 dark:border-slate-700 text-slate-400'
-                  }`}
-                >
-                  Skip — decide later
-                </button>
               </div>
+              {category && category.subtypes.length > 0 && (
+                <div className="space-y-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">What kind of {category.label.toLowerCase()} project is this?</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {category.subtypes.map((st) => (
+                      <button
+                        key={st.key}
+                        type="button"
+                        onClick={() => set('projectSubtype', st.key)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                          draft.projectSubtype === st.key
+                            ? 'border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200'
+                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        {st.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => set('projectSubtype', '')}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                        !draft.projectSubtype
+                          ? 'border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      Decide later
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {draft.step === 2 && (
+          {draft.step === 1 && (
             <div className="space-y-3">
               <div>
                 <label className={lbl} htmlFor="np-name">Project name *</label>
@@ -227,38 +227,10 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
                 <label className={lbl} htmlFor="np-desc">Scope summary (optional)</label>
                 <input id="np-desc" className={input} value={draft.description} onChange={(e) => set('description', e.target.value)} placeholder="Short description of the works" />
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className={lbl} htmlFor="np-value">Contract value (KES)</label>
-                  <input id="np-value" className={input} inputMode="decimal" value={draft.contractValue} onChange={(e) => set('contractValue', e.target.value)} placeholder="e.g. 84500000" />
-                </div>
-                <div>
-                  <label className={lbl} htmlFor="np-currency">Currency</label>
-                  <select id="np-currency" className={input} value={draft.contractCurrency} onChange={(e) => set('contractCurrency', e.target.value)}>
-                    <option value="KES">KES</option>
-                    <option value="USD">USD</option>
-                  </select>
-                </div>
-              </div>
-              {ncaHint && <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">{ncaHint}</p>}
-              <div>
-                <label className={lbl} htmlFor="np-nca">NCA project no. (optional)</label>
-                <input id="np-nca" className={input} value={draft.ncaProjectNo} onChange={(e) => set('ncaProjectNo', e.target.value)} placeholder="NCA-PRJ-2026-XXXX" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={lbl} htmlFor="np-start">Start date</label>
-                  <input type="date" id="np-start" className={input} value={draft.startDate} onChange={(e) => set('startDate', e.target.value)} />
-                </div>
-                <div>
-                  <label className={lbl} htmlFor="np-end">Target end</label>
-                  <input type="date" id="np-end" className={input} value={draft.targetEndDate} onChange={(e) => set('targetEndDate', e.target.value)} />
-                </div>
-              </div>
             </div>
           )}
 
-          {draft.step === 3 && (
+          {draft.step === 2 && (
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
                 <div>
@@ -274,13 +246,46 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
                   <input id="np-moiety" className={input} inputMode="decimal" value={draft.retentionFirstMoietyPct} onChange={(e) => set('retentionFirstMoietyPct', e.target.value)} />
                 </div>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className={lbl} htmlFor="np-value">Contract value (KES)</label>
+                  <input id="np-value" className={input} inputMode="decimal" value={draft.contractValue} onChange={(e) => set('contractValue', e.target.value)} placeholder="e.g. 84500000" />
+                </div>
+                <div>
+                  <label className={lbl} htmlFor="np-currency">Currency</label>
+                  <select id="np-currency" className={input} value={draft.contractCurrency} onChange={(e) => set('contractCurrency', e.target.value)}>
+                    <option value="KES">KES</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </div>
+              </div>
+              {ncaHint && <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">{ncaHint}</p>}
+              <div>
+                <label className={lbl} htmlFor="np-nca">NCA project no. (optional)</label>
+                <input id="np-nca" className={input} value={draft.ncaProjectNo} onChange={(e) => set('ncaProjectNo', e.target.value)} placeholder="NCA-PRJ-2026-XXXX" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={lbl} htmlFor="np-start">Start date</label>
+                  <input type="date" id="np-start" className={input} value={draft.startDate} onChange={(e) => set('startDate', e.target.value)} />
+                </div>
+                <div>
+                  <label className={lbl} htmlFor="np-end">Target end</label>
+                  <input type="date" id="np-end" className={input} value={draft.targetEndDate} onChange={(e) => set('targetEndDate', e.target.value)} />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Retention is withheld from each payment certificate. Deposit / advance is set as a percentage on the quote when you send it.
               </p>
-              <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
-                <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Team</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  You are added as project lead automatically. Invite the rest of the team from People → Team after creating the project.
+            </div>
+          )}
+
+          {draft.step === 3 && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <p className="mb-1 text-xs font-bold text-slate-600 dark:text-slate-300">Team</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  You are added as project lead automatically. Invite the rest of the team from People → Team after creating the project — or skip this step and invite later.
                 </p>
               </div>
             </div>

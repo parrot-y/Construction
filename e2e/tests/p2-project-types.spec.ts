@@ -71,22 +71,20 @@ async function createTypedProject(page: Page, name: string, code: string, type: 
   await page.getByRole('button', { name: 'New project' }).click();
   const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
   await expect(dialog).toBeVisible();
-  // Step 1 — type card
+  // Step 1 — type card + subtype chips (same step)
   await dialog.getByRole('button', { name: type, exact: true }).click();
-  await dialog.getByRole('button', { name: 'Continue' }).click();
-  // Step 2 — subtype (or skip)
   if (subtype) {
     await dialog.getByRole('button', { name: subtype, exact: true }).click();
-  } else {
-    await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
   }
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  // Step 3 — details
+  // Step 2 — basics
   await dialog.getByLabel(/Project name/).fill(name);
   await dialog.getByLabel(/Project code/).fill(code);
+  await dialog.getByRole('button', { name: 'Continue' }).click();
+  // Step 3 — commercial
   if (contractValue) await dialog.getByLabel(/Contract value/).fill(contractValue);
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  // Step 4 — terms → create
+  // Step 4 — team → create
   // Footer primary swaps Continue→submit at the same spot; a fast click can
   // submit early — click submit only if the modal is still open.
   const npSubmit = dialog.locator('button[type=\"submit\"]');
@@ -138,7 +136,8 @@ test.describe('2.8 project types through the UI', () => {
     const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
     await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
+    await dialog.getByLabel(/Project name/).fill(`NCA Hint ${RUN.toString(36)}`);
+    await dialog.getByLabel(/Project code/).fill(`NCA-${RUN.toString(36)}`);
     await dialog.getByRole('button', { name: 'Continue' }).click();
     // 45M contract → Building NCA-3 band (20M–50M) per seeded rules
     await dialog.getByLabel(/Contract value/).fill('45000000');

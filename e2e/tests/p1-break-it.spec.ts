@@ -61,10 +61,9 @@ async function openWizardAtSubmit(page: Page, tag = 'A') {
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
-  await dialog.getByRole('button', { name: 'Continue' }).click();
   await dialog.getByLabel(/Project name/).fill(`P1 Break ${tag} ${RUN}`);
   await dialog.getByLabel(/Project code/).fill(`P1${tag}-${String(RUN).slice(-6)}`);
+  await dialog.getByRole('button', { name: 'Continue' }).click();
   await dialog.getByRole('button', { name: 'Continue' }).click();
   return dialog;
 }
@@ -98,8 +97,11 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     // Dialog stays open with typed data kept — step back to the details
     // step and the name field must still hold what was typed.
     await expect(dialog).toBeVisible();
+    // Step 3 (team) → Back lands on commercial; Back again reaches basics.
+    await dialog.getByRole('button', { name: 'Back' }).click();
     await dialog.getByRole('button', { name: 'Back' }).click();
     await expect(dialog.getByLabel(/Project name/)).toHaveValue(`P1 Break A ${RUN}`);
+    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
 
     // API returns → retry succeeds, project appears.

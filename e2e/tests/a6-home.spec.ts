@@ -76,10 +76,9 @@ test.describe('A6 — Home dashboard', () => {
     const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
     await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
-    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByLabel(/Project name/).fill('A6 Home Site');
     await dialog.getByLabel(/Project code/).fill(`A6-${String(RUN).slice(-6)}`);
+    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
     // Footer primary swaps Continue→submit at the same spot; a fast click can
   // submit early — click submit only if the modal is still open.

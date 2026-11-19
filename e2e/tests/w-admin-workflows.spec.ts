@@ -60,10 +60,9 @@ async function createProjectUi(page: Page, name: string, code: string, contractV
   // 2.8 wizard: type → subtype → details → terms.
   await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
-  await dialog.getByRole('button', { name: 'Continue' }).click();
   await dialog.getByLabel(/Project name/).fill(name);
   await dialog.getByLabel(/Project code/).fill(code);
+  await dialog.getByRole('button', { name: 'Continue' }).click();
   if (contractValue) await dialog.getByLabel(/Contract value/).fill(contractValue);
   await dialog.getByRole('button', { name: 'Continue' }).click();
   // Footer primary swaps Continue→submit at the same spot; a fast click can

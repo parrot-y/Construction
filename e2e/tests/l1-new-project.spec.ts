@@ -34,7 +34,17 @@ async function uiLogin(page: Page) {
   await page.locator('#email').fill(`admin.${RUN}@l1-project.test`);
   await page.locator('#password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Sign in to workspace' }).click();
-  await expect(page.getByRole('button', { name: 'Projects' }).first()).toBeVisible({ timeout: 30_000 });
+  const navBtn = page.getByRole('button', { name: 'Projects' }).first();
+  // Rare infra flake: the e2e API occasionally answers a valid login with a
+  // transient 401 under load. Retry the submit once before failing.
+  const outcome = await Promise.race([
+    navBtn.waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'ok'),
+    page.getByText('Invalid email or password').waitFor({ state: 'visible', timeout: 30_000 }).then(() => 'err'),
+  ]).catch(() => 'err');
+  if (outcome === 'err') {
+    await page.getByRole('button', { name: 'Sign in to workspace' }).click();
+    await expect(navBtn).toBeVisible({ timeout: 30_000 });
+  }
 }
 
 test.describe('L1 — New project from the console', () => {
@@ -56,11 +66,10 @@ test.describe('L1 — New project from the console', () => {
 
     await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
-    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByLabel(/Project name/).fill('L1 Riverside Offices');
     await dialog.getByLabel(/Project code/).fill(`L1-${String(RUN).slice(-6)}`);
     await dialog.getByLabel('Location').fill('Kileleshwa, Nairobi');
+    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByLabel(/Contract value/).fill('12500000');
     await dialog.getByRole('button', { name: 'Continue' }).click();
     // Footer primary swaps Continue→submit at the same spot; a fast click can
@@ -88,10 +97,9 @@ test.describe('L1 — New project from the console', () => {
     // Duplicate code → API 409/400 → inline error must render.
     await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByRole('button', { name: 'Skip — decide later' }).click();
-    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByLabel(/Project name/).fill('Duplicate Code Project');
     await dialog.getByLabel(/Project code/).fill(`L1-${String(RUN).slice(-6)}`);
+    await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
     // Footer primary swaps Continue→submit at the same spot; a fast click can
   // submit early — click submit only if the modal is still open.

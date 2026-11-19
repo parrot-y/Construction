@@ -82,14 +82,13 @@ test.describe('L3 — admin first-hour journey (UI only)', () => {
     await expect(dlg).toBeVisible();
     await dlg.getByRole('button', { name: 'Commercial', exact: true }).click();
     await dlg.getByRole('button', { name: 'Continue' }).click();
-    await dlg.getByRole('button', { name: 'Skip — decide later' }).click();
-    await dlg.getByRole('button', { name: 'Continue' }).click();
     await dlg.getByLabel(/Project name/).fill('Kileleshwa Mixed-Use Development');
     await dlg.getByLabel(/Project code/).fill(`MUD-${String(RUN).slice(-5)}`);
     await dlg.getByLabel('Location').fill('Kileleshwa, Nairobi');
-    await dlg.getByLabel(/Contract value/).fill('186000000');
-    await shot(page, '05-new-project-form');
     await dlg.getByRole('button', { name: 'Continue' }).click();
+    await dlg.getByLabel(/Contract value/).fill('186000000');
+    await dlg.getByRole('button', { name: 'Continue' }).click();
+    await shot(page, '05-new-project-form');
     // Footer primary swaps Continue→submit at the same spot; a fast click can
   // submit early — click submit only if the modal is still open.
   const npSubmit = dlg.locator('button[type=\"submit\"]');
