@@ -110,10 +110,8 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
   useEffect(() => {
     const stored = localStorage.getItem('sitesafi-currency');
     if (stored === 'KES' || stored === 'USD') setCurrencyState(stored);
-    if (localStorage.getItem('sitesafi-dark') === '1') {
-      setDark(true);
-      document.documentElement.classList.add('dark');
-}
+    // Light theme only for the pilot (DESIGN.md) — the stored dark preference
+    // is intentionally ignored and the theme toggle was removed from the UI.
 }, []);
 
   const setCurrency = (c: 'KES' | 'USD') => {

@@ -60,6 +60,11 @@ jobs:
         # display, dead <button>s and silent catches in apps/web/src.
         run: node scripts/check-frontend-hygiene.mjs
 
+      - name: Design-token ratchet (Phase 3.2)
+        # Fails when raw hex colours, off-scale font sizes, gradients/glass or
+        # emoji icons in apps/web/src grow past the committed baseline.
+        run: bash scripts/check-design-tokens.sh
+
       - name: Secret Scanning (Check for live secrets in committed files)
         run: |
           if git grep -E "(BEGIN (RSA|OPENSSH|PGP) PRIVATE KEY|AKIA[0-9A-Z]{16}|SG\.[0-9a-zA-Z_-]{22}\.[0-9a-zA-Z_-]{43})" -- ':!*.example' ':!*.md'; then
