@@ -489,10 +489,14 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     }
     // Done-states come from real data: BoQ, diary, certificate and invoice
     // were all created earlier in this journey, so those steps must be done.
-    const doneCount = await page.getByText(/\d+ of 7 done/).textContent();
-    expect(doneCount).toBeTruthy();
-    const done = Number((doneCount || '').match(/(\d+) of 7/)?.[1] ?? 0);
-    expect(done, 'journey steps must mark real completions').toBeGreaterThanOrEqual(4);
+    // The count hydrates asynchronously after the project card is selected —
+    // poll until it reflects real data instead of reading a stale "0 of 7".
+    let done = 0;
+    await expect.poll(async () => {
+      const doneCount = await page.getByText(/\d+ of 7 done/).first().textContent().catch(() => '');
+      done = Number((doneCount || '').match(/(\d+) of 7/)?.[1] ?? 0);
+      return done;
+    }, { timeout: 30_000, intervals: [500, 1000, 2000] }).toBeGreaterThanOrEqual(4);
 
     // WhatsApp copy affordance: tokens are only exposed at creation, so
     // generate a link through the real UI — the fresh row must offer
