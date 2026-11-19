@@ -269,3 +269,16 @@ Plan:
 - [ ] p3-design-gate.spec.ts: UI test + 390/1280 screenshots → docs/evidence/visual/<sha>/design-gate/
 - [ ] Run affected specs (a6, a7, l1, p2, w-admin, p1-break-it) on both viewports
 - [ ] Commit P3.1/P3.2/P3.3 separately per rules
+
+## Phase 3 review (closeout on da72747)
+
+- P3.1 (2c5c9d7): docs/design/DESIGN.md + Home/Projects/New-project rebuilt; p3-design-gate spec + 390/1280 shots.
+- P3.2 (72277ae): check-design-tokens.sh ratchet in CI, light-only theme.
+- P3.3 (f9d25ac): labelled collapsible sidebar, inline active tabs, phone bottom bar + More sheet.
+- P3.4 (85edeb1): tab roles, URL/back-forward sync fix in ConsoleContext, dead-control fix.
+- P3.6 (1aa902c): rt stacked-card tables under 640px (team, roles, BoQ workbook).
+- P3.7/P3.8 (68f18e3): banned-pattern review doc + sunlight fixes.
+- P3.9 (da72747): nav-contract assertion follows tab role (test fix only).
+- Regressions fixed en route: a6-home aggregate attention stats, a7/l1 duplicate-button locators, p1 mobile More-sheet scoping, c1 back-button timing.
+- Final: full solo suite on 60c0220 — 452/452 green (e2e-60c0220.md);
+  verify-local 6/6 green (verify-60c0220.log). Phase 3 ready for review.

@@ -130,3 +130,17 @@ Prevention rules:
   DOM index — SPA re-renders drift indices onto different elements.
 - window.open exports count as actions via context-level request/popup
   events, not page-level request events.
+
+## Lesson: shared formatters are guarded — verify-local catches what e2e misses
+
+Pattern: Phase 3 dashboard rendered SPI/CPI with raw `.toFixed(2)`; every
+Playwright test passed, but `verify-local.sh` failed on the currency-guard
+baseline. The e2e suite proves behaviour; the guard suite proves conventions.
+
+Prevention rules:
+- Never format numbers/dates/money inline in components — use `formatKes`,
+  `formatRatio`, `formatDate` from `ui/` or `lib/`.
+- Run `scripts/verify-local.sh` (or at least the web unit tests) before
+  treating a UI change as done — not only the Playwright specs.
+- When a guard baseline fails, fix the code; do not add new files to the
+  baseline list.
