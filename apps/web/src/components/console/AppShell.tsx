@@ -456,7 +456,10 @@ function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
       void import('./sections/FilesSection');
     };
     const ric = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => number) | undefined;
-    if (ric) return ric(warm, { timeout: 4000 }) as unknown as void;
+    if (ric) {
+      const id = ric(warm, { timeout: 4000 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    }
     const t = setTimeout(warm, 1500);
     return () => clearTimeout(t);
   }, []);
