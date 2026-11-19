@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api, apiErrorMessage } from '../../../lib/api';
 import { EmptyState, Skeleton } from '../../../ui';
 import { InlineError } from '../../feedback/InlineError';
-import { formatKes } from '../../../ui';
+import { formatKes, formatRatio } from '../../../ui';
 import { formatDate } from '../../../lib/format';
 
 // ---------------------------------------------------------------------------
@@ -132,13 +132,13 @@ function ProgressPlan({ projectId, projectName, clientView }: { projectId?: stri
   const last = cum[cum.length - 1]!;
   const finding = clientView
     ? `Progress is ${pct(last.earned, last.planned)}% of plan to date.`
-    : `Earned value is ${pct(last.earned, last.planned)}% of planned value to date (SPI ${num(data?.metrics?.spi).toFixed(2)}).`;
+    : `Earned value is ${pct(last.earned, last.planned)}% of planned value to date (SPI ${formatRatio(data?.metrics?.spi)}).`;
 
   const table = moneyTable([
     ['Planned to date', formatKes(last.planned)],
     ['Earned to date', formatKes(last.earned)],
-    ['SPI', num(data?.metrics?.spi).toFixed(2)],
-    ['CPI', num(data?.metrics?.cpi).toFixed(2)],
+    ['SPI', formatRatio(data?.metrics?.spi)],
+    ['CPI', formatRatio(data?.metrics?.cpi)],
   ]);
 
   return (

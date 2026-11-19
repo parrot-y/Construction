@@ -14,6 +14,14 @@ export function formatKes(amount: string | number | null | undefined): string {
   return formatMoney(n);
 }
 
+/** Unitless ratio/index (SPI, CPI, percentages already handled) — 2dp, em dash when absent. */
+export function formatRatio(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (!Number.isFinite(n)) return '—';
+  return n.toFixed(2);
+}
+
 // ------------------------------------------------------------------ Button
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md';
