@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConsole } from './console/ConsoleContext';
 import { statusLabel } from '../lib/status-labels';
 import { api } from '../lib/api';
@@ -22,10 +22,20 @@ export default function ProjectChecklist({ projectId }: { projectId: string }): 
   const [steps, setSteps] = useState<ChecklistStep[] | null>(null);
   const [error, setError] = useState(false);
 
+  // Rapid project switching can leave an in-flight load for the previous
+  // project resolving after the new one — without a generation guard its
+  // stale steps overwrite the current project's progress.
+  const gen = useRef(0);
   const load = useCallback(async () => {
+    const mine = ++gen.current;
+    const stale = () => mine !== gen.current;
     if (!/^[0-9a-f-]{36}$/i.test(projectId)) { setSteps(null); return; }
     setError(false);
-    const get = (url: string) => api.get<any>(url).catch(() => null); // best-effort: null on any failure
+    // Checklist probes are best-effort, but they run on heavy list endpoints —
+    // under load the 20s default can be too tight and a timeout silently
+    // zeroes real progress. Give them headroom; failures still degrade to
+    // "not done" rather than crashing the card.
+    const get = (url: string) => api.get<any>(url, { timeoutMs: 30_000 }).catch(() => null);
 
     const [project, quotes, diaries, certs, invoices, closeout] = await Promise.all([
       get(`/api/v1/projects/${projectId}`),
@@ -36,6 +46,7 @@ export default function ProjectChecklist({ projectId }: { projectId: string }): 
       get(`/api/v1/projects/${projectId}/closeout`),
     ]);
 
+    if (stale()) return;
     if (!project?.data) { setError(true); setSteps(null); return; }
 
     const p = project.data;
@@ -51,6 +62,7 @@ export default function ProjectChecklist({ projectId }: { projectId: string }): 
     const closeoutStage = closeout?.data?.stage;
     const closed = closeoutStage === 'CLOSED';
 
+    if (stale()) return;
     setSteps([
       { key: 'quote', label: 'Quote accepted', hint: 'Client accepted a quote for this project', done: quoteAccepted, section: 'money', tab: 'quotes' },
       { key: 'boq', label: 'BoQ imported', hint: 'Bill of quantities loaded and priced', done: boqImported, section: 'money', tab: 'boq' },
