@@ -138,13 +138,13 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
       <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">New project</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
         </div>
         <div className="flex gap-1.5 mb-4">
           {STEPS.map((label, i) => (
             <div key={label} className="flex-1">
               <div className={`h-1 rounded-full ${i <= draft.step ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'}`} />
-              <p className={`text-xs mt-1 font-semibold ${i === draft.step ? 'text-orange-600' : 'text-slate-400'}`}>{label}</p>
+              <p className={`text-xs mt-1 font-semibold ${i === draft.step ? 'text-orange-600' : 'text-slate-500'}`}>{label}</p>
             </div>
           ))}
         </div>
@@ -192,7 +192,7 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
                       className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
                         !draft.projectSubtype
                           ? 'border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-400'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-500'
                       }`}
                     >
                       Decide later

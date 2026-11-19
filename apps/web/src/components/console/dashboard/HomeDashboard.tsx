@@ -77,7 +77,7 @@ function NeedsYouNow({ items, stats, loading, error, onNavigate }: { items: Atte
           {stats.map((s) => (
             <button key={s.label} type="button" onClick={() => onNavigate?.(s.section, s.tab)}
               className="rounded-xl border border-slate-200 p-3 text-left transition hover:border-orange-400 dark:border-slate-800 dark:hover:border-orange-500">
-              <p className="text-xs font-bold text-slate-400">{s.label}</p>
+              <p className="text-xs font-bold text-slate-500">{s.label}</p>
               <p className={`mt-1 text-xl font-bold ${s.warn ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{s.value}</p>
               <p className="mt-0.5 text-xs font-bold text-orange-600">Open list →</p>
             </button>
@@ -223,7 +223,7 @@ function MoneyPerProject({ projects, clientView }: { projects: Project[]; client
           <div key={p.id}>
             <div className="mb-1 flex items-baseline justify-between gap-2">
               <p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{p.name}</p>
-              <p className="shrink-0 text-xs text-slate-400">{formatKes(contract(p))} contract</p>
+              <p className="shrink-0 text-xs text-slate-500">{formatKes(contract(p))} contract</p>
             </div>
             <div className="space-y-1">
               {series.map(([label, f], si) => {
@@ -419,7 +419,7 @@ function NextMilestones({ projects, clientView }: { projects: Project[]; clientV
             </div>
             <div className="shrink-0 text-right">
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t.planned_start_date ? formatDate(t.planned_start_date) : '—'}</p>
-              <p className="text-xs text-slate-400">{String(t.status || '').toLowerCase().replace('_', ' ')}</p>
+              <p className="text-xs text-slate-500">{String(t.status || '').toLowerCase().replace('_', ' ')}</p>
             </div>
           </li>
         ))}

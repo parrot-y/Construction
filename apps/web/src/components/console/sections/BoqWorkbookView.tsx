@@ -190,7 +190,7 @@ export default function BoqWorkbookView({
     return (
       <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center">
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Could not load the Bill of Quantities</p>
-        <p className="text-xs text-slate-400 mt-1">Check your connection and try again.</p>
+        <p className="text-xs text-slate-500 mt-1">Check your connection and try again.</p>
         <button
           type="button"
           onClick={load}
@@ -206,7 +206,7 @@ export default function BoqWorkbookView({
     return (
       <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center">
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">No Bill of Quantities yet</p>
-        <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
           The BoQ lists every item of work with quantities and rates — it drives valuations, valuations and retention.
           {canEdit ? ' Type your first item below or import an Excel BoQ.' : ' Ask a project manager or QS to import one.'}
         </p>
@@ -247,7 +247,7 @@ export default function BoqWorkbookView({
       <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Bill of Quantities</h3>
-          <p className="text-[11px] text-slate-400">Version {boq.version} · {boq.status}</p>
+          <p className="text-[11px] text-slate-500">Version {boq.version} · {boq.status}</p>
         </div>
         <div className="flex items-center gap-3">
           {canEdit && (
@@ -283,7 +283,7 @@ export default function BoqWorkbookView({
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-slate-400 border-b border-slate-100 dark:border-slate-800">
+            <tr className="text-left text-slate-500 border-b border-slate-100 dark:border-slate-800">
               <th className="px-5 py-2.5 font-semibold">Code</th>
               <th className="px-3 py-2.5 font-semibold">Description</th>
               <th className="px-3 py-2.5 font-semibold">Unit</th>
@@ -367,7 +367,7 @@ function renderForm(
   showSectionPicker: boolean,
 ): React.JSX.Element {
   const input =
-    'w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500';
+    'w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-base sm:text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500';
   return (
     <form onSubmit={onSubmit} className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40">
       <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-3">{title}</p>

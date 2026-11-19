@@ -88,7 +88,7 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {([['Cash in', kpis?.cashIn], ['Deposits & advances', kpis?.deposits], ['Cash out', kpis?.cashOut], ['Net', kpis?.net]] as [string, number | undefined][]).map(([l, v]) => (
 <div key={l} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-<p className="text-[10px] font-bold text-slate-400">{l}</p>
+<p className="text-[10px] font-bold text-slate-500">{l}</p>
 <p className="text-lg font-bold tabular-nums text-slate-900 dark:text-slate-100 mt-1">{v === undefined ? '—' : formatKes(v)}</p>
 </div>
 ))}
@@ -117,7 +117,7 @@ function NoAccess({ what}: { what: string}): React.JSX.Element {
   return (
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center">
 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">You don&apos;t have access to {what}</p>
-<p className="text-xs text-slate-400 mt-1">Contact the site manager for financial details.</p>
+<p className="text-xs text-slate-500 mt-1">Contact the site manager for financial details.</p>
 </div>
 );
 }

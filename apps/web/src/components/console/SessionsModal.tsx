@@ -46,14 +46,14 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
 <div>
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Active sessions</h3>
-<p className="text-[11px] text-slate-400 mt-0.5">Devices currently signed in to your account</p>
+<p className="text-[11px] text-slate-500 mt-0.5">Devices currently signed in to your account</p>
 </div>
-<button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
+<button onClick={onClose} className="text-slate-500 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
 </div>
 <div className="px-5 py-4 max-h-80 overflow-y-auto">
           {error && <InlineError error={error} className="mb-3" />}
-          {rows === null &&<p className="text-xs text-slate-400">Loading…</p>}
-          {rows?.length === 0 &&<p className="text-xs text-slate-400">No active sessions found.</p>}
+          {rows === null &&<p className="text-xs text-slate-500">Loading…</p>}
+          {rows?.length === 0 &&<p className="text-xs text-slate-500">No active sessions found.</p>}
 <ul className="space-y-2">
             {rows?.map((s) => (
 <li key={s.id} className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 px-3.5 py-2.5">
@@ -62,7 +62,7 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
                     Session {s.id}
                     {s.current &&<span className="ml-2 text-[10px] font-bold text-emerald-600">THIS DEVICE</span>}
 </p>
-<p className="text-[10px] text-slate-400">
+<p className="text-[10px] text-slate-500">
                     Signed in {formatDateTime(new Date(s.createdAt))} · expires {formatDate(new Date(s.expiresAt))}
 </p>
 </div>

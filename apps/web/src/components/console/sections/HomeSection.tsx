@@ -142,9 +142,9 @@ function ExecHome(): React.JSX.Element {
 <div className="mb-3 flex items-center justify-between">
 <div>
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Get started</h3>
-<p className="mt-0.5 text-xs text-slate-400">{stepsDone} of {steps.length} done — each step opens the exact screen.</p>
+<p className="mt-0.5 text-xs text-slate-500">{stepsDone} of {steps.length} done — each step opens the exact screen.</p>
 </div>
-<span className="text-xs font-bold text-slate-400">{Math.round((stepsDone / steps.length) * 100)}%</span>
+<span className="text-xs font-bold text-slate-500">{Math.round((stepsDone / steps.length) * 100)}%</span>
 </div>
 <div className="space-y-1.5">
             {steps.map((st, i) => (
@@ -153,7 +153,7 @@ function ExecHome(): React.JSX.Element {
 <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${st.done ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'}`}>
                   {st.done ? '✓' : i + 1}
 </span>
-<span className={`text-xs font-semibold ${st.done ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-100'}`}>{st.label}</span>
+<span className={`text-xs font-semibold ${st.done ? 'text-slate-500 line-through' : 'text-slate-800 dark:text-slate-100'}`}>{st.label}</span>
 <span className="ml-auto text-xs font-bold text-orange-600">{st.done ? 'Done' : 'Open →'}</span>
 </button>
 ))}
@@ -237,13 +237,13 @@ function FieldHome(): React.JSX.Element {
 <div className="space-y-6">
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
 <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Today's work{pname ? ` — ${pname}` : ''}</h2>
-<p className="text-xs text-slate-400 mt-0.5">Start here: site log, headcount, snags and safety for today.</p>
+<p className="text-xs text-slate-500 mt-0.5">Start here: site log, headcount, snags and safety for today.</p>
 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
           {actions.map((a) => (
 <button key={a.tab} onClick={() => { setSection('site'); setTab(a.tab); }}
               className="text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition">
 <p className={`text-xs font-bold ${a.warn ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{a.label}</p>
-<p className="text-xs text-slate-400 mt-1">{a.desc}</p>
+<p className="text-xs text-slate-500 mt-1">{a.desc}</p>
 </button>
 ))}
 </div>

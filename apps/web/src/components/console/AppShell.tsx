@@ -119,7 +119,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 )}
 <div className={`${mobileSearch ? 'block' : 'hidden'} sm:block flex-1 min-w-0 max-w-md mx-auto relative`}>
 <div className="relative">
-<IconSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+<IconSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
 <input
             ref={searchRef}
             value={q}
@@ -128,9 +128,9 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
             onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setMobileSearch(false); (e.target as HTMLInputElement).blur(); } }}
             placeholder="Search projects, change orders and people"
             aria-label="Search workspace"
-            className="w-full pl-9 pr-14 py-2 text-sm bg-slate-100 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-900 dark:text-slate-100"
+            className="w-full pl-9 pr-14 py-2 text-base sm:text-sm bg-slate-100 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-900 dark:text-slate-100"
           />
-<kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5">Ctrl K</kbd>
+<kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5">Ctrl K</kbd>
 </div>
         {searchOpen && q.trim().length > 0 && (
 <>
@@ -147,25 +147,25 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <button key={p.id} onClick={() => { setProjectId(p.id); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">{p.name}</span>
-<span className="ml-2 text-xs text-slate-400 font-mono tabular-nums">{p.code} · project</span>
+<span className="ml-2 text-xs text-slate-500 font-mono tabular-nums">{p.code} · project</span>
 </button>
 ))}
                     {memberHits.map((m: any) => (
 <button key={m.membershipId || m.user?.email} onClick={() => { setSection('people'); setTab('team'); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">{m.user?.full_name || m.user?.email}</span>
-<span className="ml-2 text-xs text-slate-400">{m.role} · person</span>
+<span className="ml-2 text-xs text-slate-500">{m.role} · person</span>
 </button>
 ))}
                     {secHits.map((sec) => (
 <button key={sec} onClick={() => { setSection(sec as ConsoleSection); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">Go to {SECTION_LABELS[sec as ConsoleSection]}</span>
-<span className="ml-2 text-xs text-slate-400">section</span>
+<span className="ml-2 text-xs text-slate-500">section</span>
 </button>
 ))}
                     {projHits.length === 0 && memberHits.length === 0 && secHits.length === 0 && (
-<p className="px-4 py-3 text-xs text-slate-400">No matches for “{q}”.</p>
+<p className="px-4 py-3 text-xs text-slate-500">No matches for “{q}”.</p>
 )}
 </>
 );
@@ -235,7 +235,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1.5">
 <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user.fullName || user.email}</p>
-<p className="text-xs text-slate-400">{user.email} · {roleLabel}</p>
+<p className="text-xs text-slate-500">{user.email} · {roleLabel}</p>
 </div>
 <button onClick={() => { setUserMenu(false); setReportOpen(true);}}
                   className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
@@ -389,7 +389,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             onClick={onToggle}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
           >
             <IconChevron className={`w-4 h-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
           </button>
@@ -405,7 +405,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-600 text-xs font-bold text-white">{initials}</span>
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">{user.fullName || user.email}</p>
-                <p className="truncate text-xs text-slate-400">{roleLabel}</p>
+                <p className="truncate text-xs text-slate-500">{roleLabel}</p>
               </div>
             </div>
           )}
@@ -432,7 +432,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                 <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
                 <div className="absolute bottom-0 left-full z-50 ml-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
                   <div className="border-b border-slate-100 px-4 py-2 dark:border-slate-800">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Display currency</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Display currency</p>
                     <div className="mt-1.5 flex gap-1">
                       {(['KES', 'USD'] as const).map((c) => (
                         <button key={c} onClick={() => setCurrency(c)} aria-pressed={currency === c}
@@ -540,7 +540,7 @@ function SubNav(): React.JSX.Element | null {
           </button>
         ))}
       </div>
-      {pname &&<p className="text-xs text-slate-400 mt-1">Context: {pname}</p>}
+      {pname &&<p className="text-xs text-slate-500 mt-1">Context: {pname}</p>}
 </div>
 );
 }

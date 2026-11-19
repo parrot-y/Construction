@@ -61,7 +61,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 </div>
 
       {loading ? (
-<p className="text-xs text-slate-400">Loading…</p>
+<p className="text-xs text-slate-500">Loading…</p>
 ) : (
 <>
           {/* Week strip — last 14 days, logged vs not */}
@@ -70,7 +70,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                 {days.length} of {Math.min(14, days.length + 14 - days.length)} recent days logged
 </p>
-<p className="text-[11px] text-slate-400">{days.length} day{days.length === 1 ? '' : 's'} with entries</p>
+<p className="text-[11px] text-slate-500">{days.length} day{days.length === 1 ? '' : 's'} with entries</p>
 </div>
 <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
               {Array.from({ length: 14}, (_, i) => {
@@ -187,7 +187,7 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
             className="text-left p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition">
 <span className="text-lg">{a.icon}</span>
 <p className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1.5">{a.label}</p>
-<p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{a.desc}</p>
+<p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{a.desc}</p>
 </button>
 ))}
 </div>
@@ -196,11 +196,11 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">My Assigned Checklists</h4>
 <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Complete your assigned QA checklists and safety inspections.</p>
         {loading ? (
-<p className="text-xs text-slate-400">Loading…</p>
+<p className="text-xs text-slate-500">Loading…</p>
 ) : open.length === 0 ? (
 <div className="text-center py-6">
 <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">No assigned checklists</p>
-<p className="text-xs text-slate-400 mt-1">Ask your supervisor to assign you a checklist from Assignments.</p>
+<p className="text-xs text-slate-500 mt-1">Ask your supervisor to assign you a checklist from Assignments.</p>
 </div>
 ) : (
 <div className="space-y-2">
@@ -209,7 +209,7 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
                 className="w-full text-left flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
 <div>
 <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{a.title}</p>
-<p className="text-[10px] text-slate-400">{a.trade}{a.assigned_to_name ? ` · ${a.assigned_to_name}` : ''}{a.due_date ? ` · due ${String(a.due_date).slice(0, 10)}` : ''}</p>
+<p className="text-[10px] text-slate-500">{a.trade}{a.assigned_to_name ? ` · ${a.assigned_to_name}` : ''}{a.due_date ? ` · due ${String(a.due_date).slice(0, 10)}` : ''}</p>
 </div>
 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{String(a.status).replace(/_/g, ' ')}</span>
 </button>

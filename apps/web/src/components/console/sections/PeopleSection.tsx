@@ -183,12 +183,12 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
             Email
 <input type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value})}
-              className="mt-1 block border border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm w-64" placeholder="teammate@company.co.ke" />
+              className="mt-1 block border border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-base sm:text-sm w-64" placeholder="teammate@company.co.ke" />
 </label>
 <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
             Role
 <select value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value})}
-              className="mt-1 block border border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm">
+              className="mt-1 block border border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-base sm:text-sm">
               {ASSIGN_ROLES.map((r) =><option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
 </select>
 </label>
@@ -200,7 +200,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <div className="overflow-x-auto">
 <table className="rt w-full text-xs">
 <thead>
-<tr className="text-left text-slate-400 border-b border-slate-100 dark:border-slate-800">
+<tr className="text-left text-slate-500 border-b border-slate-100 dark:border-slate-800">
 <th className="px-5 py-3 font-semibold">Name</th>
 <th className="px-3 py-3 font-semibold">Email</th>
 <th className="px-3 py-3 font-semibold">Role</th>
@@ -242,7 +242,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 );
 })}
               {members !== null && members.length === 0 && (
-<tr><td colSpan={4} className="px-5 py-8 text-center text-slate-400">No members found.</td></tr>
+<tr><td colSpan={4} className="px-5 py-8 text-center text-slate-500">No members found.</td></tr>
 )}
 </tbody>
 </table>
@@ -268,7 +268,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
                 }`}>
                 {inv.status}
 </span>
-<span className="text-[10px] text-slate-400">
+<span className="text-[10px] text-slate-500">
                 expires {formatDate(new Date(inv.expiresAt))}
 </span>
 <div className="ml-auto flex items-center gap-3">
@@ -330,12 +330,12 @@ function DirectoryView(): React.JSX.Element {
 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {(cat === 'All' || cat === 'Team') && (
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-<p className="px-5 py-3 text-xs font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">Team ({members.length})</p>
+<p className="px-5 py-3 text-xs font-bold text-slate-500 border-b border-slate-100 dark:border-slate-800">Team ({members.length})</p>
 <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
               {members.map((m: any) => (
 <div key={m.membershipId} className="px-5 py-2.5 flex justify-between text-xs">
 <span className="font-semibold text-slate-800 dark:text-slate-200">{m.user?.full_name || m.user?.email}</span>
-<span className="text-slate-400">{m.user?.email}</span>
+<span className="text-slate-500">{m.user?.email}</span>
 </div>
 ))}
 </div>
@@ -343,29 +343,29 @@ function DirectoryView(): React.JSX.Element {
 )}
         {(cat === 'All' || cat === 'Subcontractor' || cat === 'Supplier') && (
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-<p className="px-5 py-3 text-xs font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
+<p className="px-5 py-3 text-xs font-bold text-slate-500 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
 <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
               {subs.map((s: any) => (
 <div key={s.id} className="px-5 py-2.5 flex justify-between text-xs">
 <span className="font-semibold text-slate-800 dark:text-slate-200">{s.company_name || s.name}</span>
-<span className="text-slate-400">{s.trade || s.category || s.type || ''}</span>
+<span className="text-slate-500">{s.trade || s.category || s.type || ''}</span>
 </div>
 ))}
-              {subs.length === 0 &&<p className="px-5 py-6 text-xs text-slate-400 text-center">No subcontractors yet.</p>}
+              {subs.length === 0 &&<p className="px-5 py-6 text-xs text-slate-500 text-center">No subcontractors yet.</p>}
 </div>
 </div>
 )}
         {(cat === 'All' || cat === 'Subcontractor' || cat === 'Supplier') && (
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-<p className="px-5 py-3 text-xs font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
+<p className="px-5 py-3 text-xs font-bold text-slate-500 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
 <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
             {subs.map((s: any) => (
 <div key={s.id} className="px-5 py-2.5 flex justify-between text-xs">
 <span className="font-semibold text-slate-800 dark:text-slate-200">{s.company_name || s.name}</span>
-<span className="text-slate-400">{s.trade || s.category || s.type || ''}</span>
+<span className="text-slate-500">{s.trade || s.category || s.type || ''}</span>
 </div>
 ))}
-            {subs.length === 0 &&<p className="px-5 py-6 text-xs text-slate-400 text-center">No subcontractors yet.</p>}
+            {subs.length === 0 &&<p className="px-5 py-6 text-xs text-slate-500 text-center">No subcontractors yet.</p>}
 </div>
 </div>
 )}
@@ -416,7 +416,7 @@ function RolesView(): React.JSX.Element {
 <p className="text-xs text-slate-500 dark:text-slate-400">What each workspace role can see and do.</p>
 </div>
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-<p className="text-[10px] font-bold text-slate-400 mb-3">Role hierarchy &amp; responsibilities · {ROLE_DESCRIPTIONS.length} roles defined</p>
+<p className="text-[10px] font-bold text-slate-500 mb-3">Role hierarchy &amp; responsibilities · {ROLE_DESCRIPTIONS.length} roles defined</p>
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {ROLE_DESCRIPTIONS.map((r) => (
 <div key={r.label} className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900/60">
@@ -430,7 +430,7 @@ function RolesView(): React.JSX.Element {
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
-<tr className="text-left text-slate-400 border-b border-slate-100 dark:border-slate-800">
+<tr className="text-left text-slate-500 border-b border-slate-100 dark:border-slate-800">
 <th className="px-5 py-3 font-semibold">Role</th>
               {MATRIX_SECTIONS.map((sec) =><th key={sec} className="px-3 py-3 font-semibold capitalize text-center">{sec === 'files' ? 'Files' : sec}</th>)}
 </tr>
@@ -463,7 +463,7 @@ function RolesView(): React.JSX.Element {
 </table>
 </div>
 </div>
-<p className="text-[11px] text-slate-400">Assign roles from Team. External stakeholders (client, consultant, subcontractor, supplier, compliance) use token portals, not seats.</p>
+<p className="text-[11px] text-slate-500">Assign roles from Team. External stakeholders (client, consultant, subcontractor, supplier, compliance) use token portals, not seats.</p>
 </div>
 );
 }

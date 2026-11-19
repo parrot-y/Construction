@@ -160,7 +160,7 @@ export default function AskAiPanel(): React.JSX.Element {
 <span className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center"><IconSpark className="w-4 h-4" /></span>
 <div>
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{PRODUCT_NAME} Assistant</p>
-<p className="text-[10px] text-slate-400">Navigation assistant — beta</p>
+<p className="text-[10px] text-slate-500">Navigation assistant — beta</p>
 </div>
 </div>
 <button onClick={() => setAiOpen(false)} aria-label="Close assistant" className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
@@ -209,13 +209,13 @@ export default function AskAiPanel(): React.JSX.Element {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about projects, invoices, site…"
           aria-label="Ask the product assistant"
-          className="flex-1 text-sm border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className="flex-1 text-base sm:text-sm border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
 <button type="submit" aria-label="Send" className="w-11 h-11 rounded-xl bg-orange-600 text-white flex items-center justify-center hover:bg-orange-700 transition">
 <IconSend className="w-4 h-4" />
 </button>
 </form>
-<p className="px-4 pb-3 text-[10px] text-slate-400">Navigation assistant preview — connects to AI providers once keys are configured.</p>
+<p className="px-4 pb-3 text-[10px] text-slate-500">Navigation assistant preview — connects to AI providers once keys are configured.</p>
 </div>
 );
 }
