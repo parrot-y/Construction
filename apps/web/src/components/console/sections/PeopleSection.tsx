@@ -73,7 +73,10 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
     }
 };
 
+  const [inviteBusy, setInviteBusy] = useState(false);
   const sendInvite = async () => {
+    if (inviteBusy) return;
+    setInviteBusy(true);
     try {
       const j: any = await api.post('/api/v1/invitations', { email: invite.email, role: invite.role});
       const link = j?.data?.inviteUrl ? ` Copy and send this link to ${invite.email}: ${j.data.inviteUrl}` : '';
@@ -82,6 +85,8 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
       loadInvites();
     } catch (err) {
       setMsg(apiErrorMessage(err, 'Invite failed'));
+    } finally {
+      setInviteBusy(false);
     }
 };
 
@@ -187,7 +192,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
               {ASSIGN_ROLES.map((r) =><option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
 </select>
 </label>
-<button onClick={sendInvite} className="px-4 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg">Send invite</button>
+<button onClick={sendInvite} disabled={inviteBusy} className="px-4 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg disabled:opacity-50">{inviteBusy ? 'Sending…' : 'Send invite'}</button>
 </div>
 )}
 

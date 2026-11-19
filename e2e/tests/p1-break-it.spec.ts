@@ -221,4 +221,84 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     }
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   });
+
+  test('F. double-click invite → exactly one invitation', async ({ page, request }) => {
+    test.setTimeout(120_000);
+    await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
+    const email = `invite.${RUN}@p1-break.test`;
+
+    await page.goto('/app/people/team');
+    await page.getByRole('button', { name: 'Invite member' }).click();
+    await page.locator('input[type="email"]').fill(email);
+    const send = page.getByRole('button', { name: 'Send invite' });
+    await send.click();
+    await send.click({ force: true, timeout: 2_000 }).catch(() => {});
+    await page.waitForTimeout(2500);
+
+    const j: any = await (await request.get(`${API}/api/v1/invitations`, { headers: { cookie: admin.cookie } })).json();
+    const matches = (j?.data || j || []).filter((i: any) => (i.email || '').toLowerCase() === email.toLowerCase());
+    expect(matches.length, `expected 1 invite for ${email}, got ${matches.length}`).toBe(1);
+  });
+
+  test('G. double-click quote save → exactly one draft quote', async ({ page, request }) => {
+    test.setTimeout(120_000);
+    await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
+    const title = `P1 Quote ${RUN}`;
+
+    await page.goto('/app/money/quotes');
+    await page.getByRole('button', { name: '+ New Quote' }).click();
+    const qform = page.locator('form', { has: page.getByRole('button', { name: /Save Draft Quote/ }) });
+    await qform.locator('input').nth(0).fill(title);
+    await qform.locator('input').nth(1).fill('P1 Client');
+    await page.getByPlaceholder('Description *').fill('P1 double-click line');
+    await page.getByPlaceholder('Rate').fill('1000');
+    const save = page.getByRole('button', { name: /Save Draft Quote/ });
+    await save.click();
+    await save.click({ force: true, timeout: 2_000 }).catch(() => {});
+    await page.waitForTimeout(2500);
+
+    const j: any = await (await request.get(`${API}/api/v1/quotes`, { headers: { cookie: admin.cookie } })).json();
+    const matches = (j?.quotes || j?.data || []).filter((q: any) => q.title === title);
+    expect(matches.length, `expected 1 quote "${title}", got ${matches.length}`).toBe(1);
+  });
+
+  test('H. double-click variation submit → exactly one change order', async ({ page, request }) => {
+    test.setTimeout(150_000);
+    await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
+    const title = `P1 CO ${RUN}`;
+
+    // Fixture: this scenario needs a project — create one via API (the UI
+    // journey itself stays click-driven).
+    const projName = `P1 CO Project ${RUN}`;
+    const pr = await request.post(`${API}/api/v1/projects`, {
+      headers: { cookie: admin.cookie, 'content-type': 'application/json' },
+      data: { name: projName, code: `P1CO-${String(RUN).slice(-6)}` },
+    });
+    expect(pr.status(), await pr.text()).toBe(201);
+
+    await page.goto('/app/projects/all');
+    const card = page.locator('button', { hasText: projName }).first();
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    await card.click();
+    await page.getByRole('tab', { name: 'Change orders' }).or(page.getByRole('button', { name: 'Change orders' })).first().click();
+    await page.getByRole('button', { name: '+ New Change Order' }).click();
+
+    const modal = page.locator('div.fixed.inset-0').last();
+    await expect(modal).toBeVisible({ timeout: 15_000 });
+    await modal.getByPlaceholder(/Raft Foundation/).fill(title);
+    await modal.getByPlaceholder(/Cite site instruction/).fill('P1 double-click justification reason');
+    await modal.getByPlaceholder(/Item description/).fill('P1 CO line item');
+    await modal.getByPlaceholder('e.g. 50').fill('2');
+    await modal.getByPlaceholder('e.g. 3500.00').fill('5000');
+
+    const submit = modal.getByRole('button', { name: 'Submit Variation Order' });
+    await submit.click();
+    await submit.click({ force: true, timeout: 2_000 }).catch(() => {});
+    await expect(modal).not.toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(1500);
+
+    const text = (await page.locator('main').last().textContent()) || '';
+    const occurrences = text.split(title).length - 1;
+    expect(occurrences, `expected change order "${title}" once, found ${occurrences}`).toBe(1);
+  });
 });
