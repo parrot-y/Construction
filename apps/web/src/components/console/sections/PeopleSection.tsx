@@ -198,7 +198,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
 <div className="overflow-x-auto">
-<table className="w-full text-xs">
+<table className="rt w-full text-xs">
 <thead>
 <tr className="text-left text-slate-400 border-b border-slate-100 dark:border-slate-800">
 <th className="px-5 py-3 font-semibold">Name</th>
@@ -212,9 +212,9 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
                 const isSelf = m.user?.id === session.user.id;
                 return (
 <tr key={m.membershipId} className="text-slate-700 dark:text-slate-300">
-<td className="px-5 py-3 font-semibold">{m.user?.full_name || '—'}</td>
-<td className="px-3 py-3">{m.user?.email}</td>
-<td className="px-3 py-3">
+<td data-label="Name" className="px-5 py-3 font-semibold">{m.user?.full_name || '—'}</td>
+<td data-label="Email" className="px-3 py-3">{m.user?.email}</td>
+<td data-label="Role" className="px-3 py-3">
                       {m.verificationPending && (
 <span className="mr-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold align-middle">PENDING ACTIVATION</span>
 )}
@@ -227,7 +227,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-[10px] font-bold">{ROLE_LABELS[m.role] || m.role}</span>
 )}
 </td>
-<td className="px-5 py-3 text-right whitespace-nowrap">
+<td data-label="Actions" className="px-5 py-3 text-right whitespace-nowrap">
                       {canInvite && !isSelf && (
 <span className="inline-flex items-center gap-2">
 <button onClick={() => revoke(m.membershipId)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
@@ -427,6 +427,7 @@ function RolesView(): React.JSX.Element {
 </div>
 </div>
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
 <tr className="text-left text-slate-400 border-b border-slate-100 dark:border-slate-800">
@@ -460,6 +461,7 @@ function RolesView(): React.JSX.Element {
 })}
 </tbody>
 </table>
+</div>
 </div>
 <p className="text-[11px] text-slate-400">Assign roles from Team. External stakeholders (client, consultant, subcontractor, supplier, compliance) use token portals, not seats.</p>
 </div>
