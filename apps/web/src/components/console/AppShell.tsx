@@ -3,9 +3,9 @@ import { lazyChunk, warmChunk } from '../../lib/lazyChunk';
 import { ConsoleProvider, useConsole} from './ConsoleContext';
 import { projectTypeCategory } from '@construction/validation';
 import { SECTION_LABELS, SUBTAB_LABELS, type ConsoleSection} from './navConfig';
-import { FilterTabs } from '../../ui';
+import { statusLabel } from '../../lib/status-labels';
 import ReportProblemModal from '../ReportProblemModal';
-import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSun, IconMoon} from './icons';
+import { SECTION_ICONS, iconFor, IconSpark, IconSearch, IconPlus, IconBell, IconSettings, IconHelp, IconDots, IconChevron} from './icons';
 import SessionsModal from './SessionsModal';
 import MyAccessModal from '../MyAccessModal';
 const ConsultantPortalView = lazyChunk(() => import('../portals/ConsultantPortalView'));
@@ -38,7 +38,7 @@ import { api } from '../../lib/api';
 import AppErrorBoundary from '../AppErrorBoundary';
 
 function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
-  const { session, roleLabel, projects, projectId, setProjectId, currency, setCurrency, setAiOpen, newMenuOpen, setNewMenuOpen, dark, toggleDark, setSection, setTab} = useConsole();
+  const { session, roleLabel, projects, projectId, setProjectId, currency, setCurrency, setAiOpen, newMenuOpen, setNewMenuOpen, setSection, setTab} = useConsole();
   const searchRef = useRef<HTMLInputElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileSearch, setMobileSearch] = useState(false);
@@ -84,7 +84,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   ];
 
   return (
-<header className="sticky top-0 z-30 h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 px-4">
+<header className="sticky top-0 z-30 h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 px-4">
 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 shrink-0">
 <span className="hidden sm:inline">Viewing as</span>
 <span className="hidden sm:inline font-bold text-slate-800 dark:text-slate-200">{roleLabel}</span>
@@ -104,6 +104,9 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
           })}
 </select>
 )}
+      {(() => { const sel = projects.find((p) => p.id === projectId); return sel?.status ? (
+<span className="hidden md:inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0">{statusLabel(sel.status)}</span>
+) : null; })()}
 
 {!mobileSearch && (
 <button
@@ -127,7 +130,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
             aria-label="Search workspace"
             className="w-full pl-9 pr-14 py-2 text-sm bg-slate-100 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-900 dark:text-slate-100"
           />
-<kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5">Ctrl K</kbd>
+<kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5">Ctrl K</kbd>
 </div>
         {searchOpen && q.trim().length > 0 && (
 <>
@@ -144,21 +147,21 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <button key={p.id} onClick={() => { setProjectId(p.id); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">{p.name}</span>
-<span className="ml-2 text-[10px] text-slate-400 font-mono tabular-nums">{p.code} · project</span>
+<span className="ml-2 text-xs text-slate-400 font-mono tabular-nums">{p.code} · project</span>
 </button>
 ))}
                     {memberHits.map((m: any) => (
 <button key={m.membershipId || m.user?.email} onClick={() => { setSection('people'); setTab('team'); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">{m.user?.full_name || m.user?.email}</span>
-<span className="ml-2 text-[10px] text-slate-400">{m.role} · person</span>
+<span className="ml-2 text-xs text-slate-400">{m.role} · person</span>
 </button>
 ))}
                     {secHits.map((sec) => (
 <button key={sec} onClick={() => { setSection(sec as ConsoleSection); setQ(''); setSearchOpen(false); setMobileSearch(false);}}
                         className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">
 <span className="font-bold text-slate-800 dark:text-slate-200">Go to {SECTION_LABELS[sec as ConsoleSection]}</span>
-<span className="ml-2 text-[10px] text-slate-400">section</span>
+<span className="ml-2 text-xs text-slate-400">section</span>
 </button>
 ))}
                     {projHits.length === 0 && memberHits.length === 0 && secHits.length === 0 && (
@@ -216,11 +219,6 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
         >
 <IconBell className="w-5 h-5" />
 </button>
-<button onClick={toggleDark} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400">
-          {dark ?<IconSun className="w-5 h-5" /> :<IconMoon className="w-5 h-5" />}
-</button>
-
 <div className="relative">
 <button
             onClick={() => setUserMenu(!userMenu)}
@@ -237,7 +235,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1.5">
 <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user.fullName || user.email}</p>
-<p className="text-[10px] text-slate-400">{user.email} · {roleLabel}</p>
+<p className="text-xs text-slate-400">{user.email} · {roleLabel}</p>
 </div>
 <button onClick={() => { setUserMenu(false); setReportOpen(true);}}
                   className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
@@ -270,12 +268,12 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 );
 }
 
-// Roles holding cost.approve see a badge on the Money rail icon when
+// Roles holding cost.approve see a badge on the Money nav item when
 // provider payments are waiting for review (G1).
 const REVIEW_BADGE_ROLES = new Set(['ADMIN', 'COMPANY_ADMIN', 'PM_QS', 'EXECUTIVE', 'SUPERINTENDENT']);
 
-function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
-  const { nav, section, setSection, setAiOpen, session} = useConsole();
+function useReviewCount(): number {
+  const { session } = useConsole();
   const [reviewCount, setReviewCount] = useState(0);
   useEffect(() => {
     if (!REVIEW_BADGE_ROLES.has(session.user.role)) { setReviewCount(0); return; }
@@ -287,97 +285,262 @@ function RailItems({ mobile = false}: { mobile?: boolean}): React.JSX.Element {
       });
     return () => { alive = false; };
   }, [session.user.role]);
-  const cls = mobile
-    ? 'flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1 text-[9px] font-bold'
-    : 'w-11 h-11 rounded-xl flex items-center justify-center';
-  const itemCls = (active: boolean) => mobile
-    ? `${cls} ${active ? 'text-orange-400' : 'text-slate-400'}`
-    : `${cls} transition ${active ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`;
-  return (
-<>
-<button onClick={() => setAiOpen(true)} aria-label="Ask product AI" className={itemCls(false)}>
-<IconSpark className="w-5 h-5" />
-        {mobile &&<span>AI</span>}
-</button>
-<button onClick={() => setSection('home')} aria-label="Home" aria-current={section === 'home' ? 'page' : undefined} className={itemCls(section === 'home')}>
-        {React.createElement(SECTION_ICONS.home, { className: 'w-5 h-5'})}
-        {mobile &&<span>Home</span>}
-</button>
-      {nav.sections.map((s) => {
-        const Icon = iconFor(s.id);
-        const active = section === s.id;
-        return (
-<button key={s.id} onClick={() => setSection(s.id)} aria-label={s.label} aria-current={active ? 'page' : undefined} className={`${itemCls(active)} relative`}>
-            {React.createElement(Icon, { className: 'w-5 h-5'})}
-            {s.id === 'money' && reviewCount > 0 && (
-<span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center" aria-label={`${reviewCount} payments to review`}>
-                {reviewCount > 9 ? '9+' : reviewCount}
-</span>
-)}
-            {mobile &&<span className="truncate">{s.label.split(' ')[0]}</span>}
-</button>
-);
-})}
-      {!mobile && (
-<div className="mt-auto flex flex-col items-center gap-2 pb-1">
-<div className="w-11 h-11 rounded-xl bg-orange-600/20 border border-orange-600/40 text-orange-300 text-xs font-bold flex items-center justify-center" title={session.user.tenant?.name || 'Workspace'}>
-            {(session.user.tenant?.name || 'S').slice(0, 1).toUpperCase()}
-</div>
-</div>
-)}
-</>
-);
+  return reviewCount;
 }
 
-function Rail(): React.JSX.Element {
+/** Tabs shown under the active section — home uses homeTabs, sections use
+ *  their role-filtered tab list. ONE tab level, per DESIGN.md §4. */
+function tabsForSection(nav: any, section: string): { id: string; label: string }[] {
+  if (section === 'home') {
+    return (nav.homeTabs || []).map((t: string) => ({ id: t, label: SUBTAB_LABELS[t] || t }));
+  }
+  const def = nav.sections.find((s: any) => s.id === section);
+  return (def?.tabs || []).map((t: string) => ({ id: t, label: SUBTAB_LABELS[t] || t }));
+}
+
+function NavEntries({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }): React.JSX.Element {
+  const { nav, section, tab, setSection, setTab, setAiOpen} = useConsole();
+  const reviewCount = useReviewCount();
+  const goSection = (id: string) => { setSection(id as ConsoleSection); onNavigate?.(); };
+  const goTab = (sec: string, t: string) => { setSection(sec as ConsoleSection); setTab(t); onNavigate?.(); };
+  const activeTabs = section !== 'home' || (nav.homeTabs || []).length > 1 ? tabsForSection(nav, section) : [];
+
+  const sectionBtn = (id: ConsoleSection | 'home', label: string, active: boolean, badge = 0) => (
+    <button
+      key={id}
+      onClick={() => goSection(id)}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      title={compact ? label : undefined}
+      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+        compact ? 'justify-center w-10 h-10 mx-auto' : 'w-full'
+      } ${active
+        ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+    >
+      <span className="relative shrink-0">
+        {React.createElement(id === 'home' ? SECTION_ICONS.home : iconFor(id), { className: 'w-5 h-5' })}
+        {badge > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center" aria-label={`${badge} payments to review`}>
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
+      </span>
+      {!compact && <span className="truncate">{label}</span>}
+    </button>
+  );
+
   return (
-<>
-      {/* Desktop icon rail */}
-<nav className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-16 bg-slate-950 dark:bg-black flex-col items-center py-3 gap-1" aria-label="Workspace sections">
-<RailItems />
-</nav>
-      {/* Mobile bottom bar */}
-<nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950 dark:bg-black border-t border-slate-800 flex items-stretch px-1 pb-[env(safe-area-inset-bottom)]" aria-label="Workspace sections">
-<RailItems mobile />
-</nav>
-</>
-);
+    <nav className="flex flex-col gap-0.5" aria-label="Workspace sections">
+      <button
+        onClick={() => { setAiOpen(true); onNavigate?.(); }}
+        aria-label="Ask product AI"
+        title={compact ? 'Ask AI' : undefined}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 ${compact ? 'justify-center w-10 h-10 mx-auto' : 'w-full'}`}
+      >
+        <IconSpark className="w-5 h-5 shrink-0" />
+        {!compact && <span>Ask AI</span>}
+      </button>
+      {sectionBtn('home', 'Home', section === 'home')}
+      {nav.sections.map((s) => sectionBtn(s.id, s.label, section === s.id, s.id === 'money' ? reviewCount : 0))}
+
+      {!compact && activeTabs.length > 0 && (
+        <div className="mt-1 ml-4 border-l-2 border-slate-200 pl-2 dark:border-slate-700">
+          {activeTabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => goTab(section, t.id)}
+              aria-current={tab === t.id ? 'page' : undefined}
+              className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs font-semibold transition ${
+                tab === t.id
+                  ? 'bg-orange-600 text-white'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </nav>
+  );
+}
+
+/** Desktop sidebar — 240 px labelled, collapses to icons, choice remembered. */
+function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }): React.JSX.Element {
+  const { session, currency, setCurrency, roleLabel } = useConsole();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
+  const canSeeAccess = ['COMPANY_ADMIN', 'ADMIN'].includes(session.user.role);
+  const user = session.user;
+  const initials = (user.fullName || user.email || '?').split(/\s+/).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+
+  return (
+    <>
+      <aside
+        className={`hidden sm:flex fixed inset-y-0 left-0 z-40 flex-col border-r border-slate-200 bg-white transition-[width] dark:border-slate-800 dark:bg-slate-900 ${collapsed ? 'w-16' : 'w-60'}`}
+        aria-label="Workspace navigation"
+      >
+        <div className={`flex h-14 items-center border-b border-slate-100 px-3 dark:border-slate-800 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+          {!collapsed && <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">SiteSafi</span>}
+          <button
+            onClick={onToggle}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+          >
+            <IconChevron className={`w-4 h-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+
+        <div className={`flex-1 overflow-y-auto py-3 ${collapsed ? 'px-2' : 'px-3'}`}>
+          <NavEntries compact={collapsed} />
+        </div>
+
+        <div className={`border-t border-slate-100 p-2 dark:border-slate-800 ${collapsed ? 'flex flex-col items-center gap-1' : ''}`}>
+          {!collapsed && (
+            <div className="mb-1 flex items-center gap-2 rounded-lg px-2 py-1.5">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-600 text-xs font-bold text-white">{initials}</span>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">{user.fullName || user.email}</p>
+                <p className="truncate text-xs text-slate-400">{roleLabel}</p>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => setReportOpen(true)}
+            aria-label="Help — report a problem"
+            title={collapsed ? 'Help' : undefined}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 ${collapsed ? 'justify-center w-10 h-10 mx-auto' : 'w-full'}`}
+          >
+            <IconHelp className="w-4 h-4 shrink-0" />{!collapsed && <span>Help</span>}
+          </button>
+          <div className="relative">
+            <button
+              onClick={() => setSettingsOpen((v) => !v)}
+              aria-label="Settings"
+              aria-expanded={settingsOpen}
+              title={collapsed ? 'Settings' : undefined}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 ${collapsed ? 'justify-center' : ''}`}
+            >
+              <IconSettings className="w-4 h-4 shrink-0" />{!collapsed && <span>Settings</span>}
+            </button>
+            {settingsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
+                <div className="absolute bottom-0 left-full z-50 ml-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+                  <div className="border-b border-slate-100 px-4 py-2 dark:border-slate-800">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Display currency</p>
+                    <div className="mt-1.5 flex gap-1">
+                      {(['KES', 'USD'] as const).map((c) => (
+                        <button key={c} onClick={() => setCurrency(c)} aria-pressed={currency === c}
+                          className={`flex-1 rounded-md px-2 py-1 text-xs font-bold ${currency === c ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={() => { setSettingsOpen(false); setSessionsOpen(true); }} className="block w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">Active sessions</button>
+                  {canSeeAccess && (
+                    <button onClick={() => { setSettingsOpen(false); setAccessOpen(true); }} className="block w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">My access</button>
+                  )}
+                  <button onClick={() => { setSettingsOpen(false); setReportOpen(true); }} className="block w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">Report a problem</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </aside>
+      {reportOpen && <ReportProblemModal onClose={() => setReportOpen(false)} />}
+      {sessionsOpen && <SessionsModal onClose={() => setSessionsOpen(false)} />}
+      {accessOpen && <MyAccessModal open={accessOpen} onClose={() => setAccessOpen(false)} session={session} />}
+    </>
+  );
+}
+
+/** Phone bottom bar — Home, first sections, More. 56 px + safe-area. */
+function MobileNav(): React.JSX.Element {
+  const { nav, section, setSection, setTab, setAiOpen} = useConsole();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const primary = nav.sections.slice(0, 3);
+  const overflow = nav.sections.slice(3);
+  const itemCls = (active: boolean) => `flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-bold ${active ? 'text-orange-600' : 'text-slate-500 dark:text-slate-400'}`;
+  const icon = (id: string, cls = 'w-5 h-5') => React.createElement(id === 'home' ? SECTION_ICONS.home : iconFor(id), { className: cls });
+
+  return (
+    <>
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 flex h-14 items-stretch border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-slate-800 dark:bg-slate-900" aria-label="Workspace sections">
+        <button onClick={() => setSection('home')} aria-current={section === 'home' ? 'page' : undefined} className={itemCls(section === 'home')}>
+          {icon('home')}<span>Home</span>
+        </button>
+        {primary.map((s) => (
+          <button key={s.id} onClick={() => setSection(s.id)} aria-current={section === s.id ? 'page' : undefined} className={itemCls(section === s.id)}>
+            {icon(s.id)}<span className="truncate">{s.label.split(' ')[0]}</span>
+          </button>
+        ))}
+        <button onClick={() => setMoreOpen(true)} aria-expanded={moreOpen} aria-label="More sections" className={itemCls(moreOpen)}>
+          <IconDots className="w-5 h-5" /><span>More</span>
+        </button>
+      </nav>
+      {moreOpen && (
+        <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/40" onClick={() => setMoreOpen(false)}>
+          <div className="rounded-t-2xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200 dark:bg-slate-700" />
+            <nav className="grid gap-1" aria-label="All sections">
+              <button onClick={() => { setAiOpen(true); setMoreOpen(false); }} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
+                <IconSpark className="w-5 h-5" /> Ask AI
+              </button>
+              {overflow.map((s) => (
+                <button key={s.id} onClick={() => { setSection(s.id); setMoreOpen(false); }} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
+                  {icon(s.id)} {s.label}
+                </button>
+              ))}
+              {nav.homeTabs && nav.homeTabs.length > 1 && section === 'home' && null}
+              <button onClick={() => { setSection('home'); setTab('inbox'); setMoreOpen(false); }} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
+                {icon('home')} Inbox
+              </button>
+            </nav>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function SubNav(): React.JSX.Element | null {
   const { nav, section, tab, setTab, projects, projectId} = useConsole();
-  if (section === 'home') {
-    const homeTabs = nav.homeTabs;
-    if (!homeTabs || homeTabs.length<= 1) return null;
-    return (
-<FilterTabs ariaRole
-          tabs={homeTabs.map((t) => ({ id: t, label: SUBTAB_LABELS[t] || t }))}
-          active={tab}
-          onChange={setTab}
-          className="pb-1"
-          tabClassName="px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition"
-          activeClassName="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-          inactiveClassName="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-        />
-);
-}
-  const def = nav.sections.find((s) => s.id === section);
-  if (!def || !def.tabs || def.tabs.length<= 1) return null;
+  // Desktop tabs live inside the sidebar (one tab level). On phone the tab
+  // row is a single horizontally scrolling strip with an edge fade.
+  const homeTabs = section === 'home' ? nav.homeTabs : undefined;
+  const def = section === 'home' ? null : nav.sections.find((s) => s.id === section);
+  const tabs = section === 'home'
+    ? (homeTabs && homeTabs.length > 1 ? homeTabs.map((t) => ({ id: t, label: SUBTAB_LABELS[t] || t })) : [])
+    : (def?.tabs && def.tabs.length > 1 ? def.tabs.map((t) => ({ id: t, label: SUBTAB_LABELS[t] || t })) : []);
+  if (tabs.length === 0) return null;
   const sel = projects.find((p) => p.id === projectId);
   const pname = sel?.name;
-  const ptype = sel ? projectTypeCategory(sel.project_type) : undefined;
   return (
 <div>
-<FilterTabs ariaRole
-          tabs={def.tabs.map((t) => ({ id: t, label: SUBTAB_LABELS[t] || t }))}
-          active={tab}
-          onChange={setTab}
-          className="pb-1"
-          tabClassName="px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition"
-          activeClassName="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-          inactiveClassName="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-        />
-      {pname &&<p className="text-[11px] text-slate-400 mt-1">Context: {pname}{ptype ? ` · ${ptype.label}` : ''}</p>}
+<div
+        className="sm:hidden flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ maskImage: 'linear-gradient(to right, black 88%, transparent)' }}
+        role="tablist"
+      >
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`shrink-0 rounded-lg px-3.5 py-2 text-xs font-bold whitespace-nowrap transition ${tab === t.id ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700'}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {pname &&<p className="text-xs text-slate-400 mt-1">Context: {pname}</p>}
 </div>
 );
 }
@@ -445,6 +608,13 @@ function PortalPreview(): React.JSX.Element | null {
 
 function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const { section, portalPreview} = useConsole();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sitesafi-sidebar') === '1'; } catch { return false; }
+  });
+  const toggleSidebar = () => setSidebarCollapsed((c) => {
+    try { localStorage.setItem('sitesafi-sidebar', c ? '0' : '1'); } catch { /* storage unavailable */ }
+    return !c;
+  });
   // P1.7 — warm the lazy section chunks once the shell is idle so sidebar
   // navigation doesn't pay a dynamic-import round trip on throttled links.
   useEffect(() => {
@@ -467,8 +637,9 @@ function Shell({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   if (portalPreview) return<PortalPreview />;
   return (
 <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-<Rail />
-<div className="sm:pl-16 pb-20 sm:pb-0 flex flex-col min-h-screen">
+<Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+<MobileNav />
+<div className={`${sidebarCollapsed ? 'sm:pl-16' : 'sm:pl-60'} pb-20 sm:pb-0 flex flex-col min-h-screen`}>
 <TopBar onLogout={onLogout} />
 <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 pb-24 sm:pb-5 max-w-[1400px] w-full mx-auto space-y-4">
 <OfflineSyncBanner />

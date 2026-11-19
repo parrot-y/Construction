@@ -259,3 +259,13 @@ Plan (checkable):
 - [ ] Speed: skeletons, waterfall fix (ProjectsSection N+1), double-submit guards, throttled-3G spec + admin-speed-<sha>.md
 - [ ] W1-W10 click-through workflow specs
 - [ ] Final: solo suite 0/0/0 + verify-local + evidence + push
+
+## Phase 3 — redesign gate (3.1–3.3)
+
+Plan:
+- [x] 3.1 DESIGN.md exists; Home/Projects/New-project rebuilt to spec blocks
+- [x] 3.2 theme ratchet: scripts/check-design-tokens.sh + baseline (CI wired)
+- [x] 3.3 nav: 240px labelled collapsible sidebar w/ inline tabs; top bar status chip, no theme toggle; phone bottom bar Home/Projects/Site/Money/More + safe-area; mobile tab row scroll+fade
+- [ ] p3-design-gate.spec.ts: UI test + 390/1280 screenshots → docs/evidence/visual/<sha>/design-gate/
+- [ ] Run affected specs (a6, a7, l1, p2, w-admin, p1-break-it) on both viewports
+- [ ] Commit P3.1/P3.2/P3.3 separately per rules
