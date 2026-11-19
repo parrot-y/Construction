@@ -107,7 +107,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
   };
 
   const dotColor = unreachable || !isOnline ? 'bg-amber-500' : queue.length > 0 ? 'bg-blue-500' : 'bg-emerald-500';
-  const dotTitle = unreachable ? "Can't reach the server" : !isOnline ? 'Offline' : queue.length > 0 ? 'Syncing saved changes' : 'Online';
+  const dotTitle = !isOnline ? 'Offline' : unreachable ? "Can't reach the server" : queue.length > 0 ? 'Syncing saved changes' : 'Online';
 
   // Compact status dot — always rendered, never a banner by itself.
   const dot = (
@@ -118,7 +118,9 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
     />
   );
 
-  if (unreachable) {
+  // Device offline is the root cause — the offline/queued branch below
+  // is the honest state; "can't reach the server" is only for online-but-down.
+  if (unreachable && isOnline) {
     return (
       <div className="p-3 rounded-xl border bg-amber-50 border-amber-300 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2.5">

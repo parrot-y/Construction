@@ -50,6 +50,7 @@ const state: {
   supplierId?: string;
   supplierToken?: string;
   supplierName?: string;
+  lineDesc?: string;
   poId?: string;
   poNumber?: string;
 } = {};
@@ -92,15 +93,16 @@ test.describe.serial('L. Procurement UI — PO create/issue/match/review', () =>
     await expect(page.getByTestId('po-create-form')).toBeVisible();
 
     await page.getByTestId('po-supplier-select').selectOption({ label: state.supplierName! });
-    await page.getByTestId('po-line-desc-0').fill('UI clicks river sand');
+    state.lineDesc = `UI clicks river sand ${stamp}`;
+    await page.getByTestId('po-line-desc-0').fill(state.lineDesc);
     await page.getByTestId('po-line-qty-0').fill('20');
     await page.getByTestId('po-line-rate-0').fill('1500');
 
     await page.getByTestId('po-create-submit').click();
-    await expect(page.getByText('UI clicks river sand').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(state.lineDesc!).first()).toBeVisible({ timeout: 15_000 });
 
     // Capture the PO number from the card that contains our line.
-    const card = page.locator('[data-testid^="po-card-"]').filter({ hasText: 'UI clicks river sand' }).first();
+    const card = page.locator('[data-testid^="po-card-"]').filter({ hasText: state.lineDesc! }).first();
     await expect(card).toBeVisible({ timeout: 15_000 });
     const num = await card.locator('.tabular-nums').first().innerText();
     state.poNumber = num.trim();
@@ -134,7 +136,7 @@ test.describe.serial('L. Procurement UI — PO create/issue/match/review', () =>
     const panel = page.getByTestId(`po-match-${state.poNumber}`);
     await expect(panel).toBeVisible({ timeout: 15_000 });
     await expect(panel.getByTestId('po-match-status')).toBeVisible();
-    await expect(panel).toContainText('UI clicks river sand');
+    await expect(panel).toContainText(state.lineDesc!);
     await expect(panel).toContainText('Ordered');
   });
 
