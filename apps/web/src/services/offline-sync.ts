@@ -405,3 +405,19 @@ export async function compressImageClientSide(file: File, maxDimension = 1280, q
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * P4.3 — FormData-ready upload file: images are resized/compressed client-side
+ * (same pipeline as SiteDiaryModal), everything else passes through untouched.
+ * Best-effort: a compressor failure uploads the original rather than blocking.
+ */
+export async function compressUploadFile(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  try {
+    const c = await compressImageClientSide(file);
+    const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+    return new File([c.blob], name, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}

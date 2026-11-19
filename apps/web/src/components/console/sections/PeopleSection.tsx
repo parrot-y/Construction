@@ -7,6 +7,7 @@ import { IconPlus} from '../icons';
 import { useAppDialog } from '../../AppDialog';
 import { formatDate } from '../../../lib/format';
 import { api, apiErrorMessage, rawFetch } from '../../../lib/api';
+import { usePagedList } from '../usePagedList';
 
 const ASSIGN_ROLES = ['COMPANY_ADMIN','CLIENT','ARCHITECT','PM_QS','QA_QC','OWNER','EXECUTIVE','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE','ADMIN','SITE_SUPERVISOR'];
 const ROLE_LABELS: Record<string, string> = {
@@ -42,16 +43,12 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
       setExportBusy(false);
     }
 };
-  const [members, setMembers] = useState<any[] | null>(null);
+  // P4.3 — paged members: page 1 on mount, "Load more" appends so teams
+  // over the server page size are not silently truncated.
+  const { items: members, setItems: setMembers, hasMore: membersHasMore, loading: membersLoading, loadingMore: membersLoadingMore, loadMore: loadMoreMembers, reload: load } =
+    usePagedList<any>('/api/v1/company/members', []);
   const [invite, setInvite] = useState({ email: '', role: 'SITE_ENGINEER', open: false});
   const [msg, setMsg] = useState('');
-
-  const load = () => {
-    api.get<any>('/api/v1/company/members')
-      .then((j) => setMembers(j?.data || []))
-      .catch(() => setMembers([]));
-};
-  useEffect(load, []);
 
   const changeRole = async (membershipId: string, role: string) => {
     try {
@@ -241,11 +238,17 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 </tr>
 );
 })}
-              {members !== null && members.length === 0 && (
+              {!membersLoading && members.length === 0 && (
 <tr><td colSpan={4} className="px-5 py-8 text-center text-slate-500">No members found.</td></tr>
 )}
 </tbody>
 </table>
+            {membersHasMore && (
+<button type="button" onClick={loadMoreMembers} disabled={membersLoadingMore}
+              className="w-full border-t border-slate-100 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300">
+                {membersLoadingMore ? 'Loading…' : 'Load more members'}
+</button>
+)}
 </div>
 </div>
 
@@ -298,13 +301,10 @@ const DIR_CATS = ['All', 'Team', 'Subcontractor', 'Supplier'] as const;
 
 function DirectoryView(): React.JSX.Element {
   const { projectId} = useConsole();
-  const [members, setMembers] = useState<any[]>([]);
+  const { items: members, hasMore: dirHasMore, loadingMore: dirLoadingMore, loadMore: dirLoadMore } = usePagedList<any>('/api/v1/company/members', []);
   const [subs, setSubs] = useState<any[]>([]);
   const [cat, setCat] = useState<(typeof DIR_CATS)[number]>('All');
   useEffect(() => {
-    api.get<any>('/api/v1/company/members')
-      .then((j) => setMembers(j?.data || []))
-      .catch(() => { /* intentionally ignored: directory degrades to empty lists */ });
     if (projectId && /^[0-9a-f-]{36}$/i.test(projectId)) {
       api.get<any>(`/api/v1/projects/${projectId}/subcontractors`)
         .then((j) => setSubs(j?.data || j || []))
@@ -338,6 +338,12 @@ function DirectoryView(): React.JSX.Element {
 <span className="text-slate-500">{m.user?.email}</span>
 </div>
 ))}
+              {dirHasMore && (
+<button type="button" onClick={dirLoadMore} disabled={dirLoadingMore}
+                className="w-full border-t border-slate-100 px-5 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300">
+                  {dirLoadingMore ? 'Loading…' : 'Load more'}
+</button>
+)}
 </div>
 </div>
 )}

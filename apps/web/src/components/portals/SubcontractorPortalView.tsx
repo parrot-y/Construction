@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes, ResponsiveTable, SavedDataNotice } from '../../ui';
 import { fetchJsonCached } from '../../services/offline-cache';
+import { compressUploadFile } from '../../services/offline-sync';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { statusLabel } from '../../lib/status-labels';
 import { api, apiErrorMessage } from '../../lib/api';
@@ -448,7 +449,7 @@ export default function SubcontractorPortalView({
                               setFeedback(null);
                               try {
                                 const fd = new FormData();
-                                fd.append('file', file);
+                                fd.append('file', await compressUploadFile(file));
                                 const ub = await api.post<any>(`/api/v1/portals/subcontractor/${token}/snags/${snag.id}/upload`, fd);
                                 setRectifyPhotoKey(ub.data?.storageKey || '');
                                 setFeedback('Photo uploaded — submit to mark the defect rectified.');

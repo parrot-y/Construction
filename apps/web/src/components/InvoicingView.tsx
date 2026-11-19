@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState} from 'react';
+import React, { useEffect, useState} from 'react';
+import { usePagedList } from './console/usePagedList';
 import { formatMoney } from '@construction/money';
 import { useAppDialog } from './AppDialog';
 import { api, ApiError, apiErrorMessage } from '../lib/apiClient';
@@ -94,9 +95,7 @@ const REVIEW_ROLES = new Set(['ADMIN', 'COMPANY_ADMIN', 'PM_QS', 'EXECUTIVE', 'S
 
 export default function InvoicingView({ userRole = '' }: { userRole?: string } = {}): React.JSX.Element {
   const dialog = useAppDialog();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -127,23 +126,12 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
   const [payForm, setPayForm] = useState({ amount: '', method: 'M_PESA', reference: '', note: ''});
   const [showPayForm, setShowPayForm] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
-      const body = await api.get<{ invoices?: Invoice[] }>(`/api/v1/invoices${qs}`);
-      setInvoices(body.invoices ?? []);
-} catch (e: any) {
-      setError(apiErrorMessage(e));
-} finally {
-      setLoading(false);
-}
-}, [statusFilter]);
-
-  useEffect(() => {
-    load();
-}, [load]);
+  // P4.3 — paged loading: page 1 on mount/filter change, "Load more"
+  // appends; lists over the server page size are no longer truncated.
+  const listUrl = `/api/v1/invoices${statusFilter !== 'ALL' ? `?status=${statusFilter}` : ''}`;
+  const { items: invoices, hasMore, loading, loadingMore, error: listError, loadMore, reload: load } =
+    usePagedList<Invoice>(listUrl, [statusFilter]);
+  const displayError = error ?? listError;
 
   useEffect(() => {
     api.get<{ data?: Array<{ id: string; name: string; code?: string }> }>('/api/v1/projects')
@@ -353,8 +341,8 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 ))}
 </div>
 
-      {error && (
-<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium rounded-lg">{error}</div>
+      {displayError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium rounded-lg">{displayError}</div>
 )}
       {notice && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
@@ -499,6 +487,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 ) : invoices.length === 0 ? (
 <p className="text-xs text-slate-400 text-center py-6">No invoices yet. Create your first invoice to start tracking accounts receivable.</p>
 ) : (
+<>
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
@@ -694,6 +683,13 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 </tbody>
 </table>
 </div>
+            {hasMore && (
+<button type="button" onClick={loadMore} disabled={loadingMore}
+              className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300">
+                {loadingMore ? 'Loading…' : 'Load more invoices'}
+</button>
+)}
+</>
 )}
 {dialog.element}
 </div>

@@ -39,6 +39,17 @@ server {
         client_max_body_size 25m;
     }
 
+    # P4.3 — the HTML shell must never be cached: it names the hashed asset
+    # bundles, so a stale copy pins users to an old deploy.
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+        expires 0;
+    }
+
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache";
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }

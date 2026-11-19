@@ -498,6 +498,8 @@ export default function SnaggingListView({
 <img
                           src={snag.beforePhotoUrl}
                           alt="Before rectification defect"
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover"
                         />
 ) : (
@@ -523,6 +525,8 @@ export default function SnaggingListView({
 <img
                             src={snag.afterPhotoUrl}
                             alt="After rectification"
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
 <span className="absolute bottom-1 left-1 bg-emerald-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">

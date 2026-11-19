@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
 import { fetchJsonCached } from '../../services/offline-cache';
+import { compressUploadFile } from '../../services/offline-sync';
 import { SavedDataNotice, formatDate } from '../../ui';
 import { statusLabel } from '../../lib/status-labels';
 import { api, apiErrorMessage } from '../../lib/api';
@@ -228,7 +229,7 @@ export default function ConsultantPortalView({
       let photoStorageKey: string | undefined;
       if (action === 'REJECT' && rejectPhoto) {
         const fd = new FormData();
-        fd.append('file', rejectPhoto);
+        fd.append('file', await compressUploadFile(rejectPhoto));
         const upBody = await api.post<any>(`/api/v1/portals/consultant/${token}/uploads`, fd);
         photoStorageKey = upBody.data?.storageKey || upBody.storageKey;
       }
