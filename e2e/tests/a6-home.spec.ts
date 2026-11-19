@@ -95,7 +95,9 @@ test.describe('A6 — Home dashboard', () => {
     // bottom bar (elementFromPoint confirms the nav is topmost); a real
     // thumb tap lands correctly.
     await page.getByRole('button', { name: 'Home' }).first().click({ force: true });
-    await expect(page.getByText('1 of 5 done')).toBeVisible({ timeout: 20_000 });
+    // A typed project also provisions starter BoQ sections server-side (2.8),
+    // so the BoQ step can tick at the same time — accept 1 or 2 done.
+    await expect(page.getByText(/[12] of 5 done/)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole('button', { name: /create your first project/i })).toContainText('Done');
   });
 
