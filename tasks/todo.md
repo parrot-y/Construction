@@ -10,7 +10,7 @@
 - [x] P1.6 p1-break-it.spec.ts — 5/5 chromium + 5/5 mobile-390 (found+fixed offline chunk crash 731eea2, ric crash 59d73d8)
 - [x] P1.7 30s→~0.5s project create (summary endpoint + optimistic select + prefetch); speed misses documented honestly (c2fa73c)
 - [x] P1.8 giant files: all 11 >800-line files hang off dead PmQsDashboard/CompanyAdminDashboard (unreachable); daily sections all <500 lines — documented, no splits needed
-- [ ] P1.9 full solo suite + verify-local on final commit + report table → STOP
+- [x] P1.9 full solo suite + verify-local on final commit + report table → STOP — 444/444 clean on 37bf8ea, verify green, evidence df59230
 
 ## MASTER PLAN — Phase 2 (admin console end-to-end) — closeout in progress
 
