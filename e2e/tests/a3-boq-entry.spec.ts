@@ -140,10 +140,13 @@ test.describe('A3 — BoQ entry from the admin console', () => {
     await uiLogin(page);
     await selectProject(page);
     await openBoqTab(page);
-    page.once('dialog', (d) => void d.accept());
     const row = page.locator('tr', { hasText: 'A3 mass excavation' });
     await expect(row).toBeVisible({ timeout: 20_000 });
     await row.getByRole('button', { name: 'Delete' }).click();
+    // P1.2: native confirm() is gone — the shared AppDialog asks first.
+    const confirmDialog = page.locator('[role="dialog"]').filter({ hasText: 'Delete BoQ line' });
+    await expect(confirmDialog).toBeVisible({ timeout: 10_000 });
+    await confirmDialog.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(page.getByText('A3 mass excavation to formation level')).toHaveCount(0, { timeout: 20_000 });
     await expect(page.getByText('No Bill of Quantities yet').or(page.getByRole('heading', { name: 'Bill of Quantities' }))).toBeVisible();
   });
