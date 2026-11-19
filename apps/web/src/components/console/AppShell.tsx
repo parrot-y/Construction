@@ -349,8 +349,9 @@ function NavEntries({ onNavigate, compact = false }: { onNavigate?: () => void; 
           {activeTabs.map((t) => (
             <button
               key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
               onClick={() => goTab(section, t.id)}
-              aria-current={tab === t.id ? 'page' : undefined}
               className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs font-semibold transition ${
                 tab === t.id
                   ? 'bg-orange-600 text-white'
@@ -435,7 +436,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Display currency</p>
                     <div className="mt-1.5 flex gap-1">
                       {(['KES', 'USD'] as const).map((c) => (
-                        <button key={c} onClick={() => setCurrency(c)} aria-pressed={currency === c}
+                        <button key={c} onClick={() => { if (currency !== c) setCurrency(c); setSettingsOpen(false); }} aria-pressed={currency === c}
                           className={`flex-1 rounded-md px-2 py-1 text-xs font-bold ${currency === c ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
                           {c}
                         </button>

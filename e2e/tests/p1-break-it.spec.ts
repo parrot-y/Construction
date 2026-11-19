@@ -211,8 +211,23 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
     await page.goto('/app/projects/all');
     await page.waitForTimeout(500);
+    // Wait for the nav shell — under Fast 3G + CPU throttle it can lag the
+    // goto. The desktop sidebar nav is hidden on phones, so wait on a button
+    // that exists in whichever nav is visible.
+    await page.getByRole('button', { name: 'More sections' })
+      .or(page.getByRole('button', { name: 'Money', exact: true }))
+      .first().waitFor({ timeout: 30_000 });
+    const moreSheet = page.getByRole('navigation', { name: 'All sections' });
     for (const section of ['Money', 'People', 'Site', 'Files & reports', 'Home']) {
-      await page.getByRole('button', { name: section, exact: true }).first().click();
+      // On phones People/Files live in the bottom bar's More sheet; scope the
+      // sheet click or the bottom-bar button with the same name wins .first().
+      const direct = page.getByRole('button', { name: section, exact: true }).first();
+      if (await direct.isVisible().catch(() => false)) {
+        await direct.click();
+      } else {
+        await page.getByRole('button', { name: 'More sections' }).click();
+        await moreSheet.getByRole('button', { name: section, exact: true }).click();
+      }
       // Within 3s the section must show skeleton, content, or an error state.
       const main = page.locator('main').last();
       await expect(main).toBeVisible({ timeout: 10_000 });

@@ -52,7 +52,7 @@ const ROLE_LABELS: Record<string, string> = {
 /** Console URL scheme: /app[/:section[/:tab]]?project=<id> and /projects/:id[/:section[/:tab]]. */
 function parseConsolePath(path: string): { section?: string; tab?: string; projectId?: string } | null {
   const seg = path.split('/').filter(Boolean);
-  if (seg[0] === 'app') return { section: seg[1], tab: seg[2] };
+  if (seg[0] === 'app') return { section: seg[1] || 'home', tab: seg[2] };
   if (seg[0] === 'projects' && seg[1]) return { projectId: seg[1], section: seg[2], tab: seg[3] };
   return null;
 }
@@ -159,8 +159,18 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
     const qp = new URLSearchParams(location.split('?')[1] || '');
     const qProject = qp.get('project') ?? '';
     if (qProject) setProjectId(qProject);
-    // tab applied after section default settles — direct set is fine
-    if (parsed.tab) setTab(parsed.tab);
+    // tab applied after section default settles — direct set is fine.
+    // A URL with no tab segment means the section's default tab: without
+    // this, browser Back to a bare section URL would bounce straight back
+    // to the previously selected tab.
+    if (parsed.tab) {
+      setTab(parsed.tab);
+    } else {
+      const allowed = parsed.section === 'home'
+        ? nav.homeTabs
+        : nav.sections.find((s) => s.id === parsed.section)?.tabs;
+      if (allowed?.length) setTab(allowed[0]!);
+    }
     requestAnimationFrame(() => { applyingUrl.current = false; });
   }, [location]);
 
