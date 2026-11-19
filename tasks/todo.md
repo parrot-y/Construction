@@ -1,5 +1,17 @@
 # tasks/todo.md — active plan
 
+## MASTER PLAN — Phase 1 (foundations) — IN PROGRESS
+
+- [x] P1.1 lib/api.ts request layer (typed errors, timeout, retry, refresh) + unit tests — e2b5bb0/25d05ab
+- [x] P1.2 shared Toast/InlineError/FormError/useAppDialog; popups eliminated; last raw error <p>s → InlineError (8d218ac)
+- [x] P1.3 all fetch( migrated onto api.* via apiTransport; hygiene guard clean (142→143 files)
+- [x] P1.4 scripts/check-frontend-hygiene.mjs — clean; violation demo done during migration
+- [x] P1.5 unreachable banner + health poll + status dot (4102537)
+- [x] P1.6 p1-break-it.spec.ts — 5/5 chromium + 5/5 mobile-390 (found+fixed offline chunk crash 731eea2, ric crash 59d73d8)
+- [x] P1.7 30s→~0.5s project create (summary endpoint + optimistic select + prefetch); speed misses documented honestly (c2fa73c)
+- [x] P1.8 giant files: all 11 >800-line files hang off dead PmQsDashboard/CompanyAdminDashboard (unreachable); daily sections all <500 lines — documented, no splits needed
+- [ ] P1.9 full solo suite + verify-local on final commit + report table → STOP
+
 ## MASTER PLAN — Phase 2 (admin console end-to-end) — closeout in progress
 
 - [x] 0 deploy groundwork — f381a3b/dd0cd83/dbcbaae
