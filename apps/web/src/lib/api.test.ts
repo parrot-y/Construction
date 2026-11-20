@@ -158,6 +158,26 @@ describe('api request layer (P1.1)', () => {
     await expect(p4).resolves.toEqual({ ok: 2 });
   });
 
+  it('P4.2 — a successful mutation invalidates in-flight GET dedupe', async () => {
+    // Regression: a GET already in flight when a POST lands may have read
+    // pre-mutation state; post-mutation reads must not share it.
+    const pending = new Map<string, (r: Response) => void>();
+    const f = vi.fn().mockImplementation((url: string) =>
+      new Promise<Response>((res) => { pending.set(url, res); }));
+    vi.stubGlobal('fetch', f);
+    const staleGet = api.get('/api/v1/invoices?page=1&limit=50');
+    const post = api.post('/api/v1/invoices', { title: 'x' });
+    pending.get('/api/v1/invoices?page=1&limit=50')!(jsonRes(200, { invoices: ['old'] }));
+    pending.get('/api/v1/invoices')!(jsonRes(201, { id: 'inv1' }));
+    await staleGet;
+    await post;
+    // New GET after the mutation must issue a fresh request, not dedupe.
+    const freshGet = api.get('/api/v1/invoices?page=1&limit=50');
+    expect(f).toHaveBeenCalledTimes(3);
+    pending.get('/api/v1/invoices?page=1&limit=50')!(jsonRes(200, { invoices: ['old', 'new'] }));
+    await expect(freshGet).resolves.toEqual({ invoices: ['old', 'new'] });
+  });
+
   it('P4.2 — GETs with a caller signal or headers are never deduped', async () => {
     const f = vi.fn().mockImplementation(() => Promise.resolve(jsonRes(200, {})));
     vi.stubGlobal('fetch', f);

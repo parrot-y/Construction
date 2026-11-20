@@ -240,7 +240,14 @@ async function request<T>(path: string, opts: RequestOptions): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      return await rawRequest<T>(path, opts, false, attempt);
+      const result = await rawRequest<T>(path, opts, false, attempt);
+      // A successful mutation invalidates any GET that was already in
+      // flight — it may have read pre-mutation state. Clearing the dedupe
+      // map forces post-mutation reads to hit the network instead of
+      // sharing a stale in-flight response (seen: invoice list missing a
+      // just-created row).
+      if (method !== 'GET') inflightGets.clear();
+      return result;
     } catch (err) {
       lastErr = err;
       if (err instanceof ApiError && err.kind === 'network') emitUnreachable();
@@ -263,13 +270,18 @@ export async function apiTransport(path: string, init: { method?: string; header
   const onOuter = () => controller.abort();
   init.signal?.addEventListener('abort', onOuter, { once: true });
   try {
-    return await fetch(path, {
+    const res = await fetch(path, {
       method: init.method ?? 'GET',
       credentials: 'include',
       headers: init.headers,
       body: init.body,
       signal: controller.signal,
     });
+    // Same invalidation as api.* mutations: a successful write through the
+    // offline-queue transport must not let later GETs share pre-write
+    // in-flight responses.
+    if ((init.method ?? 'GET') !== 'GET' && res.ok) inflightGets.clear();
+    return res;
   } finally {
     clearTimeout(timer);
     init.signal?.removeEventListener('abort', onOuter);
