@@ -288,5 +288,7 @@ Plan:
 - [x] P4.1: GET /api/v1/home/summary — one call replaces Home dashboard fan-outs; shared cash-flow fetch; real snag/incident enums; members moved into ConsoleContext (kills duplicate shell fetches); get-started effect dep fixed (7b30cf1 + earlier P4 commits)
 - [x] P4.2: in-flight GET dedupe in lib/api.ts; section chunks warm on idle via warmChunk (AppShell) — hover prefetch unnecessary once idle-warm; charts are inline SVG (no heavy lib to defer); background revalidation NOT added — nav data measured 250–450 ms, far under the 1.5 s budget (honest partial)
 - [x] P4.3: loading=lazy on list photos; compressImageClientSide on portal uploads; usePagedList on diaries/invoices/members; immutable cache headers for hashed assets + no-cache sw.js in nginx template (7b30cf1)
-- [x] P4.4: CLS via PerformanceObserver + per-section shell/data timing in measure-admin-speed.mjs; wizard driver rewritten as draft-state machine (fixed stale 4-step flow + backdrop-close race + 409 stale-draft submit); latest run: 18/19 budgets, first-screen 3415 ms MISS documented honestly
-- [ ] Closeout: full solo suite + verify-local + P4 report table → ui-speed-<sha>.md
+- [x] P4.4: CLS via PerformanceObserver + per-section shell/data timing in measure-admin-speed.mjs; wizard driver rewritten as draft-state machine (fixed stale 4-step flow + backdrop-close race + 409 stale-draft submit)
+- [x] P4.5 (50cfc92): SW precache deferred 5 s past load (was saturating throttled link); console chunks warmed in parallel with /auth/me; lessons.md pagination entry
+- [x] P4.3 fix (c6862c6): explicit `page=` disables transparent auto-pagination (was double-fetching/duplicating rows); server takes first value of duplicated query keys; mutation invalidates in-flight GET dedupe (d8f4976)
+- [ ] Closeout: full solo suite on 50cfc92 + verify-local + ui-speed-50cfc92.md + P4 report table
