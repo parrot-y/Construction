@@ -139,7 +139,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
     setOfflineUserScope(null);
     return res;
   }
-  if (isGet && isApi && url.includes('/api/v1/') && res.ok) {
+  // Explicit client-side pagination wins: when the caller already passes
+  // `page=` it manages pages itself (usePagedList). Auto-following here
+  // appended `&page=N` to a URL that already had `page=`, the API read the
+  // duplicated param as page 1, and mergeByLimit concatenated page-1 rows —
+  // lists rendered every row twice.
+  if (isGet && isApi && url.includes('/api/v1/') && res.ok && !/[?&]page=/.test(url)) {
     return fetchAllPages(res, url);
   }
   return res;

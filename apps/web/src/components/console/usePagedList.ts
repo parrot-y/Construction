@@ -15,6 +15,7 @@ export function usePagedList<T = any>(baseUrl: string | null, deps: any[] = [], 
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pageRef = useRef(1);
+  const seqRef = useRef(0);
   const baseRef = useRef(baseUrl);
   baseRef.current = baseUrl;
 
@@ -31,19 +32,27 @@ export function usePagedList<T = any>(baseUrl: string | null, deps: any[] = [], 
   const load = useCallback(async (page: number, append: boolean) => {
     const url = urlFor(page);
     if (!url) { setLoading(false); return; }
+    // Generation guard: an older in-flight response (e.g. the mount fetch
+    // resolving after a post-create reload) must never overwrite newer
+    // state — last-write-wins on raw completion order shows stale lists.
+    const seq = ++seqRef.current;
+    const current = () => seq === seqRef.current;
     if (append) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
       const j: any = await api.get(url);
+      if (!current()) return;
       const rows = extract(j) as T[];
       setItems((prev) => (append ? [...prev, ...rows] : rows));
       setHasMore(Boolean(j?.page?.hasMore));
       pageRef.current = page;
     } catch (err) {
-      setError(apiErrorMessage(err, 'Could not load this list. Try again.'));
+      if (current()) setError(apiErrorMessage(err, 'Could not load this list. Try again.'));
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (current()) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlFor, ...deps]);

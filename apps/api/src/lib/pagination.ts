@@ -23,8 +23,11 @@ export interface ListParams {
 
 export function listParams(request: FastifyRequest): ListParams {
   const q = (request.query ?? {}) as Record<string, unknown>;
-  const page = Math.max(1, parseInt(String(q.page ?? '1'), 10) || 1);
-  const rawLimit = parseInt(String(q.limit ?? ''), 10);
+  // Duplicate query keys (`?page=1&page=2`) arrive as arrays — take the
+  // first value instead of silently coercing '1,2' → NaN → page 1.
+  const first = (v: unknown) => (Array.isArray(v) ? v[0] : v);
+  const page = Math.max(1, parseInt(String(first(q.page) ?? '1'), 10) || 1);
+  const rawLimit = parseInt(String(first(q.limit) ?? ''), 10);
   const limit = Number.isFinite(rawLimit) && rawLimit > 0
     ? Math.min(rawLimit, LIST_MAX_LIMIT)
     : LIST_DEFAULT_LIMIT;
