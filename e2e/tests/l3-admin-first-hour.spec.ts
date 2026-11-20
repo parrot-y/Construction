@@ -59,14 +59,17 @@ test.describe('L3 — admin first-hour journey (UI only)', () => {
     await shot(page, '03-email-verified');
     await page.getByRole('button', { name: 'Continue to sign in' }).click();
     // Continue lands on the sign-in form directly; the landing variant
-    // needs one more click. Handle both.
+    // needs one more click. Handle both. The login form is a lazy chunk —
+    // wait for whichever variant renders instead of one-shot probing.
     const emailBox = page.locator('#email, input[type="email"]').first();
+    const signInToWorkspace = page.getByRole('button', { name: 'Sign in to your workspace' });
+    const signInLanding = page.getByRole('button', { name: 'Sign in', exact: true }).first();
+    await expect(emailBox.or(signInToWorkspace).or(signInLanding).first()).toBeVisible({ timeout: 30_000 });
     if (!(await emailBox.isVisible().catch(() => false))) {
-      const signIn = page.getByRole('button', { name: 'Sign in to your workspace' });
-      if (await signIn.isVisible().catch(() => false)) {
-        await signIn.click();
+      if (await signInToWorkspace.isVisible().catch(() => false)) {
+        await signInToWorkspace.click();
       } else {
-        await page.getByRole('button', { name: 'Sign in', exact: true }).first().click();
+        await signInLanding.click();
       }
     }
     await emailBox.fill(EMAIL);
