@@ -1,5 +1,5 @@
 import React, { Suspense, useState, useEffect} from 'react';
-import LoginForm from './components/LoginForm';
+const LoginForm = lazyChunk(() => import('./components/LoginForm'));
 const SignupForm = lazyChunk(() => import('./components/SignupForm'));
 const InviteAcceptView = lazyChunk(() => import('./components/InviteAcceptView'));
 import AppErrorBoundary from './components/AppErrorBoundary';
@@ -8,7 +8,7 @@ const RequestPasswordResetView = lazyChunk(() => import('./components/PasswordRe
 const ResetPasswordView = lazyChunk(() => import('./components/PasswordResetViews').then((m) => ({ default: m.ResetPasswordView })));
 const VerifyEmailView = lazyChunk(() => import('./components/PasswordResetViews').then((m) => ({ default: m.VerifyEmailView })));
 import Dashboard from './components/Dashboard';
-import LandingPortalHub from './components/LandingPortalHub';
+const LandingPortalHub = lazyChunk(() => import('./components/LandingPortalHub'));
 const ConsultantPortalView = lazyChunk(() => import('./components/portals/ConsultantPortalView'));
 const SubcontractorPortalView = lazyChunk(() => import('./components/portals/SubcontractorPortalView'));
 const SupplierPortalView = lazyChunk(() => import('./components/portals/SupplierPortalView'));
@@ -306,11 +306,11 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
 {showPasswordReset ? (
 <Suspense fallback={PageFallback}><RequestPasswordResetView onBack={() => setShowPasswordReset(false)} /></Suspense>
 ) : (
-<LoginForm
+<Suspense fallback={PageFallback}><LoginForm
           onLoginSuccess={(newSession) => setSession(newSession)}
           onOpenSignup={() => { setShowLoginForm(false); setShowSignupForm(true); }}
           onForgotPassword={() => setShowPasswordReset(true)}
-        />
+        /></Suspense>
 )}
 </main>
 );
@@ -338,11 +338,11 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
   // 4. Default Platform Landing Portal Experience Hub
   return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
-<LandingPortalHub
+<Suspense fallback={PageFallback}><LandingPortalHub
         onSelectRolePreview={handleSelectRolePreview}
         onOpenLogin={() => setShowLoginForm(true)}
         onOpenSignup={() => setShowSignupForm(true)}
-      />
+      /></Suspense>
 </main>
 );
 }
