@@ -38,6 +38,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered manually in main.tsx after first paint — the precache
+      // download must not compete with critical requests on slow links.
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: process.env.VITE_PRODUCT_NAME || 'SiteSafi',

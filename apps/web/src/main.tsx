@@ -150,6 +150,21 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   return res;
 };
 
+// Defer service-worker registration until after first paint: installing the
+// precache (~1.7 MB) during initial load competes with critical requests on
+// slow links. Offline capability is unchanged once the SW activates.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  // The precache is ~1.7 MB — on a slow link it would saturate the pipe for
+  // ~8 s. Wait until the first screen has had time to become useful.
+  const registerSw = () => { void navigator.serviceWorker.register('/sw.js'); };
+  const arm = () => setTimeout(registerSw, 5000);
+  if (document.readyState === 'complete') {
+    arm();
+  } else {
+    window.addEventListener('load', arm, { once: true });
+  }
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
 <React.StrictMode>
 <App />

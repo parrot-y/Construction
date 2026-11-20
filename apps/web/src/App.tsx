@@ -63,6 +63,15 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [verifyToken, setVerifyToken] = useState<string | null>(null);
 
+  // Warm the console chunks while /auth/me is in flight — the dynamic
+  // imports below would otherwise serialize behind the auth round-trip.
+  useEffect(() => {
+    if (window.location.pathname.startsWith('/app')) {
+      void import('./components/console/AppShell');
+      void import('./components/console/sections/HomeSection');
+    }
+  }, []);
+
   // C1: restore the session from the HttpOnly cookie on reload/deep links.
   useEffect(() => {
     let cancelled = false;

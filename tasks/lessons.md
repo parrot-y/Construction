@@ -144,3 +144,20 @@ Prevention rules:
   treating a UI change as done — not only the Playwright specs.
 - When a guard baseline fails, fix the code; do not add new files to the
   baseline list.
+
+## P4 — pagination double-application (c6862c6)
+
+- Pattern: a global fetch wrapper (main.tsx fetchAllPages) transparently
+  followed `?page=` for every GET to merge full lists. When a component
+  started managing its own pagination (usePagedList), the wrapper appended
+  `&page=N` to URLs already carrying `page=`; the API coerced the duplicated
+  param to page 1 and the merger concatenated page-1 rows — every list
+  rendered its first page twice, plus ~38 phantom requests per load.
+- Rule: when introducing explicit client-side pagination, audit every
+  transport/middleware layer that also interprets pagination params.
+  Explicit `page=` in the request URL must disable transparent
+  auto-pagination. Server should also take the first value of duplicated
+  query keys rather than coercing arrays to NaN→default.
+- Also: in-flight request dedupe must be invalidated by successful
+  mutations, and list hooks need a generation guard so stale responses
+  can't overwrite newer state (last-write-wins on completion order).
