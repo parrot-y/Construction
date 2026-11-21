@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { API, login, Session } from './helpers';
+import { API, login, fixtureName, Session } from './helpers';
 
 /**
  * P1.6 — break-it suite: the app must fail honestly everywhere.
@@ -20,12 +20,21 @@ import { API, login, Session } from './helpers';
 const RUN = Date.now();
 const PASSWORD = 'P1Break#2026';
 let admin: Session;
+// Pool names must stay distinct within this file — scenario C asserts its
+// project card is the ONLY one carrying the name.
+const usedProjectNames = new Set<string>();
+function uniqueProjectName(tag: string): string {
+  let name = fixtureName('project', `${RUN}-${tag}-${test.info().project.name}-p1`);
+  while (usedProjectNames.has(name)) name = fixtureName('project', `${name}-x`);
+  usedProjectNames.add(name);
+  return name;
+}
 
-async function register(request: APIRequestContext): Promise<Session> {
+async function register(request: APIRequestContext, salt: string): Promise<Session> {
   const email = `admin.${RUN}@p1-break.test`;
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
     data: {
-      companyName: 'P1 Breakit Contractors',
+      companyName: fixtureName('company', salt),
       adminFullName: 'Wanjiru Test',
       email,
       phone: '+254712000888',
@@ -52,6 +61,7 @@ async function uiLogin(page: Page, email: string, password: string) {
 
 /** Open the new-project wizard and fill through to the final step. */
 async function openWizardAtSubmit(page: Page, tag = 'A') {
+  const name = uniqueProjectName(tag);
   // The wizard deliberately resumes an unfinished draft from localStorage;
   // each scenario starts a fresh draft.
   await page.goto('/app/projects/all');
@@ -61,16 +71,16 @@ async function openWizardAtSubmit(page: Page, tag = 'A') {
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  await dialog.getByLabel(/Project name/).fill(`P1 Break ${tag} ${RUN}`);
+  await dialog.getByLabel(/Project name/).fill(name);
   await dialog.getByLabel(/Project code/).fill(`P1${tag}-${String(RUN).slice(-6)}`);
   await dialog.getByRole('button', { name: 'Continue' }).click();
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  return dialog;
+  return { dialog, name };
 }
 
 test.describe.serial('P1.6 break-it — honest failures', () => {
-  test.beforeAll(async ({ request }) => {
-    admin = await register(request);
+  test.beforeAll(async ({ request }, testInfo) => {
+    admin = await register(request, `${RUN}-${testInfo.project.name}-p1co`);
   });
 
   test('A. API stopped during project create — plain error, data kept, retry works', async ({ page, request }) => {
@@ -83,7 +93,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
       return route.continue();
     });
 
-    const dialog = await openWizardAtSubmit(page);
+    const { dialog, name } = await openWizardAtSubmit(page);
     const submit = dialog.locator('button[type="submit"]');
     await page.waitForTimeout(400);
     await submit.click({ timeout: 10_000 }).catch(() => {});
@@ -100,7 +110,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     // Step 3 (team) → Back lands on commercial; Back again reaches basics.
     await dialog.getByRole('button', { name: 'Back' }).click();
     await dialog.getByRole('button', { name: 'Back' }).click();
-    await expect(dialog.getByLabel(/Project name/)).toHaveValue(`P1 Break A ${RUN}`);
+    await expect(dialog.getByLabel(/Project name/)).toHaveValue(name);
     await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
 
@@ -108,7 +118,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     await page.unroute('**/api/v1/projects');
     await submit.click({ timeout: 10_000 }).catch(() => {});
     await expect(dialog).not.toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('button', { hasText: `P1 Break A ${RUN}` }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('button', { hasText: name }).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('B. injected 403/409/422/500 on project create — plain messages', async ({ page, request }) => {
@@ -133,7 +143,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
         return route.continue();
       });
 
-      const dialog = await openWizardAtSubmit(page, 'B');
+      const { dialog } = await openWizardAtSubmit(page, 'B');
       const submit = dialog.locator('button[type="submit"]');
       await page.waitForTimeout(400);
       await submit.click({ timeout: 10_000 }).catch(() => {});
@@ -154,7 +164,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     test.setTimeout(120_000);
     await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
 
-    const dialog = await openWizardAtSubmit(page, 'C');
+    const { dialog, name } = await openWizardAtSubmit(page, 'C');
     const submit = dialog.locator('button[type="submit"]');
     await page.waitForTimeout(400);
     // Rapid double activation.
@@ -162,7 +172,6 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     await submit.click({ timeout: 2_000, force: true }).catch(() => {});
     await expect(dialog).not.toBeVisible({ timeout: 30_000 });
 
-    const name = `P1 Break C ${RUN}`;
     const cards = page.locator('button', { hasText: name });
     await expect(cards.first()).toBeVisible({ timeout: 20_000 });
     expect(await cards.count()).toBe(1);
@@ -260,14 +269,14 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
   test('G. double-click quote save → exactly one draft quote', async ({ page, request }) => {
     test.setTimeout(120_000);
     await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
-    const title = `P1 Quote ${RUN}`;
+    const title = fixtureName('quote', `${RUN}-g-${test.info().project.name}-q`);
 
     await page.goto('/app/money/quotes');
     await page.getByRole('button', { name: '+ New Quote' }).click();
     const qform = page.locator('form', { has: page.getByRole('button', { name: /Save Draft Quote/ }) });
     await qform.locator('input').nth(0).fill(title);
-    await qform.locator('input').nth(1).fill('P1 Client');
-    await page.getByPlaceholder('Description *').fill('P1 double-click line');
+    await qform.locator('input').nth(1).fill(fixtureName('client', `${RUN}-g-${test.info().project.name}`));
+    await page.getByPlaceholder('Description *').fill('Bulk excavation — phase 1');
     await page.getByPlaceholder('Rate').fill('1000');
     const save = page.getByRole('button', { name: /Save Draft Quote/ });
     await save.click();
@@ -282,11 +291,11 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
   test('H. double-click variation submit → exactly one change order', async ({ page, request }) => {
     test.setTimeout(150_000);
     await uiLogin(page, `admin.${RUN}@p1-break.test`, PASSWORD);
-    const title = `P1 CO ${RUN}`;
+    const title = fixtureName('changeorder', `${RUN}-h-${test.info().project.name}-co`);
 
     // Fixture: this scenario needs a project — create one via API (the UI
     // journey itself stays click-driven).
-    const projName = `P1 CO Project ${RUN}`;
+    const projName = fixtureName('project', `${RUN}-hproj-${test.info().project.name}`);
     const pr = await request.post(`${API}/api/v1/projects`, {
       headers: { cookie: admin.cookie, 'content-type': 'application/json' },
       data: { name: projName, code: `P1CO-${String(RUN).slice(-6)}` },
@@ -303,8 +312,8 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     const modal = page.locator('div.fixed.inset-0').last();
     await expect(modal).toBeVisible({ timeout: 15_000 });
     await modal.getByPlaceholder(/Raft Foundation/).fill(title);
-    await modal.getByPlaceholder(/Cite site instruction/).fill('P1 double-click justification reason');
-    await modal.getByPlaceholder(/Item description/).fill('P1 CO line item');
+    await modal.getByPlaceholder(/Cite site instruction/).fill('Client instructed additional excavation at grid B4 during site visit.');
+    await modal.getByPlaceholder(/Item description/).fill('Additional excavation in rock');
     await modal.getByPlaceholder('e.g. 50').fill('2');
     await modal.getByPlaceholder('e.g. 3500.00').fill('5000');
 

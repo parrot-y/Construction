@@ -1,7 +1,7 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
-import { API, login, apiGet, apiPost, apiPatch, unwrap, Session } from './helpers';
+import { API, login, apiGet, apiPost, apiPatch, unwrap, Session, fixtureName } from './helpers';
 
 /**
  * STAGE 6 — PORTAL CLOSEOUT LOOP (S6.2 acceptance journeys)
@@ -163,12 +163,13 @@ test.describe.serial('Stage 6 — portal closeout journeys', () => {
     S.consultantToken = await mkLink(request, 'CONSULTANT');
     S.clientToken = await mkLink(request, 'CLIENT');
 
+    const supplierName = fixtureName('supplier', `s6-${RUN}`);
     const sup = await apiPost(request, S.admin, '/api/v1/suppliers', {
-      name: 'S6 Builders Merchants', contactPerson: 'Supplier Contact',
+      name: supplierName, contactPerson: 'Supplier Contact',
     });
     expect(sup.status(), await sup.text()).toBe(201);
     const supplierId = unwrap(await sup.json()).id;
-    S.supplierToken = await mkLink(request, 'SUPPLIER', { stakeholderName: 'S6 Builders Merchants', supplierId });
+    S.supplierToken = await mkLink(request, 'SUPPLIER', { stakeholderName: supplierName, supplierId });
     S.complianceToken = await mkLink(request, 'COMPLIANCE');
   });
 

@@ -1,4 +1,5 @@
 import { test, expect, Page, APIRequestContext } from '@playwright/test';
+import { fixtureName } from './helpers';
 
 /**
  * W1–W10 — admin end-to-end workflows, UI clicks only (no API shortcuts for
@@ -24,7 +25,7 @@ test.beforeEach(({}, ti) => {
 async function register(request: APIRequestContext) {
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
     data: {
-      companyName: `WFlows ${SLUG} ${email.split('@')[0].slice(-6)}`,
+      companyName: fixtureName('company', `${RUN}-${email}`),
       adminFullName: 'Wanjiru Admin',
       email,
       phone: `+2547${String(RUN).slice(-8)}`,
@@ -98,7 +99,7 @@ test.describe('W1–W10 admin workflows', () => {
   test('W1: create project, set contract sum + retention terms', async ({ page, request }) => {
     test.setTimeout(300_000);
     await uiLogin(page, request);
-    projectName = `W1 Riverside ${SLUG}`;
+    projectName = fixtureName('project', `${RUN}-${email}-w1`);
     await createProjectUi(page, projectName, `W1-${SLUG}`, '84500000');
     await selectProject(page);
 
@@ -130,15 +131,16 @@ test.describe('W1–W10 admin workflows', () => {
     const addBtn = page.getByRole('button', { name: /add your first boq item|add item/i }).first();
     await addBtn.click();
     const form = page.locator('form', { has: page.getByText(/Add BoQ item|Save changes/) }).first();
-    await form.getByPlaceholder('Describe the work').fill('W2 Earthworks to formation level');
+    const boqDesc = 'Earthworks to formation level';
+    await form.getByPlaceholder('Describe the work').fill(boqDesc);
     await form.getByPlaceholder('m, m², no').fill('m3');
     await form.locator('input[type="number"]').nth(0).fill('120');
     await form.locator('input[type="number"]').nth(1).fill('4500');
     await form.getByRole('button', { name: 'Save item' }).click();
-    await expect(page.getByText('W2 Earthworks to formation level')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(boqDesc)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/KES\s*540,?000/).first()).toBeVisible({ timeout: 20_000 });
     // Edit the line's rate → amount + totals update.
-    const row = page.locator('tr', { hasText: 'W2 Earthworks' });
+    const row = page.locator('tr', { hasText: boqDesc });
     await row.getByRole('button', { name: 'Edit' }).click();
     const eform = page.locator('form', { has: page.getByText('Save changes') }).first();
     await eform.locator('input[type="number"]').nth(1).fill('5000');
@@ -166,18 +168,19 @@ test.describe('W1–W10 admin workflows', () => {
     await page.goto('/app/money/quotes');
     await page.getByRole('button', { name: /new quote/i }).click();
     const form = page.locator('form').filter({ has: page.getByPlaceholder(/Boundary wall/) }).first();
-    await form.getByPlaceholder(/Boundary wall/).fill(`W4 Quote ${SLUG}`);
+    const quoteTitle = fixtureName('quote', `${RUN}-${email}-w4`);
+    await form.getByPlaceholder(/Boundary wall/).fill(quoteTitle);
     // Client Name input has no placeholder — it is the 2nd text input in the form.
-    await form.locator('input[type="text"], input:not([type])').nth(1).fill('W4 Client Ltd');
+    await form.locator('input[type="text"], input:not([type])').nth(1).fill(fixtureName('client', `${RUN}-${email}-w4client`));
     // Fill the first line item: Description *, Qty, Rate.
     await form.getByPlaceholder('Description *').fill('Prime cost works');
     await form.getByPlaceholder('Qty').fill('1');
     await form.getByPlaceholder('Rate').fill('500000');
     await form.getByRole('button', { name: /save draft quote/i }).click();
-    await expect(page.getByText(new RegExp(`W4 Quote`, 'i')).first()).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByText(new RegExp(quoteTitle, 'i')).first()).toBeVisible({ timeout: 25_000 });
 
     // Send → share link shown once.
-    const row = page.locator('tr', { hasText: `W4 Quote` }).first();
+    const row = page.locator('tr', { hasText: quoteTitle }).first();
     await row.getByRole('button', { name: /^send$/i }).click();
     const shareAnchor = page.locator('text=/portal=quote&token=/').first();
     await expect(shareAnchor).toBeVisible({ timeout: 25_000 });
@@ -190,7 +193,7 @@ test.describe('W1–W10 admin workflows', () => {
     const pub = await context.newPage();
     await pub.goto(`http://localhost:5180${sharePath!.startsWith('/') ? sharePath : `/${sharePath}`}`);
     await pub.getByRole('button', { name: /accept quote/i }).click();
-    await pub.locator('input').last().fill('W4 Client Director');
+    await pub.locator('input').last().fill('Client Director');
     await pub.getByRole('button', { name: /confirm|accept|submit/i }).last().click();
     await expect(pub.getByText(/accepted/i).first()).toBeVisible({ timeout: 25_000 });
     await pub.close();
@@ -198,7 +201,7 @@ test.describe('W1–W10 admin workflows', () => {
     // Back in console: quote ACCEPTED → Start project converts it.
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2_500);
-    const convert = page.locator('tr', { hasText: `W4 Quote` }).getByRole('button', { name: /start project/i });
+    const convert = page.locator('tr', { hasText: quoteTitle }).getByRole('button', { name: /start project/i });
     await expect(convert).toBeVisible({ timeout: 30_000 });
     await convert.click();
     await expect(page.getByText(/converted to project/i)).toBeVisible({ timeout: 30_000 });
@@ -211,7 +214,8 @@ test.describe('W1–W10 admin workflows', () => {
     await page.goto('/app/projects/changeorders');
     await page.getByRole('button', { name: /new change order/i }).click();
     const dlg = page.locator('[role="dialog"], div.fixed.inset-0').last();
-    await dlg.getByPlaceholder(/Raft Foundation/i).fill(`W5 Variation ${SLUG}`);
+    const variationTitle = fixtureName('variation', `${RUN}-${email}-w5`);
+    await dlg.getByPlaceholder(/Raft Foundation/i).fill(variationTitle);
     await dlg.getByPlaceholder(/Item description/i).first().fill('Additional excavation in rock');
     await dlg.getByPlaceholder('e.g. 50').first().fill('50').catch(() => {});
     await dlg.getByPlaceholder(/3500/).first().fill('3500').catch(() => {});
@@ -220,7 +224,7 @@ test.describe('W1–W10 admin workflows', () => {
     await page.waitForTimeout(2_500);
 
     // Draft → submit for PM review.
-    const card = page.locator('tr, div, article').filter({ hasText: `W5 Variation` }).first();
+    const card = page.locator('tr, div, article').filter({ hasText: variationTitle }).first();
     await card.getByRole('button', { name: /submit for pm review/i }).click();
     await page.waitForTimeout(2_000);
     // Evaluate (PM step) then Approve — admin holds both.
@@ -243,7 +247,7 @@ test.describe('W1–W10 admin workflows', () => {
     // APPROVED status or an explicit reason it cannot be approved.
     const outcome = await page.getByText(/approved|cannot approve|maker|checker|own|pending owner|owner review/i).first().textContent().catch(() => '');
     test.info().annotations.push({ type: 'note', description: `W5 outcome text: ${String(outcome).slice(0, 140)}` });
-    await expect(page.getByText(/W5 Variation/).first()).toBeVisible();
+    await expect(page.getByText(variationTitle).first()).toBeVisible();
   });
 
   test('W6: raise IPC → certify → invoice → record payment', async ({ page, request }) => {
@@ -292,12 +296,13 @@ test.describe('W1–W10 admin workflows', () => {
     await page.goto('/app/people/subcontractors');
     await page.getByRole('button', { name: /award subcontract/i }).first().click();
     const dlg = page.locator('div.fixed.inset-0, [role="dialog"]').last();
-    await dlg.getByPlaceholder(/Apex Electrical/i).fill(`W7 Electricals ${SLUG}`);
+    const subName = fixtureName('subcontractor', `${RUN}-${email}-w7`);
+    await dlg.getByPlaceholder(/Apex Electrical/i).fill(subName);
     await dlg.getByRole('button', { name: /award subcontract$/i }).last().click();
     // The modal must close and the package appear as a real row — a failed
     // save keeps the modal open with the typed name still in the field.
     await expect(dlg).toBeHidden({ timeout: 25_000 });
-    await expect(page.getByRole('heading', { name: /W7 Electricals/ })).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByRole('heading', { name: subName })).toBeVisible({ timeout: 25_000 });
     // Portal link via Projects → All → PortalAccessLinkManager.
     await page.goto('/app/projects/all');
     await page.getByRole('button', { name: /generate stakeholder link/i }).click();
@@ -312,7 +317,7 @@ test.describe('W1–W10 admin workflows', () => {
       return s ? s.options.length > 1 : false;
     }, { timeout: 20_000 });
     await pkgSelect.selectOption({ index: 1 });
-    await linkDlg.getByPlaceholder(/Arch\. Peter|e\.g\./).first().fill(`W7 Electricals ${SLUG}`);
+    await linkDlg.getByPlaceholder(/Arch\. Peter|e\.g\./).first().fill(subName);
     await linkDlg.getByRole('button', { name: /create access link/i }).click();
     await expect(page.getByText(/link created/i)).toBeVisible({ timeout: 25_000 });
     // Revoke it.
@@ -328,23 +333,25 @@ test.describe('W1–W10 admin workflows', () => {
     // Company doc (metadata register — file content is a filename field only).
     await page.goto('/app/files/companydocs');
     await page.getByRole('button', { name: /\+ upload|upload/i }).first().click();
-    await page.getByPlaceholder(/NCA Registration/i).fill(`W8 Insurance Cert ${SLUG}`);
+    const docTitle = 'Public liability insurance certificate';
+    await page.getByPlaceholder(/NCA Registration/i).fill(docTitle);
     await page.getByPlaceholder(/certificate\.pdf|\.pdf/i).first().fill('insurance.pdf');
     await page.getByRole('button', { name: /upload document|save changes/i }).click();
-    await expect(page.getByText(new RegExp(`W8 Insurance Cert`, 'i'))).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(docTitle, { exact: false })).toBeVisible({ timeout: 20_000 });
     // Find again via search.
-    await page.getByPlaceholder(/Search title or reference/).fill(`W8 Insurance Cert`);
+    await page.getByPlaceholder(/Search title or reference/).fill(docTitle);
     await page.waitForTimeout(600);
-    await expect(page.getByText(new RegExp(`W8 Insurance Cert`, 'i')).first()).toBeVisible();
+    await expect(page.getByText(docTitle, { exact: false }).first()).toBeVisible();
     // Drawing upload (real file).
     await page.goto('/app/projects/drawings');
     await selectProject(page);
     await page.getByRole('button', { name: /\+ upload drawing|upload drawing/i }).first().click();
     const fInput = page.locator('input[type="file"]').first();
     await fInput.setInputFiles({ name: 'foundation-a1.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 fake') });
-    await page.getByPlaceholder(/Foundation layout|e\.g\./).first().fill(`W8 Foundation Layout ${SLUG}`);
+    const drawingTitle = 'Foundation layout GA-A1';
+    await page.getByPlaceholder(/Foundation layout|e\.g\./).first().fill(drawingTitle);
     await page.getByRole('button', { name: /upload|save|register/i }).last().click();
-    await expect(page.getByText(new RegExp(`W8 Foundation Layout`, 'i'))).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(drawingTitle, { exact: false })).toBeVisible({ timeout: 20_000 });
   });
 
   test('W9: open Reports and export one', async ({ page, request }) => {

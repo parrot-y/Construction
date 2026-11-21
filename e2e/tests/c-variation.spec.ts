@@ -20,7 +20,7 @@ test.describe('C. Variation → client approval', () => {
     // 1. Raise variation
     const createRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/variations`, {
       title: fixtureName('variation', `${Date.now()}-${test.info().project.name}-c`),
-      reason: 'E2E test: rock excavation deeper than borehole indicated',
+      reason: 'Rock excavation deeper than borehole indicated',
       items: [{ description: 'Additional excavation m3', unit: 'm3', quantity: '5000', unitRate: '45000' }],
     });
     expect(createRes.status(), await createRes.text()).toBe(201);
@@ -39,7 +39,7 @@ test.describe('C. Variation → client approval', () => {
     // 3. Issue a client portal link and approve the CO through it
     const linkRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
       portalType: 'CLIENT',
-      stakeholderName: 'E2E Client',
+      stakeholderName: fixtureName('client', `var-link-${Date.now()}`),
       expiresInDays: 7,
     });
     expect(linkRes.status(), await linkRes.text()).toBe(201);
@@ -56,7 +56,7 @@ test.describe('C. Variation → client approval', () => {
 
     const respondRes = await request.post(
       `${API}/api/v1/portals/client/${token}/change-orders/${variationId}/respond`,
-      { data: { action: 'APPROVE', signedName: 'E2E Client' } },
+      { data: { action: 'APPROVE', signedName: 'Amina Hassan' } },
     );
     expect(respondRes.status(), await respondRes.text()).toBe(200);
 

@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { login, apiGet, apiPost, unwrap } from './helpers';
+import { login, apiGet, apiPost, unwrap, fixtureName } from './helpers';
 
 /**
  * Stage-1 closure item 6 — real UI click coverage for the money screens:
@@ -42,7 +42,7 @@ async function openMoneyTab(page: Page, tab: string) {
 }
 
 const stamp = Date.now();
-const state: { projectId?: string; projectName?: string } = {};
+const state: { projectId?: string; projectName?: string; firmName?: string } = {};
 
 test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', () => {
   test.beforeAll(async ({ request }, testInfo) => {
@@ -58,13 +58,13 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     state.projectName = arr[0].name;
 
     // BoQ item + 50% progress so the IPC builder has derivable lines.
-    const code = `UIC-${stamp}-${tag}`;
+    const code = `1.1.${String(stamp).slice(-3)}`;
     const boq = await apiPost(request, admin, `/api/v1/projects/${state.projectId}/boq/confirm`, {
       sourceFilename: 'ui-clicks-boq.xlsx',
       sections: [{
-        title: 'UI Clicks Works', orderIdx: 0, subtotal: '50000.00',
+        title: 'Internal fit-out works', orderIdx: 0, subtotal: '50000.00',
         items: [{
-          itemCode: code, description: 'UI clicks test item', unit: 'm3',
+          itemCode: code, description: 'Blockwork partition walls', unit: 'm3',
           quantity: '50.0000', unitRate: '1000.0000', totalAmount: '50000.00',
           isProvisional: false, status: 'VALID',
         }],
@@ -81,7 +81,7 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     const prog = await apiPost(request, admin, `/api/v1/projects/${state.projectId}/progress`, {
       recordDate: new Date().toISOString().slice(0, 10),
       overallProgress: '0.5000',
-      notes: 'UI clicks progress',
+      notes: 'Progress on blockwork to first-floor slab',
       items: [{ boqItemId: item.id, completedQuantity: '25.0000', completionPct: '0.5000' }],
     });
     expect(prog.status(), await prog.text()).toBeLessThan(300);
@@ -89,7 +89,7 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     // Subcontractor package for the valuation claim form.
     const pkg = await apiPost(request, admin, `/api/v1/projects/${state.projectId}/subcontractors`, {
       tradeCategory: 'PLUMBING',
-      firmName: `UI FlowFit ${stamp}-${tag}`,
+      firmName: (state.firmName = fixtureName('subcontractor', `${stamp}-${tag}-firm`)),
       subcontractSum: '400000.00',
       retentionRatePct: '5.00',
       status: 'ACTIVE',
@@ -99,10 +99,10 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
 
   test('certificate → invoice → valuation screens are clickable end to end', async ({ page }, testInfo) => {
     const tag = testInfo.project.name.replace(/[^a-z0-9]/gi, '');
-    const invTitle = `UI invoice ${stamp}-${tag}`;
+    const invTitle = fixtureName('invoice', `${stamp}-${tag}-inv`);
     // Admin created and sends the invoice — maker-checker asks for a
     // self-approval reason via prompt().
-    page.on('dialog', (d) => d.accept('UI test self-approval reason'));
+    page.on('dialog', (d) => d.accept('Self-approved per site instruction'));
     await uiLogin(page, 'admin@apexbuilders.co.ke', 'Password123!');
     // Pin the project selector when the layout exposes one (desktop header);
     // mobile auto-selects the first project, which is the fixture project.
@@ -116,7 +116,7 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     // ---- CERTIFICATES: open builder → preview lines → draft → submit ----
     await openMoneyTab(page, 'Certificates');
     await page.getByRole('button', { name: /New IPC from progress/ }).click();
-    await expect(page.getByText('UI clicks test item').first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Blockwork partition walls').first()).toBeVisible({ timeout: 20_000 });
     await page.getByRole('button', { name: 'Draft IPC' }).click();
     const fb = page.getByText(/IPC-\d{3} drafted from progress/);
     await expect(fb).toBeVisible({ timeout: 20_000 });
@@ -136,7 +136,7 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     await page.getByRole('button', { name: '+ New Invoice' }).click();
     await page.getByPlaceholder(/Progress claim/).fill(invTitle);
     await page.locator('xpath=//label[contains(., "Client Name")]/following-sibling::input').fill('UI Test Client');
-    await page.getByPlaceholder('Description *').fill('UI invoice line item');
+    await page.getByPlaceholder('Description *').fill('Professional fees — phase 1');
     await page.getByPlaceholder('Qty').fill('1');
     await page.getByPlaceholder('Rate').fill('10000');
     await page.getByRole('button', { name: 'Save Draft Invoice' }).click();
@@ -146,21 +146,21 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     // A4: self-approval reason is an accessible AppDialog modal, not window.prompt.
     const reasonInput = page.locator('#app-dialog-input');
     if (await reasonInput.waitFor({ timeout: 8_000 }).then(() => true).catch(() => false)) {
-      await reasonInput.fill('UI test self-approval reason');
+      await reasonInput.fill('Self-approved per site instruction');
       await page.getByRole('button', { name: 'Send anyway' }).click();
     }
     await expect(invRow.getByText('SENT').first()).toBeVisible({ timeout: 20_000 });
     await invRow.getByRole('button', { name: 'Record payment' }).click();
     await page.locator('xpath=//label[contains(., "Amount *")]/following-sibling::input').fill('11600');
-    await page.getByPlaceholder(/M-Pesa code/).fill(`UI-PAY-${stamp}`);
+    await page.getByPlaceholder(/M-Pesa code/).fill(`MPESA-B2C-${String(stamp).slice(-6)}`);
     await page.getByRole('button', { name: 'Save payment' }).click();
     await expect(invRow.getByText(/part paid|paid/i).first()).toBeVisible({ timeout: 20_000 });
 
     // ---- SUB CONTRACTOR VALUATIONS: new claim → issued row ----
     await openMoneyTab(page, 'Sub valuations');
     await page.getByRole('button', { name: /New Subcontractor Claim/ }).click();
-    const pkgSelect = page.locator('select').filter({ has: page.locator('option', { hasText: 'UI FlowFit' }) }).first();
-    const pkgVal = await pkgSelect.locator('option', { hasText: 'UI FlowFit' }).first().getAttribute('value');
+    const pkgSelect = page.locator('select').filter({ has: page.locator('option', { hasText: state.firmName! }) }).first();
+    const pkgVal = await pkgSelect.locator('option', { hasText: state.firmName! }).first().getAttribute('value');
     await pkgSelect.selectOption(pkgVal!);
     await page.getByPlaceholder(/1500000/).fill('25000');
     await page.getByRole('button', { name: /Issue Certificate|Generate/ }).click();

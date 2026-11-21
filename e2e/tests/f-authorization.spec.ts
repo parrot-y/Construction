@@ -1,5 +1,5 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
-import { login, apiGet, apiPost, apiPatch, firstProjectId, authHeaders, API } from './helpers';
+import { login, apiGet, apiPost, apiPatch, firstProjectId, authHeaders, API, fixtureName } from './helpers';
 
 /**
  * Workflow F — authorization: prohibited actions return 403 and
@@ -13,7 +13,7 @@ test.describe('F. Authorization & tenant isolation', () => {
 
     // Supervisor must not approve variations
     const varRes = await apiPost(request, supervisor, `/api/v1/projects/${projectId}/variations`, {
-      title: 'E2E authz probe variation',
+      title: fixtureName('variation', `authz-${Date.now()}`),
       reason: 'authz probe',
       items: [{ description: 'probe', unit: 'item', quantity: 1, unitRate: 1 }],
     });
@@ -25,7 +25,7 @@ test.describe('F. Authorization & tenant isolation', () => {
 
     // Client must not create internal quotes or view company financials
     const quoteRes = await apiPost(request, client, '/api/v1/quotes', {
-      title: 'E2E client quote attempt',
+      title: fixtureName('quote', `authz-q-${Date.now()}`),
       clientName: 'X',
       items: [{ description: 'x', unit: 'item', quantity: 1, unitRate: 1 }],
     });

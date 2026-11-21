@@ -1,6 +1,7 @@
 import { test, expect, Page, APIRequestContext, TestInfo } from '@playwright/test';
 import { mkdirSync } from 'fs';
 import { join } from 'path';
+import { fixtureName } from './helpers';
 
 const EVIDENCE_DIR = process.env.E2E_EVIDENCE_DIR || '';
 async function shot(page: Page, ti: TestInfo, name: string) {
@@ -28,7 +29,7 @@ test.beforeEach(({}, ti) => {
 async function register(request: APIRequestContext) {
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
     data: {
-      companyName: `P3 Gate ${RUN.toString(36)}`,
+      companyName: fixtureName('company', `${RUN}-${email}`),
       adminFullName: 'Wanjiru Admin',
       email,
       phone: `+2547${String(RUN).slice(-8)}`,

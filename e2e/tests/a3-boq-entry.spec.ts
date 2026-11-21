@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { API, login, Session } from './helpers';
+import { API, login, Session, fixtureName } from './helpers';
 
 /**
  * A3 (part 1) — Bill of Quantities must be reachable and editable from the
@@ -12,6 +12,7 @@ import { API, login, Session } from './helpers';
  */
 
 const RUN = Date.now();
+const SITE_NAME = fixtureName('project', `a3-${RUN}`);
 const PASSWORD = 'A3Boq#2026';
 let admin: Session;
 
@@ -19,7 +20,7 @@ async function register(request: APIRequestContext): Promise<Session> {
   const email = `admin.${RUN}@a3-boq.test`;
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
     data: {
-      companyName: 'A3 BoQ Contractors Ltd',
+      companyName: fixtureName('company', `a3-co-${RUN}`),
       adminFullName: 'Wanjiru Njoroge',
       email,
       phone: '+254712000777',
@@ -51,7 +52,7 @@ async function createProjectViaUi(page: Page) {
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  await dialog.getByLabel(/Project name/).fill('A3 BoQ Site');
+  await dialog.getByLabel(/Project name/).fill(SITE_NAME);
   await dialog.getByLabel(/Project code/).fill(`A3-${String(RUN).slice(-6)}`);
   await dialog.getByRole('button', { name: 'Continue' }).click();
   await dialog.getByRole('button', { name: 'Continue' }).click();
@@ -62,13 +63,13 @@ async function createProjectViaUi(page: Page) {
   if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
     await npSubmit.click({ timeout: 10_000 }).catch(() => {});
   }
-  await expect(page.locator('button', { hasText: 'A3 BoQ Site' }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('button', { hasText: SITE_NAME }).first()).toBeVisible({ timeout: 20_000 });
 }
 
 
 async function selectProject(page: Page) {
   await page.goto('/app/projects/all');
-  const card = page.locator('button', { hasText: 'A3 BoQ Site' }).first();
+  const card = page.locator('button', { hasText: SITE_NAME }).first();
   await expect(card).toBeVisible({ timeout: 20_000 });
   await card.click();
 }
@@ -91,7 +92,7 @@ test.describe('A3 — BoQ entry from the admin console', () => {
     const cookie = (admin.cookie || '');
     const created = await request.post(`${API}/api/v1/projects`, {
       headers: { cookie },
-      data: { name: 'A3 BoQ Site', code: `A3-${String(RUN).slice(-6)}` },
+      data: { name: SITE_NAME, code: `A3-${String(RUN).slice(-6)}` },
     });
     expect(created.status(), await created.text()).toBe(201);
   });

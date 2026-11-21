@@ -41,7 +41,7 @@
  *   5. Stage 1-3 carry-overs already green in their own specs.
  */
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { API, login, apiGet, apiPost, unwrap, firstProjectId, Session } from './helpers';
+import { API, login, apiGet, apiPost, unwrap, firstProjectId, Session, fixtureName } from './helpers';
 
 // Public (token-scoped, unauthenticated) portal calls.
 const pubGet = (request: APIRequestContext, path: string) => request.get(`${API}${path}`);
@@ -106,7 +106,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
   // -------------------------------------------------------------------------
   test('1. Consultant link scopes; portal returns only scoped sections', async ({ request }) => {
     const all = await apiPost(request, state.admin!, CONTRACT.portalLinks(state.projectId!), {
-      portalType: 'CONSULTANT', stakeholderName: 'E2E Architect', stakeholderRole: 'Architect',
+      portalType: 'CONSULTANT', stakeholderName: 'Amina Hassan', stakeholderRole: 'Architect',
       scope: 'ALL', expiresInDays: 30,
     });
     expect(all.status(), await all.text()).toBe(201);
@@ -114,7 +114,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     expect(state.consultantTokenAll).toBeTruthy();
 
     const rfiOnly = await apiPost(request, state.admin!, CONTRACT.portalLinks(state.projectId!), {
-      portalType: 'CONSULTANT', stakeholderName: 'E2E RFI-only Eng', stakeholderRole: 'Engineer',
+      portalType: 'CONSULTANT', stakeholderName: 'Brian Otieno', stakeholderRole: 'Engineer',
       scope: 'RFI', expiresInDays: 30,
     });
     expect(rfiOnly.status(), await rfiOnly.text()).toBe(201);
@@ -156,7 +156,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
 
     // Create an RFI as staff, then reply with the uploaded attachment
     const rfiRes = await apiPost(request, state.pm!, CONTRACT.rfis(state.projectId!), {
-      title: 'E2E Stage4 RFI', question: 'Clarify drainage fall at grid B2.', priority: 'MEDIUM',
+      title: fixtureName('rfi', `k4-${Date.now()}`), question: 'Clarify drainage fall at grid B2.', priority: 'MEDIUM',
       assignedToRole: 'ARCHITECT',
     });
     expect(rfiRes.status(), await rfiRes.text()).toBeLessThan(300);
@@ -164,7 +164,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
 
     const reply = await pubPost(request, CONTRACT.consultantReply(state.consultantTokenAll!, state.rfiId!), {
       officialAnswer: 'Provide minimum 1:80 fall towards the kerb line as shown on drainage layout.',
-      consultantName: 'E2E Architect',
+      consultantName: 'Amina Hassan',
       attachmentStorageKeys: [storageKey],
     });
     expect([200, 201]).toContain(reply.status());
@@ -172,7 +172,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     // Drawings register: upload a drawing document as staff
     const docForm = new FormData();
     docForm.append('file', new Blob([PNG], { type: 'image/png' }), 'drawing-a101.png');
-    docForm.append('title', 'E2E Drawing A-101');
+    docForm.append('title', 'Architectural drawing A-101');
     docForm.append('category', 'ARCHITECTURAL_DRAWING');
     docForm.append('drawingReference', 'A-101');
     docForm.append('revisionCode', 'Rev B');
@@ -195,9 +195,9 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     // If document upload isn't wired for drawings, create via documents POST JSON
     if (!drawingId) {
       const docCreate = await apiPost(request, state.admin!, CONTRACT.documents(state.projectId!), {
-        title: 'E2E Drawing A-101', category: 'ARCHITECTURAL_DRAWING',
+        title: 'Architectural drawing A-101', category: 'ARCHITECTURAL_DRAWING',
         drawingReference: 'A-101', revisionCode: 'Rev B',
-        storageKey, uploadedByName: 'E2E Admin',
+        storageKey, uploadedByName: 'Otieno Mwangi',
         issuedDate: new Date(Date.now() - 20 * 86400e3).toISOString().slice(0, 10),
       });
       expect(docCreate.status(), await docCreate.text()).toBeLessThan(300);
@@ -228,13 +228,13 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     const docRows = Array.isArray(docsBody) ? docsBody : docsBody?.documents || docsBody?.rows || [];
     const doc = docRows.find((d: any) => d.id === state.drawingId);
     const acks = doc?.acknowledgements || doc?.acknowledgedBy || [];
-    expect(JSON.stringify(acks), 'contractor must see per-link acknowledgement').toContain('E2E Architect');
+    expect(JSON.stringify(acks), 'contractor must see per-link acknowledgement').toContain('Amina Hassan');
   });
 
   // -------------------------------------------------------------------------
   test('3. Compliance portal: permits register + inspector visit + actions', async ({ request }) => {
     const link = await apiPost(request, state.admin!, CONTRACT.portalLinks(state.projectId!), {
-      portalType: 'COMPLIANCE', stakeholderName: 'E2E NCA Officer', stakeholderRole: 'NCA Inspector',
+      portalType: 'COMPLIANCE', stakeholderName: 'Sarah Wambui', stakeholderRole: 'NCA Inspector',
       expiresInDays: 30,
     });
     expect(link.status(), await link.text()).toBe(201);
@@ -305,18 +305,19 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     const phone = `+2547${String(Date.now()).slice(-8)}`;
     state.workerPhone = phone;
     state.workerPin = '482913';
+    const workerName = 'Joseph Kamau';
 
     // Weak PINs rejected
     for (const weak of ['111111', '123456', '1234', 'abcdef']) {
       const bad = await apiPost(request, state.admin!, CONTRACT.invitations, {
-        phone, pin: weak, role: 'WORKER', fullName: 'E2E Worker',
+        phone, pin: weak, role: 'WORKER', fullName: workerName,
       });
       expect(bad.status(), `weak PIN ${weak} must be rejected`).toBe(400);
     }
 
     // Valid field invite
     const inv = await apiPost(request, state.admin!, CONTRACT.invitations, {
-      phone, pin: state.workerPin, role: 'WORKER', fullName: 'E2E Worker',
+      phone, pin: state.workerPin, role: 'WORKER', fullName: workerName,
     });
     expect(inv.status(), await inv.text()).toBe(201);
     const invBody = unwrap(await inv.json());
@@ -325,7 +326,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
 
     // Accept the invite (field role: phone+PIN account, no password needed)
     const accept = await pubPost(request, CONTRACT.inviteAccept, {
-      token: state.workerInviteToken, fullName: 'E2E Worker',
+      token: state.workerInviteToken, fullName: workerName,
     });
     expect(accept.status(), await accept.text()).toBeLessThan(300);
 
@@ -355,7 +356,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     // Worker creates a diary entry
     const entry = await apiPost(request, state.worker!, CONTRACT.siteDiaries(state.projectId!), {
       entryDate: new Date().toISOString().slice(0, 10),
-      weather: 'SUNNY_CLEAR', siteStatus: 'OPERATIONAL', generalNotes: 'E2E worker diary',
+      weather: 'SUNNY_CLEAR', siteStatus: 'OPERATIONAL', generalNotes: 'Blockwork level 1 progress; 12 workers on site',
     });
     // Diary create may need labour/deliveries shape — accept 2xx
     expect(entry.status(), await entry.text()).toBeLessThan(300);
@@ -387,8 +388,8 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     const incident = {
       incidentDate: new Date().toISOString().slice(0, 10),
       incidentType: 'NEAR_MISS', severity: 'MINOR',
-      exactLocation: 'E2E Grid A-1', description: 'Idempotency test incident',
-      investigatedBy: 'E2E PM',
+      exactLocation: 'Grid A-1', description: 'Near miss during material offload',
+      investigatedBy: 'Peter Njoroge',
     };
     const first = await request.post(`${API}${CONTRACT.safetyIncidents(state.projectId!)}`, {
       headers: { cookie: state.pm!.cookie, 'content-type': 'application/json', 'idempotency-key': key },
@@ -410,8 +411,8 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
 
     // Snag photo endpoint accepts idempotency key + base64 image
     const snag = await apiPost(request, state.pm!, `/api/v1/projects/${state.projectId}/snags`, {
-      locationFloor: 'E2E Floor', locationRoom: 'E2E Room', tradeCategory: 'Masonry',
-      description: 'E2E snag for photo idempotency', severity: 'COSMETIC', identifiedByName: 'E2E Inspector',
+      locationFloor: 'Level 2', locationRoom: 'Grid C', tradeCategory: 'Masonry',
+      description: 'Misaligned tile at bathroom threshold', severity: 'COSMETIC', identifiedByName: 'Grace Akinyi',
     });
     expect(snag.status(), await snag.text()).toBeLessThan(300);
     state.snagId = idOf(unwrap(await snag.json()));
@@ -420,7 +421,7 @@ test.describe('Stage 4 — consultant, compliance & field', () => {
     const photoKey = `e2e-photo-${Date.now()}`;
     const photoPayload = {
       photoBase64: PNG.toString('base64'),
-      caption: 'E2E snag photo', photoType: 'DEFECT',
+      caption: 'Defect photo — threshold tile', photoType: 'DEFECT',
     };
     const p1 = await request.post(`${API}${CONTRACT.snagPhotos(state.projectId!, state.snagId!)}`, {
       headers: { cookie: state.pm!.cookie, 'content-type': 'application/json', 'idempotency-key': photoKey },

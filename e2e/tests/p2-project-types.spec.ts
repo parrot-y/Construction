@@ -1,6 +1,7 @@
 import { test, expect, Page, APIRequestContext, TestInfo } from '@playwright/test';
 import { mkdirSync } from 'fs';
 import { join } from 'path';
+import { fixtureName } from './helpers';
 
 const EVIDENCE_DIR = process.env.E2E_EVIDENCE_DIR || '';
 async function shot(page: Page, ti: TestInfo, name: string) {
@@ -40,7 +41,7 @@ test.beforeEach(({}, ti) => {
 async function register(request: APIRequestContext) {
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
     data: {
-      companyName: `PTypes ${RUN.toString(36)}`,
+      companyName: fixtureName('company', `${RUN}-${email}`),
       adminFullName: 'Achieng Admin',
       email,
       phone: `+2547${String(RUN).slice(-8)}`,
@@ -95,6 +96,13 @@ async function createTypedProject(page: Page, name: string, code: string, type: 
   await expect(dialog).not.toBeVisible({ timeout: 25_000 });
 }
 
+// Eight distinct realistic project names — all eight show on one Projects
+// list, so fixtureName()'s small pool can't guarantee uniqueness here.
+const PROJECT_NAMES = [
+  'Kilimani Apartments', 'Runda Residence', 'Lavington Court', 'Karen Bungalow',
+  'Westlands Plaza', 'Ruaka Townhouses', 'Kileleshwa Villas', 'Embakasi Warehouse',
+];
+
 test.describe.configure({ mode: 'serial' });
 
 test.describe('2.8 project types through the UI', () => {
@@ -107,7 +115,7 @@ test.describe('2.8 project types through the UI', () => {
     await uiLogin(page, request);
     for (let i = 0; i < TYPES.length; i++) {
       const t = TYPES[i];
-      const name = `PT ${t.type.split(' ')[0]} ${RUN.toString(36)}-${i}`;
+      const name = PROJECT_NAMES[i]!;
       await createTypedProject(page, name, `PT-${RUN.toString(36)}-${i}`, t.type, t.subtype, i === 0 ? '45000000' : undefined, i > 0);
       // Card appears with the type badge
       const card = page.locator('button', { hasText: name }).first();
@@ -123,10 +131,10 @@ test.describe('2.8 project types through the UI', () => {
     const filter = page.getByLabel('Filter by project type');
     await expect(filter).toBeVisible({ timeout: 20_000 });
     await filter.selectOption('RESIDENTIAL');
-    await expect(page.locator('button', { hasText: `PT Residential` })).toBeVisible();
-    await expect(page.locator('button', { hasText: `PT Industrial` })).toHaveCount(0);
+    await expect(page.locator('button', { hasText: PROJECT_NAMES[0]! })).toBeVisible();
+    await expect(page.locator('button', { hasText: PROJECT_NAMES[2]! })).toHaveCount(0);
     await filter.selectOption('All');
-    await expect(page.locator('button', { hasText: `PT Industrial` })).toBeVisible();
+    await expect(page.locator('button', { hasText: PROJECT_NAMES[2]! })).toBeVisible();
   });
 
   test('3. NCA hint appears from the editable rules table', async ({ page, request }, ti) => {
@@ -136,7 +144,7 @@ test.describe('2.8 project types through the UI', () => {
     const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
     await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByLabel(/Project name/).fill(`NCA Hint ${RUN.toString(36)}`);
+    await dialog.getByLabel(/Project name/).fill(fixtureName('project', `${RUN}-${ti.project.name}-nca`));
     await dialog.getByLabel(/Project code/).fill(`NCA-${RUN.toString(36)}`);
     await dialog.getByRole('button', { name: 'Continue' }).click();
     // 45M contract → Building NCA-3 band (20M–50M) per seeded rules
@@ -146,23 +154,24 @@ test.describe('2.8 project types through the UI', () => {
     await dialog.getByRole('button', { name: 'Close' }).click();
   });
 
-  test('4. legacy untyped project still loads in the console', async ({ page, request }) => {
+  test('4. legacy untyped project still loads in the console', async ({ page, request }, ti) => {
+    const legacyName = fixtureName('project', `${RUN}-${ti.project.name}-legacy`);
     // Fixture: a project created without a type (pre-2.8 row shape).
     const login = await request.post(`${API}/api/v1/auth/login`, { data: { email, password: PASSWORD } });
     const setCookie = login.headers()['set-cookie'] || '';
     const cookie = setCookie.split(/,(?=[^;]+=)/).map((c) => c.split(';')[0].trim()).join('; ');
     const created = await request.post(`${API}/api/v1/projects`, {
       headers: { cookie },
-      data: { name: `Legacy Untyped ${RUN.toString(36)}`, code: `LEG-${RUN.toString(36)}`, location: 'Nakuru' },
+      data: { name: legacyName, code: `LEG-${RUN.toString(36)}`, location: 'Nakuru' },
     });
     expect(created.status()).toBe(201);
 
     await uiLogin(page, request);
     await page.goto('/app/projects/all');
-    const card = page.locator('button', { hasText: `Legacy Untyped` }).first();
+    const card = page.locator('button', { hasText: legacyName }).first();
     await expect(card).toBeVisible({ timeout: 20_000 });
     // Selecting it must not break the workspace
     await card.click();
-    await expect(page.locator('select[aria-label="Active project"]')).toContainText('Legacy Untyped', { timeout: 15_000 });
+    await expect(page.locator('select[aria-label="Active project"]')).toContainText(legacyName, { timeout: 15_000 });
   });
 });

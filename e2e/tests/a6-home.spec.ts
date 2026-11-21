@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { API, login, Session } from './helpers';
+import { API, login, Session, fixtureName } from './helpers';
 
 /**
  * A6 — Home dashboard: a brand-new admin sees a get-started checklist that
@@ -9,6 +9,7 @@ import { API, login, Session } from './helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'A6Home#2026';
+const PROJECT_NAME = fixtureName('project', `a6-${RUN}`);
 let admin: Session;
 let email = '';
 
@@ -16,10 +17,10 @@ test.beforeEach(({}, testInfo) => {
   email = `admin.${RUN}.${testInfo.project.name.replace(/[^a-z0-9]/gi, '')}@a6-home.test`;
 });
 
-async function register(request: APIRequestContext): Promise<Session> {
+async function register(request: APIRequestContext, ti?: { project: { name: string } }): Promise<Session> {
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
     data: {
-      companyName: `A6 Homes ${Date.now() % 100000} Ltd`,
+      companyName: fixtureName('company', `a6-${RUN}-${ti?.project.name ?? ''}`),
       adminFullName: 'Otieno Mwangi',
       email,
       phone: '+254712000888',
@@ -55,8 +56,8 @@ async function uiLogin(page: Page, userEmail: string, password: string) {
 }
 
 test.describe('A6 — Home dashboard', () => {
-  test('0. fixture: fresh company admin', async ({ request }) => {
-    admin = await register(request);
+  test('0. fixture: fresh company admin', async ({ request }, testInfo) => {
+    admin = await register(request, testInfo);
     expect(admin.user.email).toContain('a6-home.test');
   });
 
@@ -76,7 +77,7 @@ test.describe('A6 — Home dashboard', () => {
     const dialog = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
     await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByLabel(/Project name/).fill('A6 Home Site');
+    await dialog.getByLabel(/Project name/).fill(PROJECT_NAME);
     await dialog.getByLabel(/Project code/).fill(`A6-${String(RUN).slice(-6)}`);
     await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
@@ -87,7 +88,7 @@ test.describe('A6 — Home dashboard', () => {
   if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
     await npSubmit.click({ timeout: 10_000 }).catch(() => {});
   }
-    await expect(page.locator('button', { hasText: 'A6 Home Site' }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('button', { hasText: PROJECT_NAME }).first()).toBeVisible({ timeout: 20_000 });
 
     // Back to Home — the first step must now read Done.
     // force: the mobile-390 emulation misreports hit targets on the fixed

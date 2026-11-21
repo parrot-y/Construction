@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { API, login, Session } from './helpers';
+import { API, login, Session, fixtureName } from './helpers';
 
 /**
  * ROUND L1 — "New project" must actually create a project.
@@ -66,7 +66,8 @@ test.describe('L1 — New project from the console', () => {
 
     await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByLabel(/Project name/).fill('L1 Riverside Offices');
+    const officesName = fixtureName('project', `l1-a-${RUN}`);
+    await dialog.getByLabel(/Project name/).fill(officesName);
     await dialog.getByLabel(/Project code/).fill(`L1-${String(RUN).slice(-6)}`);
     await dialog.getByLabel('Location').fill('Kileleshwa, Nairobi');
     await dialog.getByRole('button', { name: 'Continue' }).click();
@@ -81,7 +82,7 @@ test.describe('L1 — New project from the console', () => {
   }
 
     // The new card appears and is selected — no reload.
-    const card = page.locator('button', { hasText: 'L1 Riverside Offices' }).first();
+    const card = page.locator('button', { hasText: officesName }).first();
     await expect(card).toBeVisible({ timeout: 20_000 });
     await expect(card).toHaveClass(/border-orange-500/);
     await expect(page.getByText('No projects in this view')).toHaveCount(0);
@@ -97,7 +98,7 @@ test.describe('L1 — New project from the console', () => {
     // Duplicate code → API 409/400 → inline error must render.
     await dialog.getByRole('button', { name: 'Residential', exact: true }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByLabel(/Project name/).fill('Duplicate Code Project');
+    await dialog.getByLabel(/Project name/).fill(fixtureName('project', `l1-dup-${RUN}`));
     await dialog.getByLabel(/Project code/).fill(`L1-${String(RUN).slice(-6)}`);
     await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByRole('button', { name: 'Continue' }).click();

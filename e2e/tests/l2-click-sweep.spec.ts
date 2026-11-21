@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { API, login, apiPost, apiGet, unwrap, Session } from './helpers';
+import { API, login, apiPost, apiGet, unwrap, Session, fixtureName } from './helpers';
 
 /**
  * ROUND L2 — CLICK-THROUGH SWEEP: no dead button may ship.
@@ -327,7 +327,7 @@ test.describe.serial('L2 — click-through sweep', () => {
     S.pm = await invite(request, S.admin, 'pm', 'PM_QS', 'Faith Achieng');
 
     const p = await apiPost(request, S.admin!, '/api/v1/projects', {
-      name: 'L2 Sweep Site Office', code: `L2-${String(RUN).slice(-6)}`, location: 'Kilimani, Nairobi',
+      name: fixtureName('project', `l2-${RUN}`), code: `L2-${String(RUN).slice(-6)}`, location: 'Kilimani, Nairobi',
       description: 'Sweep fixture project', contractValue: '9800000',
       startDate: '2026-11-01', targetEndDate: '2027-02-28',
     });

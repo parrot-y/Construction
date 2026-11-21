@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { API, login, Session } from './helpers';
+import { API, login, fixtureName, Session } from './helpers';
 
 /**
  * A7 — navigation clarity: the project selector is always visible (including
@@ -9,6 +9,11 @@ import { API, login, Session } from './helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'A7Nav#2026';
+const PROJECT_ALPHA = fixtureName('project', `a7-a-${RUN}`);
+let PROJECT_BETA = fixtureName('project', `a7-b-${RUN}`);
+for (let i = 0; PROJECT_BETA === PROJECT_ALPHA && i < 20; i++) {
+  PROJECT_BETA = fixtureName('project', `a7-b-${RUN}-${i}`);
+}
 let email = '';
 
 test.beforeEach(({}, testInfo) => {
@@ -18,7 +23,7 @@ test.beforeEach(({}, testInfo) => {
 async function register(request: APIRequestContext): Promise<Session> {
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
     data: {
-      companyName: `A7 Nav ${RUN % 100000} Ltd`,
+      companyName: fixtureName('company', `${RUN}-${email}`),
       adminFullName: 'Akinyi Moraa',
       email,
       phone: '+254712000999',
@@ -81,8 +86,8 @@ test.describe('A7 — navigation clarity', () => {
     test.setTimeout(300_000); // two UI project creations on mobile-390 are slow
     await register(request);
     await uiLogin(page);
-    await createProject(page, 'A7 Site Alpha', `A7A-${String(RUN).slice(-5)}`);
-    await createProject(page, 'A7 Site Beta', `A7B-${String(RUN).slice(-5)}`);
+    await createProject(page, PROJECT_ALPHA, `A7A-${String(RUN).slice(-5)}`);
+    await createProject(page, PROJECT_BETA, `A7B-${String(RUN).slice(-5)}`);
   });
 
   test('1. project selector is visible and switches context without reset', async ({ page }) => {
@@ -92,25 +97,25 @@ test.describe('A7 — navigation clarity', () => {
     // Exactly one project selector on the page.
     await expect(page.getByLabel('Active project')).toHaveCount(1);
 
-    const betaValue = await sel.locator('option', { hasText: 'A7 Site Beta' }).getAttribute('value');
+    const betaValue = await sel.locator('option', { hasText: PROJECT_BETA }).getAttribute('value');
     await sel.selectOption(betaValue!);
     // Context line under the sub-tabs names the active project.
     await page.goto('/app/money/financials');
-    await expect(page.getByText(/Context: A7 Site Beta/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(new RegExp(`Context: ${PROJECT_BETA}`))).toBeVisible({ timeout: 20_000 });
     await expect(sel).toHaveValue(/./);
-    await expect(sel.locator('option:checked')).toContainText('A7 Site Beta');
+    await expect(sel.locator('option:checked')).toContainText(PROJECT_BETA);
   });
 
   test('2. selection survives reload and sign-out/in', async ({ page, context }) => {
     await uiLogin(page);
     const sel = selector(page);
     await expect(sel).toBeVisible({ timeout: 20_000 });
-    const betaValue2 = await sel.locator('option', { hasText: 'A7 Site Beta' }).getAttribute('value');
+    const betaValue2 = await sel.locator('option', { hasText: PROJECT_BETA }).getAttribute('value');
     await sel.selectOption(betaValue2!);
-    await expect(sel.locator('option:checked')).toContainText('A7 Site Beta');
+    await expect(sel.locator('option:checked')).toContainText(PROJECT_BETA);
 
     await page.reload();
-    await expect(selector(page).locator('option:checked')).toContainText('A7 Site Beta', { timeout: 20_000 });
+    await expect(selector(page).locator('option:checked')).toContainText(PROJECT_BETA, { timeout: 20_000 });
 
     // Sign out and back in — the same project stays selected.
     // force: mobile-390 emulation misreports hit targets on sticky/fixed
@@ -118,7 +123,7 @@ test.describe('A7 — navigation clarity', () => {
     await page.getByRole('button', { name: /account menu/i }).click({ force: true });
     await page.getByRole('button', { name: /sign out|log out/i }).click({ force: true });
     await uiLogin(page);
-    await expect(selector(page).locator('option:checked')).toContainText('A7 Site Beta', { timeout: 20_000 });
+    await expect(selector(page).locator('option:checked')).toContainText(PROJECT_BETA, { timeout: 20_000 });
     await context.close();
   });
 });

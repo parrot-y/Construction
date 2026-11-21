@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { login, apiGet, apiPost, unwrap, API } from './helpers';
+import { login, apiGet, apiPost, unwrap, fixtureName, API } from './helpers';
 
 function idOf(body: any): string | undefined {
   return body?.id || body?.data?.id || body?.supplier?.id || body?.purchaseOrder?.id;
@@ -58,7 +58,6 @@ const state: {
 test.describe.serial('L. Procurement UI — PO create/issue/match/review', () => {
   test.beforeAll(async ({ request }, testInfo) => {
     const tag = testInfo.project.name.replace(/[^a-z0-9]/gi, '');
-    state.supplierName = `E2E UI Aggregates ${stamp}-${tag}`;
     const admin = await login(request, 'admin@apexbuilders.co.ke');
     // The UI drives as qs@ — resolve the project from THEIR list so the
     // API-side assertions hit the same project the browser created the PO in.
@@ -68,16 +67,31 @@ test.describe.serial('L. Procurement UI — PO create/issue/match/review', () =>
     const arr = Array.isArray(rows) ? rows : rows.items || rows.projects || [];
     state.projectId = arr[0].id;
 
+    // Pick fixture names not already present on the seeded tenant — the PO
+    // form selects the supplier and cards match lines by visible name, so a
+    // pool-name collision with earlier specs' fixtures would bind the wrong row.
+    const supList = await apiGet(request, admin, '/api/v1/suppliers');
+    const supBody = unwrap(await supList.json());
+    const supRows = Array.isArray(supBody) ? supBody : supBody.suppliers || supBody.data || supBody.items || [];
+    const takenSup = new Set(supRows.map((s: any) => String(s.name || s.supplier_name || s.supplierName || '')));
+    let supName = fixtureName('supplier', `${stamp}-${tag}-sup`);
+    for (let i = 0; takenSup.has(supName) && i < 30; i++) supName = fixtureName('supplier', `${stamp}-${tag}-sup-${i}`);
+    state.supplierName = supName;
+    const boqText = await (await apiGet(request, admin, `/api/v1/projects/${state.projectId}/boq/items`)).text();
+    let lineDesc = fixtureName('generic', `${stamp}-${tag}-line`);
+    for (let i = 0; boqText.includes(lineDesc) && i < 30; i++) lineDesc = fixtureName('generic', `${stamp}-${tag}-line-${i}`);
+    state.lineDesc = lineDesc;
+
     // Supplier record + portal link (for accept/invoice steps).
     const sup = await apiPost(request, admin, '/api/v1/suppliers', {
       name: state.supplierName,
-      contactPerson: 'UI Test', phone: '+254700111222', email: `ui-agg-${tag}@e2e.test`,
+      contactPerson: 'Brian Otieno', phone: '+254700111222', email: `ui-agg-${tag}@e2e.test`,
     });
     expect(sup.status(), await sup.text()).toBe(201);
     state.supplierId = idOf(unwrap(await sup.json()));
 
     const link = await apiPost(request, admin, `/api/v1/projects/${state.projectId}/portals/links`, {
-      portalType: 'SUPPLIER', stakeholderName: 'UI Aggregates', supplierId: state.supplierId, expiresInDays: 7,
+      portalType: 'SUPPLIER', stakeholderName: fixtureName('supplier', `${stamp}-${tag}-stake`), supplierId: state.supplierId, expiresInDays: 7,
     });
     expect(link.status(), await link.text()).toBe(201);
     const linkBody = unwrap(await link.json());
@@ -93,8 +107,7 @@ test.describe.serial('L. Procurement UI — PO create/issue/match/review', () =>
     await expect(page.getByTestId('po-create-form')).toBeVisible();
 
     await page.getByTestId('po-supplier-select').selectOption({ label: state.supplierName! });
-    state.lineDesc = `UI clicks river sand ${stamp}`;
-    await page.getByTestId('po-line-desc-0').fill(state.lineDesc);
+    await page.getByTestId('po-line-desc-0').fill(state.lineDesc!);
     await page.getByTestId('po-line-qty-0').fill('20');
     await page.getByTestId('po-line-rate-0').fill('1500');
 
@@ -149,13 +162,13 @@ test.describe.serial('L. Procurement UI — PO create/issue/match/review', () =>
 
     const inv = await request.post(
       `${API}/api/v1/portals/supplier/${state.supplierToken}/purchase-orders/${state.poId}/invoices`,
-      { data: { reference: `UI-INV-${stamp}`, amount: 25000, note: 'Full PO value' } },
+      { data: { reference: `INV-${stamp % 100000}`, amount: 25000, note: 'Full PO value' } },
     );
     expect(inv.status(), await inv.text()).toBeLessThan(300);
   });
 
   test('5. PM reviews the supplier invoice in the match view; accept posts actuals', async ({ page, request }) => {
-    const ref = `UI-INV-${stamp}`;
+    const ref = `INV-${stamp % 100000}`;
     await uiLogin(page, 'qs@apexbuilders.co.ke');
     await openMoneyTab(page, 'Procurement');
     await page.getByTestId(`po-match-btn-${state.poNumber}`).click();

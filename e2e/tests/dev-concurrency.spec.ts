@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
-import { login, apiPost, apiGet, unwrap, API } from './helpers';
+import { login, apiPost, apiGet, unwrap, fixtureName, API } from './helpers';
 
 /**
  * Stage-7 — payment recording concurrency (dev contract).
@@ -13,7 +13,7 @@ const RUN = Date.now();
 
 async function sentInvoice(request: any, admin: any, tag: string): Promise<string> {
   const inv = await apiPost(request, admin, '/api/v1/invoices', {
-    title: `Concurrency ${tag} ${RUN}`, clientName: 'Concurrency Client', currency: 'KES',
+    title: fixtureName('invoice', `${RUN}-${tag}`), clientName: fixtureName('client', `${RUN}-${tag}-cc`), currency: 'KES',
     taxPct: 0,
     items: [{ description: 'Works', unit: 'sum', quantity: 1, unitRate: 100000 }],
   });
@@ -38,7 +38,7 @@ test.describe('Payment concurrency — race-safe + idempotent', () => {
     for (const burst of [2, 10]) {
       const invoiceId = await sentInvoice(request, admin, `burst-${burst}`);
       const key = `conc-${burst}-${randomUUID()}`;
-      const payload = { amount: 100000, method: 'M_PESA', reference: `CC${burst}${RUN}` };
+      const payload = { amount: 100000, method: 'M_PESA', reference: `MPESA-B2C-${burst}${String(RUN).slice(-5)}` };
 
       const results = await Promise.all(
         Array.from({ length: burst }, () =>
@@ -71,7 +71,7 @@ test.describe('Payment concurrency — race-safe + idempotent', () => {
     const results = await Promise.all(
       Array.from({ length: 5 }, (_, i) =>
         apiPost(request, admin, `/api/v1/invoices/${invoiceId}/payments`, {
-          amount: 100000, method: 'CASH', reference: `DK${i}${RUN}`,
+          amount: 100000, method: 'CASH', reference: `CASH-REC-${i}${String(RUN).slice(-5)}`,
         }, { 'idempotency-key': `dk-${i}-${randomUUID()}` }),
       ),
     );

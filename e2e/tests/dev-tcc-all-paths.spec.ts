@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { API, Session, login, apiGet, apiPost, apiPatch, authHeaders, unwrap } from './helpers';
+import { API, Session, login, apiGet, apiPost, apiPatch, authHeaders, unwrap, fixtureName } from './helpers';
 
 /**
  * dev-tcc-all-paths — regression spec for the TCC gate on EVERY transition
@@ -19,10 +19,10 @@ const S: {
   valSubmitted?: string; valUnderReview?: string; valQsVerified?: string;
 } = {};
 
-async function register(request: APIRequestContext): Promise<Session> {
+async function register(request: APIRequestContext, salt: string): Promise<Session> {
   const email = `admin.${RUN}@tcc-paths-e2e.test`;
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
-    data: { companyName: `TCC Paths Builders ${RUN}`, adminFullName: 'Njeri Kamau', email, phone: '+254712000444', password: PASSWORD },
+    data: { companyName: fixtureName('company', salt), adminFullName: 'Njeri Kamau', email, phone: '+254712000444', password: PASSWORD },
   });
   expect(r.status(), await r.text()).toBe(201);
   return login(request, email, PASSWORD);
@@ -70,12 +70,13 @@ async function postTcc(request: APIRequestContext, expiryDate: string) {
 }
 
 test.describe.serial('TCC gate — every approval path', () => {
-  test('0. Setup: company, project, subcontractor package, three valuations', async ({ request }) => {
-    S.admin = await register(request);
+  test('0. Setup: company, project, subcontractor package, three valuations', async ({ request }, testInfo) => {
+    const salt = `${RUN}-${testInfo.project.name}`;
+    S.admin = await register(request, salt);
     S.pm = await invite(request, S.admin, 'pm', 'PM_QS', 'Otieno Odhiambo');
 
     const q = await apiPost(request, S.admin, '/api/v1/quotes', {
-      title: `TCC Paths ${RUN}`, clientName: 'Dr. Evans Kiprop', clientEmail: `c.${RUN}@tcc-e2e.test`,
+      title: fixtureName('quote', salt), clientName: 'Dr. Evans Kiprop', clientEmail: `c.${RUN}@tcc-e2e.test`,
       siteLocation: 'Kilimani, Nairobi', currency: 'KES', taxPct: 16, depositPct: 30,
       items: [{ description: 'Fit-out', unit: 'sum', quantity: 1, unitRate: 4000000 }],
     });
@@ -95,9 +96,9 @@ test.describe.serial('TCC gate — every approval path', () => {
     expect(pkg.status(), await pkg.text()).toBeLessThan(300);
     S.packageId = unwrap(await pkg.json()).id || unwrap(await pkg.json()).package?.id;
 
-    S.valSubmitted = await createValuation(request, `SC-TCC-A-${RUN}`);
-    S.valUnderReview = await createValuation(request, `SC-TCC-B-${RUN}`);
-    S.valQsVerified = await createValuation(request, `SC-TCC-C-${RUN}`);
+    S.valSubmitted = await createValuation(request, `VAL/2026/${String(RUN).slice(-6)}-A`);
+    S.valUnderReview = await createValuation(request, `VAL/2026/${String(RUN).slice(-6)}-B`);
+    S.valQsVerified = await createValuation(request, `VAL/2026/${String(RUN).slice(-6)}-C`);
 
     // Move two of them into their pre-approval states (PM verifies; admin approves later).
     expect((await apiPatch(request, S.pm!, valPath(S.valUnderReview), { paymentStatus: 'UNDER_REVIEW' })).status()).toBe(200);
@@ -143,12 +144,12 @@ test.describe.serial('TCC gate — every approval path', () => {
 
   test('4. PAID is unreachable without a prior valid approval', async ({ request }) => {
     // Fresh SUBMITTED valuation: direct PAID must be refused.
-    const fresh = await createValuation(request, `SC-TCC-D-${RUN}`);
+    const fresh = await createValuation(request, `VAL/2026/${String(RUN).slice(-6)}-D`);
     const jump = await apiPatch(request, S.pm!, valPath(fresh), { paymentStatus: 'PAID', paymentReference: 'MPESA-FAKE', paidAt: '2026-11-11' });
     expect(jump.status(), 'SUBMITTED -> PAID must be rejected').toBeGreaterThanOrEqual(400);
 
     // UNDER_REVIEW -> PAID is likewise not a legal transition.
-    const ur = await createValuation(request, `SC-TCC-E-${RUN}`);
+    const ur = await createValuation(request, `VAL/2026/${String(RUN).slice(-6)}-E`);
     await apiPatch(request, S.pm!, valPath(ur), { paymentStatus: 'UNDER_REVIEW' });
     const jump2 = await apiPatch(request, S.pm!, valPath(ur), { paymentStatus: 'PAID', paymentReference: 'MPESA-FAKE', paidAt: '2026-11-11' });
     expect(jump2.status(), 'UNDER_REVIEW -> PAID must be rejected').toBeGreaterThanOrEqual(400);

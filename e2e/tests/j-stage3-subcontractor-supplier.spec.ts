@@ -45,7 +45,7 @@
  *   8. Plain-language statuses (statusLabel), no raw enums in portal payloads.
  */
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { API, login, apiGet, apiPost, apiPatch, unwrap, firstProjectId, Session } from './helpers';
+import { API, login, apiGet, apiPost, apiPatch, unwrap, firstProjectId, fixtureName, Session } from './helpers';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -95,13 +95,16 @@ async function rowsOf(res: any): Promise<any[]> {
 
 test.describe.configure({ mode: 'serial' });
 test.describe('Stage 3 — subcontractor & supplier portals', () => {
-  test('0. fixture: admin + pm sessions, project, two suppliers', async ({ request }) => {
+  test('0. fixture: admin + pm sessions, project, two suppliers', async ({ request }, testInfo) => {
     state.admin = await login(request, 'admin@apexbuilders.co.ke');
     state.pm = await login(request, 'qs@apexbuilders.co.ke');
     state.projectId = await firstProjectId(request, state.admin);
     state.tenantId = state.admin.tenantId;
 
-    for (const [key, name] of [['supplierA', `E2E Cement Co ${Date.now()}`], ['supplierB', `E2E Steel Ltd ${Date.now()}`]] as const) {
+    for (const [key, name] of [
+      ['supplierA', fixtureName('supplier', `${Date.now()}-${testInfo.project.name}-supA`)],
+      ['supplierB', fixtureName('supplier', `${Date.now()}-${testInfo.project.name}-supB`)],
+    ] as const) {
       const res = await apiPost(request, state.admin, CONTRACT.suppliers, {
         name, contactPerson: 'Test Contact', phone: '+254700000001', email: `${key}@e2e.test`,
       });
@@ -112,13 +115,13 @@ test.describe('Stage 3 — subcontractor & supplier portals', () => {
   });
 
   // -------------------------------------------------------------------------
-  test('1. Supplier links require a Supplier record; deliveries are record-scoped + paginated', async ({ request }) => {
+  test('1. Supplier links require a Supplier record; deliveries are record-scoped + paginated', async ({ request }, testInfo) => {
     const admin = state.admin!; const pm = state.pm!; const pid = state.projectId!;
 
     // Stage-3 contract: no supplierId → the Supplier record is resolved (or
     // onboarded) from stakeholderName; the link is still record-bound.
     const noSup = await apiPost(request, admin, CONTRACT.portalLinks(pid), {
-      portalType: 'SUPPLIER', stakeholderName: `Nameless Supplier ${Date.now()}`, expiresInDays: 7,
+      portalType: 'SUPPLIER', stakeholderName: fixtureName('supplier', `${Date.now()}-${testInfo.project.name}-nameless`), expiresInDays: 7,
     });
     expect(noSup.status(), await noSup.text()).toBe(201);
     expect(unwrap(await noSup.json()).supplierId, 'link must bind a Supplier record').toBeTruthy();
@@ -203,18 +206,19 @@ test.describe('Stage 3 — subcontractor & supplier portals', () => {
   });
 
   // -------------------------------------------------------------------------
-  test('3. TCC gate: APPROVED_FOR_PAYMENT blocked without valid TCC; admin override audited', async ({ request }) => {
+  test('3. TCC gate: APPROVED_FOR_PAYMENT blocked without valid TCC; admin override audited', async ({ request }, testInfo) => {
     const admin = state.admin!; const pm = state.pm!; const pid = state.projectId!;
 
+    const firmName = fixtureName('subcontractor', `${Date.now()}-${testInfo.project.name}-rapid`);
     const pkg = await apiPost(request, pm, CONTRACT.packages(pid), {
-      tradeCategory: 'PLUMBING', firmName: `E2E Rapid Plumbing ${Date.now()}`,
+      tradeCategory: 'PLUMBING', firmName,
       subcontractSum: '600000.00', retentionRatePct: '10.00', status: 'ACTIVE',
     });
     expect(pkg.status(), await pkg.text()).toBeLessThan(300);
     state.pkgId = idOf(unwrap(await pkg.json()));
 
     const link = await apiPost(request, admin, CONTRACT.portalLinks(pid), {
-      portalType: 'SUBCONTRACTOR', stakeholderName: 'Rapid Plumbing',
+      portalType: 'SUBCONTRACTOR', stakeholderName: firmName,
       subcontractorPackageId: state.pkgId, expiresInDays: 14,
     });
     state.subToken = unwrap(await link.json()).token || unwrap(await link.json()).rawToken;
@@ -236,7 +240,7 @@ test.describe('Stage 3 — subcontractor & supplier portals', () => {
 
     // Expired TCC -> still blocked.
     await apiPost(request, admin, CONTRACT.tcc(pid), {
-      subcontractorPackageId: state.pkgId, pinNumber: 'P051234567X', taxpayerName: 'Rapid Plumbing',
+      subcontractorPackageId: state.pkgId, pinNumber: 'P051234567X', taxpayerName: firmName,
       tccNumber: 'TCC-OLD', tccExpiryDate: '2020-01-01', complianceStatus: 'EXPIRED',
     });
     const expTcc = await apiPatch(request, admin, valPath, { paymentStatus: 'APPROVED_FOR_PAYMENT' });

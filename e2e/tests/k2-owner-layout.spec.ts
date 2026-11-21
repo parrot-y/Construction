@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { API, login, apiGet, apiPost, unwrap, Session } from './helpers';
+import { API, login, apiGet, apiPost, unwrap, Session, fixtureName } from './helpers';
 
 /**
  * ROUND K2 — OWNER SCREEN + CONSOLE TABS AT 390px
@@ -20,7 +20,7 @@ const S: { admin?: Session; pm?: Session; owner?: Session; projectId?: string } 
 async function register(request: APIRequestContext): Promise<Session> {
   const email = `admin.${RUN}@k2-layout.test`;
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
-    data: { companyName: 'K2 Layout Contractors Ltd', adminFullName: 'Grace Wambui', email, phone: '+254712000777', password: PASSWORD },
+    data: { companyName: fixtureName('company', `k2-${RUN}`), adminFullName: 'Grace Wambui', email, phone: '+254712000777', password: PASSWORD },
   });
   expect(r.status(), await r.text()).toBe(201);
   return login(request, email, PASSWORD);
@@ -77,7 +77,7 @@ test.describe.serial('K2 — owner layout and shared tabs at phone width', () =>
     S.owner = await invite(request, S.admin, 'owner', 'OWNER', 'Peter Karanja');
 
     const p = await apiPost(request, S.admin, '/api/v1/projects', {
-      name: 'K2 Layout Offices', code: `K2-${RUN}`, location: 'Kilimani, Nairobi',
+      name: fixtureName('project', `k2-p-${RUN}`), code: `K2-${String(RUN).slice(-6)}`, location: 'Kilimani, Nairobi',
       description: 'Office refurbishment — layout review fixture.', contractValue: '12000000',
       startDate: '2026-11-01', targetEndDate: '2027-03-31',
     });

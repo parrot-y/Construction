@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { API, login, apiGet, apiPost, authHeaders, unwrap, Session } from './helpers';
+import { API, login, apiGet, apiPost, authHeaders, unwrap, fixtureName, Session } from './helpers';
 
 /**
  * DEV spec (not auditor-locked): maker-checker self-approval rule.
@@ -16,18 +16,19 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const S: { admin?: Session; pm?: Session; projectId?: string } = {};
 
-async function register(request: APIRequestContext): Promise<Session> {
+async function register(request: APIRequestContext, salt: string): Promise<Session> {
   const email = `admin.mc.${RUN}@makercheck-e2e.test`;
   const r = await request.post(`${API}/api/v1/auth/register-company`, {
-    data: { companyName: `MakerCheck Builders ${RUN}`, adminFullName: 'Wanjiru Kamau', email, phone: '+254712000777', password: PASSWORD },
+    data: { companyName: fixtureName('company', salt), adminFullName: 'Wanjiru Kamau', email, phone: '+254712000777', password: PASSWORD },
   });
   expect(r.status(), await r.text()).toBe(201);
   return login(request, email, PASSWORD);
 }
 
 test.describe.serial('Maker-checker — costs, certificates, invoices', () => {
-  test('0. Setup: company, PM, one project', async ({ request }) => {
-    S.admin = await register(request);
+  test('0. Setup: company, PM, one project', async ({ request }, testInfo) => {
+    const salt = `${RUN}-${testInfo.project.name}`;
+    S.admin = await register(request, salt);
     const email = `pm.mc.${RUN}@makercheck-e2e.test`;
     const inv = await apiPost(request, S.admin, '/api/v1/invitations', { email, role: 'PM_QS' });
     expect(inv.status(), await inv.text()).toBe(201);
@@ -37,7 +38,7 @@ test.describe.serial('Maker-checker — costs, certificates, invoices', () => {
     S.pm = await login(request, email, PASSWORD);
 
     const q = await apiPost(request, S.admin, '/api/v1/quotes', {
-      title: `MakerCheck Tower ${RUN}`, clientName: 'Dr. Evans Kiprop', clientEmail: `c.${RUN}@mc-e2e.test`,
+      title: fixtureName('project', `${RUN}-${testInfo.project.name}-mc-tower`), clientName: 'Dr. Evans Kiprop', clientEmail: `c.${RUN}@mc-e2e.test`,
       siteLocation: 'Ngong Road, Nairobi', currency: 'KES', taxPct: 16, depositPct: 30,
       items: [{ description: 'Office block', unit: 'sum', quantity: 1, unitRate: 5000000 }],
     });
@@ -146,14 +147,14 @@ test.describe.serial('Maker-checker — costs, certificates, invoices', () => {
     });
 
     // PM creates an invoice, then tries to send it themselves.
-    const inv1 = await apiPost(request, S.pm!, '/api/v1/invoices', invoiceBody(`PM Invoice ${RUN}`));
+    const inv1 = await apiPost(request, S.pm!, '/api/v1/invoices', invoiceBody(fixtureName('invoice', `${RUN}-pm-${test.info().project.name}`)));
     expect(inv1.status(), await inv1.text()).toBeLessThan(300);
     const inv1Id = unwrap(await inv1.json()).invoice?.id || unwrap(await inv1.json()).id;
     const pmSend = await request.post(`${API}/api/v1/invoices/${inv1Id}/send`, { headers: authHeaders(S.pm!) });
     expect(pmSend.status(), 'PM must not send an invoice they created').toBe(409);
 
     // Admin creates an invoice, sends without reason -> 409, with reason -> 200.
-    const inv2 = await apiPost(request, S.admin!, '/api/v1/invoices', invoiceBody(`Admin Invoice ${RUN}`));
+    const inv2 = await apiPost(request, S.admin!, '/api/v1/invoices', invoiceBody(fixtureName('invoice', `${RUN}-adm-${test.info().project.name}`)));
     expect(inv2.status(), await inv2.text()).toBeLessThan(300);
     const inv2Id = unwrap(await inv2.json()).invoice?.id || unwrap(await inv2.json()).id;
     const noReason = await request.post(`${API}/api/v1/invoices/${inv2Id}/send`, {

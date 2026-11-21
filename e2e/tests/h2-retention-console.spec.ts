@@ -164,7 +164,7 @@ test.describe.serial('H2 — subcontractor retention console review', () => {
     const review = `/api/v1/projects/${S.projectId}/subcontractor-retention-releases/${S.releaseId}/review`;
     const appr = await apiPost(request, S.exec!, review, { action: 'APPROVE' });
     expect(appr.status(), await appr.text()).toBe(200);
-    const paid = await apiPost(request, S.exec!, review, { action: 'MARK_PAID', disbursementRef: 'MPESA-B2C-H2E2E-01' });
+    const paid = await apiPost(request, S.exec!, review, { action: 'MARK_PAID', disbursementRef: 'MPESA-B2C-4471902' });
     expect(paid.status(), await paid.text()).toBe(200);
 
     const get = await apiGet(request, S.admin!, `/api/v1/portals/subcontractor/${S.subToken}`);

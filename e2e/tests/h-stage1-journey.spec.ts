@@ -373,7 +373,7 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
       subcontractorPackageId: state.packageId,
       pinNumber: 'P051234567X',
       taxpayerName: 'Umeme Sparks Ltd',
-      tccNumber: `TCC-${RUN}`,
+      tccNumber: `TCC/2026/${String(RUN).slice(-5)}`,
       tccExpiryDate: expiry,
       complianceStatus: 'COMPLIANT',
     });

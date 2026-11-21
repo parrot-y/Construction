@@ -35,7 +35,7 @@
  *   9. 390px layout does not scroll sideways on the client dashboard.
  */
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { API, login, apiGet, apiPost, apiPatch, unwrap, firstProjectId, Session } from './helpers';
+import { API, login, apiGet, apiPost, apiPatch, unwrap, firstProjectId, fixtureName, Session } from './helpers';
 
 const PASSWORD = 'Password123!';
 const UPLOAD_DIR = process.env.E2E_UPLOAD_DIR || '/tmp/e2e-uploads';
@@ -106,7 +106,7 @@ test.describe('Stage 2 — client & owner portals', () => {
       writeFileSync(p, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]));
     }
 
-    const SECRET = `E2E-INTERNAL-NOTES-${Date.now()}`;
+    const SECRET = 'Confidential internal notes — not for client';
     const diaryRes = await apiPost(request, admin, CONTRACT.siteDiaries(pid), {
       entryDate: '2024-02-29',
       weather: 'SUNNY_CLEAR',
@@ -194,12 +194,12 @@ test.describe('Stage 2 — client & owner portals', () => {
   });
 
   // -------------------------------------------------------------------------
-  test('3. Client invoices: list, balance, payment history, payment instructions', async ({ request }) => {
+  test('3. Client invoices: list, balance, payment history, payment instructions', async ({ request }, testInfo) => {
     const admin = state.admin!; const client = state.client!; const pid = state.projectId!;
 
     const invRes = await apiPost(request, admin, CONTRACT.invoices, {
-      title: `Stage2 Client Invoice ${Date.now()}`,
-      clientName: 'E2E Client',
+      title: fixtureName('invoice', `${Date.now()}-${testInfo.project.name}-inv`),
+      clientName: fixtureName('client', `i2-inv-${Date.now()}-${testInfo.project.name}`),
       projectId: pid,
       currency: 'KES',
       items: [{ description: 'Stage 2 works', unit: 'sum', quantity: 1, unitRate: 250000 }],
@@ -225,6 +225,7 @@ test.describe('Stage 2 — client & owner portals', () => {
   test('4. Payment notice notifies contractor, never mutates the invoice', async ({ request }) => {
     const admin = state.admin!; const client = state.client!;
     const invoiceId = state.invoiceId!;
+    const noticeRef = `MPESA-B2C-${String(Date.now()).slice(-8)}`;
 
     const before = unwrap(await (await apiGet(request, admin, CONTRACT.invoice(invoiceId))).json());
     const balanceBefore = Number(before.balance_due ?? before.balanceDue ?? before.balance ?? before.total);
@@ -233,7 +234,7 @@ test.describe('Stage 2 — client & owner portals', () => {
     const notice = await apiPost(request, client, CONTRACT.paymentNotice(invoiceId), {
       amount: 100000,
       method: 'M_PESA',
-      reference: `E2E-NOTICE-${Date.now()}`,
+      reference: noticeRef,
       note: 'Paid via till this morning',
     });
     expect([200, 201], await notice.text()).toContain(notice.status());
@@ -249,20 +250,20 @@ test.describe('Stage 2 — client & owner portals', () => {
     const inbox = await apiGet(request, admin, CONTRACT.inbox);
     expect(inbox.status()).toBe(200);
     const msgs = await rowsOf(inbox);
-    expect(JSON.stringify(msgs)).toContain(`E2E-NOTICE`);
+    expect(JSON.stringify(msgs)).toContain(noticeRef);
 
     // Client sees the notice as pending in their invoice feed.
     const mine = unwrap(await (await apiGet(request, client, CONTRACT.meInvoices)).json());
     const list = Array.isArray(mine) ? mine : mine.invoices || [];
     const row = list.find((i: any) => i.id === invoiceId);
     const notices = row?.paymentNotices || row?.payment_notices || row?.notices || [];
-    const mine2 = notices.find((x: any) => x.id === state.noticeId || String(x.reference || '').includes('E2E-NOTICE'));
+    const mine2 = notices.find((x: any) => x.id === state.noticeId || String(x.reference || '').includes(noticeRef));
     expect(mine2, 'client must see their own pending notice').toBeTruthy();
     expect(['PENDING', 'RECEIVED', 'AWAITING_CONFIRMATION', 'SUBMITTED'].includes(mine2.status), `notice status ${mine2.status}`).toBe(true);
 
     // Contractor records the payment → notice confirmed.
     const pay = await apiPost(request, admin, CONTRACT.payInvoice(invoiceId), {
-      amount: 250000, method: 'M_PESA', reference: `E2E-PAY-${Date.now()}`,
+      amount: 250000, method: 'M_PESA', reference: `MPESA-B2C-${String(Date.now()).slice(-8)}`,
     });
     expect([200, 201], await pay.text()).toContain(pay.status());
 
@@ -270,18 +271,18 @@ test.describe('Stage 2 — client & owner portals', () => {
     const listAfter = Array.isArray(mineAfter) ? mineAfter : mineAfter.invoices || [];
     const rowAfter = listAfter.find((i: any) => i.id === invoiceId);
     const noticesAfter = rowAfter?.paymentNotices || rowAfter?.payment_notices || rowAfter?.notices || [];
-    const confirmed = noticesAfter.find((x: any) => x.id === state.noticeId || String(x.reference || '').includes('E2E-NOTICE'));
+    const confirmed = noticesAfter.find((x: any) => x.id === state.noticeId || String(x.reference || '').includes(noticeRef));
     expect(confirmed, 'notice must still be listed after payment').toBeTruthy();
     expect(['CONFIRMED', 'MATCHED', 'APPLIED'].includes(confirmed.status), `notice must be confirmed after contractor payment, got ${confirmed.status}`).toBe(true);
   });
 
   // -------------------------------------------------------------------------
-  test('5. /me/approvals feeds "Waiting for you" on client and owner', async ({ request }) => {
+  test('5. /me/approvals feeds "Waiting for you" on client and owner', async ({ request }, testInfo) => {
     const admin = state.admin!; const client = state.client!; const owner = state.owner!;
     const pid = state.projectId!;
 
     const create = await apiPost(request, admin, CONTRACT.variations(pid), {
-      title: `Stage2 CO ${Date.now()}`,
+      title: fixtureName('changeorder', `${Date.now()}-${testInfo.project.name}-co`),
       reason: 'Client requested extra signage',
       triggerType: 'CLIENT_REQUEST',
       items: [{ description: 'Signage package', unit: 'lot', quantity: 1, unitRate: 50000 }],
@@ -321,7 +322,7 @@ test.describe('Stage 2 — client & owner portals', () => {
   // -------------------------------------------------------------------------
   test('7. Client project request reaches contractor inbox + staff list', async ({ request }) => {
     const admin = state.admin!; const client = state.client!;
-    const marker = `E2E-REQ-${Date.now()}`;
+    const marker = 'Client request: covered parking for delivery vehicles';
 
     const res = await apiPost(request, client, CONTRACT.projectRequests, {
       projectType: 'Commercial building',

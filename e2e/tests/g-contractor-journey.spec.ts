@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { login, apiGet, apiPost, apiPatch, firstProjectId, unwrap, API } from './helpers';
+import { login, apiGet, apiPost, apiPatch, firstProjectId, unwrap, API, fixtureName } from './helpers';
 
 /** Drive the real login UI: landing → sign-in form → console shell. */
 async function uiLogin(page: Page, email: string, password: string) {
@@ -46,13 +46,13 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
   // ------------------------------------------------------------------
   // STEP 1 — company onboarding
   // ------------------------------------------------------------------
-  test('1. register-company provisions tenant+admin; new company sees empty console', async ({ request, page }) => {
+  test('1. register-company provisions tenant+admin; new company sees empty console', async ({ request, page }, testInfo) => {
     const email = `e2e-co-${stamp}@journey.co.ke`;
     const password = 'Journey!Pass123';
 
     const reg = await request.post(`${API}/api/v1/auth/register-company`, {
       data: {
-        companyName: `E2E Journey Builders ${stamp}`,
+        companyName: fixtureName('company', `${stamp}-${testInfo.project.name}-co`),
         adminFullName: 'Journey Admin',
         email,
         phone: '+254700000001',
@@ -113,7 +113,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     await page.goto(`/?invite=${token}`);
     await expect(page.getByText('You have been invited')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText('Apex Builders Kenya Ltd')).toBeVisible();
-    await page.locator('#invite-name').fill('E2E Invitee');
+    await page.locator('#invite-name').fill('Kevin Otieno');
     await page.locator('#invite-password').fill(invitePassword);
     await page.locator('#invite-confirm').fill(invitePassword);
     await page.getByRole('button', { name: 'Accept invitation' }).click();
@@ -156,14 +156,14 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
 
     // STEP 3a — import a real BoQ through the confirm endpoint
     const boqRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/boq/confirm`, {
-      sourceFilename: 'e2e-journey-boq.xlsx',
+      sourceFilename: 'journey-site-boq.xlsx',
       sections: [{
-        title: 'E2E Journey Works',
+        title: 'Earthworks and excavation',
         orderIdx: 0,
         subtotal: '100000.00',
         items: [{
-          itemCode: 'E2E-1.1',
-          description: 'E2E journey excavation item',
+          itemCode: 'E.01.1',
+          description: 'Excavation to formation level',
           unit: 'm3',
           quantity: '100.0000',
           unitRate: '1000.0000',
@@ -179,7 +179,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     expect(itemsRes.status()).toBe(200);
     const items = unwrap(await itemsRes.json());
     const rows = Array.isArray(items) ? items : items.items || [];
-    const item = rows.find((i: any) => i.item_code === 'E2E-1.1' || i.itemCode === 'E2E-1.1');
+    const item = rows.find((i: any) => i.item_code === 'E.01.1' || i.itemCode === 'E.01.1');
     expect(item, 'BoQ item must exist').toBeTruthy();
     const boqItemId = item.id;
     state.boqItemId = boqItemId;
@@ -188,7 +188,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     const progRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/progress`, {
       recordDate: new Date().toISOString().slice(0, 10),
       overallProgress: '0.5000',
-      notes: 'E2E journey progress',
+      notes: 'Formwork to level 2 slab complete; pour scheduled Thursday',
       items: [{ boqItemId, completedQuantity: '50.0000', completionPct: '0.5000' }],
     });
     expect(progRes.status(), await progRes.text()).toBe(201);
@@ -226,7 +226,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
 
     // STEP 3e — create invoice from certificate; links must exist both ways
     const invRes = await apiPost(request, admin, `/api/v1/projects/${projectId}/payment-certificates/${certId}/create-invoice`, {
-      clientName: 'E2E Journey Client',
+      clientName: fixtureName('client', `journey-inv-${stamp}`),
       dueDays: 30,
     });
     expect(invRes.status(), await invRes.text()).toBe(201);
@@ -280,7 +280,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     const payRes = await apiPost(request, admin, `/api/v1/invoices/${invoice.id}/payments`, {
       amount: Number(expectedTotal.toFixed(2)),
       method: 'BANK',
-      reference: `E2E-JOURNEY-${stamp}`,
+      reference: `BANK-TRF-${certId.replace(/[^0-9a-z]/gi, '').slice(0, 8).toUpperCase()}`,
     });
     expect([200, 201], await payRes.text()).toContain(payRes.status());
 
@@ -302,9 +302,10 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     const projectId = state.projectId;
 
     // Package for the valuation
+    const firmName = fixtureName('subcontractor', `journey-sub-${stamp}`);
     const pkgRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/subcontractors`, {
       tradeCategory: 'PLUMBING',
-      firmName: `E2E FlowFit ${stamp}`,
+      firmName,
       subcontractSum: '800000.00',
       retentionRatePct: '5.00',
       status: 'ACTIVE',
@@ -319,8 +320,8 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     const tccRes = await apiPost(request, admin, `/api/v1/projects/${projectId}/subcontractor-tcc`, {
       subcontractorPackageId: pkgId,
       pinNumber: 'P051234567X',
-      taxpayerName: 'E2E FlowFit',
-      tccNumber: `TCC-${stamp}`,
+      taxpayerName: firmName,
+      tccNumber: `TCC/2026/${String(stamp).slice(-5)}`,
       tccExpiryDate: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10),
       complianceStatus: 'COMPLIANT',
     });
@@ -328,7 +329,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
 
     const valRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/subcontractor-valuations`, {
       subcontractorPackageId: pkgId,
-      certificateNo: `E2E-VAL-${stamp}`,
+      certificateNo: `VAL/2026/${String(stamp).slice(-5)}`,
       valuationDate: new Date().toISOString().slice(0, 10),
       grossWorkCertifiedKes: '50000.00',
       retentionRatePct: '5.00',
@@ -363,7 +364,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
 
     // APPROVED_FOR_PAYMENT → PAID (reference + paid date are mandatory)
     const paidRes = await patchVal(admin, 'PAID', {
-      paymentReference: `E2E-PAY-${stamp}`,
+      paymentReference: `MPESA-B2C-${String(stamp).slice(-6)}`,
       paidAt: new Date().toISOString(),
     });
     expect(paidRes.status(), await paidRes.text()).toBe(200);
@@ -399,7 +400,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
   // STEP 9 — offline-then-sync diary through the real browser queue
   // ------------------------------------------------------------------
   test('9. supervisor files a diary offline; queue syncs exactly once on reconnect', async ({ page, request }) => {
-    const notes = `E2E offline diary ${stamp}`;
+    const notes = 'Offline diary: first-floor blockwork completed to grid B; shuttering strike planned for grid C.';
 
     // Log in through the real UI as the site supervisor
     await uiLogin(page, 'supervisor@apexbuilders.co.ke', 'Password123!');
@@ -450,12 +451,12 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
   // ------------------------------------------------------------------
   // STEP 8 — guided checklist + WhatsApp copy on the project overview
   // ------------------------------------------------------------------
-  test('8. project overview shows the guided checklist with real done-states and Copy WhatsApp on portal links', async ({ page, request }) => {
+  test('8. project overview shows the guided checklist with real done-states and Copy WhatsApp on portal links', async ({ page, request }, testInfo) => {
     // Create a portal link so the link manager renders a Copy WhatsApp action
     const qs = await login(request, 'qs@apexbuilders.co.ke');
     const linkRes = await apiPost(request, qs, `/api/v1/projects/${state.projectId}/portals/links`, {
       portalType: 'CLIENT',
-      stakeholderName: `E2E Client ${stamp}`,
+      stakeholderName: fixtureName('client', `${stamp}-${testInfo.project.name}-client`),
       expiresInDays: 7,
     });
     // CLIENT links may be restricted — accept 201 or record the honest status
@@ -502,7 +503,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
     // generate a link through the real UI — the fresh row must offer
     // "Copy WhatsApp" next to it.
     await page.getByRole('button', { name: /Generate Stakeholder Link/ }).click();
-    await page.getByPlaceholder(/Arch\. Peter Mwangi/).fill(`E2E WhatsApp ${stamp}`);
+    await page.getByPlaceholder(/Arch\. Peter Mwangi/).fill(fixtureName('client', `${stamp}-${testInfo.project.name}-wa`));
     await page.getByRole('button', { name: 'Create Access Link' }).click();
     await expect(page.getByRole('button', { name: 'Copy WhatsApp' }).first()).toBeVisible({ timeout: 20_000 });
   });
