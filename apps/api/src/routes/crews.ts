@@ -4,6 +4,7 @@ import { toDecimal } from '@construction/money';
 import { Permissions } from '@construction/permissions';
 import { CreateCrewSchema, UpdateCrewSchema, AddCrewMemberSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -20,6 +21,7 @@ export const crewsRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId, status } = request.query as { projectId?: string; status?: string };
+      const pg = listParams(request);
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) =>
           tx.crew.findMany({
@@ -32,17 +34,21 @@ export const crewsRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
               project: { select: { id: true, name: true, code: true } },
             },
             orderBy: { created_at: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           }),
         );
+        const paged = listPage(data, pg);
         return reply.status(200).send({
-          data: data.map((c) => ({
+          data: paged.data.map((c) => ({
             ...c,
             member_count: c.members.length,
             daily_cost_kes: c.members.reduce((s, m) => s + (m.daily_rate_kes ? parseFloat(m.daily_rate_kes.toString()) : 0), 0).toFixed(2),
             created_at: c.created_at.toISOString(),
             updated_at: c.updated_at.toISOString(),
           })),
-          count: data.length,
+          page: paged.page,
+          count: paged.data.length,
         });
       } catch (err) {
         server.log.error(err);

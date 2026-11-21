@@ -1,5 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import CreateSnagModal, { SnagSeverity, TradeCategory} from './CreateSnagModal';
+import { formatDate } from '../lib/format';
+import { api } from '../lib/api';
 
 export type SnagStatus = 'OPEN' | 'IN_PROGRESS' | 'READY_FOR_REVIEW' | 'RECTIFIED_BY_CONTRACTOR' | 'VERIFIED_CLOSED' | 'CONTESTED' | 'REJECTED';
 
@@ -68,9 +70,7 @@ export default function SnaggingListView({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/snags`, { credentials: 'include'});
-        if (!res.ok) return;
-        const rows = await res.json();
+        const rows: any = await api.get(`/api/v1/projects/${projectId}/snags`);
         if (!Array.isArray(rows) || cancelled) return;
         setSnags(rows.map((s: any): SnagItemData => {
           const defectPhoto = (s.photos || []).find((p: any) => p.photo_type === 'DEFECT') || s.photos?.[0];
@@ -110,7 +110,7 @@ export default function SnaggingListView({
 };
 }));
 } catch {
-        // API unreachable — keep demo register
+        // hygiene-allow: intentionally ignored — API unreachable, keep demo register
 }
 })();
     return () => { cancelled = true;};
@@ -118,14 +118,9 @@ export default function SnaggingListView({
 
   const putStatus = async (id: string, status: string) => {
     try {
-      await fetch(`/api/v1/projects/${projectId}/snags/${id}/status`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
+      await api.put(`/api/v1/projects/${projectId}/snags/${id}/status`, { status});
 } catch {
-      // best-effort; local state still updates for demo mode
+      // hygiene-allow: intentionally ignored — best-effort; local state still updates for demo mode
 }
 };
 
@@ -300,7 +295,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-semibold text-slate-400 block">
             Total Snags
 </span>
-<span className="text-lg font-bold font-mono text-slate-800 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-slate-800 mt-0.5 block">
             {snags.length}
 </span>
 </div>
@@ -308,7 +303,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-semibold text-rose-600 block">
             Open Deficiencies
 </span>
-<span className="text-lg font-bold font-mono text-rose-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-rose-700 mt-0.5 block">
             {snags.filter((s) => s.status === 'OPEN').length}
 </span>
 </div>
@@ -316,7 +311,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-semibold text-blue-600 block">
             Rectified by Contractor
 </span>
-<span className="text-lg font-bold font-mono text-blue-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-blue-700 mt-0.5 block">
             {snags.filter((s) => s.status === 'RECTIFIED_BY_CONTRACTOR').length}
 </span>
 </div>
@@ -324,7 +319,7 @@ export default function SnaggingListView({
 <span className="text-[10px] font-semibold text-emerald-600 block">
             Verified & Closed
 </span>
-<span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-emerald-700 mt-0.5 block">
             {snags.filter((s) => s.status === 'VERIFIED_CLOSED').length}
 </span>
 </div>
@@ -339,6 +334,7 @@ export default function SnaggingListView({
 <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
+                aria-pressed={statusFilter === st}
                 className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
                   statusFilter === st
                     ? 'bg-white text-rose-900 shadow-xs'
@@ -413,7 +409,7 @@ export default function SnaggingListView({
             >
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div className="flex flex-wrap items-center gap-2">
-<span className="font-mono font-bold text-rose-900 bg-rose-50 px-2 py-0.5 rounded text-xs border border-rose-200">
+<span className="tabular-nums font-bold text-rose-900 bg-rose-50 px-2 py-0.5 rounded text-xs border border-rose-200">
                     {snag.snagNo}
 </span>
 
@@ -464,7 +460,7 @@ export default function SnaggingListView({
                       Raised by:<span className="font-medium text-slate-700">{snag.raisedBy}</span>
 </span>
 <span>•</span>
-<span>{new Date(snag.raisedAt).toLocaleDateString()}</span>
+<span>{formatDate(new Date(snag.raisedAt))}</span>
                     {snag.rectifiedBy && (
 <>
 <span>•</span>
@@ -484,7 +480,7 @@ export default function SnaggingListView({
 </div>
 
                   {/* Geotag GPS Pin */}
-<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-600 rounded-md text-[11px] font-mono border border-slate-200">
+<div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-600 rounded-md text-[11px] border border-slate-200">
 <span className="text-rose-600"></span>
 <span>Geotag Pin:</span>
 <span className="text-slate-800 font-semibold">
@@ -502,6 +498,8 @@ export default function SnaggingListView({
 <img
                           src={snag.beforePhotoUrl}
                           alt="Before rectification defect"
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover"
                         />
 ) : (
@@ -527,6 +525,8 @@ export default function SnaggingListView({
 <img
                             src={snag.afterPhotoUrl}
                             alt="After rectification"
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
 <span className="absolute bottom-1 left-1 bg-emerald-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">

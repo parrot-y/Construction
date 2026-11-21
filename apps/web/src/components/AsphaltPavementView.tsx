@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface AsphaltBatchRecord {
   id: string;
@@ -147,9 +148,7 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/asphalt-batches`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/asphalt-batches`);
       const list = (json.batches || []) as any[];
       setBatches(list.map((b) => ({
         id: b.id,
@@ -255,31 +254,26 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
       if (isLive) {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/asphalt-batches`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              ticketNumber: newRecord.ticketNumber,
-              supplierName: newRecord.supplierName,
-              mixType: newRecord.mixType,
-              truckRegNo: newRecord.truckRegNo,
-              tonnageTons: parseFloat(newRecord.tonnageTons),
-              chainageStart: newRecord.chainageStart ?? chainageStart,
-              chainageEnd: newRecord.chainageEnd ?? chainageEnd,
-              laneDirection: newRecord.laneDirection ?? laneDirection,
-              plantTempC: parseFloat(newRecord.plantTempC ?? plantTemp),
-              deliveryTempC: parseFloat(newRecord.deliveryTempC),
-              breakdownTempC: parseFloat(newRecord.breakdownTempC ?? breakdownTemp),
-              finishTempC: parseFloat(newRecord.finishTempC),
-              designThicknessMm: parseFloat(newRecord.designThicknessMm ?? designThickness),
-              inspectedBy: inspectorName,
-}),
+          await api.post(`/api/v1/projects/${projectId}/asphalt-batches`, {
+            ticketNumber: newRecord.ticketNumber,
+            supplierName: newRecord.supplierName,
+            mixType: newRecord.mixType,
+            truckRegNo: newRecord.truckRegNo,
+            tonnageTons: parseFloat(newRecord.tonnageTons),
+            chainageStart: newRecord.chainageStart ?? chainageStart,
+            chainageEnd: newRecord.chainageEnd ?? chainageEnd,
+            laneDirection: newRecord.laneDirection ?? laneDirection,
+            plantTempC: parseFloat(newRecord.plantTempC ?? plantTemp),
+            deliveryTempC: parseFloat(newRecord.deliveryTempC),
+            breakdownTempC: parseFloat(newRecord.breakdownTempC ?? breakdownTemp),
+            finishTempC: parseFloat(newRecord.finishTempC),
+            designThicknessMm: parseFloat(newRecord.designThicknessMm ?? designThickness),
+            inspectedBy: inspectorName,
 });
-          if (res.ok) {
-            await reload();
-            setShowAddModal(false);
-            setTruckReg('');
-            return;
-}
+          await reload();
+          setShowAddModal(false);
+          setTruckReg('');
+          return;
 } catch { /* fall through to local */}
 }
 
@@ -290,8 +284,8 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
       setBatches([newRecord, ...batches]);
       setShowAddModal(false);
       setTruckReg('');
-} catch (err: any) {
-      setErrorMessage(err.message || 'Failed to register asphalt batch');
+} catch (err) {
+      setErrorMessage(apiErrorMessage(err, 'Failed to register asphalt batch'));
 } finally {
       setIsSubmitting(false);
 }
@@ -321,20 +315,15 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 
       if (isLive) {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/asphalt-batches/${selectedBatch.id}/core-test`, {
-            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              coreThicknessMm: coreThick,
-              coreDensityGCm3: cDens,
-              marshallDensityGCm3: mDens,
-              inspectedBy: inspectorName,
-}),
+          await api.patch(`/api/v1/projects/${projectId}/asphalt-batches/${selectedBatch.id}/core-test`, {
+            coreThicknessMm: coreThick,
+            coreDensityGCm3: cDens,
+            marshallDensityGCm3: mDens,
+            inspectedBy: inspectorName,
 });
-          if (res.ok) {
-            await reload();
-            setShowCoreModal(false);
-            return;
-}
+          await reload();
+          setShowCoreModal(false);
+          return;
 } catch { /* fall through to local */}
 }
 
@@ -363,8 +352,8 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 })
 );
       setShowCoreModal(false);
-} catch (err: any) {
-      setErrorMessage(err.message || 'Failed to record core test');
+} catch (err) {
+      setErrorMessage(apiErrorMessage(err, 'Failed to record core test'));
 } finally {
       setIsSubmitting(false);
 }
@@ -475,7 +464,7 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
 <tr key={batch.id} className="hover:bg-gray-50 transition">
 <td className="px-4 py-3">
 <div className="font-semibold text-gray-900">{batch.ticketNumber}</div>
-<div className="text-xs text-gray-500 font-mono mt-0.5">{batch.truckRegNo}</div>
+<div className="text-xs text-gray-500 font-mono tabular-nums mt-0.5">{batch.truckRegNo}</div>
 <div className="text-[11px] text-gray-400">{batch.supplierName}</div>
 </td>
 <td className="px-4 py-3">
@@ -494,7 +483,7 @@ export const AsphaltPavementView: React.FC<AsphaltPavementViewProps> = ({
                       {batch.coreThicknessMm ? (
 <div>
 <div className="text-xs text-gray-900">
-                            Thick:<strong>{batch.coreThicknessMm} mm</strong>
+                            Thick: <strong>{batch.coreThicknessMm} mm</strong>
 </div>
 <div className="text-xs text-emerald-700 font-bold">
                             Comp: {batch.compactionPercent}%

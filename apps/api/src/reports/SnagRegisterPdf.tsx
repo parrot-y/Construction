@@ -20,6 +20,7 @@ export interface SnagRegisterRow {
 export interface SnagRegisterData {
   projectName: string;
   projectCode: string;
+  projectTypeLabel?: string | null;
   generatedAt: string;
   totalCount: number;
   openCount: number;
@@ -61,7 +62,7 @@ export function SnagRegisterPdf({ data }: { data: SnagRegisterData }) {
         <View style={styles.header}>
           <View>
             <Text style={styles.brand}>Defects Snagging Punch List Register</Text>
-            <Text style={styles.sub}>{data.projectName} ({data.projectCode}) · Confidential site record</Text>
+            <Text style={styles.sub}>{data.projectName} ({data.projectCode}){data.projectTypeLabel ? ` · ${data.projectTypeLabel}` : ''} · Confidential site record</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.meta}>Generated: {data.generatedAt}</Text>

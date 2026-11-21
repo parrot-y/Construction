@@ -5,6 +5,10 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     fileParallelism: false,
+    // scrypt N=2^17 costs ~1s per hash/verify — fixtures that provision
+    // several accounts need headroom beyond the 5s/10s defaults.
+    testTimeout: 30000,
+    hookTimeout: 60000,
     env: {
       DATABASE_URL:
         process.env.DATABASE_URL ||
@@ -12,9 +16,21 @@ export default defineConfig({
       JWT_SECRET: process.env.JWT_SECRET || 'dev-super-secure-jwt-signing-secret-key-32-chars-minimum!',
       COOKIE_SECRET: process.env.COOKIE_SECRET || 'dev-super-secure-cookie-secret-key-32-chars!',
       MPESA_WEBHOOK_SECRET:
-        process.env.MPESA_WEBHOOK_SECRET || 'mjengo-daraja-webhook-secret-production',
+        process.env.MPESA_WEBHOOK_SECRET || 'test-daraja-webhook-secret',
       SITE_OPS_WEBHOOK_SECRET:
-        process.env.SITE_OPS_WEBHOOK_SECRET || 'mjengo-site-ops-webhook-secret-production-32-chars!',
+        process.env.SITE_OPS_WEBHOOK_SECRET || 'test-site-ops-webhook-secret-32-chars!',
+    },
+    coverage: {
+      provider: 'v8',
+      // D3: money/valuation route files must stay >=90% lines. Enforced by
+      // the `test:coverage:money` script (subset suite); other files are
+      // report-only.
+      thresholds: {
+        'src/routes/invoices.ts': { lines: 90 },
+        'src/routes/certificates.ts': { lines: 90 },
+        'src/routes/commitments.ts': { lines: 90 },
+        'src/routes/commercialOperations.ts': { lines: 90 },
+      },
     },
   },
 });

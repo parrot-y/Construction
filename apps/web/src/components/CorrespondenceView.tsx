@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface CorrItem {
   id: string; ref: string; type: string; direction: string; subject: string;
@@ -33,13 +34,12 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
   const [form, setForm] = useState({ type: 'LETTER', direction: 'OUTGOING', subject: '', fromName: '', toName: '', reference: '', letterDate: '', body: ''});
 
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<any>('/api/v1/projects')
       .then((j) => {
-        const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
+        const list = (j?.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
         if (list.length) setProjectId(list[0].id);
-})
+      })
       .catch(() => setProjects([]));
 }, []);
 
@@ -52,12 +52,10 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
       if (typeFilter) params.set('type', typeFilter);
       if (directionFilter) params.set('direction', directionFilter);
       if (statusFilter) params.set('status', statusFilter);
-      const res = await fetch(`/api/v1/projects/${projectId}/correspondence?${params}`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load correspondence');
-      const json = await res.json();
-      setItems(json.data || []);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+      const json: any = await api.get(`/api/v1/projects/${projectId}/correspondence?${params}`);
+      setItems(json?.data || []);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -69,22 +67,17 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/correspondence`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          type: form.type, direction: form.direction, subject: form.subject,
-          fromName: form.fromName, toName: form.toName,
-          reference: form.reference || null, letterDate: form.letterDate || null,
-          body: form.body || null,
-}),
+      await api.post(`/api/v1/projects/${projectId}/correspondence`, {
+        type: form.type, direction: form.direction, subject: form.subject,
+        fromName: form.fromName, toName: form.toName,
+        reference: form.reference || null, letterDate: form.letterDate || null,
+        body: form.body || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowForm(false);
       setForm({ type: 'LETTER', direction: 'OUTGOING', subject: '', fromName: '', toName: '', reference: '', letterDate: '', body: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -92,12 +85,11 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
 
   const setStatus = async (id: string, status: string) => {
     try {
-      await fetch(`/api/v1/projects/${projectId}/correspondence/${id}`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
+      await api.patch(`/api/v1/projects/${projectId}/correspondence/${id}`, { status});
       await load();
-} catch { /* ignore */}
+} catch {
+      /* intentionally ignored: status update is best-effort; the list reloads on the next filter change */
+}
 };
 
   if (loading && !items.length) {
@@ -185,7 +177,7 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
 <div className="flex items-start justify-between gap-3">
 <div className="min-w-0">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="font-mono text-[10px] font-bold text-slate-400">{c.ref}</span>
+<span className="tabular-nums text-[10px] font-bold text-slate-400">{c.ref}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${TYPE_STYLE[c.type] || 'bg-slate-100 text-slate-600'}`}>{c.type[0] + c.type.slice(1).toLowerCase()}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${c.direction === 'OUTGOING' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700'}`}>{c.direction === 'OUTGOING' ? '→ Out' : '← In'}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLE[c.status] || 'bg-slate-100 text-slate-600'}`}>{c.status[0] + c.status.slice(1).toLowerCase()}</span>

@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
+import { api, apiErrorMessage } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
+import { formatDate, formatDateTime } from '../lib/format';
 
 interface QuoteItem {
   id?: string;
@@ -127,12 +130,10 @@ export default function QuotesManagementView(): React.JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/quotes', { credentials: 'include'});
-      if (!res.ok) throw new Error(`Failed to load quotes (${res.status})`);
-      const body = await res.json();
+      const body = await api.get<{ quotes?: Quote[] }>('/api/v1/quotes');
       setQuotes(body.quotes ?? []);
 } catch (e: any) {
-      setError(e.message);
+      setError(apiErrorMessage(e));
 } finally {
       setLoading(false);
 }
@@ -151,10 +152,12 @@ export default function QuotesManagementView(): React.JSX.Element {
     setExpandedId(id);
     setDetail(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${id}`, { credentials: 'include'});
-      if (res.ok) setDetail((await res.json()).quote);
+      try {
+        const body = await api.get<{ quote: Quote }>(`/api/v1/quotes/${id}`);
+        setDetail(body.quote);
+      } catch { /* detail is best-effort */ }
 } catch {
-      // detail is best-effort
+      // detail is best-effort — hygiene-allow: intentionally ignored
 }
 };
 
@@ -171,17 +174,28 @@ export default function QuotesManagementView(): React.JSX.Element {
   const total = itemSubtotal + taxAmt;
   const depositAmt = total * (depositPctNum / 100);
 
+  // The deposit % field is the single source of truth shown to the client.
+  // Warn when free-text terms mention a different payment-stage percentage.
+  const termsPaymentPct = (() => {
+    const m = form.terms.match(/(\d+(?:\.\d+)?)\s*%[^.\n]{0,40}(advance|deposit|mobilis|upfront|commence|instal|stage|demand|retention)|(?:advance|deposit|mobilis|upfront|commence|instal|stage|demand|retention)[^.\n]{0,40}(\d+(?:\.\d+)?)\s*%/i);
+    if (!m) return null;
+    const pct = parseFloat((m[1] ?? m[2]) as string);
+    return Number.isFinite(pct) && depositPctNum > 0 && Math.abs(pct - depositPctNum) > 0.001 ? pct : null;
+})();
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusyId('create');
     setError(null);
     try {
-      const res = await fetch('/api/v1/quotes', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ quote: Quote }>('/api/v1/quotes', {
           ...form,
+          // Optional contact fields: empty string fails server email/phone
+          // validation — send null instead.
+          clientEmail: form.clientEmail.trim() || null,
+          clientPhone: form.clientPhone.trim() || null,
+          siteLocation: form.siteLocation.trim() || null,
+          terms: form.terms.trim() || null,
           taxPct: taxPctNum,
           depositPct: depositPctNum,
           validDays: parseInt(form.validDays, 10) || null,
@@ -194,17 +208,14 @@ export default function QuotesManagementView(): React.JSX.Element {
               quantity: parseFloat(it.quantity) || 0,
               unitRate: parseFloat(it.unitRate) || 0,
 })),
-}),
 });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to create quote');
       setShowForm(false);
       setNotice(`Quote Q-${String(body.quote.quote_no).padStart(4, '0')} created as draft`);
       setForm({ title: '', clientName: '', clientEmail: '', clientPhone: '', siteLocation: '', currency: 'KES', taxPct: '16', depositPct: '50', validDays: '30', terms: ''});
       setItems([{ section: '', description: '', unit: 'item', quantity: '1', unitRate: ''}]);
       load();
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }
@@ -214,21 +225,14 @@ export default function QuotesManagementView(): React.JSX.Element {
     setBusyId(q.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${q.id}/send`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ channel: 'link'}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to send quote');
+      const body = await api.post<{ shareToken: string }>(`/api/v1/quotes/${q.id}/send`, { channel: 'link' });
       const absolute = `${window.location.origin}/?portal=quote&token=${body.shareToken}`;
       setShareInfo({ quoteId: q.id, url: absolute, token: body.shareToken});
       setNotice(`Quote Q-${String(q.quote_no).padStart(4, '0')} sent — share link ready (shown once)`);
       load();
       openDetail(q.id);
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }
@@ -238,22 +242,15 @@ export default function QuotesManagementView(): React.JSX.Element {
     setBusyId(q.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${q.id}/convert`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ createDepositInvoice: true}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to convert quote');
+      const body = await api.post<{ depositInvoice?: { invoice_no?: number }; project?: { id?: string; name?: string; code?: string } }>(`/api/v1/quotes/${q.id}/convert`, { createDepositInvoice: true });
       setNotice(
         body.depositInvoice
-          ? `Quote converted to project ${body.project.code} — deposit invoice INV-${String(body.depositInvoice.invoice_no).padStart(5, '0')} drafted`
-          : `Quote converted to project ${body.project.code} (${body.project.name})`,
+          ? `Quote converted to project ${body.project?.code} — deposit invoice INV-${String(body.depositInvoice.invoice_no).padStart(5, '0')} drafted`
+          : `Quote converted to project ${body.project?.code} (${body.project?.name})`,
 );
       load();
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }
@@ -303,7 +300,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs space-y-2">
 <p className="font-semibold text-blue-900">Share link (shown once — copy now):</p>
 <div className="flex flex-col sm:flex-row gap-2">
-<code className="flex-1 bg-white border border-blue-200 rounded px-2 py-1.5 text-[11px] font-mono break-all">{shareInfo.url}</code>
+<code className="flex-1 bg-white border border-blue-200 rounded px-2 py-1.5 text-[11px] font-mono tabular-nums break-all">{shareInfo.url}</code>
 <button onClick={copyShare} className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg shrink-0">
               Copy link
 </button>
@@ -366,8 +363,13 @@ export default function QuotesManagementView(): React.JSX.Element {
 <div className="sm:col-span-3">
 <label className="block text-[11px] font-semibold text-slate-600 mb-1">Terms & Conditions</label>
 <textarea value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value})} rows={2}
-                placeholder="e.g. 50% deposit to mobilize; 30-day payment terms; prices exclude transport unless stated"
+                placeholder="e.g. Deposit to mobilize; 30-day payment terms; prices exclude transport unless stated"
                 className="w-full text-xs p-2 border border-slate-300 rounded-lg" />
+            {termsPaymentPct !== null && (
+<p className="mt-1 text-[11px] font-semibold text-amber-700" data-testid="terms-deposit-mismatch">
+                Heads up — your terms mention {termsPaymentPct}% but the deposit is set to {depositPctNum}%. The deposit figure above is what the client sees, so keep them consistent.
+</p>
+)}
 </div>
 </div>
 
@@ -408,10 +410,10 @@ export default function QuotesManagementView(): React.JSX.Element {
 
 <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
 <span className="text-slate-600">
-              Subtotal:<strong>{form.currency} {toCurrencyString(itemSubtotal)}</strong>
-              {' • '}Tax ({taxPctNum}%):<strong>{toCurrencyString(taxAmt)}</strong>
-              {' • '}Total:<strong>{form.currency} {toCurrencyString(total)}</strong>
-              {' • '}Deposit ({depositPctNum}%):<strong>{toCurrencyString(depositAmt)}</strong>
+              Subtotal: <strong>{formatMoney(itemSubtotal, form.currency)}</strong>
+              {' • '}Tax ({taxPctNum}%): <strong>{formatMoney(taxAmt)}</strong>
+              {' • '}Total: <strong>{formatMoney(total, form.currency)}</strong>
+              {' • '}Deposit ({depositPctNum}%): <strong>{formatMoney(depositAmt)}</strong>
 </span>
 <button type="submit" disabled={busyId === 'create'}
               className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50">
@@ -453,15 +455,15 @@ export default function QuotesManagementView(): React.JSX.Element {
 <span className="font-medium text-slate-800">{q.client_name}</span>
                       {q.client_email &&<span className="block text-[10px] text-slate-400">{q.client_email}</span>}
 </td>
-<td className="py-2.5 pr-3 font-mono font-semibold text-slate-800">{q.currency} {toCurrencyString(q.total)}</td>
-<td className="py-2.5 pr-3 font-mono text-slate-600">{q.currency} {toCurrencyString(q.deposit_amount)}</td>
+<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{formatMoney(q.total, q.currency)}</td>
+<td className="py-2.5 pr-3 tabular-nums text-slate-600">{formatMoney(q.deposit_amount, q.currency)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[q.status] ?? STATUS_STYLES.DRAFT}`}>
-                        {q.status}
+                        {statusLabel(q.status)}
 </span>
                       {q.responded_by &&<span className="block text-[10px] text-slate-400 mt-0.5">by {q.responded_by}</span>}
 </td>
-<td className="py-2.5 pr-3 text-slate-500">{q.valid_until ? new Date(q.valid_until).toLocaleDateString() : '—'}</td>
+<td className="py-2.5 pr-3 text-slate-500">{q.valid_until ? formatDate(new Date(q.valid_until)) : '—'}</td>
 <td className="py-2.5 space-x-1.5 whitespace-nowrap">
                       {(q.status === 'DRAFT' || q.status === 'SENT') && (
 <button onClick={() => handleSend(q)} disabled={busyId === q.id}
@@ -509,18 +511,18 @@ export default function QuotesManagementView(): React.JSX.Element {
                                         {it.description}
 </td>
 <td className="py-1 pr-2 text-slate-500">{it.unit}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.quantity}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.unit_rate}</td>
-<td className="py-1 text-right font-mono font-semibold">{toCurrencyString(it.total_amount ?? '0')}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{it.quantity}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{it.unit_rate}</td>
+<td className="py-1 text-right tabular-nums font-semibold">{formatMoney(it.total_amount ?? '0')}</td>
 </tr>
 ))}
 </tbody>
 </table>
 <div className="text-right space-y-0.5 pt-1">
-<p className="text-slate-600">Subtotal:<span className="font-mono">{detail.currency} {toCurrencyString(detail.subtotal)}</span></p>
-<p className="text-slate-600">Tax ({detail.tax_pct}%):<span className="font-mono">{detail.currency} {toCurrencyString(detail.tax_amount)}</span></p>
-<p className="font-bold text-slate-900">Total:<span className="font-mono">{detail.currency} {toCurrencyString(detail.total)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit due ({detail.deposit_pct}%):<span className="font-mono">{detail.currency} {toCurrencyString(detail.deposit_amount)}</span></p>
+<p className="text-slate-600">Subtotal:<span className="tabular-nums">{formatMoney(detail.subtotal, detail.currency)}</span></p>
+<p className="text-slate-600">Tax ({detail.tax_pct}%):<span className="tabular-nums">{formatMoney(detail.tax_amount, detail.currency)}</span></p>
+<p className="font-bold text-slate-900">Total:<span className="tabular-nums">{formatMoney(detail.total, detail.currency)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit due ({detail.deposit_pct}%):<span className="tabular-nums">{formatMoney(detail.deposit_amount, detail.currency)}</span></p>
 </div>
 </div>
 <div>
@@ -531,7 +533,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <span className="font-bold text-slate-800">{ev.event}</span>
                                     {ev.actor_name ? ` — ${ev.actor_name}` : ''}
 <span className="block text-[10px] text-slate-400">
-                                      {ev.actor_type} • {new Date(ev.created_at).toLocaleString()}
+                                      {ev.actor_type} • {formatDateTime(new Date(ev.created_at))}
                                       {ev.note ? ` • ${ev.note}` : ''}
 </span>
 </li>

@@ -6,7 +6,7 @@ describe('packages/db cryptographic security functions', () => {
     const raw = 'Password123!@#';
     const hash = await hashPassword(raw);
 
-    expect(hash).toContain(':');
+    expect(hash.startsWith('s2$')).toBe(true);
     expect(await verifyPassword(raw, hash)).toBe(true);
   });
 

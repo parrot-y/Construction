@@ -1,0 +1,231 @@
+================================================================================
+PLATFORM LOCAL CI VERIFICATION REPLICA
+Commit:   1ed154c
+Log file: <repo>/docs/evidence/verify-1ed154c.log
+Started:  2026-11-18T03:05:22Z
+================================================================================
+Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
+psql (PostgreSQL) 17.6 (Debian 17.6-1)
+
+=== Step 1: Initializing Fresh Ephemeral PostgreSQL Cluster ===
+Data Directory:   /tmp/verify-local-db-eU2XCc
+Socket Directory: /tmp/verify-local-sock-VxJniw
+Port:             43237
+Starting PostgreSQL daemon...
+Waiting for PostgreSQL to accept connections...
+PostgreSQL is ready.
+
+=== Step 2: Creating Database & Roles (db_migrator & db_app) ===
+CREATE DATABASE
+DO
+GRANT
+GRANT
+
+=== Step 3: Applying Prisma migrations as db_migrator (baseline + RLS policies) ===
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "construction_test", schema "public" at "localhost:43237"
+
+25 migrations found in prisma/migrations
+
+Applying migration `0001_baseline`
+Applying migration `0002_rls_policies`
+Applying migration `0003_refresh_tokens`
+Applying migration `0004_supplier_delivery_confirmation`
+Applying migration `0005_portal_hardening`
+Applying migration `0006_user_verification_columns`
+Applying migration `0007_lifecycle_money`
+Applying migration `0008_tax_contractor_wht`
+Applying migration `0009_whvat_setting`
+Applying migration `0010_valuation_reviewer`
+Applying migration `0011_account_lifecycle`
+Applying migration `0012_stage2_stage3`
+Applying migration `0013_po_invoice_item_link`
+Applying migration `0014_stage4`
+Applying migration `0015_tenant_fx_rates`
+Applying migration `0016_maker_checker_self_approval`
+Applying migration `0017_audit_hardening`
+Applying migration `0018_tenant_module_flags`
+Applying migration `0019_provider_payment_charges`
+Applying migration `0020_provider_charge_resolution`
+Applying migration `0021_closeout_retention_writeoff`
+Applying migration `0022_pc_acknowledgement`
+Applying migration `0023_project_retention_settings`
+Applying migration `0024_subcontractor_release_workflow`
+Applying migration `20261117192146_project_types_nca_rules`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 0001_baseline/
+    └─ migration.sql
+  └─ 0002_rls_policies/
+    └─ migration.sql
+  └─ 0003_refresh_tokens/
+    └─ migration.sql
+  └─ 0004_supplier_delivery_confirmation/
+    └─ migration.sql
+  └─ 0005_portal_hardening/
+    └─ migration.sql
+  └─ 0006_user_verification_columns/
+    └─ migration.sql
+  └─ 0007_lifecycle_money/
+    └─ migration.sql
+  └─ 0008_tax_contractor_wht/
+    └─ migration.sql
+  └─ 0009_whvat_setting/
+    └─ migration.sql
+  └─ 0010_valuation_reviewer/
+    └─ migration.sql
+  └─ 0011_account_lifecycle/
+    └─ migration.sql
+  └─ 0012_stage2_stage3/
+    └─ migration.sql
+  └─ 0013_po_invoice_item_link/
+    └─ migration.sql
+  └─ 0014_stage4/
+    └─ migration.sql
+  └─ 0015_tenant_fx_rates/
+    └─ migration.sql
+  └─ 0016_maker_checker_self_approval/
+    └─ migration.sql
+  └─ 0017_audit_hardening/
+    └─ migration.sql
+  └─ 0018_tenant_module_flags/
+    └─ migration.sql
+  └─ 0019_provider_payment_charges/
+    └─ migration.sql
+  └─ 0020_provider_charge_resolution/
+    └─ migration.sql
+  └─ 0021_closeout_retention_writeoff/
+    └─ migration.sql
+  └─ 0022_pc_acknowledgement/
+    └─ migration.sql
+  └─ 0023_project_retention_settings/
+    └─ migration.sql
+  └─ 0024_subcontractor_release_workflow/
+    └─ migration.sql
+  └─ 20261117192146_project_types_nca_rules/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+
+=== Step 4: Granting Schema Permissions to db_app AFTER Tables Exist (C5) ===
+GRANT
+GRANT
+GRANT
+ALTER DEFAULT PRIVILEGES
+ALTER DEFAULT PRIVILEGES
+
+=== Step 5: Re-applying rls.sql (idempotent re-enforcement on every deploy) ===
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "refresh_tokens" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "payment_certificate_lines" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "tenant_tax_settings" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "password_reset_tokens" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "suppliers" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_orders" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_order_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_order_invoices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "client_payment_notices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "drawing_acknowledgements" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "project_permits" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "compliance_visits" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "compliance_actions" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "document_counters" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "tenant_module_flags" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "provider_payment_charges" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "practical_completion_acknowledgements" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "nca_class_rules" does not exist, skipping
+DO
+DO
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:222: NOTICE:  function lookup_password_reset_token(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+
+=== Step 6: Seeding Database as db_migrator ===
+$ tsx prisma/seed.ts
+Seeding initial Kenyan construction tenant and V1 users...
+Database seeded successfully! Tenant: Apex Builders Kenya Ltd (570ba983-88ac-4afe-89b8-daaf69b348da), Project: Riverside Commercial Plaza
+
+=== Step 7: Secret Scanning ===
+Secret scanning passed: No secrets detected.
+
+=== Step 8: Running Linter (pnpm run lint) ===
+$ turbo run lint
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running lint in 7 packages
+   • Remote caching disabled
+
+@construction/validation:lint: cache miss, executing 9dd5adb4b0e7ac91
+@construction/db:lint: cache miss, executing a728ec3485c07c47
+@construction/web:lint: cache miss, executing 1e437eeec9d14d60
+@construction/permissions:lint: cache hit, replaying logs 0c9d1e823a30a18b
+@construction/permissions:lint: $ tsc --noEmit
+@construction/api:lint: cache miss, executing 5e311502f9ed810e
+@construction/money:lint: cache hit, replaying logs 6bf6a38d7369c7a9
+@construction/money:lint: $ tsc --noEmit
+@construction/api:lint: $ tsc --noEmit
+@construction/web:lint: $ tsc --noEmit
+@construction/validation:lint: $ tsc --noEmit
+@construction/db:lint: $ tsc --noEmit
+@construction/api:lint: src/project-types.test.ts(38,79): error TS18048: 'sub' is possibly 'undefined'.
+@construction/api:lint: src/project-types.test.ts(42,44): error TS18048: 'sub' is possibly 'undefined'.
+@construction/api:lint: [ELIFECYCLE] Command failed with exit code 2.
+@construction/api#lint:  ERROR  command (<repo>/apps/api) <repo>/.bin/pnpm run lint exited (2)
+
+ Tasks:    5 successful, 6 total
+Cached:    2 cached, 6 total
+  Time:    1m4.348s 
+Failed:    @construction/api#lint
+
+ ERROR  run failed: command  exited (2)
+[ELIFECYCLE] Command failed with exit code 2.
+
+=== Cleaning up local PostgreSQL verification cluster ===
+PostgreSQL cluster stopped.
+Cleaned up temporary directories.

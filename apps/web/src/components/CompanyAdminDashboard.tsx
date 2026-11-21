@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
 import { formatKes } from '../ui';
 import { AuthSession} from '../types/auth';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
@@ -23,6 +23,10 @@ import CompanyDocumentsView from './CompanyDocumentsView';
 import InboxView from './InboxView';
 import IntegrationsView from './IntegrationsView';
 import ScheduledReportsView from './ScheduledReportsView';
+import { useAppDialog } from './AppDialog';
+import { statusLabel } from '../lib/status-labels';
+import { formatDateTime } from '../lib/format';
+import { api } from '../lib/api';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -30,6 +34,7 @@ interface CompanyAdminDashboardProps {
 }
 
 export default function CompanyAdminDashboard({ session, onPreviewPortal}: CompanyAdminDashboardProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const { user} = session;
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -50,27 +55,28 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
   const ASSIGN_ROLES = ['ADMIN','COMPANY_ADMIN','EXECUTIVE','PM_QS','SITE_SUPERVISOR','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CLIENT','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE'];
   const handleRoleChange = async (membershipId: string, role: string) => {
     try {
-      const r = await fetch(`/api/v1/company/members/${membershipId}/role`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ role}),
-});
-      if (r.ok) setMembers((prev) => prev ? prev.map((m: any) => m.membershipId === membershipId ? { ...m, role} : m) : prev);
-} catch { /* leave unchanged */}
+      await api.patch(`/api/v1/company/members/${membershipId}/role`, { role });
+      setMembers((prev) => prev ? prev.map((m: any) => m.membershipId === membershipId ? { ...m, role} : m) : prev);
+} catch {
+      // hygiene-allow: intentionally ignored — on failure leave the member list unchanged
+}
 };
   const handleRevoke = async (membershipId: string) => {
-    if (!window.confirm('Revoke this member\u2019s access to the workspace?')) return;
+    const ok = await dialog.confirm({ title: 'Revoke member access', message: 'Revoke this member’s access to the workspace?', confirmLabel: 'Revoke', danger: true });
+    if (!ok) return;
     try {
-      const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include'});
-      if (r.ok) setMembers((prev) => prev ? prev.filter((m: any) => m.membershipId !== membershipId) : prev);
-} catch { /* leave unchanged */}
+      await api.delete(`/api/v1/company/members/${membershipId}`);
+      setMembers((prev) => prev ? prev.filter((m: any) => m.membershipId !== membershipId) : prev);
+} catch {
+      // hygiene-allow: intentionally ignored — on failure leave the member list unchanged
+}
 };
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<{ data?: { id: string; name: string; code: string }[] }>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
-        if (list.length) setPid(list[0].id);
+        if (list.length) setPid(list[0]!.id);
 })
       .catch(() => setProjects([]));
 }, []);
@@ -79,14 +85,16 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
   const [dash, setDash] = useState<any>(null);
   const [members, setMembers] = useState<any[] | null>(null);
   useEffect(() => {
-    fetch('/api/v1/dashboard', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
+    api.get<{ data?: any }>('/api/v1/dashboard')
       .then((j) => { if (j?.data) setDash(j.data);})
-      .catch(() => {});
-    fetch('/api/v1/company/members', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => {
+        // intentionally ignored: dashboard stays on demo fixtures until data arrives
+      });
+    api.get<{ data?: any[] }>('/api/v1/company/members')
       .then((j) => { if (j?.data) setMembers(j.data);})
-      .catch(() => {});
+      .catch(() => {
+        // intentionally ignored: member list stays empty until data arrives
+      });
 }, []);
   const metrics = dash?.metrics;
   const liveProjects: any[] = dash?.projects || [];
@@ -204,7 +212,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <span className="text-[11px] font-semibold text-slate-500 block">
             Total Contract Value
 </span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {formatKes(metrics?.totalContractSum ?? 0)}
 </span>
 <span className="text-[11px] text-slate-400 mt-0.5 block">Sum across projects</span>
@@ -214,7 +222,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <span className="text-[11px] font-semibold text-slate-500 block">
             Approved Budget
 </span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {formatKes(metrics?.totalApprovedBudget ?? 0)}
 </span>
 <span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingApprovalsCount ?? 0} pending approvals` : 'No data yet'}</span>
@@ -257,18 +265,18 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <tr key={p.id} className="hover:bg-slate-50/50">
 <td className="p-3">
 <span className="font-bold text-slate-900 block">{p.name}</span>
-<span className="font-mono text-[11px] text-slate-500">Code: {p.code}</span>
+<span className="font-mono tabular-nums text-[11px] text-slate-500">Code: {p.code}</span>
 </td>
 <td className="p-3">
 <span>{p.location || '—'}</span>
 <span className="block text-[11px] text-slate-400">{p.nca_project_no ? `NCA Reg: ${p.nca_project_no}` : ''}</span>
 </td>
-<td className="p-3 font-mono font-semibold text-slate-900">
-                    {p.contract_currency || 'KES'} {toCurrencyString(String(p.original_contract_sum ?? '0'))}
+<td className="p-3 font-mono tabular-nums font-semibold text-slate-900">
+                    {p.contract_currency || 'KES'} {formatMoney(String(p.original_contract_sum ?? '0'))}
 </td>
 <td className="p-3">
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${p.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                      {p.status}
+                      {statusLabel(p.status)}
 </span>
 </td>
 <td className="p-3">
@@ -357,7 +365,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
 <div>
 <p className="font-semibold text-slate-800">{a.action} • {a.entity_type}</p>
-<p className="text-[11px] text-slate-500">{a.created_at ? new Date(a.created_at).toLocaleString() : ''}</p>
+<p className="text-[11px] text-slate-500">{a.created_at ? formatDateTime(new Date(a.created_at)) : ''}</p>
 </div>
 </div>
 )) : (
@@ -429,11 +437,13 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
+{isModuleEnabled('safety-audits') && (
 <SafetyAuditScorecardView
         projectId={pid}
         projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
+)}
 
 </div>
 <div className={panelCls('compliance')}>
@@ -448,7 +458,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <RetentionAndBondsView
         projectId={pid}
         projectName={selectedProjectName}
-        userRole="COMPANY_ADMIN"
+        userRole={user.role}
       />
 
 </div>
@@ -474,7 +484,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <QuotesManagementView />
 
       {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
-<InvoicingView />
+<InvoicingView userRole="COMPANY_ADMIN" />
 
 </div>
 <div className={panelCls('people')}>
@@ -586,7 +596,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                     value={projectCode}
                     onChange={(e) => setProjectCode(e.target.value)}
                     placeholder="e.g. WOT-2026"
-                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                   />
 </div>
 <div>
@@ -596,7 +606,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                     value={projectNcaNo}
                     onChange={(e) => setProjectNcaNo(e.target.value)}
                     placeholder="NCA-PRJ-2026-XXXX"
-                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                   />
 </div>
 </div>
@@ -619,7 +629,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                   value={projectContractSum}
                   onChange={(e) => setProjectContractSum(e.target.value)}
                   placeholder="e.g. 45000000"
-                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                 />
 </div>
 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -641,6 +651,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

@@ -9,6 +9,17 @@
 5. **Demand elegance (balanced)** — for non-trivial changes ask "is there a more elegant way?" If a fix feels hacky, re-implement the elegant version. Skip for simple, obvious fixes — do not over-engineer.
 6. **Autonomous bug fixing** — given a bug report, just fix it. Point at logs/errors/failing tests and resolve. Zero context switching.
 
+## Immutable auditor specs (always-on)
+
+- `e2e/tests/aud-*.spec.ts` are byte-for-byte auditor acceptance contracts —
+  never edit, weaken, skip, or delete them.
+- `e2e/tests/aud-specs.sha256` pins their hashes; CI verifies it before
+  Playwright runs. Changing the hash file in a PR **must be called out in
+  the PR description** and requires owner review (see `.github/CODEOWNERS`).
+- If a spec asserts something the product cannot satisfy, document the
+  conflict in `docs/evidence/auditor-spec-conflicts.md` — do not patch the
+  spec or silently weaken the product.
+
 ## Task management
 
 1. **Plan first**: write plan to `tasks/todo.md` with checkable items.

@@ -1,4 +1,6 @@
 import React, { useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface ProjectDocument {
   id: string;
@@ -46,9 +48,7 @@ export default function ProjectDocumentVaultView({
 
   const load = async () => {
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/documents`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load documents');
-      const body = await res.json();
+      const body = await api.get<any>(`/api/v1/projects/${projectId}/documents`);
       setDocuments((body.documents || []).map((d: any): ProjectDocument => ({
         id: d.id,
         category: CAT_MAP[d.category] || 'OTHER',
@@ -63,8 +63,8 @@ export default function ProjectDocumentVaultView({
         uploaded_by: { full_name: d.uploaded_by_name || 'Site team' },
       })));
       setLoadError(null);
-    } catch (e: any) {
-      setLoadError(e.message || 'Failed to load documents');
+    } catch (e: unknown) {
+      setLoadError(apiErrorMessage(e, 'Failed to load documents'));
     }
   };
 
@@ -115,27 +115,17 @@ export default function ProjectDocumentVaultView({
 };
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: created.title,
-          category: CAT_BACK[created.category] || 'SPECIFICATION_SHEET',
-          drawingReference: created.document_number || undefined,
-          revisionCode: created.revision_code || 'Rev 0',
-          storageKey: created.file_url.replace(/^\/uploads\//, '') || created.file_url,
-          uploadedByName: 'Site team',
-          notes: created.notes || undefined,
-        }),
+      await api.post(`/api/v1/projects/${projectId}/documents`, {
+        title: created.title,
+        category: CAT_BACK[created.category] || 'SPECIFICATION_SHEET',
+        drawingReference: created.document_number || undefined,
+        revisionCode: created.revision_code || 'Rev 0',
+        storageKey: created.file_url.replace(/^\/uploads\//, '') || created.file_url,
+        uploadedByName: 'Site team',
+        notes: created.notes || undefined,
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setLoadError(err.message || 'Failed to register document');
-        return;
-      }
-    } catch (e: any) {
-      setLoadError(e.message || 'Network error — document not registered');
+    } catch (e: unknown) {
+      setLoadError(apiErrorMessage(e, 'Network error — document not registered'));
       return;
     }
     await load();
@@ -287,7 +277,7 @@ export default function ProjectDocumentVaultView({
 
 <div className="flex items-baseline gap-2 mb-1">
                   {doc.document_number && (
-<span className="font-mono text-xs font-bold text-slate-800">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-800">
                       {doc.document_number}
 </span>
 )}
@@ -311,7 +301,7 @@ export default function ProjectDocumentVaultView({
 
 <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-2">
 <span className="text-[11px] text-slate-400">
-                  {new Date(doc.uploaded_at).toLocaleDateString()}
+                  {formatDate(new Date(doc.uploaded_at))}
 </span>
 <a
                   href={doc.file_url}

@@ -8,7 +8,7 @@ import {
   calculateDetailedVariance,
   calculateSectionVariance,
   Decimal,
-  toCurrencyString,
+  formatMoneyNumber,
   toDecimal,
 } from '@construction/money';
 import { hasPermission, Permissions, Role, Roles } from '@construction/permissions';
@@ -20,11 +20,12 @@ import {
   PaymentCertificatePdf,
   ProjectSummaryData,
   ProjectSummaryPdf,
-  renderPdfToBuffer,
+  renderPdfToBufferLimited,
   SectionSummaryEntry,
   SiteDiaryReportData,
   SiteDiaryReportPdf,
 } from '../reports';
+import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -71,7 +72,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       try {
-        const { buffer, projectCode } = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, projectCode } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -139,11 +141,14 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             }
           }
 
-          // Kenyan standard retention terms: 10% deduction, capped at 5% of Contract Sum
-          const retentionDeductionRate = '10%';
-          const retentionMaxCapRate = '5%';
-          const maxRetentionCapDec = contractSumDec.times(0.05).toDecimalPlaces(2);
-          const computedRetentionDec = grossValuationDec.times(0.10).toDecimalPlaces(2);
+          // Retention terms come from the project's own settings (H3) — the
+          // same source the certificate engine uses, never hard-coded.
+          const retentionRatePct = toDecimal(String(project.retention_rate_pct ?? '5'));
+          const retentionCapPct = toDecimal(String(project.retention_cap_pct ?? '5'));
+          const retentionDeductionRate = `${retentionRatePct.toFixed(2).replace(/\.00$/, '')}%`;
+          const retentionMaxCapRate = `${retentionCapPct.toFixed(2).replace(/\.00$/, '')}%`;
+          const maxRetentionCapDec = contractSumDec.times(retentionCapPct).dividedBy(100).toDecimalPlaces(2);
+          const computedRetentionDec = grossValuationDec.times(retentionRatePct).dividedBy(100).toDecimalPlaces(2);
           const retentionDeductedDec = computedRetentionDec.greaterThan(maxRetentionCapDec)
             ? maxRetentionCapDec
             : computedRetentionDec;
@@ -171,6 +176,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               code: project.code,
               location: project.location,
               ncaRegistrationNo: project.nca_project_no,
+              projectType: project.project_type,
+              projectSubtype: project.project_subtype,
               startDate: project.start_date ? project.start_date.toISOString().split('T')[0] : null,
               targetEndDate: project.target_end_date ? project.target_end_date.toISOString().split('T')[0] : null,
             },
@@ -189,53 +196,55 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               boraqsRegistrationNo: 'BORAQS/QS/2026/041',
             },
             financials: {
-              contractSum: toCurrencyString(contractSumDec),
-              approvedVariations: toCurrencyString(approvedVariationsDec),
-              revisedContractSum: toCurrencyString(revisedContractSumDec),
-              grossValuation: toCurrencyString(grossValuationDec),
+              contractSum: formatMoneyNumber(contractSumDec),
+              approvedVariations: formatMoneyNumber(approvedVariationsDec),
+              revisedContractSum: formatMoneyNumber(revisedContractSumDec),
+              grossValuation: formatMoneyNumber(grossValuationDec),
               retentionDeductionRate,
-              retentionDeducted: toCurrencyString(retentionDeductedDec),
+              retentionDeducted: formatMoneyNumber(retentionDeductedDec),
               retentionMaxCapRate,
-              retentionMaxCapAmount: toCurrencyString(maxRetentionCapDec),
-              cumulativeNetValuation: toCurrencyString(cumulativeNetValuationDec),
-              previousPaymentsCertified: toCurrencyString(previousPaymentsDec),
-              netAmountDue: toCurrencyString(netAmountDueDec),
+              retentionMaxCapAmount: formatMoneyNumber(maxRetentionCapDec),
+              cumulativeNetValuation: formatMoneyNumber(cumulativeNetValuationDec),
+              previousPaymentsCertified: formatMoneyNumber(previousPaymentsDec),
+              netAmountDue: formatMoneyNumber(netAmountDueDec),
             },
           };
 
-          const docElement = React.createElement(PaymentCertificatePdf, { data: certData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
-
-          // Append-only audit log
-          await recordAuditLog(tx, {
-            tenantId,
-            actorId: sub,
-            projectId,
-            action: 'REPORT_GENERATED',
-            entityType: 'IPC',
-            entityId: project.id,
-            changes: {
-              reportType: 'IPC',
-              certificateNo: certData.certificateNo,
-              valuationDate: certData.valuationDate,
-              netAmountDue: certData.financials.netAmountDue,
-              timestamp: new Date().toISOString(),
-            },
-          });
-
-          return { buffer: renderedBuffer, projectCode: project.code };
+          return { pdfData: certData, projectCode: project.code };
         });
+
+        const renderedBuffer = await renderPdfToBufferLimited(
+          React.createElement(PaymentCertificatePdf, { data: pdfData }),
+        );
+
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          projectId,
+          action: 'REPORT_GENERATED',
+          entityType: 'IPC',
+          entityId: projectId,
+          changes: {
+            reportType: 'IPC',
+            certificateNo: pdfData.certificateNo,
+            valuationDate: pdfData.valuationDate,
+            netAmountDue: pdfData.financials.netAmountDue,
+            timestamp: new Date().toISOString(),
+          },
+        }));
 
         const filename = `IPC-${projectCode}.pdf`;
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${filename}"`)
-          .send(buffer);
+          .send(renderedBuffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -273,7 +282,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       try {
-        const { buffer, projectCode, entryDateFormatted } = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, projectCode, entryDateFormatted, audit } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -320,6 +330,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               code: project.code,
               location: project.location,
               ncaRegistrationNo: project.nca_project_no,
+              projectType: project.project_type,
+              projectSubtype: project.project_subtype,
             },
             contractor: {
               id: tenant.id,
@@ -366,43 +378,49 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             }),
           };
 
-          const docElement = React.createElement(SiteDiaryReportPdf, { data: reportData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
-
-          // Append-only audit log
-          await recordAuditLog(tx, {
-            tenantId,
-            actorId: sub,
-            projectId,
-            action: 'REPORT_GENERATED',
-            entityType: 'SITE_DIARY',
-            entityId: diary.id,
-            changes: {
-              reportType: 'SITE_DIARY',
-              diaryId: diary.id,
-              entryDate: entryDateStr,
-              totalHeadcount,
-              timestamp: new Date().toISOString(),
-            },
-          });
-
           return {
-            buffer: renderedBuffer,
+            pdfData: reportData,
             projectCode: project.code,
             entryDateFormatted: entryDateStr,
+            audit: {
+              entityId: diary.id,
+              changes: {
+                reportType: 'SITE_DIARY',
+                diaryId: diary.id,
+                entryDate: entryDateStr,
+                totalHeadcount,
+                timestamp: new Date().toISOString(),
+              },
+            },
           };
         });
+
+        const renderedBuffer = await renderPdfToBufferLimited(
+          React.createElement(SiteDiaryReportPdf, { data: pdfData }),
+        );
+
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          projectId,
+          action: 'REPORT_GENERATED',
+          entityType: 'SITE_DIARY',
+          entityId: audit.entityId,
+          changes: audit.changes,
+        }));
 
         const filename = `SiteDiary-${projectCode}-${entryDateFormatted}.pdf`;
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${filename}"`)
-          .send(buffer);
+          .send(renderedBuffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -440,7 +458,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       try {
-        const { buffer, projectCode } = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, projectCode, audit } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -555,6 +574,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               code: project.code,
               location: project.location,
               ncaRegistrationNo: project.nca_project_no,
+              projectType: project.project_type,
+              projectSubtype: project.project_subtype,
               startDate: project.start_date ? project.start_date.toISOString().split('T')[0] : null,
               targetEndDate: project.target_end_date ? project.target_end_date.toISOString().split('T')[0] : null,
             },
@@ -567,11 +588,11 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             },
             generatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
             financials: {
-              originalAgreedBudget: toCurrencyString(originalBudgetDec),
-              approvedVariationsTotal: toCurrencyString(approvedVariationsDec),
-              currentApprovedBudget: toCurrencyString(currentApprovedBudgetDec),
-              totalSpentToDate: toCurrencyString(totalSpentDec),
-              remainingBalance: toCurrencyString(remainingBalanceDec),
+              originalAgreedBudget: formatMoneyNumber(originalBudgetDec),
+              approvedVariationsTotal: formatMoneyNumber(approvedVariationsDec),
+              currentApprovedBudget: formatMoneyNumber(currentApprovedBudgetDec),
+              totalSpentToDate: formatMoneyNumber(totalSpentDec),
+              remainingBalance: formatMoneyNumber(remainingBalanceDec),
               budgetUsedPercentage,
             },
             progress: {
@@ -583,38 +604,47 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             sections: sectionsList,
           };
 
-          const docElement = React.createElement(ProjectSummaryPdf, { data: summaryData });
-          const renderedBuffer = await renderPdfToBuffer(docElement);
-
-          // Append-only audit log
-          await recordAuditLog(tx, {
-            tenantId,
-            actorId: sub,
-            projectId,
-            action: 'REPORT_GENERATED',
-            entityType: 'PROJECT_SUMMARY',
-            entityId: project.id,
-            changes: {
-              reportType: 'PROJECT_SUMMARY',
-              budgetUsedPercentage,
-              physicalProgressPercentage,
-              timestamp: new Date().toISOString(),
+          return {
+            pdfData: summaryData,
+            projectCode: project.code,
+            audit: {
+              entityId: project.id,
+              changes: {
+                reportType: 'PROJECT_SUMMARY',
+                budgetUsedPercentage,
+                physicalProgressPercentage,
+                timestamp: new Date().toISOString(),
+              },
             },
-          });
-
-          return { buffer: renderedBuffer, projectCode: project.code };
+          };
         });
+
+        const renderedBuffer = await renderPdfToBufferLimited(
+          React.createElement(ProjectSummaryPdf, { data: pdfData }),
+        );
+
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          projectId,
+          action: 'REPORT_GENERATED',
+          entityType: 'PROJECT_SUMMARY',
+          entityId: audit.entityId,
+          changes: audit.changes,
+        }));
 
         const filename = `ProjectSummary-${projectCode}.pdf`;
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${filename}"`)
-          .send(buffer);
+          .send(renderedBuffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -655,7 +685,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       try {
-        const { buffer, inspectionCode } = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, inspectionCode } = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({
             where: { id: projectId },
           });
@@ -712,6 +743,8 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
               code: project.code,
               location: project.location || 'Nairobi County',
               ncaRegistrationNo: project.nca_project_no || 'NCA/PRJ/CERT-2026',
+              projectType: project.project_type,
+              projectSubtype: project.project_subtype,
               startDate: project.start_date?.toISOString(),
               targetEndDate: project.target_end_date?.toISOString(),
             },
@@ -769,38 +802,43 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             securityHash,
           };
 
-          const renderedBuffer = await renderPdfToBuffer(
-            React.createElement(IndependentInspectionReportPdf, { data: inspectionData }),
-          );
-
-          await recordAuditLog(tx, {
-            tenantId,
-            actorId: sub,
-            projectId,
-            action: 'REPORT_GENERATED',
-            entityType: 'INDEPENDENT_INSPECTION_PDF',
-            entityId: inspection.id,
-            changes: {
-              reportType: 'INDEPENDENT_INSPECTION_PDF',
-              inspectionCode: inspection.inspection_code,
-              securityHash,
-              timestamp: new Date().toISOString(),
-            },
-          });
-
-          return { buffer: renderedBuffer, inspectionCode: inspection.inspection_code };
+          return {
+            pdfData: inspectionData,
+            inspectionCode: inspection.inspection_code,
+          };
         });
+
+        const renderedBuffer = await renderPdfToBufferLimited(
+          React.createElement(IndependentInspectionReportPdf, { data: pdfData }),
+        );
+
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          actorId: sub,
+          projectId,
+          action: 'REPORT_GENERATED',
+          entityType: 'INDEPENDENT_INSPECTION_PDF',
+          entityId: inspectionId,
+          changes: {
+            reportType: 'INDEPENDENT_INSPECTION_PDF',
+            inspectionCode,
+            securityHash: pdfData.securityHash,
+            timestamp: new Date().toISOString(),
+          },
+        }));
 
         const filename = `${inspectionCode}.pdf`;
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${filename}"`)
-          .send(buffer);
+          .send(renderedBuffer);
       } catch (err: any) {
         if (err.status) {
+          if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds));
           return reply.status(err.status).send({
             statusCode: err.status,
-            error: err.status === 404 ? 'Not Found' : 'Bad Request',
+            error: err.status === 404 ? 'Not Found' : err.status === 503 ? 'Service Unavailable' : 'Bad Request',
             message: err.message,
           });
         }
@@ -833,7 +871,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       const data = await withTenantTx(prisma, tenantId, async (tx) => {
-        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true } });
+        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true, project_type: true, project_subtype: true } });
         const [invoices, costs, variations, commitments] = await Promise.all([
           tx.invoice.findMany({ where: { project_id: projectId }, orderBy: { created_at: 'desc' }, take: 500 }),
           tx.costEntry.findMany({ where: { project_id: projectId }, orderBy: { created_at: 'desc' }, take: 500 }),
@@ -844,7 +882,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
 
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Site Safi';
+      wb.creator = PRODUCT_NAME;
       const money = (v: any) => Number(v ?? 0);
 
       const cash = wb.addWorksheet('Cash flow');
@@ -920,7 +958,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       }
 
       const data = await withTenantTx(prisma, tenantId, async (tx) => {
-        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true } });
+        const project = await tx.project.findFirst({ where: { id: projectId }, select: { name: true, code: true, project_type: true, project_subtype: true } });
         const costs = await tx.costEntry.findMany({
           where: { project_id: projectId },
           orderBy: { created_at: 'desc' },
@@ -930,7 +968,7 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
       });
 
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Site Safi';
+      wb.creator = PRODUCT_NAME;
       const money = (v: any) => Number(v ?? 0);
 
       const ws = wb.addWorksheet('Costs');

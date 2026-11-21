@@ -7,6 +7,7 @@ import {
   evaluateProgressVariance,
   multiplyQuantityByRate,
   toCurrencyString,
+  formatMoney,
   toDecimal,
   getRebarUnitWeight,
   calculateRebarCutLengthMeters,
@@ -820,5 +821,31 @@ describe('packages/money financial precision suite', () => {
         expect(ranked[0]?.combinedScore).toBe(79); // 70*0.7 + 100*0.3 = 49 + 30 = 79
       });
     });
+  });
+});
+
+describe('formatMoney (I5 — thousands separators everywhere)', () => {
+  it('groups thousands and always shows 2 decimals', () => {
+    expect(formatMoney('4872000')).toBe('KES 4,872,000.00');
+    expect(formatMoney('1250000.5')).toBe('KES 1,250,000.50');
+    expect(formatMoney(999)).toBe('KES 999.00');
+    expect(formatMoney('1000')).toBe('KES 1,000.00');
+  });
+
+  it('honours a non-KES currency and negatives', () => {
+    expect(formatMoney('4872000', 'USD')).toBe('USD 4,872,000.00');
+    expect(formatMoney('-1250.5')).toBe('-KES 1,250.50');
+  });
+
+  it('never renders an amount >= 1000 without separators', () => {
+    for (const n of ['1000', '12345', '999999', '4872000.55', '100000000']) {
+      const out = formatMoney(n);
+      const digits = out.replace(/[^0-9]/g, '');
+      expect(digits.length).toBeGreaterThan(3);
+      expect(out).toMatch(/KES -?[\d,]+\.\d{2}/);
+      // the grouped integer part must contain thousands separators
+      const intPart = out.split(' ')[1]!.split('.')[0]!;
+      expect(intPart).toContain(',');
+    }
   });
 });

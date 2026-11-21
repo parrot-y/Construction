@@ -66,3 +66,98 @@ The live dev API uses `construction_demo`, tests/verify use `construction_test` 
 - Enum-vs-action naming: storing the raw action string ('CONFIRM') into a status column ('CONFIRMED') passed typecheck but broke state-machine guards — map explicitly and assert via DB row in tests.
 - Test fixtures must match real response envelopes: `.id || .data?.id` — a wrong assumption produced 'undefined' UUID → Prisma P2023, not a clean 400.
 - Ephemeral /tmp Postgres clusters get wiped between sessions — construction_test/demo/e2e DBs must be rebuilt (initdb + migrate deploy + rls.sql + grants + seed) before API tests.
+
+## 2026-11-10 — stage-2/3 build lessons
+- Auditor "exactly as provided" specs may never arrive — authoring them from numbered requirements is acceptable IF documented as authored (spec header + evidence), never claimed as auditor-written.
+- Prisma relation edits: adding a FK on model B requires the inverse relation on model A — validate (`prisma validate`) IMMEDIATELY after schema edits, before generate/migrate.
+- Match/envelope shapes: verify the real response key (e.g. `deliveries`, `data`) before writing assertions — don't guess array shapes.
+- Stale API processes serve old code — kill them before rerunning Playwright (reuseExistingServer picks up whatever is on the port).
+- Shared e2e DB persists mutations across runs (PATCH /company/settings) — tests asserting defaults must reset state in beforeAll (m9 retention_terms).
+- Route-guard test enforces authz maps — every new route needs UNAUTHENTICATED_ALLOWLIST (token routes) or SELF_SERVICE_ALLOWLIST/ROUTE_PERMISSIONS entries.
+- Playwright browsers live in ~/.cache/ms-playwright — /tmp wipes don't affect them, but cache wipes do; `playwright install chromium` needed for headless-shell on mobile-390.
+
+## 2026-11-11 — stage-4 + auditor A/B lessons
+- SECURITY DEFINER lookup functions in rls.sql are a SECOND schema surface: adding a column to a model does NOT reach `$queryRaw` lookups — every new field used by token/portal flows must be added to the function's RETURNS TABLE + SELECT, then rls.sql re-applied to every env DB. Two silent bugs this stage (portal `scope`, invitation `pin_hash`) both manifested as "feature ignored", not errors.
+- `server.decorate` inside `server.register(plugin)` is NOT visible to routes defined at root level in index.ts — plugin-decorated helpers (`server.authenticate`) only exist inside plugin-registered route files. Put routes needing decorators inside a routes plugin.
+- zod is not a direct dep of apps/api — schemas belong in `@construction/validation`; importing 'zod' in route files fails at vitest transform.
+- Prisma migrate deploy URL for socket clusters: port goes in the authority (`localhost:54329`), socket dir in `?host=/tmp` — `?port=` is ignored.
+- Playwright `set-cookie` header joins multiple cookies — split on `,(?=[^;]+=)` like `login()` in helpers.ts before building a Session manually.
+- E2E DB accumulates rows across runs — brand-string sweeps must also purge historical rows (inbox_messages sender_name) or payload-sampling tests flake on residue.
+- Auditor font-mono rule: `<tbody className="font-mono">` wraps mixed prose+numbers — restrict at element level, not container level.
+
+## 2026-11-15 — F1–F5 audit fixes lessons
+- SECURITY DEFINER functions created by a MIGRATION are owned by db_migrator; under FORCE RLS they see ZERO rows. Every lookup_* function must ALSO be (re)created in rls.sql (runs as postgres) — migration 0019's lookup_provider_payment_charge silently returned nothing until re-created there. Symptom: webhook "unknown_reference", not an error.
+- JSON.stringify(NaN) → null: a test sending `{amount: NaN}` actually delivers `amount: null` — server-side `!== undefined && !== null` guards treat it as "absent". Validate `!== undefined` only, and let null fail the number check.
+- Zod enum drift: Fastify route schema said BANK_TRANSFER but RecordInvoicePaymentSchema only allows BANK — the route-level JSON schema is decorative; the zod schema is authoritative. Match test fixtures to the zod enum.
+- renderToString escapes apostrophes as &#x27; — assert on escaped text or apostrophe-free strings.
+- Deleting a dead component kept alive by tests: match `it(` blocks by paren-balance, not indentation — this file's closers are `});` at column 0. Verify no non-target tests were removed by diffing deleted ranges.
+- Currency guard bans literal "KES <digits>" in components — policy constants (M-Pesa cap) must render via formatKes(), not hard-coded text.
+
+## 2026-11-15 — Stage 6 closeout lessons
+- Contract-changing features break PRE-EXISTING vitest fixtures that encode the old behaviour (hard-coded retention %, terminal REJECTED, COMPLETED side-effect). Grep the suite for the old constants BEFORE committing the feature; update fixtures to seed the new ledger state rather than weakening assertions.
+- verify-local.sh is the real gate: the API suite runs ~10min and catches drift the targeted runs miss — always re-run it on the FINAL sha before claiming done.
+- Token-scoped portal POST routes must be added to route-guard.test.ts UNAUTHENTICATED_ALLOWLIST with a justification — the static scan fails otherwise.
+- Evidence folder named for the commit that CAPTURED it can drift from later fix commits; decide once (capture-commit vs final-commit) and document — do not rename per fix or the trail churns.
+
+## 2026-11-16 — never run verify-local and Playwright concurrently
+
+Running `scripts/verify-local.sh` (vitest API suite) and the full
+Playwright matrix on the same host starves both: PDF worker renders
+exceeded their 15s timeout, Prisma transactions expired (P2028),
+browser fetches timed out, and 3 e2e tests flaked. All passed in
+isolation. Rule: run them sequentially.
+
+## 2026-11-16 — PDF renders must not share the 5s tenant-tx lease
+
+`renderPdfToBufferLimited` inside `withTenantTx` hit Prisma's default
+5s interactive-transaction timeout under load (P2028 → 500). Fixed by
+`PDF_TX_OPTIONS` (30s) on all six render-inside-tx routes; the worker's
+own 15s render timeout still bounds the render itself.
+
+## 2026-11 — Dead "New project" button shipped through 340 green tests
+
+Pattern: a rendered button with NO onClick (or a handler with no visible
+effect) passed every API-level auditor spec because nothing clicked it.
+340 passing tests did not catch it — the owner found it in 10 seconds.
+
+Prevention rules:
+- Any new/changed interactive control needs a UI-level click assertion —
+  API tests cannot see a missing onClick.
+- Active-state pills/tabs MUST carry aria-pressed/aria-current so both
+  assistive tech and automation can distinguish "clicked the active
+  filter" (legitimate no-op) from a dead control.
+- Click-sweep harnesses must click by signature (href|text), never by
+  DOM index — SPA re-renders drift indices onto different elements.
+- window.open exports count as actions via context-level request/popup
+  events, not page-level request events.
+
+## Lesson: shared formatters are guarded — verify-local catches what e2e misses
+
+Pattern: Phase 3 dashboard rendered SPI/CPI with raw `.toFixed(2)`; every
+Playwright test passed, but `verify-local.sh` failed on the currency-guard
+baseline. The e2e suite proves behaviour; the guard suite proves conventions.
+
+Prevention rules:
+- Never format numbers/dates/money inline in components — use `formatKes`,
+  `formatRatio`, `formatDate` from `ui/` or `lib/`.
+- Run `scripts/verify-local.sh` (or at least the web unit tests) before
+  treating a UI change as done — not only the Playwright specs.
+- When a guard baseline fails, fix the code; do not add new files to the
+  baseline list.
+
+## P4 — pagination double-application (c6862c6)
+
+- Pattern: a global fetch wrapper (main.tsx fetchAllPages) transparently
+  followed `?page=` for every GET to merge full lists. When a component
+  started managing its own pagination (usePagedList), the wrapper appended
+  `&page=N` to URLs already carrying `page=`; the API coerced the duplicated
+  param to page 1 and the merger concatenated page-1 rows — every list
+  rendered its first page twice, plus ~38 phantom requests per load.
+- Rule: when introducing explicit client-side pagination, audit every
+  transport/middleware layer that also interprets pagination params.
+  Explicit `page=` in the request URL must disable transparent
+  auto-pagination. Server should also take the first value of duplicated
+  query keys rather than coercing arrays to NaN→default.
+- Also: in-flight request dedupe must be invalidated by successful
+  mutations, and list hooks need a generation guard so stale responses
+  can't overwrite newer state (last-write-wins on completion order).

@@ -91,8 +91,8 @@ describe('Milestone M3: Company, Users, Invites, Projects & Role Dashboards', ()
 
       expect(inviteRes.statusCode).toBe(201);
       const inviteBody = JSON.parse(inviteRes.payload);
-      const token = inviteBody.data.token;
-      expect(token).toBeDefined();
+      const token = new URL(inviteBody.data.inviteUrl, 'http://x').searchParams.get('invite')!;
+      expect(token).toBeTruthy();
       expect(inviteBody.data.role).toBe('PM_QS');
 
       // Step B: List pending invitations
@@ -103,8 +103,8 @@ describe('Milestone M3: Company, Users, Invites, Projects & Role Dashboards', ()
       });
       expect(listRes.statusCode).toBe(200);
       const listBody = JSON.parse(listRes.payload);
-      const tokens = listBody.data.map((i: { token: string }) => i.token);
-      expect(tokens).toContain(token);
+      const links = listBody.data.map((i: { inviteUrl: string }) => i.inviteUrl);
+      expect(links.some((u: string) => u.includes(token))).toBe(true);
 
       // Step C: Invitee accepts invitation
       const acceptRes = await server.inject({
@@ -112,12 +112,20 @@ describe('Milestone M3: Company, Users, Invites, Projects & Role Dashboards', ()
         url: '/api/v1/invitations/accept',
         payload: {
           token,
+          email: newEmail,
           fullName: 'Alice Wangari',
           password: 'Password123!',
         },
       });
 
       expect(acceptRes.statusCode).toBe(200);
+      const verificationToken = JSON.parse(acceptRes.payload).data.verificationToken;
+      expect(verificationToken).toBeTruthy();
+      await server.inject({
+        method: 'POST',
+        url: '/api/v1/auth/verify-email',
+        payload: { token: verificationToken },
+      });
 
       // Step D: Invitee logs in with new credentials
       const loginRes = await server.inject({

@@ -1,4 +1,6 @@
 import React, { useEffect, useState} from 'react';
+import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
 
 export interface PlantEquipmentItem {
   id: string;
@@ -152,9 +154,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/equipment`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<{ equipment?: any[] }>(`/api/v1/projects/${projectId}/equipment`);
       const list = (json.equipment || []) as any[];
       setEquipmentList(list.map((e) => ({
         ...e,
@@ -225,17 +225,12 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/equipment`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) {
-          await reload();
-          setShowAddMachineModal(false);
-          setEquipmentCode('');
-          setName('');
-          return;
-}
+        await api.post(`/api/v1/projects/${projectId}/equipment`, payload);
+        await reload();
+        setShowAddMachineModal(false);
+        setEquipmentCode('');
+        setName('');
+        return;
 } catch { /* fall through to local */}
 }
 
@@ -282,15 +277,10 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/equipment-logs`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) {
-          await reload();
-          setShowAddLogModal(false);
-          return;
-}
+        await api.post(`/api/v1/projects/${projectId}/equipment-logs`, payload);
+        await reload();
+        setShowAddLogModal(false);
+        return;
 } catch { /* fall through to local */}
 }
 
@@ -489,19 +479,19 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 <td className="px-4 py-3 text-gray-700 text-xs">
                       {item.ownershipType.replace('_', ' ')}
 </td>
-<td className="px-4 py-3 font-mono font-medium text-gray-900">
+<td className="px-4 py-3 tabular-nums font-medium text-gray-900">
                       KES {parseFloat(item.ratePerUnitKes).toLocaleString('en-KE', { minimumFractionDigits: 2})} / {item.rateUnit.replace('PER_', '').toLowerCase()}
 </td>
 <td className="px-4 py-3 text-gray-600 text-xs">
 <div>{item.registrationNo || 'N/A'}</div>
 <div className="text-gray-400">{item.supplierName || 'Self-Owned'}</div>
 </td>
-<td className="px-4 py-3 font-mono text-gray-900 font-bold">
+<td className="px-4 py-3 tabular-nums text-gray-900 font-bold">
                       {item.currentHoursMeter} hrs
 </td>
 <td className="px-4 py-3">
 <span className="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                        {item.status}
+                        {statusLabel(item.status)}
 </span>
 </td>
 </tr>
@@ -551,14 +541,14 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 </td>
 <td className="px-4 py-3 text-gray-900 font-medium">
                         {machine?.name || 'Heavy Equipment'}
-<div className="text-xs text-gray-500 font-mono">
+<div className="text-xs text-gray-500 tabular-nums">
                           {machine?.equipmentCode}
 </div>
 </td>
 <td className="px-4 py-3 text-gray-700 text-xs">
                         {log.operatorName}
 </td>
-<td className="px-4 py-3 font-mono text-gray-900">
+<td className="px-4 py-3 tabular-nums text-gray-900">
 <span className="font-bold">{log.operatingHours} hrs</span>
                         {parseFloat(log.idleOrBreakdownHours) > 0 && (
 <span className="text-xs text-amber-600 block">
@@ -566,13 +556,13 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
 </span>
 )}
 </td>
-<td className="px-4 py-3 font-mono text-gray-900">
+<td className="px-4 py-3 tabular-nums text-gray-900">
 <div>{log.fuelLitersIssued} L</div>
 <div className="text-xs text-gray-500">
                           KES {parseFloat(log.totalFuelCostKes).toLocaleString('en-KE')}
 </div>
 </td>
-<td className="px-4 py-3 font-mono font-bold">
+<td className="px-4 py-3 tabular-nums font-bold">
 <span
                           className={
                             isSiphon
@@ -717,7 +707,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={ratePerUnitKes}
                     onChange={(e) => setRatePerUnitKes(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -757,7 +747,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     type="text"
                     value={currentHoursMeter}
                     onChange={(e) => setCurrentHoursMeter(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 </div>
@@ -853,7 +843,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={openingHours}
                     onChange={(e) => handleHoursChange(e.target.value, closingHours)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -865,7 +855,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={closingHours}
                     onChange={(e) => handleHoursChange(openingHours, e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -876,7 +866,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     type="text"
                     readOnly
                     value={operatingHours}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono bg-gray-50 font-bold"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums bg-gray-50 font-bold"
                   />
 </div>
 </div>
@@ -890,7 +880,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     type="text"
                     value={idleHours}
                     onChange={(e) => setIdleHours(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -902,7 +892,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={fuelLiters}
                     onChange={(e) => setFuelLiters(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 <div>
@@ -914,7 +904,7 @@ export const PlantEquipmentView: React.FC<PlantEquipmentViewProps> = ({
                     required
                     value={fuelCostPerLiter}
                     onChange={(e) => setFuelCostPerLiter(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                    className="w-full px-3 py-2 border rounded-lg text-sm tabular-nums"
                   />
 </div>
 </div>

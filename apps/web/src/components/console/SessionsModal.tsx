@@ -1,4 +1,7 @@
 import React, { useEffect, useState} from 'react';
+import { formatDate, formatDateTime } from '../../lib/format';
+import { api } from '../../lib/api';
+import { InlineError } from '../feedback/InlineError';
 
 interface SessionRow {
   id: string;
@@ -13,21 +16,28 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
   const [error, setError] = useState('');
 
   const load = () => {
-    fetch('/api/v1/auth/sessions', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('load failed'))))
-      .then((j) => setRows(j.data || []))
+    api.get<any>('/api/v1/auth/sessions')
+      .then((j) => setRows(j?.data || []))
       .catch(() => setError('Could not load sessions'));
 };
   useEffect(load, []);
 
   const revoke = async (id: string) => {
-    const res = await fetch(`/api/v1/auth/sessions/${id}`, { method: 'DELETE', credentials: 'include'});
-    if (res.ok) load(); else setError('Revoke failed');
+    try {
+      await api.delete(`/api/v1/auth/sessions/${id}`);
+      load();
+    } catch {
+      setError('Revoke failed');
+    }
 };
 
   const revokeOthers = async () => {
-    const res = await fetch('/api/v1/auth/sessions/others', { method: 'DELETE', credentials: 'include'});
-    if (res.ok) load(); else setError('Revoke failed');
+    try {
+      await api.delete('/api/v1/auth/sessions/others');
+      load();
+    } catch {
+      setError('Revoke failed');
+    }
 };
 
   return (
@@ -36,14 +46,14 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
 <div>
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Active sessions</h3>
-<p className="text-[11px] text-slate-400 mt-0.5">Devices currently signed in to your account</p>
+<p className="text-[11px] text-slate-500 mt-0.5">Devices currently signed in to your account</p>
 </div>
-<button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
+<button onClick={onClose} className="text-slate-500 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
 </div>
 <div className="px-5 py-4 max-h-80 overflow-y-auto">
-          {error &&<p className="text-xs text-red-500 mb-3">{error}</p>}
-          {rows === null &&<p className="text-xs text-slate-400">Loading…</p>}
-          {rows?.length === 0 &&<p className="text-xs text-slate-400">No active sessions found.</p>}
+          {error && <InlineError error={error} className="mb-3" />}
+          {rows === null &&<p className="text-xs text-slate-500">Loading…</p>}
+          {rows?.length === 0 &&<p className="text-xs text-slate-500">No active sessions found.</p>}
 <ul className="space-y-2">
             {rows?.map((s) => (
 <li key={s.id} className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 px-3.5 py-2.5">
@@ -52,8 +62,8 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
                     Session {s.id}
                     {s.current &&<span className="ml-2 text-[10px] font-bold text-emerald-600">THIS DEVICE</span>}
 </p>
-<p className="text-[10px] text-slate-400">
-                    Signed in {new Date(s.createdAt).toLocaleString()} · expires {new Date(s.expiresAt).toLocaleDateString()}
+<p className="text-[10px] text-slate-500">
+                    Signed in {formatDateTime(new Date(s.createdAt))} · expires {formatDate(new Date(s.expiresAt))}
 </p>
 </div>
                 {!s.current && (

@@ -1,7 +1,7 @@
 ================================================================================
 PLATFORM LOCAL CI VERIFICATION REPLICA
 Commit:   3356cd9
-Log file: /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/docs/evidence/verify-3356cd9.log
+Log file: <repo>/docs/evidence/verify-3356cd9.log
 Started:  2026-11-08T16:07:42Z
 ================================================================================
 Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
@@ -251,7 +251,7 @@ $ turbo run typecheck
 @construction/api:typecheck: $ tsc --noEmit
 @construction/api:typecheck: src/routes/reports.ts(839,14): error TS2339: Property 'cost' does not exist on type 'TransactionClient'.
 @construction/api:typecheck: [ELIFECYCLE] Command failed with exit code 2.
-@construction/api#typecheck:  ERROR  command (/home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/apps/api) /home/maskgod/Documents/FRONT_END_WEB_DEVELOPMENT_COURSE/Construction/.bin/pnpm run typecheck exited (2)
+@construction/api#typecheck:  ERROR  command (<repo>/apps/api) <repo>/.bin/pnpm run typecheck exited (2)
 
  Tasks:    6 successful, 7 total
 Cached:    4 cached, 7 total

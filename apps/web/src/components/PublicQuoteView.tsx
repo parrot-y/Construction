@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
+import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
+import { SavedDataNotice, formatDate } from '../ui';
+import { statusLabel } from '../lib/status-labels';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface PublicQuoteItem {
   id: string;
@@ -47,18 +51,21 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/public/quotes/${token}`);
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'This quote link is invalid or has expired');
+      const { body, savedAt: staleAt } = await fetchJsonCached(
+        `/api/public/quotes/${token}`,
+        `public-quote:${token}`,
+      );
+      if (staleAt) setSavedAt(staleAt);
       setQuote(body.quote);
       setContractor(body.contractor?.name ?? '');
-} catch (e: any) {
-      setError(e.message);
+} catch (ex: any) {
+      setError(isOfflineError(ex) ? 'You appear to be offline — check your connection and try again.' : (ex instanceof Error ? ex.message : 'Could not load quotation'));
 } finally {
       setLoading(false);
 }
@@ -73,17 +80,13 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/public/quotes/${token}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action, typedName: typedName || undefined, note: note || undefined}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Submission failed');
+      const body = await api.post<any>(`/api/public/quotes/${token}/respond`, {
+        action, typedName: typedName || undefined, note: note || undefined,
+      });
       setDone(action === 'accept' ? 'accepted' : 'declined');
       setQuote(body.quote);
-} catch (e: any) {
-      setError(e.message);
+} catch (ex: unknown) {
+      setError(apiErrorMessage(ex));
 } finally {
       setSubmitting(false);
 }
@@ -116,12 +119,13 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm max-w-3xl mx-auto overflow-hidden">
+      {savedAt && <div className="px-6 pt-4"><SavedDataNotice savedAt={savedAt} /></div>}
 <div className="bg-slate-900 text-white px-6 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
 <p className="text-[10px] text-slate-400">Quotation</p>
 <h1 className="text-lg font-bold">Q-{String(quote.quote_no).padStart(4, '0')} — {quote.title}</h1>
 <p className="text-xs text-slate-400 mt-0.5">
-            {contractor &&<>From {contractor} •</>}
+            {contractor &&<>From {contractor} • </>}
             Prepared for {quote.client_name}
             {quote.site_location ? ` • ${quote.site_location}` : ''}
 </p>
@@ -131,7 +135,7 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
           : quote.status === 'DECLINED' ? 'bg-rose-500/20 text-rose-300 border-rose-400/40'
           : 'bg-blue-500/20 text-blue-300 border-blue-400/40'
 }`}>
-          {quote.status}
+          {statusLabel(quote.status)}
 </span>
 </div>
 
@@ -154,21 +158,21 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
                   {it.description}
 </td>
 <td className="py-2 pr-3 text-slate-500">{it.unit}</td>
-<td className="py-2 pr-3 text-right font-mono">{it.quantity}</td>
-<td className="py-2 pr-3 text-right font-mono">{it.unit_rate}</td>
-<td className="py-2 text-right font-mono font-semibold">{quote.currency} {toCurrencyString(it.total_amount)}</td>
+<td className="py-2 pr-3 text-right tabular-nums">{it.quantity}</td>
+<td className="py-2 pr-3 text-right tabular-nums">{formatMoney(it.unit_rate, quote.currency)}</td>
+<td className="py-2 text-right tabular-nums font-semibold">{formatMoney(it.total_amount, quote.currency)}</td>
 </tr>
 ))}
 </tbody>
 </table>
 
 <div className="text-right space-y-1 text-xs ml-auto max-w-xs">
-<p className="text-slate-600">Subtotal:<span className="font-mono">{quote.currency} {toCurrencyString(quote.subtotal)}</span></p>
-<p className="text-slate-600">Tax ({quote.tax_pct}%):<span className="font-mono">{quote.currency} {toCurrencyString(quote.tax_amount)}</span></p>
-<p className="text-base font-bold text-slate-900">Total:<span className="font-mono">{quote.currency} {toCurrencyString(quote.total)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit required ({quote.deposit_pct}%):<span className="font-mono">{quote.currency} {toCurrencyString(quote.deposit_amount)}</span></p>
+<p className="text-slate-600">Subtotal: <span className="tabular-nums">{formatMoney(quote.subtotal, quote.currency)}</span></p>
+<p className="text-slate-600">Tax ({quote.tax_pct}%): <span className="tabular-nums">{formatMoney(quote.tax_amount, quote.currency)}</span></p>
+<p className="text-base font-bold text-slate-900">Total: <span className="tabular-nums">{formatMoney(quote.total, quote.currency)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit required ({quote.deposit_pct}%): <span className="tabular-nums">{formatMoney(quote.deposit_amount, quote.currency)}</span></p>
           {quote.valid_until && (
-<p className="text-[11px] text-slate-400 pt-1">Valid until {new Date(quote.valid_until).toLocaleDateString()}</p>
+<p className="text-[11px] text-slate-400 pt-1">Valid until {formatDate(quote.valid_until)}</p>
 )}
 </div>
 
@@ -240,12 +244,6 @@ export default function PublicQuoteView({ token, onBack}: PublicQuoteViewProps):
 )}
 </div>
 )}
-</div>
-)}
-
-        {onBack && (
-<div className="border-t border-slate-100 pt-3">
-<button onClick={onBack} className="text-xs text-slate-500 hover:text-slate-800">← Back</button>
 </div>
 )}
 </div>

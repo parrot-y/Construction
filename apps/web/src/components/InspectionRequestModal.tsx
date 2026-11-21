@@ -1,4 +1,6 @@
 import React, { useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
+import { InlineError } from './feedback/InlineError';
 
 /** Reference-observed inspection categories (12 types). */
 export const INSPECTION_TYPES = [
@@ -50,9 +52,7 @@ export default function InspectionRequestModal({ projectId, projectName, open, o
     e.preventDefault();
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/inspections`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      await api.post(`/api/v1/projects/${projectId}/inspections`, {
           inspectionType: form.inspectionType,
           assignedConsultant: form.assignedConsultant || null,
           checklistType: form.checklistType,
@@ -63,13 +63,10 @@ export default function InspectionRequestModal({ projectId, projectName, open, o
           inspectorRole: form.inspectorRole || null,
           summaryNotes: form.summaryNotes || null,
           requiresConsultantReview: form.requiresConsultantReview,
-}),
 });
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.message || 'Failed to create inspection request');
       onCreated(); onClose();
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to create inspection request'));
 } finally {
       setSaving(false);
 }
@@ -128,7 +125,7 @@ export default function InspectionRequestModal({ projectId, projectName, open, o
 <input type="checkbox" checked={form.requiresConsultantReview} onChange={(e) => setForm({ ...form, requiresConsultantReview: e.target.checked})} className="accent-orange-600" />
             Requires consultant review before sign-off
 </label>
-          {error &&<p className="text-xs font-semibold text-red-600">{error}</p>}
+          {error && <InlineError error={error} />}
 <div className="flex justify-end gap-2">
 <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg">Cancel</button>
 <button type="submit" disabled={saving} className="px-4 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-lg">

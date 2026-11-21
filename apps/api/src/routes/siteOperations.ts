@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
 import {
@@ -24,6 +25,7 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -34,15 +36,24 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const items = await tx.plantEquipment.findMany({
-            where: { project_id: projectId },
-            include: { daily_logs: { take: 5, orderBy: { log_date: 'desc' } } },
-            orderBy: { equipment_code: 'asc' },
-          });
+          const [items, allItems] = await Promise.all([
+            tx.plantEquipment.findMany({
+              where: { project_id: projectId },
+              include: { daily_logs: { take: 5, orderBy: { log_date: 'desc' } } },
+              orderBy: { equipment_code: 'asc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.plantEquipment.findMany({
+              where: { project_id: projectId },
+              select: { status: true, current_hours_meter: true },
+            }),
+          ]);
+          const pagedItems = listPage(items, pg);
 
-          const totalEquipment = items.length;
-          const operationalCount = items.filter((i) => i.status === 'OPERATIONAL').length;
-          const totalHoursLogged = items.reduce(
+          const totalEquipment = allItems.length;
+          const operationalCount = allItems.filter((i) => i.status === 'OPERATIONAL').length;
+          const totalHoursLogged = allItems.reduce(
             (sum, i) => sum.plus(toDecimal(i.current_hours_meter.toString())),
             toDecimal('0.00')
           );
@@ -54,7 +65,8 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
               operationalCount,
               totalHoursLogged: totalHoursLogged.toFixed(2),
             },
-            equipment: items.map((i) => ({
+            page: pagedItems.page,
+            equipment: pagedItems.data.map((i) => ({
               id: i.id,
               equipmentCode: i.equipment_code,
               name: i.name,
@@ -306,6 +318,7 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -316,15 +329,24 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const laborers = await tx.siteLaborer.findMany({
-            where: { project_id: projectId },
-            orderBy: [{ trade_category: 'asc' }, { full_name: 'asc' }],
-          });
+          const [laborers, allLaborers] = await Promise.all([
+            tx.siteLaborer.findMany({
+              where: { project_id: projectId },
+              orderBy: [{ trade_category: 'asc' }, { full_name: 'asc' }],
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.siteLaborer.findMany({
+              where: { project_id: projectId },
+              select: { is_active: true, skill_level: true },
+            }),
+          ]);
+          const pagedLaborers = listPage(laborers, pg);
 
-          const totalWorkers = laborers.length;
-          const activeWorkers = laborers.filter((l) => l.is_active).length;
-          const fundisCount = laborers.filter((l) => l.skill_level === 'ARTISAN_FUNDI' || l.skill_level === 'CHARGEHAND_FOREMAN').length;
-          const casualsCount = laborers.filter((l) => l.skill_level === 'CASUAL_MTU_WA_MKONO' || l.skill_level === 'SEMI_SKILLED').length;
+          const totalWorkers = allLaborers.length;
+          const activeWorkers = allLaborers.filter((l) => l.is_active).length;
+          const fundisCount = allLaborers.filter((l) => l.skill_level === 'ARTISAN_FUNDI' || l.skill_level === 'CHARGEHAND_FOREMAN').length;
+          const casualsCount = allLaborers.filter((l) => l.skill_level === 'CASUAL_MTU_WA_MKONO' || l.skill_level === 'SEMI_SKILLED').length;
 
           return {
             projectId,
@@ -334,7 +356,8 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
               fundisCount,
               casualsCount,
             },
-            laborers: laborers.map((l) => ({
+            page: pagedLaborers.page,
+            laborers: pagedLaborers.data.map((l) => ({
               id: l.id,
               workerCode: l.worker_code,
               fullName: l.full_name,
@@ -443,6 +466,7 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -453,16 +477,25 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const rolls = await tx.laborMusterRoll.findMany({
-            where: { project_id: projectId },
-            include: { attendance_records: { include: { laborer: true } } },
-            orderBy: { week_ending_date: 'desc' },
-          });
+          const [rolls, allRolls] = await Promise.all([
+            tx.laborMusterRoll.findMany({
+              where: { project_id: projectId },
+              include: { attendance_records: { include: { laborer: true } } },
+              orderBy: { week_ending_date: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.laborMusterRoll.findMany({
+              where: { project_id: projectId },
+              select: { status: true, net_wages_payable_kes: true },
+            }),
+          ]);
+          const pagedRolls = listPage(rolls, pg);
 
           let totalDisbursed = toDecimal('0.00');
           let pendingCount = 0;
 
-          for (const r of rolls) {
+          for (const r of allRolls) {
             if (r.status === 'DISBURSED') {
               totalDisbursed = totalDisbursed.plus(toDecimal(r.net_wages_payable_kes.toString()));
             } else if (r.status === 'PENDING_VERIFICATION') {
@@ -473,11 +506,12 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
           return {
             projectId,
             summary: {
-              totalMusterRolls: rolls.length,
+              totalMusterRolls: allRolls.length,
               pendingVerificationCount: pendingCount,
               totalDisbursedKes: totalDisbursed.toFixed(2),
             },
-            musterRolls: rolls.map((r) => ({
+            page: pagedRolls.page,
+            musterRolls: pagedRolls.data.map((r) => ({
               id: r.id,
               payrollNo: r.payroll_no,
               weekEndingDate: r.week_ending_date.toISOString().split('T')[0],
@@ -727,6 +761,7 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -737,16 +772,25 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const audits = await tx.safetyAuditRecord.findMany({
-            where: { project_id: projectId },
-            orderBy: { audit_date: 'desc' },
-          });
+          const [audits, allAudits] = await Promise.all([
+            tx.safetyAuditRecord.findMany({
+              where: { project_id: projectId },
+              orderBy: { audit_date: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.safetyAuditRecord.findMany({
+              where: { project_id: projectId },
+              select: { audit_outcome: true, overall_compliance_score: true },
+            }),
+          ]);
+          const pagedAudits = listPage(audits, pg);
 
-          const totalAudits = audits.length;
-          const passCount = audits.filter((a) => a.audit_outcome === 'SATISFACTORY').length;
-          const stopOrdersCount = audits.filter((a) => a.audit_outcome === 'STOP_ORDER_ISSUED').length;
+          const totalAudits = allAudits.length;
+          const passCount = allAudits.filter((a) => a.audit_outcome === 'SATISFACTORY').length;
+          const stopOrdersCount = allAudits.filter((a) => a.audit_outcome === 'STOP_ORDER_ISSUED').length;
           const averageScore = totalAudits > 0
-            ? (audits.reduce((sum, a) => sum + Number(a.overall_compliance_score), 0) / totalAudits).toFixed(1)
+            ? (allAudits.reduce((sum, a) => sum + Number(a.overall_compliance_score), 0) / totalAudits).toFixed(1)
             : '100.0';
 
           return {
@@ -757,7 +801,8 @@ export const siteOperationsRoutes: FastifyPluginAsync = async (server: FastifyIn
               stopOrdersCount,
               averageComplianceScorePct: averageScore,
             },
-            audits: audits.map((a) => ({
+            page: pagedAudits.page,
+            audits: pagedAudits.data.map((a) => ({
               id: a.id,
               auditNo: a.audit_no,
               auditDate: a.audit_date.toISOString().split('T')[0],

@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions, hasPermission, Role } from '@construction/permissions';
 import { calculateLineTotal, toDecimal, toCurrencyString, Decimal } from '@construction/money';
@@ -7,6 +8,7 @@ import {
   ReviewVariationOrderSchema,
 } from '@construction/validation';
 import { requirePermission, requireAnyPermission } from '../plugins/rbac';
+import { notifyTeam } from '../lib/notify';
 import {
   applyCoBudgetRollup,
   claimCoTransition,
@@ -56,6 +58,50 @@ async function getActorName(tx: any, userId: string): Promise<string> {
 
 export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ---------------------------------------------------------------------------
+  // 0. GET /api/v1/variations/summary — per-project CO counts + net totals in
+  // ONE query. The Projects screen used to fan out one /variations request
+  // per project on every list refresh (P1.7 speed fix).
+  // ---------------------------------------------------------------------------
+  server.get(
+    '/api/v1/variations/summary',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.PROJECT_VIEW),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { rows, recent } = await withTenantTx(prisma, tenantId, async (tx) => {
+        const [grouped, latest] = await Promise.all([
+          tx.variationOrder.groupBy({
+            by: ['project_id'],
+            _count: { _all: true },
+            _sum: { net_amount: true },
+          }),
+          tx.variationOrder.findMany({
+            orderBy: { created_at: 'desc' },
+            take: 6,
+            include: { project: { select: { name: true } } },
+          }),
+        ]);
+        return { rows: grouped, recent: latest };
+      });
+      return reply.status(200).send({
+        data: rows.map((r) => ({
+          project_id: r.project_id,
+          count: r._count._all,
+          net_total: r._sum.net_amount ? r._sum.net_amount.toString() : '0',
+        })),
+        recent: recent.map((v: any) => ({
+          ...formatVariation(v),
+          projectName: v.project?.name ?? '',
+        })),
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
   // 1. GET /api/v1/projects/:projectId/variations - List Project Change Orders
   // ---------------------------------------------------------------------------
   server.get(
@@ -69,6 +115,7 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({
@@ -92,14 +139,18 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
             where: { project_id: projectId },
             include: VARIATION_INCLUDE,
             orderBy: { variation_no: 'asc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
 
           return records.map(formatVariation);
         });
 
+        const paged = listPage(variations, pg);
         return reply.status(200).send({
-          data: variations,
-          count: variations.length,
+          data: paged.data,
+          page: paged.page,
+          count: paged.data.length,
         });
       } catch (err: any) {
         if (err.status) {
@@ -425,6 +476,14 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
           const actorName = await getActorName(tx, sub);
           await recordCoEvent(tx, tenantId, variationId, 'USER', actorName, 'SUBMITTED', `CO-${String(variation.variation_no).padStart(4, '0')} submitted for PM review`);
 
+          await notifyTeam(tx, {
+            tenantId,
+            projectId,
+            senderId: sub,
+            senderName: actorName,
+            body: `Change order CO-${String(variation.variation_no).padStart(4, '0')} "${variation.title}" submitted — awaiting review. Net value: ${toCurrencyString(variation.net_amount?.toString() ?? '0')}.`,
+          });
+
           await recordAuditLog(tx, {
             tenantId,
             projectId,
@@ -581,8 +640,19 @@ export const variationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
             const authority = await resolveCoApprovalAuthority(tx, tenantId, sub, role);
 
-            // OWNER_REVIEW stage may only be decided by owner-side actors.
-            if (currentStatus === 'OWNER_REVIEW' && !authority.unlimited) {
+            // OWNER-portal actors decide the owner stage only — they must
+            // not pre-empt PM/QS review by approving while still in PM_REVIEW.
+            if (role === 'OWNER' && currentStatus !== 'OWNER_REVIEW') {
+              throw {
+                status: 409,
+                message: 'Change order is still in PM review — only the project team can decide this stage',
+              };
+            }
+
+            // OWNER_REVIEW stage may only be decided by owner-side actors
+            // (staff admins/client side, or the OWNER portal role itself).
+            const isOwnerSideActor = authority.unlimited || role === 'OWNER';
+            if (currentStatus === 'OWNER_REVIEW' && !isOwnerSideActor) {
               throw {
                 status: 403,
                 message: `Change order requires owner approval — role "${role}" cannot decide OWNER_REVIEW stage`,

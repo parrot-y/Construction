@@ -392,11 +392,12 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(costData.receipts[0].filename).toBe('bamburi_cement_invoice_8901.pdf');
     costEntryId = costData.id;
 
-    // 4.2 PM/QS approves the pending cost entry
+    // 4.2 A DIFFERENT authorised user approves the pending cost entry —
+    // maker-checker (Stage 5) forbids the creator approving their own cost.
     const approveCostRes = await server.inject({
       method: 'POST',
       url: `/api/v1/projects/${projectId}/costs/${costEntryId}/approve`,
-      headers: { cookie: qsCookie },
+      headers: { cookie: adminCookie },
       payload: {
         action: 'APPROVED',
         comments: 'Verified against Bamburi delivery note DN-BAMBURI-2026-0891 and on-site supervisor count.',
@@ -568,6 +569,16 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   // STEP 7: Client inspects Client Portal (5 plain numbers, photo gallery, retention)
   // ---------------------------------------------------------------------------
   it('Step 7: Client inspects Client Portal (retrieving the 5 plain-language numbers, Nairobi GPS photo gallery, milestone timeline, and Kenyan retention terms)', async () => {
+    // Round H3: retention terms are project settings, not hard-coded — set the
+    // Kenyan 10%-interim / 5%-cap schedule explicitly before any certificate.
+    const setTerms = await server.inject({
+      method: 'PATCH',
+      url: `/api/v1/projects/${projectId}`,
+      headers: { cookie: adminCookie },
+      payload: { retentionRatePct: '10.00', retentionCapPct: '5.00', retentionFirstMoietyPct: '50.00' },
+    });
+    expect(setTerms.statusCode, setTerms.body).toBe(200);
+
     const portalRes = await server.inject({
       method: 'GET',
       url: `/api/v1/projects/${projectId}/client-portal`,
@@ -861,6 +872,37 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
   // STEP 12: Certificate of Practical Completion (1st Moiety 50% Retention Release)
   // ---------------------------------------------------------------------------
   it('Step 12: Joint site inspection reaches Practical Completion: Architect & QS issue Certificate of Practical Completion, triggering 1st Moiety (50%) retention fund release', async () => {
+    // Stage 6: retention release is ledger-driven. Seed the ledger with a
+    // CERTIFIED interim payment certificate that has withheld the 5% cap on
+    // the KES 40,279,000 contract = KES 2,013,950.00 held, so the first
+    // moiety release is KES 1,006,975.00 — derived, not guessed.
+    await withTenantTx(prisma, tenantId, async (tx) => {
+      const maxNo = await tx.paymentCertificate.aggregate({
+        where: { project_id: projectId },
+        _max: { certificate_no: true },
+      });
+      await tx.paymentCertificate.create({
+        data: {
+          tenant_id: tenantId,
+          project_id: projectId,
+          certificate_no: (maxNo._max.certificate_no ?? 0) + 1,
+          period_start: new Date('2026-03-01T00:00:00.000Z'),
+          period_end: new Date('2026-03-31T00:00:00.000Z'),
+          this_period_amount: '40279000.00',
+          previous_certified: '0.00',
+          cumulative_certified: '40279000.00',
+          retention_pct: '5.00',
+          retention_deduction: '2013950.00',
+          retention_held: '2013950.00',
+          retention_released: '0.00',
+          net_payable: '38265050.00',
+          status: 'CERTIFIED',
+          certified_at: new Date(),
+          submitted_by_id: adminUserId,
+        },
+      });
+    });
+
     const cpcRes = await server.inject({
       method: 'POST',
       url: `/api/v1/projects/${projectId}/certificates`,
@@ -1082,8 +1124,9 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(compRes.statusCode).toBe(200);
     const compData = JSON.parse(compRes.body).data;
     expect(compData.regulatoryAuditor.name).toBe('Eng. Faith Mutua');
-    expect(compData.complianceSummary.statutoryLevyPaid).toBe(true);
-    expect(compData.complianceSummary.certifiedSiteSupervisorPresent).toBe(true);
+    // Stage 4: no derived indicators — only record-backed figures remain.
+    expect(compData.complianceSummary.statutoryLevyPaid).toBeUndefined();
+    expect(compData.complianceSummary.certifiedSiteSupervisorPresent).toBeUndefined();
     expect(compData.complianceSummary.concreteCubePassRate).toBe('100.0%');
     expect(compData.cubeTests.length).toBeGreaterThan(0);
     expect(compData.inspections.length).toBeGreaterThan(0);
@@ -1432,12 +1475,32 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     expect(rel1.statusCode).toBe(201);
     const releaseId = JSON.parse(rel1.body).id;
 
+    // H2 maker-checker: QS recommends, director approves, then payout.
+    const reviewUrl = `/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`;
+    const rec = await server.inject({
+      method: 'POST',
+      url: reviewUrl,
+      headers: { cookie: qsCookie },
+      payload: { action: 'RECOMMEND', qsRecommendationNotes: 'QS verified against certified valuations.' },
+    });
+    expect(rec.statusCode).toBe(200);
+    expect(JSON.parse(rec.body).status).toBe('QS_RECOMMENDED');
+
+    const appr = await server.inject({
+      method: 'POST',
+      url: reviewUrl,
+      headers: { cookie: adminCookie },
+      payload: { action: 'APPROVE' },
+    });
+    expect(appr.statusCode).toBe(200);
+    expect(JSON.parse(appr.body).status).toBe('APPROVED_BY_DIRECTOR');
+
     // Disburse via M-Pesa B2C
     const disbRes = await server.inject({
       method: 'POST',
-      url: `/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`,
+      url: reviewUrl,
       headers: { cookie: adminCookie },
-      payload: { status: 'PAID', disbursementRef: 'MPESA-B2C-RET-001' },
+      payload: { action: 'MARK_PAID', disbursementRef: 'MPESA-B2C-RET-001' },
     });
     expect(disbRes.statusCode).toBe(200);
     expect(JSON.parse(disbRes.body).status).toBe('PAID');
@@ -1484,7 +1547,7 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
       method: 'POST',
       url: `/api/v1/billing/mpesa-callback?tenantId=${tenantId}`,
       headers: {
-        'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+        'x-mpesa-webhook-token': 'test-daraja-webhook-secret',
       },
       payload: {
         MerchantRequestID: 'MR_SIM_VALID',

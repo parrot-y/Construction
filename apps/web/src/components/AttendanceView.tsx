@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Laborer { id: string; full_name: string; worker_code: string; trade_category: string}
 interface AttRow {
@@ -37,9 +39,8 @@ export default function AttendanceView({ projectId, canManage = true}: { project
 
   useEffect(() => {
     if (projectId) return;
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
-      .then((j) => {
+    api.get('/api/v1/projects')
+      .then((j: any) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
         if (list.length) setPid(list[0].id);
@@ -52,14 +53,12 @@ export default function AttendanceView({ projectId, canManage = true}: { project
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/attendance?date=${date}`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load attendance');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${pid}/attendance?date=${date}`);
       setRows(json.data || []);
       setLaborers(json.laborers || []);
       setSummary(json.summary || null);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err));
 } finally {
       setLoading(false);
 }
@@ -74,15 +73,10 @@ export default function AttendanceView({ projectId, canManage = true}: { project
     setError(null);
     try {
       const url = kind === 'record' ? `/api/v1/projects/${pid}/attendance` : `/api/v1/projects/${pid}/attendance/${kind}`;
-      const res = await fetch(url, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(kind === 'record' ? { laborerId, status, workDate: date} : { laborerId, workDate: date}),
-});
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+      await api.post(url, kind === 'record' ? { laborerId, status, workDate: date} : { laborerId, workDate: date});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Action failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Action failed'));
 } finally {
       setBusy(null);
 }
@@ -159,17 +153,12 @@ export default function AttendanceView({ projectId, canManage = true}: { project
               onClick={async () => {
                 setLabSaving(true); setError(null);
                 try {
-                  const res = await fetch(`/api/v1/projects/${pid}/laborers`, {
-                    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-                    body: JSON.stringify(labForm),
-});
-                  const json = await res.json().catch(() => ({}));
-                  if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+                  await api.post(`/api/v1/projects/${pid}/laborers`, labForm);
                   setShowLaborerForm(false);
                   setLabForm({ workerCode: '', fullName: '', nationalIdNo: '', phoneNumber: '', tradeCategory: 'CASUAL_LABORER', skillLevel: 'SEMI_SKILLED', dailyRateKes: '800'});
                   await load();
-} catch (err: any) {
-                  setError(err?.message || 'Registration failed');
+} catch (err) {
+                  setError(apiErrorMessage(err, 'Registration failed'));
 } finally {
                   setLabSaving(false);
 }
@@ -199,15 +188,15 @@ export default function AttendanceView({ projectId, canManage = true}: { project
             return (
 <div key={l.id} className="border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 flex-wrap">
 <div className="min-w-0">
-<p className="text-xs font-bold text-slate-900">{l.full_name}<span className="text-slate-400 font-mono">{l.worker_code}</span></p>
+<p className="text-xs font-bold text-slate-900">{l.full_name}<span className="text-slate-400 font-mono tabular-nums">{l.worker_code}</span></p>
 <p className="text-[10px] text-slate-500">{l.trade_category}{row?.crew ? ` · ${row.crew.name}` : ''}</p>
 </div>
 <div className="flex items-center gap-2 flex-wrap">
                   {row && (
 <>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLE[row.status] || 'bg-slate-100 text-slate-600'}`}>{row.status.replace('_', ' ')}</span>
-                      {row.check_in_at &&<span className="text-[10px] text-slate-400">in {new Date(row.check_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}</span>}
-                      {row.check_out_at &&<span className="text-[10px] text-slate-400">out {new Date(row.check_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}{row.hours_worked ? ` (${row.hours_worked}h)` : ''}</span>}
+                      {row.check_in_at &&<span className="text-[10px] text-slate-400">in {formatTime(new Date(row.check_in_at))}</span>}
+                      {row.check_out_at &&<span className="text-[10px] text-slate-400">out {formatTime(new Date(row.check_out_at))}{row.hours_worked ? ` (${row.hours_worked}h)` : ''}</span>}
 </>
 )}
                   {canManage && !row?.check_in_at && (

@@ -1,4 +1,8 @@
 import React, { useEffect, useState} from 'react';
+import { statusLabel } from '../lib/status-labels';
+import { formatTime } from '../lib/format';
+import { useToast } from './feedback/Toast';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface TelematicsDeviceItem {
   id: string;
@@ -85,6 +89,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   onIngestPing,
   onAcknowledgeAlert,
 }) => {
+  const toast = useToast();
   const [devices, setDevices] = useState<TelematicsDeviceItem[]>(
     initialDevices || (import.meta.env.DEV ? [
       {
@@ -241,24 +246,22 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const [pingRes, alertRes, equipRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/telematics-pings`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/maintenance-alerts`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/equipment`, { credentials: 'include'}),
+      const [pingJson, alertJson, equipJson] = await Promise.all([
+        api.get<any>(`/api/v1/projects/${projectId}/telematics-pings`).catch(() => null), // intentionally ignored: demo data stays when a feed fails
+        api.get<any>(`/api/v1/projects/${projectId}/maintenance-alerts`).catch(() => null), // intentionally ignored: demo data stays when a feed fails
+        api.get<any>(`/api/v1/projects/${projectId}/equipment`).catch(() => null), // intentionally ignored: demo data stays when a feed fails
       ]);
 
       const equipMap: Record<string, string> = {};
-      if (equipRes.ok) {
-        const ej = await equipRes.json();
-        for (const e of (ej.equipment || []) as any[]) {
+      if (equipJson) {
+        for (const e of (equipJson.equipment || []) as any[]) {
           if (e.equipmentCode && e.id) equipMap[e.equipmentCode] = e.id;
 }
         setEquipmentIdByCode(equipMap);
 }
 
-      if (pingRes.ok) {
-        const pj = await pingRes.json();
-        const list = ((pj.pings || []) as any[]).map((p) => ({
+      if (pingJson) {
+        const list = ((pingJson.pings || []) as any[]).map((p) => ({
           ...p,
           latitude: p.latitude?.toString?.() ?? String(p.latitude ?? ''),
           longitude: p.longitude?.toString?.() ?? String(p.longitude ?? ''),
@@ -294,9 +297,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
         setDevices([...byImei.values()]);
 }
 
-      if (alertRes.ok) {
-        const aj = await alertRes.json();
-        const list = ((aj.alerts || []) as any[]).map((a) => ({
+      if (alertJson) {
+        const list = ((alertJson.alerts || []) as any[]).map((a) => ({
           ...a,
           hoursMeterAtAlert: a.hoursMeterAtAlert?.toString?.() ?? String(a.hoursMeterAtAlert ?? 0),
 })) as PlantMaintenanceAlertItem[];
@@ -479,8 +481,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
           ? ` CRITICAL FUEL DISCREPANCY ALERT: Rapid fuel drop of ${dropLiters.toFixed(1)}L detected while engine ${simEngineStatus}. Automatic WhatsApp safety alert dispatched!`
           : ` Telematics ping ingested: ${equipName} (${previewFuelLiters.toFixed(1)}L / ${simFuelPct}%) - Status: ${simEngineStatus}.`
 );
-} catch (err: any) {
-      setFeedback(`Ping Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Ping Error: ${apiErrorMessage(err)}`);
 } finally {
       setIsSubmitting(false);
 }
@@ -497,21 +499,18 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
     e.preventDefault();
     try {
       if (isLive) {
-        const res = await fetch(`/api/v1/projects/${projectId}/telematics-devices`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
+        try {
+          await api.post(`/api/v1/projects/${projectId}/telematics-devices`, {
             equipmentId: equipmentIdByCode[newEquipCode] || Object.values(equipmentIdByCode)[0] || '',
             deviceImei: newImei,
             protocol: newProtocol,
             simPhoneNumber: newSimPhone || null,
             calibrationTankCapacityLiters: newTankCap,
-}),
 });
-        if (res.ok) {
           await reload();
           setShowDeviceModal(false);
           return;
-}
+} catch { /* fall through to local */ }
 }
 
       const resolvedEquipmentId = equipmentIdByCode[newEquipCode] || Object.values(equipmentIdByCode)[0] || '';
@@ -551,7 +550,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
       setDevices([newDev, ...devices]);
       setShowDeviceModal(false);
 } catch (err: any) {
-      alert(`Registration error: ${err.message}`);
+      toast.error(err, 'Could not register the device. Try again.');
 }
 };
 
@@ -563,15 +562,14 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 
     try {
       if (isLive) {
-        const res = await fetch(`/api/v1/projects/${projectId}/maintenance-alerts/${alertToAcknowledge.id}/acknowledge`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ acknowledgedBy: ackBy, actionNotes: ackNotes}),
+        try {
+          await api.patch(`/api/v1/projects/${projectId}/maintenance-alerts/${alertToAcknowledge.id}/acknowledge`, {
+            acknowledgedBy: ackBy, actionNotes: ackNotes,
 });
-        if (res.ok) {
           await reload();
           setAlertToAcknowledge(null);
           return;
-}
+} catch { /* fall through to local */ }
 }
 
       if (onAcknowledgeAlert) {
@@ -596,8 +594,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 );
 
       setAlertToAcknowledge(null);
-} catch (err: any) {
-      setAckError(err.message || 'Failed to acknowledge maintenance alert');
+} catch (err) {
+      setAckError(apiErrorMessage(err, 'Failed to acknowledge maintenance alert'));
 } finally {
       setIsAcking(false);
 }
@@ -685,7 +683,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <div>
 <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
 <span>CAN-bus Live Diagnostics Dashboard</span>
-<span className="px-2 py-0.5 rounded text-[11px] font-mono bg-blue-100 text-blue-800 border border-blue-200">
+<span className="px-2 py-0.5 rounded text-[11px] tabular-nums bg-blue-100 text-blue-800 border border-blue-200">
                 J1939 / OBD-II
 </span>
 </h3>
@@ -731,12 +729,12 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 {isOverheatFatal ? 'FATAL SHUTDOWN' : isOverheatWarning ? 'WARNING' : 'NORMAL'}
 </span>
 </div>
-<div className="text-2xl font-mono font-extrabold mt-1">
+<div className="text-2xl tabular-nums font-extrabold mt-1">
               {latestPing?.coolantTempC || '92.4'}°C
 </div>
             {/* Overheat Threshold Indicator */}
 <div className="mt-2 text-[10px] space-y-1">
-<div className="flex justify-between text-slate-500 font-mono">
+<div className="flex justify-between text-slate-500 tabular-nums">
 <span>Safe &lt;103°C</span>
 <span className="text-amber-600 font-bold">Warn 103°C</span>
 <span className="text-rose-600 font-bold">Limit 108°C</span>
@@ -761,7 +759,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <span className="text-[11px] font-bold text-slate-500">Engine Oil Temp</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">PID 0x5C</span>
 </div>
-<div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
+<div className="text-2xl tabular-nums font-extrabold text-slate-800 mt-1">
               {latestPing?.oilTempC || '98.5'}°C
 </div>
 <p className="text-[10px] text-slate-500 mt-2">Lubrication envelope: &lt;120.0°C</p>
@@ -773,7 +771,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <span className="text-[11px] font-bold text-slate-500">Engine Speed</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">PID 0x0C</span>
 </div>
-<div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
+<div className="text-2xl tabular-nums font-extrabold text-slate-800 mt-1">
               {latestPing?.engineRpm || (latestPing?.engineStatus === 'STOPPED' ? 0 : 1850)} RPM
 </div>
 <p className="text-[10px] text-slate-500 mt-2">Operating range: 800 - 2,200 RPM</p>
@@ -785,7 +783,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <span className="text-[11px] font-bold text-slate-500">Battery Voltage</span>
 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">24V System</span>
 </div>
-<div className="text-2xl font-mono font-extrabold text-slate-800 mt-1">
+<div className="text-2xl tabular-nums font-extrabold text-slate-800 mt-1">
               {latestPing?.batteryVoltage || '24.20'} V
 </div>
 <p className="text-[10px] text-slate-500 mt-2">Alternator charging: 23.5V - 28.5V</p>
@@ -799,7 +797,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </div>
 <div className="mt-1">
               {latestPing?.dtcFaultCodes ? (
-<div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-100 text-rose-800 border border-rose-300 font-mono text-xs font-bold">
+<div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-100 text-rose-800 border border-rose-300 tabular-nums text-xs font-bold">
 <span></span>
 <span>{latestPing.dtcFaultCodes}</span>
 </div>
@@ -867,7 +865,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </td>
 <td className="p-3 font-medium text-slate-800">
 <div>{evt.equipmentName}</div>
-<div className="text-[10px] font-mono text-slate-400">{evt.equipmentCode}</div>
+<div className="text-[10px] tabular-nums text-slate-400">{evt.equipmentCode}</div>
 </td>
 <td className="p-3">
 <span
@@ -882,10 +880,10 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                         {evt.engineStatus}
 </span>
 </td>
-<td className="p-3 font-mono font-bold text-rose-700">
+<td className="p-3 tabular-nums font-bold text-rose-700">
                       -{evt.fuelDropLiters || '40.00'} Liters
 </td>
-<td className="p-3 font-mono font-semibold text-slate-800">
+<td className="p-3 tabular-nums font-semibold text-slate-800">
                       {evt.dropRateLPerHour || '480.00'} L/h
 </td>
 <td className="p-3">
@@ -896,7 +894,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 )}
 </td>
 <td className="p-3 text-slate-400">
-                      {new Date(evt.pingTimestamp).toLocaleTimeString('en-KE')}
+                      {formatTime(new Date(evt.pingTimestamp))}
 </td>
 </tr>
 ))
@@ -941,7 +939,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     >
                       {alert.severity}
 </span>
-<span className="font-mono text-xs font-bold text-slate-700">{alert.alertCode}</span>
+<span className="tabular-nums text-xs font-bold text-slate-700">{alert.alertCode}</span>
 <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         alert.status === 'ACTIVE'
@@ -949,7 +947,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
 }`}
                     >
-                      {alert.status}
+                      {statusLabel(alert.status)}
 </span>
 </div>
 <h4 className="font-bold text-slate-900 text-sm">{alert.title}</h4>
@@ -962,7 +960,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                   {alert.status === 'ACKNOWLEDGED' && alert.acknowledgedBy && (
 <p className="text-[11px] text-emerald-700 font-medium">
                        Acknowledged by {alert.acknowledgedBy} at{' '}
-                      {alert.acknowledgedAt ? new Date(alert.acknowledgedAt).toLocaleTimeString('en-KE') : 'recently'}
+                      {alert.acknowledgedAt ? formatTime(new Date(alert.acknowledgedAt)) : 'recently'}
 </p>
 )}
 </div>
@@ -1052,7 +1050,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 value={simEngineStatus === 'STOPPED' ? 0 : simRpm}
                 onChange={(e) => setSimRpm(e.target.value)}
                 disabled={simEngineStatus === 'STOPPED'}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800 disabled:bg-slate-100"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800 disabled:bg-slate-100"
                 required
               />
 </div>
@@ -1063,7 +1061,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 type="text"
                 value={simFuelPct}
                 onChange={(e) => setSimFuelPct(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                 required
               />
 </div>
@@ -1076,7 +1074,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 type="text"
                 value={simCoolant}
                 onChange={(e) => setSimCoolant(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
               />
 </div>
 <div>
@@ -1085,7 +1083,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 type="text"
                 value={simOil}
                 onChange={(e) => setSimOil(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
               />
 </div>
 <div>
@@ -1094,7 +1092,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 type="text"
                 value={simVoltage}
                 onChange={(e) => setSimVoltage(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
               />
 </div>
 <div>
@@ -1104,7 +1102,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                 placeholder="e.g. P0115, P0217"
                 value={simDtc}
                 onChange={(e) => setSimDtc(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
               />
 </div>
 </div>
@@ -1112,7 +1110,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center">
 <div>
 <span className="text-slate-600 font-medium">Calibrated Fuel Volume in Tank:</span>
-<span className="font-mono font-bold text-slate-900">{previewFuelLiters.toFixed(2)} Liters</span>
+<span className="tabular-nums font-bold text-slate-900">{previewFuelLiters.toFixed(2)} Liters</span>
 <span className="text-slate-400"> (Capacity: {tankCap} L)</span>
 </div>
 <button
@@ -1156,9 +1154,9 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
 <td className="p-3 font-medium text-slate-800">
 <div>{p.equipmentName}</div>
-<div className="text-[10px] font-mono text-slate-400">{p.equipmentCode}</div>
+<div className="text-[10px] font-mono tabular-nums text-slate-400">{p.equipmentCode}</div>
 </td>
-<td className="p-3 font-mono text-slate-700">{p.deviceImei}</td>
+<td className="p-3 tabular-nums text-slate-700">{p.deviceImei}</td>
 <td className="p-3">
 <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -1172,8 +1170,8 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                       {p.engineStatus}
 </span>
 </td>
-<td className="p-3 font-mono font-bold text-slate-800">{p.fuelLevelPercent}%</td>
-<td className="p-3 font-mono font-bold text-slate-900">{p.calculatedFuelLiters} L</td>
+<td className="p-3 tabular-nums font-bold text-slate-800">{p.fuelLevelPercent}%</td>
+<td className="p-3 tabular-nums font-bold text-slate-900">{p.calculatedFuelLiters} L</td>
 <td className="p-3">
                     {p.isSiphoningEvent ? (
 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
@@ -1185,7 +1183,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
 </span>
 )}
 </td>
-<td className="p-3 text-slate-400">{new Date(p.pingTimestamp).toLocaleTimeString('en-KE')}</td>
+<td className="p-3 text-slate-400">{formatTime(new Date(p.pingTimestamp))}</td>
 </tr>
 ))}
 </tbody>
@@ -1335,7 +1333,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     type="text"
                     value={newEquipCode}
                     onChange={(e) => setNewEquipCode(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -1366,7 +1364,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     id="reg-baud-rate"
                     value={newBaudRate}
                     onChange={(e) => setNewBaudRate(parseInt(e.target.value, 10))}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 text-slate-800 font-mono"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 text-slate-800 tabular-nums"
                   >
 <option value={250000}>250 kbps (J1939 Standard)</option>
 <option value={500000}>500 kbps (High Speed CAN)</option>
@@ -1381,7 +1379,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     type="text"
                     value={newMaxBurnRate}
                     onChange={(e) => setNewMaxBurnRate(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -1396,7 +1394,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                   type="text"
                   value={newImei}
                   onChange={(e) => setNewImei(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                   required
                 />
 </div>
@@ -1411,7 +1409,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                     type="text"
                     value={newTankCap}
                     onChange={(e) => setNewTankCap(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -1441,7 +1439,7 @@ export const PlantTelematicsView: React.FC<PlantTelematicsViewProps> = ({
                   type="text"
                   value={newSimPhone}
                   onChange={(e) => setNewSimPhone(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                 />
 </div>
 

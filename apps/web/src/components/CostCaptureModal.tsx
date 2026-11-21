@@ -1,4 +1,5 @@
 import React, { useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface CostCaptureModalProps {
   isOpen: boolean;
@@ -65,26 +66,13 @@ export default function CostCaptureModal({
         ];
 }
 
-      const res = await fetch(`/api/v1/projects/${projectId}/costs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-},
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to log cost (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData: any = await api.post(`/api/v1/projects/${projectId}/costs`, payload);
       if (onCostCreated) {
-        onCostCreated(resData.data);
+        onCostCreated(resData?.data);
 }
       onClose();
-} catch (err: any) {
-      setError(err.message || 'Failed to submit cost entry');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to submit cost entry'));
 } finally {
       setIsSubmitting(false);
 }
@@ -138,7 +126,7 @@ export default function CostCaptureModal({
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full pl-12 pr-3 py-2 text-sm font-mono font-semibold border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-hidden"
+                  className="w-full pl-12 pr-3 py-2 text-sm tabular-nums font-semibold border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-hidden"
                 />
 </div>
 </div>

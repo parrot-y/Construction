@@ -1,19 +1,23 @@
 import React from 'react';
 import { Button} from '../ui';
+import { PRODUCT_NAME } from '../lib/product';
+import { Roles } from '@construction/permissions';
 
 export interface LandingPortalHubProps {
   onSelectRolePreview: (role: string) => void;
   onOpenLogin: () => void;
+  onOpenSignup?: () => void;
 }
 
 /**
- * Public landing page — plain, specific copy about what Site Safi does for
+ * Public landing page — plain, specific copy about what the product does for
  * Kenyan contractors. No invented stats, no emoji, no gradient hero.
  * Role-preview buttons are developer-only (rendered only in dev builds).
  */
 export default function LandingPortalHub({
   onSelectRolePreview,
   onOpenLogin,
+  onOpenSignup,
 }: LandingPortalHubProps): React.JSX.Element {
   const isDev = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -28,7 +32,7 @@ export default function LandingPortalHub({
 },
     {
       title: 'Clients stay informed',
-      body: 'A client portal with live progress, photos, certificates and variation approvals — no more"how is the project going?" calls.',
+      body: 'A client portal with live progress, photos, certificates and variation approvals — no more "how is the project going?" calls.',
 },
     {
       title: 'Teams on the same page',
@@ -36,11 +40,16 @@ export default function LandingPortalHub({
 },
   ];
 
-  const roles = [
-    'Company Admin', 'PM / QS', 'Site Supervisor', 'Executive',
-    'Site Engineer', 'Architect', 'QA/QC', 'Owner',
-    'Trade Lead', 'Foreman', 'Worker', 'Viewer', 'Client',
-  ];
+  const ROLE_LABELS: Record<string, string> = {
+    COMPANY_ADMIN: 'Company Admin', ADMIN: 'Admin', PM_QS: 'PM / QS',
+    SITE_SUPERVISOR: 'Site Supervisor', EXECUTIVE: 'Executive', OWNER: 'Owner',
+    SUPERINTENDENT: 'Superintendent', SITE_ENGINEER: 'Site Engineer',
+    ARCHITECT: 'Architect', QA_QC: 'QA/QC', TRADE_LEAD: 'Trade Lead',
+    FOREMAN: 'Foreman', WORKER: 'Worker', VIEWER: 'Viewer', CLIENT: 'Client',
+    CONSULTANT: 'Consultant', SUBCONTRACTOR: 'Subcontractor',
+    SUPPLIER: 'Supplier', COMPLIANCE: 'Compliance',
+  };
+  const roles = Object.values(Roles).map((r) => ROLE_LABELS[r] ?? r.replace(/_/g, ' '));
 
   return (
 <div className="w-full max-w-5xl mx-auto px-4 py-8 sm:py-12 space-y-10">
@@ -48,7 +57,7 @@ export default function LandingPortalHub({
 <nav className="flex items-center justify-between">
 <div className="flex items-center gap-2.5">
 <div className="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center text-white font-black text-lg">S</div>
-<span className="text-lg font-extrabold text-slate-900 dark:text-slate-100">Site Safi</span>
+<span className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{PRODUCT_NAME}</span>
 </div>
 <Button variant="primary" size="sm" onClick={onOpenLogin}>Sign in</Button>
 </nav>
@@ -59,13 +68,16 @@ export default function LandingPortalHub({
           Run your construction sites from one place.
 </h1>
 <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">
-          Site Safi is a Kenya-first construction management platform. It keeps daily site
+          {PRODUCT_NAME} is a Kenya-first construction management platform. It keeps daily site
           records, budgets, certificates, invoices and client communication in one system —
           so contractors stop losing money to missing paperwork and clients stop guessing
           what is happening on their sites.
 </p>
 <div className="flex flex-wrap gap-3">
 <Button variant="primary" size="md" onClick={onOpenLogin}>Sign in to your workspace</Button>
+{onOpenSignup && (
+<Button variant="secondary" size="md" onClick={onOpenSignup}>Create company workspace</Button>
+)}
 <Button variant="secondary" size="md" onClick={() => document.getElementById('product')?.scrollIntoView({ behavior: 'smooth'})}>
             See what it does
 </Button>
@@ -76,12 +88,12 @@ export default function LandingPortalHub({
 <section id="product" className="space-y-4">
 <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">The console</h2>
 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-<figure className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900">
-<img src="/screenshots/console-desktop.png" alt="Site Safi contractor console on desktop" className="w-full h-auto" loading="lazy" />
+<figure className="hidden lg:block rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900">
+<img src="/screenshots/console-desktop.png" alt="Contractor console on desktop" className="w-full h-auto" loading="lazy" />
 <figcaption className="px-3 py-2 text-xs text-slate-500">Contractor workspace — projects, site, money, people and files.</figcaption>
 </figure>
-<figure className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900">
-<img src="/screenshots/console-mobile.png" alt="Site Safi console on a phone" className="w-full h-auto max-h-[480px] object-cover object-top" loading="lazy" />
+<figure className="lg:hidden rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900 max-w-sm mx-auto w-full">
+<img src="/screenshots/console-mobile.png" alt="Console on a phone" className="w-full h-auto" loading="lazy" />
 <figcaption className="px-3 py-2 text-xs text-slate-500">Same workspace on mobile — built for supervisors in the field.</figcaption>
 </figure>
 </div>
@@ -139,7 +151,7 @@ export default function LandingPortalHub({
 )}
 
 <footer className="text-xs text-slate-400 pt-4 border-t border-slate-200 dark:border-slate-800">
-        Site Safi — built for Kenyan contractors.
+        {PRODUCT_NAME} — built for Kenyan contractors.
 </footer>
 </div>
 );

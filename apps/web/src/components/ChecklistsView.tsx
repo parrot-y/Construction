@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Template {
   id: string; title: string; trade_category: string; kind: string;
@@ -44,9 +46,8 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 
   useEffect(() => {
     if (projectId) return;
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
-      .then((j) => {
+    api.get('/api/v1/projects')
+      .then((j: any) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
         if (list.length) setPid(list[0].id);
@@ -58,19 +59,16 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
     setLoading(true);
     setError(null);
     try {
-      const [tRes, aRes] = await Promise.all([
-        fetch('/api/v1/checklists/templates', { credentials: 'include'}),
-        pid ? fetch(`/api/v1/projects/${pid}/checklist-assignments`, { credentials: 'include'}) : Promise.resolve(null),
+      const [tJson, aJson] = await Promise.all([
+        api.get<{ data?: Template[] }>('/api/v1/checklists/templates'),
+        pid ? api.get<{ data?: Assignment[] }>(`/api/v1/projects/${pid}/checklist-assignments`) : Promise.resolve(null),
       ]);
-      if (!tRes.ok) throw new Error('Failed to load templates');
-      const tJson = await tRes.json();
       setTemplates(tJson.data || []);
-      if (aRes && aRes.ok) {
-        const aJson = await aRes.json();
+      if (aJson) {
         setAssignments(aJson.data || []);
 }
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err));
 } finally {
       setLoading(false);
 }
@@ -82,24 +80,19 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
     setBusy('tpl');
     setError(null);
     try {
-      const res = await fetch('/api/v1/checklists/templates', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          title: tpl.title, tradeCategory: tpl.tradeCategory, kind: tpl.kind, isGlobal: tpl.isGlobal,
-          questions: questions.filter((q) => q.text.trim()).map((q) => ({
-            text: q.text, type: q.type, required: q.required,
-            ...(q.type === 'DROPDOWN' && q.options.trim() ? { options: q.options.split(',').map((o) => o.trim()).filter(Boolean)} : {}),
+      await api.post('/api/v1/checklists/templates', {
+        title: tpl.title, tradeCategory: tpl.tradeCategory, kind: tpl.kind, isGlobal: tpl.isGlobal,
+        questions: questions.filter((q) => q.text.trim()).map((q) => ({
+          text: q.text, type: q.type, required: q.required,
+          ...(q.type === 'DROPDOWN' && q.options.trim() ? { options: q.options.split(',').map((o) => o.trim()).filter(Boolean)} : {}),
 })),
-}),
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowTemplateForm(false);
       setTpl({ title: '', tradeCategory: 'GENERAL', kind: 'CUSTOM', isGlobal: false});
       setQuestions([{ text: '', type: 'PASS_FAIL', options: '', required: true}]);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setBusy(null);
 }
@@ -109,21 +102,16 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
     setBusy('assign');
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/checklist-assignments`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          templateId: assign.templateId || null,
-          title: assign.title, trade: assign.trade,
-          assignedToName: assign.assignedToName || null, dueDate: assign.dueDate || null,
-}),
+      await api.post(`/api/v1/projects/${pid}/checklist-assignments`, {
+        templateId: assign.templateId || null,
+        title: assign.title, trade: assign.trade,
+        assignedToName: assign.assignedToName || null, dueDate: assign.dueDate || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowAssignForm(false);
       setAssign({ templateId: '', title: '', trade: '', assignedToName: '', dueDate: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Assign failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Assign failed'));
 } finally {
       setBusy(null);
 }
@@ -133,16 +121,11 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
     setBusy(`${kind}-${a.id}`);
     setError(null);
     try {
-      let url = `/api/v1/projects/${pid}/checklist-assignments/${a.id}/${kind}`;
-      const res = await fetch(url, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: payload ? JSON.stringify(payload) : undefined,
-});
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+      const url = `/api/v1/projects/${pid}/checklist-assignments/${a.id}/${kind}`;
+      await api.post(url, payload);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Action failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Action failed'));
 } finally {
       setBusy(null);
 }
@@ -178,8 +161,8 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 </select>
 )}
 <div className="flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
-<button onClick={() => setTab('assignments')} className={`px-3 py-1.5 ${tab === 'assignments' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Assignments</button>
-<button onClick={() => setTab('templates')} className={`px-3 py-1.5 ${tab === 'templates' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Templates</button>
+<button onClick={() => setTab('assignments')} aria-pressed={tab === 'assignments'} className={`px-3 py-1.5 ${tab === 'assignments' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Assignments</button>
+<button onClick={() => setTab('templates')} aria-pressed={tab === 'templates'} className={`px-3 py-1.5 ${tab === 'templates' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Templates</button>
 </div>
           {canManage && tab === 'templates' && (
 <button onClick={() => setShowTemplateForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
@@ -297,7 +280,7 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 <p className="text-[11px] text-slate-500 mt-0.5">
                       Trade: {a.trade}{a.assigned_to_name ? ` · → ${a.assigned_to_name}` : ''}
                       {a.due_date ? ` · due ${a.due_date}` : ''}
-                      {a.submitted_at ? ` · submitted ${new Date(a.submitted_at).toLocaleDateString()}` : ''}
+                      {a.submitted_at ? ` · submitted ${formatDate(new Date(a.submitted_at))}` : ''}
 </p>
                     {a.review_notes &&<p className="text-[11px] text-slate-500 mt-1 italic">Review: {a.review_notes}{a.reviewed_by_name ? ` — ${a.reviewed_by_name}` : ''}</p>}
 </div>

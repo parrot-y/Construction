@@ -1,5 +1,8 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
+import { formatDate, formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
+import { InlineError } from './feedback/InlineError';
 
 export interface SubscriptionTransactionItem {
   id: string;
@@ -47,26 +50,20 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
   useEffect(() => {
     (async () => {
       try {
-        const [sRes, tRes] = await Promise.all([
-          fetch('/api/v1/billing/subscription-status', { credentials: 'include'}),
-          fetch('/api/v1/billing/transactions', { credentials: 'include'}),
+        const [sb, tb] = await Promise.all([
+          api.get<any>('/api/v1/billing/subscription-status'),
+          api.get<any>('/api/v1/billing/transactions'),
         ]);
-        if (sRes.ok) {
-          const sb = await sRes.json();
-          if (!initialSubState) setSubscriptionState(sb.subscriptionState);
-          if (!initialActivePlan) setActivePlan(sb.activePlan);
-          if (!initialFee) setMonthlyFee(sb.monthlyFeeKes);
-          if (initialDays === undefined) setDaysRemaining(sb.daysRemaining);
-          if (initialReceipt === undefined) setLastPaymentRef(sb.lastPaymentRef);
-          if (!tenantName) setTenantLabel(sb.tenantName);
-        }
-        if (tRes.ok) {
-          const tb = await tRes.json();
-          if (!initialTransactions) setTransactions(tb.transactions || []);
-        }
+        if (!initialSubState) setSubscriptionState(sb.subscriptionState);
+        if (!initialActivePlan) setActivePlan(sb.activePlan);
+        if (!initialFee) setMonthlyFee(sb.monthlyFeeKes);
+        if (initialDays === undefined) setDaysRemaining(sb.daysRemaining);
+        if (initialReceipt === undefined) setLastPaymentRef(sb.lastPaymentRef);
+        if (!tenantName) setTenantLabel(sb.tenantName);
+        if (!initialTransactions) setTransactions(tb.transactions || []);
         setLoadError(null);
-      } catch (e: any) {
-        setLoadError(e.message || 'Failed to load billing status');
+      } catch (e) {
+        setLoadError(apiErrorMessage(e, 'Failed to load billing status'));
       }
     })();
   }, []);
@@ -95,17 +92,9 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 
       // Real API call — server records an INITIATED transaction and reports
       // SIMULATED until live Daraja credentials are configured.
-      const res = await fetch('/api/v1/billing/mpesa-express', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ phoneNumber: formattedPhone, planCode: selectedPlan, amount}),
-});
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => null);
-        throw new Error(errBody?.message || `STK push failed (${res.status})`);
-}
-      const created = await res.json();
+      const created = await api.post<any>('/api/v1/billing/mpesa-express',
+        { phoneNumber: formattedPhone, planCode: selectedPlan, amount},
+        { money: true });
 
       const newTx: SubscriptionTransactionItem = {
         id: created.transactionId ?? `tx-${Date.now()}`,
@@ -125,8 +114,8 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
         setShowStkModal(false);
         setStkFeedback(null);
 }, 1500);
-} catch (err: any) {
-      setStkFeedback(`Failed: ${err.message || 'M-Pesa STK push error'}`);
+} catch (err) {
+      setStkFeedback(`Failed: ${apiErrorMessage(err, 'M-Pesa STK push error')}`);
 } finally {
       setIsSubmitting(false);
 }
@@ -197,7 +186,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Last M-Pesa Receipt</p>
-<p className="text-lg font-mono font-bold text-slate-800 mt-1">{lastPaymentRef || 'None'}</p>
+<p className="text-lg tabular-nums font-bold text-slate-800 mt-1">{lastPaymentRef || 'None'}</p>
 <p className="text-xs text-slate-400 mt-1">M-Pesa payment record — simulated until Daraja is configured</p>
 </div>
 </div>
@@ -269,7 +258,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div>
 <h3 className="font-bold text-slate-800 text-sm">Daraja M-Pesa Subscription Transactions</h3>
 <p className="text-xs text-slate-500">Real-time payment audit log for tenant: {tenantLabel || 'your workspace'}</p>
-{loadError && <p className="text-xs text-rose-600 mt-1">{loadError}</p>}
+{loadError && <InlineError error={loadError} className="mt-1" />}
 </div>
 <span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-600 rounded">
             {transactions.length} Transactions
@@ -295,7 +284,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 )}
 {transactions.map((tx) => (
 <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
-<td className="p-3 font-mono font-bold text-slate-800">
+<td className="p-3 font-mono tabular-nums font-bold text-slate-800">
                     {tx.mpesaReceiptNumber || 'PENDING'}
 </td>
 <td className="p-3">
@@ -303,8 +292,8 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
                       {tx.planCode === 'PORTFOLIO_TIER' ? 'Portfolio Tier' : 'Project Tier'}
 </span>
 </td>
-<td className="p-3 font-mono">{tx.phoneNumber}</td>
-<td className="p-3 font-mono font-bold text-slate-800">{formatKes(tx.amount)}</td>
+<td className="p-3 tabular-nums">{tx.phoneNumber}</td>
+<td className="p-3 tabular-nums font-bold text-slate-800">{formatKes(tx.amount)}</td>
 <td className="p-3">
                     {tx.transactionStatus === 'SUCCESS' ? (
 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">SUCCESS</span>
@@ -315,10 +304,10 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 )}
 </td>
 <td className="p-3 text-slate-500">
-                    {tx.subscriptionPeriodEnd ? new Date(tx.subscriptionPeriodEnd).toLocaleDateString('en-KE') : '—'}
+                    {tx.subscriptionPeriodEnd ? formatDate(new Date(tx.subscriptionPeriodEnd)) : '—'}
 </td>
 <td className="p-3 text-slate-400">
-                    {new Date(tx.createdAt).toLocaleString('en-KE')}
+                    {formatDateTime(new Date(tx.createdAt))}
 </td>
 </tr>
 ))}
@@ -359,7 +348,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 }`}
                   >
 <p className="font-bold text-slate-800">Project Tier</p>
-<p className="text-emerald-700 font-mono font-semibold mt-0.5">{formatKes(7500)}/mo</p>
+<p className="text-emerald-700 tabular-nums font-semibold mt-0.5">{formatKes(7500)}/mo</p>
 </button>
 <button
                     type="button"
@@ -369,7 +358,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 }`}
                   >
 <p className="font-bold text-slate-800">Portfolio Tier</p>
-<p className="text-emerald-700 font-mono font-semibold mt-0.5">{formatKes(25000)}/mo</p>
+<p className="text-emerald-700 tabular-nums font-semibold mt-0.5">{formatKes(25000)}/mo</p>
 </button>
 </div>
 </div>
@@ -381,7 +370,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="0712345678"
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
                 />
 <p className="text-[11px] text-slate-400 mt-1">Enter Kenyan phone registered for M-Pesa</p>

@@ -1,5 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { formatDate, formatTime } from '../lib/format';
+import { api } from '../lib/api';
 
 export interface InventoryItem {
   id: string;
@@ -50,10 +52,8 @@ export default function SiteInventoryManagementView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/inventory`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
-      const list = (json.items || []) as any[];
+      const json: any = await api.get(`/api/v1/projects/${projectId}/inventory`);
+      const list = (json?.items || []) as any[];
       setItems(list.map((i) => ({
         ...i,
         current_stock: i.current_stock?.toString?.() ?? String(i.current_stock ?? 0),
@@ -134,17 +134,14 @@ export default function SiteInventoryManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/inventory/items`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              materialName: created.material_name, category: created.category, unit: created.unit,
-              openingBalance: String(created.current_stock),
-              minimumReorderLevel: String(created.minimum_reorder_level),
-              unitCostEstimate: created.unit_cost_estimate != null ? String(created.unit_cost_estimate) : null,
-}),
+          await api.post(`/api/v1/projects/${projectId}/inventory/items`, {
+            materialName: created.material_name, category: created.category, unit: created.unit,
+            openingBalance: String(created.current_stock),
+            minimumReorderLevel: String(created.minimum_reorder_level),
+            unitCostEstimate: created.unit_cost_estimate != null ? String(created.unit_cost_estimate) : null,
 });
-          if (res.ok) await reload();
-} catch { /* keep local */}
+          await reload();
+} catch { /* intentionally ignored: keep local demo state on failure */ }
 })();
       setShowItemModal(false);
       setNewItemName('');
@@ -185,20 +182,17 @@ export default function SiteInventoryManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/inventory/movements`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              inventoryItemId: selectedItemId,
-              movementType,
-              quantity: String(movQty),
-              movementDate: new Date().toISOString().slice(0, 10),
-              referenceNo: movementType === 'DELIVERY_IN' ? movDeliveryNote.trim() || null : null,
-              notes: [movSupplier.trim(), movPurpose.trim()].filter(Boolean).join(' — ') || null,
-              recordedByName: 'Site Storekeeper',
-}),
+          await api.post(`/api/v1/projects/${projectId}/inventory/movements`, {
+            inventoryItemId: selectedItemId,
+            movementType,
+            quantity: String(movQty),
+            movementDate: new Date().toISOString().slice(0, 10),
+            referenceNo: movementType === 'DELIVERY_IN' ? movDeliveryNote.trim() || null : null,
+            notes: [movSupplier.trim(), movPurpose.trim()].filter(Boolean).join(' — ') || null,
+            recordedByName: 'Site Storekeeper',
 });
-          if (res.ok) await reload();
-} catch { /* keep local */}
+          await reload();
+} catch { /* intentionally ignored: keep local demo state on failure */ }
 })();
       setShowMovementModal(false);
       setMovQty(10); setMovDeliveryNote(''); setMovSupplier(''); setMovPurpose('');
@@ -427,7 +421,7 @@ export default function SiteInventoryManagementView({
                 return (
 <tr key={m.id} className="hover:bg-slate-50">
 <td className="py-2.5 px-3 text-slate-500">
-                      {new Date(m.recorded_at).toLocaleDateString()} {new Date(m.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                      {formatDate(new Date(m.recorded_at))} {formatTime(new Date(m.recorded_at))}
 </td>
 <td className="py-2.5 px-3">
 <span
@@ -443,7 +437,7 @@ export default function SiteInventoryManagementView({
 <td className="py-2.5 px-3 font-semibold text-slate-800">
                       {item?.material_name || 'Material Item'}
 </td>
-<td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+<td className="py-2.5 px-3 text-right tabular-nums font-bold text-slate-900">
                       {isDelivery ? `+${m.quantity}` : `-${m.quantity}`} {item?.unit || ''}
 </td>
 <td className="py-2.5 px-3 text-slate-600">

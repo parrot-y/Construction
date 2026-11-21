@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
-import { formatKes } from '../../ui';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { formatMoney } from '@construction/money';
+import { formatKes, SavedDataNotice, formatDate } from '../../ui';
+import { fetchJsonCached } from '../../services/offline-cache';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
+import { useAppDialog } from '../AppDialog';
+import { statusLabel } from '../../lib/status-labels';
+import { api, apiErrorMessage } from '../../lib/api';
 
 interface CoItem {
   id: string;
@@ -44,6 +48,16 @@ interface ClientExtra {
   certificates: { id: string; certificateNo: string; periodEnd?: string; thisPeriodAmount: string; cumulativeCertified: string; netPayable: string; status: string; paidAt?: string | null }[];
   invoices: { id: string; invoiceNo: string; title: string; status: string; currency: string; total: string; amountPaid: string; balanceDue: string; issueDate?: string; dueDate?: string }[];
   progressRecords: { id: string; recordDate?: string; overallProgress?: string | null; notes?: string | null }[];
+  closeout?: {
+    practicalCompletion: {
+      id: string; certificateReference: string; issueDate?: string; effectiveDate?: string;
+      dlpDurationMonths?: number; dlpExpiryDate?: string | null; retentionAmountReleased?: string;
+    } | null;
+    snagCounts: Record<string, number>;
+    snags: { id: string; snagNumber: number; description: string; locationFloor?: string | null; locationRoom?: string | null; tradeCategory?: string | null; severity?: string | null; status: string }[];
+    retention: { held: string; released: string; outstanding: string };
+    acknowledged: { byName: string; at: string } | null;
+  } | null;
 }
 
 interface ClientPortalViewProps {
@@ -60,33 +74,35 @@ const STATUS_STYLES: Record<string, string> = {
   VOID: 'bg-slate-100 text-slate-400',
 };
 
-export default function ClientPortalView({ token, onBackToDashboard}: ClientPortalViewProps): React.JSX.Element {
+export default function ClientPortalView({ token }: ClientPortalViewProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const [data, setData] = useState<PortalPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [extra, setExtra] = useState<ClientExtra | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/portals/client/${encodeURIComponent(token)}/change-orders`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Invalid or expired access link');
-}
-      const json = await res.json();
+      const { body: json, savedAt: staleAt } = await fetchJsonCached(
+        `/api/v1/portals/client/${encodeURIComponent(token)}/change-orders`,
+        `portal:client:${token}`,
+      );
+      if (staleAt) setSavedAt(staleAt);
       setData(json.data);
       if (json.data?.linkExpiresAt) setLinkExpiresAt(json.data.linkExpiresAt);
       // Best-effort load of the read-only project feed (photos, certificates, invoices)
-      fetch(`/api/v1/portals/client/${encodeURIComponent(token)}`, { credentials: 'include' })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((b) => { if (b?.data) { setExtra(b.data); if (b.data.linkExpiresAt) setLinkExpiresAt(b.data.linkExpiresAt); } })
-        .catch(() => {});
-} catch (err: any) {
-      setError(err?.message || 'Failed to load change orders');
+      fetchJsonCached(`/api/v1/portals/client/${encodeURIComponent(token)}`, `portal:client-feed:${token}`)
+        .then(({ body: b }) => { if (b?.data) { setExtra(b.data); if (b.data.linkExpiresAt) setLinkExpiresAt(b.data.linkExpiresAt); } })
+        .catch(() => { /* intentionally ignored: best-effort portal feed */ });
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to load change orders'));
+      setErrorKind(portalErrorKind(err));
 } finally {
       setLoading(false);
 }
@@ -98,35 +114,60 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 
   const respond = async (co: ChangeOrder, action: 'APPROVE' | 'REJECT') => {
     setFeedback(null);
-    const signedName = window.prompt('Type your full name to sign this decision:', data?.stakeholder.name || '');
+    const signedName = await dialog.prompt({
+      title: 'Sign your decision',
+      inputLabel: 'Type your full name to sign',
+      defaultValue: data?.stakeholder.name || '',
+      confirmLabel: 'Continue',
+    });
     if (!signedName || signedName.trim().length< 2) return;
 
-    const comments =
-      action === 'REJECT'
-        ? window.prompt('Reason for rejection (required):', '')
-        : window.prompt('Approval comments (optional):', '');
-    if (action === 'REJECT' && (!comments || comments.trim().length< 3)) {
+    const comments = await dialog.prompt({
+      title: action === 'REJECT' ? 'Reason for rejection' : 'Approval comments',
+      inputLabel: action === 'REJECT' ? 'Reason for rejection (required)' : 'Approval comments (optional)',
+      confirmLabel: action === 'REJECT' ? 'Reject' : 'Approve',
+      danger: action === 'REJECT',
+      minLength: action === 'REJECT' ? 3 : 0,
+    });
+    if (comments === null) return;
+    if (action === 'REJECT' && comments.trim().length< 3) {
       setFeedback('A rejection reason is required.');
       return;
 }
 
     try {
-      const res = await fetch(
-        `/api/v1/portals/client/${encodeURIComponent(token)}/change-orders/${co.id}/respond`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ action, signedName: signedName.trim(), comments: comments || undefined}),
-},
-);
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body.message || `Request failed (${res.status})`);
-}
+      await api.post(`/api/v1/portals/client/${encodeURIComponent(token)}/change-orders/${co.id}/respond`, {
+        action,
+        signedName: signedName.trim(),
+        comments: comments || undefined,
+});
       setFeedback(`CO-${String(co.variation_no).padStart(4, '0')} ${action === 'APPROVE' ? 'approved' : 'rejected'} — thank you.`);
       await load();
-} catch (err: any) {
-      setFeedback(err?.message || 'Failed to submit decision');
+} catch (err) {
+      setFeedback(apiErrorMessage(err, 'Failed to submit decision'));
+}
+};
+
+  const acknowledgePc = async () => {
+    setFeedback(null);
+    const typedName = await dialog.prompt({
+      title: 'Acknowledge practical completion',
+      inputLabel: 'Type your full name to acknowledge',
+      defaultValue: data?.stakeholder.name || '',
+      confirmLabel: 'Acknowledge',
+    });
+    if (!typedName || typedName.trim().length < 3) return;
+    try {
+      await api.post(`/api/v1/portals/client/${encodeURIComponent(token)}/closeout/acknowledge`, {
+        typedName: typedName.trim(),
+      });
+      setFeedback('Practical completion acknowledged — thank you.');
+      // Refresh the read-only feed so the acknowledged state shows.
+      api.get<any>(`/api/v1/portals/client/${encodeURIComponent(token)}`)
+        .then((b) => { if (b?.data) setExtra(b.data); })
+        .catch(() => { /* intentionally ignored: best-effort portal feed refresh */ });
+} catch (err) {
+      setFeedback(apiErrorMessage(err, 'Failed to record acknowledgement'));
 }
 };
 
@@ -135,12 +176,9 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 }
 
   if (error || !data) {
-    const isExpired = /expired/i.test(error || '');
-    const isRevoked = /revoked|invalid/i.test(error || '');
     return (
       <div>
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={error || undefined} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-purple-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={error || undefined} />
       </div>
     );
   }
@@ -149,6 +187,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
 <div className="flex items-start justify-between gap-4">
 <div>
@@ -159,9 +198,6 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
             {data.project?.code ? ` · ${data.project.code}` : ''}
 </p>
 </div>
-        {onBackToDashboard && (
-<button onClick={onBackToDashboard} className="text-xs text-slate-400 hover:text-slate-600">← Back</button>
-)}
 </div>
 
       {/* What you can do here */}
@@ -170,6 +206,8 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 <ul className="text-xs text-slate-600 space-y-1">
             <li>• Approve or decline change orders raised by the contractor</li>
             <li>• Follow payment certificates, invoices and retention deductions</li>
+            <li>• Track practical completion, the defects liability period and snag rectification</li>
+            <li>• Acknowledge practical completion once the certificate is issued</li>
             <li>• View progress photos, milestones and project updates</li>
 </ul>
 </div>
@@ -184,6 +222,68 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 </div>
 )}
 
+      {/* Stage 6: practical completion & closeout */}
+      {extra?.closeout && (extra.closeout.practicalCompletion || extra.closeout.snags.length > 0) && (
+        <div className="border border-slate-200 rounded-xl p-4 space-y-3" data-testid="client-closeout-card">
+          <h3 className="text-xs font-bold text-slate-700">Practical completion &amp; closeout</h3>
+          {extra.closeout.practicalCompletion ? (
+            <div className="text-xs space-y-1">
+              <p className="text-slate-700">
+                <span className="font-semibold">Certificate {extra.closeout.practicalCompletion.certificateReference}</span>
+                {' '}issued {extra.closeout.practicalCompletion.issueDate ? formatDate(extra.closeout.practicalCompletion.issueDate) : ''}
+              </p>
+              {extra.closeout.practicalCompletion.dlpExpiryDate && (
+                <p className="text-slate-600">
+                  Defects liability period ends{' '}
+                  <span className="font-semibold">{formatDate(extra.closeout.practicalCompletion.dlpExpiryDate)}</span>
+                  {' '}({extra.closeout.practicalCompletion.dlpDurationMonths ?? 6} months)
+                </p>
+              )}
+              <p className="text-slate-600">
+                Retention held {formatKes(extra.closeout.retention.held)} · released {formatKes(extra.closeout.retention.released)}
+                {Number(extra.closeout.retention.outstanding) > 0 && <> · outstanding {formatKes(extra.closeout.retention.outstanding)}</>}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">Practical completion has not been certified yet.</p>
+          )}
+
+          {extra.closeout.snags.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 mb-1.5">
+                Snag list — {Object.entries(extra.closeout.snagCounts).map(([s, n]) => `${n} ${statusLabel(s).toLowerCase()}`).join(' · ')}
+              </p>
+              <ul className="space-y-1">
+                {extra.closeout.snags.map((sn) => (
+                  <li key={sn.id} className="flex items-center justify-between text-[11px] bg-slate-50 rounded-lg px-3 py-1.5">
+                    <span className="text-slate-700">SN-{String(sn.snagNumber).padStart(3, '0')} — {sn.description}</span>
+                    <span className={`ml-2 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${sn.status === 'VERIFIED_CLOSED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{statusLabel(sn.status)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {extra.closeout.practicalCompletion && (
+            extra.closeout.acknowledged ? (
+              <p className="text-[11px] text-emerald-700 font-semibold">
+                Practical completion acknowledged by {extra.closeout.acknowledged.byName} on{' '}
+                {formatDate(extra.closeout.acknowledged.at)}
+              </p>
+            ) : (
+              <button
+                onClick={() => void acknowledgePc()}
+                className="px-3.5 py-2 min-h-[44px] text-xs font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-lg transition"
+                data-testid="client-acknowledge-pc"
+              >
+                Acknowledge practical completion
+              </button>
+            )
+          )}
+        </div>
+      )}
+
+
 <div className="space-y-3">
         {data.changeOrders.length === 0 && (
 <p className="text-sm text-slate-500 text-center py-8">No change orders on this project yet — when the contractor raises a variation, it will appear here for your approval.</p>
@@ -195,16 +295,16 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
 <div key={co.id} className="border border-slate-200 rounded-xl p-4 space-y-2">
 <div className="flex items-center justify-between gap-2 flex-wrap">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
                     CO-{String(co.variation_no).padStart(4, '0')}
 </span>
 <span className="text-sm font-bold text-slate-900">{co.title}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLES[co.status] || STATUS_STYLES.DRAFT}`}>
-                    {co.status.replace(/_/g, ' ')}
+                    {statusLabel(co.status)}
 </span>
 </div>
-<span className={`text-sm font-mono font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
-                  {isNegative ? '-' : '+'}KES {toCurrencyString(absAmount)}
+<span className={`text-sm tabular-nums font-bold ${isNegative ? 'text-rose-700' : 'text-emerald-700'}`}>
+                  {isNegative ? '-' : '+'}{formatMoney(absAmount)}
 </span>
 </div>
 
@@ -253,7 +353,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
               <div className="space-y-1.5">
                 {extra.progressRecords.map((pr) => (
                   <div key={pr.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
-                    <span className="text-slate-600">{pr.recordDate ? new Date(pr.recordDate).toLocaleDateString('en-KE') : '—'}</span>
+                    <span className="text-slate-600">{pr.recordDate ? formatDate(pr.recordDate) : '—'}</span>
                     <span className="font-semibold text-slate-900">{pr.overallProgress != null ? `${pr.overallProgress}%` : '—'}</span>
                   </div>
                 ))}
@@ -282,8 +382,8 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
                 {extra.certificates.map((c) => (
                   <div key={c.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
                     <div>
-                      <span className="font-mono font-semibold text-slate-900">{c.certificateNo}</span>
-                      <span className="text-slate-500 ml-2">{c.periodEnd ? new Date(c.periodEnd).toLocaleDateString('en-KE') : ''}</span>
+                      <span className="font-mono tabular-nums font-semibold text-slate-900">{c.certificateNo}</span>
+                      <span className="text-slate-500 ml-2">{c.periodEnd ? formatDate(c.periodEnd) : ''}</span>
                     </div>
                     <div className="text-right">
                       <span className="font-semibold text-slate-900">{formatKes(c.netPayable)}</span>
@@ -302,7 +402,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
                 {extra.invoices.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
                     <div>
-                      <span className="font-mono font-semibold text-slate-900">{inv.invoiceNo}</span>
+                      <span className="font-mono tabular-nums font-semibold text-slate-900">{inv.invoiceNo}</span>
                       <span className="text-slate-500 ml-2">{inv.title}</span>
                     </div>
                     <div className="text-right">
@@ -321,6 +421,7 @@ export default function ClientPortalView({ token, onBackToDashboard}: ClientPort
         </>
       )}
 </div>
+{dialog.element}
 </div>
 );
 }

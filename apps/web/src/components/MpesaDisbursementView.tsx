@@ -1,5 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { formatTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface MpesaDisbursementItem {
   id: string;
@@ -39,9 +41,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/b2c-disbursements`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/b2c-disbursements`);
       const list = (json.disbursements || []) as any[];
       setDisbursements(list.map((d) => ({
         id: d.id,
@@ -77,17 +77,11 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
   const handleApproval = async (id: string, action: 'approve' | 'reject') => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/b2c-disbursements/${id}/${action}`, {
-        method: 'POST', credentials: 'include',
-});
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => null);
-        throw new Error(errBody?.message || `Approval failed (${res.status})`);
-}
+      await api.post(`/api/v1/projects/${projectId}/b2c-disbursements/${id}/${action}`);
       await reload();
       setFeedback(` Disbursement ${action}d (simulated dispatch)`);
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 } finally {
       setLoading(false);
 }
@@ -105,22 +99,14 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
       const idempotencyKey = `B2C-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
       if (isLive) {
-        const res = await fetch(`/api/v1/projects/${projectId}/b2c-disburse`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
+        const created = await api.post<any>(`/api/v1/projects/${projectId}/b2c-disburse`, {
             disbursementType,
             recipientPhone,
             recipientName,
             amount,
             remarks,
             idempotencyKey,
-}),
-});
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => null);
-          throw new Error(errBody?.message || `B2C disbursement failed (${res.status})`);
-}
-        const created = await res.json();
+        }, { idempotencyKey });
         await reload();
         setIsModalOpen(false);
         setFeedback(
@@ -157,8 +143,8 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
       setDisbursements([newDisbursement, ...disbursements]);
       setIsModalOpen(false);
       setFeedback(` Safaricom Daraja B2C Disbursement Sent: ${formatKes(parseFloat(amount))} disbursed to ${recipientName} (${mpesaTxId})`);
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 } finally {
       setLoading(false);
 }
@@ -243,7 +229,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
             {disbursements.map((tx) => (
 <tr key={tx.id} className="hover:bg-gray-50">
 <td className="px-4 py-3 font-medium text-gray-900">{tx.recipientName}</td>
-<td className="px-4 py-3 text-gray-600 font-mono text-xs">{tx.recipientPhone}</td>
+<td className="px-4 py-3 text-gray-600 font-mono tabular-nums text-xs">{tx.recipientPhone}</td>
 <td className="px-4 py-3 text-xs text-gray-500">
 <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
                     {tx.disbursementType.replace(/_/g, ' ')}
@@ -265,11 +251,11 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
                     SIM
 </span>
 </td>
-<td className="px-4 py-3 text-center font-mono text-xs font-bold text-blue-600">
+<td className="px-4 py-3 text-center font-mono tabular-nums text-xs font-bold text-blue-600">
                   {tx.mpesaTransactionId || '—'}
 </td>
 <td className="px-4 py-3 text-right text-xs text-gray-500">
-                  {tx.completedAt ? new Date(tx.completedAt).toLocaleTimeString() : '—'}
+                  {tx.completedAt ? formatTime(new Date(tx.completedAt)) : '—'}
 </td>
 <td className="px-4 py-3 text-center">
                   {isLive && tx.status === 'PENDING_APPROVAL' && (
@@ -338,7 +324,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
                   placeholder="+2547XXXXXXXX"
                   value={recipientPhone}
                   onChange={(e) => setRecipientPhone(e.target.value)}
-                  className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm font-mono"
+                  className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm tabular-nums"
                   required
                 />
 </div>

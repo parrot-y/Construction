@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface ProjectMember {
   id: string;
@@ -76,17 +77,14 @@ export default function ProjectOnboardingView(): React.JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      const [pRes, mRes] = await Promise.all([
-        fetch('/api/v1/projects', { credentials: 'include'}),
-        fetch('/api/v1/company/members', { credentials: 'include'}).catch(() => null),
+      const [pJson, mJson] = await Promise.all([
+        api.get<any>('/api/v1/projects'),
+        api.get<any>('/api/v1/company/members').catch(() => null),
       ]);
-      if (!pRes.ok) throw new Error('Failed to load projects');
-      const pJson = await pRes.json();
       const list: Project[] = pJson.data || [];
       setProjects(list);
       if (list.length && !selectedId) setSelectedId(list[0]!.id);
-      if (mRes?.ok) {
-        const mJson = await mRes.json();
+      if (mJson) {
         const raw: RawCompanyMember[] = mJson.data || [];
         setCompanyMembers(
           raw
@@ -99,8 +97,8 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 })),
 );
 }
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err: unknown) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -155,19 +153,12 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 };
       if (form.progressPct) payload.progressPct = form.progressPct;
 
-      const res = await fetch(`/api/v1/projects/${selectedId}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(payload),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Save failed (${res.status})`);
+      await api.patch(`/api/v1/projects/${selectedId}`, payload);
       setFeedback('Project updated');
       setForm({ ...form, progressPct: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Save failed');
+} catch (err: unknown) {
+      setError(apiErrorMessage(err, 'Save failed'));
 } finally {
       setSaving(false);
 }
@@ -177,34 +168,27 @@ export default function ProjectOnboardingView(): React.JSX.Element {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/projects', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          name: form.name,
-          code: form.code,
-          description: form.description || null,
-          location: form.location || null,
-          mapLatitude: form.mapLatitude || null,
-          mapLongitude: form.mapLongitude || null,
-          contractValue: form.contractValue || null,
-          contractCurrency: form.contractCurrency || 'KES',
-          moneyAtRiskKes: form.moneyAtRiskKes || null,
-          ncaProjectNo: form.ncaProjectNo || null,
-          status: form.status,
-          startDate: form.startDate || null,
-          targetEndDate: form.targetEndDate || null,
-}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Create failed (${res.status})`);
+      const body = await api.post<any>('/api/v1/projects', {
+        name: form.name,
+        code: form.code,
+        description: form.description || null,
+        location: form.location || null,
+        mapLatitude: form.mapLatitude || null,
+        mapLongitude: form.mapLongitude || null,
+        contractValue: form.contractValue || null,
+        contractCurrency: form.contractCurrency || 'KES',
+        moneyAtRiskKes: form.moneyAtRiskKes || null,
+        ncaProjectNo: form.ncaProjectNo || null,
+        status: form.status,
+        startDate: form.startDate || null,
+        targetEndDate: form.targetEndDate || null,
+      });
       setFeedback(`Project ${body.data.code} created`);
       setShowCreate(false);
       setForm(emptyForm);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err: unknown) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -215,19 +199,12 @@ export default function ProjectOnboardingView(): React.JSX.Element {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${selectedId}/members`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ userId: assignUserId, role: assignRole}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Assign failed (${res.status})`);
+      await api.post(`/api/v1/projects/${selectedId}/members`, { userId: assignUserId, role: assignRole });
       setFeedback(`${assignRole} assigned`);
       setAssignUserId('');
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Assign failed');
+} catch (err: unknown) {
+      setError(apiErrorMessage(err, 'Assign failed'));
 } finally {
       setSaving(false);
 }
@@ -235,13 +212,10 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 
   const removeMember = async (userId: string) => {
     try {
-      await fetch(`/api/v1/projects/${selectedId}/members/${userId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-});
+      await api.delete(`/api/v1/projects/${selectedId}/members/${userId}`);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Remove failed');
+} catch (err: unknown) {
+      setError(apiErrorMessage(err, 'Remove failed'));
 }
 };
 
@@ -348,11 +322,11 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 </label>
 <label className="space-y-1">
 <span className={label}>Map pin latitude</span>
-<input type="text" value={form.mapLatitude} onChange={(e) => setForm({ ...form, mapLatitude: e.target.value})} placeholder="-1.286389" className={`${input} font-mono`} />
+<input type="text" value={form.mapLatitude} onChange={(e) => setForm({ ...form, mapLatitude: e.target.value})} placeholder="-1.286389" className={`${input} tabular-nums`} />
 </label>
 <label className="space-y-1">
 <span className={label}>Map pin longitude</span>
-<input type="text" value={form.mapLongitude} onChange={(e) => setForm({ ...form, mapLongitude: e.target.value})} placeholder="36.817223" className={`${input} font-mono`} />
+<input type="text" value={form.mapLongitude} onChange={(e) => setForm({ ...form, mapLongitude: e.target.value})} placeholder="36.817223" className={`${input} tabular-nums`} />
 </label>
 </div>
 </div>

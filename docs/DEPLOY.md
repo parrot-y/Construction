@@ -1,6 +1,6 @@
-# Site Safi — Deployment Runbook
+# Product — Deployment Runbook
 
-Production deployment for the Site Safi monorepo (Turborepo · Fastify 5 · Prisma/PostgreSQL · React 19 PWA).
+Production deployment for the construction-platform monorepo (Turborepo · Fastify 5 · Prisma/PostgreSQL · React 19 PWA).
 
 ## 1. Environment
 
@@ -17,6 +17,9 @@ Copy `.env.example` → `.env` (API) and configure:
 | `UPLOAD_DIR` | yes | Mounted persistent volume (or object-storage driver when provisioned) |
 | `UPLOAD_DRIVER` | no | `local` (only implemented driver) |
 | `DISABLED_MODULES` | no | Comma list: `plant,survey,tender,steel,asphalt,geofence` → 404 |
+| `OPERATOR_KEY` | **yes in production** | ≥32-char secret guarding `/api/v1/operator/*` (first-admin activation — see §7). Unset = operator endpoints disabled (503) |
+| `PRODUCT_NAME` | no | Display name shown in UI strings, PDFs, notifications, sender names. Default `BuildSasa` until the brand is decided |
+| `VITE_PRODUCT_NAME` | no | Web build-time equivalent of `PRODUCT_NAME` |
 | Provider keys | later | `AT_API_KEY`, `WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID`, `RESEND_API_KEY`, `MPESA_*`, `ETIMS_*` — all optional; unconfigured = honest SIMULATED |
 
 ## 2. Database (migrations + RLS)
@@ -65,3 +68,34 @@ pnpm --filter @construction/api start   # serves API
 - Access tokens: 15 min. Refresh tokens: 7 d, rotated on use, server-side reuse detection (`refresh_tokens` table) — a replayed token revokes the family.
 - `/uploads/*` is authenticated + tenant-scoped; never expose `UPLOAD_DIR` publicly.
 - Login is rate-limited (30/min/IP) plus failed-attempt lockout; `/api/public/*` limited to 30/min.
+
+## 7. First-admin activation (production bootstrap)
+
+Self-serve signup (`POST /api/v1/auth/register-company`) creates the tenant and
+its first `COMPANY_ADMIN` **unverified** — the login gate returns
+`403 ACCOUNT_NOT_VERIFIED` until the email/phone is verified. Email/SMS
+delivery is simulated for the pilot, so in production the platform operator
+must activate or reset that first admin directly:
+
+```bash
+# Activate (marks email+phone verified so the admin can sign in):
+curl -X POST "$API_URL/api/v1/operator/admin-account" \
+  -H "x-operator-key: $OPERATOR_KEY" -H 'content-type: application/json' \
+  -d '{"companySlug":"acme-builders","mode":"activate"}'
+
+# Or reset the admin password (also clears nothing else; combine with
+# activate first if the account was never verified):
+curl -X POST "$API_URL/api/v1/operator/admin-account" \
+  -H "x-operator-key: $OPERATOR_KEY" -H 'content-type: application/json' \
+  -d '{"companySlug":"acme-builders","mode":"reset-password","newPassword":"<choose-one>"}'
+```
+
+- Guarded by `x-operator-key` matching `OPERATOR_KEY` (timing-safe compare);
+  **not** a user session. Endpoint returns 503 when `OPERATOR_KEY` is unset.
+- Targets the **earliest `COMPANY_ADMIN` membership** of the tenant — i.e.
+  the self-serve signup admin. It cannot touch other members.
+- Every call writes an `OPERATOR_ADMIN_ACTIVATED` /
+  `OPERATOR_ADMIN_PASSWORD_RESET` audit-log row (tenant-scoped).
+- Interim measure only: replace with a real email/SMS verification provider
+  (Resend/Africa's Talking) when credentials are provisioned — see §1.
+- Covered by `apps/api/src/operator-activation.test.ts`.

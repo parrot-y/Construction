@@ -1,4 +1,4 @@
-# Site Safi Design System
+# Product Design System
 
 Single source of truth for visual language. Implemented as Tailwind v4 `@theme` tokens in `apps/web/src/index.css` and the component kit in `apps/web/src/ui/`.
 

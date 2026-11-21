@@ -66,7 +66,7 @@ export default function PhotoLightboxModal({
 <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white pointer-events-none bg-gradient-to-t from-slate-950/80 via-transparent to-transparent">
 <span className="text-4xl mb-2 drop-shadow-md"></span>
 <p className="text-sm font-semibold drop-shadow">{photo.caption}</p>
-<span className="text-[11px] font-mono opacity-80 mt-1">
+<span className="text-[11px] tabular-nums opacity-80 mt-1">
                  GPS {lat}, {lng} (Nairobi, Kenya)
 </span>
 </div>
@@ -78,7 +78,7 @@ export default function PhotoLightboxModal({
 <span className="text-[10px] font-semibold text-slate-400 block">
                 Nairobi GPS Pin
 </span>
-<span className="font-mono font-medium text-slate-800 mt-0.5 block">
+<span className="tabular-nums font-medium text-slate-800 mt-0.5 block">
                  {lat}, {lng}
 </span>
 </div>

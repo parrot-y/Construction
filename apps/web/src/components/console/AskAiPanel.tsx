@@ -3,11 +3,13 @@ import { formatKes } from '../../ui';
 import { useConsole} from './ConsoleContext';
 import { IconSend, IconSpark, IconX} from './icons';
 import { SUBTAB_LABELS} from './navConfig';
+import { PRODUCT_NAME } from '../../lib/product';
+import { api } from '../../lib/api';
 
 interface Msg { role: 'user' | 'bot'; text: string; link?: { section: string; tab: string; label: string}}
 
 /**
- * Site Safi Assistant — deterministic navigation assistant.
+ * Product assistant — deterministic navigation assistant.
  * Routes intents to the right workspace section. NOT an LLM; clearly
  * labelled so it never pretends to be AI. API-key LLM hookup lands here later.
  */
@@ -41,7 +43,10 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
     pattern: /how many|count|number of|status of|open/i,
     run: async (projectId: string) => {
       if (!projectId) return '';
-      const get = (u: string) => fetch(u, { credentials: 'include'}).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const get = (u: string) => api.get<any>(u).catch(() => {
+        // intentionally ignored: one failed feed shouldn't blank the whole answer
+        return null;
+      });
       const [snags, variations, attendance] = await Promise.all([
         get(`/api/v1/projects/${projectId}/snags`),
         get(`/api/v1/projects/${projectId}/variations`),
@@ -63,7 +68,10 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
     pattern: /overdue|unpaid|outstanding/i,
     run: async (projectId: string) => {
       if (!projectId) return '';
-      const j = await fetch(`/api/v1/invoices?projectId=${projectId}`, { credentials: 'include'}).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const j = await api.get<any>(`/api/v1/invoices?projectId=${projectId}`).catch(() => {
+        // intentionally ignored: unanswered intent falls back to the generic reply
+        return null;
+      });
       const rows = (j?.invoices || j?.data || []) as any[];
       if (!rows.length) return '';
       const outstanding = rows.filter((i) => Number(i.balance_due_num ?? i.balance_due ?? 0) > 0);
@@ -75,7 +83,10 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
     pattern: /attendance|muster|who.*site|labou?r.*today/i,
     run: async (projectId: string) => {
       if (!projectId) return '';
-      const j = await fetch(`/api/v1/projects/${projectId}/attendance`, { credentials: 'include'}).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const j = await api.get<any>(`/api/v1/projects/${projectId}/attendance`).catch(() => {
+        // intentionally ignored: unanswered intent falls back to the generic reply
+        return null;
+      });
       const n = j?.summary?.present ?? j?.count;
       return typeof n === 'number' ? `${n} labourer${n === 1 ? '' : 's'} recorded present today.` : '';
 },
@@ -85,7 +96,7 @@ const DATA_INTENTS: { pattern: RegExp; run: (projectId: string) => Promise<strin
 export default function AskAiPanel(): React.JSX.Element {
   const { aiOpen, setAiOpen, setSection, setTab, nav, projectId} = useConsole();
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: 'bot', text: 'Hi — I\u2019m the Site Safi assistant. Tell me what you need and I\u2019ll take you to the right workspace section.'},
+    { role: 'bot', text: 'Hi — I\u2019m the product assistant. Tell me what you need and I\u2019ll take you to the right workspace section.'},
   ]);
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
@@ -148,8 +159,8 @@ export default function AskAiPanel(): React.JSX.Element {
 <div className="flex items-center gap-2">
 <span className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center"><IconSpark className="w-4 h-4" /></span>
 <div>
-<p className="text-sm font-bold text-slate-900 dark:text-slate-100">Site Safi Assistant</p>
-<p className="text-[10px] text-slate-400">Navigation assistant — beta</p>
+<p className="text-sm font-bold text-slate-900 dark:text-slate-100">{PRODUCT_NAME} Assistant</p>
+<p className="text-[10px] text-slate-500">Navigation assistant — beta</p>
 </div>
 </div>
 <button onClick={() => setAiOpen(false)} aria-label="Close assistant" className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
@@ -197,14 +208,14 @@ export default function AskAiPanel(): React.JSX.Element {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about projects, invoices, site…"
-          aria-label="Ask the Site Safi assistant"
-          className="flex-1 text-sm border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          aria-label="Ask the product assistant"
+          className="flex-1 text-base sm:text-sm border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
 <button type="submit" aria-label="Send" className="w-11 h-11 rounded-xl bg-orange-600 text-white flex items-center justify-center hover:bg-orange-700 transition">
 <IconSend className="w-4 h-4" />
 </button>
 </form>
-<p className="px-4 pb-3 text-[10px] text-slate-400">Navigation assistant preview — connects to AI providers once keys are configured.</p>
+<p className="px-4 pb-3 text-[10px] text-slate-500">Navigation assistant preview — connects to AI providers once keys are configured.</p>
 </div>
 );
 }

@@ -1,5 +1,7 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
+import { api } from '../lib/api';
 
 export interface MaterialWastageItem {
   id: string;
@@ -87,9 +89,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/material-wastage`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/material-wastage`);
       const list = (json.reconciliations || json.data || []) as any[];
       setReconciliations(list.map((r) => ({
         id: r.id,
@@ -175,22 +175,17 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/material-wastage`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify(payload),
-});
-        if (res.ok) {
-          await reload();
-          setIsSubmitting(false);
-          setIsModalOpen(false);
-          setPeriodName('');
-          setMaterialName('');
-          setTheoreticalQuantity('');
-          setActualConsumedQuantity('');
-          setUnitCostKes('');
-          setInvestigationNotes('');
-          return;
-}
+        await api.post(`/api/v1/projects/${projectId}/material-wastage`, payload);
+        await reload();
+        setIsSubmitting(false);
+        setIsModalOpen(false);
+        setPeriodName('');
+        setMaterialName('');
+        setTheoreticalQuantity('');
+        setActualConsumedQuantity('');
+        setUnitCostKes('');
+        setInvestigationNotes('');
+        return;
 } catch { /* fall through to local */}
 }
 
@@ -306,7 +301,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 <tr key={rec.id} className="hover:bg-slate-50/80 transition">
 <td className="py-3 px-4">
 <p className="font-semibold text-slate-900">{rec.periodName}</p>
-<p className="text-xs text-slate-400">{new Date(rec.createdAt).toLocaleDateString()}</p>
+<p className="text-xs text-slate-400">{formatDate(new Date(rec.createdAt))}</p>
 </td>
 <td className="py-3 px-4 font-medium text-slate-800">
                     {rec.materialName}
@@ -319,7 +314,7 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 </td>
 <td className="py-3 px-4">
 <span
-                      className={`font-mono font-bold ${
+                      className={`tabular-nums font-bold ${
                         Number(rec.actualWastagePct) > Number(rec.allowableWastagePct)
                           ? 'text-rose-600'
                           : 'text-emerald-600'
@@ -470,13 +465,13 @@ export const MaterialWastageVarianceCard: React.FC<MaterialWastageVarianceCardPr
 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
 <div>
 <span className="text-slate-500">Calculated Wastage:</span>
-<span className={`font-bold font-mono ${parseFloat(actualWastagePct) > allowable ? 'text-rose-600' : 'text-emerald-600'}`}>
+<span className={`font-bold tabular-nums ${parseFloat(actualWastagePct) > allowable ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {actualWastagePct}%
 </span>
 </div>
 <div>
 <span className="text-slate-500">Financial Leakage:</span>
-<span className="font-bold text-slate-900 font-mono">{formatKes(financialLoss)}</span>
+<span className="font-bold text-slate-900 tabular-nums">{formatKes(financialLoss)}</span>
 </div>
 </div>
 

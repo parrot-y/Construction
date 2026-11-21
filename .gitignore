@@ -43,3 +43,10 @@ playwright-report/
 tmp/
 /tmp
 uploads/
+
+# Terraform
+infra/terraform.tfstate*
+infra/.terraform/
+infra/crash.log
+infra/bootstrap/.terraform/
+infra/bootstrap/terraform.tfstate*

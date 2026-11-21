@@ -56,7 +56,7 @@ test.describe('D. Certificate → invoice → payment → retention', () => {
     expect(invoiceId).toBeTruthy();
 
     // 3b. Send the invoice (payments only allowed on SENT/PART_PAID)
-    const sendRes = await apiPost(request, admin, `/api/v1/invoices/${invoiceId}/send`, {});
+    const sendRes = await apiPost(request, admin, `/api/v1/invoices/${invoiceId}/send`, { selfApprovalReason: 'E2E certificate invoice send reason' });
     expect([200, 201], await sendRes.text()).toContain(sendRes.status());
 
     // 4. Record payment (simulated — real endpoint; M-Pesa stays SIMULATED)

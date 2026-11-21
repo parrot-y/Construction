@@ -31,8 +31,19 @@ mkdir -p "${REPO_ROOT}/docs/evidence"
 LOG_FILE="${REPO_ROOT}/docs/evidence/verify-${COMMIT_HASH}.log"
 : > "${LOG_FILE}"
 
-# Stream all output to both console and LOG_FILE
-exec > >(tee -a "${LOG_FILE}") 2>&1
+# Stream all output to both console and LOG_FILE, sanitised on the way:
+# committed evidence must never contain machine-specific paths or the
+# workstation host name (enforced by scripts/check-evidence-hygiene.sh).
+sanitize_stream() {
+  sed -E \
+    -e "s#${REPO_ROOT}#<repo>#g" \
+    -e 's#/home/[A-Za-z0-9_.-]+#<home>#g' \
+    -e 's#/Users/[^/[:space:]"'"'"']+#<home>#g' \
+    -e 's#C:\\Users\\[^\\"'"'"'[:space:]]+#<home>#g' \
+    -e 's#"hostname":"[^"]*"#"hostname":"<host>"#g' \
+    -e 's#\bkali\b#<host>#g'
+}
+exec > >(sanitize_stream | tee -a "${LOG_FILE}") 2>&1
 
 echo "================================================================================"
 echo "PLATFORM LOCAL CI VERIFICATION REPLICA"

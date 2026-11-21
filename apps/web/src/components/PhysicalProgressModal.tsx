@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { queueOfflineMutation} from '../services/offline-sync';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface PhysicalProgressModalProps {
   isOpen: boolean;
@@ -61,8 +62,8 @@ export default function PhysicalProgressModal({
           onProgressRecorded({ ...payload, isOfflineQueued: true});
 }
         onClose();
-} catch (err: any) {
-        setError(err.message || 'Failed to queue progress offline');
+} catch (err) {
+        setError(apiErrorMessage(err, 'Failed to queue progress offline'));
 } finally {
         setIsSubmitting(false);
 }
@@ -70,18 +71,7 @@ export default function PhysicalProgressModal({
 }
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/progress`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to record progress (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData = await api.post<{ data?: any }>(`/api/v1/projects/${projectId}/progress`, payload);
       if (onProgressRecorded) onProgressRecorded(resData.data);
       onClose();
 } catch {
@@ -136,7 +126,7 @@ export default function PhysicalProgressModal({
                 required
                 value={recordDate}
                 onChange={(e) => setRecordDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden font-mono"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden tabular-nums"
               />
 </div>
 
@@ -151,7 +141,7 @@ export default function PhysicalProgressModal({
                   required
                   value={overallProgressPct}
                   onChange={(e) => setOverallProgressPct(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden font-mono font-bold"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden tabular-nums font-bold"
                 />
 <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">%</span>
 </div>
@@ -184,7 +174,7 @@ export default function PhysicalProgressModal({
                       step="0.0001"
                       value={completedQty}
                       onChange={(e) => setCompletedQty(e.target.value)}
-                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md font-mono"
+                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md tabular-nums"
                     />
 </div>
 <div>
@@ -196,7 +186,7 @@ export default function PhysicalProgressModal({
                       max="100"
                       value={itemCompletionPct}
                       onChange={(e) => setItemCompletionPct(e.target.value)}
-                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md font-mono font-bold"
+                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md tabular-nums font-bold"
                     />
 </div>
 </div>

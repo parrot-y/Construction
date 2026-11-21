@@ -1,4 +1,10 @@
 import React, { useEffect, useState} from 'react';
+import { queueOfflineMutation } from '../services/offline-sync';
+import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
+import { SavedDataNotice } from '../ui';
+import { statusLabel } from '../lib/status-labels';
+import { formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface SafetyIncident {
   id: string;
@@ -36,11 +42,15 @@ export default function SafetyIncidentLogView({
   const [incidents, setIncidents] = useState<SafetyIncident[]>(initialIncidents ?? []);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
   const load = async () => {
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/safety-incidents`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load safety incidents');
-      const body = await res.json();
+      const { body, savedAt: staleAt } = await fetchJsonCached(
+        `/api/v1/projects/${projectId}/safety-incidents`,
+        `safety-incidents:${projectId}`,
+      );
+      if (staleAt) setSavedAt(staleAt);
       const sevMap: Record<string, SafetyIncident['severity']> = { MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' };
       setIncidents((body.incidents || []).map((i: any): SafetyIncident => ({
         id: i.id,
@@ -58,8 +68,8 @@ export default function SafetyIncidentLogView({
         reported_at: i.created_at,
       })));
       setLoadError(null);
-    } catch (e: any) {
-      setLoadError(e.message || 'Failed to load safety incidents');
+    } catch (e) {
+      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : apiErrorMessage(e, 'Failed to load safety incidents'));
     }
   };
 
@@ -90,25 +100,70 @@ export default function SafetyIncidentLogView({
   const lostTimeCount = incidents.filter((i) => i.incident_type === 'LOST_TIME_INJURY').length;
   const oshaReportableCount = incidents.filter((i) => i.is_osha_reportable).length;
 
-  const handleCreateIncident = (e: React.FormEvent) => {
+  const handleCreateIncident = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLocation.trim() || !newDescription.trim()) return;
 
-    const created: SafetyIncident = {
-      id: `inc-${Date.now()}`,
-      incident_date: new Date(newDate).toISOString(),
-      location_on_site: newLocation.trim(),
-      incident_type: newType,
-      severity: newSeverity,
+    const sevToApi: Record<SafetyIncident['severity'], string> = { LOW: 'MINOR', MEDIUM: 'MODERATE', HIGH: 'SERIOUS', CRITICAL: 'CRITICAL' };
+    const payload = {
+      incidentDate: newDate.slice(0, 10),
+      incidentTime: newDate.slice(11, 16) || undefined,
+      incidentType: newType,
+      severity: sevToApi[newSeverity],
+      exactLocation: newLocation.trim(),
+      affectedPersonName: newAffected.trim() || undefined,
       description: newDescription.trim(),
-      affected_person: newAffected.trim() || null,
-      immediate_action: newImmediate.trim() || null,
-      corrective_action: newCorrective.trim() || null,
-      is_osha_reportable: newOsha,
-      status: 'OPEN',
-      reported_at: new Date().toISOString(),
-      recorded_by: { full_name: 'Site HSE Officer'},
-};
+      immediateAction: newImmediate.trim() || undefined,
+      preventativeAction: newCorrective.trim() || undefined,
+      isOshaReportable: newOsha,
+      investigatedBy: 'Site HSE Officer',
+    };
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    let created: SafetyIncident | null = null;
+
+    if (!isOffline) {
+      try {
+        const body: any = await api.post(`/api/v1/projects/${projectId}/safety-incidents`, payload);
+        const i = body?.data ?? body;
+        created = {
+          id: i.id,
+          incident_date: i.incident_date,
+          location_on_site: i.exact_location,
+          incident_type: i.incident_type,
+          severity: ({ MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' } as const)[i.severity as 'MINOR'] || 'MEDIUM',
+          description: i.description,
+          affected_person: i.affected_person_name,
+          immediate_action: i.immediate_action,
+          corrective_action: i.preventative_action,
+          is_osha_reportable: !!i.is_osha_reportable,
+          status: 'OPEN',
+          recorded_by: { full_name: i.investigated_by || 'Site team' },
+          reported_at: i.created_at,
+        };
+      } catch { /* intentionally ignored: fall through to offline queue */ }
+    }
+
+    if (!created) {
+      // Offline (or API unreachable): queue with idempotency key — the sync
+      // engine replays it exactly once when connectivity returns.
+      await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/safety-incidents`, payload);
+      created = {
+        id: `inc-${Date.now()}`,
+        incident_date: new Date(newDate).toISOString(),
+        location_on_site: newLocation.trim(),
+        incident_type: newType,
+        severity: newSeverity,
+        description: newDescription.trim(),
+        affected_person: newAffected.trim() || null,
+        immediate_action: newImmediate.trim() || null,
+        corrective_action: newCorrective.trim() || null,
+        is_osha_reportable: newOsha,
+        status: 'OPEN',
+        recorded_by: { full_name: 'Site HSE Officer'},
+        reported_at: new Date().toISOString(),
+      };
+    }
 
     setIncidents([created, ...incidents]);
     if (onIncidentLogged) onIncidentLogged(created);
@@ -257,6 +312,7 @@ export default function SafetyIncidentLogView({
 </div>
 </div>
 
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       {loadError && (
 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">{loadError}</div>
 )}
@@ -274,7 +330,7 @@ export default function SafetyIncidentLogView({
 <div className="flex-1 min-w-0">
 <div className="flex flex-wrap items-center gap-2 mb-2">
 <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
-                      {item.incident_type.replace('_', ' ')}
+                      {statusLabel(item.incident_type)}
 </span>
                     {getSeverityBadge(item.severity)}
                     {item.is_osha_reportable && (
@@ -283,7 +339,7 @@ export default function SafetyIncidentLogView({
 </span>
 )}
 <span className="text-xs text-slate-400">
-                      • {new Date(item.incident_date).toLocaleString()}
+                      • {formatDateTime(new Date(item.incident_date))}
 </span>
 </div>
 
@@ -319,7 +375,7 @@ export default function SafetyIncidentLogView({
 <span className="text-xs text-slate-400 block mb-1">Investigation Status</span>
                     {canInvestigate ? (
 <select
-                        value={item.status}
+                        value={statusLabel(item.status)}
                         onChange={(e) => handleStatusChange(item.id, e.target.value as any)}
                         className="text-xs font-semibold border border-slate-300 rounded px-2.5 py-1 bg-white text-slate-800 focus:outline-none"
                       >
@@ -330,7 +386,7 @@ export default function SafetyIncidentLogView({
 </select>
 ) : (
 <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded">
-                        {item.status}
+                        {statusLabel(item.status)}
 </span>
 )}
 </div>

@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface ScheduledReport {
   id: string; name: string; report_type: string; frequency: string;
@@ -28,12 +30,10 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/reports/scheduled', { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load scheduled reports');
-      const json = await res.json();
-      setReports(json.data || []);
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+      const json: any = await api.get('/api/v1/reports/scheduled');
+      setReports(json?.data || []);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -45,25 +45,20 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/reports/scheduled', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          name: form.name,
-          reportType: form.reportType,
-          frequency: form.frequency,
-          dayOfWeek: form.frequency === 'WEEKLY' ? parseInt(form.dayOfWeek, 10) : null,
-          dayOfMonth: form.frequency === 'MONTHLY' ? parseInt(form.dayOfMonth, 10) : null,
-          recipients: form.recipients.split(',').map((r) => r.trim()).filter(Boolean),
-          format: form.format,
-}),
+      await api.post('/api/v1/reports/scheduled', {
+        name: form.name,
+        reportType: form.reportType,
+        frequency: form.frequency,
+        dayOfWeek: form.frequency === 'WEEKLY' ? parseInt(form.dayOfWeek, 10) : null,
+        dayOfMonth: form.frequency === 'MONTHLY' ? parseInt(form.dayOfMonth, 10) : null,
+        recipients: form.recipients.split(',').map((r) => r.trim()).filter(Boolean),
+        format: form.format,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowForm(false);
       setForm({ name: '', reportType: 'FINANCIAL', frequency: 'WEEKLY', dayOfWeek: '1', dayOfMonth: '1', recipients: '', format: 'PDF'});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -71,26 +66,21 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
 
   const setStatus = async (id: string, status: string) => {
     try {
-      await fetch(`/api/v1/reports/scheduled/${id}`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status}),
-});
+      await api.patch(`/api/v1/reports/scheduled/${id}`, { status});
       await load();
-} catch { /* ignore */}
+} catch { /* intentionally ignored: best-effort pause/resume */ }
 };
 
   const runNow = async (id: string) => {
     setRunning(id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/reports/scheduled/${id}/run`, { method: 'POST', credentials: 'include'});
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Run failed (${res.status})`);
+      await api.post(`/api/v1/reports/scheduled/${id}/run`);
       await load();
       // refresh expanded runs
       if (expandedRuns === id) await toggleRuns(id);
-} catch (err: any) {
-      setError(err?.message || 'Run failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Run failed'));
 } finally {
       setRunning(null);
 }
@@ -100,11 +90,10 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
     if (expandedRuns === id) { setExpandedRuns(null); return;}
     setExpandedRuns(id);
     if (!runs[id]) {
-      const res = await fetch(`/api/v1/reports/scheduled/${id}/runs`, { credentials: 'include'});
-      if (res.ok) {
-        const json = await res.json();
-        setRuns((prev) => ({ ...prev, [id]: json.data || []}));
-}
+      try {
+        const json: any = await api.get(`/api/v1/reports/scheduled/${id}/runs`);
+        setRuns((prev) => ({ ...prev, [id]: json?.data || []}));
+} catch { /* intentionally ignored: run history is best-effort */ }
 }
 };
 
@@ -186,7 +175,7 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
                     {r.project ? `${r.project.code} — ${r.project.name}` : 'All projects'} · → {r.recipients.join(', ')}
 </p>
 <p className="text-[10px] text-slate-400 mt-0.5">
-                    Next: {r.next_run_at ? new Date(r.next_run_at).toLocaleString() : '—'} · Last: {r.last_run_at ? new Date(r.last_run_at).toLocaleString() : 'never'}
+                    Next: {r.next_run_at ? formatDateTime(new Date(r.next_run_at)) : '—'} · Last: {r.last_run_at ? formatDateTime(new Date(r.last_run_at)) : 'never'}
 </p>
 </div>
 <div className="flex flex-col gap-1 shrink-0">
@@ -214,7 +203,7 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
 ) : (
                     (runs[r.id] || []).map((run: any) => (
 <div key={run.id} className="flex items-center justify-between text-[11px]">
-<span className="text-slate-600">{new Date(run.ran_at).toLocaleString()}</span>
+<span className="text-slate-600">{formatDateTime(new Date(run.ran_at))}</span>
 <span className={`font-bold ${run.status === 'SUCCESS' ? 'text-emerald-600' : 'text-rose-600'}`}>{run.status}</span>
 </div>
 ))

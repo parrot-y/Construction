@@ -1,4 +1,6 @@
 import React, { useEffect, useState} from 'react';
+import { formatTime } from '../lib/format';
+import { api } from '../lib/api';
 
 export interface WebhookLogItem {
   id: string;
@@ -69,17 +71,12 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
   const reload = React.useCallback(async () => {
     if (!isLive || !projectId) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/site-alerts`, { credentials: 'include'});
-      if (res.ok) {
-        const aj = await res.json();
-        setAlerts((aj.alerts || []) as SiteAlertItem[]);
-}
+      const aj = await api.get<any>(`/api/v1/projects/${projectId}/site-alerts`);
+      setAlerts((aj.alerts || []) as SiteAlertItem[]);
 } catch { /* keep demo */}
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/site-webhook-logs`, { credentials: 'include'});
-      if (res.ok) {
-        const lj = await res.json();
-        setLogs(((lj.logs || []) as any[]).map((l) => ({
+      const lj = await api.get<any>(`/api/v1/projects/${projectId}/site-webhook-logs`);
+      setLogs(((lj.logs || []) as any[]).map((l) => ({
           id: l.id,
           senderPhone: l.senderPhone || '***',
           senderName: l.senderName || 'Unknown',
@@ -90,9 +87,6 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
           replyMessage: l.replyMessage || '',
           createdAt: l.createdAt || '',
 })));
-} else {
-        setLogs([]);
-}
 } catch { setLogs([]);}
     setLiveLoaded(true);
 }, [isLive, projectId]);
@@ -231,18 +225,15 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
     if (isLive && projectId) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/site-alerts`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              recipientPhone,
-              recipientName,
-              recipientRole,
-              alertType,
-              messageBody: alertMessage,
-              deliveryChannel: 'WHATSAPP',
-}),
+          await api.post(`/api/v1/projects/${projectId}/site-alerts`, {
+            recipientPhone,
+            recipientName,
+            recipientRole,
+            alertType,
+            messageBody: alertMessage,
+            deliveryChannel: 'WHATSAPP',
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowAlertModal(false);
@@ -360,10 +351,10 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 </span>
 <div>
 <div className="text-sm font-bold text-slate-900 dark:text-white">
-                      {log.senderName}<span className="font-mono text-xs font-normal text-slate-500">({log.senderPhone})</span>
+                      {log.senderName}<span className="tabular-nums text-xs font-normal text-slate-500">({log.senderPhone})</span>
 </div>
 <div className="text-[11px] text-slate-400">
-                      {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})} • Via Meta WhatsApp Cloud API
+                      {formatTime(new Date(log.createdAt))} • Via Meta WhatsApp Cloud API
 </div>
 </div>
 </div>
@@ -446,7 +437,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                         {alt.recipientRole}
 </span>
 </td>
-<td className="py-3 px-4 font-mono text-xs">{alt.recipientPhone}</td>
+<td className="py-3 px-4 tabular-nums text-xs">{alt.recipientPhone}</td>
 <td className="py-3 px-4">
 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
                          {alt.alertType.replace(/_/g, ' ')}
@@ -500,7 +491,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                     type="text"
                     value={senderPhone}
                     onChange={(e) => setSenderPhone(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -573,7 +564,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
                     type="text"
                     value={recipientPhone}
                     onChange={(e) => setRecipientPhone(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>

@@ -1,4 +1,6 @@
 import React, { useEffect, useState} from 'react';
+import { formatTime } from '../lib/format';
+import { api } from '../lib/api';
 
 export interface RmcSlumpTestRecord {
   id: string;
@@ -139,9 +141,7 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/rmc-deliveries`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/rmc-deliveries`);
       const list = (json.deliveries || []) as any[];
       setDeliveries(list.map((d) => ({
         id: d.id,
@@ -269,27 +269,22 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
     if (isLive) {
       try {
         const dispatchedAt = new Date(Date.now() - minutesAgo * 60000).toISOString();
-        const res = await fetch(`/api/v1/projects/${projectId}/rmc-deliveries`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            deliveryTicketNo: ticketNo,
-            supplierName,
-            truckRegistrationNo: truckReg,
-            driverName: driverName || null,
-            driverPhone: driverPhone || null,
-            concreteClass,
-            orderedVolumeM3: parseFloat(orderedVolume),
-            dispatchedAt,
-            pourLocationElement: pourLocation,
-}),
-});
-        if (res.ok) {
-          await reload();
-          setShowAddModal(false);
-          setTicketNo('');
-          setTruckReg('');
-          setPourLocation('');
-}
+        await api.post(`/api/v1/projects/${projectId}/rmc-deliveries`, {
+          deliveryTicketNo: ticketNo,
+          supplierName,
+          truckRegistrationNo: truckReg,
+          driverName: driverName || null,
+          driverPhone: driverPhone || null,
+          concreteClass,
+          orderedVolumeM3: parseFloat(orderedVolume),
+          dispatchedAt,
+          pourLocationElement: pourLocation,
+        });
+        await reload();
+        setShowAddModal(false);
+        setTicketNo('');
+        setTruckReg('');
+        setPourLocation('');
 } catch { /* keep modal open on failure */}
       return;
 }
@@ -330,22 +325,17 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/rmc-deliveries/${selectedDelivery.id}/slump-tests`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            specifiedSlumpMm: Math.min(250, Math.max(20, selectedDelivery.slumpSpecifiedMm || measuredSlump)),
-            measuredSlumpMm: measuredSlump,
-            slumpType: 'TRUE_SLUMP',
-            concreteTemperatureC: parseFloat(concreteTemp) || 25,
-            ambientTemperatureC: null,
-            testedByInspector: inspectorName,
-            cubesCastBatchNo: null,
-}),
-});
-        if (res.ok) {
-          await reload();
-          setShowSlumpModal(false);
-}
+        await api.post(`/api/v1/projects/${projectId}/rmc-deliveries/${selectedDelivery.id}/slump-tests`, {
+          specifiedSlumpMm: Math.min(250, Math.max(20, selectedDelivery.slumpSpecifiedMm || measuredSlump)),
+          measuredSlumpMm: measuredSlump,
+          slumpType: 'TRUE_SLUMP',
+          concreteTemperatureC: parseFloat(concreteTemp) || 25,
+          ambientTemperatureC: null,
+          testedByInspector: inspectorName,
+          cubesCastBatchNo: null,
+        });
+        await reload();
+        setShowSlumpModal(false);
 } catch { /* keep modal open on failure */}
       return;
 }
@@ -399,21 +389,16 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
     if (isLive) {
       try {
         const nowIso = new Date().toISOString();
-        const res = await fetch(`/api/v1/projects/${projectId}/rmc-deliveries/${selectedDelivery.id}/discharge`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            arrivedAt: nowIso,
-            ...(dischargeStatus === 'POURING' ? { dischargeStartedAt: nowIso} : {}),
-            ...(dischargeStatus === 'COMPLETED' ? { dischargeCompletedAt: nowIso} : {}),
-            waterAddedOnSiteLiters: parseFloat(waterTamperLiters) || 0,
-            rejectionReason: rejectionNotes || null,
-            status: dischargeStatus,
-}),
-});
-        if (res.ok) {
-          await reload();
-          setShowDischargeModal(false);
-}
+        await api.patch(`/api/v1/projects/${projectId}/rmc-deliveries/${selectedDelivery.id}/discharge`, {
+          arrivedAt: nowIso,
+          ...(dischargeStatus === 'POURING' ? { dischargeStartedAt: nowIso} : {}),
+          ...(dischargeStatus === 'COMPLETED' ? { dischargeCompletedAt: nowIso} : {}),
+          waterAddedOnSiteLiters: parseFloat(waterTamperLiters) || 0,
+          rejectionReason: rejectionNotes || null,
+          status: dischargeStatus,
+        });
+        await reload();
+        setShowDischargeModal(false);
 } catch { /* keep modal open on failure */}
       return;
 }
@@ -550,7 +535,7 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
 <tr key={delivery.id} className="hover:bg-gray-50 transition">
 <td className="px-4 py-3">
 <div className="font-semibold text-gray-900">{delivery.deliveryTicketNo}</div>
-<div className="text-xs text-gray-500 font-mono mt-0.5">{delivery.truckRegistrationNo}</div>
+<div className="text-xs text-gray-500 font-mono tabular-nums mt-0.5">{delivery.truckRegistrationNo}</div>
                         {delivery.driverName && (
 <div className="text-xs text-gray-400 mt-0.5"> {delivery.driverName}</div>
 )}
@@ -566,7 +551,7 @@ export const RmcTransitTrackerView: React.FC<RmcTransitTrackerViewProps> = ({
 <td className="px-4 py-3">
                         {getTransitBadge(elapsedMinutes)}
 <div className="text-xs text-gray-400 mt-1">
-                          Dispatched: {new Date(delivery.dispatchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                          Dispatched: {formatTime(new Date(delivery.dispatchedAt))}
 </div>
 </td>
 <td className="px-4 py-3">

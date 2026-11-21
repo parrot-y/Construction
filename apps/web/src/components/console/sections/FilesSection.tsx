@@ -3,6 +3,7 @@ import { formatKes } from '../../../ui';
 import { useConsole} from '../ConsoleContext';
 import CompanyDocumentsView from '../../CompanyDocumentsView';
 import ScheduledReportsView from '../../ScheduledReportsView';
+import { api } from '../../../lib/api';
 
 const PERIODS = ['7D', '30D', 'QTD', 'YTD'];
 
@@ -23,8 +24,7 @@ function ReportsView(): React.JSX.Element {
 
   useEffect(() => {
     if (!livePid) { setCoMetrics(null); return;}
-    fetch(`/api/v1/projects/${livePid}/variations`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: any[] }>(`/api/v1/projects/${livePid}/variations`)
       .then((j) => {
         const rows = (j.data || j || []) as any[];
         if (!rows.length) { setCoMetrics(null); return;}
@@ -58,7 +58,7 @@ function ReportsView(): React.JSX.Element {
 <p className="text-xs text-slate-500 dark:text-slate-400">Financial and operational reporting across your projects.</p>
 </div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-semibold text-slate-400">Period</span>
+<span className="text-[11px] font-semibold text-slate-500">Period</span>
 <div className="flex gap-1">
             {PERIODS.map((p) => (
 <button key={p} onClick={() => setPeriod(p)}
@@ -79,9 +79,9 @@ function ReportsView(): React.JSX.Element {
             ['Rework Rate', `${coMetrics.reworkRate}%`, 'rejected or rework'],
           ].map(([label, value, sub]) => (
 <div key={label as string} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
-<p className="text-[10px] font-bold text-slate-400">{label}</p>
+<p className="text-[10px] font-bold text-slate-500">{label}</p>
 <p className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">{value}</p>
-<p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
+<p className="text-[10px] text-slate-500 mt-0.5">{sub}</p>
 </div>
 ))}
 </div>
@@ -91,7 +91,7 @@ function ReportsView(): React.JSX.Element {
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
 <div className="flex items-center justify-between mb-3">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">CO Volume by Status</h4>
-<span className="text-[10px] text-slate-400">Number of change orders</span>
+<span className="text-[10px] text-slate-500">Number of change orders</span>
 </div>
 <div className="space-y-2">
             {Object.entries(coMetrics.byStatus).sort((a, b) => b[1] - a[1]).map(([st, n]) => {
@@ -104,7 +104,7 @@ function ReportsView(): React.JSX.Element {
 <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
 <div className={`h-full rounded-full ${colors[st] || 'bg-slate-500'}`} style={{ width: `${pct}%`}} />
 </div>
-<span className="w-8 text-right text-xs font-bold font-mono text-slate-700 dark:text-slate-200">{n}</span>
+<span className="w-8 text-right text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200">{n}</span>
 </div>
 );
 })}
@@ -123,7 +123,7 @@ function ReportsView(): React.JSX.Element {
                 Export {r.fmt}
 </a>
 ) : (
-<span className="mt-4 text-[11px] text-slate-400">Select a project</span>
+<span className="mt-4 text-[11px] text-slate-500">Select a project</span>
 )}
 </div>
 ))}
@@ -136,12 +136,12 @@ function ReportsView(): React.JSX.Element {
               Export Excel
 </a>
 ) : (
-<span className="mt-4 text-[11px] text-slate-400">Select a project</span>
+<span className="mt-4 text-[11px] text-slate-500">Select a project</span>
 )}
 </div>
 </div>
 
-      {pname &&<p className="text-[11px] text-slate-400">Project: {pname} · period {period} (filters apply to scheduled reports below)</p>}
+      {pname &&<p className="text-[11px] text-slate-500">Project: {pname} · period {period} (filters apply to scheduled reports below)</p>}
 <ScheduledReportsView canManage={false} />
 </div>
 );

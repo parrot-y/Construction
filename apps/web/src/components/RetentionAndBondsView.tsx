@@ -1,5 +1,9 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../ui';
+import { useAppDialog } from './AppDialog';
+import { formatKes, ResponsiveTable } from '../ui';
+import { api, apiErrorMessage } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
+import { canReviewRetentionRelease, canDirectRetentionRelease } from '@construction/permissions';
 
 export interface RetentionReleaseItem {
   id: string;
@@ -13,7 +17,10 @@ export interface RetentionReleaseItem {
   releaseAmount: string;
   qsRecommendationNotes?: string | null;
   defectClearanceVerified: boolean;
-  status: 'PENDING_QS_REVIEW' | 'APPROVED_BY_DIRECTOR' | 'PAID' | 'REJECTED';
+  status: 'PENDING_QS_REVIEW' | 'QS_RECOMMENDED' | 'APPROVED_BY_DIRECTOR' | 'PAID' | 'REJECTED';
+  requestedByUserId?: string | null;
+  recommendedByUserId?: string | null;
+  approvedByUserId?: string | null;
   disbursementRef?: string | null;
   disbursedAt?: string | null;
   createdAt: string;
@@ -56,11 +63,14 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   releases: initialReleases,
   bonds: initialBonds,
   summary: initialSummary,
-  userRole: _userRole,
+  userRole = '',
   onCreateRelease,
   onReviewRelease,
   onCreateBond,
 }) => {
+  const dialog = useAppDialog();
+  const canReviewRelease = canReviewRetentionRelease(userRole);
+  const canDirectRelease = canDirectRetentionRelease(userRole);
   const [activeTab, setActiveTab] = useState<'RETENTION' | 'BONDS'>('RETENTION');
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [showBondModal, setShowBondModal] = useState(false);
@@ -84,29 +94,45 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
   const [releasePackageId, setReleasePackageId] = useState('');
   const [subPkgs, setSubPkgs] = useState<{ id: string; firm_name: string}[]>([]);
 
+  // Round H3: retention schedule labels come from the project's own
+  // settings — never hard-coded 5%/50%.
+  const [projTerms, setProjTerms] = useState<{ rate: string; cap: string; first: string; second: string } | null>(null);
+  const termsApplied = React.useRef(false);
+  const fmtPct = (v: unknown, fallback: number) => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+    const p = Number.isFinite(n) ? n : fallback;
+    return `${p.toFixed(2).replace(/\.00$/, '')}`;
+  };
+
   const isLive = !!projectId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [liveLoaded, setLiveLoaded] = useState(!isLive);
 
   const reload = React.useCallback(async () => {
     if (!isLive || !projectId) return;
     try {
-      const [relRes, bondRes, pkgRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/contractor-bonds`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'}),
+      const [rj, bj, pj, prj] = await Promise.all([
+        api.get<{ releases?: RetentionReleaseItem[] }>(`/api/v1/projects/${projectId}/subcontractor-retention-releases`).catch(() => null),
+        api.get<{ bonds?: ContractorBondItem[] }>(`/api/v1/projects/${projectId}/contractor-bonds`).catch(() => null),
+        api.get<{ packages?: Array<{ id: string; firm_name: string }> }>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => null),
+        api.get<Record<string, unknown>>(`/api/v1/projects/${projectId}`).catch(() => null),
       ]);
-      if (relRes.ok) {
-        const rj = await relRes.json();
-        setReleases((rj.releases || []) as RetentionReleaseItem[]);
-}
-      if (bondRes.ok) {
-        const bj = await bondRes.json();
-        setBonds((bj.bonds || []) as ContractorBondItem[]);
-}
-      if (pkgRes.ok) {
-        const pj = await pkgRes.json();
-        setSubPkgs((pj.packages || []).map((p: any) => ({ id: p.id, firm_name: p.firm_name})));
-}
+      if (rj) setReleases(rj.releases || []);
+      if (bj) setBonds(bj.bonds || []);
+      if (pj) setSubPkgs((pj.packages || []).map((p) => ({ id: p.id, firm_name: p.firm_name})));
+      const p = (prj as any)?.project ?? prj;
+      if (p && !termsApplied.current) {
+        termsApplied.current = true;
+        const first = parseFloat(String(p.retention_first_moiety_pct ?? '50')) || 50;
+        const second = 100 - first;
+        setProjTerms({
+          rate: fmtPct(p.retention_rate_pct, 5),
+          cap: fmtPct(p.retention_cap_pct, 5),
+          first: fmtPct(first, 50),
+          second: fmtPct(second, 50),
+        });
+        setReleasePct(first.toFixed(2));
+        setQsNotes(`First moiety ${fmtPct(first, 50)}% retention recommended for release upon practical completion.`);
+      }
 } catch { /* keep demo */}
     setLiveLoaded(true);
 }, [isLive, projectId]);
@@ -189,11 +215,14 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
     totalReleasedAmount: releases.reduce((s, r) => s + parseFloat(r.releaseAmount), 0).toFixed(2),
 };
 
+  const pct = projTerms ?? { rate: '5', cap: '5', first: '50', second: '50' };
+  const moietyMaxPct = moietyStage === 'FIRST_MOIETY_PRACTICAL_COMPLETION' ? pct.first : pct.second;
+
   const handleCreateReleaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const held = parseFloat(totalHeld) || 0;
-    const pct = parseFloat(releasePct) || 50;
-    const amt = held * (pct / 100);
+    const pctNum = parseFloat(releasePct) || parseFloat(pct.first) || 50;
+    const amt = held * (pctNum / 100);
 
     const newRel: RetentionReleaseItem = {
       id: `rel-${Date.now()}`,
@@ -203,7 +232,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
       tradeCategory: 'SPECIALIST_TRADE',
       moietyStage,
       totalRetentionHeld: held.toFixed(2),
-      releasePercentage: pct.toFixed(2),
+      releasePercentage: pctNum.toFixed(2),
       releaseAmount: amt.toFixed(2),
       qsRecommendationNotes: qsNotes,
       defectClearanceVerified: defectVerified,
@@ -215,20 +244,17 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
       if (!releasePackageId) return;
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              subcontractorPackageId: releasePackageId,
-              releaseNo,
-              moietyStage,
-              totalRetentionHeld: held.toFixed(2),
-              releasePercentage: pct.toFixed(2),
-              releaseAmount: amt.toFixed(2),
-              qsRecommendationNotes: qsNotes || null,
-              defectClearanceVerified: defectVerified,
-}),
+          await api.post(`/api/v1/projects/${projectId}/subcontractor-retention-releases`, {
+            subcontractorPackageId: releasePackageId,
+            releaseNo,
+            moietyStage,
+            totalRetentionHeld: held.toFixed(2),
+            releasePercentage: pctNum.toFixed(2),
+            releaseAmount: amt.toFixed(2),
+            qsRecommendationNotes: qsNotes || null,
+            defectClearanceVerified: defectVerified,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowReleaseModal(false);
@@ -242,30 +268,72 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
     setShowReleaseModal(false);
 };
 
-  const handleDisburseClick = async (releaseId: string) => {
-    const ref = `MPESA-B2C-${Date.now().toString().slice(-6)}`;
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const handleReview = async (releaseId: string, action: 'RECOMMEND' | 'APPROVE' | 'REJECT' | 'MARK_PAID', extra: Record<string, unknown> = {}) => {
+    setReviewError(null);
+    const statusFor = { RECOMMEND: 'QS_RECOMMENDED', APPROVE: 'APPROVED_BY_DIRECTOR', REJECT: 'REJECTED', MARK_PAID: 'PAID' } as const;
 
     if (isLive && projectId) {
+      const post = (payload: Record<string, unknown>) =>
+        api.post<{ status?: string }>(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, { action, ...payload });
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-retention-releases/${releaseId}/review`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ status: 'PAID', disbursementRef: ref}),
-});
-        if (res.ok) { await reload(); return;}
-} catch { /* fall through to local */}
-}
+        await post(extra);
+        await reload();
+        return;
+      } catch (err: any) {
+        const msg = String(err?.message ?? err ?? ''); // hygiene-allow
+        // Maker-checker override: the API demands a >=15-char reason when the
+        // approver is also the requester/recommender.
+        if (action === 'APPROVE' && /overrideReason/i.test(msg)) {
+          const reason = await dialog.prompt({
+            title: 'Override approval reason required',
+            message: 'You recommended or requested this release — approval needs an override reason (min 15 characters).',
+            inputLabel: 'Override reason',
+            confirmLabel: 'Approve anyway',
+            minLength: 15,
+            danger: true,
+          });
+          if (reason && reason.trim().length >= 15) {
+            try {
+              await post({ ...extra, overrideReason: reason.trim() });
+              await reload();
+              return;
+            } catch (err2: any) {
+              setReviewError(apiErrorMessage(err2));
+              return;
+            }
+          }
+          setReviewError('Approval cancelled — an override reason is required for self-approval.');
+          return;
+        }
+        setReviewError(apiErrorMessage(err, `Could not ${action.toLowerCase()} the release.`));
+        return;
+      }
+    }
 
     if (onReviewRelease) {
-      await onReviewRelease(releaseId, 'PAID', ref);
-}
+      await onReviewRelease(releaseId, statusFor[action], extra.disbursementRef as string | undefined);
+    }
     setReleases(
       releases.map((r) =>
         r.id === releaseId
-          ? { ...r, status: 'PAID', disbursementRef: ref, disbursedAt: new Date().toISOString()}
-          : r
-)
-);
-};
+          ? {
+              ...r,
+              status: statusFor[action],
+              ...(action === 'MARK_PAID'
+                ? { disbursementRef: extra.disbursementRef as string, disbursedAt: new Date().toISOString() }
+                : {}),
+            }
+          : r,
+      ),
+    );
+  };
+
+  const handleDisburseClick = async (releaseId: string) => {
+    const ref = `MPESA-B2C-${Date.now().toString().slice(-6)}`;
+    await handleReview(releaseId, 'MARK_PAID', { disbursementRef: ref });
+  };
 
   const handleCreateBondSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -284,20 +352,17 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
     if (isLive && projectId) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/contractor-bonds`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              bondType,
-              issuingInstitution: issuingBank,
-              bondReferenceNo: bondRef,
-              bondAmount,
-              effectiveDate,
-              expiryDate,
-              claimStatus: 'ACTIVE',
-              dischargeCertificateRef: null,
-}),
+          await api.post(`/api/v1/projects/${projectId}/contractor-bonds`, {
+            bondType,
+            issuingInstitution: issuingBank,
+            bondReferenceNo: bondRef,
+            bondAmount,
+            effectiveDate,
+            expiryDate,
+            claimStatus: 'ACTIVE',
+            dischargeCertificateRef: null,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowBondModal(false);
@@ -328,7 +393,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </div>
 <h1 className="text-2xl font-bold ">Retention Releases &amp; Performance Bonds</h1>
 <p className="text-sm text-blue-200/80 mt-1">
-              Project:<span className="font-semibold text-white">{projectName}</span> | 50% Practical Completion Release, 50% Post-DLP Expiry Release &amp; Bank Guarantee Expiry Monitor
+              Project:<span className="font-semibold text-white">{projectName}</span> | {pct.first}% Practical Completion Release, {pct.second}% Post-DLP Expiry Release &amp; Bank Guarantee Expiry Monitor
 </p>
 </div>
 <div className="flex items-center gap-3">
@@ -354,7 +419,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Subcontract Retention Held</div>
 <div className="text-xl font-bold text-white mt-1">{formatKes(summary.totalRetentionHeld)}</div>
-<div className="text-[10px] text-blue-300 mt-1">5% Subcontract Sum Cap</div>
+<div className="text-[10px] text-blue-300 mt-1">{pct.cap}% Retention Cap</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Retention Disbursed</div>
@@ -406,78 +471,108 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               Subcontractor Dual-Moiety Retention Schedule (JBC 1999)
 </h3>
 <span className="text-xs text-slate-500">
-              Moiety 1: 50% at PC | Moiety 2: 50% post-DLP Snags Cleared
+              Moiety 1: {pct.first}% at PC | Moiety 2: {pct.second}% post-DLP Snags Cleared
 </span>
 </div>
-<div className="overflow-x-auto">
-<table className="w-full text-left border-collapse text-sm">
-<thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
-<th className="py-3 px-4">Certificate #</th>
-<th className="py-3 px-4">Subcontractor Firm</th>
-<th className="py-3 px-4">Trade</th>
-<th className="py-3 px-4">Moiety Stage</th>
-<th className="py-3 px-4 text-right">Retention Held (KES)</th>
-<th className="py-3 px-4 text-center">Release %</th>
-<th className="py-3 px-4 text-right">Release Sum (KES)</th>
-<th className="py-3 px-4 text-center">Status</th>
-<th className="py-3 px-4 text-center">Action</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
-                {releases.map((rel) => (
-<tr key={rel.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-white">
-                      {rel.releaseNo}
-</td>
-<td className="py-3 px-4 font-bold">{rel.firmName}</td>
-<td className="py-3 px-4 text-xs">{rel.tradeCategory}</td>
-<td className="py-3 px-4 text-xs">
-<span className="bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-medium">
-                        {rel.moietyStage === 'FIRST_MOIETY_PRACTICAL_COMPLETION' ? '1st Moiety (PC)' : '2nd Moiety (Final DLP)'}
-</span>
-</td>
-<td className="py-3 px-4 text-right font-medium">
-                      {formatKes(rel.totalRetentionHeld)}
-</td>
-<td className="py-3 px-4 text-center font-bold text-blue-600 dark:text-blue-400">
-                      {rel.releasePercentage}%
-</td>
-<td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                      {formatKes(rel.releaseAmount)}
-</td>
-<td className="py-3 px-4 text-center">
-<span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          rel.status === 'PAID'
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                            : rel.status === 'APPROVED_BY_DIRECTOR'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-}`}
-                      >
-                        {rel.status}
-</span>
-</td>
-<td className="py-3 px-4 text-center">
-                      {rel.status !== 'PAID' ? (
-<button
-                          onClick={() => handleDisburseClick(rel.id)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
-                        >
-                          Disburse M-Pesa B2C
-</button>
-) : (
-<span className="text-[10px] font-mono text-slate-500">
-                          {rel.disbursementRef}
-</span>
+{reviewError && (
+<div className="px-4 py-2 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300">
+              {reviewError}
+</div>
 )}
-</td>
-</tr>
-))}
-</tbody>
-</table>
+<ResponsiveTable
+            head={['Certificate #', 'Subcontractor Firm', 'Trade', 'Moiety Stage', 'Retention Held (KES)', 'Release %', 'Release Sum (KES)', 'Status', 'Action']}
+            className="text-sm"
+            headClassName="bg-slate-50"
+            bodyClassName="text-slate-700"
+            cellClassName=""
+            rows={releases.map((rel) => ({
+              key: rel.id,
+              className: 'hover:bg-slate-50/50 transition-colors',
+              cells: [
+                { content: rel.releaseNo, className: 'font-mono tabular-nums font-semibold text-slate-900' },
+                { content: rel.firmName, className: 'font-bold' },
+                { content: rel.tradeCategory, className: 'text-xs' },
+                {
+                  content: (
+                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium text-xs">
+                      {rel.moietyStage === 'FIRST_MOIETY_PRACTICAL_COMPLETION' ? '1st Moiety (PC)' : '2nd Moiety (Final DLP)'}
+</span>
+                  ),
+                  className: 'text-xs',
+                },
+                { content: formatKes(rel.totalRetentionHeld), className: 'text-right font-medium' },
+                { content: `${rel.releasePercentage}%`, className: 'text-center font-bold text-blue-600' },
+                { content: formatKes(rel.releaseAmount), className: 'text-right font-bold text-emerald-600' },
+                {
+                  content: (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        rel.status === 'PAID'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : rel.status === 'APPROVED_BY_DIRECTOR'
+                          ? 'bg-blue-100 text-blue-800'
+                          : rel.status === 'QS_RECOMMENDED'
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {statusLabel(rel.status)}
+</span>
+                  ),
+                  className: 'text-center',
+                },
+                {
+                  content:
+                    rel.status === 'PAID' ? (
+                      <span className="text-[10px] tabular-nums text-slate-500">{rel.disbursementRef}</span>
+                    ) : rel.status === 'REJECTED' ? (
+                      <span className="text-[10px] text-slate-400">{statusLabel(rel.status)}</span>
+                    ) : !canReviewRelease ? (
+                      <span className="text-[10px] text-slate-400">QS or director review required</span>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                        {(() => {
+                          const needsDirector = rel.status === 'QS_RECOMMENDED' || rel.status === 'APPROVED_BY_DIRECTOR';
+                          const allowed = needsDirector ? canDirectRelease : canReviewRelease;
+                          if (!allowed) {
+                            return (
+                              <span className="text-[10px] text-slate-400">
+                                {needsDirector ? 'Waiting for a director' : 'Waiting for QS review'}
+                              </span>
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={() =>
+                                rel.status === 'APPROVED_BY_DIRECTOR'
+                                  ? handleDisburseClick(rel.id)
+                                  : handleReview(rel.id, rel.status === 'PENDING_QS_REVIEW' ? 'RECOMMEND' : 'APPROVE')
+                              }
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
+                            >
+                              {rel.status === 'PENDING_QS_REVIEW'
+                                ? 'QS Recommend'
+                                : rel.status === 'QS_RECOMMENDED'
+                                ? 'Director Approve'
+                                : 'Disburse M-Pesa B2C'}
+                            </button>
+                          );
+                        })()}
+                        {rel.status !== 'APPROVED_BY_DIRECTOR' && canReviewRelease && (
+<button
+                            onClick={() => handleReview(rel.id, 'REJECT')}
+                            className="text-[10px] text-rose-600 hover:underline"
+                          >
+                            Reject
+</button>
+)}
 </div>
+                    ),
+                  className: 'text-center',
+                },
+              ],
+            }))}
+          />
 </div>
 )}
 
@@ -492,52 +587,41 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               Standard 10% Contractor Security under JBC 1999
 </span>
 </div>
-<div className="overflow-x-auto">
-<table className="w-full text-left border-collapse text-sm">
-<thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 text-xs font-semibold ">
-<th className="py-3 px-4">Bond Reference #</th>
-<th className="py-3 px-4">Bond Type</th>
-<th className="py-3 px-4">Guarantor (Bank / Insurer)</th>
-<th className="py-3 px-4 text-right">Guaranteed Sum (KES)</th>
-<th className="py-3 px-4">Effective Date</th>
-<th className="py-3 px-4">Expiry Date</th>
-<th className="py-3 px-4 text-center">Claim Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
-                {bonds.map((bnd) => (
-<tr key={bnd.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                      {bnd.bondReferenceNo}
-</td>
-<td className="py-3 px-4 text-xs">
-<span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                        {bnd.bondType.replace(/_/g, ' ')}
+<ResponsiveTable
+            head={['Bond Reference #', 'Bond Type', 'Guarantor (Bank / Insurer)', 'Guaranteed Sum (KES)', 'Effective Date', 'Expiry Date', 'Claim Status']}
+            className="text-sm"
+            headClassName="bg-slate-50"
+            bodyClassName="text-slate-700"
+            rows={bonds.map((bnd) => ({
+              key: bnd.id,
+              className: 'hover:bg-slate-50/50 transition-colors',
+              cells: [
+                { content: bnd.bondReferenceNo, className: 'font-mono tabular-nums font-bold text-slate-900' },
+                {
+                  content: <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{statusLabel(bnd.bondType)}</span>,
+                  className: 'text-xs',
+                },
+                { content: bnd.issuingInstitution, className: 'font-semibold' },
+                { content: formatKes(bnd.bondAmount), className: 'text-right font-bold text-slate-900' },
+                { content: bnd.effectiveDate, className: 'tabular-nums text-xs' },
+                { content: bnd.expiryDate, className: 'tabular-nums text-xs' },
+                {
+                  content: (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        bnd.claimStatus === 'ACTIVE'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-slate-100 text-slate-800'
+                      }`}
+                    >
+                      {statusLabel(bnd.claimStatus)}
 </span>
-</td>
-<td className="py-3 px-4 font-semibold">{bnd.issuingInstitution}</td>
-<td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
-                      {formatKes(bnd.bondAmount)}
-</td>
-<td className="py-3 px-4 font-mono text-xs">{bnd.effectiveDate}</td>
-<td className="py-3 px-4 font-mono text-xs">{bnd.expiryDate}</td>
-<td className="py-3 px-4 text-center">
-<span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          bnd.claimStatus === 'ACTIVE'
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                            : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
-}`}
-                      >
-                         {bnd.claimStatus}
-</span>
-</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
+                  ),
+                  className: 'text-center',
+                },
+              ],
+            }))}
+          />
 </div>
 )}
 
@@ -549,7 +633,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
               Issue Subcontractor Retention Release
 </h3>
 <p className="text-xs text-slate-500 mb-4">
-              Dual-moiety retention release under JBC 1999 Clause 30 (50% on PC, 50% post-DLP).
+              Dual-moiety retention release under JBC 1999 Clause 30 ({pct.first}% on PC, {pct.second}% post-DLP).
 </p>
 <form onSubmit={handleCreateReleaseSubmit} className="space-y-4 text-sm">
               {isLive && (
@@ -579,7 +663,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     type="text"
                     value={releaseNo}
                     onChange={(e) => setReleaseNo(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -605,8 +689,8 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                   onChange={(e: any) => setMoietyStage(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700"
                 >
-<option value="FIRST_MOIETY_PRACTICAL_COMPLETION">First Moiety (Practical Completion - 50%)</option>
-<option value="SECOND_MOIETY_FINAL_COMPLETION">Second Moiety (Final Completion Post-DLP - 50%)</option>
+<option value="FIRST_MOIETY_PRACTICAL_COMPLETION">First Moiety (Practical Completion - {pct.first}%)</option>
+<option value="SECOND_MOIETY_FINAL_COMPLETION">Second Moiety (Final Completion Post-DLP - {pct.second}%)</option>
 </select>
 </div>
 <div className="grid grid-cols-2 gap-3">
@@ -619,20 +703,20 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     step="0.01"
                     value={totalHeld}
                     onChange={(e) => setTotalHeld(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
 <div>
 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Release % (Max 50%)
+                    Release % (Max {moietyMaxPct}%)
 </label>
 <input
                     type="number"
                     step="0.01"
                     value={releasePct}
                     onChange={(e) => setReleasePct(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -734,7 +818,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     type="text"
                     value={bondRef}
                     onChange={(e) => setBondRef(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -747,7 +831,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
                     step="0.01"
                     value={bondAmount}
                     onChange={(e) => setBondAmount(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>
@@ -797,6 +881,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 };

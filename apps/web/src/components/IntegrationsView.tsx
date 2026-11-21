@@ -1,4 +1,6 @@
 import React, { useEffect, useState} from 'react';
+import { PRODUCT_NAME } from '../lib/product';
+import { api } from '../lib/api';
 
 interface IntegrationStatus {
   provider: string;
@@ -26,10 +28,9 @@ export default function IntegrationsView(): React.JSX.Element {
   const [results, setResults] = useState<Record<string, TestResult>>({});
 
   useEffect(() => {
-    fetch('/api/v1/integrations/status', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('forbidden'))))
+    api.get<any>('/api/v1/integrations/status')
       .then((j) => setItems(j.integrations || []))
-      .catch(() => setItems([]))
+      .catch(() => setItems([])) // intentionally ignored: status endpoint may be forbidden — show empty state
       .finally(() => setLoaded(true));
 }, []);
 
@@ -38,11 +39,7 @@ export default function IntegrationsView(): React.JSX.Element {
     if (!to) return;
     setTesting(it.provider);
     try {
-      const res = await fetch('/api/v1/integrations/test', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ channel: it.channel, to, message: `Site Safi integration check — ${it.provider} is reachable.`}),
-});
-      const json = await res.json();
+      const json = await api.post<TestResult>('/api/v1/integrations/test', { channel: it.channel, to, message: `${PRODUCT_NAME} integration check — ${it.provider} is reachable.`});
       setResults((prev) => ({ ...prev, [it.provider]: json}));
 } catch {
       setResults((prev) => ({ ...prev, [it.provider]: { ok: false, simulated: false, provider: it.provider, error: 'Network error'}}));

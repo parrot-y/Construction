@@ -1,14 +1,13 @@
 import React, { useEffect, useState} from 'react';
+import { statusLabel } from '../lib/status-labels';
 
-const PROJECT_TYPES = [
-  'New house / bungalow', 'Maisonette or villa', 'Apartments / flats',
-  'Commercial building', 'Renovation / remodeling', 'Kitchen or bathroom remodel',
-  'Interior design & finishes', 'Fencing & gates', 'Borehole / water works',
-  'Solar / electrical installation', 'CCTV & security', 'Landscaping & gardening',
-  'Roads, drainage or civil works', 'Land clearing & surveying', 'Other',
-];
-const BUDGET_RANGES = ['Below KES 1M', 'KES 1M - 5M', 'KES 5M - 20M', 'KES 20M - 50M', 'Above KES 50M', 'Not sure yet'];
-const START_TFRAMES = ['As soon as possible', 'Within 3 months', 'In 3 - 6 months', 'In 6 - 12 months', 'Just planning for now'];
+import { api, apiErrorMessage } from '../lib/api';
+import { CLIENT_PROJECT_REQUEST_TYPES, CLIENT_BUDGET_RANGES, CLIENT_START_TIMEFRAMES } from '@construction/validation';
+import { InlineError } from './feedback/InlineError';
+
+const PROJECT_TYPES = CLIENT_PROJECT_REQUEST_TYPES;
+const BUDGET_RANGES = CLIENT_BUDGET_RANGES;
+const START_TFRAMES = CLIENT_START_TIMEFRAMES;
 
 interface ClientRequest { id: string; project_type: string; location_text: string; budget_range?: string | null; start_timeframe?: string | null; description: string; status: string; created_at: string}
 
@@ -24,10 +23,11 @@ export default function ClientRequestView(): React.JSX.Element {
   const [sent, setSent] = useState(false);
 
   const load = () => {
-    fetch('/api/v1/client/project-requests', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: ClientRequest[] }>('/api/v1/client/project-requests')
       .then((j) => setRequests(j.data || []))
-      .catch(() => {});
+      .catch(() => {
+        // intentionally ignored: list load failure is non-blocking — the request form still works
+      });
 };
   useEffect(load, []);
 
@@ -35,17 +35,12 @@ export default function ClientRequestView(): React.JSX.Element {
     e.preventDefault();
     setSaving(true); setError(null);
     try {
-      const res = await fetch('/api/v1/client/project-requests', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(form),
-});
-      const j = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(j?.message || 'Failed to send request');
+      await api.post('/api/v1/client/project-requests', form);
       setSent(true); setShowForm(false);
       setForm({ projectType: '', locationText: '', budgetRange: '', startTimeframe: '', description: '', contactPhone: ''});
       load();
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setSaving(false);
 }
@@ -115,7 +110,7 @@ export default function ClientRequestView(): React.JSX.Element {
 <label className={label}>Phone or WhatsApp, so we can call you *</label>
 <input required value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value})} placeholder="+254…" className={input} />
 </div>
-          {error &&<p className="text-xs font-semibold text-red-600">{error}</p>}
+          {error && <InlineError error={error} />}
 <button type="submit" disabled={saving}
             className="px-5 py-2.5 text-sm font-bold bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-lg">
             {saving ? 'Sending…' : 'Send request'}
@@ -138,7 +133,7 @@ export default function ClientRequestView(): React.JSX.Element {
 <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{r.description}</p>
 </div>
 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusStyle[r.status] || statusStyle.NEW}`}>
-                  {r.status}
+                  {statusLabel(r.status)}
 </span>
 </div>
 ))}

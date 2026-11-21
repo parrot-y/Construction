@@ -1,4 +1,7 @@
 import React, { useEffect, useRef, useState} from 'react';
+import { PRODUCT_NAME } from '../lib/product';
+import { formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export type InspectionStage = 'substructure' | 'framing' | 'slab' | 'roofing' | 'finishes' | 'borehole';
 export type InspectionStatus = 'REQUESTED' | 'DISPATCHED' | 'COMPLETED' | 'CLIENT_REVIEWED';
@@ -157,7 +160,7 @@ const applyInspectionDetail = (insp: SiteInspectionReport, d: any): SiteInspecti
         ? `${Number(p.gpsLatitude).toFixed(6)}, ${Number(p.gpsLongitude).toFixed(6)}`
         : '—',
     timestamp: p.capturedAt
-      ? new Date(p.capturedAt).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi'}) + ' EAT'
+      ? formatDateTime(new Date(p.capturedAt)) + ' EAT'
       : '',
 }));
   const hasReview = !!(d.clientReviewNotes || d.clientSatisfactionRating != null);
@@ -240,9 +243,7 @@ export default function IndependentSiteReportView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/independent-inspections`);
       const list = (Array.isArray(json) ? json : json.inspections || json.data || []) as any[];
       setInspections(list.map(mapListItemToReport));
       setSelectedInspectionId((prev) =>
@@ -261,9 +262,7 @@ export default function IndependentSiteReportView({
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${selectedInspectionId}`, { credentials: 'include'});
-        if (!res.ok) return;
-        const detail = await res.json();
+        const detail = await api.get<any>(`/api/v1/projects/${projectId}/independent-inspections/${selectedInspectionId}`);
         if (cancelled) return;
         loadedDetailsRef.current.add(selectedInspectionId);
         setInspections((prev) => prev.map((i) => (i.id === selectedInspectionId ? applyInspectionDetail(i, detail) : i)));
@@ -280,15 +279,9 @@ export default function IndependentSiteReportView({
     if (!activeInspection) return;
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${activeInspection.id}/notify-client`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ channel: 'WHATSAPP'}),
-});
-        if (res.ok) {
-          const j = await res.json();
-          setWhatsappStatus(`WhatsApp digest dispatched to ${j.recipientPhone}: ${j.message}`);
-          return;
-}
+        const j = await api.post<any>(`/api/v1/projects/${projectId}/independent-inspections/${activeInspection.id}/notify-client`, { channel: 'WHATSAPP'});
+        setWhatsappStatus(`WhatsApp digest dispatched to ${j.recipientPhone}: ${j.message}`);
+        return;
 } catch { /* fall through to local digest */}
 }
     const isCritical = activeInspection.variancePct<= -10;
@@ -301,28 +294,20 @@ export default function IndependentSiteReportView({
     e.preventDefault();
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
+        const created = await api.post<any>(`/api/v1/projects/${projectId}/independent-inspections`, {
             stage: bookStage.toUpperCase(),
             scopeDescription: `${STAGE_LABELS[bookStage]} — Focus: ${bookSpecialFocus}`,
             scheduledDate: new Date().toISOString(),
             inspectorName: 'Clerk of Works Dispatching...',
             inspectorLicense: 'NCA Independent Inspector Registry',
-}),
 });
-        if (res.ok) {
-          const created = await res.json();
-          await reload();
-          if (created?.id) setSelectedInspectionId(created.id);
-          setShowBookingModal(false);
-          setBookingSuccess(`Neutral inspection ${created?.inspectionCode ?? ''} successfully booked for ${STAGE_LABELS[bookStage]}! Dispatch notification sent to neutral Clerk of Works.`);
-          return;
-}
-        const errBody = await res.json().catch(() => null);
-        throw new Error(errBody?.message || `Booking failed (${res.status})`);
-} catch (err: any) {
-          setBookingError(err?.message || 'Booking failed — check your connection and try again.');
+        await reload();
+        if (created?.id) setSelectedInspectionId(created.id);
+        setShowBookingModal(false);
+        setBookingSuccess(`Neutral inspection ${created?.inspectionCode ?? ''} successfully booked for ${STAGE_LABELS[bookStage]}! Dispatch notification sent to neutral Clerk of Works.`);
+        return;
+} catch (err) {
+          setBookingError(apiErrorMessage(err, 'Booking failed — check your connection and try again.'));
           return;
 }
 }
@@ -339,35 +324,30 @@ export default function IndependentSiteReportView({
     const review: ClientReview = {
       rating: reviewRating,
       feedbackNotes: reviewNotes.trim(),
-      signedOffAt: new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi'}) + ' EAT',
+      signedOffAt: formatDateTime(new Date()) + ' EAT',
       clientName: reviewClientName.trim() || 'Diaspora Property Owner',
 };
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/independent-inspections/${targetId}/client-review`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
+        await api.patch<any>(`/api/v1/projects/${projectId}/independent-inspections/${targetId}/client-review`, {
             clientReviewNotes: review.feedbackNotes,
             clientSatisfactionRating: review.rating,
             clientDiscrepancyFlagged: activeInspection.variancePct<= -10,
-}),
 });
-        if (res.ok) {
-          loadedDetailsRef.current.delete(targetId);
-          await reload();
-          setInspections((prev) =>
-            prev.map((insp) =>
-              insp.id === targetId
-                ? { ...insp, status: 'CLIENT_REVIEWED' as InspectionStatus, clientReview: review}
-                : insp
+        loadedDetailsRef.current.delete(targetId);
+        await reload();
+        setInspections((prev) =>
+          prev.map((insp) =>
+            insp.id === targetId
+              ? { ...insp, status: 'CLIENT_REVIEWED' as InspectionStatus, clientReview: review}
+              : insp
 )
 );
-          setReviewSubmitted(`Inspection report ${targetRef} verified and signed off successfully.`);
-          setReviewNotes('');
-          if (onReviewSubmit) onReviewSubmit(targetId, review);
-          return;
-}
+        setReviewSubmitted(`Inspection report ${targetRef} verified and signed off successfully.`);
+        setReviewNotes('');
+        if (onReviewSubmit) onReviewSubmit(targetId, review);
+        return;
 } catch { /* fall through to local update */}
 }
 
@@ -465,7 +445,7 @@ export default function IndependentSiteReportView({
 </span>
 </div>
 <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Site Safi Independent Site Inspection Reports
+            {PRODUCT_NAME} Independent Site Inspection Reports
 </h2>
 <p className="text-xs text-slate-500 mt-0.5">
             Unannounced third-party Clerk of Works audits, GPS-verified progress reality, and material quality assurance for {projectName}.
@@ -560,7 +540,7 @@ export default function IndependentSiteReportView({
 }`}
             >
 <div className="flex justify-between items-start gap-2">
-<span className="font-mono text-xs font-bold text-slate-800">{insp.reportRef}</span>
+<span className="tabular-nums text-xs font-bold text-slate-800">{insp.reportRef}</span>
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(insp.status)}`}>
                   {insp.status}
 </span>
@@ -580,11 +560,11 @@ export default function IndependentSiteReportView({
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
 <div>
 <div className="flex items-center gap-2">
-<span className="font-mono text-sm font-bold text-emerald-800">{activeInspection.reportRef}</span>
+<span className="tabular-nums text-sm font-bold text-emerald-800">{activeInspection.reportRef}</span>
 <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${getStatusBadge(activeInspection.status)}`}>
                 {activeInspection.status}
 </span>
-<span className="text-xs text-slate-500 font-mono">Date: {activeInspection.inspectionDate}</span>
+<span className="text-xs text-slate-500 tabular-nums">Date: {activeInspection.inspectionDate}</span>
 </div>
 <h3 className="text-base font-bold text-slate-900 mt-1">
               {activeInspection.stageLabel}
@@ -619,7 +599,7 @@ export default function IndependentSiteReportView({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-400 block text-[10px] font-semibold ">Clerk of Works / Lead Auditor</span>
 <span className="font-bold text-slate-900 mt-0.5 block">{activeInspection.inspector.name}</span>
-<span className="text-slate-600 text-[11px] font-mono mt-0.5 block">NCA Reg: {activeInspection.inspector.ncaRegistration}</span>
+<span className="text-slate-600 text-[11px] tabular-nums mt-0.5 block">NCA Reg: {activeInspection.inspector.ncaRegistration}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
@@ -630,7 +610,7 @@ export default function IndependentSiteReportView({
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-400 block text-[10px] font-semibold ">GPS Coordinate Lock &amp; Accuracy</span>
-<span className="font-mono font-bold text-slate-900 mt-0.5 block">
+<span className="tabular-nums font-bold text-slate-900 mt-0.5 block">
                 {activeInspection.inspector.latitude.toFixed(6)}, {activeInspection.inspector.longitude.toFixed(6)}
 </span>
 <span className="text-emerald-700 font-medium text-[11px] mt-0.5 block">
@@ -657,7 +637,7 @@ export default function IndependentSiteReportView({
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
 <span className="text-[11px] font-semibold text-slate-500 block">Contractor Reported</span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-0.5 block">
                 {activeInspection.contractorReportedPct.toFixed(1)}%
 </span>
 <span className="text-[10px] text-slate-400 block">Claimed on Interim Valuation</span>
@@ -665,7 +645,7 @@ export default function IndependentSiteReportView({
 
 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
 <span className="text-[11px] font-semibold text-slate-500 block">Inspector Verified</span>
-<span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-emerald-700 mt-0.5 block">
                 {activeInspection.inspectorVerifiedPct.toFixed(1)}%
 </span>
 <span className="text-[10px] text-slate-400 block">Genuine physically measured progress</span>
@@ -673,7 +653,7 @@ export default function IndependentSiteReportView({
 
 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
 <span className="text-[11px] font-semibold text-slate-500 block">Variance Delta</span>
-<span className={`text-lg font-bold font-mono mt-0.5 block ${activeInspection.variancePct<= -10 ? 'text-rose-700' : 'text-slate-800'}`}>
+<span className={`text-lg font-bold tabular-nums mt-0.5 block ${activeInspection.variancePct<= -10 ? 'text-rose-700' : 'text-slate-800'}`}>
                 {activeInspection.variancePct > 0 ? `+${activeInspection.variancePct.toFixed(1)}%` : `${activeInspection.variancePct.toFixed(1)}%`}
 </span>
 <span className="text-[10px] text-slate-500 font-medium block">
@@ -797,19 +777,21 @@ export default function IndependentSiteReportView({
 <img
                       src={photo.url}
                       alt={photo.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                     />
 <span className="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded backdrop-blur-xs">
                       {photo.category}
 </span>
-<span className="absolute bottom-2 right-2 bg-slate-900/80 text-white font-mono text-[9px] px-2 py-0.5 rounded backdrop-blur-xs">
+<span className="absolute bottom-2 right-2 bg-slate-900/80 text-white tabular-nums text-[9px] px-2 py-0.5 rounded backdrop-blur-xs">
                        {photo.gpsCoords}
 </span>
 </div>
 <div className="p-3 space-y-1">
 <h5 className="font-bold text-xs text-slate-900">{photo.title}</h5>
 <p className="text-[11px] text-slate-600">{photo.caption}</p>
-<span className="text-[10px] text-slate-400 font-mono block">Captured: {photo.timestamp}</span>
+<span className="text-[10px] text-slate-400 tabular-nums block">Captured: {photo.timestamp}</span>
 </div>
 </div>
 ))}
@@ -846,7 +828,7 @@ export default function IndependentSiteReportView({
                     {activeInspection.clientReview.rating} / 5 Stars
 </span>
 </div>
-<span className="text-[11px] text-slate-500 font-mono">
+<span className="text-[11px] text-slate-500 tabular-nums">
                   {activeInspection.clientReview.signedOffAt}
 </span>
 </div>
@@ -1046,7 +1028,7 @@ export default function IndependentSiteReportView({
                   Official Site Inspection Certificate
 </h3>
 <p className="text-xs text-slate-500">
-                  Ref:<span className="font-mono font-bold text-slate-800">{activeInspection.reportRef}</span> • Project: {projectName}
+                  Ref:<span className="tabular-nums font-bold text-slate-800">{activeInspection.reportRef}</span> • Project: {projectName}
 </p>
 </div>
 <button
@@ -1067,7 +1049,7 @@ export default function IndependentSiteReportView({
 <div>
 <span className="text-slate-500 block text-[10px] font-semibold">Date &amp; Geotag</span>
 <span className="font-bold text-slate-900">{activeInspection.inspectionDate}</span>
-<span className="text-[10px] text-slate-500 block font-mono">GPS: ±{activeInspection.inspector.accuracyMeters}m</span>
+<span className="text-[10px] text-slate-500 block tabular-nums">GPS: ±{activeInspection.inspector.accuracyMeters}m</span>
 </div>
 <div>
 <span className="text-slate-500 block text-[10px] font-semibold">Stage</span>
@@ -1095,7 +1077,7 @@ export default function IndependentSiteReportView({
                     ? ' Forensic Variance Alert: Contractor Progress Inflation'
                     : ' Verified Physical Progress Concurrence'}
 </span>
-<span className="font-mono text-xs font-black">
+<span className="tabular-nums text-xs font-black">
                   Δ = {activeInspection.variancePct > 0 ? `+${activeInspection.variancePct}%` : `${activeInspection.variancePct}%`}
 </span>
 </div>

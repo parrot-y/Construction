@@ -29,8 +29,8 @@ const DRAWINGS_ONLY_PROJECT_TABS = ['drawings'];
 const ALL_SITE_TABS = ['fieldview', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'attendance'];
 const VIEWER_SITE_TABS = ['dailylog', 'checklists', 'punch', 'inspections', 'observations', 'safety', 'attendance'];
 
-const ALL_MONEY_TABS = ['financials', 'commitments', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations', 'billing'];
-const NO_BILLING_MONEY_TABS = ['financials', 'commitments', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations'];
+const ALL_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations', 'billing'];
+const NO_BILLING_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations'];
 const INVOICES_INVENTORY = ['invoices', 'inventory'];
 const INVENTORY_ONLY = ['inventory'];
 const VIEWER_MONEY_TABS = ['commitments', 'invoices', 'inventory'];
@@ -211,6 +211,7 @@ export const SUBTAB_LABELS: Record<string, string> = {
   // money
   financials: 'Financials',
   commitments: 'Commitments',
+  procurement: 'Procurement',
   quotes: 'Quotes',
   invoices: 'Invoices',
   inventory: 'Inventory',
