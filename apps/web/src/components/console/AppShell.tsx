@@ -76,7 +76,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   ];
 
   return (
-<header className="sticky top-0 z-30 h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 px-4">
+<header className="sticky top-0 z-30 h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 px-3 sm:gap-3 sm:px-4">
 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 shrink-0">
 <span className="hidden sm:inline">Viewing as</span>
 <span className="hidden sm:inline font-bold text-slate-800 dark:text-slate-200">{roleLabel}</span>
@@ -84,12 +84,12 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 
       {projects.length > 0 && (<>
         {/* Phone: compact picker — truncated name with ellipsis + status. */}
-        <div className="sm:hidden relative shrink-0">
+        <div className="sm:hidden relative min-w-0">
           <button
             onClick={() => setProjMenu((v) => !v)}
             aria-label="Active project"
             aria-expanded={projMenu}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 max-w-[168px]"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 w-full max-w-[168px]"
           >
             <span className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
               {(() => { const s = projects.find((p) => p.id === projectId); return s ? `${s.name}` : ''; })()}
@@ -214,7 +214,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <button
             onClick={() => setNewMenuOpen(!newMenuOpen)}
             aria-label="Create new"
-            className="px-3 py-1.5 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1"
+            className="px-2 py-1.5 sm:px-3 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1"
           >
 <IconPlus className="w-3.5 h-3.5" /><span className="hidden sm:inline">New</span>
 </button>

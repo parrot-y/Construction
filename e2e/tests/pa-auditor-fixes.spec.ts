@@ -89,10 +89,9 @@ test.describe('A2 phone bottom bar', () => {
     }
     // Active item carries aria-current="page" — Home is active on load.
     await expect(bar.getByRole('button', { name: /^Home$/ })).toHaveAttribute('aria-current', 'page');
-    // Tapping another section moves the active state. (force: the fixed bar
-    // passes real hit-tests — verified via elementFromPoint — but Playwright's
-    // actionability probe races the still-loading dashboard grid on 390 px.)
-    await bar.getByRole('button', { name: /^Money$/ }).click({ force: true });
+    // Tapping another section moves the active state — a real pointer click,
+    // no force: the fixed bar must win hit-testing over page content.
+    await bar.getByRole('button', { name: /^Money$/ }).click();
     await expect(bar.getByRole('button', { name: /^Money$/ })).toHaveAttribute('aria-current', 'page');
   });
 });
