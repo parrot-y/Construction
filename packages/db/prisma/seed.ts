@@ -1,3 +1,5 @@
+import path from 'node:path';
+import fs from 'node:fs';
 import { PrismaClient } from '@prisma/client';
 import { hashPassword, withTenantTx } from '../src/index';
 import { VARIATION_SEEDS } from '../src/variation-seeds';
@@ -382,6 +384,191 @@ export async function seed() {
             due_date: s.due_date ? new Date(s.due_date) : null,
             rectified_at: s.rectified_at ? new Date(s.rectified_at) : null,
             verified_at: s.verified_at ? new Date(s.verified_at) : null,
+          },
+        });
+      }
+    }
+
+    // Schedule tasks — the dashboard "Next milestones" block and any Gantt
+    // view need believable WBS rows, not an empty table.
+    if ((await tx.projectScheduleTask.count({ where: { project_id: project.id } })) === 0) {
+      const day = 86400_000;
+      const taskSeeds = [
+        { wbs_phase: 'SUBSTRUCTURE', task_name: 'Raft slab pour — grid C4', planned_start_date: -40, planned_end_date: -38, duration_days: 3, progress_percentage: 100, status: 'COMPLETED', assigned_trade: 'Concrete crew' },
+        { wbs_phase: 'SUBSTRUCTURE', task_name: 'Ground beams and blinding', planned_start_date: -35, planned_end_date: -25, duration_days: 11, progress_percentage: 100, status: 'COMPLETED', assigned_trade: 'Masons' },
+        { wbs_phase: 'SUPERSTRUCTURE', task_name: 'Columns to first floor', planned_start_date: -20, planned_end_date: -6, duration_days: 15, progress_percentage: 100, status: 'COMPLETED', assigned_trade: 'Masons' },
+        { wbs_phase: 'SUPERSTRUCTURE', task_name: 'First floor slab and beam reinforcement', planned_start_date: -8, planned_end_date: 4, duration_days: 13, progress_percentage: 65, status: 'IN_PROGRESS', assigned_trade: 'Steel fixers' },
+        { wbs_phase: 'SUPERSTRUCTURE', task_name: 'Blockwork to second floor', planned_start_date: 2, planned_end_date: 18, duration_days: 17, progress_percentage: 10, status: 'IN_PROGRESS', assigned_trade: 'Masons' },
+        { wbs_phase: 'ROOFING', task_name: 'Roof trusses and iron sheets', planned_start_date: 30, planned_end_date: 44, duration_days: 15, progress_percentage: 0, status: 'PLANNED', assigned_trade: 'Roofers' },
+        { wbs_phase: 'SERVICES', task_name: 'Electrical first fix', planned_start_date: 40, planned_end_date: 58, duration_days: 19, progress_percentage: 0, status: 'PLANNED', assigned_trade: 'Electricians' },
+        { wbs_phase: 'FINISHES', task_name: 'Plastering and screeding', planned_start_date: 55, planned_end_date: 75, duration_days: 21, progress_percentage: 0, status: 'PLANNED', assigned_trade: 'Masons' },
+        { wbs_phase: 'EXTERNAL_WORKS', task_name: 'External paving and drainage', planned_start_date: 70, planned_end_date: 88, duration_days: 19, progress_percentage: 0, status: 'PLANNED', assigned_trade: 'General works' },
+      ];
+      const now = Date.now();
+      for (const [i, t] of taskSeeds.entries()) {
+        await tx.projectScheduleTask.create({
+          data: {
+            tenant_id: tenant.id,
+            project_id: project.id,
+            ...t,
+            planned_start_date: new Date(now + t.planned_start_date * day),
+            planned_end_date: new Date(now + t.planned_end_date * day),
+            order_index: i,
+          },
+        });
+      }
+    }
+
+    // Site diaries + photos — powers the dashboard site-health and latest-
+    // photos blocks. Photo binaries are committed seed assets copied into
+    // the configured upload root (same layout the API serves at /uploads/).
+    if ((await tx.siteDiary.count({ where: { project_id: project.id } })) === 0 && adminUser) {
+      const uploadRoot = process.env.UPLOAD_DIR || process.env.E2E_UPLOAD_DIR
+        || path.resolve(import.meta.dirname, '../../../apps/api/uploads');
+      const photoDir = path.join(uploadRoot, tenant.id, project.id);
+      fs.mkdirSync(photoDir, { recursive: true });
+      const assetsDir = path.resolve(import.meta.dirname, 'seed-assets');
+      const photoFiles = ['site-foundation.jpg', 'site-steelfix.jpg', 'site-blockwork.jpg', 'site-delivery.jpg'];
+      const diarySeeds = [
+        { offset: 0, weather: 'SUNNY', site_status: 'OPERATIONAL', general_notes: 'First floor beam reinforcement continuing on grid A-B/3-5. Two tower cranes operational; concrete skip in use for column pours.', photos: [0, 1] },
+        { offset: 2, weather: 'PARTLY_CLOUDY', site_status: 'OPERATIONAL', general_notes: 'Blockwork started on Villa 2 party walls. Delivery of 400 bags cement received and stacked in bay 2.', photos: [3] },
+        { offset: 4, weather: 'SUNNY', site_status: 'OPERATIONAL', general_notes: 'Rebar inspection prep for first floor slab. MEP first-fix setting out underway on level 1.', photos: [1] },
+        { offset: 7, weather: 'LIGHT_RAIN', site_status: 'PARTIAL', general_notes: 'Morning rain delayed external works; internal blockwork continued. Pump and generator on standby.', photos: [] },
+        { offset: 11, weather: 'SUNNY', site_status: 'OPERATIONAL', general_notes: 'Foundation pour completed on grid C4. Blinding and membrane inspection signed off.', photos: [0] },
+      ];
+      let photoIdx = 0;
+      for (const d of diarySeeds) {
+        const entryDate = new Date(Date.now() - d.offset * 86400_000);
+        const diary = await tx.siteDiary.create({
+          data: {
+            tenant_id: tenant.id,
+            project_id: project.id,
+            entry_date: entryDate,
+            weather: d.weather,
+            site_status: d.site_status,
+            general_notes: d.general_notes,
+            recorded_by_id: adminUser.id,
+          },
+        });
+        for (const pi of d.photos) {
+          const file = photoFiles[pi % photoFiles.length]!;
+          const key = `${tenant.id}/${project.id}/seed-${photoIdx}.jpg`;
+          photoIdx += 1;
+          fs.copyFileSync(path.join(assetsDir, file), path.join(uploadRoot, key));
+          await tx.sitePhoto.create({
+            data: {
+              tenant_id: tenant.id,
+              site_diary_id: diary.id,
+              storage_key: key,
+              caption: file.replace('site-', '').replace('.jpg', '').replace(/-/g, ' '),
+              client_visible: pi !== 1,
+              taken_at: new Date(entryDate.getTime() + 9 * 3600_000),
+            },
+          });
+        }
+      }
+    }
+
+    // Invoices + payment certificates — money-per-project bars, invoice
+    // attention stats and retention figures on the dashboard.
+    if ((await tx.invoice.count({ where: { project_id: project.id } })) === 0 && adminUser) {
+      const maxInv = (await tx.invoice.aggregate({ where: { tenant_id: tenant.id }, _max: { invoice_no: true } }))._max.invoice_no ?? 0;
+      const invSeeds = [
+        { title: 'Interim valuation — substructure complete', status: 'PAID', total: 6750000, paid: 6750000, issueOffset: 70, dueOffset: 55 },
+        { title: 'Interim valuation — superstructure underway', status: 'SENT', total: 5400000, paid: 0, issueOffset: 20, dueOffset: 5 },
+        { title: 'Variation account — additional piling', status: 'OVERDUE', total: 1150000, paid: 0, issueOffset: 45, dueOffset: -10 },
+      ];
+      for (const [i, inv] of invSeeds.entries()) {
+        const issue = new Date(Date.now() - inv.issueOffset * 86400_000);
+        const due = new Date(Date.now() - inv.dueOffset * 86400_000);
+        const subtotal = Math.round(inv.total / 1.16);
+        const tax = inv.total - subtotal;
+        await tx.invoice.create({
+          data: {
+            tenant_id: tenant.id,
+            invoice_no: maxInv + i + 1,
+            title: inv.title,
+            project_id: project.id,
+            client_name: 'Riverside Properties Ltd',
+            client_email: 'accounts@riversideproperties.co.ke',
+            status: inv.status,
+            currency: 'KES',
+            subtotal, tax_pct: 16, tax_amount: tax, total: inv.total,
+            amount_paid: inv.paid, balance_due: inv.total - inv.paid,
+            issue_date: issue, due_date: due,
+            sent_at: issue, paid_at: inv.status === 'PAID' ? due : null,
+            created_by: adminUser.id,
+          },
+        });
+      }
+      const maxCert = (await tx.paymentCertificate.aggregate({ where: { project_id: project.id }, _max: { certificate_no: true } }))._max.certificate_no ?? 0;
+      const certSeeds = [
+        { this_period: 5200000, prev: 0, retention_pct: 5, retention_held: 260000, status: 'PAID', endOffset: 60 },
+        { this_period: 6750000, prev: 5200000, retention_pct: 5, retention_held: 597500, status: 'CERTIFIED', endOffset: 25 },
+      ];
+      for (const [i, c] of certSeeds.entries()) {
+        const periodEnd = new Date(Date.now() - c.endOffset * 86400_000);
+        const periodStart = new Date(periodEnd.getTime() - 30 * 86400_000);
+        const retentionDeduction = Math.round(c.this_period * c.retention_pct / 100);
+        const netPayable = c.this_period - retentionDeduction;
+        await tx.paymentCertificate.create({
+          data: {
+            tenant_id: tenant.id,
+            project_id: project.id,
+            certificate_no: maxCert + i + 1,
+            period_start: periodStart,
+            period_end: periodEnd,
+            this_period_amount: c.this_period,
+            previous_certified: c.prev,
+            cumulative_certified: c.prev + c.this_period,
+            retention_pct: c.retention_pct,
+            retention_deduction: retentionDeduction,
+            retention_held: c.retention_held,
+            net_payable: netPayable,
+            status: c.status,
+            submitted_at: periodEnd,
+            certified_at: periodEnd,
+            paid_at: c.status === 'PAID' ? periodEnd : null,
+            submitted_by_id: adminUser.id,
+            certified_by_id: adminUser.id,
+          },
+        });
+      }
+    }
+
+    // Monthly EVM/cash-flow points — feeds the progress-against-plan curve
+    // and the cash forecast blocks. period_month is "YYYY-MM".
+    if ((await tx.projectCashFlowForecast.count({ where: { project_id: project.id } })) === 0) {
+      const ym = (offsetMonths: number) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + offsetMonths);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      };
+      const rows = [
+        { m: -5, pv: 4200000, ac: 4050000, ev: 3900000, billed: 3600000, cash: 1800000 },
+        { m: -4, pv: 8600000, ac: 8400000, ev: 8100000, billed: 7800000, cash: 2200000 },
+        { m: -3, pv: 12400000, ac: 12100000, ev: 11800000, billed: 11200000, cash: -650000 },
+        { m: -2, pv: 15800000, ac: 15600000, ev: 15100000, billed: 14800000, cash: 2900000 },
+        { m: -1, pv: 18900000, ac: 18800000, ev: 18100000, billed: 17900000, cash: 1500000 },
+        { m: 0, pv: 21800000, ac: 21900000, ev: 20700000, billed: 20500000, cash: -1400000 },
+        { m: 1, pv: 24400000, ac: 24600000, ev: 23100000, billed: 22800000, cash: 3100000 },
+        { m: 2, pv: 26800000, ac: 27100000, ev: 25200000, billed: 24900000, cash: 900000 },
+      ];
+      for (const r of rows) {
+        await tx.projectCashFlowForecast.create({
+          data: {
+            tenant_id: tenant.id,
+            project_id: project.id,
+            period_month: ym(r.m),
+            planned_value_kes: r.pv,
+            actual_cost_kes: r.ac,
+            earned_value_kes: r.ev,
+            cpi: Number((r.ev / r.ac).toFixed(4)),
+            spi: Number((r.ev / r.pv).toFixed(4)),
+            forecasted_final_cost_kes: 46200000,
+            client_billed_kes: r.billed,
+            net_cash_flow_kes: r.cash,
+            status: r.m <= 0 ? 'ON_TRACK' : 'AHEAD_UNDER_BUDGET',
           },
         });
       }

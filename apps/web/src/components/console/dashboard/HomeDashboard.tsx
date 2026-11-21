@@ -123,7 +123,7 @@ function ProgressPlan({ projectId, projectName, clientView, cash }: { projectId?
   if (!series.length) return wrap(<EmptyState title="No progress records yet" hint="Progress is recorded monthly once the project is underway." />);
 
   const cum = series.map((r, i) => ({
-    month: r.period_month,
+    month: r.periodMonth ?? r.period_month,
     planned: series.slice(0, i + 1).reduce((s, x) => s + num(x.plannedValueKes), 0),
     earned: series.slice(0, i + 1).reduce((s, x) => s + num(x.earnedValueKes), 0),
   }));
@@ -260,7 +260,7 @@ function CashTimeline({ projectId, projectName, clientView, cash }: { projectId?
           const h = (Math.abs(v) / maxAbs) * (H / 2 - PY);
           return <rect key={i} x={PX + i * bw + bw * 0.2} y={v >= 0 ? zeroY - h : zeroY} width={bw * 0.6} height={Math.max(h, 1)} fill={v >= 0 ? 'var(--color-emerald-500)' : 'var(--color-rose-500)'} rx="2" />;
         })}
-        {series.map((r, i) => <text key={i} x={PX + i * bw + bw / 2} y={H - 1} fontSize="9" textAnchor="middle" fill="var(--color-slate-500)">{String(r.period_month).slice(0, 7)}</text>)}
+        {series.map((r, i) => <text key={i} x={PX + i * bw + bw / 2} y={H - 1} fontSize="9" textAnchor="middle" fill="var(--color-slate-500)">{String(r.periodMonth ?? r.period_month).slice(0, 7)}</text>)}
       </svg>
       <div className="mt-1 flex gap-4 text-xs text-slate-500">
         <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-sm bg-emerald-500" /> In</span>
