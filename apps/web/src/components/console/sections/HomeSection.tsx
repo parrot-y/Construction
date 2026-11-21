@@ -258,10 +258,11 @@ function FieldHome(): React.JSX.Element {
 }
 
 export default function HomeSection(): React.JSX.Element {
-  const { nav, tab} = useConsole();
+  const { nav, tab, role} = useConsole();
+  const canManageAnnouncements = ['COMPANY_ADMIN', 'ADMIN', 'EXECUTIVE', 'PM_QS', 'SUPERINTENDENT'].includes(role);
   if (nav.homeKind === 'field') return<FieldHome />;
   if (tab === 'inbox') return<PmInbox />;
-  if (tab === 'announcements') return<AnnouncementsView canManage={false} />;
+  if (tab === 'announcements') return<AnnouncementsView canManage={canManageAnnouncements} />;
   if (nav.homeKind === 'pm') return<ExecHome />;
   return<ExecHome />;
 }

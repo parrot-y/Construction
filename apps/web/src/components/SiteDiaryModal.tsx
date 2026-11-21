@@ -1,6 +1,6 @@
 import React, { useState} from 'react';
 import { queueOfflineMutation, compressImageClientSide} from '../services/offline-sync';
-import { api, apiErrorMessage } from '../lib/api';
+import { api, apiErrorMessage, ApiError } from '../lib/api';
 
 interface SiteDiaryModalProps {
   isOpen: boolean;
@@ -158,16 +158,22 @@ export default function SiteDiaryModal({
       if (onDiarySubmitted) onDiarySubmitted(resData.data);
       onClose();
 } catch (err: any) {
-      // If network fails, queue offline
-      await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/site-diaries`, payload);
-      if (onDiarySubmitted) {
-        onDiarySubmitted({
-          ...payload,
-          isOfflineQueued: true,
-          totalHeadcount,
+      // Only transport failures (offline/network/timeout — no HTTP status)
+      // may queue for later sync. Server rejections (403/409/422/500) must
+      // surface honestly so the user can fix and retry — never fake-saved.
+      if (err instanceof ApiError && err.status === undefined) {
+        await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/site-diaries`, payload);
+        if (onDiarySubmitted) {
+          onDiarySubmitted({
+            ...payload,
+            isOfflineQueued: true,
+            totalHeadcount,
 });
 }
-      onClose();
+        onClose();
+      } else {
+        setError(apiErrorMessage(err, 'Could not save the diary. Check the connection and try again.'));
+      }
 } finally {
       setIsSubmitting(false);
 }
