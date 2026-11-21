@@ -4,7 +4,7 @@ import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
 import { SavedDataNotice } from '../ui';
 import { statusLabel } from '../lib/status-labels';
 import { formatDateTime } from '../lib/format';
-import { api, apiErrorMessage } from '../lib/api';
+import { api, apiErrorMessage, ApiError } from '../lib/api';
 
 export interface SafetyIncident {
   id: string;
@@ -88,6 +88,8 @@ export default function SafetyIncidentLogView({
   const [newImmediate, setNewImmediate] = useState<string>('');
   const [newCorrective, setNewCorrective] = useState<string>('');
   const [newOsha, setNewOsha] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const filtered = incidents.filter((i) => {
     const matchesType = typeFilter === 'ALL' || i.incident_type === typeFilter;
@@ -102,7 +104,10 @@ export default function SafetyIncidentLogView({
 
   const handleCreateIncident = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!newLocation.trim() || !newDescription.trim()) return;
+    setSaving(true);
+    setFormError(null);
 
     const sevToApi: Record<SafetyIncident['severity'], string> = { LOW: 'MINOR', MEDIUM: 'MODERATE', HIGH: 'SERIOUS', CRITICAL: 'CRITICAL' };
     const payload = {
@@ -141,7 +146,16 @@ export default function SafetyIncidentLogView({
           recorded_by: { full_name: i.investigated_by || 'Site team' },
           reported_at: i.created_at,
         };
-      } catch { /* intentionally ignored: fall through to offline queue */ }
+      } catch (err) {
+        // Only transport failures (offline/network/timeout — no HTTP status)
+        // may queue for later sync. Server rejections (403/409/422/500) must
+        // surface honestly so the user can fix and retry — never fake-saved.
+        if (!(err instanceof ApiError && err.status === undefined)) {
+          setFormError(apiErrorMessage(err, 'Failed to log safety incident'));
+          setSaving(false);
+          return;
+        }
+      }
     }
 
     if (!created) {
@@ -174,6 +188,7 @@ export default function SafetyIncidentLogView({
     setNewImmediate('');
     setNewCorrective('');
     setNewOsha(false);
+    setSaving(false);
 };
 
   const handleStatusChange = (incidentId: string, status: SafetyIncident['status']) => {
@@ -412,6 +427,11 @@ export default function SafetyIncidentLogView({
               Permanent statutory record under Kenya OSHA 2007 and NCA building safety code.
 </p>
 <form onSubmit={handleCreateIncident} className="space-y-3">
+{formError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-medium" role="alert">
+              {formError}
+</div>
+)}
 <div className="grid grid-cols-2 gap-3">
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">Date &amp; Time</label>
@@ -542,9 +562,10 @@ export default function SafetyIncidentLogView({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm"
+                  disabled={saving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm disabled:opacity-50"
                 >
-                  Save Incident Entry
+                  {saving ? 'Saving…' : 'Save Incident Entry'}
 </button>
 </div>
 </form>
