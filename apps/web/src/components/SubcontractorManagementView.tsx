@@ -1,6 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
-import { api } from '../lib/api';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface SubcontractorPackage {
   id: string;
@@ -68,6 +68,8 @@ export default function SubcontractorManagementView({
   const [newSum, setNewSum] = useState<string>('1500000.00');
   const [newRetention, setNewRetention] = useState<string>('5.00');
   const [newScope, setNewScope] = useState<string>('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const filtered = packages.filter((p) => {
     const matchesTrade = tradeFilter === 'ALL' || p.trade_category === tradeFilter;
@@ -81,9 +83,12 @@ export default function SubcontractorManagementView({
 );
   const activeCount = packages.filter((p) => p.status === 'ACTIVE').length;
 
-  const handleAwardPackage = (e: React.FormEvent) => {
+  const handleAwardPackage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!newFirmName.trim() || !newSum) return;
+    setSaving(true);
+    setFormError(null);
 
     const created: SubcontractorPackage = {
       id: `sub-${Date.now()}`,
@@ -100,27 +105,32 @@ export default function SubcontractorManagementView({
 };
 
     if (isLive) {
-      void (async () => {
-        try {
-          await api.post(`/api/v1/projects/${projectId}/subcontractors`, {
-            tradeCategory: created.trade_category,
-            firmName: created.firm_name,
-            contactPerson: created.contact_person,
-            phoneNumber: created.phone_number,
-            subcontractSum: String(created.subcontract_sum),
-            retentionRatePct: String(created.retention_rate_pct),
-            status: 'ACTIVE',
-            scopeDescription: created.scope_description,
+      try {
+        await api.post(`/api/v1/projects/${projectId}/subcontractors`, {
+          tradeCategory: created.trade_category,
+          firmName: created.firm_name,
+          contactPerson: created.contact_person,
+          phoneNumber: created.phone_number,
+          subcontractSum: String(created.subcontract_sum),
+          retentionRatePct: String(created.retention_rate_pct),
+          status: 'ACTIVE',
+          scopeDescription: created.scope_description,
 });
-          await reload();
-} catch { /* keep local */}
-})();
-      setShowModal(false);
-      setNewFirmName('');
-      setNewContactPerson('');
-      setNewPhone('');
-      setNewSum('1500000.00');
-      setNewScope('');
+        await reload();
+        setShowModal(false);
+        setNewFirmName('');
+        setNewContactPerson('');
+        setNewPhone('');
+        setNewSum('1500000.00');
+        setNewScope('');
+        if (onPackageAwarded) onPackageAwarded(created);
+      } catch (err) {
+        // Server rejections and transport failures both surface honestly —
+        // the modal stays open with the entered data intact.
+        setFormError(apiErrorMessage(err, 'Failed to award subcontract package'));
+      } finally {
+        setSaving(false);
+      }
       return;
 }
 
@@ -132,6 +142,7 @@ export default function SubcontractorManagementView({
     setNewPhone('');
     setNewSum('1500000.00');
     setNewScope('');
+    setSaving(false);
 };
 
   const handleStatusUpdate = (packageId: string, status: SubcontractorPackage['status']) => {
@@ -361,6 +372,11 @@ export default function SubcontractorManagementView({
               Contract commitment with Kenyan statutory retention guidelines (BORAQS / JBC).
 </p>
 <form onSubmit={handleAwardPackage} className="space-y-3">
+{formError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-medium" role="alert">
+              {formError}
+</div>
+)}
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">Subcontractor Firm Name</label>
 <input
@@ -472,9 +488,10 @@ export default function SubcontractorManagementView({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm"
+                  disabled={saving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm disabled:opacity-50"
                 >
-                  Award Subcontract
+                  {saving ? 'Awarding…' : 'Award Subcontract'}
 </button>
 </div>
 </form>

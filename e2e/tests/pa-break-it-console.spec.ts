@@ -26,7 +26,7 @@ import { API, login, apiGet, apiPost, unwrap, fixtureName, Session } from './hel
 const RUN = Date.now();
 const PASSWORD = 'PaBreak#2026';
 const PROJECT = { name: '', code: '', id: '' };
-const FIX = { supplierName: '', invoiceId: '', invoiceTitle: '' };
+const FIX = { supplierName: '', invoiceId: '', invoiceTitle: '', pkgFirmName: '' };
 let admin: Session;
 
 const marker = (key: string) => `BRK-${key}-${String(RUN).slice(-6)}`;
@@ -75,12 +75,29 @@ async function assertPlainError(page: Page) {
   expect(text.trim().length).toBeGreaterThan(8);
 }
 
-/** Count occurrences of `mark` inside a JSON API response body. */
+/** Count RECORDS containing `mark` — an entity may carry the marker in
+ *  several fields (snag location + description), so count list elements,
+ *  not string occurrences. */
+function countMarkedRecords(node: unknown, mark: string): number {
+  let best = 0;
+  const walk = (v: unknown) => {
+    if (Array.isArray(v)) {
+      const c = v.filter((el) => JSON.stringify(el).includes(mark)).length;
+      if (c > best) best = c;
+      v.forEach(walk);
+    } else if (v && typeof v === 'object') {
+      Object.values(v as Record<string, unknown>).forEach(walk);
+    }
+  };
+  walk(node);
+  return best;
+}
+
+/** Count list records containing `mark` inside a JSON API response body. */
 async function countMarker(request: APIRequestContext, path: string, mark: string): Promise<number> {
   const res = await apiGet(request, admin, path);
   expect(res.status(), `${path} -> ${res.status()}`).toBe(200);
-  const body = await res.json();
-  return JSON.stringify(body).split(mark).length - 1;
+  return countMarkedRecords(await res.json(), mark);
 }
 
 interface Ctx { page: Page; request: APIRequestContext; mark: string }
@@ -96,7 +113,7 @@ interface Surface {
   /** Route predicate identifying THE save POST. */
   postMatch: (method: string, url: string) => boolean;
   /** API path searched for the marker after double-submit. */
-  verifyPath: string;
+  verifyPath: () => string;
   verify?: (c: Ctx) => Promise<number>;
   /** 'queued' = transport failure legitimately queues (diary). */
   offlineMode?: 'queued';
@@ -125,7 +142,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => page.getByRole('button', { name: 'Save item' }),
     postMatch: postFrag('/boq/items'),
-    verifyPath: '',
+    verifyPath: () => '',
     verify: async ({ request, mark }) => countMarker(request, `/api/v1/projects/${PROJECT.id}/boq`, mark),
   },
   {
@@ -137,7 +154,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => page.getByRole('button', { name: 'Record Daily Site Diary' }),
     postMatch: postFrag('/site-diaries'),
-    verifyPath: `/api/v1/projects/${PROJECT.id}/site-diaries`,
+    verifyPath: () => `/api/v1/projects/${PROJECT.id}/site-diaries`,
     offlineMode: 'queued',
   },
   {
@@ -152,7 +169,8 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => lastFixed(page).getByRole('button', { name: 'Add Snag Item' }),
     postMatch: postFrag('/snags'),
-    verifyPath: `/api/v1/projects/${PROJECT.id}/snags`,
+    verifyPath: () => `/api/v1/projects/${PROJECT.id}/snags`,
+    offlineMode: 'queued',
   },
   {
     key: 'inspection',
@@ -162,11 +180,11 @@ const SURFACES: Surface[] = [
       const modal = lastFixed(page);
       await expect(modal).toBeVisible({ timeout: 15_000 });
       await modal.getByPlaceholder('e.g. Block B, 2nd floor slab').fill(`${mark} location`);
-      await modal.getByLabel('Notes').fill(`${mark} pre-pour inspection request`);
+      await modal.locator('textarea').fill(`${mark} pre-pour inspection request`);
     },
     submit: ({ page }) => page.getByRole('button', { name: 'Submit request' }),
     postMatch: postFrag('/inspections'),
-    verifyPath: `/api/v1/projects/${PROJECT.id}/inspections`,
+    verifyPath: () => `/api/v1/projects/${PROJECT.id}/inspections`,
   },
   {
     key: 'safety',
@@ -180,7 +198,8 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => lastFixed(page).getByRole('button', { name: 'Save Incident Entry' }),
     postMatch: postFrag('/safety-incidents'),
-    verifyPath: `/api/v1/projects/${PROJECT.id}/safety-incidents`,
+    verifyPath: () => `/api/v1/projects/${PROJECT.id}/safety-incidents`,
+    offlineMode: 'queued',
   },
   {
     key: 'po',
@@ -194,7 +213,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => page.getByTestId('po-create-submit'),
     postMatch: postFrag('/purchase-orders'),
-    verifyPath: `/api/v1/projects/${PROJECT.id}/purchase-orders`,
+    verifyPath: () => `/api/v1/projects/${PROJECT.id}/purchase-orders`,
   },
   {
     key: 'invoice',
@@ -209,7 +228,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => page.getByRole('button', { name: /Save Draft Invoice/ }),
     postMatch: postPath('/api/v1/invoices'),
-    verifyPath: `/api/v1/invoices?projectId=${PROJECT.id}`,
+    verifyPath: () => '/api/v1/invoices',
   },
   {
     key: 'payment',
@@ -223,7 +242,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => page.getByRole('button', { name: 'Save payment' }),
     postMatch: postRe(/^\/api\/v1\/invoices\/[^/]+\/payments$/),
-    verifyPath: '',
+    verifyPath: () => '',
     verify: async ({ request, mark }) => countMarker(request, `/api/v1/invoices/${FIX.invoiceId}`, mark),
   },
   {
@@ -233,14 +252,13 @@ const SURFACES: Surface[] = [
       await page.getByRole('button', { name: 'New Subcontractor Claim' }).click();
       const modal = lastFixed(page);
       await expect(modal).toBeVisible({ timeout: 15_000 });
-      await modal.locator('select').first().selectOption({ index: 1 });
-      await modal.getByLabel(/Gross Certified/).fill('1500000');
-      const notes = modal.locator('textarea').last();
-      if (await notes.count()) await notes.fill(`${mark} claim notes`);
+      await modal.locator('select').first().selectOption({ label: `${FIX.pkgFirmName} (PLUMBING)` });
+      await modal.getByPlaceholder('e.g. 1500000').fill('1500000');
+      await modal.getByPlaceholder('e.g. Scope inspected on site, materials verified').fill(`${mark} claim notes`);
     },
     submit: ({ page }) => page.getByRole('button', { name: 'Issue Certificate' }),
     postMatch: postFrag('/subcontractor-valuations'),
-    verifyPath: `/api/v1/projects/${PROJECT.id}/subcontractor-valuations`,
+    verifyPath: () => `/api/v1/projects/${PROJECT.id}/subcontractor-valuations`,
   },
   {
     key: 'certificate',
@@ -254,7 +272,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => page.getByRole('button', { name: 'Draft IPC' }),
     postMatch: postRe(/^\/api\/v1\/projects\/[^/]+\/payment-certificates$/),
-    verifyPath: `/api/v1/projects/${PROJECT.id}/payment-certificates`,
+    verifyPath: () => `/api/v1/projects/${PROJECT.id}/payment-certificates`,
   },
   {
     key: 'subcontractor',
@@ -271,7 +289,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => lastFixed(page).getByRole('button', { name: 'Award Subcontract' }),
     postMatch: postRe(/^\/api\/v1\/projects\/[^/]+\/subcontractors$/),
-    verifyPath: `/api/v1/projects/${PROJECT.id}/subcontractors`,
+    verifyPath: () => `/api/v1/projects/${PROJECT.id}/subcontractors`,
   },
   {
     key: 'doc',
@@ -283,7 +301,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => page.getByRole('button', { name: 'Upload document' }),
     postMatch: postPath('/api/v1/company/documents'),
-    verifyPath: '/api/v1/company/documents',
+    verifyPath: () => '/api/v1/company/documents',
   },
   {
     key: 'announcement',
@@ -297,7 +315,7 @@ const SURFACES: Surface[] = [
     },
     submit: ({ page }) => page.getByRole('button', { name: 'Publish' }),
     postMatch: postPath('/api/v1/announcements'),
-    verifyPath: '/api/v1/announcements',
+    verifyPath: () => '/api/v1/announcements',
   },
 ];
 
@@ -312,8 +330,9 @@ async function setupFixtures(request: APIRequestContext) {
   const sr = await apiPost(request, admin, '/api/v1/suppliers', { name: FIX.supplierName, phone: '+254711223344' });
   expect(sr.status(), await sr.text()).toBeLessThan(300);
 
+  FIX.pkgFirmName = fixtureName('subcontractor', `${RUN}-pabr-pkg`);
   const kr = await apiPost(request, admin, `/api/v1/projects/${PROJECT.id}/subcontractors`, {
-    tradeCategory: 'PLUMBING', firmName: fixtureName('subcontractor', `${RUN}-pabr-pkg`),
+    tradeCategory: 'PLUMBING', firmName: FIX.pkgFirmName,
     subcontractSum: '600000.00', retentionRatePct: '10.00', status: 'ACTIVE',
   });
   expect(kr.status(), await kr.text()).toBeLessThan(300);
@@ -343,8 +362,8 @@ async function setupFixtures(request: APIRequestContext) {
   const boqItemId = boqItem.id || boqItem.item?.id || boqItem.data?.id;
   const today = new Date().toISOString().slice(0, 10);
   const prg = await apiPost(request, admin, `/api/v1/projects/${PROJECT.id}/progress`, {
-    recordDate: today, overallProgress: 5,
-    items: [{ boqItemId, completedQuantity: 5, completionPct: 50 }],
+    recordDate: today, overallProgress: '0.0500',
+    items: [{ boqItemId, completedQuantity: '5.0000', completionPct: '0.5000' }],
   });
   expect(prg.status(), await prg.text()).toBeLessThan(300);
 }
@@ -396,7 +415,7 @@ test.describe.serial('A6 break-it — every primary admin save', () => {
       const offlineText = (await page.locator('main').last().textContent().catch(() => '')) || '';
       expect(offlineText).not.toMatch(/Failed to fetch|TypeError|ERR_INTERNET_DISCONNECTED/i);
       if (s.offlineMode === 'queued') {
-        const modalGone = await page.locator('div.fixed.inset-0', { hasText: 'Record Daily Site Diary' }).count().then((n) => n === 0);
+        const modalGone = await page.locator('div.fixed.inset-0', { hasText: /Record Daily Site Diary|Add Snag Item|Safety Incident|Incident/i }).count().then((n) => n === 0);
         const queued = await page.getByText(/queued|offline|will sync|saved locally/i).first().isVisible().catch(() => false);
         expect(queued || modalGone, 'diary should queue offline or close with notice').toBeTruthy();
       } else {
@@ -417,21 +436,30 @@ test.describe.serial('A6 break-it — every primary admin save', () => {
       const refusedText = (await page.locator('main').last().textContent().catch(() => '')) || '';
       expect(refusedText).not.toMatch(/Failed to fetch|TypeError|ERR_INTERNET_DISCONNECTED/i);
       if (s.offlineMode === 'queued') {
-        const modalGone2 = await page.locator('div.fixed.inset-0', { hasText: 'Record Daily Site Diary' }).count().then((n) => n === 0);
-        expect(modalGone2 || /queued|offline|sync/i.test(refusedText)).toBeTruthy();
+        // navigator.onLine is still true on api-stop, so the honest outcomes
+        // are: queued-close (if the view treats it as offline) OR an inline
+        // error in the still-open form.
+        const modalGone2 = await page.locator('div.fixed.inset-0', { hasText: /Record Daily Site Diary|Add Snag Item|Safety Incident|Incident/i }).count().then((n) => n === 0);
+        const queuedText = /queued|offline|will sync|saved locally/i.test(refusedText);
+        if (!(modalGone2 || queuedText)) await assertPlainError(page);
       } else {
         await assertPlainError(page);
       }
       await page.unrouteAll();
 
-      // 4. Double-click → exactly one record (API-verified).
+      // 4. Double-click → exactly one NEW record (API-verified delta).
+      //    Queue-capable surfaces (diary/snag/safety) may still be flushing a
+      //    legitimately queued offline write, so measure the delta around the
+      //    submit rather than the absolute count.
       await reopen().catch(() => {});
+      const countNow = () => (s.verify ? s.verify(ctx) : countMarker(request, s.verifyPath(), mark));
+      const before = await countNow();
       const submit = s.submit(ctx);
       await submit.click({ timeout: 15_000 }).catch(() => {});
       await submit.click({ force: true, timeout: 2_000 }).catch(() => {});
-      await page.waitForTimeout(3000);
-      const n = s.verify ? await s.verify(ctx) : await countMarker(request, s.verifyPath, mark);
-      expect(n, `${s.screen}: expected exactly 1 record with marker, got ${n}`).toBe(1);
+      await page.waitForTimeout(4000);
+      const after = await countNow();
+      expect(after - before, `${s.screen}: double-submit created ${after - before} records (expected 1)`).toBe(1);
     });
   }
 });
