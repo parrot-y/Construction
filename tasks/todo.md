@@ -306,3 +306,32 @@ Plan:
 - [ ] A7: first-screen <3000ms — route-level console split / defer non-critical; 5-run median on quiet host; honest miss if remains
 - [ ] A8: list >800-line files; split daily-use ones, no behaviour change
 - [ ] A9: evidence on FINAL commit; report table + counts + A6 table + screenshots; STOP
+
+## A8 review — eight oversized view splits (uncommitted)
+
+Pure code-motion splits; each original file keeps its public exports and
+import path, delegating presentational JSX to a sibling `<Name>.parts.tsx`.
+State, hooks, API calls, handlers, and currency-guard-sensitive formatting
+expressions stayed in the shells; formatted values are passed as props.
+
+| View | Shell lines | Parts lines | Parts file |
+|---|---|---|---|
+| PlantTelematicsView | 742 | 973 | PlantTelematicsView.parts.tsx |
+| TopographicSurveyView | 598 | 885 | TopographicSurveyView.parts.tsx |
+| ContractorTenderBoardView | 329 | 917 | ContractorTenderBoardView.parts.tsx |
+| ClientDashboard | 428 | 726 | ClientDashboard.parts.tsx |
+| LaborMusterRollView | 463 | 719 | LaborMusterRollView.parts.tsx |
+| PlantEquipmentView | 444 | 731 | PlantEquipmentView.parts.tsx |
+| RmcTransitTrackerView | 495 | 627 | RmcTransitTrackerView.parts.tsx |
+| AsphaltPavementView | 440 | 642 | AsphaltPavementView.parts.tsx |
+
+Verification: `pnpm exec tsc --noEmit` in apps/web — clean (0 errors).
+`vitest run src/currency-guard.test.ts` — 2/2 pass. No `.parts.tsx` file
+contains `KES <amount>` literals, `.toFixed(2)`, or `toLocaleString` money
+formatting (guard-safe by construction).
+
+Not touched per instructions: IndependentSiteReportView.tsx,
+RetentionAndBondsView.tsx, e2e/tests/aud-*.spec.ts, aud-specs.sha256.
+NOTE: IndependentSiteReportView/RetentionAndBondsView and their .parts/.modals
+files show pre-existing uncommitted changes from earlier work — not from this
+task; left untouched.

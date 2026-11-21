@@ -116,7 +116,7 @@ describe('retention console — plain words + role-gated actions', () => {
 describe('money screens never render raw status enums (source gate)', () => {
   const dir = join(__dirname, '..', 'components');
   const screens = [
-    'RetentionAndBondsView.tsx',
+    'RetentionAndBondsView.parts.tsx',
     'CertificatesCloseoutView.tsx',
     'InvoicingView.tsx',
     'VariationManagementView.tsx',
