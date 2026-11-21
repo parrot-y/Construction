@@ -65,3 +65,31 @@ export async function firstProjectId(request: APIRequestContext, session: Sessio
   const seeded = rows.find((p: any) => /riverside/i.test(p.name || '')) || rows[0];
   return seeded.id;
 }
+
+/**
+ * Clean demo names for e2e fixtures — visible names stay realistic
+ * ("Kilimani Apartments"); uniqueness lives in codes/refs/emails.
+ * Deterministic per salt so chromium/mobile runs pick varied names.
+ */
+const FIXTURE_NAME_POOLS = {
+  project: ['Kilimani Apartments','Runda Residence','Lavington Court','Karen Bungalow','Westlands Plaza','Ruaka Townhouses','Kileleshwa Villas','Embakasi Warehouse','Kitisuru Gardens','Muthaiga Court'],
+  company: ['Meridian Build Ltd','Savannah Construction Ltd','Highland Developers Ltd','Coastline Builders Ltd','Rift Valley Contractors Ltd','Acacia Homes Ltd'],
+  supplier: ['East Africa Cement Suppliers','Savannah Timber & Boards','Nyali Steel & Roofing','Mombasa Hardware & Paints','Nakuru Aggregate Supplies','Tatu City Concrete Works'],
+  subcontractor: ['FlowFit Mechanical Services','Kijani Electrical Contractors','PaveRight Asphalt Ltd','AquaLine Plumbing Services','SafeSite Scaffolding Ltd','BuildRight Masonry Ltd'],
+  client: ['Nyambane Properties','Tatu City Logistics','Delta Freight Ltd','Savannah Holdings','Highland Property Group'],
+  quote: ['Family Home Extension','Office Fit-Out Phase 1','Warehouse Expansion','School Block Renovation','Apartment Block Fit-Out','Retail Unit Refurbishment'],
+  invoice: ['Progress claim — superstructure','Final account — external works','Variation account — additional piling','Stage payment — façade works','Interim valuation — ground floor'],
+  variation: ['Additional piling to bedrock','Client-added ensuite bathrooms','Upgraded roof insulation','Extended stormwater drainage','Additional parking bays'],
+  changeorder: ['Client-requested stone cladding','Additional canopy over main entrance','Upgraded flooring specification','Extra security lighting'],
+  rfi: ['Clarification on foundation depth','Roof pitch dimension query','Door schedule discrepancy'],
+  package: ['Plumbing first-fix package','Electrical first-fix package','Waterproofing package'],
+  generic: ['River sand (plaster grade)','Ballast 20mm','Y12 reinforcement bar','Cement 50kg (Bamburi)','Plywood shuttering 18mm','Hardwood props 100x100'],
+} as const;
+export type FixtureKind = keyof typeof FIXTURE_NAME_POOLS;
+export function fixtureName(kind: FixtureKind, salt: string | number): string {
+  const pool = FIXTURE_NAME_POOLS[kind];
+  const s = String(salt);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return pool[(h >>> 0) % pool.length]!;
+}

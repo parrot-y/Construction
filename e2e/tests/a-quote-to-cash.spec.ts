@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, apiGet, apiPost, API } from './helpers';
+import { login, apiGet, apiPost, fixtureName, API } from './helpers';
 
 /**
  * Workflow A — quote created → sent → public link opened → accepted →
@@ -13,7 +13,7 @@ test.describe('A. Quote → cash', () => {
 
     // 1. Create quote
     const createRes = await apiPost(request, admin, '/api/v1/quotes', {
-      title: `E2E Family Home Extension ${Date.now()}`,
+      title: fixtureName('quote', `${Date.now()}-${test.info().project.name}-a`),
       clientName: 'E2E Client',
       clientEmail: 'e2e-client@example.com',
       siteLocation: 'Nairobi',

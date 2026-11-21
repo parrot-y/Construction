@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, apiGet, apiPost, apiPatch, firstProjectId, unwrap, API } from './helpers';
+import { login, apiGet, apiPost, apiPatch, firstProjectId, unwrap, fixtureName, API } from './helpers';
 
 /**
  * Workflow C — variation raised → submitted → client approves via portal
@@ -19,7 +19,7 @@ test.describe('C. Variation → client approval', () => {
 
     // 1. Raise variation
     const createRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/variations`, {
-      title: `E2E Extra foundation depth ${Date.now()}`,
+      title: fixtureName('variation', `${Date.now()}-${test.info().project.name}-c`),
       reason: 'E2E test: rock excavation deeper than borehole indicated',
       items: [{ description: 'Additional excavation m3', unit: 'm3', quantity: '5000', unitRate: '45000' }],
     });

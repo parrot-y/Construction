@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
-import { API, login, apiGet, apiPost, apiPatch, authHeaders, unwrap, Session } from './helpers';
+import { API, login, apiGet, apiPost, apiPatch, authHeaders, unwrap, fixtureName, Session } from './helpers';
 
 /**
  * STAGE 1 — CONTRACTOR JOURNEY (auditor-written acceptance test)
@@ -35,7 +35,9 @@ const CONTRACT = {
 const RUN = Date.now();
 const PASSWORD = 'Journey#2026pass';
 const company = {
-  companyName: `Journey Builders ${RUN}`,
+  // Filled inside test 1 — the salt includes the Playwright project name so
+  // chromium and mobile-390 runs pick different realistic names.
+  companyName: '',
   adminFullName: 'Wanjiru Kamau',
   email: `admin.${RUN}@journey-e2e.test`,
   phone: '+254712000111',
@@ -69,7 +71,8 @@ async function asUser(request: APIRequestContext, email: string): Promise<Sessio
 
 test.describe.serial('Contractor journey — new company, start to finish', () => {
   // ---------------------------------------------------------------------------
-  test('1. Company signs up and logs in to an empty workspace [NEW CONTRACT]', async ({ request }) => {
+  test('1. Company signs up and logs in to an empty workspace [NEW CONTRACT]', async ({ request }, testInfo) => {
+    company.companyName = fixtureName('company', `${RUN}-${testInfo.project.name}-co`);
     const res = await request.post(`${API}${CONTRACT.registerCompany}`, { data: company });
     expect(res.status(), `register-company must exist and return 201. Body: ${await res.text()}`).toBe(201);
 
@@ -156,10 +159,10 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
   });
 
   // ---------------------------------------------------------------------------
-  test('3. Quote -> accepted -> project with deposit invoice', async ({ request }) => {
+  test('3. Quote -> accepted -> project with deposit invoice', async ({ request }, testInfo) => {
     const admin = state.admin!;
     const create = await apiPost(request, admin, '/api/v1/quotes', {
-      title: `Karen Maisonette ${RUN}`,
+      title: fixtureName('project', `${RUN}-${testInfo.project.name}-quote`),
       clientName: 'Dr. Evans Kiprop',
       clientEmail: `client.${RUN}@journey-e2e.test`,
       siteLocation: 'Karen, Nairobi',
@@ -267,12 +270,13 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
     const projectId = state.projectId!;
     const today = new Date().toISOString().slice(0, 10);
 
+    const diaryNotes = 'Foundation pour completed on grid C4; shuttering struck on grid B2.';
     const diary = {
       projectId,
       entryDate: today,
       weather: 'SUNNY_CLEAR',
       siteStatus: 'OPERATIONAL',
-      generalNotes: `Journey diary ${RUN}`,
+      generalNotes: diaryNotes,
       laborHeadcounts: [{ tradeType: 'MASON', headcount: 12 }],
     };
     const key = `journey-diary-${RUN}`;
@@ -281,7 +285,7 @@ test.describe.serial('Contractor journey — new company, start to finish', () =
     const replay = await apiPost(request, sup, `/api/v1/projects/${projectId}/site-diaries`, diary, { 'idempotency-key': key });
     expect([200, 201]).toContain(replay.status());
     const list = rowsOf(await (await apiGet(request, sup, `/api/v1/projects/${projectId}/site-diaries`)).json());
-    expect(list.filter((d: any) => JSON.stringify(d).includes(`Journey diary ${RUN}`)).length).toBe(1);
+    expect(list.filter((d: any) => JSON.stringify(d).includes(diaryNotes)).length).toBe(1);
 
     // Physical progress against real BoQ items (45% of the first item).
     const prog = await apiPost(request, sup, `/api/v1/projects/${projectId}/progress`, {

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { execSync } from 'node:child_process';
-import { login, apiPost, firstProjectId, unwrap, API } from './helpers';
+import { login, apiPost, firstProjectId, unwrap, fixtureName, API } from './helpers';
 
 /**
  * Workflow E — every external portal: valid token renders real data,
@@ -13,7 +13,7 @@ test.describe('E. External portals', () => {
 
     // Create an RFI to reply to
     const rfiRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/rfis`, {
-      title: `E2E RFI ${Date.now()}`,
+      title: fixtureName('rfi', `${Date.now()}-${test.info().project.name}-rfi`),
       question: 'E2E: confirm slab edge distance',
       priority: 'MEDIUM',
       assignedToRole: 'CONSULTANT',
@@ -79,7 +79,7 @@ test.describe('E. External portals', () => {
     // onboards) the Supplier record from stakeholderName — never free-text.
     const autoLink = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
       portalType: 'SUPPLIER',
-      stakeholderName: `E2E Auto Supplier ${Date.now()}`,
+      stakeholderName: fixtureName('supplier', `${Date.now()}-${test.info().project.name}-autosup`),
       stakeholderRole: 'Cement supplier',
       expiresInDays: 7,
     });
@@ -87,7 +87,7 @@ test.describe('E. External portals', () => {
     expect(unwrap(await autoLink.json()).supplierId, 'link must bind a Supplier record').toBeTruthy();
 
     const supRes = await apiPost(request, sup, '/api/v1/suppliers', {
-      name: `E2E Cement Co ${Date.now()}`,
+      name: fixtureName('supplier', `${Date.now()}-${test.info().project.name}-cement`),
       phone: '+254700000001',
     });
     expect(supRes.status(), await supRes.text()).toBe(201);
@@ -148,6 +148,12 @@ test.describe('E. External portals', () => {
   test('subcontractor links are package-scoped — two subs cannot see each other', async ({ request }) => {
     const qs = await login(request, 'qs@apexbuilders.co.ke');
     const projectId = await firstProjectId(request, qs);
+    const saltBase = `${Date.now()}-${test.info().project.name}-iso`;
+    const firmA = fixtureName('subcontractor', `${saltBase}-a`);
+    // Guarantee the two package firm names differ so the isolation
+    // assertions below stay meaningful.
+    let firmB = fixtureName('subcontractor', `${saltBase}-b`);
+    while (firmB === firmA) firmB = fixtureName('subcontractor', `${firmB}-x`);
 
     const mkPkg = async (firm: string, trade: string, sum: string) => {
       const r = await apiPost(request, qs, `/api/v1/projects/${projectId}/subcontractors`, {
@@ -157,8 +163,8 @@ test.describe('E. External portals', () => {
       const p = unwrap(await r.json());
       return p.id || p.data?.id;
     };
-    const pkgA = await mkPkg(`E2E Iso Plumbing ${Date.now()}`, 'PLUMBING', '900000.00');
-    const pkgB = await mkPkg(`E2E Iso Electrical ${Date.now()}`, 'ELECTRICAL', '800000.00');
+    const pkgA = await mkPkg(firmA, 'PLUMBING', '900000.00');
+    const pkgB = await mkPkg(firmB, 'ELECTRICAL', '800000.00');
 
     const mkLink = async (pkgId: string, name: string) => {
       const r = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
@@ -176,8 +182,8 @@ test.describe('E. External portals', () => {
     expect(a.packages[0].id).toBe(pkgA);
     expect(b.packages.length).toBe(1);
     expect(b.packages[0].id).toBe(pkgB);
-    expect(JSON.stringify(a)).not.toContain('Iso Electrical');
-    expect(JSON.stringify(b)).not.toContain('Iso Plumbing');
+    expect(JSON.stringify(a)).not.toContain(firmB);
+    expect(JSON.stringify(b)).not.toContain(firmA);
 
     // Cross-package valuation is forbidden
     const cross = await request.post(`${API}/api/v1/portals/subcontractor/${linkA.token || linkA.rawToken}/valuations`, {
