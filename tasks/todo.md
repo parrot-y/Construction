@@ -294,3 +294,15 @@ Plan:
 - [x] P4.7 (ccb8974): gzip enabled in nginx.conf.template — template had cache headers but no compression; ~660 kB JS/CSS would have shipped raw. Verified via local nginx mirroring the template.
 - [x] P4.6 attempted + REVERTED (ab900bb/02d3ffd → e4c4d5c/f32f38e): lazy LoginForm/LandingPortalHub cut entry 327→270 kB but introduced a lazy-boundary race (specs + users see 'Loading…' flash on landing); ~57 kB saving didn't move first-screen reliably. Reverted, not shipped.
 - [x] Closeout evidence: ui-speed-ccb8974.md (18/19 budgets; first-screen 3436 ms MISS documented honestly — CPU-bound under 4x throttle, bandwidth fixed), e2e-ccb8974.md (452/452 solo suite on identical tree), verify-ccb8974.log (6/6 turbo tasks green)
+
+## Part A — auditor fixes on 699a61a (stop before Part B)
+
+- [ ] A1: sidebar tabs must render under their OWN section item; only active section expands; DOM-adjacent order test @1280px
+- [ ] A2: phone bottom bar text labels under every icon, 56px, active clear; test @390px
+- [ ] A3: phone header project selector truncate+ellipsis, status beside it; single nav level on phone
+- [ ] A4: clean seed/demo names (no timestamps, no 7 identical projects); "Context:" line shows project name not ID
+- [ ] A5: remove Home hero card + big Open projects button; order = Needs you now → Get started → spec blocks; full-page shots 390/1280 with real data
+- [ ] A6: extend break-it checks to every admin primary save (BoQ, diary, snag, inspection, safety, PO, invoice, payment, valuation, certificate, subcontractor, upload, announcement); coverage table
+- [ ] A7: first-screen <3000ms — route-level console split / defer non-critical; 5-run median on quiet host; honest miss if remains
+- [ ] A8: list >800-line files; split daily-use ones, no behaviour change
+- [ ] A9: evidence on FINAL commit; report table + counts + A6 table + screenshots; STOP
