@@ -291,4 +291,6 @@ Plan:
 - [x] P4.4: CLS via PerformanceObserver + per-section shell/data timing in measure-admin-speed.mjs; wizard driver rewritten as draft-state machine (fixed stale 4-step flow + backdrop-close race + 409 stale-draft submit)
 - [x] P4.5 (50cfc92): SW precache deferred 5 s past load (was saturating throttled link); console chunks warmed in parallel with /auth/me; lessons.md pagination entry
 - [x] P4.3 fix (c6862c6): explicit `page=` disables transparent auto-pagination (was double-fetching/duplicating rows); server takes first value of duplicated query keys; mutation invalidates in-flight GET dedupe (d8f4976)
-- [ ] Closeout: full solo suite on 50cfc92 + verify-local + ui-speed-50cfc92.md + P4 report table
+- [x] P4.7 (ccb8974): gzip enabled in nginx.conf.template — template had cache headers but no compression; ~660 kB JS/CSS would have shipped raw. Verified via local nginx mirroring the template.
+- [x] P4.6 attempted + REVERTED (ab900bb/02d3ffd → e4c4d5c/f32f38e): lazy LoginForm/LandingPortalHub cut entry 327→270 kB but introduced a lazy-boundary race (specs + users see 'Loading…' flash on landing); ~57 kB saving didn't move first-screen reliably. Reverted, not shipped.
+- [x] Closeout evidence: ui-speed-ccb8974.md (18/19 budgets; first-screen 3436 ms MISS documented honestly — CPU-bound under 4x throttle, bandwidth fixed), e2e-ccb8974.md (452/452 solo suite on identical tree), verify-ccb8974.log (6/6 turbo tasks green)
