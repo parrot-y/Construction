@@ -44,6 +44,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
   const [mobileSearch, setMobileSearch] = useState(false);
   const [q, setQ] = useState('');
   const [userMenu, setUserMenu] = useState(false);
+  const [projMenu, setProjMenu] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
@@ -81,22 +82,56 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <span className="hidden sm:inline font-bold text-slate-800 dark:text-slate-200">{roleLabel}</span>
 </div>
 
-      {projects.length > 0 && (
-<select
+      {projects.length > 0 && (<>
+        {/* Phone: compact picker — truncated name with ellipsis + status. */}
+        <div className="sm:hidden relative shrink-0">
+          <button
+            onClick={() => setProjMenu((v) => !v)}
+            aria-label="Active project"
+            aria-expanded={projMenu}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 max-w-[168px]"
+          >
+            <span className="truncate text-xs font-semibold text-slate-800 dark:text-slate-200">
+              {(() => { const s = projects.find((p) => p.id === projectId); return s ? `${s.name}` : ''; })()}
+            </span>
+            <IconChevron className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${projMenu ? 'rotate-180' : ''}`} />
+          </button>
+          {projMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setProjMenu(false)} />
+              <div className="absolute left-0 mt-1.5 w-64 max-w-[80vw] rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-50 dark:border-slate-800 dark:bg-slate-900">
+                {projects.map((p) => {
+                  const cat = projectTypeCategory(p.project_type);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => { setProjectId(p.id); setProjMenu(false); }}
+                      className={`block w-full px-3 py-2 text-left text-xs hover:bg-slate-50 dark:hover:bg-slate-800 ${p.id === projectId ? 'bg-orange-50 dark:bg-orange-950/30' : ''}`}
+                    >
+                      <span className="block truncate font-bold text-slate-800 dark:text-slate-200">{p.name}</span>
+                      <span className="block truncate text-slate-500">{p.code}{cat ? ` · ${cat.label}` : ''}{p.status ? ` · ${statusLabel(p.status)}` : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+        <select
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
           aria-label="Active project"
           title={projects.find((p) => p.id === projectId)?.name}
-          className="border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold max-w-[104px] sm:max-w-[180px] lg:max-w-[220px]"
+          className="hidden sm:block border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold max-w-[180px] lg:max-w-[220px]"
         >
           {projects.map((p) => {
             const cat = projectTypeCategory(p.project_type);
             return <option key={p.id} value={p.id}>{p.code} — {p.name}{cat ? ` · ${cat.label}` : ''}</option>;
           })}
 </select>
-)}
+      </>)}
       {(() => { const sel = projects.find((p) => p.id === projectId); return sel?.status ? (
-<span className="hidden md:inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0">{statusLabel(sel.status)}</span>
+<span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0">{statusLabel(sel.status)}</span>
 ) : null; })()}
 
 {!mobileSearch && (
