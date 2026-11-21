@@ -7,7 +7,7 @@ import HomeDashboard from '../dashboard/HomeDashboard';
 
 /** Executive / admin / viewer home — portfolio KPIs + change-order pulse. */
 function ExecHome(): React.JSX.Element {
-  const { session, projects, projectsLoaded, members, projectId, setSection, setTab} = useConsole();
+  const { projects, projectsLoaded, members, projectId, setSection, setTab} = useConsole();
   const [coStats, setCoStats] = useState<Record<string, number>>({});
   const [openSnags, setOpenSnags] = useState(0);
   const [logToday, setLogToday] = useState<boolean | null>(null);
@@ -102,9 +102,6 @@ function ExecHome(): React.JSX.Element {
       });
   }, [firstProjectId]);
 
-  const firstName = ((session.user.fullName || session.user.email || 'there').split(' ')[0] || 'there');
-  const hour = new Date().getHours();
-  const greet = hour< 12 ? 'Good morning' : hour< 17 ? 'Good afternoon' : 'Good evening';
   const pendingApproval = coStats['OWNER_REVIEW'] || 0;
 
   // A6 — get-started checklist. Shows on a brand-new company and stays
@@ -144,16 +141,15 @@ function ExecHome(): React.JSX.Element {
 
   return (
 <div className="space-y-6">
-<div className="rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-<p className="text-xs font-semibold text-orange-600">{greet}, {firstName}</p>
-<h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">Your projects, money and site activity at a glance.</h2>
-<button onClick={() => { setSection('projects'); setTab('all'); }}
-          className="mt-4 rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-orange-700">
-          Open projects
-</button>
-</div>
-
-      {showChecklist && (
+<HomeDashboard
+        attentionItems={attentionItems}
+        attentionStats={attentionStats}
+        attentionLoading={false}
+        projects={projects as any}
+        projectsReady={projectsLoaded}
+        selectedProject={selectedProject as any}
+        onNavigate={(sec, tab) => { setSection(sec as any); setTab(tab as any); }}
+        afterNeeds={showChecklist ? (
 <div className="rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
 <div className="mb-3 flex items-center justify-between">
 <div>
@@ -175,16 +171,7 @@ function ExecHome(): React.JSX.Element {
 ))}
 </div>
 </div>
-)}
-
-<HomeDashboard
-        attentionItems={attentionItems}
-        attentionStats={attentionStats}
-        attentionLoading={false}
-        projects={projects as any}
-        projectsReady={projectsLoaded}
-        selectedProject={selectedProject as any}
-        onNavigate={(sec, tab) => { setSection(sec as any); setTab(tab as any); }}
+) : null}
       />
 </div>
 );

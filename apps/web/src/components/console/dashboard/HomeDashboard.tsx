@@ -388,7 +388,7 @@ function NextMilestones({ clientView, summary, loading, error }: { clientView: b
 }
 
 // --- Dashboard orchestrator --------------------------------------------------
-export default function HomeDashboard({ attentionItems, attentionStats = [], attentionLoading, attentionError, projects, projectsReady = true, selectedProject, onNavigate }: {
+export default function HomeDashboard({ attentionItems, attentionStats = [], attentionLoading, attentionError, projects, projectsReady = true, selectedProject, onNavigate, afterNeeds }: {
   attentionItems: Attention[];
   attentionStats?: AttentionStat[];
   attentionLoading: boolean;
@@ -397,6 +397,8 @@ export default function HomeDashboard({ attentionItems, attentionStats = [], att
   projectsReady?: boolean;
   selectedProject?: Project;
   onNavigate?: (section: string, tab: string) => void;
+  /** Rendered full-width directly after "Needs you now" (e.g. Get started). */
+  afterNeeds?: React.ReactNode;
 }) {
   const [clientView, setClientView] = useState(false);
   const sel = selectedProject || projects[0];
@@ -411,11 +413,12 @@ export default function HomeDashboard({ attentionItems, attentionStats = [], att
   const cashState = { ...cash, loading: !projectsReady || cash.loading };
 
   const order = clientView
-    ? ['needs', 'progress', 'money', 'photos', 'milestones']
-    : ['needs', 'progress', 'money', 'cash', 'health', 'photos', 'milestones'];
+    ? ['needs', 'getstarted', 'progress', 'money', 'photos', 'milestones']
+    : ['needs', 'getstarted', 'progress', 'money', 'cash', 'health', 'photos', 'milestones'];
 
   const blocks: Record<string, React.ReactNode> = {
     needs: <Block key="needs" title="Needs you now"><NeedsYouNow items={attentionItems} stats={attentionStats} loading={attentionLoading} error={attentionError} onNavigate={onNavigate} /></Block>,
+    getstarted: afterNeeds ? <div key="getstarted" className="lg:col-span-2">{afterNeeds}</div> : null,
     progress: <ProgressPlan key="progress" projectId={selId} projectName={sel?.name} clientView={clientView} cash={cashState} />,
     money: <MoneyPerProject key="money" projects={projects} clientView={clientView} {...blockState} />,
     cash: !clientView ? <CashTimeline key="cash" projectId={selId} projectName={sel?.name} clientView={clientView} cash={cashState} /> : null,
