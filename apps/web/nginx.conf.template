@@ -7,6 +7,15 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # P4 — compress text assets: the entry bundle alone is ~330 kB raw;
+    # without this every first load pays full price on slow links.
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml application/json application/javascript text/javascript application/xml application/xml+rss image/svg+xml font/woff font/woff2;
+
     add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Frame-Options "DENY" always;
