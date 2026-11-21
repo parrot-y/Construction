@@ -335,3 +335,15 @@ RetentionAndBondsView.tsx, e2e/tests/aud-*.spec.ts, aud-specs.sha256.
 NOTE: IndependentSiteReportView/RetentionAndBondsView and their .parts/.modals
 files show pre-existing uncommitted changes from earlier work — not from this
 task; left untouched.
+
+## Part A progress (auditor fixes on 699a61a)
+
+- [x] A1 sidebar tab adjacency — pa-auditor-fixes.spec.ts, 7/7 chromium green (`7e7a616`)
+- [x] A2 phone bottom bar labels + real-click hit test — green on mobile-390 (`1b56ee5` + layout settled; earlier 463px overflow no longer reproduces — verified innerWidth=390, scrollWidth=390 on all sections)
+- [x] A3 phone project picker — truncated name + status chip (`1b56ee5`)
+- [x] A4 realistic fixture names — fixtureName() pools across 28 spec files (`0ab9327`, `a2958ea`); aud-*.spec.ts untouched
+- [x] A5 Home hero removed, Needs-you-now first, enriched seed (milestones/diaries/photos/invoices/EVM) (`f2618eb`, `43f6ef5`); screenshots `docs/evidence/visual/f8b9c3a/part-a/`
+- [~] A6 break-it 13 surfaces — pa-break-it-console.spec.ts; chromium 13/13 green across runs; mobile-390 in progress. Product bugs found+fixed: SiteDiaryModal fake-queue on HTTP errors (`27b8325`), SafetyIncidentLogView silent catch→fake-save (`405d8a0`), SubcontractorManagementView fire-and-forget close (`8866c2e`)
+- [~] A7 first screen — entry chunk 327.8→270.3 kB (lazy LoginForm/LandingPortalHub, `f8b9c3a`); 5-run median on CURRENT host ~5.2 s (load avg ~20 — host not quiet; honest miss to report)
+- [x] A8 ten >800-line views split shell+parts (`ff08d06`); 3 parts files remain >800 (single presentational tables)
+- [ ] A9 final-commit suite + verify-local + report — pending

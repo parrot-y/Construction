@@ -117,6 +117,9 @@ interface Surface {
   verify?: (c: Ctx) => Promise<number>;
   /** 'queued' = transport failure legitimately queues (diary). */
   offlineMode?: 'queued';
+  /** Server enforces one record per project+date (site diary upsert) —
+   *  double-submit can only ever yield ONE row, so assert absolute count. */
+  uniquePerDay?: boolean;
 }
 
 const postFrag = (frag: string) => (method: string, url: string) =>
@@ -156,6 +159,7 @@ const SURFACES: Surface[] = [
     postMatch: postFrag('/site-diaries'),
     verifyPath: () => `/api/v1/projects/${PROJECT.id}/site-diaries`,
     offlineMode: 'queued',
+    uniquePerDay: true,
   },
   {
     key: 'snag',
@@ -449,9 +453,17 @@ test.describe.serial('A6 break-it — every primary admin save', () => {
 
       // 4. Double-click → exactly one NEW record (API-verified delta).
       //    Queue-capable surfaces (diary/snag/safety) may still be flushing a
-      //    legitimately queued offline write, so measure the delta around the
-      //    submit rather than the absolute count.
+      //    legitimately queued offline write — flush it FIRST so `before`
+      //    already includes those records, then measure the delta.
+      const syncBtn = page.getByRole('button', { name: /sync now/i });
+      if (await syncBtn.isVisible().catch(() => false)) {
+        await syncBtn.click().catch(() => {});
+        await page.waitForTimeout(3000);
+      }
       await reopen().catch(() => {});
+      // The form must actually be open — fail loudly here rather than
+      // reporting a meaningless delta of 0.
+      await expect(s.submit(ctx)).toBeVisible({ timeout: 20_000 });
       const countNow = () => (s.verify ? s.verify(ctx) : countMarker(request, s.verifyPath(), mark));
       const before = await countNow();
       const submit = s.submit(ctx);
@@ -459,7 +471,13 @@ test.describe.serial('A6 break-it — every primary admin save', () => {
       await submit.click({ force: true, timeout: 2_000 }).catch(() => {});
       await page.waitForTimeout(4000);
       const after = await countNow();
-      expect(after - before, `${s.screen}: double-submit created ${after - before} records (expected 1)`).toBe(1);
+      if (s.uniquePerDay) {
+        // Site diaries upsert on (project, entry_date) — the second submit
+        // updates the same row, so exactly one marked diary must exist.
+        expect(after, `${s.screen}: expected exactly 1 diary with marker, got ${after}`).toBe(1);
+      } else {
+        expect(after - before, `${s.screen}: double-submit created ${after - before} records (expected 1)`).toBe(1);
+      }
     });
   }
 });

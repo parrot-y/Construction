@@ -161,3 +161,18 @@ Prevention rules:
 - Also: in-flight request dedupe must be invalidated by successful
   mutations, and list hooks need a generation guard so stale responses
   can't overwrite newer state (last-write-wins on completion order).
+
+## 2026-11-21 — A6 break-it findings
+
+- "Queued offline" must only trigger on TRANSPORT failure (ApiError with
+  status === undefined). Any catch that queues on HTTP error statuses
+  fake-saves server rejections. Two views had this bug (diary, safety);
+  one fired-and-forgot the whole submit (subcontractor award).
+- Verify "one record" by counting RECORDS containing a marker (walk JSON
+  arrays, count matching elements), never string occurrences — one entity
+  can carry the marker in several fields.
+- Server-side uniqueness can make "double submit" untestable by row
+  count: site diaries upsert on (project, entry_date). Assert the domain
+  invariant instead and document it.
+- Offline-queue flushes race the final assertion — flush via the UI's
+  "Sync now" before measuring deltas.
