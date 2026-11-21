@@ -294,32 +294,57 @@ function NavEntries({ onNavigate, compact = false }: { onNavigate?: () => void; 
   const reviewCount = useReviewCount();
   const goSection = (id: string) => { setSection(id as ConsoleSection); onNavigate?.(); };
   const goTab = (sec: string, t: string) => { setSection(sec as ConsoleSection); setTab(t); onNavigate?.(); };
-  const activeTabs = section !== 'home' || (nav.homeTabs || []).length > 1 ? tabsForSection(nav, section) : [];
 
-  const sectionBtn = (id: ConsoleSection | 'home', label: string, active: boolean, badge = 0) => (
-    <button
-      key={id}
-      onClick={() => goSection(id)}
-      aria-label={label}
-      aria-current={active ? 'page' : undefined}
-      title={compact ? label : undefined}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-        compact ? 'justify-center w-10 h-10 mx-auto' : 'w-full'
-      } ${active
-        ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
-        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-    >
-      <span className="relative shrink-0">
-        {React.createElement(id === 'home' ? SECTION_ICONS.home : iconFor(id), { className: 'w-5 h-5' })}
-        {badge > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center" aria-label={`${badge} payments to review`}>
-            {badge > 9 ? '9+' : badge}
+  const sectionBtn = (id: ConsoleSection | 'home', label: string, active: boolean, badge = 0) => {
+    // A section's tabs expand directly beneath THAT item — only the active
+    // section shows them (one tab level, DOM-adjacent to its parent).
+    const rawTabs = active && !compact ? tabsForSection(nav, id) : [];
+    const tabs = id === 'home' && (nav.homeTabs || []).length <= 1 ? [] : rawTabs;
+    return (
+      <React.Fragment key={id}>
+        <button
+          onClick={() => goSection(id)}
+          aria-label={label}
+          aria-current={active ? 'page' : undefined}
+          title={compact ? label : undefined}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+            compact ? 'justify-center w-10 h-10 mx-auto' : 'w-full'
+          } ${active
+            ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+        >
+          <span className="relative shrink-0">
+            {React.createElement(id === 'home' ? SECTION_ICONS.home : iconFor(id), { className: 'w-5 h-5' })}
+            {badge > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center" aria-label={`${badge} payments to review`}>
+                {badge > 9 ? '9+' : badge}
+              </span>
+            )}
           </span>
+          {!compact && <span className="truncate">{label}</span>}
+        </button>
+        {tabs.length > 0 && (
+          <div className="mt-0.5 ml-4 border-l-2 border-slate-200 pl-2 dark:border-slate-700">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => goTab(id, t.id)}
+                className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs font-semibold transition ${
+                  tab === t.id
+                    ? 'bg-orange-600 text-white'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         )}
-      </span>
-      {!compact && <span className="truncate">{label}</span>}
-    </button>
-  );
+      </React.Fragment>
+    );
+  };
 
   return (
     <nav className="flex flex-col gap-0.5" aria-label="Workspace sections">
@@ -334,26 +359,6 @@ function NavEntries({ onNavigate, compact = false }: { onNavigate?: () => void; 
       </button>
       {sectionBtn('home', 'Home', section === 'home')}
       {nav.sections.map((s) => sectionBtn(s.id, s.label, section === s.id, s.id === 'money' ? reviewCount : 0))}
-
-      {!compact && activeTabs.length > 0 && (
-        <div className="mt-1 ml-4 border-l-2 border-slate-200 pl-2 dark:border-slate-700">
-          {activeTabs.map((t) => (
-            <button
-              key={t.id}
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => goTab(section, t.id)}
-              className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs font-semibold transition ${
-                tab === t.id
-                  ? 'bg-orange-600 text-white'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
     </nav>
   );
 }
