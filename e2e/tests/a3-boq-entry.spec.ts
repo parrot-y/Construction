@@ -63,13 +63,13 @@ async function createProjectViaUi(page: Page) {
   if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
     await npSubmit.click({ timeout: 10_000 }).catch(() => {});
   }
-  await expect(page.locator('button', { hasText: SITE_NAME }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('main').locator('button', { hasText: SITE_NAME }).filter({ hasText: 'Open workspace' }).first()).toBeVisible({ timeout: 20_000 });
 }
 
 
 async function selectProject(page: Page) {
   await page.goto('/app/projects/all');
-  const card = page.locator('button', { hasText: SITE_NAME }).first();
+  const card = page.locator('main').locator('button', { hasText: SITE_NAME }).filter({ hasText: 'Open workspace' }).first();
   await expect(card).toBeVisible({ timeout: 20_000 });
   await card.click();
 }

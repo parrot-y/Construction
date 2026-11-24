@@ -19,8 +19,8 @@ import { execSync } from 'node:child_process';
 const API = process.env.E2E_API_URL || 'http://localhost:4199';
 const WEB = process.env.SPEED_WEB_URL || 'http://localhost:5181';
 const SHA = execSync('git rev-parse --short HEAD').toString().trim();
-const RUN = Date.now();
-const email = `speed.${RUN}@speed.test`;
+const RUN = Math.random().toString(36).slice(2, 8);
+const email = `speed.trials.${RUN}@speed.test`;
 const password = 'Speed#2026';
 
 
@@ -80,8 +80,8 @@ const rec = (metric, value, budget, pass) => results.push({ metric, value, budge
 const reg = await fetch(`${API}/api/v1/auth/register-company`, {
   method: 'POST', headers: { 'content-type': 'application/json' },
   body: JSON.stringify({
-    companyName: `Speed Co ${RUN}`, adminFullName: 'Speed Admin', email,
-    phone: `+2547${String(RUN).slice(-8)}`, password,
+    companyName: 'Meridian Pace Ltd', adminFullName: 'Alex Mwangi', email,
+    phone: `+254712${RUN.replace(/[^0-9]/g, '0').padStart(6, '0').slice(0, 6)}`, password,
   }),
 });
 if (reg.status !== 201) { console.error('register failed', reg.status, await reg.text()); process.exit(1); }
@@ -141,8 +141,8 @@ rec('layout shift — first screen (CLS)', clsHome.toFixed(3), '< 0.1', clsHome 
 
 await page.goto(`${WEB}/app/projects/all`);
 const dlg = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', { name: 'New project' }) });
-await wizardToSubmit(page, dlg, 'Speed Site', `SPD-${RUN}`);
-await page.getByRole('heading', { name: 'Speed Site' }).first().waitFor({ state: 'visible', timeout: 120_000 });
+await wizardToSubmit(page, dlg, 'Kileleshwa Logistics Yard', 'KLY-01');
+await page.getByRole('heading', { name: 'Kileleshwa Logistics Yard' }).first().waitFor({ state: 'visible', timeout: 120_000 });
 
 // Start from Home so every nav click is a real section transition.
 await page.goto(`${WEB}/app`);
@@ -204,7 +204,7 @@ const dlg2 = page.locator('div.fixed.inset-0', { has: page.getByRole('heading', 
 // Drive to the submit button (no click yet) so `postAt` marks the true
 // submit moment — Playwright actionability waits are excluded because they
 // measure the test driver, not the product.
-await wizardToSubmit(page, dlg2, 'Speed Site Two', `SPD2-${RUN}`, { submit: false });
+await wizardToSubmit(page, dlg2, 'Runda Office Pavilion', 'ROP-01', { submit: false });
 let postAt = 0;
 page.on('request', (r) => {
   if (r.url().includes('/api/v1/projects') && r.method() === 'POST' && !postAt) postAt = Date.now();
@@ -216,7 +216,7 @@ page.on('response', (r) => {
 });
 const submitAt = Date.now();
 await dlg2.getByRole('button', { name: 'Create project' }).click({ timeout: 20_000 });
-const heading = page.getByRole('heading', { name: 'Speed Site Two' }).first();
+const heading = page.getByRole('heading', { name: 'Runda Office Pavilion' }).first();
 let created = -1;
 for (let i = 0; i < 60; i++) {
   if (await heading.isVisible().catch(() => false)) { created = Date.now() - (postAt || submitAt); break; }

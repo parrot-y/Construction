@@ -107,7 +107,7 @@ test.describe('P3.1 design gate — three screens', () => {
     }
     await expect(dialog).not.toBeVisible({ timeout: 30_000 });
     // Card appears immediately with type badge + status word.
-    const card = page.locator('button', { hasText: 'Mombasa Road Warehouse' }).first();
+    const card = page.locator('main').locator('button', { hasText: 'Mombasa Road Warehouse' }).filter({ hasText: 'Open workspace' }).first();
     await expect(card).toBeVisible({ timeout: 25_000 });
     await expect(card).toContainText('Residential');
     await shot(page, ti, '06-project-card');

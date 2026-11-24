@@ -76,7 +76,7 @@ async function createProject(page: Page, name: string, code: string) {
   if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
     await npSubmit.click({ timeout: 10_000 }).catch(() => {});
   }
-  await expect(page.locator('button', { hasText: name }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('main').locator('button', { hasText: name }).filter({ hasText: 'Open workspace' }).first()).toBeVisible({ timeout: 20_000 });
 }
 
 const selector = (page: Page) => page.getByLabel('Active project').first();

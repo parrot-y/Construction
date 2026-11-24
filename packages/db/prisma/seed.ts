@@ -534,6 +534,21 @@ export async function seed() {
           },
         });
       }
+      // Keep the atomic document counters ahead of seeded numbers — the API
+      // allocates invoice_no / certificate_no from document_counters, so a
+      // fresh counter would hand out 1,2,3 and collide with these rows.
+      await tx.$executeRaw`
+        INSERT INTO document_counters (tenant_id, scope, last_value, updated_at)
+        VALUES (${tenant.id}::uuid, 'INVOICE', ${maxInv + invSeeds.length}, now())
+        ON CONFLICT (tenant_id, scope)
+        DO UPDATE SET last_value = GREATEST(document_counters.last_value, ${maxInv + invSeeds.length}),
+                      updated_at = now()`;
+      await tx.$executeRaw`
+        INSERT INTO document_counters (tenant_id, scope, last_value, updated_at)
+        VALUES (${tenant.id}::uuid, ${`CERT:${project.id}`}, ${maxCert + certSeeds.length}, now())
+        ON CONFLICT (tenant_id, scope)
+        DO UPDATE SET last_value = GREATEST(document_counters.last_value, ${maxCert + certSeeds.length}),
+                      updated_at = now()`;
     }
 
     // Monthly EVM/cash-flow points — feeds the progress-against-plan curve

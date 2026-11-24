@@ -118,7 +118,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     await page.unroute('**/api/v1/projects');
     await submit.click({ timeout: 10_000 }).catch(() => {});
     await expect(dialog).not.toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('button', { hasText: name }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('main').locator('button', { hasText: name }).filter({ hasText: 'Open workspace' }).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('B. injected 403/409/422/500 on project create — plain messages', async ({ page, request }) => {
@@ -172,7 +172,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     await submit.click({ timeout: 2_000, force: true }).catch(() => {});
     await expect(dialog).not.toBeVisible({ timeout: 30_000 });
 
-    const cards = page.locator('button', { hasText: name });
+    const cards = page.locator('main').locator('button', { hasText: name }).filter({ hasText: 'Open workspace' });
     await expect(cards.first()).toBeVisible({ timeout: 20_000 });
     expect(await cards.count()).toBe(1);
   });
@@ -303,7 +303,7 @@ test.describe.serial('P1.6 break-it — honest failures', () => {
     expect(pr.status(), await pr.text()).toBe(201);
 
     await page.goto('/app/projects/all');
-    const card = page.locator('button', { hasText: projName }).first();
+    const card = page.locator('main').locator('button', { hasText: projName }).filter({ hasText: 'Open workspace' }).first();
     await expect(card).toBeVisible({ timeout: 20_000 });
     await card.click();
     await page.getByRole('tab', { name: 'Change orders' }).or(page.getByRole('button', { name: 'Change orders' })).first().click();

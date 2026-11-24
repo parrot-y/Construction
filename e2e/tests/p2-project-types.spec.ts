@@ -118,7 +118,7 @@ test.describe('2.8 project types through the UI', () => {
       const name = PROJECT_NAMES[i]!;
       await createTypedProject(page, name, `PT-${RUN.toString(36)}-${i}`, t.type, t.subtype, i === 0 ? '45000000' : undefined, i > 0);
       // Card appears with the type badge
-      const card = page.locator('button', { hasText: name }).first();
+      const card = page.locator('main').locator('button', { hasText: name }).filter({ hasText: 'Open workspace' }).first();
       await expect(card).toBeVisible({ timeout: 20_000 });
       await expect(card).toContainText(t.type);
       if (i === 0) await shot(page, ti, '01-project-card-type-badge');
@@ -131,10 +131,10 @@ test.describe('2.8 project types through the UI', () => {
     const filter = page.getByLabel('Filter by project type');
     await expect(filter).toBeVisible({ timeout: 20_000 });
     await filter.selectOption('RESIDENTIAL');
-    await expect(page.locator('button', { hasText: PROJECT_NAMES[0]! })).toBeVisible();
-    await expect(page.locator('button', { hasText: PROJECT_NAMES[2]! })).toHaveCount(0);
+    await expect(page.locator('main').locator('button', { hasText: PROJECT_NAMES[0]! }).filter({ hasText: 'Open workspace' })).toBeVisible();
+    await expect(page.locator('main').locator('button', { hasText: PROJECT_NAMES[2]! }).filter({ hasText: 'Open workspace' })).toHaveCount(0);
     await filter.selectOption('All');
-    await expect(page.locator('button', { hasText: PROJECT_NAMES[2]! })).toBeVisible();
+    await expect(page.locator('main').locator('button', { hasText: PROJECT_NAMES[2]! }).filter({ hasText: 'Open workspace' })).toBeVisible();
   });
 
   test('3. NCA hint appears from the editable rules table', async ({ page, request }, ti) => {
@@ -168,7 +168,7 @@ test.describe('2.8 project types through the UI', () => {
 
     await uiLogin(page, request);
     await page.goto('/app/projects/all');
-    const card = page.locator('button', { hasText: legacyName }).first();
+    const card = page.locator('main').locator('button', { hasText: legacyName }).filter({ hasText: 'Open workspace' }).first();
     await expect(card).toBeVisible({ timeout: 20_000 });
     // Selecting it must not break the workspace
     await card.click();

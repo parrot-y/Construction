@@ -96,7 +96,7 @@ test.describe('L3 — admin first-hour journey (UI only)', () => {
   if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
     await npSubmit.click({ timeout: 10_000 }).catch(() => {});
   }
-    const card = page.locator('button', { hasText: 'Kileleshwa Mixed-Use Development' }).first();
+    const card = page.locator('main').locator('button', { hasText: 'Kileleshwa Mixed-Use Development' }).filter({ hasText: 'Open workspace' }).first();
     await expect(card).toBeVisible({ timeout: 20_000 });
     await shot(page, '06-project-created');
 
@@ -167,7 +167,7 @@ test.describe('L3 — admin first-hour journey (UI only)', () => {
 
     // 6. Project visible in the list.
     await page.goto('/app/projects/all');
-    await expect(page.locator('button', { hasText: 'Kileleshwa Mixed-Use Development' }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('main').locator('button', { hasText: 'Kileleshwa Mixed-Use Development' }).filter({ hasText: 'Open workspace' }).first()).toBeVisible({ timeout: 15_000 });
     await shot(page, '12-project-in-list');
   });
 });

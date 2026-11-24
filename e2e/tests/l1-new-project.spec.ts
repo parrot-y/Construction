@@ -82,7 +82,7 @@ test.describe('L1 — New project from the console', () => {
   }
 
     // The new card appears and is selected — no reload.
-    const card = page.locator('button', { hasText: officesName }).first();
+    const card = page.locator('main').locator('button', { hasText: officesName }).filter({ hasText: 'Open workspace' }).first();
     await expect(card).toBeVisible({ timeout: 20_000 });
     await expect(card).toHaveClass(/border-orange-500/);
     await expect(page.getByText('No projects in this view')).toHaveCount(0);

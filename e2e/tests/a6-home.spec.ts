@@ -88,7 +88,7 @@ test.describe('A6 — Home dashboard', () => {
   if (await npSubmit.isVisible().catch(() => false) && !(await npSubmit.isDisabled().catch(() => true))) {
     await npSubmit.click({ timeout: 10_000 }).catch(() => {});
   }
-    await expect(page.locator('button', { hasText: PROJECT_NAME }).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('main').locator('button', { hasText: PROJECT_NAME }).filter({ hasText: 'Open workspace' }).first()).toBeVisible({ timeout: 20_000 });
 
     // Back to Home — the first step must now read Done.
     // force: the mobile-390 emulation misreports hit targets on the fixed
