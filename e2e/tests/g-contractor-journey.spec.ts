@@ -79,7 +79,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
 
     // UI: the new admin logs in through the normal flow and sees an empty console
     await uiLogin(page, email, password);
-    await page.getByRole('button', { name: /Open projects/ }).click();
+    await clickNav(page, 'Projects');
     await expect(page.getByText('No projects in this view')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText('Riverside Commercial Plaza')).toHaveCount(0);
   });
@@ -464,12 +464,7 @@ test.describe.serial('G. Contractor lifecycle journey', () => {
 
     // UI login as admin → Projects → All projects (checklist lives here)
     await uiLogin(page, 'admin@apexbuilders.co.ke', 'Password123!');
-    const openProjects = page.getByRole('button', { name: /Open projects/ });
-    if (await openProjects.isVisible().catch(() => false)) {
-      await openProjects.click();
-    } else {
-      await clickNav(page, 'Projects');
-    }
+    await clickNav(page, 'Projects');
 
     // The console defaults to the newest project; the journey data lives on
     // the project state.projectId points at. Select it by its unique project
