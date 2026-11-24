@@ -78,14 +78,24 @@ async function createProjectUi(page: Page, name: string, code: string, contractV
 }
 
 async function selectProject(page: Page) {
+  // projectId is only consumed where the desktop <select> value is needed;
+  // the picker itself is viewport-aware (select on sm+, listbox on phones).
   const sel = page.locator('select[aria-label="Active project"]');
-  await expect(sel).toBeVisible({ timeout: 20_000 });
-  const opt = sel.locator('option', { hasText: projectName });
-  const val = await opt.getAttribute('value');
-  expect(val).toBeTruthy();
-  projectId = val!;
-  if (!(await sel.locator('option:checked').textContent())?.includes(projectName)) {
-    await sel.selectOption(projectId);
+  if (await sel.isVisible().catch(() => false)) {
+    const opt = sel.locator('option', { hasText: projectName });
+    const val = await opt.getAttribute('value');
+    expect(val).toBeTruthy();
+    projectId = val!;
+    if (!(await sel.locator('option:checked').textContent())?.includes(projectName)) {
+      await sel.selectOption(projectId);
+    }
+    return;
+  }
+  const btn = page.locator('button[aria-label="Active project"]');
+  await expect(btn).toBeVisible({ timeout: 20_000 });
+  if (!(await btn.innerText()).includes(projectName)) {
+    await btn.click();
+    await page.getByLabel('Choose project').getByRole('option', { name: new RegExp(projectName) }).click();
   }
 }
 
@@ -379,11 +389,11 @@ test.describe('W1–W10 admin workflows', () => {
     await uiLogin(page, request);
     await selectProject(page);
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.locator('select[aria-label="Active project"]').locator('option:checked')).toContainText(projectName, { timeout: 20_000 });
+    await expect(page.locator('[aria-label="Active project"]:visible')).toContainText(projectName, { timeout: 20_000 });
     // a7-nav already proves sign-out/in persistence; this re-verifies on the W-project.
     await page.getByRole('button', { name: /account menu/i }).click({ force: true });
     await page.getByRole('button', { name: /sign out|log out/i }).click({ force: true });
     await uiLogin(page, request);
-    await expect(page.locator('select[aria-label="Active project"]').locator('option:checked')).toContainText(projectName, { timeout: 20_000 });
+    await expect(page.locator('[aria-label="Active project"]:visible')).toContainText(projectName, { timeout: 20_000 });
   });
 });

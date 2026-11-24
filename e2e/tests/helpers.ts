@@ -93,3 +93,28 @@ export function fixtureName(kind: FixtureKind, salt: string | number): string {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return pool[(h >>> 0) % pool.length]!;
 }
+
+/**
+ * The console project picker renders as a <select> on sm+ screens and a
+ * button+listbox dropdown on phones — exactly one is visible per viewport.
+ * These helpers always drive whichever is visible.
+ */
+export function activeProjectPicker(page: import('@playwright/test').Page) {
+  return page.locator('[aria-label="Active project"]:visible');
+}
+
+export async function selectActiveProject(page: import('@playwright/test').Page, name: string): Promise<void> {
+  const sel = page.locator('select[aria-label="Active project"]');
+  if (await sel.isVisible().catch(() => false)) {
+    const opt = sel.locator('option', { hasText: name });
+    const val = await opt.getAttribute('value');
+    expect(val, `project option "${name}"`).toBeTruthy();
+    await sel.selectOption(val!);
+    return;
+  }
+  const btn = page.locator('button[aria-label="Active project"]');
+  await expect(btn).toBeVisible({ timeout: 20_000 });
+  if ((await btn.innerText()).includes(name)) return; // already active
+  await btn.click();
+  await page.getByLabel('Choose project').getByRole('option', { name: new RegExp(name) }).click();
+}

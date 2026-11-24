@@ -172,6 +172,6 @@ test.describe('2.8 project types through the UI', () => {
     await expect(card).toBeVisible({ timeout: 20_000 });
     // Selecting it must not break the workspace
     await card.click();
-    await expect(page.locator('select[aria-label="Active project"]')).toContainText(legacyName, { timeout: 15_000 });
+    await expect(page.locator('[aria-label="Active project"]:visible')).toContainText(legacyName, { timeout: 15_000 });
   });
 });

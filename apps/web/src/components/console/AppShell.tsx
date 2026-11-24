@@ -99,12 +99,14 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
           {projMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setProjMenu(false)} />
-              <div className="absolute left-0 mt-1.5 w-64 max-w-[80vw] rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-50 dark:border-slate-800 dark:bg-slate-900">
+              <div className="absolute left-0 mt-1.5 w-64 max-w-[80vw] rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-50 dark:border-slate-800 dark:bg-slate-900" role="listbox" aria-label="Choose project">
                 {projects.map((p) => {
                   const cat = projectTypeCategory(p.project_type);
                   return (
                     <button
                       key={p.id}
+                      role="option"
+                      aria-selected={p.id === projectId}
                       onClick={() => { setProjectId(p.id); setProjMenu(false); }}
                       className={`block w-full px-3 py-2 text-left text-xs hover:bg-slate-50 dark:hover:bg-slate-800 ${p.id === projectId ? 'bg-orange-50 dark:bg-orange-950/30' : ''}`}
                     >

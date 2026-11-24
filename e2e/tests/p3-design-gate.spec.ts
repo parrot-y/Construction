@@ -145,6 +145,6 @@ test.describe('P3.1 design gate — three screens', () => {
     // Theme toggle removed — light theme only.
     await expect(page.getByRole('button', { name: /dark mode|light mode/i })).toHaveCount(0);
     // Project selector always visible with status.
-    await expect(page.getByLabel('Active project')).toBeVisible();
+    await expect(page.locator('[aria-label="Active project"]:visible')).toBeVisible();
   });
 });

@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { API, login, fixtureName, Session } from './helpers';
+import { API, login, fixtureName, Session, activeProjectPicker, selectActiveProject } from './helpers';
 
 /**
  * A7 — navigation clarity: the project selector is always visible (including
@@ -79,7 +79,7 @@ async function createProject(page: Page, name: string, code: string) {
   await expect(page.locator('main').locator('button', { hasText: name }).filter({ hasText: 'Open workspace' }).first()).toBeVisible({ timeout: 20_000 });
 }
 
-const selector = (page: Page) => page.getByLabel('Active project').first();
+const selector = activeProjectPicker;
 
 test.describe('A7 — navigation clarity', () => {
   test('0. fixture: fresh company admin + two projects', async ({ request, page }) => {
@@ -94,28 +94,26 @@ test.describe('A7 — navigation clarity', () => {
     await uiLogin(page);
     const sel = selector(page);
     await expect(sel).toBeVisible({ timeout: 20_000 });
-    // Exactly one project selector on the page.
-    await expect(page.getByLabel('Active project')).toHaveCount(1);
+    // Exactly one VISIBLE project selector on the page (select on desktop,
+    // button picker on phones — the other is display:none).
+    await expect(page.locator('[aria-label="Active project"]:visible')).toHaveCount(1);
 
-    const betaValue = await sel.locator('option', { hasText: PROJECT_BETA }).getAttribute('value');
-    await sel.selectOption(betaValue!);
+    await selectActiveProject(page, PROJECT_BETA);
     // Context line under the sub-tabs names the active project.
     await page.goto('/app/money/financials');
     await expect(page.getByText(new RegExp(`Context: ${PROJECT_BETA}`))).toBeVisible({ timeout: 20_000 });
-    await expect(sel).toHaveValue(/./);
-    await expect(sel.locator('option:checked')).toContainText(PROJECT_BETA);
+    await expect(selector(page)).toContainText(PROJECT_BETA);
   });
 
   test('2. selection survives reload and sign-out/in', async ({ page, context }) => {
     await uiLogin(page);
     const sel = selector(page);
     await expect(sel).toBeVisible({ timeout: 20_000 });
-    const betaValue2 = await sel.locator('option', { hasText: PROJECT_BETA }).getAttribute('value');
-    await sel.selectOption(betaValue2!);
-    await expect(sel.locator('option:checked')).toContainText(PROJECT_BETA);
+    await selectActiveProject(page, PROJECT_BETA);
+    await expect(selector(page)).toContainText(PROJECT_BETA);
 
     await page.reload();
-    await expect(selector(page).locator('option:checked')).toContainText(PROJECT_BETA, { timeout: 20_000 });
+    await expect(selector(page)).toContainText(PROJECT_BETA, { timeout: 20_000 });
 
     // Sign out and back in — the same project stays selected.
     // force: mobile-390 emulation misreports hit targets on sticky/fixed
@@ -123,7 +121,7 @@ test.describe('A7 — navigation clarity', () => {
     await page.getByRole('button', { name: /account menu/i }).click({ force: true });
     await page.getByRole('button', { name: /sign out|log out/i }).click({ force: true });
     await uiLogin(page);
-    await expect(selector(page).locator('option:checked')).toContainText(PROJECT_BETA, { timeout: 20_000 });
+    await expect(selector(page)).toContainText(PROJECT_BETA, { timeout: 20_000 });
     await context.close();
   });
 });

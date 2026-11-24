@@ -1,4 +1,4 @@
-# Admin-console speed — final Part-A commit `87a2038`
+# Admin-console speed — final Part-A commit `a486643`
 
 Production build (`vite build` → nginx :5181 serving `apps/web/dist` with gzip),
 Fast 3G profile (150 ms RTT, 1.6 Mbps down / 0.75 Mbps up), 4x CPU throttle,

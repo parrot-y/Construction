@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test';
 /** A6 — landing copy fixes: spacing, real role count, mobile screenshot, SIMULATED notice. */
 test('landing page copy and responsive screenshot', async ({ page }) => {
   await page.goto('/');
+  // LandingPortalHub is a lazy chunk (A7) — wait for real content, not 'Loading…'.
+  await expect(page.locator('body')).toContainText('no more "how is the project going?" calls', { timeout: 20_000 });
   const body = await page.locator('body').innerText();
   expect(body).toContain('no more "how is the project going?" calls');
   expect(body).not.toContain('no more"how');
