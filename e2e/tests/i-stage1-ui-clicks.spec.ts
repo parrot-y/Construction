@@ -140,8 +140,14 @@ test.describe.serial('I. Money screens — real UI clicks (desktop + 390px)', ()
     await page.getByPlaceholder('Qty').fill('1');
     await page.getByPlaceholder('Rate').fill('10000');
     await page.getByRole('button', { name: 'Save Draft Invoice' }).click();
-    const invRow = page.locator('tr', { hasText: invTitle });
-    await expect(invRow.getByRole('button', { name: /INV-\d{5}/ })).toBeVisible({ timeout: 20_000 });
+    // Fixture titles come from a small realistic pool — other specs on this
+    // shared tenant can create same-titled invoices, so scope the row by the
+    // unique invoice number from the creation toast, not the title.
+    const createdToast = page.getByText(/Invoice INV-\d{5} created as draft/);
+    await expect(createdToast).toBeVisible({ timeout: 20_000 });
+    const invNo = (await createdToast.textContent())!.match(/INV-\d{5}/)![0];
+    const invRow = page.locator('tr', { hasText: invNo });
+    await expect(invRow.getByRole('button', { name: invNo })).toBeVisible({ timeout: 20_000 });
     await invRow.getByRole('button', { name: 'Send', exact: true }).click();
     // A4: self-approval reason is an accessible AppDialog modal, not window.prompt.
     const reasonInput = page.locator('#app-dialog-input');
