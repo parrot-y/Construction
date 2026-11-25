@@ -347,3 +347,16 @@ task; left untouched.
 - [~] A7 first screen — entry chunk 327.8→270.3 kB (lazy LoginForm/LandingPortalHub, `f8b9c3a`); 5-run median on CURRENT host ~5.2 s (load avg ~20 — host not quiet; honest miss to report)
 - [x] A8 ten >800-line views split shell+parts (`ff08d06`); 3 parts files remain >800 (single presentational tables)
 - [ ] A9 final-commit suite + verify-local + report — pending
+
+## Part A — auditor fixes on 699a61a — IN PROGRESS (awaiting review)
+
+- [x] A1 sidebar tabs under own item — 7e7a616 (+ pa-auditor-fixes spec)
+- [x] A2 bottom-bar labels 56px — 6c3abc6/1b56ee5
+- [x] A3 phone header picker truncate+status — 1b56ee5/0a83daa
+- [x] A4 realistic fixture names + clean seed — a2958ea/0ab9327/43f6ef5/a486643/343594e
+- [x] A5 Home hero removed, Needs-you-now first — f2618eb/74f08fb
+- [x] A6 break-it all 13 admin saves — pa-break-it-console.spec.ts (87a2038, green both viewports)
+- [x] A7 lazy landing-only views — f8b9c3a
+- [x] A8 split >800-line daily views — 8866c2e/ff08d06/405d8a0
+- [x] Suite fixes: tab race 53f400e, i-stage1 locator 11c11a2, aria-pressed f659ced, picker race e3fd29a, chip status a4536b6, App.test prerender 2047df6
+- [ ] A9 evidence + report — suite on e3fd29a (246+240 green, 1 spec-bug fail fixed+reverified), verify-local on 2047df6 running
