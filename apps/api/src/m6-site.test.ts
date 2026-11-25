@@ -216,6 +216,7 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
             caption: 'Completed blinding concrete ready for DPM membrane',
             gpsLatitude: -1.286389,
             gpsLongitude: 36.817223,
+            gpsAccuracyMeters: 6.5,
           },
         ],
       },
@@ -230,6 +231,7 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
     expect(body.data.photos).toHaveLength(1);
     expect(body.data.photos[0].storage_key).toBe('evidence/rcp-2026/foundation_blinding_01.jpg');
     expect(parseFloat(body.data.photos[0].gps_latitude)).toBeCloseTo(-1.286389, 4);
+    expect(parseFloat(body.data.photos[0].gps_accuracy_meters)).toBeCloseTo(6.5, 1);
   });
 
   // ---------------------------------------------------------------------------
@@ -255,6 +257,7 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
         caption: 'Column starter rebar inspection by structural engineer',
         gpsLatitude: -1.286500,
         gpsLongitude: 36.817350,
+        gpsAccuracyMeters: 12.25,
       },
     });
 
@@ -262,6 +265,7 @@ describe('Milestone M6: Site Diary, Photos, Progress & Idempotent Sync Suite', (
     const photoBody = JSON.parse(photoRes.body);
     expect(photoBody.data.storage_key).toBe('evidence/rcp-2026/steel_cage_inspection.jpg');
     expect(photoBody.data.site_diary_id).toBe(diaryId);
+    expect(parseFloat(photoBody.data.gps_accuracy_meters)).toBeCloseTo(12.25, 1);
   });
 
   // ---------------------------------------------------------------------------
