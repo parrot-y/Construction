@@ -105,8 +105,9 @@ test.describe('A3 phone project picker', () => {
     await expect(picker).toBeVisible();
     // The desktop select must not render on phones.
     await expect(page.locator('select[aria-label="Active project"]')).toBeHidden();
-    // Status chip is visible beside the picker.
-    await expect(page.locator('header, [class*="sticky"]').getByText(/Active|On hold|Completed/i).first()).toBeVisible();
+    // Status chip is visible beside the picker — match the pill element,
+    // not its text: the active project's status label varies by fixture.
+    await expect(page.locator('header span[class*="rounded-full"][class*="bg-slate-100"]').first()).toBeVisible();
   });
 });
 

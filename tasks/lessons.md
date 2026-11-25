@@ -176,3 +176,32 @@ Prevention rules:
   invariant instead and document it.
 - Offline-queue flushes race the final assertion — flush via the UI's
   "Sync now" before measuring deltas.
+
+## 2026-11-25 — Part A suite-hardening findings
+
+- The e2e Postgres is PERSISTENT between local runs (global-setup migrates
+  + seeds but never wipes). Fixture rows accumulate, so small
+  fixtureName pools guarantee visible-name collisions across runs —
+  strict-mode locators break on same-titled invoices. Pools are now
+  12-30/kind, and specs must scope record lookups by unique numbers/ids
+  (INV-…, PO-…), never by fixture title alone. For a truly clean run:
+  `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` + grants, then let
+  global-setup rebuild (it runs migrate + rls + grants + seed).
+- Machine reboots wipe /tmp: PG cluster lives at
+  ~/.local/share/e2e-pgsock data in ~/.local/share/e2e-pgdata; restart
+  with `pg_ctl -D ~/.local/share/e2e-pgdata -o "-k /tmp/e2e-pgsock -p
+  55432 -h 127.0.0.1" start`. Playwright browsers must be reinstalled
+  after cache wipes. Write suite logs to $HOME, not /tmp.
+- ConsoleContext URL↔state sync can wedge a foreign tab: state→URL
+  writes the URL with the pre-normalization tab, URL→state applied it
+  unconditionally. Always validate URL segments against the section's
+  allowed set.
+- Filter chip groups need aria-pressed (or role=tab + aria-selected) —
+  the L2 click-sweep treats "click does nothing observable" as a dead
+  control, and screen readers need the state anyway.
+- One-shot `isVisible()` probes race header hydration: wait for
+  `[aria-label="X"]:visible` before branching on which picker variant
+  rendered.
+- Playwright runner can hang in teardown on this host (idle worker,
+  epoll_wait, all tests already reported). Results in the log are still
+  valid; kill the lingering runner rather than waiting.
