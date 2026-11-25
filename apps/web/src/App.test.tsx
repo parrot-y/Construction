@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach} from 'vitest';
 import { renderToString} from 'react-dom/server';
+import { prerender } from 'react-dom/static';
 import App from './App';
 import BoqImportModal from './components/BoqImportModal';
 import CostCaptureModal from './components/CostCaptureModal';
@@ -88,8 +89,11 @@ describe('Web App walking skeleton & login suite (Milestone M1 & M3)', () => {
     expect(html).toContain('CLIENT');
   });
 
-  it('renders the App component root unauthenticated', () => {
-    const html = renderToString(<App />);
+  it('renders the App component root unauthenticated', async () => {
+    // prerender waits for lazy() chunks — renderToString would emit only
+    // the Suspense fallback now that the landing views are code-split.
+    const { prelude } = await prerender(<App />);
+    const html = await new Response(prelude).text();
     expect(html).toContain('SiteSafi');
     expect(html).toContain('Sign in to your workspace');
 });
@@ -2128,8 +2132,9 @@ it('renders ContractorTenderBoardView with active tenders, 70/30 technical/finan
       expect(html).not.toContain('Feasibility Estimator');
 });
 
-    it('renders LandingPortalHub by default in unauthenticated App and provides sign-in toggle', () => {
-      const html = renderToString(<App />).replace(/<!-- -->/g, '');
+    it('renders LandingPortalHub by default in unauthenticated App and provides sign-in toggle', async () => {
+      const { prelude } = await prerender(<App />);
+      const html = (await new Response(prelude).text()).replace(/<!-- -->/g, '');
 
       // LandingPortalHub is loaded unauthenticated
       expect(html).toContain('Run your construction sites from one place.');
