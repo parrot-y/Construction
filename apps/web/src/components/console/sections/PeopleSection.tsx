@@ -320,7 +320,7 @@ function DirectoryView(): React.JSX.Element {
 </div>
 <div className="flex gap-1.5 flex-wrap">
           {DIR_CATS.map((c) => (
-<button key={c} onClick={() => setCat(c)}
+<button key={c} onClick={() => setCat(c)} aria-pressed={cat === c}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition ${cat === c ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
               {c}
 </button>

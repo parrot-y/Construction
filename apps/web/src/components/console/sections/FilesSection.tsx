@@ -61,7 +61,7 @@ function ReportsView(): React.JSX.Element {
 <span className="text-[11px] font-semibold text-slate-500">Period</span>
 <div className="flex gap-1">
             {PERIODS.map((p) => (
-<button key={p} onClick={() => setPeriod(p)}
+<button key={p} onClick={() => setPeriod(p)} aria-pressed={period === p}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${period === p ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
                 {p}
 </button>

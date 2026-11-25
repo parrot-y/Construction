@@ -60,7 +60,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 <div className="flex flex-wrap items-center justify-between gap-3">
 <div className="flex gap-1.5 overflow-x-auto">
           {FILTERS.map((f) => (
-<button key={f} onClick={() => setFilter(f)}
+<button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
                 filter === f ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
 }`}>
