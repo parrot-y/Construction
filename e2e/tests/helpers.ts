@@ -104,6 +104,9 @@ export function activeProjectPicker(page: import('@playwright/test').Page) {
 }
 
 export async function selectActiveProject(page: import('@playwright/test').Page, name: string): Promise<void> {
+  // Wait for whichever picker variant this viewport renders — a one-shot
+  // isVisible check can race the header hydration and hit the hidden one.
+  await expect(page.locator('[aria-label="Active project"]:visible').first()).toBeVisible({ timeout: 20_000 });
   const sel = page.locator('select[aria-label="Active project"]');
   if (await sel.isVisible().catch(() => false)) {
     const opt = sel.locator('option', { hasText: name });

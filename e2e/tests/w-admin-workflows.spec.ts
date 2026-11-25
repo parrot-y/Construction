@@ -80,6 +80,10 @@ async function createProjectUi(page: Page, name: string, code: string, contractV
 async function selectProject(page: Page) {
   // projectId is only consumed where the desktop <select> value is needed;
   // the picker itself is viewport-aware (select on sm+, listbox on phones).
+  // The header can still be hydrating when this runs — wait for whichever
+  // picker this viewport renders before branching, or a one-shot isVisible
+  // check falls through to the hidden variant and times out.
+  await expect(page.locator('[aria-label="Active project"]:visible').first()).toBeVisible({ timeout: 20_000 });
   const sel = page.locator('select[aria-label="Active project"]');
   if (await sel.isVisible().catch(() => false)) {
     const opt = sel.locator('option', { hasText: projectName });
