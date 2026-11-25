@@ -11,9 +11,9 @@ export interface InspectorCredentials {
   ncaRegistration: string;
   phone: string;
   email: string;
-  latitude: number;
-  longitude: number;
-  accuracyMeters: number;
+  latitude: number | null;
+  longitude: number | null;
+  accuracyMeters: number | null;
   arrivalTimestamp: string;
 }
 
@@ -373,10 +373,12 @@ export function InspectorCredentialsCard({ activeInspection }: InspectorCredenti
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-slate-400 block text-[10px] font-semibold ">GPS Coordinate Lock &amp; Accuracy</span>
 <span className="tabular-nums font-bold text-slate-900 mt-0.5 block">
-                {activeInspection.inspector.latitude.toFixed(6)}, {activeInspection.inspector.longitude.toFixed(6)}
+                {activeInspection.inspector.latitude != null && activeInspection.inspector.longitude != null
+                  ? `${activeInspection.inspector.latitude.toFixed(6)}, ${activeInspection.inspector.longitude.toFixed(6)}`
+                  : 'No GPS fix recorded'}
 </span>
 <span className="text-emerald-700 font-medium text-[11px] mt-0.5 block">
-                ± {activeInspection.inspector.accuracyMeters.toFixed(1)}m GPS Accuracy • {activeInspection.inspector.arrivalTimestamp}
+                {activeInspection.inspector.accuracyMeters != null ? `± ${activeInspection.inspector.accuracyMeters.toFixed(1)}m GPS Accuracy • ` : ''}{activeInspection.inspector.arrivalTimestamp}
 </span>
 </div>
 </div>

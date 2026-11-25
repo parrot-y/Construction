@@ -3,6 +3,7 @@ import { queueOfflineMutation} from '../services/offline-sync';
 import { formatTime } from '../lib/format';
 import { useToast } from './feedback/Toast';
 import { api, apiErrorMessage } from '../lib/api';
+import { useGeolocation } from '../lib/useGeolocation';
 
 export interface GeofenceItem {
   id: string;
@@ -144,6 +145,8 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   const [clockType, setClockType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
   const [capturedLat, setCapturedLat] = useState('');
   const [capturedLng, setCapturedLng] = useState('');
+  const [geoNote, setGeoNote] = useState<string | null>(null);
+  const { status: deviceGeoStatus, request: requestDeviceGeo } = useGeolocation();
   const [selfieUrl, setSelfieUrl] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -180,6 +183,17 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
     : 0;
 
   const isWithinRadius = activeGeofence ? previewDistance<= parseFloat(activeGeofence.radiusMeters) : false;
+
+  const captureDeviceLocation = async () => {
+    const fix = await requestDeviceGeo();
+    if (fix) {
+      setCapturedLat(fix.latitude.toFixed(6));
+      setCapturedLng(fix.longitude.toFixed(6));
+      setGeoNote(fix.accuracy != null ? `Device GPS fix ±${Math.round(fix.accuracy)} m` : 'Device GPS fix captured');
+    } else {
+      setGeoNote(deviceGeoStatus === 'denied' ? 'Location permission denied' : 'Could not get a location fix');
+    }
+  };
 
   const setLocationPreset = (preset: 'GATE' | 'PERIMETER' | 'OFFSITE') => {
     if (preset === 'GATE') {
@@ -435,8 +449,16 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 </div>
 
 <div>
-<label className="block font-semibold text-slate-700 mb-1">GPS Telemetry Presets</label>
-<div className="flex gap-2">
+<label className="block font-semibold text-slate-700 mb-1">GPS Telemetry</label>
+<div className="flex flex-wrap gap-2 items-center">
+<button
+                  type="button"
+                  onClick={() => void captureDeviceLocation()}
+                  disabled={deviceGeoStatus === 'requesting'}
+                  className="px-2.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold"
+                >
+                  {deviceGeoStatus === 'requesting' ? 'Locating…' : 'Use my location'}
+</button>
 <button
                   type="button"
                   onClick={() => setLocationPreset('GATE')}
@@ -493,6 +515,8 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
               />
 </div>
 </div>
+
+{geoNote && <p className="text-[11px] text-slate-500 mt-1">{geoNote}</p>}
 
           {/* Real-time Haversine Distance Preview */}
 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-2">
@@ -631,6 +655,16 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                     className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
+<button
+                      type="button"
+                      onClick={async () => {
+                        const fix = await requestDeviceGeo();
+                        if (fix) { setGeoLat(fix.latitude.toFixed(6)); setGeoLng(fix.longitude.toFixed(6)); }
+                      }}
+                      className="mt-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
+                    >
+                      Use my location
+</button>
 </div>
 <div>
 <label className="block font-semibold text-slate-700 mb-1">Center Longitude</label>

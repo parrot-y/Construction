@@ -268,6 +268,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 taken_at: p.takenAt ? new Date(p.takenAt) : new Date(),
                 gps_latitude: p.gpsLatitude !== undefined && p.gpsLatitude !== null ? p.gpsLatitude : null,
                 gps_longitude: p.gpsLongitude !== undefined && p.gpsLongitude !== null ? p.gpsLongitude : null,
+                gps_accuracy_meters: p.gpsAccuracyMeters !== undefined && p.gpsAccuracyMeters !== null ? p.gpsAccuracyMeters : null,
               })),
             });
           }
@@ -503,6 +504,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
               taken_at: data.takenAt ? new Date(data.takenAt) : new Date(),
               gps_latitude: data.gpsLatitude !== undefined && data.gpsLatitude !== null ? data.gpsLatitude : null,
               gps_longitude: data.gpsLongitude !== undefined && data.gpsLongitude !== null ? data.gpsLongitude : null,
+              gps_accuracy_meters: data.gpsAccuracyMeters !== undefined && data.gpsAccuracyMeters !== null ? data.gpsAccuracyMeters : null,
             },
           });
 

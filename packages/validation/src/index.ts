@@ -179,6 +179,7 @@ export const SitePhotoInputSchema = z.object({
   takenAt: z.string().datetime().optional(),
   gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
   gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+  gpsAccuracyMeters: z.number().min(0).max(100000).optional().nullable(),
 });
 
 export const UpdateSitePhotoVisibilitySchema = z.object({
@@ -556,6 +557,7 @@ export const SnagPhotoInputSchema = z.object({
   caption: z.string().max(255).optional().nullable(),
   gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
   gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+  gpsAccuracyMeters: z.number().min(0).max(100000).optional().nullable(),
 });
 export type SnagPhotoInput = z.infer<typeof SnagPhotoInputSchema>;
 
@@ -584,6 +586,11 @@ export const CreateSnagItemSchema = z.object({
   // Optional inline defect photo as base64 — verified by magic bytes
   // server-side; lets the offline queue carry photo+snag in one mutation.
   photoBase64: z.string().min(32).max(8 * 1024 * 1024).optional().nullable(),
+  // GPS fix captured at shutter time for the inline base64 photo — the
+  // photos[] array can't carry it because the storage key doesn't exist yet.
+  photoLatitude: z.number().min(-90).max(90).optional().nullable(),
+  photoLongitude: z.number().min(-180).max(180).optional().nullable(),
+  photoAccuracyMeters: z.number().min(0).max(100000).optional().nullable(),
   distributions: z.array(z.object({
     recipientName: z.string().min(1).max(255),
     recipientContact: z.string().max(255).optional().nullable(),
@@ -1710,6 +1717,7 @@ export const InspectionPhotoInputSchema = z.object({
   hasDiscrepancy: z.boolean().default(false),
   gpsLatitude: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]).optional().nullable(),
   gpsLongitude: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]).optional().nullable(),
+  gpsAccuracyMeters: z.union([z.number().min(0).max(100000), z.string().regex(/^\d+(?:\.\d+)?$/)]).optional().nullable(),
 });
 export type InspectionPhotoInput = z.infer<typeof InspectionPhotoInputSchema>;
 
@@ -2589,6 +2597,7 @@ export const SnagPhotoUploadSchema = z.object({
   photoType: z.enum(['DEFECT', 'RECTIFIED']).default('DEFECT'),
   gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
   gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+  gpsAccuracyMeters: z.number().min(0).max(100000).optional().nullable(),
 });
 export type SnagPhotoUpload = z.infer<typeof SnagPhotoUploadSchema>;
 

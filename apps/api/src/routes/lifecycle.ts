@@ -1335,6 +1335,10 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
                         p.gpsLongitude !== undefined && p.gpsLongitude !== null
                           ? toDecimal(p.gpsLongitude).toFixed(6)
                           : null,
+                      gps_accuracy_meters:
+                        p.gpsAccuracyMeters !== undefined && p.gpsAccuracyMeters !== null
+                          ? toDecimal(p.gpsAccuracyMeters).toFixed(2)
+                          : null,
                     })),
                   }
                 : undefined,
@@ -1388,8 +1392,9 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
                 photo_type: 'DEFECT',
                 storage_key: photoKey,
                 caption: 'Before evidence',
-                gps_latitude: data.photos?.[0]?.gpsLatitude != null ? toDecimal(data.photos[0].gpsLatitude).toFixed(6) : null,
-                gps_longitude: data.photos?.[0]?.gpsLongitude != null ? toDecimal(data.photos[0].gpsLongitude).toFixed(6) : null,
+                gps_latitude: (() => { const v = data.photos?.[0]?.gpsLatitude ?? data.photoLatitude; return v != null ? toDecimal(v).toFixed(6) : null; })(),
+                gps_longitude: (() => { const v = data.photos?.[0]?.gpsLongitude ?? data.photoLongitude; return v != null ? toDecimal(v).toFixed(6) : null; })(),
+                gps_accuracy_meters: (() => { const v = data.photos?.[0]?.gpsAccuracyMeters ?? data.photoAccuracyMeters; return v != null ? toDecimal(v).toFixed(2) : null; })(),
               },
             });
           }
@@ -1524,6 +1529,10 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
                 gps_longitude:
                   p.gpsLongitude !== undefined && p.gpsLongitude !== null
                     ? toDecimal(p.gpsLongitude).toFixed(6)
+                    : null,
+                gps_accuracy_meters:
+                  p.gpsAccuracyMeters !== undefined && p.gpsAccuracyMeters !== null
+                    ? toDecimal(p.gpsAccuracyMeters).toFixed(2)
                     : null,
               })),
             });
@@ -1715,6 +1724,7 @@ export const lifecycleRoutes: FastifyPluginAsync = async (server: FastifyInstanc
               caption: data.caption || null,
               gps_latitude: data.gpsLatitude != null ? toDecimal(data.gpsLatitude).toFixed(6) : null,
               gps_longitude: data.gpsLongitude != null ? toDecimal(data.gpsLongitude).toFixed(6) : null,
+              gps_accuracy_meters: data.gpsAccuracyMeters != null ? toDecimal(data.gpsAccuracyMeters).toFixed(2) : null,
             },
           });
 

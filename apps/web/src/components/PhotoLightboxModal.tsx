@@ -6,6 +6,7 @@ export interface PhotoEvidenceItem {
   photo_url: string;
   latitude?: number | null;
   longitude?: number | null;
+  gps_accuracy_meters?: number | null;
   captured_at: string;
   weather?: string;
   recorded_by_name?: string;

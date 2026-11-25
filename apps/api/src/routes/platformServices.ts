@@ -4407,6 +4407,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
               hasDiscrepancy: p.has_discrepancy,
               gpsLatitude: p.gps_latitude ? toDecimal(p.gps_latitude.toString()).toFixed(7) : null,
               gpsLongitude: p.gps_longitude ? toDecimal(p.gps_longitude.toString()).toFixed(7) : null,
+              gpsAccuracyMeters: p.gps_accuracy_meters ? toDecimal(p.gps_accuracy_meters.toString()).toFixed(2) : null,
               capturedAt: p.captured_at.toISOString(),
             })),
             createdAt: inspection.created_at.toISOString(),
@@ -4517,6 +4518,7 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
                 has_discrepancy: p.hasDiscrepancy ?? false,
                 gps_latitude: p.gpsLatitude !== undefined && p.gpsLatitude !== null ? toDecimal(p.gpsLatitude).toFixed(7) : null,
                 gps_longitude: p.gpsLongitude !== undefined && p.gpsLongitude !== null ? toDecimal(p.gpsLongitude).toFixed(7) : null,
+                gps_accuracy_meters: p.gpsAccuracyMeters !== undefined && p.gpsAccuracyMeters !== null ? toDecimal(p.gpsAccuracyMeters).toFixed(2) : null,
               })),
             });
           }

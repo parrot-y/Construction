@@ -1,6 +1,7 @@
 import React, { useState} from 'react';
 import { queueOfflineMutation, compressImageClientSide} from '../services/offline-sync';
 import { api, apiErrorMessage, ApiError } from '../lib/api';
+import { useGeolocation, type GeoFix } from '../lib/useGeolocation';
 
 interface SiteDiaryModalProps {
   isOpen: boolean;
@@ -50,6 +51,8 @@ export default function SiteDiaryModal({
   const [compressedInfo, setCompressedInfo] = useState<{ originalKB: number; compressedKB: number} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { status: geoStatus, request: requestGeo } = useGeolocation();
+  const [photoGeo, setPhotoGeo] = useState<GeoFix | null>(null);
 
   if (!isOpen) return null;
 
@@ -64,6 +67,11 @@ export default function SiteDiaryModal({
     if (!file) return;
 
     setPhotoFile(file);
+    // Capture the device fix at photo-pick time — closest available moment
+    // to the shutter. No fix means the photo saves without coordinates;
+    // we never substitute a default location.
+    const fix = await requestGeo();
+    setPhotoGeo(fix);
     try {
       const compressed = await compressImageClientSide(file);
       setCompressedInfo({
@@ -127,8 +135,10 @@ export default function SiteDiaryModal({
               storageKey: uploadedStorageKey || `evidence/${projectId}/${Date.now()}-${photoFile.name}`,
               caption: photoCaption.trim() || undefined,
               clientVisible: photoClientVisible,
-              gpsLatitude: -1.286389, // Nairobi site coordinates
-              gpsLongitude: 36.817223,
+              gpsLatitude: photoGeo?.latitude ?? null,
+              gpsLongitude: photoGeo?.longitude ?? null,
+              gpsAccuracyMeters: photoGeo?.accuracy ?? null,
+              takenAt: photoGeo?.capturedAt,
 },
           ]
         : [],
@@ -413,8 +423,12 @@ export default function SiteDiaryModal({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
 <div className="flex justify-between items-center">
 <span className="font-bold text-slate-800"> Geotagged Photo Evidence</span>
-<span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                GPS Geotagged • Nairobi
+<span className={`text-[10px] px-2 py-0.5 rounded ${photoGeo ? 'text-emerald-700 bg-emerald-100' : 'text-slate-500 bg-slate-100'}`}>
+                {photoGeo
+                  ? `GPS ±${Math.round(photoGeo.accuracy ?? 0)} m`
+                  : geoStatus === 'requesting'
+                    ? 'Getting location…'
+                    : 'No GPS fix — saved without location'}
 </span>
 </div>
 <input

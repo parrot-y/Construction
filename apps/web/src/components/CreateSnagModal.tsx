@@ -2,6 +2,7 @@ import React, { useState} from 'react';
 import { SNAG_TRADE_CATEGORIES} from '@construction/validation';
 import { queueOfflineMutation } from '../services/offline-sync';
 import { api, apiErrorMessage } from '../lib/api';
+import { useGeolocation } from '../lib/useGeolocation';
 
 export type SnagSeverity = 'COSMETIC' | 'FUNCTIONAL' | 'CRITICAL_SAFETY';
 export type SnagPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -41,8 +42,11 @@ export default function CreateSnagModal({
   const [dueDate, setDueDate] = useState('');
   const [distributionText, setDistributionText] = useState('');
   const [description, setDescription] = useState('');
-  const [latitude, setLatitude] = useState('-1.2683');
-  const [longitude, setLongitude] = useState('36.8044');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [geoAccuracy, setGeoAccuracy] = useState<number | null>(null);
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'requesting' | 'ready' | 'denied' | 'unavailable' | 'timeout'>('idle');
+  const { request: requestGeo } = useGeolocation();
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState('');
@@ -91,9 +95,12 @@ export default function CreateSnagModal({
       dueDate: dueDate || undefined,
       identifiedByName: 'Site Team',
       photos: photoUrl.trim()
-        ? [{ photoType: 'DEFECT', storageKey: photoUrl.trim(), caption: 'Before evidence', gpsLatitude: parseFloat(latitude) || null, gpsLongitude: parseFloat(longitude) || null}]
+        ? [{ photoType: 'DEFECT', storageKey: photoUrl.trim(), caption: 'Before evidence', gpsLatitude: parseFloat(latitude) || null, gpsLongitude: parseFloat(longitude) || null, gpsAccuracyMeters: geoAccuracy }]
         : undefined,
       photoBase64: photoBase64 || undefined,
+      photoLatitude: photoBase64 && latitude ? parseFloat(latitude) : null,
+      photoLongitude: photoBase64 && longitude ? parseFloat(longitude) : null,
+      photoAccuracyMeters: photoBase64 ? geoAccuracy : null,
       distributions: distributionText
         .split(',')
         .map((d) => d.trim())
@@ -131,9 +138,24 @@ export default function CreateSnagModal({
 }
 };
 
+  const captureDeviceLocation = async () => {
+    setGeoStatus('requesting');
+    const fix = await requestGeo();
+    if (fix) {
+      setLatitude(fix.latitude.toFixed(6));
+      setLongitude(fix.longitude.toFixed(6));
+      setGeoAccuracy(fix.accuracy);
+      setGeoStatus('ready');
+    } else {
+      setGeoStatus('denied');
+    }
+  };
+
   const handlePhotoFile = (file: File | null) => {
     if (!file) { setPhotoBase64(null); setPhotoName(''); return; }
     if (file.size > 6 * 1024 * 1024) { setError('Photo must be under 6 MB'); return; }
+    // Grab a fresh fix at shutter time so the geotag matches the photo.
+    void captureDeviceLocation();
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = String(reader.result || '');
@@ -372,7 +394,8 @@ export default function CreateSnagModal({
 <input
                 type="text"
                 value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
+                onChange={(e) => { setLatitude(e.target.value); setGeoAccuracy(null); }}
+                placeholder="e.g. -1.286389"
                 className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 tabular-nums"
               />
 </div>
@@ -383,10 +406,24 @@ export default function CreateSnagModal({
 <input
                 type="text"
                 value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
+                onChange={(e) => { setLongitude(e.target.value); setGeoAccuracy(null); }}
+                placeholder="e.g. 36.817223"
                 className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 tabular-nums"
               />
 </div>
+</div>
+<div className="flex items-center gap-2 -mt-1">
+<button
+                type="button"
+                onClick={() => void captureDeviceLocation()}
+                disabled={geoStatus === 'requesting'}
+                className="text-[11px] font-semibold text-rose-700 hover:text-rose-800 disabled:opacity-50"
+              >
+                {geoStatus === 'requesting' ? 'Locating…' : 'Use my current location'}
+</button>
+<span className={`text-[10px] ${geoStatus === 'ready' ? 'text-emerald-700' : 'text-slate-400'}`}>
+                {geoStatus === 'ready' && geoAccuracy != null ? `GPS fix ±${Math.round(geoAccuracy)} m` : geoStatus === 'denied' ? 'Location permission denied — enter coordinates manually or leave blank' : ' '}
+</span>
 </div>
 
 <div>

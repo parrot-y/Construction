@@ -317,7 +317,7 @@ export const IndependentInspectionReportPdf: React.FC<{
               <Text style={styles.metaValue}>
                 {data.inspector.latitude && data.inspector.longitude
                   ? `${data.inspector.latitude.toFixed(6)}, ${data.inspector.longitude.toFixed(6)}`
-                  : 'Site Geotag Verified'}
+                  : 'Not recorded'}
               </Text>
             </View>
             <View style={styles.metaRow}>

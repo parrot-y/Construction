@@ -360,3 +360,19 @@ task; left untouched.
 - [x] A8 split >800-line daily views — 8866c2e/ff08d06/405d8a0
 - [x] Suite fixes: tab race 53f400e, i-stage1 locator 11c11a2, aria-pressed f659ced, picker race e3fd29a, chip status a4536b6, App.test prerender 2047df6
 - [ ] A9 evidence + report — suite on e3fd29a (246+240 green, 1 spec-bug fail fixed+reverified), verify-local on 2047df6 running
+
+## Part B — Phase 5 (location, evidence, comms, queue) — IN PROGRESS
+
+Gap survey complete (subagent). Plan, one item = one commit, tests first:
+
+- [ ] P5.1 Real GPS capture: enable geolocation in Permissions-Policy (vite+nginx), shared useGeolocation hook w/ accuracy, gps_accuracy_meters on SitePhoto/SnagPhoto/IndependentInspectionPhoto (+migration), replace hardcoded Nairobi coords (SiteDiaryModal, CreateSnagModal, GeofencedClockInView, PhotoEvidenceGallery, reports.ts, IndependentSiteReportView)
+- [ ] P5.2 Photos time+location: device timestamp + accuracy captured at shutter; display accuracy in gallery; diary gets location fields? (decide scope)
+- [ ] P5.3 Project map: map lib (react-leaflet+OSM), project pin picker in onboarding, map view showing project + geofences + photo pins
+- [ ] P5.4 Camera link: FIELD portal_type on PortalAccessLink, token-gated mobile photo-capture page (capture=environment, GPS, daily photo), admin "copy link" UI
+- [ ] P5.5 Live notifications: SSE endpoint /api/v1/events (auth'd, tenant-scoped), web EventSource → unread badge + toast; web-push behind VAPID config (optional, env-gated)
+- [ ] P5.6 Comments/mentions: polymorphic EntityComment (diary, invoice, RFI, observation...), @mention → InboxMessage notify
+- [ ] P5.7 Messaging delivery status: durable MessageDelivery rows for dispatchNotification (channel/provider/status/ref/error), visible status in UI; env-config fallback already exists
+- [ ] P5.8 pg-boss queue: dependency + worker bootstrap; scheduled-report next_run_at sweeper; reminder/escalation jobs (overdue invoices etc.)
+- [ ] P5.9 Meetings + .ics: Meeting model, CRUD, .ics download endpoint, UI
+- [ ] P5.10 Slow work off request path: scheduled report run + xlsx exports → pg-boss jobs
+- [ ] P5.11 Closeout: full solo suite + verify-local on final commit, evidence, report — STOP for review

@@ -30,6 +30,7 @@ export default function PhotoEvidenceGallery({
             : `/uploads/${p.storage_key || ''}`,
           latitude: p.gps_latitude != null ? parseFloat(String(p.gps_latitude)) : null,
           longitude: p.gps_longitude != null ? parseFloat(String(p.gps_longitude)) : null,
+          gps_accuracy_meters: p.gps_accuracy_meters != null ? parseFloat(String(p.gps_accuracy_meters)) : null,
           captured_at: p.taken_at || p.created_at || '',
           weather: d.weather || undefined,
           recorded_by_name: undefined,
@@ -88,8 +89,10 @@ export default function PhotoEvidenceGallery({
 ) : (
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
           {displayPhotos.map((photo) => {
-            const lat = photo.latitude !== null && photo.latitude !== undefined ? photo.latitude.toFixed(6) : '-1.286389';
-            const lng = photo.longitude !== null && photo.longitude !== undefined ? photo.longitude.toFixed(6) : '36.817223';
+            const hasGps = photo.latitude !== null && photo.latitude !== undefined
+              && photo.longitude !== null && photo.longitude !== undefined;
+            const lat = hasGps ? photo.latitude!.toFixed(6) : null;
+            const lng = hasGps ? photo.longitude!.toFixed(6) : null;
 
             return (
 <div
@@ -103,9 +106,10 @@ export default function PhotoEvidenceGallery({
 <span className="text-3xl mb-1 group-hover:scale-110 transition duration-200"></span>
 <span className="text-[11px] text-slate-300 font-medium line-clamp-1">{photo.caption}</span>
 </div>
-<div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-[10px] text-white/90">
+<div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-[10px] text-white/90 gap-1">
 <span className="bg-slate-950/70 backdrop-blur-sm px-2 py-0.5 rounded tabular-nums">
-                       {lat}, {lng}
+                       {hasGps ? `${lat}, ${lng}` : 'No GPS fix'}
+                       {hasGps && photo.gps_accuracy_meters != null ? ` ±${Math.round(photo.gps_accuracy_meters)}m` : ''}
 </span>
 <span className="bg-emerald-600/90 backdrop-blur-sm px-2 py-0.5 rounded font-semibold">
                       Verified
@@ -125,7 +129,7 @@ export default function PhotoEvidenceGallery({
 </div>
 
 <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-400">
-<span>{photo.captured_at ? photo.captured_at.split('T')[0] : '2026-02-01'}</span>
+<span>{photo.captured_at ? photo.captured_at.split('T')[0] : '—'}</span>
 <span className="text-emerald-600 font-semibold group-hover:underline">
                       Inspect Photo →
 </span>

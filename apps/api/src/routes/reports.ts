@@ -767,8 +767,16 @@ export const reportsRoutes: FastifyPluginAsync = async (server: FastifyInstance)
             inspector: {
               name: inspection.inspector_name || 'Eng. Francis Omondi, PE, BORAQS',
               license: inspection.inspector_license || 'NCA-INSP-2024-9982',
-              latitude: inspection.gps_latitude ? Number(inspection.gps_latitude) : -1.264850,
-              longitude: inspection.gps_longitude ? Number(inspection.gps_longitude) : 36.802140,
+              latitude: inspection.gps_latitude
+                ? Number(inspection.gps_latitude)
+                : project.map_latitude
+                  ? Number(project.map_latitude)
+                  : null,
+              longitude: inspection.gps_longitude
+                ? Number(inspection.gps_longitude)
+                : project.map_longitude
+                  ? Number(project.map_longitude)
+                  : null,
               arrivalTimestamp: inspection.conducted_date ? inspection.conducted_date.toISOString() : null,
             },
             metrics: {

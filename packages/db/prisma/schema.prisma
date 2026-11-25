@@ -380,6 +380,7 @@ model SitePhoto {
   taken_at       DateTime   @db.Timestamptz
   gps_latitude   Decimal?   @db.Decimal(9, 6)
   gps_longitude  Decimal?   @db.Decimal(9, 6)
+  gps_accuracy_meters Decimal? @db.Decimal(8, 2)
   created_at     DateTime   @default(now()) @db.Timestamptz
 
   site_diary     SiteDiary  @relation(fields: [site_diary_id], references: [id], onDelete: Cascade)
@@ -961,6 +962,7 @@ model SnagPhoto {
   caption        String?    @db.VarChar(255)
   gps_latitude   Decimal?   @db.Decimal(9, 6)
   gps_longitude  Decimal?   @db.Decimal(9, 6)
+  gps_accuracy_meters Decimal? @db.Decimal(8, 2)
   captured_at    DateTime   @default(now()) @db.Timestamptz
 
   snag_item      SnagItem   @relation(fields: [snag_item_id], references: [id], onDelete: Cascade)
@@ -2351,6 +2353,7 @@ model IndependentInspectionPhoto {
   has_discrepancy                  Boolean                        @default(false)
   gps_latitude                     Decimal?                       @db.Decimal(10, 7)
   gps_longitude                    Decimal?                       @db.Decimal(10, 7)
+  gps_accuracy_meters              Decimal?                       @db.Decimal(8, 2)
   captured_at                      DateTime                       @default(now()) @db.Timestamptz
   created_at                       DateTime                       @default(now()) @db.Timestamptz
 

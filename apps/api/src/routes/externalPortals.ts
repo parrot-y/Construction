@@ -1308,7 +1308,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
       });
     }
 
-    const body = request.body as { photoStorageKey?: string; notes?: string; gpsLat?: number; gpsLng?: number };
+    const body = request.body as { photoStorageKey?: string; notes?: string; gpsLat?: number; gpsLng?: number; gpsAccuracyM?: number };
     // Photo proof is optional but, when supplied, the key must have been issued
     // by this link's tenant+project upload route — reject arbitrary keys that
     // would point at another tenant's files.
@@ -1358,6 +1358,7 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
             caption: body.notes || `Rectified by ${link.stakeholder_name}`,
             gps_latitude: body.gpsLat ? toDecimal(body.gpsLat) : null,
             gps_longitude: body.gpsLng ? toDecimal(body.gpsLng) : null,
+            gps_accuracy_meters: body.gpsAccuracyM != null ? toDecimal(body.gpsAccuracyM).toFixed(2) : null,
           },
         });
       }

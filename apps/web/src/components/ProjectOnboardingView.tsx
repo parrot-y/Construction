@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatKes } from '../ui';
 import { api, apiErrorMessage } from '../lib/api';
+import { useGeolocation } from '../lib/useGeolocation';
 
 interface ProjectMember {
   id: string;
@@ -68,6 +69,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
   const [assignUserId, setAssignUserId] = useState('');
   const [assignRole, setAssignRole] = useState('PM');
   const [loading, setLoading] = useState(true);
+  const { request: requestGeo } = useGeolocation();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -322,12 +324,22 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 </label>
 <label className="space-y-1">
 <span className={label}>Map pin latitude</span>
-<input type="text" value={form.mapLatitude} onChange={(e) => setForm({ ...form, mapLatitude: e.target.value})} placeholder="-1.286389" className={`${input} tabular-nums`} />
+<input type="text" value={form.mapLatitude} onChange={(e) => setForm({ ...form, mapLatitude: e.target.value})} placeholder="e.g. -1.286389" className={`${input} tabular-nums`} />
 </label>
 <label className="space-y-1">
 <span className={label}>Map pin longitude</span>
-<input type="text" value={form.mapLongitude} onChange={(e) => setForm({ ...form, mapLongitude: e.target.value})} placeholder="36.817223" className={`${input} tabular-nums`} />
+<input type="text" value={form.mapLongitude} onChange={(e) => setForm({ ...form, mapLongitude: e.target.value})} placeholder="e.g. 36.817223" className={`${input} tabular-nums`} />
 </label>
+<button
+            type="button"
+            onClick={async () => {
+              const fix = await requestGeo();
+              if (fix) setForm({ ...form, mapLatitude: fix.latitude.toFixed(6), mapLongitude: fix.longitude.toFixed(6) });
+            }}
+            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 self-end pb-1"
+          >
+            Use my current location
+</button>
 </div>
 </div>
 
