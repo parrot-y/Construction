@@ -175,13 +175,17 @@ export function ConsoleProvider({ session, children}: { session: AuthSession; ch
     // A URL with no tab segment means the section's default tab: without
     // this, browser Back to a bare section URL would bounce straight back
     // to the previously selected tab.
+    // A tab segment that isn't valid for the section (e.g. a home tab left
+    // over while the state→URL effect writes the URL mid-section-switch)
+    // must resolve to the section default — never render "Select a project"
+    // under a foreign tab label.
+    const allowed = parsed.section === 'home'
+      ? nav.homeTabs
+      : nav.sections.find((s) => s.id === parsed.section)?.tabs;
     if (parsed.tab) {
-      setTab(parsed.tab);
-    } else {
-      const allowed = parsed.section === 'home'
-        ? nav.homeTabs
-        : nav.sections.find((s) => s.id === parsed.section)?.tabs;
-      if (allowed?.length) setTab(allowed[0]!);
+      setTab(!allowed?.length || allowed.includes(parsed.tab!) ? parsed.tab! : allowed[0]!);
+    } else if (allowed?.length) {
+      setTab(allowed[0]!);
     }
     requestAnimationFrame(() => { applyingUrl.current = false; });
   }, [location]);
