@@ -17,6 +17,7 @@ const ADMIN_TABS: Record<string, string[]> = {
   '/app/projects/coordination': [],
   '/app/projects/correspondence': [],
   '/app/site/fieldview': [],
+  '/app/site/map': [],
   '/app/site/dailylog': [],
   '/app/site/checklists': [],
   '/app/site/assignments': [],

@@ -18,7 +18,7 @@ const TABS: [string, string][] = [
   ['home', 'dashboard'], ['home', 'inbox'], ['home', 'announcements'],
   ['projects', 'all'], ['projects', 'schedule'], ['projects', 'drawings'],
   ['projects', 'changeorders'], ['projects', 'coordination'], ['projects', 'correspondence'],
-  ['site', 'fieldview'], ['site', 'dailylog'], ['site', 'checklists'], ['site', 'assignments'],
+  ['site', 'fieldview'], ['site', 'map'], ['site', 'dailylog'], ['site', 'checklists'], ['site', 'assignments'],
   ['site', 'punch'], ['site', 'inspections'], ['site', 'observations'], ['site', 'actionplans'],
   ['site', 'safety'], ['site', 'attendance'],
   ['money', 'financials'], ['money', 'commitments'], ['money', 'procurement'], ['money', 'quotes'],

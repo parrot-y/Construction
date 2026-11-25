@@ -48,7 +48,7 @@ const SKIP = new RegExp(
 const CONSOLE_TABS: Record<string, string[]> = {
   home: ['dashboard', 'inbox', 'announcements'],
   projects: ['all', 'schedule', 'drawings', 'changeorders', 'coordination', 'correspondence'],
-  site: ['fieldview', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'attendance'],
+  site: ['fieldview', 'map', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'attendance'],
   money: ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations', 'billing'],
   people: ['team', 'crews', 'subcontractors', 'directory', 'roles'],
   files: ['reports', 'companydocs', 'unfiled'],

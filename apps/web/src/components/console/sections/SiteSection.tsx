@@ -10,6 +10,11 @@ import AttendanceView from '../../AttendanceView';
 import QualityControlView from '../../QualityControlView';
 import IndependentSiteReportView from '../../IndependentSiteReportView';
 import SiteDiaryModal from '../../SiteDiaryModal';
+import { lazyChunk } from '../../../lib/lazyChunk';
+import { Suspense } from 'react';
+
+// Leaflet + OSM tiles are heavy — keep the map out of the console bundle.
+const ProjectMapView = lazyChunk(() => import('../../ProjectMapView'));
 import { IconPlus} from '../icons';
 import { formatDate } from '../../../lib/format';
 import { api } from '../../../lib/api';
@@ -235,6 +240,13 @@ export default function SiteSection(): React.JSX.Element {
 
   if (tab === 'fieldview') {
     return livePid ?<FieldView projectId={livePid} projectName={projectName} setTab={setTab} /> :<EmptyProject what="the field view" />;
+}
+  if (tab === 'map') {
+    return livePid ? (
+      <Suspense fallback={<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Loading map…</div>}>
+        <ProjectMapView projectId={livePid} canEdit={canEdit} />
+      </Suspense>
+    ) : <EmptyProject what="the project map" />;
 }
   switch (tab) {
     case 'checklists': return<ChecklistsView projectId={livePid} canManage={canEdit} initialTab="templates" />;
