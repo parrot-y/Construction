@@ -16,6 +16,8 @@ import { ProjectSCurveCashFlowCard} from '../../ProjectSCurveCashFlowCard';
 import CertificatesCloseoutView from '../../CertificatesCloseoutView';
 import { SubcontractorValuationView} from '../../SubcontractorValuationView';
 import { ApiError, api } from '../../../lib/api';
+import { downloadQueuedExport } from '../../../lib/exportJob';
+import { useToast } from '../../feedback/Toast';
 
 // Non-2xx responses degrade to an empty list (as the old `r.ok ? json : {data:[]}`
 // did); transport failures (offline/network/timeout — ApiError without a status)
@@ -38,6 +40,8 @@ const FIN_TABS = ['overview', 'ledger', 'boq', 'applications', 'retention', 'bud
 /** Financial tracker — money in/out, budget vs actual, exports (reference"Financials"). */
 function FinancialsView({ projectId, projectName}: { projectId: string; projectName?: string}): React.JSX.Element {
   const { role } = useConsole();
+  const [exportBusy, setExportBusy] = useState(false);
+  const toast = useToast();
   const [ft, setFt] = useState<(typeof FIN_TABS)[number]>('overview');
   const [kpis, setKpis] = useState<{ cashIn: number; deposits: number; cashOut: number; net: number} | null>(null);
 
@@ -71,7 +75,19 @@ function FinancialsView({ projectId, projectName}: { projectId: string; projectN
 </div>
 <div className="flex gap-2">
 <a href={`/api/v1/projects/${projectId}/reports/ipc`} download className="px-3 py-1.5 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Export PDF</a>
-<a href={`/api/v1/projects/${projectId}/reports/financials.xlsx`} download className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white">Export Excel</a>
+<button type="button" disabled={exportBusy}
+            onClick={async () => {
+              setExportBusy(true);
+              try {
+                await downloadQueuedExport('financials', projectId);
+                toast.success('Financial workbook is downloading.');
+              } catch (err) {
+                toast.error(err, 'Export failed — try again.');
+              } finally {
+                setExportBusy(false);
+              }
+            }}
+            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-50">{exportBusy ? 'Preparing…' : 'Export Excel'}</button>
 </div>
 </div>
 <FilterTabs

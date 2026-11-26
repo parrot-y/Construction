@@ -3,7 +3,8 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import { CreateScheduledReportSchema, UpdateScheduledReportSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
-import { nextRunAt, runScheduledReport } from '../lib/scheduledReportRunner';
+import { nextRunAt, runScheduledReport, deliverScheduledReport } from '../lib/scheduledReportRunner';
+import { enqueueReportDelivery } from '../jobs/queue';
 import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -155,8 +156,18 @@ export const scheduledReportsRoutes: FastifyPluginAsync = async (server: Fastify
       const { id } = request.params as { id: string };
       if (!UUID_REGEX.test(id)) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Report not found' });
       try {
-        const result = await runScheduledReport(tenantId, id, sub);
-        return reply.status(200).send({ data: { run_id: result.run.id, ran_at: result.run.ran_at, summary: result.summary, deliveries: result.deliveries } });
+        // P5.10 — snapshot on the request path; recipient delivery is handed
+        // to the pg-boss queue when it is running, else delivered inline.
+        const result = await runScheduledReport(tenantId, id, sub, { skipDelivery: true });
+        let deliveriesStatus: 'DONE' | 'QUEUED';
+        let deliveries = result.deliveries;
+        if (await enqueueReportDelivery(tenantId, id)) {
+          deliveriesStatus = 'QUEUED';
+        } else {
+          deliveries = await deliverScheduledReport(tenantId, id);
+          deliveriesStatus = 'DONE';
+        }
+        return reply.status(200).send({ data: { run_id: result.run.id, ran_at: result.run.ran_at, summary: result.summary, deliveries, deliveriesStatus } });
       } catch (err: any) {
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);

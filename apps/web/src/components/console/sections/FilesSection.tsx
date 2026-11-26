@@ -5,20 +5,24 @@ import CompanyDocumentsView from '../../CompanyDocumentsView';
 import IntegrationsView from '../../IntegrationsView';
 import ScheduledReportsView from '../../ScheduledReportsView';
 import { api } from '../../../lib/api';
+import { downloadQueuedExport, type ExportKind } from '../../../lib/exportJob';
+import { useToast } from '../../feedback/Toast';
 
 const PERIODS = ['7D', '30D', 'QTD', 'YTD'];
 
-const REPORT_LINKS = [
+const REPORT_LINKS: Array<{ label: string; path?: (pid: string) => string; kind?: ExportKind; desc: string; fmt: string }> = [
   { label: 'Interim Payment Certificate (IPC)', path: (pid: string) => `/api/v1/projects/${pid}/reports/ipc`, desc: 'Certified valuation for the current period', fmt: 'PDF'},
   { label: 'Project Summary', path: (pid: string) => `/api/v1/projects/${pid}/reports/summary`, desc: 'Budget, spend and progress snapshot', fmt: 'PDF'},
-  { label: 'Cost Report', path: (pid: string) => `/api/v1/projects/${pid}/reports/cost.xlsx`, desc: 'Cost ledger by category (Excel)', fmt: 'XLSX'},
-  { label: 'Financial workbook', path: (pid: string) => `/api/v1/projects/${pid}/reports/financials.xlsx`, desc: 'Cash flow, change orders, commitments', fmt: 'XLSX'},
+  { label: 'Cost Report', kind: 'cost', desc: 'Cost ledger by category (Excel)', fmt: 'XLSX'},
+  { label: 'Financial workbook', kind: 'financials', desc: 'Cash flow, change orders, commitments', fmt: 'XLSX'},
 ];
 
 /** Reports — period selector + export cards (reference"Reports" tab). */
 function ReportsView(): React.JSX.Element {
   const { projectId, projects} = useConsole();
   const [period, setPeriod] = useState('30D');
+  const [busyExport, setBusyExport] = useState<string | null>(null);
+  const toast = useToast();
   const [coMetrics, setCoMetrics] = useState<{ total: number; approvalRate: number | null; medianCycle: number | null; reworkRate: number | null; byStatus?: Record<string, number>} | null>(null);
   const livePid = projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
   const pname = projects.find((p) => p.id === projectId)?.name;
@@ -119,10 +123,28 @@ function ReportsView(): React.JSX.Element {
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{r.label}</h4>
 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex-1">{r.desc}</p>
             {livePid ? (
-<a href={r.path(livePid)} download
+              r.kind ? (
+<button type="button" disabled={busyExport !== null}
+                  onClick={async () => {
+                    setBusyExport(r.label);
+                    try {
+                      await downloadQueuedExport(r.kind!, livePid);
+                      toast.success(`${r.label} is downloading.`);
+                    } catch (err) {
+                      toast.error(err, 'Export failed — try again.');
+                    } finally {
+                      setBusyExport(null);
+                    }
+                  }}
+                  className="mt-4 inline-flex items-center justify-center px-3.5 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg hover:opacity-90 disabled:opacity-50">
+                  {busyExport === r.label ? 'Preparing…' : `Export ${r.fmt}`}
+</button>
+) : (
+<a href={r.path!(livePid)} download
                 className="mt-4 inline-flex items-center justify-center px-3.5 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg hover:opacity-90">
                 Export {r.fmt}
 </a>
+)
 ) : (
 <span className="mt-4 text-[11px] text-slate-500">Select a project</span>
 )}

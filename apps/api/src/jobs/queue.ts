@@ -1,9 +1,11 @@
 import { PgBoss } from 'pg-boss';
 import type { FastifyInstance } from 'fastify';
 import { prisma, withTenantTx } from '@construction/db';
-import { runScheduledReport } from '../lib/scheduledReportRunner';
+import { runScheduledReport, deliverScheduledReport } from '../lib/scheduledReportRunner';
 import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
 import { recordMessageDelivery } from '../lib/messageDeliveries';
+import { EXPORT_BUILDERS } from '../lib/reportWorkbooks';
+import { getStorageDriver } from '../lib/storage';
 
 /**
  * P5.8 — pg-boss job queue.
@@ -21,14 +23,19 @@ import { recordMessageDelivery } from '../lib/messageDeliveries';
 
 export const QUEUE_SWEEP = 'scheduled-report-sweep';
 export const QUEUE_REMINDERS = 'invoice-reminders';
+export const QUEUE_EXPORT = 'export-job';
+export const QUEUE_REPORT_DELIVERY = 'scheduled-report-delivery';
 
 const SWEEP_CRON = '*/5 * * * *';
 const REMINDER_CRON = '0 6 * * *';
 const REMINDER_DEDUPE_MS = 72 * 60 * 60 * 1000;
 const SWEEP_BATCH = 25;
 const REMINDER_BATCH = 200;
+const EXPORT_STALE_MS = 60 * 1000;
+const EXPORT_REAPER_BATCH = 10;
 
 let boss: PgBoss | null = null;
+let bossStarted = false;
 
 function getBoss(): PgBoss {
   if (!boss) {
@@ -148,19 +155,127 @@ export async function runOverdueInvoiceReminders(): Promise<{ sent: number; skip
   return { sent, skipped };
 }
 
+/** True once pg-boss has started — enqueue helpers fall back when false. */
+export function isQueueReady(): boolean {
+  return bossStarted && boss !== null;
+}
+
+/** Best-effort enqueue; returns false when the queue is not running. */
+export async function enqueueExportJob(exportJobId: string): Promise<boolean> {
+  if (!isQueueReady()) return false;
+  try {
+    await boss!.send(QUEUE_EXPORT, { exportJobId });
+    return true;
+  } catch (err) {
+    console.warn('[jobs] export enqueue failed', err);
+    return false;
+  }
+}
+
+/** Best-effort enqueue of scheduled-report delivery; false → caller runs inline. */
+export async function enqueueReportDelivery(tenantId: string, reportId: string): Promise<boolean> {
+  if (!isQueueReady()) return false;
+  try {
+    await boss!.send(QUEUE_REPORT_DELIVERY, { tenantId, reportId });
+    return true;
+  } catch (err) {
+    console.warn('[jobs] report-delivery enqueue failed', err);
+    return false;
+  }
+}
+
+/**
+ * P5.10 — builds one queued export. The job row is claimed atomically via
+ * the claim_export_job SECURITY DEFINER function (the worker has no tenant
+ * context under FORCE RLS), then the workbook is built with the same
+ * builders the synchronous *.xlsx endpoints use and stored through the
+ * configured storage driver (local volume or S3).
+ */
+export async function processExportJob(exportJobId: string): Promise<void> {
+  const claimed = (await prisma.$queryRawUnsafe(
+    'SELECT * FROM public.claim_export_job($1::uuid)',
+    exportJobId,
+  )) as any[];
+  const job = claimed[0];
+  if (!job) throw new Error(`Export job ${exportJobId} not found or already claimed`);
+  const tenantId: string = job.tenant_id;
+
+  try {
+    const builder = EXPORT_BUILDERS[job.report_kind];
+    if (!builder || !job.project_id) {
+      throw new Error(`Unknown export kind "${job.report_kind}"`);
+    }
+    const { buffer, filename } = await builder(tenantId, job.project_id);
+    const storageKey = `exports/${tenantId}/${exportJobId}/${filename}`;
+    await getStorageDriver().put(storageKey, buffer);
+    await withTenantTx(prisma, tenantId, (tx) =>
+      tx.exportJob.update({
+        where: { id: exportJobId },
+        data: {
+          status: 'READY',
+          filename,
+          storage_key: storageKey,
+          size_bytes: buffer.length,
+          finished_at: new Date(),
+        },
+      }),
+    );
+  } catch (err: any) {
+    await withTenantTx(prisma, tenantId, (tx) =>
+      tx.exportJob.update({
+        where: { id: exportJobId },
+        data: { status: 'FAILED', error: String(err?.message ?? err).slice(0, 500), finished_at: new Date() },
+      }),
+    ).catch(() => {});
+    throw err;
+  }
+}
+
+/**
+ * Reaper: PENDING export jobs older than EXPORT_STALE_MS whose enqueue was
+ * lost (queue down at request time) are processed by the sweep.
+ */
+async function reapStaleExportJobs(): Promise<number> {
+  const cutoff = new Date(Date.now() - EXPORT_STALE_MS);
+  let reaped = 0;
+  for (const tenant of await listTenantIds()) {
+    const stale = await withTenantTx(prisma, tenant.id, (tx) =>
+      tx.exportJob.findMany({
+        where: { tenant_id: tenant.id, status: 'PENDING', created_at: { lt: cutoff } },
+        orderBy: { created_at: 'asc' },
+        take: EXPORT_REAPER_BATCH,
+        select: { id: true },
+      }),
+    );
+    for (const job of stale) {
+      try {
+        await processExportJob(job.id);
+        reaped += 1;
+      } catch (err) {
+        console.warn(`[jobs] stale export ${job.id} failed`, err);
+      }
+    }
+  }
+  return reaped;
+}
+
 /** Boots pg-boss, registers workers and cron schedules. Idempotent. */
 export async function startJobs(server: FastifyInstance): Promise<void> {
   const instance = getBoss();
   instance.on('error', (err) => server.log.error({ err }, '[jobs] pg-boss error'));
 
   await instance.start();
+  bossStarted = true;
   await instance.createQueue(QUEUE_SWEEP);
   await instance.createQueue(QUEUE_REMINDERS);
+  await instance.createQueue(QUEUE_EXPORT);
+  await instance.createQueue(QUEUE_REPORT_DELIVERY);
 
   await instance.work(QUEUE_SWEEP, async () => {
     const result = await sweepDueScheduledReports();
-    if (result.ran || result.failed) {
-      server.log.info({ ...result }, '[jobs] scheduled-report sweep complete');
+    const reaped = await reapStaleExportJobs();
+    if (result.ran || result.failed || reaped) {
+      server.log.info({ ...result, reapedExports: reaped }, '[jobs] scheduled-report sweep complete');
     }
   });
   await instance.schedule(QUEUE_SWEEP, SWEEP_CRON, {});
@@ -173,10 +288,23 @@ export async function startJobs(server: FastifyInstance): Promise<void> {
   });
   await instance.schedule(QUEUE_REMINDERS, REMINDER_CRON, {});
 
+  await instance.work(QUEUE_EXPORT, async (jobs: any[]) => {
+    for (const job of jobs ?? []) {
+      await processExportJob(job.data.exportJobId);
+    }
+  });
+
+  await instance.work(QUEUE_REPORT_DELIVERY, async (jobs: any[]) => {
+    for (const job of jobs ?? []) {
+      await deliverScheduledReport(job.data.tenantId, job.data.reportId);
+    }
+  });
+
   server.log.info('[jobs] pg-boss workers started (sweep */5m, reminders daily 06:00 UTC)');
 }
 
 export async function stopJobs(): Promise<void> {
+  bossStarted = false;
   if (boss) {
     await boss.stop({ graceful: true });
     boss = null;

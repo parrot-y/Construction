@@ -3560,3 +3560,20 @@ model Meeting {
   @@index([tenant_id, starts_at])
   @@map("meetings")
 }
+model ExportJob {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenant_id    String    @db.Uuid
+  project_id   String?   @db.Uuid
+  report_kind  String    @db.VarChar(30) // financials | cost | company
+  status       String    @default("PENDING") @db.VarChar(15) // PENDING | RUNNING | READY | FAILED
+  filename     String?   @db.VarChar(255)
+  storage_key  String?   @db.VarChar(500)
+  size_bytes   Int?
+  requested_by_id String? @db.Uuid
+  error        String?   @db.VarChar(500)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  finished_at  DateTime? @db.Timestamptz
+
+  @@index([tenant_id, status, created_at])
+  @@map("export_jobs")
+}

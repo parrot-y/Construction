@@ -61,6 +61,7 @@ export interface ScheduledReportRunResult {
   summary: any;
   report: any;
   deliveries: Array<{ to: string; channel: string; status: string; simulated?: boolean }>;
+  deliveriesStatus: 'DONE' | 'QUEUED';
 }
 
 const SYSTEM_ACTOR = '00000000-0000-0000-0000-000000000000';
@@ -75,6 +76,7 @@ export async function runScheduledReport(
   tenantId: string,
   reportId: string,
   actorId?: string,
+  opts: { skipDelivery?: boolean } = {},
 ): Promise<ScheduledReportRunResult> {
   const result = await withTenantTx(prisma, tenantId, async (tx) => {
     const report = await tx.scheduledReport.findUnique({ where: { id: reportId } });
@@ -105,16 +107,55 @@ export async function runScheduledReport(
     }
   });
 
+  // P5.10 — the manual /run route can defer delivery to the pg-boss queue;
+  // the sweep worker and queue-down fallback deliver inline.
+  if (opts.skipDelivery) {
+    return { ...result, deliveries: [], deliveriesStatus: 'QUEUED' };
+  }
+  const deliveries = await deliverReportSnapshot(tenantId, result.report, result.run, result.summary);
+  return { ...result, deliveries, deliveriesStatus: 'DONE' };
+}
+
+/**
+ * Delivers the snapshot of a report's latest SUCCESS run to its recipients.
+ * Used inline by runScheduledReport and by the pg-boss delivery worker when
+ * the /run route defers delivery off the request path.
+ */
+export async function deliverScheduledReport(
+  tenantId: string,
+  reportId: string,
+): Promise<ScheduledReportRunResult['deliveries']> {
+  const loaded = await withTenantTx(prisma, tenantId, async (tx) => {
+    const report = await tx.scheduledReport.findUnique({ where: { id: reportId } });
+    if (!report) return null;
+    const run = await tx.scheduledReportRun.findFirst({
+      where: { report_id: reportId, status: 'SUCCESS' },
+      orderBy: { ran_at: 'desc' },
+    });
+    return run ? { report, run } : null;
+  });
+  if (!loaded) return [];
+  const summary = (loaded.run.summary && typeof loaded.run.summary === 'object') ? loaded.run.summary as any : {};
+  return deliverReportSnapshot(tenantId, loaded.report, loaded.run, summary);
+}
+
+/** Recipient loop shared by inline and queued delivery paths. */
+async function deliverReportSnapshot(
+  tenantId: string,
+  report: any,
+  run: any,
+  summary: any,
+): Promise<ScheduledReportRunResult['deliveries']> {
   // Deliver snapshot to recipients that resolve to a contact channel:
   // emails → EMAIL, phone-like → SMS, role labels skipped (documented).
   const deliveries: ScheduledReportRunResult['deliveries'] = [];
-  const recipients: string[] = Array.isArray(result.report.recipients) ? result.report.recipients : [];
-  const reportTitle = `${result.report.report_type} report — ${result.report.name || result.report.id}`;
+  const recipients: string[] = Array.isArray(report.recipients) ? report.recipients : [];
+  const reportTitle = `${report.report_type} report — ${report.name || report.id}`;
   for (const raw of recipients) {
     const target = String(raw).trim();
     if (!target) continue;
     if (target.includes('@')) {
-      const body = `Scheduled report snapshot:\n\n${JSON.stringify(result.summary, null, 2).slice(0, 4000)}`;
+      const body = `Scheduled report snapshot:\n\n${JSON.stringify(summary, null, 2).slice(0, 4000)}`;
       const r = await dispatchNotification({ channel: 'EMAIL', to: target, subject: reportTitle, body });
       deliveries.push({ to: target, channel: 'EMAIL', status: r.simulated ? 'SIMULATED' : r.ok ? 'DELIVERED' : 'FAILED' });
       await recordMessageDelivery(tenantId, { channel: 'EMAIL', to: target, subject: reportTitle, body, source: 'scheduled-report' }, r);
@@ -129,13 +170,13 @@ export async function runScheduledReport(
   }
   if (deliveries.length) {
     await withTenantTx(prisma, tenantId, async (tx) => {
-      const existing = (result.run.summary && typeof result.run.summary === 'object') ? result.run.summary as any : {};
+      const existing = (run.summary && typeof run.summary === 'object') ? run.summary as any : {};
       await tx.scheduledReportRun.update({
-        where: { id: result.run.id },
+        where: { id: run.id },
         data: { summary: { ...existing, deliveries } },
       });
     });
   }
 
-  return { ...result, deliveries };
+  return deliveries;
 }

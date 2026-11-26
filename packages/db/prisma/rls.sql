@@ -410,3 +410,25 @@ LANGUAGE sql AS $$
 $$;
 REVOKE ALL ON FUNCTION lookup_provider_payment_charge(TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_provider_payment_charge(TEXT, TEXT) TO db_app;
+
+-- Export-job worker claim (P5.10): the pg-boss export worker has no tenant
+-- context when it picks up a job, so it cannot read export_jobs under FORCE
+-- RLS. This function atomically flips PENDING -> RUNNING and returns the row
+-- (including tenant_id) so the worker can enter withTenantTx for the rest of
+-- the work. Re-created here so the deploy role owns it and it bypasses RLS.
+DROP FUNCTION IF EXISTS claim_export_job(UUID);
+CREATE OR REPLACE FUNCTION claim_export_job(p_id UUID)
+RETURNS SETOF public.export_jobs
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN QUERY
+  UPDATE public.export_jobs
+  SET status = 'RUNNING'
+  WHERE id = p_id AND status IN ('PENDING', 'QUEUED')
+  RETURNING *;
+END;
+$$;
+REVOKE ALL ON FUNCTION claim_export_job(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION claim_export_job(UUID) TO db_app;
