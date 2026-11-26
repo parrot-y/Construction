@@ -205,3 +205,13 @@ Prevention rules:
 - Playwright runner can hang in teardown on this host (idle worker,
   epoll_wait, all tests already reported). Results in the log are still
   valid; kill the lingering runner rather than waiting.
+- document_counters is the ONLY allocator for invoice_no/certificate_no:
+  any test/fixture that creates those rows directly must call
+  nextDocumentNumber() — max+1 bypass leaves the counter behind and the
+  next API create hits P2002 → 409 (verify-local caught 22 failures that
+  a green Playwright run could not see).
+- Prisma `migrate dev` diffs schema vs applied migrations and emits
+  DROP DEFAULT for columns whose defaults exist only at DB level
+  (hand-written gen_random_uuid()/now()). After any hand-written
+  migration, check `migrate dev --create-only` output for spurious
+  ALTERs; repair migration 20261126213000 restored the dropped defaults.
