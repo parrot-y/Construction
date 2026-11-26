@@ -35,6 +35,7 @@ import OfflineSyncBanner from '../OfflineSyncBanner';
 
 import { AuthSession} from '../../types/auth';
 import { api } from '../../lib/api';
+import { useInboxEvents } from '../../lib/useInboxEvents';
 import AppErrorBoundary from '../AppErrorBoundary';
 
 function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
@@ -410,6 +411,9 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
   const canSeeAccess = ['COMPANY_ADMIN', 'ADMIN'].includes(session.user.role);
   const user = session.user;
   const initials = (user.fullName || user.email || '?').split(/\s+/).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
+  // P5.5: live inbox pushes — toasts for others' messages, refetch hints
+  // for mounted views. No-op when EventSource is unavailable.
+  useInboxEvents(user.id);
 
   return (
     <>

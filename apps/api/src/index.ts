@@ -42,6 +42,7 @@ import { certificatesRoutes } from './routes/certificates';
 import { commitmentsRoutes } from './routes/commitments';
 import { announcementsRoutes } from './routes/announcements';
 import { inboxRoutes } from './routes/inbox';
+import { eventRoutes } from './routes/events';
 import { observationsRoutes } from './routes/observations';
 import { crewsRoutes } from './routes/crews';
 import { companyDocumentsRoutes } from './routes/companyDocuments';
@@ -247,6 +248,7 @@ export function buildServer(): FastifyInstance {
   server.register(commitmentsRoutes);
   server.register(announcementsRoutes);
   server.register(inboxRoutes);
+  server.register(eventRoutes);
   server.register(observationsRoutes);
   server.register(crewsRoutes);
   server.register(companyDocumentsRoutes);

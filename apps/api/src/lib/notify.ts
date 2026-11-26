@@ -1,5 +1,6 @@
 import { Prisma } from '@construction/db';
 import { PRODUCT_NAME } from './product';
+import { publishInboxEvent } from './inboxEvents';
 
 /**
  * System → team notifications via the real inbox (inbox_messages).
@@ -21,7 +22,7 @@ export async function notifyTeam(
     targetRoles?: string[];
   },
 ) {
-  await tx.inboxMessage.create({
+  const msg = await tx.inboxMessage.create({
     data: {
       tenant_id: opts.tenantId,
       project_id: opts.projectId ?? null,
@@ -32,4 +33,7 @@ export async function notifyTeam(
       target_roles: opts.targetRoles ?? [],
     },
   });
+  // P5.5: pg_notify inside the tx — delivered on commit, seen by every API
+  // instance's SSE listeners. Payload carries ids only; clients refetch.
+  await publishInboxEvent(tx, { tenantId: opts.tenantId, messageId: msg.id, senderId: opts.senderId });
 }

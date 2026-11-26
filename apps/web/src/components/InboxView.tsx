@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState} from 'react';
 import { formatDateTime } from '../lib/format';
 import { api, apiErrorMessage } from '../lib/api';
+import { INBOX_EVENT } from '../lib/useInboxEvents';
 
 interface InboxMessage {
   id: string;
@@ -56,6 +57,14 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
 }, [unreadOnly]);
 
   useEffect(() => { void load();}, [load]);
+
+  // P5.5: live refresh — an SSE inbox hint refetches through the normal
+  // filtered endpoint (audience/role rules still apply server-side).
+  useEffect(() => {
+    const onEvent = () => { void load(); };
+    window.addEventListener(INBOX_EVENT, onEvent);
+    return () => window.removeEventListener(INBOX_EVENT, onEvent);
+  }, [load]);
 
   const markRead = async (id: string) => {
     try {

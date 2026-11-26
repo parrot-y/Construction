@@ -4,6 +4,7 @@ import { SendInboxMessageSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 import { Permissions } from '@construction/permissions';
 import { listParams, listPage } from '../lib/pagination';
+import { publishInboxEvent } from '../lib/inboxEvents';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -153,6 +154,7 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
             entityId: msg.id,
             changes: { audience: data.audience, projectId: data.projectId ?? null, replyTo: data.parentId ?? null },
           });
+          await publishInboxEvent(tx, { tenantId, messageId: msg.id, senderId: sub });
           return msg;
         });
         return reply.status(201).send({ data: { ...format({ ...created, reads: [], _count: { reads: 0 } }) } });

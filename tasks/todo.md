@@ -372,7 +372,7 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
   - API: PortalTypeEnum+='FIELD'; GET /api/v1/portals/field/:token (project+stakeholder+today diary/photos); POST .../uploads (verified multipart); POST .../photos (find-or-create today EAT diary, weather/siteStatus required only when creating); GET .../files/* (token-scoped serve — /uploads/* needs session)
   - Web: FieldPortalView (camera capture input, GPS via useGeolocation, weather/status chips when first photo of day), App.tsx 'field' case, PortalAccessLinkManager FIELD option
   - Tests: field-portal.test.ts (API) + e2e p5-field-camera.spec.ts
-- [ ] P5.5 Live notifications: SSE endpoint /api/v1/events (auth'd, tenant-scoped), web EventSource → unread badge + toast; web-push behind VAPID config (optional, env-gated)
+- [~] P5.5 Live notifications: SSE endpoint /api/v1/events (auth'd, tenant-scoped), web EventSource → toast + inbox refetch; pg_notify inside tx (commit-safe); web-push behind VAPID config NOT built — honest gap
 - [ ] P5.6 Comments/mentions: polymorphic EntityComment (diary, invoice, RFI, observation...), @mention → InboxMessage notify
 - [ ] P5.7 Messaging delivery status: durable MessageDelivery rows for dispatchNotification (channel/provider/status/ref/error), visible status in UI; env-config fallback already exists
 - [ ] P5.8 pg-boss queue: dependency + worker bootstrap; scheduled-report next_run_at sweeper; reminder/escalation jobs (overdue invoices etc.)
