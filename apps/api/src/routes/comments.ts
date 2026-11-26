@@ -39,7 +39,7 @@ const MENTION_RE = /@([A-Za-z0-9][A-Za-z0-9._-]*(?: [A-Za-z0-9][A-Za-z0-9._-]*){
 function mentionTokens(body: string): string[] {
   const out = new Set<string>();
   for (const m of body.matchAll(MENTION_RE)) {
-    const words = m[1].trim().toLowerCase().split(/\s+/).map((w) => w.replace(/[.,;:!?)\]]+$/, ''));
+    const words = (m[1] ?? '').trim().toLowerCase().split(/\s+/).map((w) => w.replace(/[.,;:!?)\]]+$/, ''));
     for (let i = words.length; i >= 1; i--) {
       const candidate = words.slice(0, i).join(' ');
       if (candidate) out.add(candidate);
@@ -166,7 +166,7 @@ export const commentRoutes: FastifyPluginAsync = async (server: FastifyInstance)
 
           // Direct inbox delivery per mention — same tx, same commit, same
           // SSE hint path as every other notification.
-          const label = ENTITY_MODELS[data.entityType].label;
+          const label = ENTITY_MODELS[data.entityType]?.label ?? 'record';
           const excerpt = data.body.length > 140 ? `${data.body.slice(0, 140)}…` : data.body;
           for (const uid of mentionedIds) {
             const msg = await tx.inboxMessage.create({

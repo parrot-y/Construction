@@ -51,6 +51,29 @@ END
 $$;
 
 -- ==============================================================================
+-- SECURITY DEFINER LOOKUP FUNCTIONS — OWNER MUST BYPASS RLS
+-- FORCE ROW LEVEL SECURITY binds even the table owner, so a SECURITY DEFINER
+-- function owned by db_migrator sees zero rows and silently breaks login,
+-- portal links, token lookups, etc. Re-own every definer function in public
+-- to the role applying this script (the deploy admin — postgres in
+-- verify-local and the documented deploy flow).
+-- ==============================================================================
+DO $$
+DECLARE
+    fn RECORD;
+BEGIN
+    FOR fn IN
+        SELECT p.oid::regprocedure AS signature
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.prosecdef
+    LOOP
+        EXECUTE format('ALTER FUNCTION %s OWNER TO CURRENT_USER', fn.signature);
+    END LOOP;
+END
+$$;
+
+-- ==============================================================================
 -- LEDGER IMMUTABILITY & ANTI-TAMPER CONTROLS (C4, R-024)
 -- ==============================================================================
 
