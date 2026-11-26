@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../../lib/api';
+import { api, apiErrorMessage } from '../../lib/api';
 import { useGeolocation, type GeoStatus } from '../../lib/useGeolocation';
 import { compressUploadFile } from '../../services/offline-sync';
 import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
@@ -78,7 +78,7 @@ export default function FieldPortalView({ token }: { token: string }): React.JSX
       setErrorMessage(null);
     } catch (e: any) {
       setErrorKind(portalErrorKind(e));
-      setErrorMessage(e?.message || null);
+      setErrorMessage(apiErrorMessage(e, 'This camera link could not be opened.'));
     } finally {
       setLoading(false);
     }
@@ -134,7 +134,7 @@ export default function FieldPortalView({ token }: { token: string }): React.JSX
     } catch (err: any) {
       setNotice({
         kind: 'error',
-        text: err?.message || 'Could not save the photo. Check your connection and try again.',
+        text: apiErrorMessage(err, 'Could not save the photo. Check your connection and try again.'),
       });
     } finally {
       setBusy(false);
