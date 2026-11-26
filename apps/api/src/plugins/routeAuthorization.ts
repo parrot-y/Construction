@@ -213,6 +213,7 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
   'GET /api/v1/company/payment-instructions': 'Payment instructions any member (incl. CLIENT) may read to pay the contractor',
   'POST /api/v1/client/invoices/:invoiceId/payment-notice': 'Client self-service payment notice on own invoice (non-mutating, notifies staff)',
   'GET /api/v1/billing/subscription-status': 'Caller\u2019s tenant subscription status',
+  'GET /api/v1/events': 'Caller-scoped SSE inbox stream — session cookie auth, tenant-bound events only',
 };
 
 // ---------------------------------------------------------------------------
@@ -223,6 +224,7 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
 export const IN_HANDLER_GUARDED: Record<string, string> = {
   'POST /api/v1/projects/:projectId/commitments/:commitmentId/applications/:applicationId/action': 'Handler maps application action -> permission check',
   'GET /api/v1/integrations/status': 'Handler restricts to COMPANY_ADMIN',
+  'GET /api/v1/message-deliveries': 'Handler restricts to integration managers (canManageIntegrations)',
   'POST /api/v1/integrations/test': 'Handler restricts to COMPANY_ADMIN',
   'POST /api/v1/projects/:projectId/telematics-devices': 'Handler role-gates (CLIENT read-only)',
   'POST /api/v1/projects/:projectId/canbus-devices': 'Handler role-gates (CLIENT read-only)',
