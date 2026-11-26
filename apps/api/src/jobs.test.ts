@@ -10,8 +10,6 @@ describe('P5.8 — pg-boss jobs: scheduled-report sweep + overdue invoice remind
   let tenantId: string;
   let dueReportId: string;
   let pausedReportId: string;
-  let overdueInvoiceId: string;
-  let paidInvoiceId: string;
 
   const nextInvoiceNo = async (tx: any) => {
     const agg = await tx.invoice.aggregate({ _max: { invoice_no: true } });
@@ -67,38 +65,34 @@ describe('P5.8 — pg-boss jobs: scheduled-report sweep + overdue invoice remind
 
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      overdueInvoiceId = (
-        await tx.invoice.create({
-          data: {
-            tenant_id: tenantId,
-            invoice_no: await nextInvoiceNo(tx),
-            title: 'Overdue slab works invoice',
-            client_name: 'Acme Developers',
-            client_email: 'accounts@acme.co.ke',
-            status: 'SENT',
-            issue_date: lastWeek,
-            due_date: yesterday,
-            total: '150000.00',
-            balance_due: '150000.00',
-          },
-        })
-      ).id;
-      paidInvoiceId = (
-        await tx.invoice.create({
-          data: {
-            tenant_id: tenantId,
-            invoice_no: await nextInvoiceNo(tx),
-            title: 'Settled invoice fixture',
-            client_name: 'Acme Developers',
-            client_email: 'accounts@acme.co.ke',
-            status: 'PAID',
-            issue_date: lastWeek,
-            due_date: yesterday,
-            total: '50000.00',
-            balance_due: '0.00',
-          },
-        })
-      ).id;
+      await tx.invoice.create({
+        data: {
+          tenant_id: tenantId,
+          invoice_no: await nextInvoiceNo(tx),
+          title: 'Overdue slab works invoice',
+          client_name: 'Acme Developers',
+          client_email: 'accounts@acme.co.ke',
+          status: 'SENT',
+          issue_date: lastWeek,
+          due_date: yesterday,
+          total: '150000.00',
+          balance_due: '150000.00',
+        },
+      });
+      await tx.invoice.create({
+        data: {
+          tenant_id: tenantId,
+          invoice_no: await nextInvoiceNo(tx),
+          title: 'Settled invoice fixture',
+          client_name: 'Acme Developers',
+          client_email: 'accounts@acme.co.ke',
+          status: 'PAID',
+          issue_date: lastWeek,
+          due_date: yesterday,
+          total: '50000.00',
+          balance_due: '0.00',
+        },
+      });
     });
   });
 
@@ -115,8 +109,10 @@ describe('P5.8 — pg-boss jobs: scheduled-report sweep + overdue invoice remind
     });
 
     expect(after.dueRuns.length).toBeGreaterThanOrEqual(1);
-    expect(after.dueRuns[0].status).toBe('SUCCESS');
-    expect(after.dueReport?.next_run_at!.getTime()).toBeGreaterThan(Date.now() - 60_000);
+    expect(after.dueRuns[0]?.status).toBe('SUCCESS');
+    const nextRun = after.dueReport?.next_run_at;
+    expect(nextRun).toBeTruthy();
+    expect(nextRun!.getTime()).toBeGreaterThan(Date.now() - 60_000);
     expect(after.pausedRuns.length).toBe(0);
   });
 
@@ -132,6 +128,7 @@ describe('P5.8 — pg-boss jobs: scheduled-report sweep + overdue invoice remind
     expect(deliveries.length).toBeGreaterThanOrEqual(1);
     const reminder = deliveries.find((d: any) => d.body_excerpt?.includes('Overdue slab works'));
     expect(reminder, 'no reminder delivery recorded for the overdue invoice').toBeTruthy();
+    if (!reminder) return;
     expect(reminder.channel).toBe('EMAIL');
     expect(reminder.recipient_masked).not.toContain('accounts@acme.co.ke');
     // Honest status: unconfigured provider → SIMULATED, never DELIVERED.

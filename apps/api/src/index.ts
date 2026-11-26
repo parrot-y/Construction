@@ -296,6 +296,15 @@ export async function startServer(): Promise<void> {
 
   try {
     await server.listen({ port, host });
+    // P5.8 — job queue starts after listen so a pg-boss outage never
+    // blocks the API from serving requests.
+    const { startJobs, stopJobs } = await import('./jobs/queue');
+    try {
+      await startJobs(server);
+    } catch (err) {
+      server.log.error({ err }, '[jobs] pg-boss failed to start — recurring jobs disabled');
+    }
+    server.addHook('onClose', async () => { await stopJobs(); });
     server.log.info(`API Server successfully listening on http://${host}:${port}`);
   } catch (err) {
     server.log.error(err);

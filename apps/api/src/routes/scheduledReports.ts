@@ -3,65 +3,10 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import { CreateScheduledReportSchema, UpdateScheduledReportSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
-import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
-import { recordMessageDelivery } from '../lib/messageDeliveries';
+import { nextRunAt, runScheduledReport } from '../lib/scheduledReportRunner';
 import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Compute next run time from frequency + optional weekday/day-of-month. */
-function nextRunAt(frequency: string, dayOfWeek?: number | null, dayOfMonth?: number | null, from = new Date()): Date {
-  const d = new Date(from);
-  if (frequency === 'DAILY') {
-    d.setUTCDate(d.getUTCDate() + 1);
-    d.setUTCHours(6, 0, 0, 0);
-    return d;
-  }
-  if (frequency === 'WEEKLY') {
-    const target = dayOfWeek ?? 1; // default Monday
-    const diff = ((target - d.getUTCDay()) + 7) % 7 || 7;
-    d.setUTCDate(d.getUTCDate() + diff);
-    d.setUTCHours(6, 0, 0, 0);
-    return d;
-  }
-  // MONTHLY — clamp to 28 to avoid month-length issues
-  const target = Math.min(dayOfMonth ?? 1, 28);
-  d.setUTCDate(1);
-  d.setUTCMonth(d.getUTCMonth() + 1);
-  d.setUTCDate(target);
-  d.setUTCHours(6, 0, 0, 0);
-  return d;
-}
-
-/** Snapshot tenant report summary — the payload a scheduled run stores. */
-async function buildReportSummary(tx: any, tenantId: string, projectId: string | null, reportType: string) {
-  const projectWhere = projectId ? { project_id: projectId } : {};
-  const [projects, openSnags, pendingInvoices, invoiceCount, diaries, observations] = await Promise.all([
-    tx.project.count({ where: { tenant_id: tenantId, ...(projectId ? { id: projectId } : {}) } }),
-    tx.snagItem.count({ where: { tenant_id: tenantId, status: { in: ['OPEN', 'IN_PROGRESS', 'READY_FOR_REVIEW'] }, ...projectWhere } }),
-    tx.invoice.aggregate({
-      where: { tenant_id: tenantId, status: { in: ['SENT', 'PARTIALLY_PAID', 'OVERDUE'] }, ...(projectId ? { project_id: projectId } : {}) },
-      _sum: { total: true, amount_paid: true },
-    }),
-    tx.invoice.count({ where: { tenant_id: tenantId, status: { in: ['SENT', 'PARTIALLY_PAID', 'OVERDUE'] }, ...(projectId ? { project_id: projectId } : {}) } }),
-    tx.siteDiary.count({ where: { tenant_id: tenantId, ...(projectId ? { project_id: projectId } : {}) } }),
-    tx.siteObservation.count({ where: { tenant_id: tenantId, status: { in: ['OPEN', 'IN_REVIEW'] }, ...projectWhere } }),
-  ]);
-  return {
-    report_type: reportType,
-    project_id: projectId,
-    generated_at: new Date().toISOString(),
-    projects,
-    open_snags: openSnags,
-    open_observations: observations,
-    site_diaries: diaries,
-    receivables: {
-      invoice_count: invoiceCount,
-      total_billed: pendingInvoices._sum.total?.toString() ?? '0',
-      total_paid: pendingInvoices._sum.amount_paid?.toString() ?? '0',
-    },
-  };
-}
 
 export const scheduledReportsRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // GET /api/v1/reports/scheduled
@@ -210,67 +155,8 @@ export const scheduledReportsRoutes: FastifyPluginAsync = async (server: Fastify
       const { id } = request.params as { id: string };
       if (!UUID_REGEX.test(id)) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Report not found' });
       try {
-        const result = await withTenantTx(prisma, tenantId, async (tx) => {
-          const report = await tx.scheduledReport.findUnique({ where: { id } });
-          if (!report) throw { status: 404, message: 'Report not found' };
-          try {
-            const summary = await buildReportSummary(tx, tenantId, report.project_id, report.report_type);
-            const run = await tx.scheduledReportRun.create({
-              data: { tenant_id: tenantId, report_id: id, status: 'SUCCESS', summary },
-            });
-            await tx.scheduledReport.update({
-              where: { id },
-              data: {
-                last_run_at: new Date(),
-                next_run_at: report.status === 'ACTIVE' ? nextRunAt(report.frequency, report.day_of_week, report.day_of_month) : null,
-              },
-            });
-            await recordAuditLog(tx, {
-              tenantId, projectId: report.project_id ?? undefined, actorId: sub,
-              action: 'SCHEDULED_REPORT_RUN', entityType: 'ScheduledReport', entityId: id,
-              changes: { runId: run.id, reportType: report.report_type },
-            });
-            return { run, summary, report };
-          } catch (innerErr: any) {
-            await tx.scheduledReportRun.create({
-              data: { tenant_id: tenantId, report_id: id, status: 'FAILED', error: String(innerErr?.message ?? innerErr).slice(0, 2000) },
-            });
-            throw innerErr;
-          }
-        });
-        // Deliver snapshot to recipients that resolve to a contact channel:
-        // emails → EMAIL, phone-like → SMS, role labels skipped (documented).
-        const deliveries: Array<{ to: string; channel: string; status: string; simulated?: boolean }> = [];
-        const recipients: string[] = Array.isArray(result.report.recipients) ? result.report.recipients : [];
-        const reportTitle = `${result.report.report_type} report — ${result.report.name || result.report.id}`;
-        for (const raw of recipients) {
-          const target = String(raw).trim();
-          if (!target) continue;
-          if (target.includes('@')) {
-            const body = `Scheduled report snapshot:\n\n${JSON.stringify(result.summary, null, 2).slice(0, 4000)}`;
-            const r = await dispatchNotification({ channel: 'EMAIL', to: target, subject: reportTitle, body });
-            deliveries.push({ to: target, channel: 'EMAIL', status: r.simulated ? 'SIMULATED' : r.ok ? 'DELIVERED' : 'FAILED' });
-            await recordMessageDelivery(tenantId, { channel: 'EMAIL', to: target, subject: reportTitle, body, source: 'scheduled-report' }, r);
-          } else if (/^[+0-9][0-9\s-]{8,}$/.test(target)) {
-            const body = `${reportTitle}: report ready. View in app → Reports → Scheduled.`;
-            const r = await dispatchNotification({ channel: 'SMS', to: normalizeKePhone(target), body });
-            deliveries.push({ to: target, channel: 'SMS', status: r.simulated ? 'SIMULATED' : r.ok ? 'DELIVERED' : 'FAILED' });
-            await recordMessageDelivery(tenantId, { channel: 'SMS', to: normalizeKePhone(target), body, source: 'scheduled-report' }, r);
-          } else {
-            deliveries.push({ to: target, channel: 'ROLE_LABEL', status: 'SKIPPED' });
-          }
-        }
-        if (deliveries.length) {
-          await withTenantTx(prisma, tenantId, async (tx) => {
-            const existing = (result.run.summary && typeof result.run.summary === 'object') ? result.run.summary as any : {};
-            await tx.scheduledReportRun.update({
-              where: { id: result.run.id },
-              data: { summary: { ...existing, deliveries } },
-            });
-          });
-        }
-
-        return reply.status(200).send({ data: { run_id: result.run.id, ran_at: result.run.ran_at, summary: result.summary, deliveries } });
+        const result = await runScheduledReport(tenantId, id, sub);
+        return reply.status(200).send({ data: { run_id: result.run.id, ran_at: result.run.ran_at, summary: result.summary, deliveries: result.deliveries } });
       } catch (err: any) {
         if (err.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         server.log.error(err);
