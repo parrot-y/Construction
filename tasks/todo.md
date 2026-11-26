@@ -368,7 +368,10 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
 - [ ] P5.1 Real GPS capture: enable geolocation in Permissions-Policy (vite+nginx), shared useGeolocation hook w/ accuracy, gps_accuracy_meters on SitePhoto/SnagPhoto/IndependentInspectionPhoto (+migration), replace hardcoded Nairobi coords (SiteDiaryModal, CreateSnagModal, GeofencedClockInView, PhotoEvidenceGallery, reports.ts, IndependentSiteReportView)
 - [ ] P5.2 Photos time+location: device timestamp + accuracy captured at shutter; display accuracy in gallery; diary gets location fields? (decide scope)
 - [ ] P5.3 Project map: map lib (react-leaflet+OSM), project pin picker in onboarding, map view showing project + geofences + photo pins
-- [ ] P5.4 Camera link: FIELD portal_type on PortalAccessLink, token-gated mobile photo-capture page (capture=environment, GPS, daily photo), admin "copy link" UI
+- [~] P5.4 Camera link: FIELD portal_type on PortalAccessLink, token-gated mobile photo-capture page (capture=environment, GPS, daily photo), admin "copy link" UI
+  - API: PortalTypeEnum+='FIELD'; GET /api/v1/portals/field/:token (project+stakeholder+today diary/photos); POST .../uploads (verified multipart); POST .../photos (find-or-create today EAT diary, weather/siteStatus required only when creating); GET .../files/* (token-scoped serve — /uploads/* needs session)
+  - Web: FieldPortalView (camera capture input, GPS via useGeolocation, weather/status chips when first photo of day), App.tsx 'field' case, PortalAccessLinkManager FIELD option
+  - Tests: field-portal.test.ts (API) + e2e p5-field-camera.spec.ts
 - [ ] P5.5 Live notifications: SSE endpoint /api/v1/events (auth'd, tenant-scoped), web EventSource → unread badge + toast; web-push behind VAPID config (optional, env-gated)
 - [ ] P5.6 Comments/mentions: polymorphic EntityComment (diary, invoice, RFI, observation...), @mention → InboxMessage notify
 - [ ] P5.7 Messaging delivery status: durable MessageDelivery rows for dispatchNotification (channel/provider/status/ref/error), visible status in UI; env-config fallback already exists
