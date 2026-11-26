@@ -250,6 +250,9 @@ importers:
       pg:
         specifier: 8.16.3
         version: 8.16.3
+      pg-boss:
+        specifier: 12.38.2
+        version: 12.38.2(@opentelemetry/api@1.10.0)
       pino:
         specifier: ^9.6.0
         version: 9.14.0
@@ -2518,6 +2521,10 @@ packages:
     resolution: {integrity: sha512-NT7w2JVU7DFroFdYkeq8cywxrgjPHWkdX1wjpRQXPX5Asews3tA+Ght6lddQO5Mkumffp3X7GEqku3epj2toIw==}
     engines: {node: '>= 10'}
 
+  cron-parser@5.10.7:
+    resolution: {integrity: sha512-ST6Y7vq40qyah/5sGTKpj2DpABiRL9khy8xC+amICUXbwAWXzzzWs11wxyV/hG+SVQHMLyUKRxBZpqElsJo8+Q==}
+    engines: {node: '>=18'}
+
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -3383,6 +3390,10 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
+
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
@@ -3458,6 +3469,10 @@ packages:
   node-releases@2.0.63:
     resolution: {integrity: sha512-6li2QanLsAXpIH2R6j77MzRyvOyrvdTqlKtO4CgBdHGNvN99ZZfyxszHc5o5+IZBWD5u6Hzwg83JoGXmqZNG9Q==}
     engines: {node: '>=18'}
+
+  non-error@0.1.0:
+    resolution: {integrity: sha512-TMB1uHiGsHRGv1uYclfhivcnf0/PdFp2pNqRxXjncaAsjYMoisaQJI+SSZCqRq+VliwRTC8tsMQfmrWjDMhkPQ==}
+    engines: {node: '>=20'}
 
   normalize-path@3.0.0:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
@@ -3565,6 +3580,13 @@ packages:
   perfect-debounce@1.0.0:
     resolution: {integrity: sha512-xCy9V055GLEqoFaHoC1SoLIaLmWctgCUaBaWxDZ7/Zx4CTyX7cJQLJOok/orfjZAh9kEYpjJa4d0KcJmCbctZA==}
 
+  pg-boss@12.38.2:
+    resolution: {integrity: sha512-nvB9hB2cDJGSPUwYjN/Mth+EE3zvxffkp7uKXIiYloMAaxSoEiutmZi9mpSW85hNCcPChf3yicNXdwhIWkv2nA==}
+    engines: {node: '>=22.12.0'}
+    hasBin: true
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
+
   pg-cloudflare@1.4.1:
     resolution: {integrity: sha512-6PQbsFWZcp9EmJEwy5cGQ2La+AMWpP46lgbb8X+U/XsHIUweYDNCpeuKck5RxL2MdVFi7krbbEi5nX4Zh7JhrQ==}
 
@@ -3589,6 +3611,15 @@ packages:
 
   pg@8.16.3:
     resolution: {integrity: sha512-enxc1h0jA/aq5oSDMvqyW3q89ra6XIIDZgCX9vkMrnz5DFTw/Ny3Li2lFQ+pt3L6MCgm/5o2o8HW9hiJji+xvw==}
+    engines: {node: '>= 16.0.0'}
+    peerDependencies:
+      pg-native: '>=3.0.1'
+    peerDependenciesMeta:
+      pg-native:
+        optional: true
+
+  pg@8.23.1:
+    resolution: {integrity: sha512-aL96AHANtWjPLDOLqnhx+ngp9+UK7ETEU8VJrDCGvsSSi/mGLcWYsS6Herg7lmaBJe4uwrfqsa7gTEFaSizDoQ==}
     engines: {node: '>= 16.0.0'}
     peerDependencies:
       pg-native: '>=3.0.1'
@@ -3816,6 +3847,9 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  rrule-temporal@2.3.0:
+    resolution: {integrity: sha512-5V5n6ZtD/0eRbMdOeiOqJ3GlIEy/qSWVq0d0zxjgZoD1HcujPT1TMeklwxsPokBnHdxTSlfgWYf7lefrwNKlaA==}
+
   rrweb-cssom@0.8.0:
     resolution: {integrity: sha512-guoltQEx+9aMf2gDZ0s62EcV8lsXR+0w8915TC3ITdn2YueuNjdAYh/levpU9nFaoChh9RUS5ZdQMrKfVEN9tw==}
 
@@ -3878,6 +3912,10 @@ packages:
     resolution: {integrity: sha512-9tjS0jTx5FQzhwAGhpcnwvqE0MlQiwJtunsIUNqGkw6E9CBOMbijlamIDUqvZTDtJAveVwa9L5ziP44bOJUzcQ==}
     engines: {node: '>=20.0'}
     hasBin: true
+
+  serialize-error@13.1.0:
+    resolution: {integrity: sha512-FT1EL2Pz7lAWA48I6Qb1qHEvGT9ZGz2pb1sYZ9Dhu2t+RmHN6O12WMu7HzFcqFRQaUWEl3Q+++EYBTrZpCoykQ==}
+    engines: {node: '>=20'}
 
   serialize-javascript@7.1.4:
     resolution: {integrity: sha512-FqlEuoTq/zRmA4Lg6aOqyH3lCHbUtCB0bmHCeFniX2GBdDqMJM3FwdvEhlE5Pim1dlt2FfBdVPmUNNiGhhKqpw==}
@@ -4048,6 +4086,10 @@ packages:
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
+  tagged-tag@1.0.0:
+    resolution: {integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==}
+    engines: {node: '>=20'}
+
   tailwindcss@4.3.3:
     resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
 
@@ -4065,6 +4107,9 @@ packages:
   temp-dir@2.0.0:
     resolution: {integrity: sha512-aoBAniQmmwtcKp/7BzsH8Cxzv8OL736p7v1ihGb5e9DJ9kTwGWHrQrVB5+lfVDzfGrdRzXch+ig7LHaY1JTOrg==}
     engines: {node: '>=8'}
+
+  temporal-spec@1.0.1:
+    resolution: {integrity: sha512-wxVoanmDeavXie1vu2JaQ3WIc3JZnWAOYFBsJyATaVsXsycKYUflGsyBmrRSnoCpZJpwPyr38VpgSUlQ8CbFxg==}
 
   tempy@0.6.0:
     resolution: {integrity: sha512-G13vtMYPT/J8A4X2SjdtBTphZlrp1gKv6hZiOjw14RCWg6GbHuQBGtjlx75xLbYV/wEc0D7G5K4rxKP/cXk8Bw==}
@@ -4157,6 +4202,10 @@ packages:
   type-fest@0.16.0:
     resolution: {integrity: sha512-eaBzG6MxNzEn9kiwvtre90cXaNLkmadMWa1zQMs3XORCXNbsH/OewwbxC5ia9dCxIxnTAsSxXJaa/p5y8DlvJg==}
     engines: {node: '>=10'}
+
+  type-fest@5.10.0:
+    resolution: {integrity: sha512-NoSdpq/WEiAg5sjmBkmV/hfxv6HJH4NqPNrqjtSO5CwRmpsDfaf4begxW34KdJykH/l1yHtwBWQkCRdoXO8mPA==}
+    engines: {node: '>=20'}
 
   typed-array-buffer@1.0.3:
     resolution: {integrity: sha512-nAYYwfY3qnzX30IkA6AQZjVbtK6duGontcQm1WSG1MD94YLqK0515GNApXkoxKOWMusVssAHWLh9SeaoefYFGw==}
@@ -6754,6 +6803,10 @@ snapshots:
       crc-32: 1.2.2
       readable-stream: 3.6.2
 
+  cron-parser@5.10.7:
+    dependencies:
+      luxon: 3.7.2
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -7744,6 +7797,8 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  luxon@3.7.2: {}
+
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
@@ -7810,6 +7865,8 @@ snapshots:
   node-fetch-native@1.6.7: {}
 
   node-releases@2.0.63: {}
+
+  non-error@0.1.0: {}
 
   normalize-path@3.0.0: {}
 
@@ -7931,6 +7988,16 @@ snapshots:
 
   perfect-debounce@1.0.0: {}
 
+  pg-boss@12.38.2(@opentelemetry/api@1.10.0):
+    dependencies:
+      '@opentelemetry/api': 1.10.0
+      cron-parser: 5.10.7
+      pg: 8.23.1
+      rrule-temporal: 2.3.0
+      serialize-error: 13.1.0
+    transitivePeerDependencies:
+      - pg-native
+
   pg-cloudflare@1.4.1:
     optional: true
 
@@ -7941,6 +8008,10 @@ snapshots:
   pg-pool@3.14.0(pg@8.16.3):
     dependencies:
       pg: 8.16.3
+
+  pg-pool@3.14.0(pg@8.23.1):
+    dependencies:
+      pg: 8.23.1
 
   pg-protocol@1.16.1: {}
 
@@ -7956,6 +8027,16 @@ snapshots:
     dependencies:
       pg-connection-string: 2.14.1
       pg-pool: 3.14.0(pg@8.16.3)
+      pg-protocol: 1.16.1
+      pg-types: 2.2.0
+      pgpass: 1.0.5
+    optionalDependencies:
+      pg-cloudflare: 1.4.1
+
+  pg@8.23.1:
+    dependencies:
+      pg-connection-string: 2.14.1
+      pg-pool: 3.14.0(pg@8.23.1)
       pg-protocol: 1.16.1
       pg-types: 2.2.0
       pgpass: 1.0.5
@@ -8228,6 +8309,10 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.67.4
       fsevents: 2.3.3
 
+  rrule-temporal@2.3.0:
+    dependencies:
+      temporal-spec: 1.0.1
+
   rrweb-cssom@0.8.0: {}
 
   safe-array-concat@1.1.4:
@@ -8280,6 +8365,11 @@ snapshots:
   semver@7.8.5: {}
 
   sentry@0.49.0: {}
+
+  serialize-error@13.1.0:
+    dependencies:
+      non-error: 0.1.0
+      type-fest: 5.10.0
 
   serialize-javascript@7.1.4: {}
 
@@ -8483,6 +8573,8 @@ snapshots:
 
   symbol-tree@3.2.4: {}
 
+  tagged-tag@1.0.0: {}
+
   tailwindcss@4.3.3: {}
 
   tailwindcss@4.3.5: {}
@@ -8498,6 +8590,8 @@ snapshots:
       readable-stream: 3.6.2
 
   temp-dir@2.0.0: {}
+
+  temporal-spec@1.0.1: {}
 
   tempy@0.6.0:
     dependencies:
@@ -8588,6 +8682,10 @@ snapshots:
       '@turbo/windows-arm64': 2.11.10
 
   type-fest@0.16.0: {}
+
+  type-fest@5.10.0:
+    dependencies:
+      tagged-tag: 1.0.0
 
   typed-array-buffer@1.0.3:
     dependencies:
