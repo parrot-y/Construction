@@ -2373,6 +2373,36 @@ export const UpdateScheduledReportSchema = z.object({
 }).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
 
 // -----------------------------------------------------------------------------
+// P5.9 — Meetings (+ .ics export)
+// -----------------------------------------------------------------------------
+export const MeetingStatusEnum = z.enum(['SCHEDULED', 'CANCELLED', 'HELD']);
+
+export const CreateMeetingSchema = z.object({
+  title: z.string().min(3).max(255),
+  projectId: z.string().uuid().optional().nullable(),
+  description: z.string().max(4000).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+  startsAt: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid startsAt' }),
+  endsAt: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid endsAt' }),
+  attendees: z.array(z.string().min(1).max(255)).max(50).default([]),
+}).refine((v) => Date.parse(v.endsAt) > Date.parse(v.startsAt), {
+  message: 'endsAt must be after startsAt',
+  path: ['endsAt'],
+});
+export type CreateMeeting = z.infer<typeof CreateMeetingSchema>;
+
+export const UpdateMeetingSchema = z.object({
+  title: z.string().min(3).max(255).optional(),
+  description: z.string().max(4000).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+  startsAt: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid startsAt' }).optional(),
+  endsAt: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid endsAt' }).optional(),
+  attendees: z.array(z.string().min(1).max(255)).max(50).optional(),
+  status: MeetingStatusEnum.optional(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+export type UpdateMeeting = z.infer<typeof UpdateMeetingSchema>;
+
+// -----------------------------------------------------------------------------
 // Gate-5 G5-4b: Consultant review on inspections
 // -----------------------------------------------------------------------------
 

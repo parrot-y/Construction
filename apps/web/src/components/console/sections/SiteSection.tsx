@@ -4,6 +4,7 @@ import ChecklistsView from '../../ChecklistsView';
 import SnaggingListView from '../../SnaggingListView';
 import ObservationsView from '../../ObservationsView';
 import SafetyIncidentLogView from '../../SafetyIncidentLogView';
+import MeetingsView from '../../MeetingsView';
 import InspectionRequestModal from '../../InspectionRequestModal';
 import { GeofencedClockInView} from '../../GeofencedClockInView';
 import AttendanceView from '../../AttendanceView';
@@ -258,6 +259,7 @@ export default function SiteSection(): React.JSX.Element {
     case 'observations': return<ObservationsView projectId={livePid} canManage={canEdit} />;
     case 'actionplans': return<ObservationsView projectId={livePid} canManage={canEdit} />;
     case 'safety': return<SafetyIncidentLogView projectId={livePid} canLog={canEdit} canInvestigate={canInvestigate} />;
+    case 'meetings': return<MeetingsView projectId={livePid} canManage={canEdit} />;
     case 'attendance': return (
 <div className="space-y-4">
         {livePid &&<GeofencedClockInView projectId={livePid} projectName={projectName} />}

@@ -49,6 +49,7 @@ import { crewsRoutes } from './routes/crews';
 import { companyDocumentsRoutes } from './routes/companyDocuments';
 import { correspondenceRoutes } from './routes/correspondence';
 import { scheduledReportsRoutes } from './routes/scheduledReports';
+import { meetingsRoutes } from './routes/meetings';
 import { attendanceRoutes } from './routes/attendance';
 import { checklistsRoutes } from './routes/checklists';
 import { integrationRoutes } from './routes/integrations';
@@ -256,6 +257,7 @@ export function buildServer(): FastifyInstance {
   server.register(companyDocumentsRoutes);
   server.register(correspondenceRoutes);
   server.register(scheduledReportsRoutes);
+  server.register(meetingsRoutes);
   server.register(attendanceRoutes);
   server.register(checklistsRoutes);
   server.register(integrationRoutes);

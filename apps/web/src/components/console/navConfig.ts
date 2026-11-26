@@ -26,7 +26,7 @@ const ALL_PROJECT_TABS = ['all', 'schedule', 'drawings', 'changeorders', 'coordi
 const NO_CO_PROJECT_TABS = ['all', 'schedule', 'drawings', 'coordination', 'correspondence'];
 const DRAWINGS_ONLY_PROJECT_TABS = ['drawings'];
 
-const ALL_SITE_TABS = ['fieldview', 'map', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'attendance'];
+const ALL_SITE_TABS = ['fieldview', 'map', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'meetings', 'attendance'];
 const VIEWER_SITE_TABS = ['dailylog', 'map', 'checklists', 'punch', 'inspections', 'observations', 'safety', 'attendance'];
 
 const ALL_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations', 'billing'];
@@ -211,6 +211,7 @@ export const SUBTAB_LABELS: Record<string, string> = {
   observations: 'Observations',
   actionplans: 'Action plans',
   safety: 'Safety',
+  meetings: 'Meetings',
   attendance: 'Attendance',
   // money
   financials: 'Financials',
