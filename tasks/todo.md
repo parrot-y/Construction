@@ -373,7 +373,7 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
   - Web: FieldPortalView (camera capture input, GPS via useGeolocation, weather/status chips when first photo of day), App.tsx 'field' case, PortalAccessLinkManager FIELD option
   - Tests: field-portal.test.ts (API) + e2e p5-field-camera.spec.ts
 - [x] P5.5 Live notifications: SSE endpoint /api/v1/events (auth'd, tenant-scoped), web EventSource → toast + inbox refetch; pg_notify inside tx (commit-safe); web-push behind VAPID config NOT built — honest gap — 4c175f5
-- [~] P5.6 Comments/mentions: polymorphic EntityComment (diary, invoice, RFI, observation...), @mention → InboxMessage notify
+- [x] P5.6 Comments/mentions: polymorphic EntityComment (diary, invoice, RFI, observation...), @mention → InboxMessage notify — 401027e (+6c1a7d2 hygiene fix)
   - Model EntityComment (tenant, entity_type/id, project_id, author, body, mentions[]) + migration; CreateEntityCommentSchema
   - GET/POST /api/v1/comments?entityType=&entityId= — whitelist resolver (SITE_DIARY, SNAG_ITEM, INVOICE, RFI, SITE_OBSERVATION, VARIATION_ORDER, QUOTE); mention tokens → member match (email/prefix/full name) → direct InboxMessage + publishInboxEvent
   - Web: EntityComments.tsx mounted on invoice detail expand + snag cards; e2e p5-entity-comments.spec.ts (4/4 both viewports); API entity-comments.test.ts (4/4)
@@ -383,3 +383,13 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
 - [ ] P5.9 Meetings + .ics: Meeting model, CRUD, .ics download endpoint, UI
 - [ ] P5.10 Slow work off request path: scheduled report run + xlsx exports → pg-boss jobs
 - [ ] P5.11 Closeout: full solo suite + verify-local on final commit, evidence, report — STOP for review
+
+## Competitor backlog (from Assistant QS suite — docs/research/assistant-qs-suite-notes.md)
+Proposed post-Phase-5 items, priority order:
+- [ ] CB1 Indent depth: store+floor/unit+work-order targeting, service/material category, delivery schedule batches, lead-time benchmark, amend-material, print, audit trail, 4-way fulfilment buckets
+- [ ] CB2 Rate master: shared rate library (geo + item typing), bulk upload/edit, prefill BoQ/PO rates
+- [ ] CB3 Gate pass: material-exit authorization register
+- [ ] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen
+- [ ] CB5 Contractor master: unified firm register (KRA PIN, work categories, approval status)
+- [ ] CB6 BOQ floor/unit mapping for takeoff
+- [ ] CB7 Print views: indent/PO/GRN site paperwork
