@@ -1,6 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { PRODUCT_NAME } from '../lib/product';
 import { api } from '../lib/api';
+import { formatDateTime } from '../lib/format';
 
 interface IntegrationStatus {
   provider: string;
@@ -192,7 +193,7 @@ export default function IntegrationsView(): React.JSX.Element {
               {deliveries.map((d) => (
 <tr key={d.id} className="border-b border-slate-50 align-top">
 <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap tabular-nums">
-                    {new Date(d.createdAt).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {formatDateTime(d.createdAt)}
 </td>
 <td className="py-1.5 pr-3 font-semibold text-slate-700">{d.channel}</td>
 <td className="py-1.5 pr-3 text-slate-600 font-mono">{d.recipientMasked}</td>

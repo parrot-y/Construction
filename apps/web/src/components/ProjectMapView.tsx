@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-le
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api, apiErrorMessage } from '../lib/api';
+import { formatDate } from '../lib/format';
 import { useGeolocation } from '../lib/useGeolocation';
 import { useToast } from './feedback/Toast';
 
@@ -88,7 +89,7 @@ export default function ProjectMapView({ projectId, canEdit = false }: { project
                 latitude: la,
                 longitude: lo,
                 label: p.caption || 'Site photo',
-                detail: p.taken_at ? new Date(p.taken_at).toLocaleDateString() : undefined,
+                detail: p.taken_at ? formatDate(p.taken_at) : undefined,
               });
             }
           }
