@@ -34,7 +34,9 @@ function getBoss(): PgBoss {
   if (!boss) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error('DATABASE_URL is required for the job queue');
-    boss = new PgBoss({ connectionString, schema: 'pgboss' });
+    // The pgboss schema is provisioned by migration 20261126130000 — the app
+    // role must not try to CREATE SCHEMA (needs database-level CREATE).
+    boss = new PgBoss({ connectionString, schema: 'pgboss', createSchema: false });
   }
   return boss;
 }

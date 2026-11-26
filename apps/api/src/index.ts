@@ -266,6 +266,13 @@ export function buildServer(): FastifyInstance {
   server.register(problemReportRoutes);
   server.register(paymentRoutes);
 
+  // P5.8 — stop the job queue on shutdown (no-op when jobs never started;
+  // must be registered before listen — Fastify rejects addHook after it).
+  server.addHook('onClose', async () => {
+    const { stopJobs } = await import('./jobs/queue');
+    await stopJobs();
+  });
+
   // Readiness probe: /health is liveness; /ready proves the DB is reachable.
   server.get('/ready', async (_request, reply) => {
     try {
@@ -298,13 +305,12 @@ export async function startServer(): Promise<void> {
     await server.listen({ port, host });
     // P5.8 — job queue starts after listen so a pg-boss outage never
     // blocks the API from serving requests.
-    const { startJobs, stopJobs } = await import('./jobs/queue');
+    const { startJobs } = await import('./jobs/queue');
     try {
       await startJobs(server);
     } catch (err) {
       server.log.error({ err }, '[jobs] pg-boss failed to start — recurring jobs disabled');
     }
-    server.addHook('onClose', async () => { await stopJobs(); });
     server.log.info(`API Server successfully listening on http://${host}:${port}`);
   } catch (err) {
     server.log.error(err);
