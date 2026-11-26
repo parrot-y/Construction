@@ -53,6 +53,7 @@ import {
 } from '@construction/validation';
 import * as crypto from 'crypto';
 import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
+import { recordMessageDelivery } from '../lib/messageDeliveries';
 import { PRODUCT_NAME } from '../lib/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -4646,12 +4647,20 @@ export const platformServicesRoutes: FastifyPluginAsync = async (server: Fastify
         });
 
         // Dispatch via configured provider; SIMULATED when unconfigured.
+        const notifyChannel = channel === 'SMS' ? 'SMS' : 'WHATSAPP';
         const sendResult = await dispatchNotification({
-          channel: channel === 'SMS' ? 'SMS' : 'WHATSAPP',
+          channel: notifyChannel,
           to: normalizeKePhone(result.recipientPhone || ''),
           body: result.message,
         });
         const deliveryStatus = sendResult.simulated ? 'SIMULATED' : sendResult.ok ? 'DELIVERED' : 'FAILED';
+        await recordMessageDelivery(tenantId, {
+          channel: notifyChannel,
+          to: normalizeKePhone(result.recipientPhone || ''),
+          subject: 'Independent inspection report',
+          body: result.message,
+          source: 'inspection-dispatch',
+        }, sendResult);
 
         return reply.status(200).send({ ...result, deliveryStatus, provider: sendResult.provider, timestamp: new Date().toISOString() });
       } catch (err: any) {

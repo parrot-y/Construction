@@ -43,6 +43,9 @@ const CREWS_ONLY_PEOPLE_TABS = ['crews', 'subcontractors', 'directory'];
 const VIEWER_PEOPLE_TABS = ['subcontractors', 'directory', 'roles'];
 
 const ALL_FILES_TABS = ['reports', 'companydocs', 'unfiled'];
+// Company-manage roles also get the integrations/delivery-log surface —
+// the API enforces COMPANY_MANAGE regardless.
+const ADMIN_FILES_TABS = [...ALL_FILES_TABS, 'integrations'];
 const DOCS_ONLY_FILES_TABS = ['companydocs', 'unfiled'];
 
 function nav(
@@ -62,14 +65,14 @@ export const ROLE_NAV: Record<string, RoleNav> = {
     S('site', 'Site', ALL_SITE_TABS),
     S('money', 'Money', ALL_MONEY_TABS),
     S('people', 'People', ALL_PEOPLE_TABS),
-    S('files', 'Files & reports', ALL_FILES_TABS),
+    S('files', 'Files & reports', ADMIN_FILES_TABS),
   ], ['dashboard', 'inbox', 'announcements']),
   ADMIN: nav('exec', [
     S('projects', 'Projects', ALL_PROJECT_TABS),
     S('site', 'Site', ALL_SITE_TABS),
     S('money', 'Money', ALL_MONEY_TABS),
     S('people', 'People', ALL_PEOPLE_TABS),
-    S('files', 'Files & reports', ALL_FILES_TABS),
+    S('files', 'Files & reports', ADMIN_FILES_TABS),
   ], ['dashboard', 'inbox', 'announcements']),
   EXECUTIVE: nav('exec', [
     S('projects', 'Projects', ALL_PROJECT_TABS),
@@ -229,6 +232,7 @@ export const SUBTAB_LABELS: Record<string, string> = {
   reports: 'Reports',
   companydocs: 'Company documents',
   unfiled: 'Unfiled documents',
+  integrations: 'Integrations',
   // home
   dashboard: 'Dashboard',
   inbox: 'Inbox',

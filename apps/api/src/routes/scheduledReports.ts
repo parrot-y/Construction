@@ -4,6 +4,7 @@ import { Permissions } from '@construction/permissions';
 import { CreateScheduledReportSchema, UpdateScheduledReportSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
+import { recordMessageDelivery } from '../lib/messageDeliveries';
 import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -246,13 +247,15 @@ export const scheduledReportsRoutes: FastifyPluginAsync = async (server: Fastify
           const target = String(raw).trim();
           if (!target) continue;
           if (target.includes('@')) {
-            const r = await dispatchNotification({ channel: 'EMAIL', to: target, subject: reportTitle, body: `Scheduled report snapshot:
-
-${JSON.stringify(result.summary, null, 2).slice(0, 4000)}` });
+            const body = `Scheduled report snapshot:\n\n${JSON.stringify(result.summary, null, 2).slice(0, 4000)}`;
+            const r = await dispatchNotification({ channel: 'EMAIL', to: target, subject: reportTitle, body });
             deliveries.push({ to: target, channel: 'EMAIL', status: r.simulated ? 'SIMULATED' : r.ok ? 'DELIVERED' : 'FAILED' });
+            await recordMessageDelivery(tenantId, { channel: 'EMAIL', to: target, subject: reportTitle, body, source: 'scheduled-report' }, r);
           } else if (/^[+0-9][0-9\s-]{8,}$/.test(target)) {
-            const r = await dispatchNotification({ channel: 'SMS', to: normalizeKePhone(target), body: `${reportTitle}: report ready. View in app → Reports → Scheduled.` });
+            const body = `${reportTitle}: report ready. View in app → Reports → Scheduled.`;
+            const r = await dispatchNotification({ channel: 'SMS', to: normalizeKePhone(target), body });
             deliveries.push({ to: target, channel: 'SMS', status: r.simulated ? 'SIMULATED' : r.ok ? 'DELIVERED' : 'FAILED' });
+            await recordMessageDelivery(tenantId, { channel: 'SMS', to: normalizeKePhone(target), body, source: 'scheduled-report' }, r);
           } else {
             deliveries.push({ to: target, channel: 'ROLE_LABEL', status: 'SKIPPED' });
           }

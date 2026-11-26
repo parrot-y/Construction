@@ -2,6 +2,7 @@ import React, { useEffect, useState} from 'react';
 import { formatKes } from '../../../ui';
 import { useConsole} from '../ConsoleContext';
 import CompanyDocumentsView from '../../CompanyDocumentsView';
+import IntegrationsView from '../../IntegrationsView';
 import ScheduledReportsView from '../../ScheduledReportsView';
 import { api } from '../../../lib/api';
 
@@ -153,6 +154,7 @@ export default function FilesSection(): React.JSX.Element {
     case 'reports': return<ReportsView />;
     case 'companydocs': return<CompanyDocumentsView canManage />;
     case 'unfiled': return<CompanyDocumentsView canManage initialTab="UNFILED" />;
+    case 'integrations': return<IntegrationsView />;
     default: return<CompanyDocumentsView canManage />;
 }
 }

@@ -4,6 +4,7 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
 import { verifySignedSiteOpsToken } from '../services/securityConfig';
 import { dispatchNotification, normalizeKePhone } from '../integrations/messaging';
+import { recordMessageDelivery } from '../lib/messageDeliveries';
 import {
   CreateETimsInvoiceSchema,
   CreateSubcontractorTaxComplianceSchema,
@@ -761,6 +762,12 @@ export const enterpriseOperationsRoutes: FastifyPluginAsync = async (server: Fas
           });
           deliveryStatus = sendResult.simulated ? 'SIMULATED' : sendResult.ok ? 'DELIVERED' : 'FAILED';
           if (sendResult.ok) sentAt = new Date().toISOString();
+          await recordMessageDelivery(tenantId, {
+            channel,
+            to: normalizeKePhone(result.recipientPhone || ''),
+            body: result.messageBody,
+            source: 'site-alert',
+          }, sendResult);
         }
         await withTenantTx(prisma, tenantId, async (tx) => {
           await tx.siteAlertNotification.update({

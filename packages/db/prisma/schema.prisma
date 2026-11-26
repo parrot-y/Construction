@@ -2887,6 +2887,29 @@ model EntityComment {
   @@map("entity_comments")
 }
 
+// P5.7 — durable record of every outbound SMS/WhatsApp/email dispatch.
+// Recipient is stored masked only; status is honest (SIMULATED when no
+// provider is configured, never DELIVERED).
+model MessageDelivery {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenant_id          String    @db.Uuid
+  channel            String    @db.VarChar(20) // SMS | WHATSAPP | EMAIL
+  provider           String    @db.VarChar(60)
+  recipient_masked   String    @db.VarChar(120)
+  subject            String?   @db.VarChar(255)
+  body_excerpt       String?   @db.VarChar(500)
+  status             String    @db.VarChar(20) // SIMULATED | DELIVERED | FAILED
+  provider_reference String?   @db.VarChar(120)
+  error_message      String?   @db.VarChar(500)
+  source             String    @db.VarChar(60) // integration-test | site-alert | scheduled-report | inspection-dispatch
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  sent_at            DateTime? @db.Timestamptz
+
+  @@index([tenant_id, created_at])
+  @@index([tenant_id, channel, status])
+  @@map("message_deliveries")
+}
+
 model InboxMessageRead {
   id              String   @id @default(uuid()) @db.Uuid
   tenant_id       String   @db.Uuid
