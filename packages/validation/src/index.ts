@@ -188,6 +188,15 @@ export const UpdateSitePhotoVisibilitySchema = z.object({
 export type UpdateSitePhotoVisibility = z.infer<typeof UpdateSitePhotoVisibilitySchema>;
 export type SitePhotoInput = z.infer<typeof SitePhotoInputSchema>;
 
+// FIELD portal daily-photo payload: photo metadata plus the weather/site
+// status needed only when the capture files the project's first diary of
+// the day (the diary row requires both columns).
+export const FieldPortalPhotoSchema = SitePhotoInputSchema.extend({
+  weather: WeatherConditionEnum.optional(),
+  siteStatus: SiteStatusEnum.optional(),
+});
+export type FieldPortalPhoto = z.infer<typeof FieldPortalPhotoSchema>;
+
 export const CreateSiteDiarySchema = z.object({
   projectId: z.string().uuid(),
   entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
@@ -653,6 +662,7 @@ export const PortalTypeEnum = z.enum([
   'SUBCONTRACTOR',
   'SUPPLIER',
   'COMPLIANCE',
+  'FIELD',
 ]);
 export type PortalType = z.infer<typeof PortalTypeEnum>;
 

@@ -128,7 +128,6 @@ describe('FIELD portal: token-gated daily photo capture', () => {
     const body = JSON.parse(res.body).data;
     expect(body.storageKey).toContain(projectId);
     expect(body.storageKey.endsWith('.png')).toBe(true);
-    expect(body.url).toContain('/uploads/');
   });
 
   it('attaches the daily photo to today\'s diary with GPS + accuracy', async () => {

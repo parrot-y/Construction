@@ -3,7 +3,7 @@ import { listParams, listPage } from '../lib/pagination';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { getTaxSettings, whtRateFor } from '../lib/tax';
 import { Permissions } from '@construction/permissions';
-import { CreatePortalLinkSchema, ClientVariationRespondSchema, ConsultantRfiReplySchema, SupplierDeliveryActionSchema, CreateComplianceVisitSchema } from '@construction/validation';
+import { CreatePortalLinkSchema, ClientVariationRespondSchema, ConsultantRfiReplySchema, SupplierDeliveryActionSchema, CreateComplianceVisitSchema, FieldPortalPhotoSchema } from '@construction/validation';
 import { randomBytes, createHash } from 'node:crypto';
 import { requirePermission } from '../plugins/rbac';
 import { toDecimal } from '@construction/money';
@@ -2866,5 +2866,324 @@ export const externalPortalRoutes: FastifyPluginAsync = async (server: FastifyIn
         message: 'Failed to process change-order response',
       });
     }
+  });
+
+  // ===========================================================================
+  // FIELD PORTAL — token-gated daily photo capture for site workers
+  // ===========================================================================
+  // A FIELD link is issued to a named worker (stakeholder_name). The phone
+  // page it opens captures today's site photo with GPS + accuracy; the first
+  // capture of the day also files the site diary (weather/status picked once).
+
+  const fieldTodayEAT = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Nairobi' });
+  const fieldDayStart = () => new Date(`${fieldTodayEAT()}T00:00:00.000Z`);
+
+  const fieldFileUrl = (token: string, storageKey: string) =>
+    `/api/v1/portals/field/${token}/files/${storageKey.split('/').map(encodeURIComponent).join('/')}`;
+
+  // GET /api/v1/portals/field/:token — capture-page context
+  server.get('/api/v1/portals/field/:token', {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'FIELD');
+    if (!link) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Invalid or expired field access token',
+      });
+    }
+
+    const payload = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+      const project = await tx.project.findFirst({
+        where: { id: link.project_id },
+        select: { id: true, name: true, code: true, status: true },
+      });
+      const diary = await tx.siteDiary.findFirst({
+        where: {
+          project_id: link.project_id,
+          entry_date: { gte: fieldDayStart(), lt: new Date(fieldDayStart().getTime() + 86400000) },
+        },
+        include: { photos: { orderBy: { taken_at: 'desc' } } },
+      });
+      return { project, diary };
+    });
+
+    if (!payload.project) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
+    }
+
+    return reply.status(200).send({
+      statusCode: 200,
+      data: {
+        project: payload.project,
+        stakeholderName: link.stakeholder_name,
+        stakeholderRole: link.stakeholder_role ?? null,
+        entryDate: fieldTodayEAT(),
+        diary: payload.diary
+          ? {
+              id: payload.diary.id,
+              weather: payload.diary.weather,
+              siteStatus: payload.diary.site_status,
+            }
+          : null,
+        photos: (payload.diary?.photos ?? []).map((p: any) => ({
+          id: p.id,
+          caption: p.caption,
+          takenAt: p.taken_at,
+          gpsLatitude: p.gps_latitude != null ? Number(p.gps_latitude) : null,
+          gpsLongitude: p.gps_longitude != null ? Number(p.gps_longitude) : null,
+          gpsAccuracyMeters: p.gps_accuracy_meters != null ? Number(p.gps_accuracy_meters) : null,
+          url: fieldFileUrl(token, p.storage_key),
+        })),
+      },
+    });
+  });
+
+  // POST /api/v1/portals/field/:token/uploads — verified photo upload,
+  // namespaced to this link's tenant+project (same checks as site uploads).
+  server.post(
+    '/api/v1/portals/field/:token/uploads',
+    {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { token } = request.params as { token: string };
+      const link = await resolvePortalLink(token, 'FIELD');
+      if (!link) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Invalid or expired field access token',
+        });
+      }
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'No file uploaded' });
+      }
+      const buffer = await file.toBuffer();
+      const spec = verifyUpload(buffer, file.mimetype);
+      if (!spec) {
+        return reply.status(415).send({
+          statusCode: 415,
+          error: 'Unsupported Media Type',
+          message: `File type ${file.mimetype} not allowed or content failed verification (images, PDF, MP4/MOV only)`,
+        });
+      }
+      const storageKey = `${link.tenant_id}/${link.project_id}/${randomUUID()}${spec.ext}`;
+      await getStorageDriver().put(storageKey, buffer);
+      await withTenantTx(prisma, link.tenant_id, (tx) =>
+        recordAuditLog(tx, {
+          tenantId: link.tenant_id,
+          actorId: link.id,
+          action: 'FIELD_PORTAL_UPLOAD',
+          entityType: 'PortalAccessLink',
+          entityId: link.id,
+          projectId: link.project_id,
+          changes: { storageKey, filename: file.filename, mimetype: spec.contentType, sizeBytes: buffer.length },
+        }),
+      );
+      return reply.status(201).send({
+        statusCode: 201,
+        data: { storageKey, mimetype: spec.contentType, sizeBytes: buffer.length },
+      });
+    },
+  );
+
+  // POST /api/v1/portals/field/:token/photos — attach today's photo to the
+  // site diary, filing the diary first if this is the day's first capture.
+  server.post(
+    '/api/v1/portals/field/:token/photos',
+    {
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { token } = request.params as { token: string };
+      const link = await resolvePortalLink(token, 'FIELD');
+      if (!link) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Invalid or expired field access token',
+        });
+      }
+
+      const parseResult = FieldPortalPhotoSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid photo payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+      const data = parseResult.data;
+
+      // Only keys issued by THIS link's upload endpoint are accepted —
+      // arbitrary storage keys are refused (same rule as consultant replies).
+      const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
+      if (!data.storageKey.startsWith(expectedPrefix) || data.storageKey.includes('..')) {
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'storageKey was not uploaded via this field portal link',
+        });
+      }
+
+      try {
+        const result = await withTenantTx(prisma, link.tenant_id, async (tx) => {
+          const stored = await getStorageDriver().get(data.storageKey).catch(() => null);
+          if (!stored) {
+            throw { status: 404, message: 'storageKey was not uploaded via this field portal link' };
+          }
+
+          let diary = await tx.siteDiary.findFirst({
+            where: {
+              project_id: link.project_id,
+              entry_date: { gte: fieldDayStart(), lt: new Date(fieldDayStart().getTime() + 86400000) },
+            },
+          });
+
+          let diaryCreated = false;
+          if (!diary) {
+            // The diary row requires weather + site status — the field page
+            // collects them once, on the day's first capture.
+            if (!data.weather || !data.siteStatus) {
+              throw {
+                status: 422,
+                message: 'weather and siteStatus are required to file the first site diary entry of the day',
+              };
+            }
+            const recorder = await tx.membership.findFirst({
+              where: { tenant_id: link.tenant_id, role: 'COMPANY_ADMIN' },
+              select: { user_id: true },
+            }) ?? await tx.membership.findFirst({
+              where: { tenant_id: link.tenant_id },
+              select: { user_id: true },
+            });
+            if (!recorder) {
+              throw { status: 500, message: 'No team member available to record the site diary' };
+            }
+            const project = await tx.project.findFirst({
+              where: { id: link.project_id },
+              select: { name: true },
+            });
+            diary = await tx.siteDiary.create({
+              data: {
+                tenant_id: link.tenant_id,
+                project_id: link.project_id,
+                entry_date: fieldDayStart(),
+                weather: data.weather,
+                site_status: data.siteStatus,
+                recorded_by_id: recorder.user_id,
+              },
+            });
+            diaryCreated = true;
+
+            await notifyTeam(tx, {
+              tenantId: link.tenant_id,
+              projectId: link.project_id,
+              senderId: link.id,
+              senderName: `${link.stakeholder_name} (field link)`,
+              body: `Site diary filed for ${project?.name ?? 'project'} — ${fieldTodayEAT()}: ${data.weather}, ${data.siteStatus}. Daily photo attached.`,
+            });
+          }
+
+          const photo = await tx.sitePhoto.create({
+            data: {
+              tenant_id: link.tenant_id,
+              site_diary_id: diary.id,
+              storage_key: data.storageKey,
+              caption: data.caption || null,
+              client_visible: false,
+              taken_at: data.takenAt ? new Date(data.takenAt) : new Date(),
+              gps_latitude: data.gpsLatitude ?? null,
+              gps_longitude: data.gpsLongitude ?? null,
+              gps_accuracy_meters: data.gpsAccuracyMeters ?? null,
+            },
+          });
+
+          await recordAuditLog(tx, {
+            tenantId: link.tenant_id,
+            actorId: link.id,
+            action: diaryCreated ? 'FIELD_PORTAL_DIARY_FILED' : 'FIELD_PORTAL_PHOTO_ATTACHED',
+            entityType: 'SitePhoto',
+            entityId: photo.id,
+            projectId: link.project_id,
+            changes: {
+              storageKey: data.storageKey,
+              diaryId: diary.id,
+              entryDate: fieldTodayEAT(),
+              gpsLatitude: data.gpsLatitude ?? null,
+              gpsLongitude: data.gpsLongitude ?? null,
+              gpsAccuracyMeters: data.gpsAccuracyMeters ?? null,
+            },
+            ipAddress: request.ip,
+            userAgent: request.headers['user-agent'] || null,
+          });
+
+          return {
+            photo: {
+              id: photo.id,
+              caption: photo.caption,
+              takenAt: photo.taken_at,
+              gpsLatitude: photo.gps_latitude != null ? Number(photo.gps_latitude) : null,
+              gpsLongitude: photo.gps_longitude != null ? Number(photo.gps_longitude) : null,
+              gpsAccuracyMeters: photo.gps_accuracy_meters != null ? Number(photo.gps_accuracy_meters) : null,
+              url: fieldFileUrl(token, photo.storage_key),
+            },
+            diary: { id: diary.id, entryDate: fieldTodayEAT(), created: diaryCreated },
+          };
+        });
+
+        return reply.status(201).send({ statusCode: 201, data: result });
+      } catch (err: any) {
+        if (err.status) {
+          return reply.status(err.status).send({
+            statusCode: err.status,
+            error: err.status === 404 ? 'Not Found' : err.status === 422 ? 'Unprocessable Entity' : 'Bad Request',
+            message: err.message,
+          });
+        }
+        server.log.error(err, 'Failed to attach field portal photo');
+        return reply.status(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Failed to attach photo',
+        });
+      }
+    },
+  );
+
+  // GET /api/v1/portals/field/:token/files/* — token-scoped file serving.
+  // /uploads/* requires a session, so portal pages get their own read path
+  // that only serves keys inside this link's tenant+project prefix.
+  server.get('/api/v1/portals/field/:token/files/*', {
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const link = await resolvePortalLink(token, 'FIELD');
+    if (!link) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'File not found' });
+    }
+    const storageKey = (request.params as { '*': string })['*'];
+    const expectedPrefix = `${link.tenant_id}/${link.project_id}/`;
+    if (!storageKey.startsWith(expectedPrefix) || storageKey.includes('..')) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'File not found' });
+    }
+
+    const body = await getStorageDriver().get(storageKey);
+    if (!body) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'File not found' });
+    }
+    const contentType = contentTypeForKey(storageKey);
+    return reply
+      .header('Content-Type', contentType)
+      .header('X-Content-Type-Options', 'nosniff')
+      .header('Cache-Control', 'private, max-age=300')
+      .send(body);
   });
 };

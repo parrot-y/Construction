@@ -6,7 +6,7 @@ import { api, apiErrorMessage } from '../lib/api';
 
 export interface PortalLinkItem {
   id: string;
-  portalType: 'CLIENT' | 'CONSULTANT' | 'SUBCONTRACTOR' | 'SUPPLIER' | 'COMPLIANCE';
+  portalType: 'CLIENT' | 'CONSULTANT' | 'SUBCONTRACTOR' | 'SUPPLIER' | 'COMPLIANCE' | 'FIELD';
   stakeholderName: string;
   stakeholderRole?: string;
   token?: string;
@@ -37,7 +37,7 @@ export default function PortalAccessLinkManager({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [portalType, setPortalType] = useState<'CLIENT' | 'CONSULTANT' | 'SUBCONTRACTOR' | 'SUPPLIER' | 'COMPLIANCE'>('CONSULTANT');
+  const [portalType, setPortalType] = useState<'CLIENT' | 'CONSULTANT' | 'SUBCONTRACTOR' | 'SUPPLIER' | 'COMPLIANCE' | 'FIELD'>('CONSULTANT');
   const [stakeholderName, setStakeholderName] = useState('');
   const [stakeholderRole, setStakeholderRole] = useState('');
   const [subcontractorPackageId, setSubcontractorPackageId] = useState('');
@@ -154,6 +154,7 @@ export default function PortalAccessLinkManager({
       case 'SUBCONTRACTOR': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'SUPPLIER': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'COMPLIANCE': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'FIELD': return 'bg-teal-100 text-teal-800 border-teal-200';
       default: return 'bg-slate-100 text-slate-800 border-slate-200';
     }
   };
@@ -166,7 +167,7 @@ export default function PortalAccessLinkManager({
         <div>
           <h3 className="text-sm font-bold text-slate-900">External Stakeholder Portals</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Share secure token links with architects, subcontractors, suppliers and regulators — no per-user seat needed.
+            Share secure token links with architects, subcontractors, suppliers, regulators and field workers — no per-user seat needed.
           </p>
         </div>
         <button
@@ -303,6 +304,7 @@ export default function PortalAccessLinkManager({
                   <option value="SUPPLIER">Material Supplier</option>
                   <option value="COMPLIANCE">Compliance / NCA</option>
                   <option value="CLIENT">Client</option>
+                  <option value="FIELD">Field worker (site camera)</option>
                 </select>
               </div>
               {portalType === 'SUBCONTRACTOR' && (
@@ -327,7 +329,7 @@ export default function PortalAccessLinkManager({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Arch. Peter Mwangi / Bamburi Ready-Mix"
+                  placeholder={portalType === 'FIELD' ? 'e.g. Juma Site Foreman' : 'e.g. Arch. Peter Mwangi / Bamburi Ready-Mix'}
                   value={stakeholderName}
                   onChange={(e) => setStakeholderName(e.target.value)}
                   className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"

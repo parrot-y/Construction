@@ -14,6 +14,7 @@ const SubcontractorPortalView = lazyChunk(() => import('./components/portals/Sub
 const SupplierPortalView = lazyChunk(() => import('./components/portals/SupplierPortalView'));
 const CompliancePortalView = lazyChunk(() => import('./components/portals/CompliancePortalView'));
 const ClientPortalView = lazyChunk(() => import('./components/portals/ClientPortalView'));
+const FieldPortalView = lazyChunk(() => import('./components/portals/FieldPortalView'));
 const PublicQuoteView = lazyChunk(() => import('./components/PublicQuoteView'));
 import { AuthSession} from './types/auth';
 import { migrateOfflineStorage } from './services/offline-sync';
@@ -223,6 +224,12 @@ function AppShell({ initialPortal}: AppProps): React.JSX.Element {
         return (
 <main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
 <Suspense fallback={PageFallback}><AppErrorBoundary label="portal:client"><ClientPortalView token={externalPortal.token} onBackToDashboard={handleExitPortal} /></AppErrorBoundary></Suspense>
+</main>
+);
+      case 'field':
+        return (
+<main className="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center">
+<Suspense fallback={PageFallback}><AppErrorBoundary label="portal:field"><FieldPortalView token={externalPortal.token} /></AppErrorBoundary></Suspense>
 </main>
 );
       default:
