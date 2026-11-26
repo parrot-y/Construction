@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
+import { nextDocumentNumber } from './lib/counters';
 
 /**
  * Round H1 — one source of truth for retention money.
@@ -174,10 +175,11 @@ describe('H1 retention release — single money effect', () => {
     const pid = await createProject(`H1 Odd Cents ${RUN}`);
 
     // Seed the ledger directly: KES 100.01 retention held on a CERTIFIED IPC.
-    await withTenantTx(prisma, tenantId, (tx) =>
+    await withTenantTx(prisma, tenantId, async (tx) =>
       tx.paymentCertificate.create({
         data: {
-          tenant_id: tenantId, project_id: pid, certificate_no: 1,
+          tenant_id: tenantId, project_id: pid,
+          certificate_no: await nextDocumentNumber(tx, tenantId, `CERT:${pid}`),
           period_start: new Date('2026-01-01'), period_end: new Date('2026-01-31'),
           this_period_amount: '2000.20', previous_certified: '0.00', cumulative_certified: '2000.20',
           retention_pct: '5.00', retention_deduction: '100.01', retention_held: '100.01',

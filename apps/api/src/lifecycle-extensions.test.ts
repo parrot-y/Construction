@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx, hashPassword } from '@construction/db';
 import { enrollAllTenantUsers } from './test-members';
+import { nextDocumentNumber } from './lib/counters';
 
 describe('Lifecycle Extensions Suite: 5 Domains & Strict RLS Isolation', () => {
   const server = buildServer();
@@ -645,15 +646,11 @@ describe('Lifecycle Extensions Suite: 5 Domains & Strict RLS Isolation', () => {
       // the KES 10,000,000 contract = KES 500,000.00 held.
       // First moiety (50% of held) at Practical Completion = KES 250,000.00
       await withTenantTx(prisma, tenantAId, async (tx) => {
-        const maxNo = await tx.paymentCertificate.aggregate({
-          where: { project_id: projectAId },
-          _max: { certificate_no: true },
-        });
         await tx.paymentCertificate.create({
           data: {
             tenant_id: tenantAId,
             project_id: projectAId,
-            certificate_no: (maxNo._max.certificate_no ?? 0) + 1,
+            certificate_no: await nextDocumentNumber(tx, tenantAId, `CERT:${projectAId}`),
             period_start: new Date('2026-10-01T00:00:00.000Z'),
             period_end: new Date('2026-10-31T00:00:00.000Z'),
             this_period_amount: '10000000.00',

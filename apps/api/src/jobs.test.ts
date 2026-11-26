@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { buildServer } from './index';
 import { prisma, withTenantTx } from '@construction/db';
 import { sweepDueScheduledReports, runOverdueInvoiceReminders } from './jobs/queue';
+import { nextDocumentNumber } from './lib/counters';
 
 describe('P5.8 — pg-boss jobs: scheduled-report sweep + overdue invoice reminders', () => {
   const server = buildServer();
@@ -11,10 +12,9 @@ describe('P5.8 — pg-boss jobs: scheduled-report sweep + overdue invoice remind
   let dueReportId: string;
   let pausedReportId: string;
 
-  const nextInvoiceNo = async (tx: any) => {
-    const agg = await tx.invoice.aggregate({ _max: { invoice_no: true } });
-    return (agg._max.invoice_no ?? 0) + 1;
-  };
+  // invoice_no is allocated from document_counters — bypassing it leaves the
+  // counter behind and the next API-created invoice hits a unique violation.
+  const nextInvoiceNo = (tx: any) => nextDocumentNumber(tx, tenantId, 'INVOICE');
 
   beforeAll(async () => {
     await server.ready();

@@ -6,6 +6,7 @@ import { prisma, withTenantTx } from '@construction/db';
 import { toDecimal } from '@construction/money';
 import { generateSignedSiteOpsToken } from './services/securityConfig';
 import { enrollAllTenantUsers } from './test-members';
+import { nextDocumentNumber } from './lib/counters';
 
 describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Project', () => {
   const server = buildServer();
@@ -877,15 +878,11 @@ describe('E2E Live Site Simulation: Day in the Life of a Kenyan Construction Pro
     // the KES 40,279,000 contract = KES 2,013,950.00 held, so the first
     // moiety release is KES 1,006,975.00 — derived, not guessed.
     await withTenantTx(prisma, tenantId, async (tx) => {
-      const maxNo = await tx.paymentCertificate.aggregate({
-        where: { project_id: projectId },
-        _max: { certificate_no: true },
-      });
       await tx.paymentCertificate.create({
         data: {
           tenant_id: tenantId,
           project_id: projectId,
-          certificate_no: (maxNo._max.certificate_no ?? 0) + 1,
+          certificate_no: await nextDocumentNumber(tx, tenantId, `CERT:${projectId}`),
           period_start: new Date('2026-03-01T00:00:00.000Z'),
           period_end: new Date('2026-03-31T00:00:00.000Z'),
           this_period_amount: '40279000.00',
