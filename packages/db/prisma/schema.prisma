@@ -2856,13 +2856,35 @@ model InboxMessage {
   audience        String    @default("PROJECT_TEAM") @db.VarChar(20) // "ALL_MEMBERS","PROJECT_TEAM","ROLE"
   target_roles    String[]  @default([])
   parent_id       String?   @db.Uuid // thread reply
+  // P5.6: direct messages (e.g. comment mentions) are visible only to the
+  // recipient + sender regardless of `audience`.
+  recipient_id    String?   @db.Uuid
   created_at      DateTime  @default(now()) @db.Timestamptz
 
   project         Project?  @relation(fields: [project_id], references: [id], onDelete: Cascade)
   reads           InboxMessageRead[]
 
   @@index([tenant_id, project_id, created_at])
+  @@index([tenant_id, recipient_id])
   @@map("inbox_messages")
+}
+
+// P5.6 — polymorphic comments on site/commercial entities. `entity_type` is
+// a whitelist enforced in the API layer; `mentions` stores resolved user ids.
+model EntityComment {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  entity_type String   @db.VarChar(40)
+  entity_id   String   @db.Uuid
+  project_id  String?  @db.Uuid
+  author_id   String   @db.Uuid
+  author_name String   @db.VarChar(255)
+  body        String   @db.Text
+  mentions    String[] @default([])
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  @@index([tenant_id, entity_type, entity_id, created_at])
+  @@map("entity_comments")
 }
 
 model InboxMessageRead {

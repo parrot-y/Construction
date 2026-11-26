@@ -35,6 +35,9 @@ async function visibleWhere(tx: any, tenantId: string, userId: string, role: str
   );
 
   return messages.filter((m: any) => {
+    // P5.6: direct messages (comment mentions) are visible only to the
+    // recipient and the sender — audience fields don't widen them.
+    if (m.recipient_id) return m.recipient_id === userId || m.sender_id === userId;
     if (m.sender_id === userId) return true;
     if (m.audience === 'ALL_MEMBERS') return true;
     if (m.audience === 'ROLE') return m.target_roles.includes(role);
@@ -57,6 +60,7 @@ function format(m: any) {
     audience: m.audience,
     target_roles: m.target_roles,
     parent_id: m.parent_id,
+    recipient_id: m.recipient_id ?? null,
     created_at: m.created_at.toISOString(),
     read_count: m._count?.reads ?? 0,
     read_by_me: (m.reads?.length ?? 0) > 0,

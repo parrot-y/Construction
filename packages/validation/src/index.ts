@@ -2191,6 +2191,24 @@ export type UpdateAnnouncement = z.infer<typeof UpdateAnnouncementSchema>;
 
 export const InboxAudienceEnum = z.enum(['ALL_MEMBERS', 'PROJECT_TEAM', 'ROLE']);
 
+// P5.6 — polymorphic entity comments (site diary, snag, invoice, RFI,
+// observation, variation, quote). Whitelisted server-side per entity type.
+export const CommentEntityTypeEnum = z.enum([
+  'SITE_DIARY',
+  'SNAG_ITEM',
+  'INVOICE',
+  'RFI',
+  'SITE_OBSERVATION',
+  'VARIATION_ORDER',
+  'QUOTE',
+]);
+export const CreateEntityCommentSchema = z.object({
+  entityType: CommentEntityTypeEnum,
+  entityId: z.string().uuid(),
+  body: z.string().min(1).max(2000),
+});
+export type CreateEntityComment = z.infer<typeof CreateEntityCommentSchema>;
+
 export const SendInboxMessageSchema = z.object({
   body: z.string().min(1).max(5000),
   projectId: z.string().uuid().optional().nullable(),

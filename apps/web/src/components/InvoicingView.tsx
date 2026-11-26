@@ -5,6 +5,7 @@ import { useAppDialog } from './AppDialog';
 import { api, ApiError, apiErrorMessage } from '../lib/apiClient';
 import { formatKes } from '../ui';
 import PaymentReviewPanel from './PaymentReviewPanel';
+import EntityComments from './EntityComments';
 import { statusLabel } from '../lib/status-labels';
 import { formatDate } from '../lib/format';
 
@@ -673,6 +674,10 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
                             )}
 </div>
 )}
+
+<div className="border-t border-slate-200 pt-3">
+<EntityComments entityType="INVOICE" entityId={inv.id} title={`INV-${String(inv.invoice_no).padStart(5, '0')}`} />
+</div>
 </div>
 )}
 </td>

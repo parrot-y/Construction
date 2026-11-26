@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import CreateSnagModal, { SnagSeverity, TradeCategory} from './CreateSnagModal';
+import EntityComments from './EntityComments';
 import { formatDate } from '../lib/format';
 import { api } from '../lib/api';
 
@@ -63,6 +64,7 @@ export default function SnaggingListView({
   const [severityFilter, setSeverityFilter] = useState<'ALL' | SnagSeverity>('ALL');
   const [tradeFilter, setTradeFilter] = useState<'ALL' | TradeCategory>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [commentsSnagId, setCommentsSnagId] = useState<string | null>(null);
 
   // Gate-4 S6: load real snag items when the API is reachable; fall back to
   // the seeded demo register otherwise (keeps dashboards demo-safe).
@@ -572,7 +574,25 @@ export default function SnaggingListView({
 <span>Verified Closed by Consultant & Client</span>
 </span>
 )}
+
+                {/* P5.6 comments thread — only for real (API) snag rows */}
+{/^[0-9a-f-]{36}$/i.test(snag.id) && (
+<button
+                    type="button"
+                    onClick={() => setCommentsSnagId(commentsSnagId === snag.id ? null : snag.id)}
+                    className="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
+                    data-testid={`snag-comments-toggle-${snag.id}`}
+                  >
+                    {commentsSnagId === snag.id ? 'Hide comments' : 'Comments'}
+</button>
+)}
 </div>
+
+                {commentsSnagId === snag.id && /^[0-9a-f-]{36}$/i.test(snag.id) && (
+<div className="mt-2 border-t border-slate-100 pt-3">
+<EntityComments entityType="SNAG_ITEM" entityId={snag.id} title={snag.snagNo} />
+</div>
+)}
 </div>
 ))
 )}
