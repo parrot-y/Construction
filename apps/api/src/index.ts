@@ -53,6 +53,7 @@ import { exportJobsRoutes } from './routes/exportJobs';
 import { meetingsRoutes } from './routes/meetings';
 import { rateMasterRoutes } from './routes/rateMaster';
 import { gatePassRoutes } from './routes/gatePasses';
+import { contractorRoutes } from './routes/contractors';
 import { attendanceRoutes } from './routes/attendance';
 import { checklistsRoutes } from './routes/checklists';
 import { integrationRoutes } from './routes/integrations';
@@ -264,6 +265,7 @@ export function buildServer(): FastifyInstance {
   server.register(meetingsRoutes);
   server.register(rateMasterRoutes);
   server.register(gatePassRoutes);
+  server.register(contractorRoutes);
   server.register(attendanceRoutes);
   server.register(checklistsRoutes);
   server.register(integrationRoutes);

@@ -11,6 +11,11 @@ describe('CB5 — contractor master register', () => {
   let adminCookie: string;
   let projectId: string;
   let firmId: string;
+  // KRA PINs are unique per tenant — suffix with a run token so repeat
+  // runs against a persistent test DB don't collide.
+  const runToken = Date.now().toString().slice(-9);
+  const kraPin1 = `P${runToken}X`;
+  const kraPin2 = `Q${runToken}Z`;
 
   const authed = () => ({ cookie: adminCookie });
 
@@ -21,7 +26,7 @@ describe('CB5 — contractor master register', () => {
       headers: authed(),
       payload: {
         firmName: 'M-seto Electricals Ltd',
-        kraPin: 'P051234567X',
+        kraPin: kraPin1,
         contactPerson: 'Peter Otieno',
         phone: '+254722333444',
         email: 'peter@mseto.co.ke',
@@ -54,7 +59,9 @@ describe('CB5 — contractor master register', () => {
       },
     });
     expect(proj.statusCode).toBe(201);
-    projectId = JSON.parse(proj.body).project?.id ?? JSON.parse(proj.body).id;
+    const projBody = JSON.parse(proj.body);
+    projectId = projBody.data?.id ?? projBody.project?.id ?? projBody.id;
+    expect(projectId, 'project id from create response').toBeTruthy();
   });
 
   it('creates a PENDING firm with KRA PIN + categories and lists it', async () => {
@@ -65,7 +72,7 @@ describe('CB5 — contractor master register', () => {
     firmId = firm.id;
     expect(firmId).toBeTruthy();
     expect(firm.firmName ?? firm.firm_name).toBe('M-seto Electricals Ltd');
-    expect(firm.kraPin ?? firm.kra_pin).toBe('P051234567X');
+    expect(firm.kraPin ?? firm.kra_pin).toBe(kraPin1);
     expect(firm.approvalStatus ?? firm.approval_status).toBe('PENDING');
     expect(firm.workCategories ?? firm.work_categories).toEqual(['ELECTRICAL', 'SOLAR']);
 
@@ -105,7 +112,7 @@ describe('CB5 — contractor master register', () => {
       payload: {
         tradeCategory: 'ELECTRICAL',
         firmName: 'M-seto Electricals Ltd',
-        subcontractSum: 4500000,
+        subcontractSum: "4500000",
         contractorId: firmId,
       },
     });
@@ -141,7 +148,7 @@ describe('CB5 — contractor master register', () => {
       payload: {
         tradeCategory: 'SOLAR',
         firmName: 'M-seto Electricals Ltd',
-        subcontractSum: 800000,
+        subcontractSum: "800000",
         contractorId: firmId,
       },
     });
@@ -166,7 +173,7 @@ describe('CB5 — contractor master register', () => {
   });
 
   it('rejects a package link to a PENDING firm and validates payloads', async () => {
-    const pending = await createFirm({ firmName: 'Roofing Pros Ltd', kraPin: 'P059988877Z', workCategories: ['ROOFING'] });
+    const pending = await createFirm({ firmName: 'Roofing Pros Ltd', kraPin: kraPin2, workCategories: ['ROOFING'] });
     expect(pending.statusCode).toBe(201);
     const pendingId = (JSON.parse(pending.body).contractor ?? JSON.parse(pending.body).firm ?? JSON.parse(pending.body).data ?? JSON.parse(pending.body)).id;
 
@@ -177,7 +184,7 @@ describe('CB5 — contractor master register', () => {
       payload: {
         tradeCategory: 'ROOFING',
         firmName: 'Roofing Pros Ltd',
-        subcontractSum: 1200000,
+        subcontractSum: "1200000",
         contractorId: pendingId,
       },
     });

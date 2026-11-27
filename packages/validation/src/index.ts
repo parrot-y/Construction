@@ -876,6 +876,7 @@ export const CreateSubcontractorPackageSchema = z.object({
   retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Must be a valid percentage' }).default('5.00'),
   status: SubcontractorStatusEnum.default('ACTIVE'),
   scopeDescription: z.string().optional().nullable(),
+  contractorId: z.string().uuid().optional().nullable(),
 });
 export type CreateSubcontractorPackage = z.infer<typeof CreateSubcontractorPackageSchema>;
 
@@ -1104,6 +1105,30 @@ export const GatePassActionSchema = z.object({
   vehicleRegistration: z.string().max(50).optional().nullable(),
 });
 export type GatePassAction = z.infer<typeof GatePassActionSchema>;
+
+// -------------------------------------------------------------
+// CB5 — CONTRACTOR MASTER (firm register: KRA PIN, categories, approval)
+// -------------------------------------------------------------
+export const ContractorApprovalStatusEnum = z.enum(['PENDING', 'APPROVED', 'SUSPENDED', 'BLACKLISTED']);
+export type ContractorApprovalStatus = z.infer<typeof ContractorApprovalStatusEnum>;
+
+export const ContractorFirmInputSchema = z.object({
+  firmName: z.string().min(2).max(255),
+  kraPin: z.string().min(3).max(20).optional().nullable(),
+  contactPerson: z.string().max(255).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable().or(z.literal('')),
+  workCategories: z.array(z.string().min(1).max(100)).max(50).default([]),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type ContractorFirmInput = z.infer<typeof ContractorFirmInputSchema>;
+
+export const UpdateContractorFirmSchema = ContractorFirmInputSchema.partial().extend({
+  approvalStatus: ContractorApprovalStatusEnum.optional(),
+  statusReason: z.string().max(1000).optional().nullable(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateContractorFirm = z.infer<typeof UpdateContractorFirmSchema>;
 
 // -------------------------------------------------------------
 // MATERIAL WASTAGE & THEORETICAL CONSUMPTION VARIANCE ENGINE

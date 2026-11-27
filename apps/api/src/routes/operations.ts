@@ -890,6 +890,7 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
           const [packages, allPackages] = await Promise.all([
             tx.subcontractorPackage.findMany({
               where: { project_id: projectId },
+              include: { contractor: { select: { id: true, firm_name: true, kra_pin: true } } },
               orderBy: { trade_category: 'asc' },
               skip: pg.skip,
               take: pg.limit + 1,
@@ -907,7 +908,12 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
           );
 
           return {
-            packages: pagedPackages.data,
+            packages: pagedPackages.data.map((p: any) => ({
+              ...p,
+              contractorId: p.contractor_id ?? null,
+              contractorFirmName: p.contractor?.firm_name ?? null,
+              contractorKraPin: p.contractor?.kra_pin ?? null,
+            })),
             page: pagedPackages.page,
             summary: {
               totalPackages: allPackages.length,
@@ -957,6 +963,18 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
+          // CB5 — an optional link to the contractor master requires an
+          // APPROVED firm in this tenant.
+          if (data.contractorId) {
+            const firm = await tx.contractorFirm.findFirst({
+              where: { id: data.contractorId, tenant_id: tenantId },
+            });
+            if (!firm) throw { status: 404, message: 'Contractor firm not found' };
+            if (firm.approval_status !== 'APPROVED') {
+              throw { status: 409, message: `Contractor firm is ${firm.approval_status} — only APPROVED firms can be awarded packages` };
+            }
+          }
+
           const created = await tx.subcontractorPackage.create({
             data: {
               tenant_id: tenantId,
@@ -969,6 +987,7 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
               retention_rate_pct: toDecimal(data.retentionRatePct),
               status: data.status,
               scope_description: data.scopeDescription,
+              contractor_id: data.contractorId ?? null,
             },
           });
 
@@ -986,8 +1005,8 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
 
         return reply.status(201).send(pkg);
       } catch (err: any) {
-        if (err.status === 404) {
-          return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: err.message });
+        if (err.status) {
+          return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
         }
         request.log.error(err, 'Failed to create subcontractor package');
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to create subcontractor package' });

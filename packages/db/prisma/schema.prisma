@@ -1233,12 +1233,45 @@ model SubcontractorPackage {
   updated_at           DateTime  @updatedAt @db.Timestamptz
 
   project              Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  contractor_id        String?   @db.Uuid
+  contractor           ContractorFirm? @relation(fields: [contractor_id], references: [id], onDelete: SetNull)
   valuations           SubcontractorValuation[]
   tax_compliances      SubcontractorTaxCompliance[]
   retention_releases   SubcontractorRetentionRelease[]
 
   @@index([tenant_id, project_id, trade_category])
+  @@index([contractor_id])
   @@map("subcontractor_packages")
+}
+
+// CB5 — contractor master (Assistant QS competitive gap): tenant-level
+// register of subcontractor firms with KRA PIN, work categories and an
+// approval status. Work packages link to an APPROVED firm via
+// subcontractor_packages.contractor_id.
+model ContractorFirm {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenant_id        String    @db.Uuid
+  firm_name        String    @db.VarChar(255)
+  kra_pin          String?   @db.VarChar(20)
+  contact_person   String?   @db.VarChar(255)
+  phone            String?   @db.VarChar(50)
+  email            String?   @db.VarChar(255)
+  work_categories  String[]  @default([])
+  approval_status  String    @default("PENDING") @db.VarChar(20) // PENDING | APPROVED | SUSPENDED | BLACKLISTED
+  approved_by      String?   @db.VarChar(255)
+  approved_at      DateTime? @db.Timestamptz
+  status_reason    String?   @db.Text
+  notes            String?   @db.Text
+  is_active        Boolean   @default(true)
+  created_by       String?   @db.VarChar(255)
+  created_at       DateTime  @default(now()) @db.Timestamptz
+  updated_at       DateTime  @updatedAt @db.Timestamptz
+
+  packages         SubcontractorPackage[]
+
+  @@unique([tenant_id, kra_pin])
+  @@index([tenant_id, approval_status])
+  @@map("contractor_firms")
 }
 
 // =============================================================
