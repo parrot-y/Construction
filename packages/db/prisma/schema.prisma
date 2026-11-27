@@ -1126,10 +1126,12 @@ model InventoryMovement {
   reference_no         String?           @db.VarChar(100) // e.g. "DN-90124", "REQUISITION-014"
   notes                String?           @db.Text
   recorded_by_name     String            @db.VarChar(255)
+  requisition_id       String?           @db.Uuid // CB1: issue against an indent
   created_at           DateTime          @default(now()) @db.Timestamptz
 
   project              Project           @relation(fields: [project_id], references: [id], onDelete: Cascade)
   item                 SiteInventoryItem @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
+  requisition          MaterialRequisition? @relation(fields: [requisition_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id, project_id, inventory_item_id])
   @@map("inventory_movements")
@@ -1316,6 +1318,18 @@ model MaterialRequisition {
   urgency                  String             @default("NORMAL") @db.VarChar(50) // "LOW", "NORMAL", "HIGH", "EMERGENCY"
   required_by_date         DateTime?          @db.Date
   supplier_name            String?            @db.VarChar(255)
+  // CB1 indent depth — site targeting + classification (Assistant QS parity)
+  indent_kind              String             @default("MATERIAL") @db.VarChar(20) // "MATERIAL" | "SERVICE"
+  store_location           String?            @db.VarChar(255)
+  floor_ref                String?            @db.VarChar(100)
+  unit_ref                 String?            @db.VarChar(100)
+  work_order_ref           String?            @db.VarChar(100)
+  indent_category          String?            @db.VarChar(100)
+  material_type            String?            @db.VarChar(100)
+  material_subtype         String?            @db.VarChar(100)
+  lead_time_days           Int?
+  expected_delivery_date   DateTime?          @db.Date
+  notes                    String?            @db.Text
   status                   String             @default("PENDING_APPROVAL") @db.VarChar(50) // "DRAFT", "PENDING_APPROVAL", "APPROVED", "PO_ISSUED", "FULFILLED", "REJECTED"
   rejection_reason         String?            @db.Text
   requested_by             String             @db.VarChar(255)
@@ -1326,9 +1340,28 @@ model MaterialRequisition {
 
   project                  Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
   inventory_item           SiteInventoryItem? @relation(fields: [inventory_item_id], references: [id], onDelete: SetNull)
+  delivery_batches         IndentDeliveryBatch[]
+  purchase_orders          PurchaseOrder[]
+  issue_movements          InventoryMovement[]
 
   @@index([tenant_id, project_id, status])
+  @@index([tenant_id, indent_kind])
   @@map("material_requisitions")
+}
+
+// CB1 — delivery schedule batches on an indent (batch date + qty per drop)
+model IndentDeliveryBatch {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenant_id     String   @db.Uuid
+  requisition_id String  @db.Uuid
+  batch_date    DateTime @db.Date
+  quantity      Decimal  @db.Decimal(12, 2)
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  requisition   MaterialRequisition @relation(fields: [requisition_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id, requisition_id])
+  @@map("indent_delivery_batches")
 }
 
 // =============================================================
@@ -3308,6 +3341,7 @@ model PurchaseOrder {
   notes                   String?   @db.Text
   total_amount_kes        Decimal   @default(0) @db.Decimal(15, 2)
   commitment_id           String?   @db.Uuid
+  requisition_id          String?   @db.Uuid // CB1: PO raised against an indent
   issued_at               DateTime? @db.Timestamptz
   created_by_id           String?   @db.Uuid
   created_at              DateTime  @default(now()) @db.Timestamptz
@@ -3315,6 +3349,7 @@ model PurchaseOrder {
 
   project       Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
   supplier      Supplier               @relation(fields: [supplier_id], references: [id], onDelete: Restrict)
+  requisition   MaterialRequisition?   @relation(fields: [requisition_id], references: [id], onDelete: SetNull)
   items         PurchaseOrderItem[]
   invoices      PurchaseOrderInvoice[]
   deliveries    MaterialDelivery[]

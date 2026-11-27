@@ -391,6 +391,16 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
           });
           if (!item) throw { status: 404, message: 'Inventory item not found' };
 
+          // CB1: optional indent link on issues — the requisition must
+          // belong to this project.
+          if (data.requisitionId) {
+            const req = await tx.materialRequisition.findFirst({
+              where: { id: data.requisitionId, project_id: projectId },
+              select: { id: true },
+            });
+            if (!req) throw { status: 404, message: 'Requisition not found' };
+          }
+
           // Invariant: DELIVERY_IN increases stock; USAGE_OUT / WASTAGE / TRANSFER decreases stock
           let newStock = toDecimal(item.current_stock);
           if (data.movementType === 'DELIVERY_IN') {
@@ -411,6 +421,7 @@ export const operationsRoutes: FastifyPluginAsync = async (server: FastifyInstan
               reference_no: data.referenceNo,
               notes: data.notes,
               recorded_by_name: data.recordedByName,
+              requisition_id: data.requisitionId || null,
             },
           });
 

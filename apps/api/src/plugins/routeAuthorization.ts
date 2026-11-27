@@ -34,6 +34,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'GET /api/v1/projects/:projectId/material-requisitions': Permissions.COST_VIEW,
   'POST /api/v1/projects/:projectId/material-requisitions': Permissions.COST_CREATE,
   'PATCH /api/v1/projects/:projectId/material-requisitions/:requisitionId': Permissions.COST_APPROVE,
+  'PATCH /api/v1/projects/:projectId/material-requisitions/:requisitionId/amend': Permissions.COST_APPROVE,
   'GET /api/v1/projects/:projectId/material-wastage': Permissions.COST_VIEW,
   'POST /api/v1/projects/:projectId/material-wastage': Permissions.COST_CREATE,
   'GET /api/v1/projects/:projectId/cash-flow': Permissions.COST_VIEW,

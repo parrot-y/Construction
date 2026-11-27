@@ -770,6 +770,7 @@ export const RecordInventoryMovementSchema = z.object({
   referenceNo: z.string().max(100).optional().nullable(),
   notes: z.string().optional().nullable(),
   recordedByName: z.string().min(2).max(255),
+  requisitionId: z.string().uuid().optional().nullable(),
 });
 export type RecordInventoryMovement = z.infer<typeof RecordInventoryMovementSchema>;
 
@@ -970,6 +971,16 @@ export const RequisitionStatusEnum = z.enum([
 ]);
 export type RequisitionStatus = z.infer<typeof RequisitionStatusEnum>;
 
+// CB1 — delivery schedule batch on an indent
+export const IndentDeliveryBatchInputSchema = z.object({
+  batchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  quantity: QuantitySchema.refine((q) => Number(q) > 0, { message: 'Batch quantity must be positive' }),
+});
+export type IndentDeliveryBatchInput = z.infer<typeof IndentDeliveryBatchInputSchema>;
+
+export const IndentKindEnum = z.enum(['MATERIAL', 'SERVICE']);
+export type IndentKind = z.infer<typeof IndentKindEnum>;
+
 export const CreateMaterialRequisitionSchema = z.object({
   requisitionNo: z.string().min(2).max(100),
   inventoryItemId: z.string().uuid().optional().nullable(),
@@ -981,8 +992,42 @@ export const CreateMaterialRequisitionSchema = z.object({
   requiredByDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
   supplierName: z.string().max(255).optional().nullable(),
   requestedBy: z.string().min(2).max(255),
+  // CB1 indent depth
+  indentKind: IndentKindEnum.default('MATERIAL'),
+  storeLocation: z.string().max(255).optional().nullable(),
+  floorRef: z.string().max(100).optional().nullable(),
+  unitRef: z.string().max(100).optional().nullable(),
+  workOrderRef: z.string().max(100).optional().nullable(),
+  indentCategory: z.string().max(100).optional().nullable(),
+  materialType: z.string().max(100).optional().nullable(),
+  materialSubType: z.string().max(100).optional().nullable(),
+  leadTimeDays: z.number().int().min(0).max(365).optional().nullable(),
+  expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  deliverySchedule: z.array(IndentDeliveryBatchInputSchema).max(60).optional().nullable(),
 });
 export type CreateMaterialRequisition = z.infer<typeof CreateMaterialRequisitionSchema>;
+
+// CB1 — amend-material workflow (Assistant QS "Amend & Modify Material")
+export const AmendMaterialRequisitionSchema = z.object({
+  reason: z.string().min(5).max(1000),
+  itemDescription: z.string().min(2).max(255).optional(),
+  unitOfMeasure: z.string().min(1).max(50).optional(),
+  requestedQuantity: QuantitySchema.optional(),
+  estimatedUnitCostKes: CurrencyAmountSchema.optional(),
+  storeLocation: z.string().max(255).optional().nullable(),
+  floorRef: z.string().max(100).optional().nullable(),
+  unitRef: z.string().max(100).optional().nullable(),
+  workOrderRef: z.string().max(100).optional().nullable(),
+  indentCategory: z.string().max(100).optional().nullable(),
+  materialType: z.string().max(100).optional().nullable(),
+  materialSubType: z.string().max(100).optional().nullable(),
+  leadTimeDays: z.number().int().min(0).max(365).optional().nullable(),
+  expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  deliverySchedule: z.array(IndentDeliveryBatchInputSchema).max(60).optional().nullable(),
+});
+export type AmendMaterialRequisition = z.infer<typeof AmendMaterialRequisitionSchema>;
 
 export const ReviewMaterialRequisitionSchema = z.object({
   status: RequisitionStatusEnum,
@@ -2551,6 +2596,7 @@ export const CreatePurchaseOrderSchema = z.object({
   orderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
+  requisitionId: z.string().uuid().optional().nullable(),
   items: z.array(PurchaseOrderItemInputSchema).min(1),
 });
 export type CreatePurchaseOrder = z.infer<typeof CreatePurchaseOrderSchema>;

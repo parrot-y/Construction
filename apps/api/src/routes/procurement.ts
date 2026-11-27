@@ -225,6 +225,19 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
           }
           if (!supplier) throw { status: 400, message: 'supplierId or supplierName is required' };
 
+          // CB1: optional indent link — the requisition must belong to this
+          // project; an approved indent flips to PO_ISSUED.
+          if (d.requisitionId) {
+            const req = await tx.materialRequisition.findFirst({
+              where: { id: d.requisitionId, project_id: projectId },
+              select: { id: true, status: true },
+            });
+            if (!req) throw { status: 404, message: 'Requisition not found' };
+            if (req.status === 'REJECTED' || req.status === 'FULFILLED') {
+              throw { status: 409, message: `Cannot raise a PO against a ${req.status.toLowerCase()} indent` };
+            }
+          }
+
           const total = d.items.reduce(
             (acc, i) => acc.plus(toDecimal(i.quantity).times(toDecimal(i.rate ?? i.unitRate ?? 0))),
             toDecimal('0'),
@@ -244,6 +257,7 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
               order_date: d.orderDate ? new Date(`${d.orderDate}T00:00:00Z`) : new Date(),
               expected_delivery_date: d.expectedDeliveryDate ? new Date(`${d.expectedDeliveryDate}T00:00:00Z`) : null,
               notes: d.notes || null,
+              requisition_id: d.requisitionId || null,
               total_amount_kes: total.toFixed(2),
               created_by_id: sub,
               items: {
@@ -258,6 +272,13 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
             },
             include: { items: true, invoices: true, supplier: { select: { id: true, name: true } } },
           });
+
+          if (d.requisitionId) {
+            await tx.materialRequisition.updateMany({
+              where: { id: d.requisitionId, project_id: projectId, status: 'APPROVED' },
+              data: { status: 'PO_ISSUED', approved_at: new Date() },
+            });
+          }
 
           await recordAuditLog(tx, {
             tenantId, projectId, actorId: sub, action: 'PURCHASE_ORDER_CREATED',

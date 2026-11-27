@@ -5,6 +5,7 @@ import { getTaxSettings, whtRateFor } from '../lib/tax';
 import { notifyTeam } from '../lib/notify';
 import {
   CreateMaterialRequisitionSchema,
+  AmendMaterialRequisitionSchema,
   ReviewMaterialRequisitionSchema,
   CreateMaterialWastageReconciliationSchema,
   CreateCashFlowForecastSchema,
@@ -15,6 +16,23 @@ import { PRODUCT_NAME } from '../lib/product';
 import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// CB1 — fulfilment buckets (Assistant QS parity): derived, never stored.
+// Issue-side wins over PO-side; a fully issued indent is FULFILLED even if
+// a PO was also raised against it.
+function deriveIndentFulfilment(r: {
+  requested_quantity: unknown;
+  purchase_orders?: { status: string }[];
+  issue_movements?: { quantity: unknown }[];
+}): 'UNFULFILLED' | 'PO_RAISED' | 'PO_FULFILLED' | 'ISSUED' | 'FULFILLED' {
+  const pos = r.purchase_orders ?? [];
+  const requested = Number(r.requested_quantity);
+  const issued = (r.issue_movements ?? []).reduce((s, m) => s + Number(m.quantity), 0);
+  if (requested > 0 && issued >= requested) return 'FULFILLED';
+  if (issued > 0) return 'ISSUED';
+  if (pos.length === 0) return 'UNFULFILLED';
+  return pos.every((p) => p.status === 'DELIVERED' || p.status === 'CLOSED') ? 'PO_FULFILLED' : 'PO_RAISED';
+}
 
 export const commercialOperationsRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // ===========================================================================
@@ -34,30 +52,51 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       }
 
+      const q = request.query as Record<string, string | undefined>;
+      const indentKind = q.indentKind?.toUpperCase();
+      const store = q.store?.trim();
+      const floor = q.floor?.trim();
+      const unit = q.unit?.trim();
+      const fulfilmentFilter = q.fulfilment?.toUpperCase();
+
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
           const project = await tx.project.findFirst({ where: { id: projectId } });
           if (!project) throw { status: 404, message: 'Project not found' };
 
-          const [requisitions, allReqs] = await Promise.all([
-            tx.materialRequisition.findMany({
-              where: { project_id: projectId },
-              include: { inventory_item: true },
-              orderBy: { created_at: 'desc' },
-              skip: pg.skip,
-              take: pg.limit + 1,
-            }),
-            tx.materialRequisition.findMany({
-              where: { project_id: projectId },
-              select: { status: true, estimated_total_cost_kes: true },
-            }),
-          ]);
+          // CB1: fulfilment is derived from linked POs and issue movements,
+          // so the full project set is fetched once (counts are modest) and
+          // paginated in JS after derivation + filtering.
+          const where: Record<string, unknown> = { project_id: projectId };
+          if (indentKind === 'MATERIAL' || indentKind === 'SERVICE') where.indent_kind = indentKind;
+          if (store) where.store_location = { contains: store, mode: 'insensitive' };
+          if (floor) where.floor_ref = { contains: floor, mode: 'insensitive' };
+          if (unit) where.unit_ref = { contains: unit, mode: 'insensitive' };
 
-          const pagedReqs = listPage(requisitions, pg);
-          const totalCount = allReqs.length;
-          const pendingCount = allReqs.filter((r) => r.status === 'PENDING_APPROVAL').length;
-          const approvedCount = allReqs.filter((r) => r.status === 'APPROVED' || r.status === 'PO_ISSUED').length;
-          const totalEstimatedKes = allReqs.reduce(
+          const requisitions = await tx.materialRequisition.findMany({
+            where,
+            include: {
+              inventory_item: true,
+              delivery_batches: { orderBy: { batch_date: 'asc' } },
+              purchase_orders: { select: { id: true, status: true, po_number: true } },
+              issue_movements: { where: { movement_type: 'USAGE_OUT' }, select: { quantity: true } },
+            },
+            orderBy: { created_at: 'desc' },
+          });
+
+          const enriched = requisitions.map((r) => {
+            const fulfilment = deriveIndentFulfilment(r);
+            return { ...r, fulfilment };
+          });
+          const filtered = fulfilmentFilter
+            ? enriched.filter((r) => r.fulfilment === fulfilmentFilter)
+            : enriched;
+
+          const pagedReqs = listPage(filtered, pg);
+          const totalCount = filtered.length;
+          const pendingCount = filtered.filter((r) => r.status === 'PENDING_APPROVAL').length;
+          const approvedCount = filtered.filter((r) => r.status === 'APPROVED' || r.status === 'PO_ISSUED').length;
+          const totalEstimatedKes = filtered.reduce(
             (sum, r) => sum.plus(toDecimal(r.estimated_total_cost_kes.toString())),
             toDecimal('0.00')
           );
@@ -71,14 +110,19 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               totalEstimatedKes: totalEstimatedKes.toFixed(2),
             },
             page: pagedReqs.page,
-            requisitions: pagedReqs.data.map((r) => ({
+            requisitions: pagedReqs.data.map((r) => {
+              const pos = r.purchase_orders ?? [];
+              const issuedQty = (r.issue_movements ?? []).reduce(
+                (sum, m) => sum.plus(toDecimal(m.quantity.toString())), toDecimal('0'),
+              );
+              return {
               id: r.id,
               requisitionNo: r.requisition_no,
               inventoryItemId: r.inventory_item_id,
               materialName: r.inventory_item?.material_name || r.item_description,
               itemDescription: r.item_description,
               unitOfMeasure: r.unit_of_measure,
-              requestedQuantity: r.requested_quantity.toString(),
+              requestedQuantity: r.requested_quantity.toFixed(2),
               estimatedUnitCostKes: r.estimated_unit_cost_kes.toString(),
               estimatedTotalCostKes: r.estimated_total_cost_kes.toString(),
               urgency: r.urgency,
@@ -90,7 +134,29 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               approvedBy: r.approved_by,
               approvedAt: r.approved_at?.toISOString() || null,
               createdAt: r.created_at.toISOString(),
-            })),
+              // CB1 indent depth
+              indentKind: r.indent_kind,
+              storeLocation: r.store_location,
+              floorRef: r.floor_ref,
+              unitRef: r.unit_ref,
+              workOrderRef: r.work_order_ref,
+              indentCategory: r.indent_category,
+              materialType: r.material_type,
+              materialSubType: r.material_subtype,
+              leadTimeDays: r.lead_time_days,
+              expectedDeliveryDate: r.expected_delivery_date ? r.expected_delivery_date.toISOString().split('T')[0] : null,
+              notes: r.notes,
+              fulfilment: r.fulfilment,
+              issuedQuantity: issuedQty.toFixed(4),
+              linkedPurchaseOrderId: pos[0]?.id ?? null,
+              linkedPurchaseOrders: pos.map((p) => ({ id: p.id, poNumber: p.po_number, status: p.status })),
+              deliverySchedule: (r.delivery_batches ?? []).map((b) => ({
+                id: b.id,
+                batchDate: b.batch_date.toISOString().split('T')[0],
+                quantity: b.quantity.toFixed(2),
+              })),
+              };
+            }),
           };
         });
 
@@ -151,10 +217,33 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
               urgency: data.urgency,
               required_by_date: data.requiredByDate ? new Date(data.requiredByDate) : null,
               supplier_name: data.supplierName || null,
+              // CB1 indent depth
+              indent_kind: data.indentKind ?? 'MATERIAL',
+              store_location: data.storeLocation || null,
+              floor_ref: data.floorRef || null,
+              unit_ref: data.unitRef || null,
+              work_order_ref: data.workOrderRef || null,
+              indent_category: data.indentCategory || null,
+              material_type: data.materialType || null,
+              material_subtype: data.materialSubType || null,
+              lead_time_days: data.leadTimeDays ?? null,
+              expected_delivery_date: data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : null,
+              notes: data.notes || null,
               status: 'PENDING_APPROVAL',
               requested_by: data.requestedBy,
             },
           });
+
+          if (data.deliverySchedule?.length) {
+            await tx.indentDeliveryBatch.createMany({
+              data: data.deliverySchedule.map((b) => ({
+                tenant_id: tenantId,
+                requisition_id: createdReq.id,
+                batch_date: new Date(`${b.batchDate}T00:00:00Z`),
+                quantity: b.quantity,
+              })),
+            });
+          }
 
           await recordAuditLog(tx, {
             tenantId,
@@ -258,6 +347,128 @@ export const commercialOperationsRoutes: FastifyPluginAsync = async (server: Fas
         }
         request.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to review requisition' });
+      }
+    }
+  );
+
+  // 1.3 CB1 — Amend material indent (Assistant QS "Amend & Modify Material"):
+  // edits targeting/classification fields and replaces the delivery schedule.
+  // Refused once the indent is fully issued or rejected — amend the issue
+  // or raise a new indent instead.
+  server.patch(
+    '/api/v1/projects/:projectId/material-requisitions/:requisitionId/amend',
+    { preHandler: [server.authenticate] },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, requisitionId } = request.params as { projectId: string; requisitionId: string };
+
+      if (!UUID_REGEX.test(projectId) || !UUID_REGEX.test(requisitionId)) {
+        return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Resource not found' });
+      }
+
+      const parseResult = AmendMaterialRequisitionSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Invalid amend payload',
+          details: parseResult.error.flatten(),
+        });
+      }
+      const data = parseResult.data;
+
+      try {
+        const updated = await withTenantTx(prisma, tenantId, async (tx) => {
+          const req = await tx.materialRequisition.findFirst({
+            where: { id: requisitionId, project_id: projectId },
+            include: {
+              issue_movements: { where: { movement_type: 'USAGE_OUT' }, select: { quantity: true } },
+            },
+          });
+          if (!req) throw { status: 404, message: 'Requisition not found' };
+
+          const issued = req.issue_movements.reduce((s, m) => s + Number(m.quantity), 0);
+          const requested = Number(req.requested_quantity);
+          if (req.status === 'REJECTED' || (requested > 0 && issued >= requested)) {
+            throw { status: 409, message: `Cannot amend a ${req.status === 'REJECTED' ? 'rejected' : 'fully issued'} indent` };
+          }
+
+          const updateData: Record<string, unknown> = {};
+          if (data.itemDescription !== undefined) updateData.item_description = data.itemDescription;
+          if (data.unitOfMeasure !== undefined) updateData.unit_of_measure = data.unitOfMeasure;
+          if (data.requestedQuantity !== undefined) {
+            updateData.requested_quantity = toDecimal(data.requestedQuantity).toFixed(2);
+            // Re-price the estimate when quantity changes but no new rate given.
+            if (data.estimatedUnitCostKes === undefined) {
+              updateData.estimated_total_cost_kes = toDecimal(data.requestedQuantity)
+                .times(toDecimal(req.estimated_unit_cost_kes.toString())).toFixed(2);
+            }
+          }
+          if (data.estimatedUnitCostKes !== undefined) {
+            const qty = data.requestedQuantity !== undefined ? toDecimal(data.requestedQuantity) : toDecimal(req.requested_quantity.toString());
+            updateData.estimated_unit_cost_kes = toDecimal(data.estimatedUnitCostKes).toFixed(2);
+            updateData.estimated_total_cost_kes = qty.times(toDecimal(data.estimatedUnitCostKes)).toFixed(2);
+          }
+          const strFields: Record<string, string | null | undefined> = {
+            store_location: data.storeLocation,
+            floor_ref: data.floorRef,
+            unit_ref: data.unitRef,
+            work_order_ref: data.workOrderRef,
+            indent_category: data.indentCategory,
+            material_type: data.materialType,
+            material_subtype: data.materialSubType,
+            notes: data.notes,
+          };
+          for (const [k, v] of Object.entries(strFields)) {
+            if (v !== undefined) updateData[k] = v;
+          }
+          if (data.leadTimeDays !== undefined) updateData.lead_time_days = data.leadTimeDays;
+          if (data.expectedDeliveryDate !== undefined) {
+            updateData.expected_delivery_date = data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : null;
+          }
+
+          const updatedReq = await tx.materialRequisition.update({
+            where: { id: requisitionId },
+            data: updateData,
+          });
+
+          if (data.deliverySchedule !== undefined && data.deliverySchedule !== null) {
+            await tx.indentDeliveryBatch.deleteMany({ where: { requisition_id: requisitionId } });
+            if (data.deliverySchedule.length) {
+              await tx.indentDeliveryBatch.createMany({
+                data: data.deliverySchedule.map((b) => ({
+                  tenant_id: tenantId,
+                  requisition_id: requisitionId,
+                  batch_date: new Date(`${b.batchDate}T00:00:00Z`),
+                  quantity: b.quantity,
+                })),
+              });
+            }
+          }
+
+          await recordAuditLog(tx, {
+            tenantId,
+            actorId: sub,
+            action: 'AMEND',
+            entityType: 'MATERIAL_REQUISITION',
+            entityId: updatedReq.id,
+            projectId,
+            changes: { reason: data.reason, amendedFields: Object.keys(updateData), scheduleReplaced: data.deliverySchedule !== undefined },
+          });
+
+          return updatedReq;
+        });
+
+        return reply.send({
+          message: 'Material requisition amended',
+          requisition: { id: updated.id, status: updated.status },
+        });
+      } catch (err: any) {
+        if (err.status === 404 || err.status === 409) {
+          return reply.status(err.status).send({ statusCode: err.status, error: err.status === 404 ? 'Not Found' : 'Conflict', message: err.message });
+        }
+        request.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to amend requisition' });
       }
     }
   );
