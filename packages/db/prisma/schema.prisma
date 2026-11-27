@@ -335,6 +335,9 @@ model BOQItem {
   unit_rate      Decimal          @db.Decimal(15, 4) // Rate in KES
   total_amount   Decimal          @db.Decimal(15, 2) // qty * rate
   is_provisional Boolean          @default(false)
+  // CB6 — takeoff dimension: floor/storey + unit/apartment reference.
+  floor          String?          @db.VarChar(100)
+  unit_ref       String?          @db.VarChar(100)
   created_at     DateTime         @default(now()) @db.Timestamptz
 
   section        BOQSection       @relation(fields: [section_id], references: [id], onDelete: Cascade)

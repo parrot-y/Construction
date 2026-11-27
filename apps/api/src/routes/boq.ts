@@ -432,7 +432,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
-      const { q, sectionId } = request.query as { q?: string; sectionId?: string };
+      const { q, sectionId, floor, unitRef } = request.query as { q?: string; sectionId?: string; floor?: string; unitRef?: string };
       const pg = listParams(request);
 
       const items = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -449,6 +449,8 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
               boq_id: activeBOQ.id,
               ...(sectionId ? { id: sectionId } : {}),
             },
+            ...(floor ? { floor } : {}),
+            ...(unitRef ? { unit_ref: unitRef } : {}),
             ...(q
               ? {
                   OR: [
@@ -529,6 +531,12 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
     if (!Number.isFinite(qty) || qty <= 0) return 'Quantity must be a number greater than zero.';
     if (!Number.isFinite(rate) || rate < 0) return 'Rate must be zero or more.';
     if (typeof body.unit !== 'string' || !body.unit.trim()) return 'Unit is required (e.g. M3, SM, ITEM).';
+    if (body.floor !== undefined && body.floor !== null && (typeof body.floor !== 'string' || body.floor.length > 100)) {
+      return 'Floor must be a short text label.';
+    }
+    if (body.unitRef !== undefined && body.unitRef !== null && (typeof body.unitRef !== 'string' || body.unitRef.length > 100)) {
+      return 'Unit reference must be a short text label.';
+    }
     return null;
   }
 
@@ -595,6 +603,8 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
             unit_rate: rate.toString(),
             total_amount: qty.times(rate).toFixed(2),
             is_provisional: Boolean(body.isProvisional),
+            floor: body.floor?.trim() || null,
+            unit_ref: body.unitRef?.trim() || null,
           },
         });
 
@@ -640,6 +650,13 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
         itemCode: body.itemCode ?? undefined,
         isProvisional: body.isProvisional ?? undefined,
       };
+      // CB6 takeoff fields: undefined = untouched, null = clear, string = set.
+      for (const key of ['floor', 'unitRef'] as const) {
+        const v = body[key];
+        if (v !== undefined && v !== null && (typeof v !== 'string' || v.length > 100)) {
+          return reply.status(400).send({ error: `${key === 'unitRef' ? 'Unit reference' : 'Floor'} must be a short text label.` });
+        }
+      }
       // Validate against the effective (merged) values.
       const existing = await withTenantTx(prisma, tenantId, async (tx) =>
         tx.bOQItem.findFirst({
@@ -667,6 +684,8 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
             ...(merged.unit !== undefined ? { unit: merged.unit.trim().toUpperCase().slice(0, 20) } : {}),
             ...(merged.itemCode !== undefined ? { item_code: String(merged.itemCode).slice(0, 50) } : {}),
             ...(merged.isProvisional !== undefined ? { is_provisional: Boolean(merged.isProvisional) } : {}),
+            ...(body.floor !== undefined ? { floor: body.floor === null ? null : body.floor.trim() || null } : {}),
+            ...(body.unitRef !== undefined ? { unit_ref: body.unitRef === null ? null : body.unitRef.trim() || null } : {}),
             quantity: qty.toString(),
             unit_rate: rate.toString(),
             total_amount: qty.times(rate).toFixed(2),
@@ -688,6 +707,86 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       });
 
       return reply.status(200).send({ data: item });
+    },
+  );
+
+  // CB6 — POST /api/v1/projects/:projectId/boq/items/bulk-map
+  // Takeoff mapping: assign floor/unitRef to many items on the ACTIVE BOQ
+  // in one call. Each mapping may set floor and/or unitRef; null clears.
+  server.post(
+    '/api/v1/projects/:projectId/boq/items/bulk-map',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_EDIT),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      const body = request.body as any;
+
+      const mappings = body?.mappings;
+      if (!Array.isArray(mappings) || mappings.length === 0 || mappings.length > 500) {
+        return reply.status(400).send({ error: 'mappings must be a non-empty array of at most 500 entries.' });
+      }
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      for (const m of mappings) {
+        if (!m || typeof m !== 'object' || !UUID_RE.test(m.itemId ?? '')) {
+          return reply.status(400).send({ error: 'Each mapping needs a valid itemId.' });
+        }
+        for (const key of ['floor', 'unitRef'] as const) {
+          const v = m[key];
+          if (v !== undefined && v !== null && (typeof v !== 'string' || v.length > 100)) {
+            return reply.status(400).send({ error: `${key === 'unitRef' ? 'unitRef' : 'floor'} must be a short text label or null.` });
+          }
+        }
+      }
+
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const activeBOQ = await tx.bOQ.findFirst({
+          where: { project_id: projectId, tenant_id: tenantId, status: 'ACTIVE' },
+          select: { id: true },
+        });
+        if (!activeBOQ) return { error: 'No active BOQ for this project', status: 404 as const };
+
+        const itemIds = mappings.map((m: any) => m.itemId);
+        const existing = await tx.bOQItem.findMany({
+          where: { id: { in: itemIds }, tenant_id: tenantId, section: { boq_id: activeBOQ.id } },
+          select: { id: true },
+        });
+        const found = new Set(existing.map((i: { id: string }) => i.id));
+        const missing = itemIds.filter((id: string) => !found.has(id));
+        if (missing.length > 0) {
+          return { error: `${missing.length} item(s) not found on the active BOQ`, status: 404 as const };
+        }
+
+        let updated = 0;
+        for (const m of mappings) {
+          const data: Record<string, unknown> = {};
+          if (m.floor !== undefined) data.floor = m.floor === null ? null : m.floor.trim() || null;
+          if (m.unitRef !== undefined) data.unit_ref = m.unitRef === null ? null : m.unitRef.trim() || null;
+          if (Object.keys(data).length === 0) continue;
+          await tx.bOQItem.update({ where: { id: m.itemId }, data });
+          updated += 1;
+        }
+
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            actor_id: sub,
+            project_id: projectId,
+            action: 'boq.items.bulk_map',
+            entity_type: 'BOQ',
+            entity_id: activeBOQ.id,
+            changes: { mapped: updated, mappings: mappings.length },
+          },
+        });
+        return { updated, boqId: activeBOQ.id };
+      });
+
+      if ('error' in result) return reply.status(result.status ?? 400).send({ error: result.error });
+      return reply.status(200).send({ data: result });
     },
   );
 
