@@ -401,11 +401,11 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
   - API: /api/v1/gate-passes list (projectId/status/store/q) + get + create (COST_CREATE) + :id/authorize|exit|cancel (COST_APPROVE authorize/cancel, COST_CREATE exit); 409 illegal transitions; audit log — c36f342 (red dbac35f, 4/4)
   - Web: Money → "Gate passes" tab (GatePassView register + status chips + search + create modal w/ item lines + authorize/exit/cancel via AppDialog, COST_* gated)
   - Tests: gate-pass.test.ts 4/4; cb3-gate-pass.spec.ts 2/2 chromium + 2/2 mobile-390; a8-permissions green incl. new tab; l2-click-sweep/admin-console-capture lists updated
-- [ ] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen
-  - Schema: store_location on purchase_orders + material_deliveries (migration cb4)
-  - API: GET /api/v1/purchase-register unified rows (kind PO|GRN, ref, date, project, supplier, store, description, qty, value, status) + filters kind/status/supplierId/store/projectId/q + pagination; PO create + diary delivery accept storeLocation
-  - Web: ProcurementView gains PO list | GRN register toggle (or dedicated register screen) with supplier/store/value columns
-  - Tests: purchase-register.test.ts (API red first) + e2e spec
+- [x] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen — DONE
+  - Schema: store_location on purchase_orders + material_deliveries (migration 20261127150000_cb4_purchase_register)
+  - API: GET /api/v1/purchase-register unified rows (kind PO|GRN, ref, date, project, supplier, store, description, qty, value, status) + filters kind/status/supplierId/store/projectId/q + pagination; PO create + diary delivery accept storeLocation — d1051fb (red 55ff2b2, 3/3)
+  - Web: ProcurementView "Purchase orders | PO / GRN register" toggle → PurchaseRegisterView (kind badges, supplier/store/value columns, status chips, filters); PO create form gains store/site field — PurchaseRegisterView.tsx + ProcurementView diff
+  - Tests: purchase-register.test.ts 3/3; cb4-purchase-register.spec.ts 2/2 chromium + 2/2 mobile-390 (fixture PO+diary-GRN, register shows both rows; GRN inherits PO number as ref so assertions scoped by register-row-{kind} testids); frontend-hygiene clean; web tsc clean
 - [ ] CB5 Contractor master: unified firm register (KRA PIN, work categories, approval status)
 - [ ] CB6 BOQ floor/unit mapping for takeoff
 - [ ] CB7 Print views: PO/GRN print remain (indent print shipped with CB1 — IndentPrintModal + print CSS)

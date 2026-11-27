@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatKes } from '../ui';
 import { api } from '../lib/apiClient';
 import { RateLookupButton } from './rateMaster/RateLookupButton';
+import PurchaseRegisterView from './PurchaseRegisterView';
 
 /**
  * Procurement — purchase orders, three-way match and supplier-invoice review.
@@ -126,6 +127,7 @@ interface DraftLine {
 const emptyLine = (): DraftLine => ({ description: '', unit: 'No', quantity: '1', rate: '0' });
 
 export default function ProcurementView({ projectId, canManage = false }: Props) {
+  const [view, setView] = useState<'pos' | 'register'>('pos');
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,6 +141,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
   // create form
   const [supplierId, setSupplierId] = useState('');
   const [expectedDelivery, setExpectedDelivery] = useState('');
+  const [storeLocation, setStoreLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
 
@@ -191,6 +194,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
       await api.post(`/api/v1/projects/${projectId}/purchase-orders`, {
           supplierId,
           expectedDeliveryDate: expectedDelivery || null,
+          storeLocation: storeLocation || null,
           notes: notes || null,
           items: lines
             .filter((l) => l.description.trim())
@@ -202,7 +206,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
             })),
       });
       setShowCreate(false);
-      setSupplierId(''); setExpectedDelivery(''); setNotes(''); setLines([emptyLine()]);
+      setSupplierId(''); setExpectedDelivery(''); setStoreLocation(''); setNotes(''); setLines([emptyLine()]);
       await load();
     } catch (e) {
       setError((e as { message?: string })?.message || 'Failed to create purchase order');
@@ -271,23 +275,35 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
           <h2 className="text-lg font-bold text-slate-900">Procurement</h2>
           <p className="text-xs text-slate-500">Purchase orders, deliveries and supplier invoices — three-way match.</p>
         </div>
-        {canManage && (
-          <button
-            type="button"
-            onClick={() => setShowCreate((v) => !v)}
-            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 hover:bg-brand-700 text-white"
-            data-testid="new-po-btn"
-          >
-            {showCreate ? 'Close' : 'New purchase order'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-bold" data-testid="procurement-view-tabs">
+            {([['pos', 'Purchase orders'], ['register', 'PO / GRN register']] as const).map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setView(id)}
+                className={`px-3 py-1.5 transition ${view === id ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                data-testid={`procurement-tab-${id}`}>{label}</button>
+            ))}
+          </div>
+          {canManage && view === 'pos' && (
+            <button
+              type="button"
+              onClick={() => setShowCreate((v) => !v)}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 hover:bg-brand-700 text-white"
+              data-testid="new-po-btn"
+            >
+              {showCreate ? 'Close' : 'New purchase order'}
+            </button>
+          )}
+        </div>
       </div>
 
+      {view === 'register' ? (
+        <PurchaseRegisterView projectId={projectId} />
+      ) : (<>
       {error && <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm" data-testid="procurement-error">{error}</div>}
 
       {showCreate && canManage && (
         <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3" data-testid="po-create-form">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <label className="text-xs font-semibold text-slate-600">
               Supplier
               <select
@@ -303,6 +319,10 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
             <label className="text-xs font-semibold text-slate-600">
               Expected delivery
               <input type="date" className="mt-1 w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg" value={expectedDelivery} onChange={(e) => setExpectedDelivery(e.target.value)} />
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              Store / site
+              <input className="mt-1 w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg" value={storeLocation} onChange={(e) => setStoreLocation(e.target.value)} placeholder="e.g. Nairobi Main Store" data-testid="po-store-input" />
             </label>
             <label className="text-xs font-semibold text-slate-600">
               Notes
@@ -580,6 +600,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
           ))}
         </div>
       )}
+      </>)}
     </div>
   );
 }
