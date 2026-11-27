@@ -384,9 +384,13 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
 - [x] P5.10 Slow work off request path: ExportJob model+migrations (PENDING default + claim_export_job SECURITY DEFINER in rls.sql), lib/reportWorkbooks.ts shared builders (sync *.xlsx endpoints unchanged for auditor specs), routes/exportJobs.ts (POST …/reports/{financials,cost}/export → 202, GET status, GET download via storage driver), pg-boss QUEUE_EXPORT + QUEUE_REPORT_DELIVERY workers + enqueue fallbacks + stale-PENDING reaper in sweep, /run route defers delivery (deliveriesStatus DONE|QUEUED), console FilesSection+MoneySection Excel buttons → queued flow — export-jobs.test.ts 3/3 (red 38edb17)
 - [x] P5.11 Closeout: solo suite 509/0/9 on 603726b (docs/evidence/e2e-603726b.md); verify-local 6/6 on cca2c88 (703 api tests, docs/evidence/verify-cca2c88.log); regressions fixed: route-guard allowlists 2489fd2, DB-default restore migration, document_counters fixture bypass cca2c88
 
-## Competitor backlog (from Assistant QS suite — docs/research/assistant-qs-suite-notes.md)
-Proposed post-Phase-5 items, priority order:
-- [ ] CB1 Indent depth: store+floor/unit+work-order targeting, service/material category, delivery schedule batches, lead-time benchmark, amend-material, print, audit trail, 4-way fulfilment buckets
+## Post-Phase-5 — Competitor backlog (Assistant QS suite — docs/research/assistant-qs-suite-notes.md)
+
+- [~] CB1 Indent depth — IN PROGRESS
+  - Schema: MaterialRequisition + indent_kind(MATERIAL|SERVICE)/store/floor/unit/work-order/category/material type+subtype/lead_time/expected_delivery/notes; new IndentDeliveryBatch; requisition_id FK on PurchaseOrder + InventoryMovement
+  - API: create accepts depth fields + deliverySchedule[]; list filters (kind/store/floor/unit/fulfilment); fulfilment derived UNFULFILLED|PO_RAISED|PO_FULFILLED|ISSUED|FULFILLED; PATCH :id/amend (reason, field edits, batch replace, 409 when terminal); PO create + USAGE_OUT movement accept requisitionId
+  - Web: MaterialRequisitionView — kind/store/fulfilment filters, depth fields on create, batch editor, amend dialog
+  - Tests: indent-depth.test.ts (API) + e2e coverage; print view stays in CB7
 - [ ] CB2 Rate master: shared rate library (geo + item typing), bulk upload/edit, prefill BoQ/PO rates
 - [ ] CB3 Gate pass: material-exit authorization register
 - [ ] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen
