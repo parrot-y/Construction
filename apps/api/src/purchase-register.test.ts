@@ -37,7 +37,7 @@ describe('CB4 — purchase register', () => {
       },
     });
     expect(proj.statusCode).toBe(201);
-    projectId = JSON.parse(proj.body).project?.id ?? JSON.parse(proj.body).id;
+    projectId = JSON.parse(proj.body).data.id;
 
     const sup = await server.inject({
       method: 'POST',
@@ -89,9 +89,10 @@ describe('CB4 — purchase register', () => {
       url: `/api/v1/projects/${projectId}/site-diaries`,
       headers: authed(),
       payload: {
+        projectId,
         entryDate: new Date().toISOString().slice(0, 10),
-        weather: 'SUNNY',
-        siteStatus: 'NORMAL',
+        weather: 'SUNNY_CLEAR',
+        siteStatus: 'OPERATIONAL',
         deliveries: [
           {
             materialName: 'Cement 50kg',

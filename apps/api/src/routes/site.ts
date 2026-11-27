@@ -252,6 +252,7 @@ export const siteRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
                 purchase_order_id: d.purchaseOrderId || null,
                 purchase_order_item_id: d.purchaseOrderItemId || null,
                 delivery_note: d.deliveryNote || null,
+                store_location: d.storeLocation || null,
               })),
             });
           }

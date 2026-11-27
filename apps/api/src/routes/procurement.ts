@@ -36,6 +36,7 @@ function poDto(po: any) {
     expectedDeliveryDate: po.expected_delivery_date,
     totalAmount: po.total_amount_kes?.toString() ?? null,
     notes: po.notes,
+    storeLocation: po.store_location ?? null,
     issuedAt: po.issued_at,
     items: (po.items || []).map((i: any) => ({
       id: i.id,
@@ -258,6 +259,7 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
               expected_delivery_date: d.expectedDeliveryDate ? new Date(`${d.expectedDeliveryDate}T00:00:00Z`) : null,
               notes: d.notes || null,
               requisition_id: d.requisitionId || null,
+              store_location: d.storeLocation || null,
               total_amount_kes: total.toFixed(2),
               created_by_id: sub,
               items: {
@@ -624,6 +626,148 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
       } catch (err: any) {
         const st = err?.status ?? 400;
         return reply.status(st).send({ statusCode: st, error: st === 404 ? 'Not Found' : 'Conflict', code: err?.code, message: err?.message || 'Review failed' });
+      }
+    },
+  );
+
+  // =========================================================================
+  // CB4 — PURCHASE REGISTER: unified GRN/PO register (supplier + store + value)
+  // =========================================================================
+  server.get(
+    '/api/v1/purchase-register',
+    { preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const q = request.query as Record<string, string | undefined>;
+      const pg = listParams(request);
+      const kind = (q.kind ?? 'ALL').toUpperCase();
+      const term = q.q?.trim();
+      try {
+        const rows = await withTenantTx(prisma, tenantId, async (tx) => {
+          const out: any[] = [];
+
+          if (kind !== 'GRN') {
+            const poWhere: Record<string, unknown> = { tenant_id: tenantId };
+            if (q.projectId && UUID_REGEX.test(q.projectId)) poWhere.project_id = q.projectId;
+            if (q.status) poWhere.status = q.status.toUpperCase();
+            if (q.store) poWhere.store_location = { contains: q.store, mode: 'insensitive' };
+            if (q.supplierId && UUID_REGEX.test(q.supplierId)) poWhere.supplier_id = q.supplierId;
+            if (term) {
+              poWhere.OR = [
+                { po_number: { contains: term, mode: 'insensitive' } },
+                { store_location: { contains: term, mode: 'insensitive' } },
+                { supplier: { name: { contains: term, mode: 'insensitive' } } },
+              ];
+            }
+            const pos = await tx.purchaseOrder.findMany({
+              where: poWhere,
+              include: {
+                supplier: { select: { id: true, name: true } },
+                project: { select: { id: true, name: true, code: true } },
+                items: { select: { description: true, quantity: true, unit: true } },
+              },
+              orderBy: { created_at: 'desc' },
+              take: 500,
+            });
+            for (const po of pos) {
+              const qty = po.items.reduce((a, i) => a + Number(i.quantity), 0);
+              out.push({
+                id: po.id,
+                kind: 'PO',
+                ref: po.po_number,
+                date: po.order_date,
+                projectId: po.project_id,
+                projectName: po.project?.name ?? null,
+                projectCode: po.project?.code ?? null,
+                supplierId: po.supplier_id,
+                supplierName: po.supplier?.name ?? null,
+                storeLocation: po.store_location,
+                description: po.items.map((i) => i.description).join(' · ') || '—',
+                quantity: po.items.length ? String(qty) : null,
+                unit: null,
+                lineCount: po.items.length,
+                value: po.total_amount_kes?.toString() ?? null,
+                status: po.status,
+              });
+            }
+          }
+
+          if (kind !== 'PO') {
+            const delWhere: Record<string, unknown> = { tenant_id: tenantId };
+            if (q.projectId && UUID_REGEX.test(q.projectId)) {
+              delWhere.site_diary = { project_id: q.projectId };
+            }
+            if (q.store) delWhere.store_location = { contains: q.store, mode: 'insensitive' };
+            if (q.status) delWhere.delivery_status = q.status.toUpperCase();
+            if (q.supplierId && UUID_REGEX.test(q.supplierId)) delWhere.supplier_id = q.supplierId;
+            if (term) {
+              delWhere.OR = [
+                { material_name: { contains: term, mode: 'insensitive' } },
+                { delivery_note: { contains: term, mode: 'insensitive' } },
+                { store_location: { contains: term, mode: 'insensitive' } },
+                { supplier_name: { contains: term, mode: 'insensitive' } },
+                { supplier: { name: { contains: term, mode: 'insensitive' } } },
+              ];
+            }
+            const deliveries = await tx.materialDelivery.findMany({
+              where: delWhere,
+              include: {
+                supplier: { select: { id: true, name: true } },
+                purchase_order_item: { select: { rate: true } },
+                purchase_order: { select: { po_number: true, items: { select: { description: true, rate: true } } } },
+                site_diary: { select: { entry_date: true, project_id: true, project: { select: { id: true, name: true, code: true } } } },
+              },
+              orderBy: { site_diary: { entry_date: 'desc' } },
+              take: 500,
+            });
+            for (const d of deliveries) {
+              // Value = qty × rate. Item-linked deliveries use that line's
+              // rate; PO-level links fall back to the PO line whose
+              // description matches the delivered material.
+              let rate: number | null = d.purchase_order_item?.rate != null ? Number(d.purchase_order_item.rate) : null;
+              if (rate == null && d.purchase_order?.items?.length) {
+                const needle = d.material_name.toLowerCase();
+                const match = d.purchase_order.items.find((i: any) => {
+                  const desc = i.description.toLowerCase();
+                  return needle.includes(desc) || desc.includes(needle);
+                });
+                if (match) rate = Number(match.rate);
+              }
+              const qty = Number(d.quantity);
+              const proj = (d.site_diary as any)?.project;
+              out.push({
+                id: d.id,
+                kind: 'GRN',
+                ref: d.delivery_note || d.purchase_order?.po_number || 'GRN',
+                date: (d.site_diary as any)?.entry_date ?? null,
+                projectId: (d.site_diary as any)?.project_id ?? null,
+                projectName: proj?.name ?? null,
+                projectCode: proj?.code ?? null,
+                supplierId: d.supplier_id,
+                supplierName: d.supplier?.name ?? d.supplier_name ?? null,
+                storeLocation: d.store_location,
+                description: d.material_name,
+                quantity: d.quantity?.toString() ?? null,
+                unit: d.unit,
+                value: rate != null ? (qty * rate).toFixed(2) : null,
+                status: d.delivery_status,
+              });
+            }
+          }
+
+          out.sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime());
+          const total = out.length;
+          const data = out.slice(pg.skip, pg.skip + pg.limit);
+          const hasMore = pg.skip + pg.limit < total;
+          return { data, total, hasMore };
+        });
+        return reply.send({
+          rows: rows.data,
+          page: { page: pg.page, limit: pg.limit, hasMore: rows.hasMore, nextPage: rows.hasMore ? pg.page + 1 : null, total: rows.total },
+        });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load purchase register' });
       }
     },
   );

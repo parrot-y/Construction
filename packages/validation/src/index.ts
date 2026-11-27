@@ -169,6 +169,7 @@ export const MaterialDeliverySchema = z.object({
   purchaseOrderId: z.string().uuid().optional().nullable(),
   purchaseOrderItemId: z.string().uuid().optional().nullable(),
   deliveryNote: z.string().max(100).optional().nullable(),
+  storeLocation: z.string().max(255).optional().nullable(),
 });
 export type MaterialDelivery = z.infer<typeof MaterialDeliverySchema>;
 
@@ -2665,6 +2666,7 @@ export const CreatePurchaseOrderSchema = z.object({
   expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
   requisitionId: z.string().uuid().optional().nullable(),
+  storeLocation: z.string().max(255).optional().nullable(),
   items: z.array(PurchaseOrderItemInputSchema).min(1),
 });
 export type CreatePurchaseOrder = z.infer<typeof CreatePurchaseOrderSchema>;

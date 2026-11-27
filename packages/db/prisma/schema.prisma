@@ -416,6 +416,7 @@ model MaterialDelivery {
   purchase_order_id       String? @db.Uuid
   purchase_order_item_id  String? @db.Uuid
   delivery_note String?    @db.VarChar(100)
+  store_location String?   @db.VarChar(255) // CB4: receiving store/site
   delivery_status String   @default("RECORDED") @db.VarChar(20) // RECORDED | CONFIRMED | DISPUTED
   confirmed_at   DateTime? @db.Timestamptz
   confirmed_by_name String? @db.VarChar(255)
@@ -3403,6 +3404,7 @@ model PurchaseOrder {
   order_date              DateTime  @default(now()) @db.Date
   expected_delivery_date  DateTime? @db.Date
   notes                   String?   @db.Text
+  store_location          String?   @db.VarChar(255) // CB4: delivery/store site for the register
   total_amount_kes        Decimal   @default(0) @db.Decimal(15, 2)
   commitment_id           String?   @db.Uuid
   requisition_id          String?   @db.Uuid // CB1: PO raised against an indent
