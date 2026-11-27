@@ -3329,6 +3329,35 @@ model Supplier {
   @@map("suppliers")
 }
 
+// CB2 — shared rate library (Assistant QS "Rate Master"): per-tenant rates
+// keyed by geography + item/material typing; bulk upload/edit; lookup
+// prefills BoQ lines and PO rates.
+model RateMasterEntry {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenant_id       String    @db.Uuid
+  country         String    @default("Kenya") @db.VarChar(100)
+  state_region    String?   @db.VarChar(100) // county / state
+  city            String?   @db.VarChar(100)
+  item_type       String    @default("MATERIAL") @db.VarChar(20) // MATERIAL | SERVICE | LABOUR | EQUIPMENT | OTHER
+  material_type   String?   @db.VarChar(100)
+  material_subtype String?  @db.VarChar(100)
+  description     String    @db.VarChar(500)
+  unit            String    @db.VarChar(20)
+  unit_rate_kes   Decimal   @db.Decimal(15, 4)
+  effective_from  DateTime? @db.Date
+  effective_to    DateTime? @db.Date
+  source          String    @default("MANUAL") @db.VarChar(20) // MANUAL | IMPORT
+  notes           String?   @db.Text
+  created_by      String?   @db.VarChar(255)
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+
+  @@index([tenant_id, item_type])
+  @@index([tenant_id, material_type, material_subtype])
+  @@index([tenant_id, country, state_region, city])
+  @@map("rate_master_entries")
+}
+
 model PurchaseOrder {
   id                      String    @id @default(uuid()) @db.Uuid
   tenant_id               String    @db.Uuid

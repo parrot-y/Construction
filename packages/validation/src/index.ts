@@ -1037,6 +1037,45 @@ export const ReviewMaterialRequisitionSchema = z.object({
 export type ReviewMaterialRequisition = z.infer<typeof ReviewMaterialRequisitionSchema>;
 
 // -------------------------------------------------------------
+// CB2 — RATE MASTER (shared rate library: geo + item/material typing)
+// -------------------------------------------------------------
+export const RateMasterItemTypeEnum = z.enum(['MATERIAL', 'SERVICE', 'LABOUR', 'EQUIPMENT', 'OTHER']);
+export type RateMasterItemType = z.infer<typeof RateMasterItemTypeEnum>;
+
+const RateDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' });
+
+// Accepts decimal strings or JSON numbers; normalised to a ≤4dp string.
+const RateAmountSchema = z
+  .union([UnitRateSchema, z.number().finite().positive()])
+  .transform((v) => (typeof v === 'number' ? String(v) : v));
+
+export const RateMasterEntryInputSchema = z.object({
+  country: z.string().min(2).max(100).default('Kenya'),
+  stateRegion: z.string().max(100).optional().nullable(),
+  city: z.string().max(100).optional().nullable(),
+  itemType: RateMasterItemTypeEnum.default('MATERIAL'),
+  materialType: z.string().max(100).optional().nullable(),
+  materialSubType: z.string().max(100).optional().nullable(),
+  description: z.string().min(2).max(500),
+  unit: z.string().min(1).max(20),
+  unitRateKes: RateAmountSchema,
+  effectiveFrom: RateDateSchema.optional().nullable(),
+  effectiveTo: RateDateSchema.optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type RateMasterEntryInput = z.infer<typeof RateMasterEntryInputSchema>;
+
+export const UpdateRateMasterEntrySchema = RateMasterEntryInputSchema.partial();
+export type UpdateRateMasterEntry = z.infer<typeof UpdateRateMasterEntrySchema>;
+
+export const BulkRateMasterSchema = z.object({
+  entries: z.array(RateMasterEntryInputSchema).min(1).max(500),
+});
+export type BulkRateMaster = z.infer<typeof BulkRateMasterSchema>;
+
+// -------------------------------------------------------------
 // MATERIAL WASTAGE & THEORETICAL CONSUMPTION VARIANCE ENGINE
 // -------------------------------------------------------------
 export const WastageStatusEnum = z.enum([
