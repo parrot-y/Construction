@@ -14,6 +14,19 @@ export interface SubcontractorPackage {
   status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'COMPLETED' | 'TERMINATED';
   awarded_date?: string | null;
   created_at: string;
+  contractor_id?: string | null;
+  contractorId?: string | null;
+  contractorFirmName?: string | null;
+  contractorKraPin?: string | null;
+}
+
+interface ContractorFirmOption {
+  id: string;
+  firmName: string;
+  kraPin?: string | null;
+  contactPerson?: string | null;
+  phone?: string | null;
+  workCategories?: string[];
 }
 
 interface SubcontractorManagementViewProps {
@@ -68,8 +81,32 @@ export default function SubcontractorManagementView({
   const [newSum, setNewSum] = useState<string>('1500000.00');
   const [newRetention, setNewRetention] = useState<string>('5.00');
   const [newScope, setNewScope] = useState<string>('');
+  const [contractors, setContractors] = useState<ContractorFirmOption[]>([]);
+  const [selectedContractorId, setSelectedContractorId] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // CB5 — approved firms from the contractor master can be linked to a
+  // package; picking one prefills the firm details.
+  useEffect(() => {
+    if (!isLive) return;
+    void (async () => {
+      try {
+        const json = await api.get<{ contractors: ContractorFirmOption[] }>(`/api/v1/contractors?status=APPROVED&limit=200`);
+        setContractors(json.contractors ?? []);
+      } catch { /* register optional — free-text firm entry still works */ }
+    })();
+  }, [isLive]);
+
+  const pickContractor = (id: string) => {
+    setSelectedContractorId(id);
+    const firm = contractors.find((c) => c.id === id);
+    if (firm) {
+      setNewFirmName(firm.firmName);
+      setNewContactPerson(firm.contactPerson ?? '');
+      setNewPhone(firm.phone ?? '');
+    }
+  };
 
   const filtered = packages.filter((p) => {
     const matchesTrade = tradeFilter === 'ALL' || p.trade_category === tradeFilter;
@@ -115,6 +152,7 @@ export default function SubcontractorManagementView({
           retentionRatePct: String(created.retention_rate_pct),
           status: 'ACTIVE',
           scopeDescription: created.scope_description,
+          contractorId: selectedContractorId || null,
 });
         await reload();
         setShowModal(false);
@@ -123,6 +161,7 @@ export default function SubcontractorManagementView({
         setNewPhone('');
         setNewSum('1500000.00');
         setNewScope('');
+        setSelectedContractorId('');
         if (onPackageAwarded) onPackageAwarded(created);
       } catch (err) {
         // Server rejections and transport failures both surface honestly —
@@ -306,6 +345,11 @@ export default function SubcontractorManagementView({
                         • Awarded: {pkg.awarded_date}
 </span>
 )}
+{(pkg.contractorKraPin || pkg.contractorFirmName) && (
+<span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-brand-50 text-brand-800" data-testid={`pkg-contractor-link-${pkg.id}`}>
+                        Master: {pkg.contractorKraPin || pkg.contractorFirmName}
+</span>
+)}
 </div>
 
 <h4 className="text-base font-bold text-slate-900 mb-1">
@@ -375,6 +419,23 @@ export default function SubcontractorManagementView({
 {formError && (
 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-medium" role="alert">
               {formError}
+</div>
+)}
+{contractors.length > 0 && (
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">Contractor register (approved firms)</label>
+<select
+                    value={selectedContractorId}
+                    onChange={(e) => pickContractor(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2"
+                    data-testid="award-contractor-select"
+                  >
+<option value="">— select approved firm to link —</option>
+{contractors.map((c) => (
+<option key={c.id} value={c.id}>{c.firmName}{c.kraPin ? ` · ${c.kraPin}` : ''}</option>
+))}
+</select>
+<p className="text-[11px] text-slate-400 mt-1">Linking pulls the firm from the contractor master; only APPROVED firms are listed.</p>
 </div>
 )}
 <div>

@@ -3,6 +3,7 @@ import React, { useEffect, useState} from 'react';
 import { useConsole} from '../ConsoleContext';
 import CrewsView from '../../CrewsView';
 import SubcontractorManagementView from '../../SubcontractorManagementView';
+import ContractorMasterView from '../../ContractorMasterView';
 import { IconPlus} from '../icons';
 import { useAppDialog } from '../../AppDialog';
 import { formatDate } from '../../../lib/format';
@@ -474,6 +475,29 @@ function RolesView(): React.JSX.Element {
 );
 }
 
+/** People → subcontractors: project work packages + tenant contractor register (CB5). */
+function SubcontractorsTab({ livePid, canAward, role }: { livePid: string; canAward: boolean; role: string }): React.JSX.Element {
+  const [view, setView] = useState<'packages' | 'register'>('packages');
+  return (
+    <div className="space-y-4">
+      <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-bold w-fit" data-testid="subcontractors-view-tabs">
+        {([['packages', 'Work packages'], ['register', 'Contractor register']] as const).map(([id, label]) => (
+          <button key={id} type="button" onClick={() => setView(id)}
+            className={`px-3 py-1.5 transition ${view === id ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            data-testid={`subcontractors-tab-${id}`}>{label}</button>
+        ))}
+      </div>
+      {view === 'register' ? (
+        <ContractorMasterView role={role} />
+      ) : livePid ? (
+        <SubcontractorManagementView projectId={livePid} canAward={canAward} />
+      ) : (
+        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Select a project to view subcontractors.</div>
+      )}
+    </div>
+  );
+}
+
 export default function PeopleSection(): React.JSX.Element {
   const { tab, role, projectId} = useConsole();
   const canInvite = ['COMPANY_ADMIN', 'ADMIN', 'EXECUTIVE'].includes(role);
@@ -481,7 +505,7 @@ export default function PeopleSection(): React.JSX.Element {
   switch (tab) {
     case 'team': return<TeamView canInvite={canInvite} />;
     case 'crews': return<CrewsView canManage={canInvite || ['PM_QS','SUPERINTENDENT','SITE_SUPERVISOR','SITE_ENGINEER'].includes(role)} />;
-    case 'subcontractors': return livePid ?<SubcontractorManagementView projectId={livePid} canAward={canInvite || ['PM_QS','SUPERINTENDENT'].includes(role)} /> :<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Select a project to view subcontractors.</div>;
+    case 'subcontractors': return<SubcontractorsTab livePid={livePid} canAward={canInvite || ['PM_QS','SUPERINTENDENT'].includes(role)} role={role} />;
     case 'directory': return<DirectoryView />;
     case 'roles': return<RolesView />;
     default: return<TeamView canInvite={canInvite} />;
