@@ -1076,6 +1076,35 @@ export const BulkRateMasterSchema = z.object({
 export type BulkRateMaster = z.infer<typeof BulkRateMasterSchema>;
 
 // -------------------------------------------------------------
+// CB3 — GATE PASS (material-exit authorization register)
+// -------------------------------------------------------------
+export const GatePassItemSchema = z.object({
+  description: z.string().min(2).max(500),
+  unit: z.string().min(1).max(20),
+  quantity: z.union([z.string().regex(/^\d+(\.\d{1,4})?$/), z.number().finite().positive()]),
+});
+export type GatePassItem = z.infer<typeof GatePassItemSchema>;
+
+export const CreateGatePassSchema = z.object({
+  projectId: z.string().uuid().optional().nullable(),
+  storeLocation: z.string().max(255).optional().nullable(),
+  issuedToName: z.string().min(2).max(255),
+  issuedToPhone: z.string().max(50).optional().nullable(),
+  destination: z.string().max(255).optional().nullable(),
+  vehicleRegistration: z.string().max(50).optional().nullable(),
+  purpose: z.string().max(255).optional().nullable(),
+  items: z.array(GatePassItemSchema).min(1).max(100),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateGatePass = z.infer<typeof CreateGatePassSchema>;
+
+export const GatePassActionSchema = z.object({
+  reason: z.string().max(500).optional().nullable(),
+  vehicleRegistration: z.string().max(50).optional().nullable(),
+});
+export type GatePassAction = z.infer<typeof GatePassActionSchema>;
+
+// -------------------------------------------------------------
 // MATERIAL WASTAGE & THEORETICAL CONSUMPTION VARIANCE ENGINE
 // -------------------------------------------------------------
 export const WastageStatusEnum = z.enum([

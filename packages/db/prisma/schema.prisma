@@ -264,6 +264,7 @@ model Project {
   permits               ProjectPermit[]
   compliance_visits     ComplianceVisit[]
   drawing_acknowledgements DrawingAcknowledgement[]
+  gate_passes           GatePass[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, status])
@@ -1362,6 +1363,40 @@ model IndentDeliveryBatch {
 
   @@index([tenant_id, requisition_id])
   @@map("indent_delivery_batches")
+}
+
+// CB3 — gate pass: material-exit authorization register (Assistant QS parity).
+// A pass is created PENDING, authorized (COST_APPROVE), then confirmed EXITED
+// at the gate with vehicle + timestamp. pass_number comes from document_counters.
+model GatePass {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenant_id              String    @db.Uuid
+  pass_number            String    @db.VarChar(50) // e.g. "GATE-0001"
+  project_id             String?   @db.Uuid
+  store_location         String?   @db.VarChar(255)
+  issued_to_name         String    @db.VarChar(255)
+  issued_to_phone        String?   @db.VarChar(50)
+  destination            String?   @db.VarChar(255)
+  vehicle_registration   String?   @db.VarChar(50)
+  purpose                String?   @db.VarChar(255)
+  items                  Json // [{description, unit, quantity}]
+  status                 String    @default("PENDING") @db.VarChar(20) // PENDING | AUTHORIZED | EXITED | CANCELLED
+  authorized_by          String?   @db.VarChar(255)
+  authorized_at          DateTime? @db.Timestamptz
+  exited_at              DateTime? @db.Timestamptz
+  exit_confirmed_by      String?   @db.VarChar(255)
+  cancel_reason          String?   @db.Text
+  notes                  String?   @db.Text
+  created_by             String    @db.VarChar(255)
+  created_at             DateTime  @default(now()) @db.Timestamptz
+  updated_at             DateTime  @updatedAt @db.Timestamptz
+
+  project                Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
+
+  @@unique([tenant_id, pass_number])
+  @@index([tenant_id, status])
+  @@index([tenant_id, project_id])
+  @@map("gate_passes")
 }
 
 // =============================================================
