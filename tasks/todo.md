@@ -386,14 +386,14 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
 
 ## Post-Phase-5 — Competitor backlog (Assistant QS suite — docs/research/assistant-qs-suite-notes.md)
 
-- [~] CB1 Indent depth — IN PROGRESS
-  - Schema: MaterialRequisition + indent_kind(MATERIAL|SERVICE)/store/floor/unit/work-order/category/material type+subtype/lead_time/expected_delivery/notes; new IndentDeliveryBatch; requisition_id FK on PurchaseOrder + InventoryMovement
-  - API: create accepts depth fields + deliverySchedule[]; list filters (kind/store/floor/unit/fulfilment); fulfilment derived UNFULFILLED|PO_RAISED|PO_FULFILLED|ISSUED|FULFILLED; PATCH :id/amend (reason, field edits, batch replace, 409 when terminal); PO create + USAGE_OUT movement accept requisitionId
-  - Web: MaterialRequisitionView — kind/store/fulfilment filters, depth fields on create, batch editor, amend dialog
-  - Tests: indent-depth.test.ts (API) + e2e coverage; print view stays in CB7
+- [x] CB1 Indent depth — DONE
+  - Schema: MaterialRequisition + indent_kind(MATERIAL|SERVICE)/store/floor/unit/work-order/category/material type+subtype/lead_time/expected_delivery/notes; new IndentDeliveryBatch; requisition_id FK on PurchaseOrder + InventoryMovement (migration 20261127120000_cb1_indent_depth)
+  - API: create accepts depth fields + deliverySchedule[]; list filters (kind/store/floor/unit/fulfilment); fulfilment derived UNFULFILLED|PO_RAISED|PO_FULFILLED|ISSUED|FULFILLED; PATCH :id/amend (reason, field edits, batch replace, 409 when terminal, recordAuditLog AMEND); PO create + USAGE_OUT movement accept requisitionId — d853514 (red 6245040)
+  - Web: MaterialRequisitionView mounted LIVE as Money → "Material indents" (was dead code inside unmounted PmQsDashboard) — kind/store/fulfilment filters, depth fields on create, DeliveryScheduleEditor, AmendRequisitionModal, fulfilment badges, role-gated via COST_* permissions; IndentPrintModal + @media print [data-print-root] isolation; live errors surface via apiErrorMessage (no silent fake rows) — 7b8510f, 9804e0a
+  - Tests: indent-depth.test.ts 5/5 (API), cb1-indent-depth.spec.ts 8/8 chromium+mobile-390 (create/amend/print/API), a8-permissions + l2-click-sweep green with new tab
 - [ ] CB2 Rate master: shared rate library (geo + item typing), bulk upload/edit, prefill BoQ/PO rates
 - [ ] CB3 Gate pass: material-exit authorization register
 - [ ] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen
 - [ ] CB5 Contractor master: unified firm register (KRA PIN, work categories, approval status)
 - [ ] CB6 BOQ floor/unit mapping for takeoff
-- [ ] CB7 Print views: indent/PO/GRN site paperwork
+- [ ] CB7 Print views: PO/GRN print remain (indent print shipped with CB1 — IndentPrintModal + print CSS)
