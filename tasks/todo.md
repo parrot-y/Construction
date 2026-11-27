@@ -402,6 +402,10 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
   - Web: Money → "Gate passes" tab (GatePassView register + status chips + search + create modal w/ item lines + authorize/exit/cancel via AppDialog, COST_* gated)
   - Tests: gate-pass.test.ts 4/4; cb3-gate-pass.spec.ts 2/2 chromium + 2/2 mobile-390; a8-permissions green incl. new tab; l2-click-sweep/admin-console-capture lists updated
 - [ ] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen
+  - Schema: store_location on purchase_orders + material_deliveries (migration cb4)
+  - API: GET /api/v1/purchase-register unified rows (kind PO|GRN, ref, date, project, supplier, store, description, qty, value, status) + filters kind/status/supplierId/store/projectId/q + pagination; PO create + diary delivery accept storeLocation
+  - Web: ProcurementView gains PO list | GRN register toggle (or dedicated register screen) with supplier/store/value columns
+  - Tests: purchase-register.test.ts (API red first) + e2e spec
 - [ ] CB5 Contractor master: unified firm register (KRA PIN, work categories, approval status)
 - [ ] CB6 BOQ floor/unit mapping for takeoff
 - [ ] CB7 Print views: PO/GRN print remain (indent print shipped with CB1 — IndentPrintModal + print CSS)
