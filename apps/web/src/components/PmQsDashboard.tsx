@@ -510,7 +510,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {(activeTab === 'all' || activeTab === 'requisitions') && (
 <MaterialRequisitionView
           projectId={pid}
-          projectName="Riverside Commercial Plaza"
+          projectName={projects.find((p) => p.id === pid)?.name || ''}
           userRole="PM_QS"
         />
 )}

@@ -49,13 +49,13 @@ const CONSOLE_TABS: Record<string, string[]> = {
   home: ['dashboard', 'inbox', 'announcements'],
   projects: ['all', 'schedule', 'drawings', 'changeorders', 'coordination', 'correspondence'],
   site: ['fieldview', 'map', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'attendance'],
-  money: ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations', 'billing'],
+  money: ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'requisitions', 'certificates', 'subvaluations', 'billing'],
   people: ['team', 'crews', 'subcontractors', 'directory', 'roles'],
   files: ['reports', 'companydocs', 'unfiled'],
 };
 const PM_TABS: Record<string, string[]> = {
   ...CONSOLE_TABS,
-  money: ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations'],
+  money: ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'requisitions', 'certificates', 'subvaluations'],
 };
 
 async function register(request: APIRequestContext): Promise<Session> {

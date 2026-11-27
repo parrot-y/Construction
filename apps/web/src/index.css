@@ -134,3 +134,27 @@ button:active, a:active {
     content: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Print documents (e.g. indent print view) — only [data-print-root]   */
+/* is visible; everything else is hidden but keeps layout.             */
+/* ------------------------------------------------------------------ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-print-root],
+  [data-print-root] * {
+    visibility: visible;
+  }
+  [data-print-root] {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+}

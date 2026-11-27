@@ -1,8 +1,10 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
-import { api } from '../lib/api';
+import { api, apiErrorMessage } from '../lib/api';
 import { DeliveryScheduleEditor } from './indent/DeliveryScheduleEditor';
 import { AmendRequisitionModal } from './indent/AmendRequisitionModal';
+import { IndentPrintModal } from './indent/IndentPrintModal';
+import { hasPermission, Permissions, type Role } from '@construction/permissions';
 
 export interface MaterialRequisitionItem {
   id: string;
@@ -166,6 +168,8 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [amendTarget, setAmendTarget] = useState<MaterialRequisitionItem | null>(null);
+  const [printTarget, setPrintTarget] = useState<MaterialRequisitionItem | null>(null);
+  const [formError, setFormError] = useState('');
 
   // Form State
   const [itemDescription, setItemDescription] = useState('');
@@ -212,6 +216,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
     if (!itemDescription || !requestedQuantity || !estimatedUnitCostKes) return;
 
     setIsSubmitting(true);
+    setFormError('');
     const newReqNo = `REQ-2026-${String(requisitions.length + 1).padStart(3, '0')}`;
     const totalCost = (parseFloat(requestedQuantity) * parseFloat(estimatedUnitCostKes)).toFixed(2);
 
@@ -249,7 +254,11 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
         setIsModalOpen(false);
         resetForm();
         return;
-} catch { /* fall through to local */}
+} catch (err) {
+        setFormError(apiErrorMessage(err, 'Could not save the requisition.'));
+        setIsSubmitting(false);
+        return;
+}
 }
 
     if (onCreateRequisition) {
@@ -301,8 +310,11 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
     setScheduleRows([]);
 };
 
+  const role = userRole as Role;
+  const canCreate = hasPermission(role, Permissions.COST_CREATE);
+  const canApprove = hasPermission(role, Permissions.COST_APPROVE);
   const canAmend = (r: MaterialRequisitionItem) =>
-    r.status !== 'REJECTED' && r.fulfilment !== 'FULFILLED';
+    canApprove && r.status !== 'REJECTED' && r.fulfilment !== 'FULFILLED';
 
   const fulfilmentStyle = (f?: string) =>
     f === 'FULFILLED' ? 'bg-emerald-100 text-emerald-800'
@@ -318,8 +330,12 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
     if (isLive) {
       try {
         await api.patch(`/api/v1/projects/${projectId}/material-requisitions/${reqId}`, { status: newStatus, approvedBy: null, rejectionReason: null});
+        setFormError('');
         await reload(); return;
-} catch { /* fall through to local */}
+} catch (err) {
+        setFormError(apiErrorMessage(err, 'Status change failed.'));
+        return;
+}
 }
     if (onReviewRequisition) {
       await onReviewRequisition(reqId, newStatus);
@@ -356,13 +372,19 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
             Store reorder workflows, bulk site purchases, and supplier RFQ orders for {projectName}
 </p>
 </div>
+{canCreate && (
 <button
           onClick={() => setIsModalOpen(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm rounded-lg shadow-sm transition"
         >
 <span>+</span> New Material Request
 </button>
+)}
 </div>
+
+      {formError && (
+<p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{formError}</p>
+)}
 
       {/* Summary KPI Cards */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -511,6 +533,13 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 <p>POs: {req.linkedPurchaseOrders.map((p) => `${p.poNumber} (${p.status})`).join(', ')}</p>
 )}
                         {Number(req.issuedQuantity) > 0 && <p>Issued: {req.issuedQuantity} {req.unitOfMeasure}</p>}
+                        <button
+                          type="button"
+                          onClick={() => setPrintTarget(req)}
+                          className="mt-1 px-2 py-1 border border-slate-300 text-slate-700 rounded text-xs font-medium hover:bg-white"
+                        >
+                          Print indent
+                        </button>
 </div>
 )}
 </td>
@@ -568,7 +597,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
                         Amend
 </button>
 )}
-                    {req.status === 'PENDING_APPROVAL' && (userRole === 'PM_QS' || userRole === 'ADMIN') && (
+                    {req.status === 'PENDING_APPROVAL' && canApprove && (
 <div className="inline-flex gap-1">
 <button
                           onClick={() => handleStatusChange(req.id, 'APPROVED')}
@@ -586,7 +615,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 </button>
 </div>
 )}
-                    {req.status === 'APPROVED' && (
+                    {req.status === 'APPROVED' && canApprove && (
 <button
                         onClick={() => handleStatusChange(req.id, 'PO_ISSUED')}
                         className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium"
@@ -617,6 +646,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 </div>
 
 <form onSubmit={handleCreate} className="space-y-4 text-sm">
+{formError && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{formError}</p>}
 <div>
 <label className="block font-medium text-slate-700 mb-1">
                   Item Description / Material Name *
@@ -625,6 +655,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
                   type="text"
                   required
                   placeholder="e.g. Simba Portland Cement 42.5N, River Sand, D16 Rebar"
+                  aria-label="Item description"
                   value={itemDescription}
                   onChange={(e) => setItemDescription(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -636,6 +667,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 <select
                   value={indentKind}
                   onChange={(e) => setIndentKind(e.target.value as 'MATERIAL' | 'SERVICE')}
+                  aria-label="Indent kind"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 >
 <option value="MATERIAL">Material / Asset</option>
@@ -683,6 +715,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
                     step="0.01"
                     required
                     placeholder="e.g. 200"
+                    aria-label="Requested quantity"
                     value={requestedQuantity}
                     onChange={(e) => setRequestedQuantity(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -695,6 +728,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
                     step="0.01"
                     required
                     placeholder="e.g. 780"
+                    aria-label="Estimated unit cost"
                     value={estimatedUnitCostKes}
                     onChange={(e) => setEstimatedUnitCostKes(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -714,6 +748,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 <input
                     type="date"
                     value={requiredByDate}
+                    aria-label="Required by date"
                     onChange={(e) => setRequiredByDate(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   />
@@ -723,6 +758,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 <input
                     type="text"
                     placeholder="e.g. Site Supervisor J. Mwangi"
+                    aria-label="Requested by"
                     value={requestedBy}
                     onChange={(e) => setRequestedBy(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -735,6 +771,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 <input
                   type="text"
                   placeholder="e.g. Bamburi Special Products, Apex Steel, Devki"
+                  aria-label="Preferred supplier"
                   value={supplierName}
                   onChange={(e) => setSupplierName(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
@@ -759,6 +796,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
                         type="text"
                         value={val}
                         placeholder={ph}
+                        aria-label={label}
                         onChange={(e) => setter(e.target.value)}
                         className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
@@ -770,6 +808,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
                         type="text"
                         value={materialSubType}
                         placeholder="e.g. Ballast"
+                        aria-label="Material subtype"
                         onChange={(e) => setMaterialSubType(e.target.value)}
                         className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
@@ -780,6 +819,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
                         type="number"
                         min="0"
                         value={leadTimeDays}
+                        aria-label="Lead time (days)"
                         onChange={(e) => setLeadTimeDays(e.target.value)}
                         className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
@@ -789,6 +829,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 <input
                         type="date"
                         value={expectedDeliveryDate}
+                        aria-label="Expected delivery"
                         onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                         className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
@@ -799,6 +840,7 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
 <input
                     type="text"
                     value={notes}
+                    aria-label="Notes"
                     onChange={(e) => setNotes(e.target.value)}
                     className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   />
@@ -837,6 +879,13 @@ export const MaterialRequisitionView: React.FC<MaterialRequisitionViewProps> = (
           isLive={isLive}
           onClose={() => setAmendTarget(null)}
           onSaved={async () => { setAmendTarget(null); await reload(); }}
+        />
+)}
+      {printTarget && (
+<IndentPrintModal
+          requisition={printTarget}
+          projectName={projectName}
+          onClose={() => setPrintTarget(null)}
         />
 )}
 </div>

@@ -79,25 +79,25 @@ export const AmendRequisitionModal: React.FC<{
         <form onSubmit={submit} className="space-y-3 text-sm">
           <div>
             <label className={lbl}>Reason for amendment *</label>
-            <input type="text" required value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Quantity revised after design change" className={field} />
+            <input type="text" aria-label="Reason for amendment" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Quantity revised after design change" className={field} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={lbl}>Item description</label><input type="text" value={itemDescription} onChange={(e) => setItemDescription(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Quantity</label><input type="number" step="0.01" value={requestedQuantity} onChange={(e) => setRequestedQuantity(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Unit</label><input type="text" value={unitOfMeasure} onChange={(e) => setUnitOfMeasure(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Store</label><input type="text" value={storeLocation} onChange={(e) => setStoreLocation(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Floor / Level</label><input type="text" value={floorRef} onChange={(e) => setFloorRef(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Unit ref</label><input type="text" value={unitRef} onChange={(e) => setUnitRef(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Work order</label><input type="text" value={workOrderRef} onChange={(e) => setWorkOrderRef(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Category</label><input type="text" value={indentCategory} onChange={(e) => setIndentCategory(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Material type</label><input type="text" value={materialType} onChange={(e) => setMaterialType(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Material subtype</label><input type="text" value={materialSubType} onChange={(e) => setMaterialSubType(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Lead time (days)</label><input type="number" min="0" value={leadTimeDays} onChange={(e) => setLeadTimeDays(e.target.value)} className={field} /></div>
-            <div><label className={lbl}>Expected delivery</label><input type="date" value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Item description</label><input type="text" aria-label="Item description" value={itemDescription} onChange={(e) => setItemDescription(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Quantity</label><input type="number" step="0.01" aria-label="Quantity" value={requestedQuantity} onChange={(e) => setRequestedQuantity(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Unit</label><input type="text" aria-label="Unit" value={unitOfMeasure} onChange={(e) => setUnitOfMeasure(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Store</label><input type="text" aria-label="Store" value={storeLocation} onChange={(e) => setStoreLocation(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Floor / Level</label><input type="text" aria-label="Floor / Level" value={floorRef} onChange={(e) => setFloorRef(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Unit ref</label><input type="text" aria-label="Unit ref" value={unitRef} onChange={(e) => setUnitRef(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Work order</label><input type="text" aria-label="Work order" value={workOrderRef} onChange={(e) => setWorkOrderRef(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Category</label><input type="text" aria-label="Category" value={indentCategory} onChange={(e) => setIndentCategory(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Material type</label><input type="text" aria-label="Material type" value={materialType} onChange={(e) => setMaterialType(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Material subtype</label><input type="text" aria-label="Material subtype" value={materialSubType} onChange={(e) => setMaterialSubType(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Lead time (days)</label><input type="number" min="0" aria-label="Lead time (days)" value={leadTimeDays} onChange={(e) => setLeadTimeDays(e.target.value)} className={field} /></div>
+            <div><label className={lbl}>Expected delivery</label><input type="date" aria-label="Expected delivery" value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.target.value)} className={field} /></div>
           </div>
           <div>
             <label className={lbl}>Notes</label>
-            <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} className={field} />
+            <input type="text" aria-label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} className={field} />
           </div>
           <DeliveryScheduleEditor
             rows={scheduleRows}
