@@ -396,11 +396,11 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
   - API: /api/v1/rate-master CRUD + GET /lookup ranked match (q+unit, effective-date bonus) + POST /bulk upsert ≤500 by natural key — 4baa7f0 (red test rate-master.test.ts 5/5)
   - Web: Money → "Rate master" tab (RateMasterView: filters, table, edit modal w/ AppDialog delete, CSV bulk upload); shared RateLookupButton prefill wired into BoqWorkbookView add/edit line + ProcurementView PO lines
   - Tests: rate-master.test.ts 5/5 (API); cb2-rate-master.spec.ts 3/3 chromium + 3/3 mobile-390 (create, bulk upsert 1c/1u, BoQ prefill→790); a8-permissions + l2-click-sweep updated & green; frontend-hygiene clean
-- [ ] CB3 Gate pass: material-exit authorization register
-  - Schema: GatePass (tenant, pass_number via document_counters 'GATE_PASS', project?, store_location, issued_to name/phone, destination, vehicle_registration, purpose, items Json [{description,unit,quantity}], status PENDING|AUTHORIZED|EXITED|CANCELLED, authorized_by/at, exited_at/by, notes) + migration + RLS
-  - API: /api/v1/gate-passes GET list (projectId/status/store/q) + GET :id + POST create (COST_CREATE) + POST :id/authorize (COST_APPROVE) + POST :id/exit (COST_CREATE, records exited_at/by + vehicle) + POST :id/cancel (COST_APPROVE); 409 on illegal transitions; audit log
-  - Web: Money → "Gate passes" tab (GatePassView register + create modal + per-status actions, role-gated COST_*)
-  - Tests: gate-pass.test.ts (API red first) + e2e spec; update a8/l2/admin-console-capture tab lists
+- [x] CB3 Gate pass: material-exit authorization register — DONE
+  - Schema: GatePass (tenant, pass_number unique per tenant via document_counters 'GATE_PASS', project?, store, issued_to name/phone, destination, vehicle, purpose, items Json, status PENDING|AUTHORIZED|EXITED|CANCELLED, authorized_by/at, exited_at/by, cancel_reason) — migration 20261127140000_cb3_gate_pass + RLS
+  - API: /api/v1/gate-passes list (projectId/status/store/q) + get + create (COST_CREATE) + :id/authorize|exit|cancel (COST_APPROVE authorize/cancel, COST_CREATE exit); 409 illegal transitions; audit log — c36f342 (red dbac35f, 4/4)
+  - Web: Money → "Gate passes" tab (GatePassView register + status chips + search + create modal w/ item lines + authorize/exit/cancel via AppDialog, COST_* gated)
+  - Tests: gate-pass.test.ts 4/4; cb3-gate-pass.spec.ts 2/2 chromium + 2/2 mobile-390; a8-permissions green incl. new tab; l2-click-sweep/admin-console-capture lists updated
 - [ ] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen
 - [ ] CB5 Contractor master: unified firm register (KRA PIN, work categories, approval status)
 - [ ] CB6 BOQ floor/unit mapping for takeoff

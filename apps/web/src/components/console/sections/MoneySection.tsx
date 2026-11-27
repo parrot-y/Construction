@@ -12,6 +12,7 @@ import InvoicingView from '../../InvoicingView';
 import SiteInventoryManagementView from '../../SiteInventoryManagementView';
 import { MaterialRequisitionView } from '../../MaterialRequisitionView';
 import { RateMasterView } from '../../RateMasterView';
+import { GatePassView } from '../../GatePassView';
 import { SubscriptionBillingView} from '../../SubscriptionBillingView';
 import { RetentionAndBondsView} from '../../RetentionAndBondsView';
 import { ProjectSCurveCashFlowCard} from '../../ProjectSCurveCashFlowCard';
@@ -166,6 +167,8 @@ export default function MoneySection(): React.JSX.Element {
       return livePid ?<MaterialRequisitionView projectId={livePid} projectName={projectName} userRole={role} /> :<EmptyProject what="material indents" />;
     case 'rates':
       return<RateMasterView role={role} />;
+    case 'gatepass':
+      return<GatePassView role={role} projects={projects.map((p) => ({ id: p.id, name: p.name }))} />;
     case 'certificates':
       return livePid ?<CertificatesCloseoutView projectId={livePid} canManage={canManage} /> :<EmptyProject what="certificates" />;
     case 'subvaluations':

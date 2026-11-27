@@ -22,7 +22,7 @@ const TABS: [string, string][] = [
   ['site', 'punch'], ['site', 'inspections'], ['site', 'observations'], ['site', 'actionplans'],
   ['site', 'safety'], ['site', 'attendance'],
   ['money', 'financials'], ['money', 'commitments'], ['money', 'procurement'], ['money', 'quotes'],
-  ['money', 'invoices'], ['money', 'inventory'], ['money', 'requisitions'], ['money', 'rates'], ['money', 'certificates'], ['money', 'subvaluations'], ['money', 'billing'],
+  ['money', 'invoices'], ['money', 'inventory'], ['money', 'requisitions'], ['money', 'rates'], ['money', 'gatepass'], ['money', 'certificates'], ['money', 'subvaluations'], ['money', 'billing'],
   ['people', 'team'], ['people', 'crews'], ['people', 'subcontractors'], ['people', 'directory'], ['people', 'roles'],
   ['files', 'reports'], ['files', 'companydocs'], ['files', 'unfiled'],
 ];

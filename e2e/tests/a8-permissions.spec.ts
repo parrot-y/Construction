@@ -35,6 +35,7 @@ const ADMIN_TABS: Record<string, string[]> = {
   '/app/money/inventory': [],
   '/app/money/requisitions': [],
   '/app/money/rates': [],
+  '/app/money/gatepass': [],
   '/app/money/certificates': [],
   '/app/money/subvaluations': [],
   '/app/money/billing': [],
