@@ -391,7 +391,11 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
   - API: create accepts depth fields + deliverySchedule[]; list filters (kind/store/floor/unit/fulfilment); fulfilment derived UNFULFILLED|PO_RAISED|PO_FULFILLED|ISSUED|FULFILLED; PATCH :id/amend (reason, field edits, batch replace, 409 when terminal, recordAuditLog AMEND); PO create + USAGE_OUT movement accept requisitionId — d853514 (red 6245040)
   - Web: MaterialRequisitionView mounted LIVE as Money → "Material indents" (was dead code inside unmounted PmQsDashboard) — kind/store/fulfilment filters, depth fields on create, DeliveryScheduleEditor, AmendRequisitionModal, fulfilment badges, role-gated via COST_* permissions; IndentPrintModal + @media print [data-print-root] isolation; live errors surface via apiErrorMessage (no silent fake rows) — 7b8510f, 9804e0a
   - Tests: indent-depth.test.ts 5/5 (API), cb1-indent-depth.spec.ts 8/8 chromium+mobile-390 (create/amend/print/API), a8-permissions + l2-click-sweep green with new tab
-- [ ] CB2 Rate master: shared rate library (geo + item typing), bulk upload/edit, prefill BoQ/PO rates
+- [x] CB2 Rate master — DONE
+  - Schema: RateMasterEntry (tenant, country/state/city, item_type, material_type/subtype, description, unit, unit_rate_kes, effective dates, source) + migration 20261127130000_cb2_rate_master + RLS
+  - API: /api/v1/rate-master CRUD + GET /lookup ranked match (q+unit, effective-date bonus) + POST /bulk upsert ≤500 by natural key — 4baa7f0 (red test rate-master.test.ts 5/5)
+  - Web: Money → "Rate master" tab (RateMasterView: filters, table, edit modal w/ AppDialog delete, CSV bulk upload); shared RateLookupButton prefill wired into BoqWorkbookView add/edit line + ProcurementView PO lines
+  - Tests: rate-master.test.ts 5/5 (API); cb2-rate-master.spec.ts 3/3 chromium + 3/3 mobile-390 (create, bulk upsert 1c/1u, BoQ prefill→790); a8-permissions + l2-click-sweep updated & green; frontend-hygiene clean
 - [ ] CB3 Gate pass: material-exit authorization register
 - [ ] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen
 - [ ] CB5 Contractor master: unified firm register (KRA PIN, work categories, approval status)

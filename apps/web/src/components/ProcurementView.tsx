@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatKes } from '../ui';
 import { api } from '../lib/apiClient';
+import { RateLookupButton } from './rateMaster/RateLookupButton';
 
 /**
  * Procurement — purchase orders, three-way match and supplier-invoice review.
@@ -313,7 +314,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
             {lines.map((l, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                 <input
-                  className="col-span-5 px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
+                  className="col-span-4 px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
                   placeholder="Line description"
                   value={l.description}
                   onChange={(e) => setLine(idx, { description: e.target.value })}
@@ -333,14 +334,22 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
                   onChange={(e) => setLine(idx, { quantity: e.target.value })}
                   data-testid={`po-line-qty-${idx}`}
                 />
-                <input
-                  className="col-span-2 px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
-                  type="number" min="0" step="0.01"
-                  placeholder="Rate (KES)"
-                  value={l.rate}
-                  onChange={(e) => setLine(idx, { rate: e.target.value })}
-                  data-testid={`po-line-rate-${idx}`}
-                />
+                <div className="col-span-3 flex items-center gap-1">
+                  <input
+                    className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-slate-300 rounded-lg"
+                    type="number" min="0" step="0.01"
+                    placeholder="Rate (KES)"
+                    value={l.rate}
+                    onChange={(e) => setLine(idx, { rate: e.target.value })}
+                    data-testid={`po-line-rate-${idx}`}
+                  />
+                  <RateLookupButton
+                    query={l.description}
+                    unit={l.unit}
+                    label="⤓"
+                    onPick={(m) => setLine(idx, { rate: m.unitRateKes, ...(l.unit.trim() ? {} : { unit: m.unit }) })}
+                  />
+                </div>
                 <button
                   type="button"
                   className="col-span-1 text-xs text-rose-600 font-bold"

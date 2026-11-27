@@ -29,8 +29,8 @@ const DRAWINGS_ONLY_PROJECT_TABS = ['drawings'];
 const ALL_SITE_TABS = ['fieldview', 'map', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'meetings', 'attendance'];
 const VIEWER_SITE_TABS = ['dailylog', 'map', 'checklists', 'punch', 'inspections', 'observations', 'safety', 'attendance'];
 
-const ALL_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'requisitions', 'certificates', 'subvaluations', 'billing'];
-const NO_BILLING_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'requisitions', 'certificates', 'subvaluations'];
+const ALL_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'requisitions', 'rates', 'certificates', 'subvaluations', 'billing'];
+const NO_BILLING_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'requisitions', 'rates', 'certificates', 'subvaluations'];
 const INVOICES_INVENTORY = ['invoices', 'inventory'];
 const INVENTORY_ONLY = ['inventory'];
 const VIEWER_MONEY_TABS = ['commitments', 'invoices', 'inventory'];
@@ -221,6 +221,7 @@ export const SUBTAB_LABELS: Record<string, string> = {
   invoices: 'Invoices',
   inventory: 'Inventory',
   requisitions: 'Material indents',
+  rates: 'Rate master',
   certificates: 'Certificates',
   subvaluations: 'Sub valuations',
   billing: 'Billing & plan',

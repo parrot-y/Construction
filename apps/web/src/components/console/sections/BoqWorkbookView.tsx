@@ -5,6 +5,7 @@ import BoqImportModal from '../../BoqImportModal';
 import { useAppDialog } from '../../AppDialog';
 import { api, ApiError, apiErrorMessage } from '../../../lib/api';
 import { InlineError } from '../../feedback/InlineError';
+import { RateLookupButton } from '../../rateMaster/RateLookupButton';
 
 interface BoqItem {
   id: string;
@@ -424,6 +425,13 @@ function renderForm(
         <label className="text-[11px] font-semibold text-slate-500">
           Rate (KES)
           <input type="number" min="0" step="any" value={form.unit_rate} onChange={(e) => setForm({ ...form, unit_rate: e.target.value })} required placeholder="0" className={`${input} mt-1`} />
+          <span className="mt-1 inline-block">
+            <RateLookupButton
+              query={form.description}
+              unit={form.unit}
+              onPick={(m) => setForm({ ...form, unit_rate: m.unitRateKes, ...(form.unit.trim() ? {} : { unit: m.unit }) })}
+            />
+          </span>
         </label>
       </div>
       {error && <InlineError error={error} className="mt-2" />}
