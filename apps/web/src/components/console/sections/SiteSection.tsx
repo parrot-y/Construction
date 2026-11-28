@@ -19,12 +19,13 @@ const ProjectMapView = lazyChunk(() => import('../../ProjectMapView'));
 import { IconPlus} from '../icons';
 import { formatDate } from '../../../lib/format';
 import { api } from '../../../lib/api';
+import { Card } from '../../../ui';
 
 function EmptyProject({ what}: { what: string}): React.JSX.Element {
   return (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500 dark:text-slate-400">
+<Card className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
       Select a project to view {what}.
-</div>
+</Card>
 );
 }
 
@@ -71,7 +72,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 ) : (
 <>
           {/* Week strip — last 14 days, logged vs not */}
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<Card className="overflow-hidden">
 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
 <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                 {days.length} of {Math.min(14, days.length + 14 - days.length)} recent days logged
@@ -110,7 +111,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 );
 })}
 </div>
-</div>
+</Card>
 
 <div className="bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
 <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Why log every day</p>
@@ -198,7 +199,7 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
 ))}
 </div>
 
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<Card className="p-5">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">My Assigned Checklists</h4>
 <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Complete your assigned QA checklists and safety inspections.</p>
         {loading ? (
@@ -222,7 +223,7 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
 ))}
 </div>
 )}
-</div>
+</Card>
 </div>
 );
 }
@@ -244,7 +245,7 @@ export default function SiteSection(): React.JSX.Element {
 }
   if (tab === 'map') {
     return livePid ? (
-      <Suspense fallback={<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Loading map…</div>}>
+      <Suspense fallback={<Card className="p-10 text-center text-sm text-slate-500">Loading map…</Card>}>
         <ProjectMapView projectId={livePid} canEdit={canEdit} />
       </Suspense>
     ) : <EmptyProject what="the project map" />;

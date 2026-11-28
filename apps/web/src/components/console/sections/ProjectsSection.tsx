@@ -1,6 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { PROJECT_TYPE_CATEGORIES, projectTypeCategory } from '@construction/validation';
-import { formatKes } from '../../../ui';
+import { Card, formatKes } from '../../../ui';
 import { statusLabel } from '../../../lib/status-labels';
 import { useConsole} from '../ConsoleContext';
 import { SUBTAB_LABELS} from '../navConfig';
@@ -168,7 +168,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 )}
 
       {recentCos.length > 0 && (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<Card className="overflow-hidden">
 <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Recent Activity</h3>
 <span className="text-xs text-slate-500">Latest change orders</span>
@@ -197,7 +197,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 </tbody>
 </table>
 </div>
-</div>
+</Card>
 )}
 </div>
 );
@@ -211,7 +211,7 @@ export default function ProjectsSection(): React.JSX.Element {
 
   if (tab === 'all') return<ProjectsAll canEdit={canEdit} />;
   if (!livePid) {
-    return<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Select a project to view {SUBTAB_LABELS[tab] || tab}.</div>;
+    return<Card className="p-10 text-center text-sm text-slate-500">Select a project to view {SUBTAB_LABELS[tab] || tab}.</Card>;
 }
   switch (tab) {
     case 'schedule': return<ProjectScheduleGanttView projectId={livePid} canEdit={canEdit} />;

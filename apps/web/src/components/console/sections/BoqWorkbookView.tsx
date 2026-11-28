@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { formatKes } from '../../../ui';
+import { Card, formatKes } from '../../../ui';
 import { hasPermission, Permissions, type Role } from '@construction/permissions';
 import BoqImportModal from '../../BoqImportModal';
 import { useAppDialog } from '../../AppDialog';
@@ -245,17 +245,17 @@ export default function BoqWorkbookView({
 
   if (state === 'loading') {
     return (
-      <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3" aria-busy="true">
+      <Card className="p-5 space-y-3" aria-busy="true">
         {[0, 1, 2].map((i) => (
           <div key={i} className="h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse" />
         ))}
-      </div>
+      </Card>
     );
   }
 
   if (state === 'error') {
     return (
-      <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center">
+      <Card className="p-10 text-center">
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Could not load the Bill of Quantities</p>
         <p className="text-xs text-slate-500 mt-1">Check your connection and try again.</p>
         <button
@@ -265,13 +265,13 @@ export default function BoqWorkbookView({
         >
           Retry
         </button>
-      </div>
+      </Card>
     );
   }
 
   if (state === 'empty' || !boq) {
     return (
-      <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center">
+      <Card className="p-10 text-center">
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">No Bill of Quantities yet</p>
         <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
           The BoQ lists every item of work with quantities and rates — it drives valuations, valuations and retention.
@@ -305,12 +305,12 @@ export default function BoqWorkbookView({
             projectName={projectName}
           />
         )}
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+    <Card className="overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Bill of Quantities</h3>
@@ -483,7 +483,7 @@ export default function BoqWorkbookView({
         />
       )}
       {dialog.element}
-    </div>
+    </Card>
   );
 }
 

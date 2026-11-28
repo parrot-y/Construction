@@ -3,6 +3,7 @@ import { useConsole} from '../ConsoleContext';
 import InboxView from '../../InboxView';
 import AnnouncementsView from '../../AnnouncementsView';
 import { api } from '../../../lib/api';
+import { Card } from '../../../ui';
 import HomeDashboard from '../dashboard/HomeDashboard';
 
 /** Executive / admin / viewer home — portfolio KPIs + change-order pulse. */
@@ -239,7 +240,7 @@ function FieldHome(): React.JSX.Element {
 
   return (
 <div className="space-y-6">
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<Card className="p-5">
 <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Today's work{pname ? ` — ${pname}` : ''}</h2>
 <p className="text-xs text-slate-500 mt-0.5">Start here: site log, headcount, snags and safety for today.</p>
 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
@@ -251,7 +252,7 @@ function FieldHome(): React.JSX.Element {
 </button>
 ))}
 </div>
-</div>
+</Card>
 <InboxView currentUserId={session.user.id} />
 </div>
 );

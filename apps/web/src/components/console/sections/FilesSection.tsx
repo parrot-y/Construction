@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../../../ui';
+import { Card, formatKes } from '../../../ui';
 import { useConsole} from '../ConsoleContext';
 import CompanyDocumentsView from '../../CompanyDocumentsView';
 import IntegrationsView from '../../IntegrationsView';
@@ -83,17 +83,17 @@ function ReportsView(): React.JSX.Element {
             ['Median Cycle', coMetrics.medianCycle === null ? '—' : `${coMetrics.medianCycle}d`, 'submit → decision'],
             ['Rework Rate', `${coMetrics.reworkRate}%`, 'rejected or rework'],
           ].map(([label, value, sub]) => (
-<div key={label as string} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+<Card key={label as string} className="p-4">
 <p className="text-[10px] font-bold text-slate-500">{label}</p>
 <p className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">{value}</p>
 <p className="text-[10px] text-slate-500 mt-0.5">{sub}</p>
-</div>
+</Card>
 ))}
 </div>
 )}
 
       {coMetrics?.byStatus && Object.keys(coMetrics.byStatus).length > 0 && (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<Card className="p-5">
 <div className="flex items-center justify-between mb-3">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">CO Volume by Status</h4>
 <span className="text-[10px] text-slate-500">Number of change orders</span>
@@ -114,12 +114,12 @@ function ReportsView(): React.JSX.Element {
 );
 })}
 </div>
-</div>
+</Card>
 )}
 
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {REPORT_LINKS.map((r) => (
-<div key={r.label} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col">
+<Card key={r.label} className="p-5 flex flex-col">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{r.label}</h4>
 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex-1">{r.desc}</p>
             {livePid ? (
@@ -148,9 +148,9 @@ function ReportsView(): React.JSX.Element {
 ) : (
 <span className="mt-4 text-[11px] text-slate-500">Select a project</span>
 )}
-</div>
+</Card>
 ))}
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col">
+<Card className="p-5 flex flex-col">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">BOQ workbook</h4>
 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex-1">Active bill of quantities as Excel.</p>
           {livePid ? (
@@ -161,7 +161,7 @@ function ReportsView(): React.JSX.Element {
 ) : (
 <span className="mt-4 text-[11px] text-slate-500">Select a project</span>
 )}
-</div>
+</Card>
 </div>
 
       {pname &&<p className="text-[11px] text-slate-500">Project: {pname} · period {period} (filters apply to scheduled reports below)</p>}

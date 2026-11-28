@@ -15,9 +15,12 @@
 - `font-mono` sweep: ~480 usages remain; mono is legitimate for codes/numbers
   but many are decorative — needs case-by-case review, not a blanket codemod.
 - Legacy views still carry ad-hoc card/spacing patterns; full migration to
-  `ui/` primitives is incremental. First section migrated: PeopleSection —
-  all 9 ad-hoc cards now `ui/Card` (also removed a duplicated
-  subcontractors/suppliers directory card that rendered twice).
+  `ui/` primitives is incremental. Sections migrated so far: PeopleSection
+  (9 cards; also removed a duplicated subcontractors/suppliers directory
+  card that rendered twice), FilesSection (6), ProjectsSection (2),
+  MoneySection (3), SiteSection (4), BoqWorkbookView (4), HomeSection (1).
+  All use `ui/Card`; visual output verified via unit suite + a11y + 360px
+  e2e gates.
 - Console 360px sweep DONE: `e2e/tests/console-360-overflow.spec.ts` walks
   every console section tab at a forced 360px viewport asserting
   `scrollWidth <= innerWidth` (chromium + mobile-390 green). It caught and
