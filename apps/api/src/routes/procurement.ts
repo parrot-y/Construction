@@ -633,6 +633,67 @@ export const procurementRoutes: FastifyPluginAsync = async (server: FastifyInsta
   // =========================================================================
   // CB4 — PURCHASE REGISTER: unified GRN/PO register (supplier + store + value)
   // =========================================================================
+
+  // CB7 — delivery detail backing the printable goods-received note (GRN).
+  server.get(
+    '/api/v1/material-deliveries/:id',
+    { preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { id } = request.params as { id: string };
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid delivery id.' });
+      }
+      try {
+        const delivery = await withTenantTx(prisma, tenantId, (tx) =>
+          tx.materialDelivery.findFirst({
+            where: { id },
+            include: {
+              supplier: { select: { name: true } },
+              purchase_order: { select: { po_number: true, status: true } },
+              site_diary: {
+                select: {
+                  entry_date: true,
+                  project_id: true,
+                  project: { select: { name: true, code: true } },
+                },
+              },
+            },
+          }),
+        );
+        if (!delivery) {
+          return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Delivery not found.' });
+        }
+        const diary = delivery.site_diary as any;
+        return reply.send({
+          data: {
+            id: delivery.id,
+            materialName: delivery.material_name,
+            quantity: delivery.quantity?.toString() ?? null,
+            unit: delivery.unit,
+            deliveryNote: delivery.delivery_note,
+            storeLocation: delivery.store_location,
+            deliveryStatus: delivery.delivery_status,
+            confirmedAt: delivery.confirmed_at,
+            confirmedByName: delivery.confirmed_by_name,
+            supplierInvoiceRef: delivery.supplier_invoice_ref,
+            disputeReason: delivery.dispute_reason,
+            supplierName: delivery.supplier?.name ?? delivery.supplier_name ?? null,
+            poNumber: delivery.purchase_order?.po_number ?? null,
+            poStatus: delivery.purchase_order?.status ?? null,
+            deliveryDate: diary?.entry_date ?? null,
+            projectId: diary?.project_id ?? null,
+            projectName: diary?.project?.name ?? null,
+            projectCode: diary?.project?.code ?? null,
+          },
+        });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load delivery' });
+      }
+    },
+  );
+
   server.get(
     '/api/v1/purchase-register',
     { preHandler: [server.authenticate, requirePermission(Permissions.COST_VIEW)] },

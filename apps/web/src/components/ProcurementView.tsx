@@ -3,6 +3,7 @@ import { formatKes } from '../ui';
 import { api } from '../lib/apiClient';
 import { RateLookupButton } from './rateMaster/RateLookupButton';
 import PurchaseRegisterView from './PurchaseRegisterView';
+import { ProcurementPrintModal } from './procurement/ProcurementPrintModal';
 
 /**
  * Procurement — purchase orders, three-way match and supplier-invoice review.
@@ -114,6 +115,7 @@ const LINE_STATUS_LABELS: Record<string, string> = {
 
 interface Props {
   projectId: string;
+  projectName?: string;
   canManage?: boolean;
 }
 
@@ -126,7 +128,7 @@ interface DraftLine {
 
 const emptyLine = (): DraftLine => ({ description: '', unit: 'No', quantity: '1', rate: '0' });
 
-export default function ProcurementView({ projectId, canManage = false }: Props) {
+export default function ProcurementView({ projectId, projectName, canManage = false }: Props) {
   const [view, setView] = useState<'pos' | 'register'>('pos');
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -149,6 +151,7 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
   const [reviewFor, setReviewFor] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
   const [approveOver, setApproveOver] = useState(false);
+  const [printPoId, setPrintPoId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -436,6 +439,14 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
                   <div className="flex gap-2 mt-2 justify-end">
                     <button
                       type="button"
+                      onClick={() => setPrintPoId(po.id)}
+                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      data-testid={`po-print-btn-${po.poNumber}`}
+                    >
+                      Print
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => void openMatch(po.id)}
                       className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
                       data-testid={`po-match-btn-${po.poNumber}`}
@@ -601,6 +612,15 @@ export default function ProcurementView({ projectId, canManage = false }: Props)
         </div>
       )}
       </>)}
+      {printPoId && (
+        <ProcurementPrintModal
+          kind="PO"
+          id={printPoId}
+          projectId={projectId}
+          projectName={projectName}
+          onClose={() => setPrintPoId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -155,7 +155,7 @@ export default function MoneySection(): React.JSX.Element {
     case 'commitments':
       return livePid ?<CommitmentsView projectId={livePid} canManage={canManage} /> :<EmptyProject what="commitments" />;
     case 'procurement':
-      return livePid ?<ProcurementView projectId={livePid} canManage={canManage} /> :<EmptyProject what="procurement" />;
+      return livePid ?<ProcurementView projectId={livePid} projectName={projectName} canManage={canManage} /> :<EmptyProject what="procurement" />;
     case 'quotes':
       if (!canManage) return<NoAccess what="quotes" />;
       return<QuotesManagementView />;
