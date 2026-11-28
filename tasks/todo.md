@@ -416,7 +416,7 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
   - API: POST/PATCH boq/items accept floor/unitRef (null clears); GET items filters floor/unitRef; POST boq/items/bulk-map {mappings[]} ≤500 on active BOQ, 404 on foreign/missing items, audit 'boq.items.bulk_map' — boq-floor-unit.test.ts 3/3 (red first)
   - Web: BoqWorkbookView — Floor/Unit ref fields on add+edit form, Location column badges, floor/unit filter dropdowns (derived from items), "Map floors/units" bulk-assign mode (checkboxes + apply, blank keeps existing)
   - Tests: cb6-boq-floor-unit.spec.ts 2/2 chromium + 2/2 mobile-390 (fixture items → bulk map → badges → filters → API verify); boq-manual-items + route-guard regression green; hygiene clean
-- [~] CB7 Print views: PO/GRN print — IN PROGRESS
+- [x] CB7 Print views: PO/GRN print — DONE (8b3271f)
   - API: GET /api/v1/material-deliveries/:id (COST_VIEW) — delivery + supplier + linked PO + project for GRN print doc (PO print reuses existing PO detail endpoint)
   - Web: components/procurement/ProcurementPrintModal.tsx — kind-aware fetch + printable doc (data-print-root, @media print isolation); PurchaseRegisterView gains Actions/Print column per row; ProcurementView PO cards gain Print button + projectName prop (MoneySection passes it)
-  - Tests: cb7-po-grn-print.spec.ts — fixture PO+GRN via API, register-row print for both kinds + PO-card print; chromium e2e in progress
+  - Tests: cb7-po-grn-print.spec.ts 3/3 chromium + 3/3 mobile-390 (register-row print PO+GRN, PO-card print); api+web tsc clean; hygiene clean
