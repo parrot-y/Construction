@@ -4,14 +4,14 @@ import { PRODUCT_NAME } from '../lib/product';
 import { formatDateTime } from '../lib/format';
 import {
   ActionSuccessBanner,
-  BidSubmissionModal,
   DEFAULT_TENDERS,
-  PostTenderModal,
   TenderBoardHeader,
   TenderCardsGrid,
   TenderDetailPanel,
   TenderFilterTabs,
 } from './ContractorTenderBoardView.parts';
+import { PostTenderModal } from './PostTenderModal';
+import { BidSubmissionModal } from './BidSubmissionModal';
 
 export type TenderStatus = 'OPEN' | 'UNDER_REVIEW' | 'AWARDED';
 

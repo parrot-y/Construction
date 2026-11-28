@@ -2,17 +2,17 @@ import React, { useEffect, useState} from 'react';
 import { useToast } from './feedback/Toast';
 import { api, apiErrorMessage } from '../lib/api';
 import {
-  AcknowledgeAlertModal,
   CanBusDiagnosticsDashboard,
   FleetOverviewCards,
   MaintenanceAlertsFeed,
   PingsLedger,
-  RegisterDeviceModal,
   SiphoningAlertBanner,
   SiphoningIncidentFeed,
   TelematicsHeaderBanner,
   TelematicsSimulatorSection,
 } from './PlantTelematicsView.parts';
+import { AcknowledgeAlertModal } from './AcknowledgeAlertModal';
+import { RegisterDeviceModal } from './RegisterDeviceModal';
 
 export interface TelematicsDeviceItem {
   id: string;
