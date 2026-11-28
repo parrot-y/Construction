@@ -1,271 +1,431 @@
 # tasks/todo.md — active plan
 
-## Current: Claude re-audit remediation + Gate-4 S1 completion + S2 invoicing (2026-11-07)
+## MASTER PLAN — Phase 1 (foundations) — IN PROGRESS
 
-### Security remediation (Claude items 1-2)
-- [x] Purge `docs/research/console-audit/screenshots/` from ALL git history (filter-repo); dir absent from tree
-- [x] Redact POWELL/JUMUIA/MAKUNDI/client+role names & emails across all .md files
-- [x] CREATED_RECORDS.md credential-exposure correction noted
-- [x] Force-pushed rewritten branch; created private repo `parrot-y/construction-platform` and pushed branch
+- [x] P1.1 lib/api.ts request layer (typed errors, timeout, retry, refresh) + unit tests — e2b5bb0/25d05ab
+- [x] P1.2 shared Toast/InlineError/FormError/useAppDialog; popups eliminated; last raw error <p>s → InlineError (8d218ac)
+- [x] P1.3 all fetch( migrated onto api.* via apiTransport; hygiene guard clean (142→143 files)
+- [x] P1.4 scripts/check-frontend-hygiene.mjs — clean; violation demo done during migration
+- [x] P1.5 unreachable banner + health poll + status dot (4102537)
+- [x] P1.6 p1-break-it.spec.ts — 5/5 chromium + 5/5 mobile-390 (found+fixed offline chunk crash 731eea2, ric crash 59d73d8)
+- [x] P1.7 30s→~0.5s project create (summary endpoint + optimistic select + prefetch); speed misses documented honestly (c2fa73c)
+- [x] P1.8 giant files: all 11 >800-line files hang off dead PmQsDashboard/CompanyAdminDashboard (unreachable); daily sections all <500 lines — documented, no splits needed
+- [x] P1.9 full solo suite + verify-local on final commit + report table → STOP — 444/444 clean on 37bf8ea, verify green, evidence df59230
 
-### C-01 / C-03 (Claude items 3-4)
-- [x] `apps/api/src/route-guard.test.ts` — CI guard: every route needs `server.authenticate` or explicit allowlist entry (16 allowlisted: login, HMAC webhooks, token portals, M-Pesa callbacks, public quotes)
-- [x] Decimal money math (ADR-005) in quotes + invoices: `calculateLineTotal`/`toDecimal`, line sum == subtotal, HALF_UP cents
+## MASTER PLAN — Phase 2 (admin console end-to-end) — closeout in progress
 
-### S1 hardening (Claude item 4)
-- [x] `valid_until` enforced on BOTH respond endpoints (lazy EXPIRED flip committed via sentinel return, not tx rollback)
-- [x] `expire_quotes_batch()` SECURITY DEFINER job in rls.sql + 15-min interval in quotesRoutes
-- [x] Atomic accept/decline via `updateMany({status:'SENT'})` count guard (TOCTOU-safe)
-- [x] `quote_no` P2002 retry loop (3 attempts)
-- [x] Public-route rate limit: 30 req/min/IP in-memory sliding window on `/api/public/quotes/*`
-- [x] VIEWED event dedupe: max 1 per hour per quote
-- [x] Deposit invoice auto-draft on convert (`createDepositInvoice` → Invoice DRAFT linked to project+quote)
+- [x] 0 deploy groundwork — f381a3b/dd0cd83/dbcbaae
+- [x] 2.1 New project wired — 64f5b97/937514b
+- [x] 2.2 inventory — docs/evidence/admin-console-inventory.md
+- [x] 2.3 per-screen acceptance — a3/a6/a7/l1/l2 specs
+- [x] 2.4 day-one journey — l3-admin-first-hour @390px
+- [x] 2.5 W1–W10 by clicks — ec00767 (chromium 11/11 + mobile)
+- [x] 2.6 permissions on screen — a8-permissions spec
+- [x] 2.7 demo data + wording — 0bc6aac
+- [x] 2.8 project types end-to-end — 9954343 + a334cbc
+      (migration 0025, shared config, 4-step wizard, NCA rules table,
+      starters, filters, PDFs; p2 spec 10/10; api tests 10/10)
+- [x] Phase 2 closeout — DONE @120506e: solo suite 428/0/0/0 (29.7m),
+      verify-local green (api 675 web 146 db 18 money 77 perms 9),
+      evidence e2e-2dadc75.md + verify-70153c7.log → awaiting auditor review
 
-### S2 invoicing (was in-flight, completed)
-- [x] Schema: Invoice/InvoiceLineItem/InvoicePayment (RLS auto-covered)
-- [x] Routes: CRUD, send, payments (Decimal, overpay guard), void, derived OVERDUE, PDF
-- [x] `InvoicePdf.tsx` + InvoicingView.tsx wired into PM/QS + CompanyAdmin
-- [x] `invoices.test.ts` — 15 tests
+## Current: Round H (checklist 14/15 review, 28–32)
 
-### Tests added (Claude item 5)
-- [x] quotes.test.ts: +8 tests — Decimal rounding, lazy expiry, batch expiry job, client-side expiry, atomic double-respond, VIEWED dedupe, rate limit 429, deposit invoice
-- [x] App.test.tsx: +4 Gate-4 UI tests (quotes/invoicing shells + dashboard embeds)
+Rules: aud-* specs + sha256 immutable; tests first with RED RUN COMMITTED;
+one item = one commit `H<n>: <what>`; evidence log named for final sha.
 
-### Pending
-- [x] verify-local.sh green: 571/571 tests (372 API, 117 web, 63 money, 15 db, 4 permissions); evidence `docs/evidence/verify-6678fcd.log`
-- [x] PROJECT_STATUS.md updated (security remediation, private repo, C-01/C-03, S1 hardening, S2 invoicing)
-- [ ] Commit + push final head to `parrot-y/construction-platform`
-- [ ] Consolidated remaining-work plan delivered to owner (S3→S8 per GATE4_BUILD_PLAN.md)
+### H1 — one source of truth for retention money — DONE ad51763
+- [x] Decide: retention release pre-fills/locks `retention_released` on next
+      payment certificate OR creates a retention-release invoice/credit line.
+      Write choice in docs/decisions-needed.md.
+- [x] Remove the other typed path (or make read-only); ledger must never
+      double-count (held already net of cert-level releases vs DLC releases).
+- [x] Test: PC half release → payment certificate → final release; reconcile
+      held/released/outstanding to the cent; invoice/cert shows release once.
+      Decimal edge values (half-cent splits).
 
-## Prior: Gate 4 build plan (2026-11-07)
+### H2 — subcontractor retention request → paid — DONE d22593a
+- [x] E2E: PENDING_QS_REVIEW → QS recommends → director approves
+      (maker-checker, requester cannot self-approve, admin override needs
+      15-char reason) → payout recorded once with reference → portal shows
+      PAID → package retention held falls → ledger reconciles → second
+      request for same moiety refused.
+- [x] Console screen where QS reviews it, verified at 390px.
 
-- [x] Research/cleanup phase complete — all reachable console coverage done
-- [x] GATE4_BUILD_PLAN.md written — 8 contractor-hub slices (S1 quotes→cash first)
-- [x] Owner approved slice order → S1 started and backend-verified
+### H3 — retention rate + cap per project — DONE 553357c
+- [x] Project settings: retentionRatePct + retentionCapPct (default 5%),
+      editable by admin/PM_QS before first certificate, audit-logged.
+- [x] Remove every hard-coded 5%/50% in retention path (certificates.ts
+      preview math too); list each in PR.
+- [x] 10% project through certificate → invoice → release.
 
-## Prior: competitor-console cleanup + remaining coverage (2026-11-07)
+### H4 — wording/layout at 390px — DONE 71324ab
+- [x] "Welcome,S6 CONSULTANT" missing space.
+- [x] Scope-derived "What you can do here" bullets (consultant: verify snags;
+      client: practical completion + snags).
+- [x] Client portal: closeout card first, above empty change-orders.
+- [x] Subcontractor valuation table clipped — stacked cards or scroll shadow.
+- [x] Dead "Back to Project/Dashboard" buttons on link portals — remove or
+      point to portal top.
+- [x] Consultant tab bar clips "Snag Verification (1)" — wrap or scroll cue.
 
-- [x] Void/reject CO-4990 → **Rejected** (verified in variation log + dashboard analytics)
-- [x] Reject punch item PL-2419 → **Rejected**
-- [x] Reject payment application #ZZ-APP-01 → **Rejected** (modal comments flow captured)
-- [x] Fix daily-log Friday entry → crew "Site crew" + neutral work text (no delete exists; edit-only)
-- [x] Reset contract sum $1M → **0** via "More project actions" → "Contract value & dates"
-- [x] Invoice + quote: confirmed NO delete affordance — documented as uncleanable via UI (trial expiry wipes)
-- [x] New findings documented: Edit project modal fields, More-actions menu, sidebar toggle behavior, no-hard-delete design
-- [ ] Update CREATED_RECORDS.md + PROGRESS.md with cleanup outcome; commit + push
-- [ ] Remaining coverage: certificate save, "Viewing as", Ask AI/Shemmy, upload pipeline, Site Checks, Bidding, saved-state creates for inspection/observation/checklist/crew/subcontractor/contact/incident/RFI/correspondence/announcement/inventory
+### H5 — remaining portal screenshot journeys — DONE 473341a/de25693
+- [x] supplier (accept PO, confirm delivery, submit invoice), compliance
+      (permit, visit), field roles (today's work, diary, offline incident +
+      sync), owner (approve variation, dashboard), public quote (view,
+      accept, deposit invoice).
+- [x] Clean seeded demo tenant, realistic names; chromium + mobile-390;
+      docs/evidence/visual/<final-sha>/portal-flows/.
 
-## Review
-(filled at completion)
+### H6 — PR pointers — DONE de25693
+- [x] 1962c01 held-payment resolve screen + 0bf3592 clean-demo capture:
+      exact files/tests + what each proves.
 
-## S3 Change Orders (ADR-010) — in progress (2026-11-07)
+### Verify
+- [x] verify-local.sh on final commit; full Playwright matrix; evidence.
 
-- [x] Schema: VariationOrder +trigger_type/linked_rfi_id/requested_by_id/submitted_at; VariationAssignee; VariationEvent; Membership.co_approval_limit; VOID added to financial-immutability trigger
-- [x] Validation: VariationTriggerTypeSchema, extended Create/Review schemas (reject requires reason)
-- [x] Permissions: PM_QS gains VARIATION_APPROVE (limit-enforced server-side)
-- [x] variationWorkflow.ts: limit resolution, coCanApprove, claimCoTransition (atomic updateMany guard), applyCoBudgetRollup
-- [x] variations.ts: DRAFT create, /submit, reworked /review (EVALUATE/APPROVE/REJECT/VOID), events in detail, 409 on concurrent transition
-- [x] externalPortals.ts: token-scoped client CO list + respond (OWNER_REVIEW only, typed-name signature)
-- [x] route-guard allowlist: 2 token portal CO routes
-- [x] company.ts: PATCH member co-approval-limit (COMPANY_MANAGE, audit-logged, Decimal)
-- [x] UI: VariationManagementView real-fetch + ADR-010 statuses/filters/actions/activity feed; CreateVariationModal trigger; ClientPortalView token approval page; credentials:'include' fixes
-- [x] Tests: m8-variations updated to new lifecycle; s3-change-orders.test.ts (12 tests: limits, boundary, escalation, owner path, reject reason, void, events, token portal, cross-project isolation)
-- [x] verify-local green on head 653f6fc: 583/583 tests; evidence docs/evidence/verify-653f6fc.log
-- [x] PROJECT_STATUS.md updated; committed 653f6fc
+## H5 detail plan (2026-11-15)
 
-## Current: Gate-5 deferred platform modules (2026-11-08 overnight run)
+Product gaps found while mapping journeys — fix inside H5:
+- [x] CompliancePortalView: `statutoryPermits` state never populated (permits
+      table permanently empty) — wire `d.permits`; add VALID/EXPIRING_SOON/
+      EXPIRED badge cases; add Site visits card (list `d.visits`) + Record
+      visit form → POST /portals/compliance/:token/visits.
+- [x] OwnerDashboard: OWNER holds VARIATION_REVIEW+VARIATION_APPROVE but has
+      no UI — embed VariationManagementView card (canApprove/canReview).
 
-### Completed this run
-- [x] G5-1 Announcements — audience targeting + read acknowledgement (earlier)
-- [x] G5-2 Role ladder & permission sets — EXECUTIVE/PM/SITE_ENGINEER/SUPERINTENDENT/TRADE_LEAD/FOREMAN/WORKER/VIEWER (commit 9a00958)
-- [x] G5-3 Team inbox — threads, audience targeting (7c6195d + 2c62041)
-- [x] G5-4a Observations & corrective actions (2c62041)
-- [x] G5-4b Consultant approval chain on inspections — PENDING_CONSULTANT_REVIEW gate (5efaa83)
-- [x] G5-5 Crews, members, project assignment (0d5d5ca)
-- [x] G5-6 Checklist templates & trade assignments — 16 trades, question builder, global flag, ASSIGNED→…→APPROVED lifecycle (71dcf48)
-- [x] G5-7 Company documents vault — categories, unfiled queue, expiry (d78b571)
-- [x] G5-8 Correspondence log — COR-nnn, LETTER/SUBMITTAL/TRANSMITTAL/NOTICE (25b051a)
-- [x] G5-9 Scheduled reports — freq/recipients/next_run/run snapshots (25b051a)
-- [x] G5-10 Daily attendance — check-in/out, leave/off-day, history (e000b36)
+Spec: e2e/tests/h5-portal-journeys.spec.ts — dedicated demo tenant
+(Nyota Construction Ltd, same provisioning pattern as capture-visual.mjs),
+fixed realistic identities, fresh per-run fixtures (no timestamped names).
+Journeys: supplier PO accept→delivery confirm→invoice; compliance permit +
+record visit; field foreman today→diary→offline incident→sync; owner
+dashboard→approve CO; public quote view→accept→deposit invoice via client
+portal. Screenshots → docs/evidence/visual/<sha>/portal-flows/.
 
-### Verification
-- [x] verify-local GREEN on 71dcf48 — API 471, web 117, money 63, db 15, permissions 9 (docs/evidence/verify-HEAD.log)
+## H5 progress
 
-### Remaining Gate-5 / role-portal work
-- [ ] Assignments detail: "Assignments by trade" matrix view polish
-- [ ] Plans & drawings discipline viewer (Architectural/Mechanical/Structural/Electrical/Civil) — ProjectDocument extension
-- [ ] Coordination unified issues view (RFI + issues) — RFI module exists, unified surface pending
-- [ ] Punch/snag CSV + PDF export (observed buttons)
-- [ ] Field view — mobile-first daily ops surface (worker/foreman)
-- [ ] Dedicated workspace dashboards per new role (executive/PM/site-engineer/superintendent/trade-lead/foreman/worker/viewer) wired to supplied test logins — IN PROGRESS via dashboard role switch; dedicated nav polish pending
-- [ ] Cross-portal workflow simulation tests (observation→corrective action→PM escalation→executive visibility)
-- [ ] Bidding/tender depth, schedule Gantt, drawings viewer, upload pipeline — deferred LATER items
+- [x] CompliancePortalView: permits wired from `d.permits` (was permanently
+      empty state), VALID/EXPIRING_SOON/EXPIRED badges, visits card +
+      record-visit form → POST /portals/compliance/:token/visits.
+- [x] OwnerDashboard: embedded VariationManagementView (canApprove/canReview)
+      so OWNER can decide pending change orders — OWNER holds
+      VARIATION_REVIEW+APPROVE but had no UI surface.
+- [x] FieldDashboard: mounted OfflineSyncBanner (field roles had NO sync
+      flush — queued mutations would never replay) AND fixed permission
+      check bug: can() compared enum KEYS ('SITE_DIARY_CREATE') instead of
+      VALUES ('site.diary_create') — 'Record diary' never rendered for
+      FOREMAN/WORKER/SITE_ENGINEER/TRADE_LEAD.
+- [x] e2e/tests/h5-portal-journeys.spec.ts — 6 tests × 2 viewports, all
+      green (12/12). Dedicated Nyota tenant, fresh fixtures per run.
+      Journeys: supplier PO accept→delivery confirm→invoice; compliance
+      permits+visit; foreman diary+offline incident→exactly-once sync;
+      owner CO approve; public quote accept→deposit invoice.
 
-## Review
-- Two verify runs were contaminated by editing files mid-run (lint/build failures on in-flight code). Rule: FREEZE repo edits while verify-local runs; batch commits before launching.
-- Test-DB schema drift caused a false 20-test failure when schema edits landed after verify's db push step — always re-verify after schema changes.
-- [x] Cross-portal day-in-the-life simulation test — 7 steps, role handoffs (g5-cross-portal-workflow.test.ts, 7 tests)
-- [x] Punch/snag CSV export — GET /snags/export + UI button (g5-11, 2 tests)
-- [x] Final verify-local GREEN on 4292afc — 684/684 (480 API, 117 web, 63 money, 15 db, 9 permissions)
+## H5 result (commit 473341a + spec fix)
 
-## Finish-all plan (post-return)
-- [x] Dashboard project resolution — real projectId to all mounted views (PmQs/Sup/Admin pickers, ClientDashboard live hydrate)
-- [x] Live-wire: RFI, Drawings, Gantt, Inventory, MusterRoll, SafetyAudits, Tenders, Attendance+laborer reg, Snag CSV+PDF
-- [ ] Wave A subagents: wire demo views → real APIs (platformServices/operations/siteOperations)
-  - A1: PlantEquipmentView + PlantTelematicsView (plant-equipments? telematics-devices/pings/maintenance-alerts)
-  - A2: BarBendingScheduleView + StructuralSteelTakeoffView + RmcTransitTrackerView (bbs/steel-takeoffs/rmc-deliveries+slump)
-  - A3: GeotechnicalSoilView + AsphaltPavementView + TopographicSurveyView (soil-tests/asphalt-batches/surveys)
-  - A4: GeofencedClockInView + MpesaDisbursementView + IndependentSiteReportView (geofences/clock-in/b2c-disbursements/independent-inspections)
-- [ ] Wave B subagents: commercial/enterprise views
-  - B1: SubcontractorManagementView + MaterialRequisitionView + MaterialWastageVarianceCard
-  - B2: StatutoryTaxManagementView + ETimsTaxComplianceView + RetentionAndBondsView + WeatherDelayClaimsView + WhatsAppSiteWebhookView
-  - B3: QualityControlView (inspections tab only — cube tests have no internal API, document) + PhotoEvidenceGallery + remaining stragglers
-- [x] Seed accounts per role (DONE in seed.ts); feature-map doc removed per audit — matching goal dropped
-- [ ] Final verify-local + PROJECT_STATUS update
-- [x] Wave A+B subagent wiring complete — 20+ views live (see commit 80143d1)
-- [x] feature-map doc removed — matching goal dropped per audit; seed accounts remain in seed.ts
-- [x] PATCH subcontractor package status endpoint + UI persistence
-- [ ] Known backend gaps (documented, not built): GET equipment-logs, GET telematics-devices list, GET SiteWebhookLog, subcontractor valuations PATCH?, Excel export, AI features, WhatsApp/SMS/eTIMS live providers, scheduled-report delivery
-- [x] Final verify-local GREEN on 80143d1 — 687/687
-- [x] Integration provider layer (AT SMS / WhatsApp Cloud / Resend email), status+test endpoints, real dispatch on notify-client/site-alerts/scheduled-reports, IntegrationsView UI
-- [x] Site Safi brand applied everywhere; reference-platform name/URLs scrubbed from repo
-- [x] Mobile-first: bottom tab nav on FieldDashboard + SupervisorDashboard
-- [x] Missing GETs added: telematics-devices, site-webhook-logs, equipment dailyLogs serialized
-- [x] integrations.test.ts (4 tests)
-- [x] Final verify-local GREEN — 691/691 on 6858172
+- [x] h5-portal-journeys.spec.ts: 6 tests × chromium + mobile-390 = 12/12 green.
+      Journeys: supplier PO accept→delivery confirm→invoice; compliance
+      permits+record visit; foreman diary+offline incident→exactly-once sync;
+      owner dashboard→approve CO; public quote view→accept→deposit invoice.
+- [x] Product gaps fixed: CompliancePortalView permits/visits wiring,
+      OwnerDashboard VariationManagementView embed, FieldDashboard
+      OfflineSyncBanner + permission-value bug (enum key vs value),
+      mobile search icon fix carried from H4.
+- [x] Evidence: docs/evidence/visual/473341a/portal-flows/ (15 PNGs).
+- [x] Regression: b-diary-sync.spec.ts green; web+api typecheck clean.
 
-## Console rebuild from live captures (2026-11-08)
-Captures: /tmp/refstudy/crawl/<role>/<section>.{txt,png} — 8 roles x 6 sections.
+## H6 — review pointers (checklist 14/15)
 
-- [x] AppShell: icon rail (Ask AI, Home, Projects, Site, Money, People, Files & reports) + topbar (workspace label, search, currency toggle, New, notifications, avatar, dark-mode ready)
-- [x] navConfig: role -> visible sections/subtabs per captured matrix
-- [x] Home per role group: exec/pm/viewer dashboard (CO KPIs, AI insight, status chart) ; field roles team inbox + announcements + AI panel
-- [x] Projects section: All projects (cards+filters+recent CO activity), Schedule, Drawings, Change orders, Coordination(RFI), Correspondence
-- [x] Site section: Daily log, Checklists, Assignments, Punch list, Inspections, Observations, Action plans, Safety, Attendance (+Field view for field roles)
-- [x] Money section: Financials, Commitments, Quotes, Invoices, Inventory, Billing&plan (role-gated)
-- [x] People section: Team, Crews, Subcontractors, Directory, Roles (role-gated)
-- [x] Files section: Reports, Company documents, Unfiled documents
-- [x] Ask AI panel: honest assistant UI (module deep-links + guidance; no fake AI claims)
-- [x] Role gating verified per captured matrix (worker: no People/Files; viewer: read-only subset)
-- [x] Mobile bottom tab bar (<640px) + desktop icon rail
-- [x] External portal previews inside shell (context-driven)
-- [x] Daily log 14-day strip, per-day Add log (initialDate)
-- [x] Financials tracker sub-tabs + BoqWorkbookView + exports
-- [x] DrawingsView Electrical discipline + AI Design SOON
-- [x] Photo upload wired to /uploads in SiteDiaryModal
-- [x] All 10 seed logins verified live via Playwright DOM probe
-- [x] Probe/refstudy scripts removed from repo (never commit research tooling)
+### 1962c01 — held provider-payment resolve screen (G1)
 
-## Form-level sweep from live captures (2026-11-08, second pass)
-Captured every create form on contractor portal: CO, RFI, correspondence, safety, observation, punch, crew, subcontractor, daily log, invoice, quote, commitment, financials subtabs, reports, company docs, unfiled, field view, mobile landing.
+Backend (`apps/api/src/routes/payments.ts`):
+- L370 `GET /api/v1/payments/charges/review` — NEEDS_REVIEW charges not yet
+  resolved; money-approval roles only.
+- L407 `POST /api/v1/payments/charges/:id/resolve` — single-use resolve:
+  APPLY (row-locked post to another same-tenant invoice + payment
+  transaction), REFUNDED (≥15-char note + refund reference), KEEP (flagged).
+  Second attempt → 409; cross-tenant → 404 via RLS. All audit-logged.
+- Migration: `packages/db/prisma/migrations/0020_provider_charge_resolution/`.
 
-- [x] CO modal: linked RFI + multi-assignee selects (backend already supported assigneeIds/linkedRfiId)
-- [x] RFI issue_type: RFI/CLASH/DESIGN_QUESTION (schema+validation+route+modal)
-- [x] Safety incident types extended to observed hazard taxonomy (struck-by, rollover, cave-in, traffic, asphalt burn, environmental) alongside OSHA types
-- [x] Daily-log weather: + Windy/Hot/Cold (HIGH_WIND/HIGH_TEMPERATURE/LOW_TEMPERATURE)
-- [x] Crew + subcontractor trade lists expanded to observed taxonomy; Interior Design & Decor added to snag categories
-- [x] Reports: CO volume-by-status bar chart (observed on reference reports page)
-- [x] Site > Field view tab: field hub — quick actions + my assigned checklists (observed)
-- [x] Verified already-matching: invoice (richer — KRA/paybill), quotes (convert-to-project + deposit invoice exceeds ref), commitments step explainer, correspondence types/direction, observation types, daily-log strip, money subtabs all live-backed
-- [x] verify-local GREEN 696/696 on 2b793ee
+Tests — `apps/api/src/payment-charge-review.test.ts` (6 tests):
+1. lists NEEDS_REVIEW charges with invoice no/amount/reference/reason.
+2. REFUNDED requires note+reference; resolves once (second → 409).
+3. APPLY posts held amount to another invoice exactly once under
+   concurrent resolve clicks (row lock).
+4. APPLY rejects amount exceeding target invoice balance.
+5. KEEP marks reviewed while flagged; second attempt 409s.
+6. Cross-tenant charge invisible/unresolvable (404).
 
-## Review
-- Shell now matches captured IA 1:1 at section+subtab level; inner views are our live implementations (not copies).
-- Honest gaps remaining: real AI backend (Ask AI is labelled rule-based nav assistant), AI Design SOON, drawing markup viewer, live eTIMS/WhatsApp provider creds, client-portal "Request a project" flow, deeper subtab internals beyond first-crawl depth.
-- Probe scripts contained reference credentials -> removed from HEAD; history still contains them (pre-scrub commits) — offer history rewrite if user wants.
+Frontend:
+- `apps/web/src/components/PaymentReviewPanel.tsx` — APPLY/REFUNDED/KEEP UI.
+- `apps/web/src/components/InvoicingView.tsx` L334 — panel mounted.
+- `apps/web/src/components/console/AppShell.tsx` L240-262 — Money-rail badge
+  counts pending reviews for cost.approve roles.
 
-## Security audit remediation (post-rebuild, ordered)
-- [x] 1. Authorization: central route permission map + project-membership guard + guarded route test
-- [x] 2. Uploads: magic-byte verification, mime-derived ext, authenticated tenant-scoped serving, storage driver seam
-- [x] 3. M-Pesa honesty: simulated flags in API+UI, maker-checker B2C payouts
-- [x] 4. Real Prisma migrations (baseline + RLS) + deploy-step rls.sql re-enforcement; users/tenants RLS exception documented
-- [x] 5. Sessions: 15m access + 7d refresh rotation, per-request is_active/membership check, @fastify/rate-limit on login/refresh/public
-- [x] 6. Peripheral modules (plant/survey/tender/steel/asphalt/geofence) quarantinable via DISABLED_MODULES
-- [x] 7. PORTAL_MATCHING_MAP.md removed; feature-matching goal dropped
-- [x] {i}. PROJECT_STATUS.md update + seed production guard
-- [ ] Final verify-local green + evidence
+### 0bf3592 — clean demo-data capture (G2)
 
-## Post-audit hardening & polish (continued)
-- [x] Refresh-token server-side rotation + reuse detection (refresh_tokens table, migration 0003, family revocation on replay)
-- [x] Session management: GET/DELETE /auth/sessions + SessionsModal (per-device revoke, sign-out-others)
-- [x] reports/cost.xlsx (fixes dead /reports/cost link); report cards show real export format
-- [x] docs/DEPLOY.md — env, migrations+RLS, grants, production guards
-- [x] PWA: Site Safi manifest branding + real install icons (192/512/apple-touch) + orange favicon
-- [x] g5-15 extended to 6 tests (sessions list/revoke)
-- [x] verify-local GREEN 714/714 on ebaf3c3 + 23cc4ea (web build clean, PWA precache 12 entries)
+- `e2e/capture-visual.mjs` — provisions dedicated tenant
+  "Nyota Construction Ltd" via `/api/v1/auth/register-company` +
+  invitations + one project (Kileleshwa Residential Villas, KIL-RES-01);
+  captures never see API-suite fixture rows.
+- `docs/evidence/visual/0bf3592/SEED.txt` — records tenant, project, seed
+  method, commit per run. CAPTURE.md + 20 console/portal PNGs (desktop
+  1440 + mobile 390).
+- Stale `docs/evidence/visual/90ba399/` removed in the same commit.
+- UI fixes in the same commit: ClientPortalView Back → real button;
+  390px header search → icon that expands the real input (Escape/result
+  collapses).
 
-## Audit remediation program (Claude audit of PR #1 — ordered phases)
-Branch: devin/audit-remediation. Rules: evidence per item in docs/evidence/, no competitor wording, no invented data, simulated integrations labelled, verify stays green.
+## Round I plan (2026-11-16)
 
-### Phase 1 — Security & data safety
-- [x] 1.1 Authorization: route-authz-matrix.md evidence; b2c-disburse finance perm + approval + audit; retention review role check; replace inline hasPermission in certificates.ts/variations.ts with shared preHandler
-- [x] 1.2 route-guard test fails build on unguarded routes (DONE prev session — verify + evidence)
-- [x] 1.3 Uploads: server-side filename, MIME+magic allowlist, size limit, attachment/nosniff or authed tenant route, .html/.svg tests (DONE — verify + evidence)
-- [x] 1.4 Real migrations + rls.sql in CI from empty DB (DONE — verify + evidence)
-- [x] 1.5 Sessions: revocation/session table, short access + refresh, rate limits (DONE — verify + evidence)
-- [x] 1.6 M-Pesa: SIMULATED labels chosen (DONE — document choice in PR)
+- [x] I1: Playwright suite ALONE on final commit → 0 failed/skipped/flaky;
+      fix timeout causes not timeouts; commit e2e-<sha>.md. (RUN LAST — in progress)
+- [x] I2: strip /home/, /Users/, C:\Users, hostname from all committed
+      evidence logs; CI step failing on violation (show red then green);
+      verify-local.sh sanitises its own log output. → 63565f1
+- [x] I3: shared responsive table (<640px stacked cards) for compliance
+      portal, sub valuations/retention, QS retention console + any other
+      sideways-scrolling table; overflow test at 390px; supplier portal
+      action-first + collapse completed + invoice button only when due;
+      owner/executive variation titles wrap. → b70573a
+- [x] I4: remove permission chips from user headers (admin-only "My
+      access" page); plain offline wording; offline shows saved data +
+      timestamp not "Failed to fetch"; shared date formatter everywhere;
+      field Site tab → short job menu; owner approve only in owner-review
+      state (UI + API 409 + failing test). → 52e7869
+- [x] I5: thousands separators for all money via packages/money helper +
+      test; quote deposit single source + terms contradiction warning;
+      "•Prepared" missing space; public quote Back link. → b93a59c
+- [x] I6: render PDFs outside withTenantTx (short read tx → render →
+      short audit tx); pool proof committed: normal request 209ms during
+      10-PDF burst (<500ms), all 10 PDFs 200. → 794c0a4
+- [x] I7: varied believable seed data (suppliers/POs/variations/
+      inspections/snags); portal-journey CO fixture deduped; all 22
+      journey screenshots recaptured at 390px under 3749547 — every
+      shot differs from ce4a440 set. → 3749547 + 3659107
 
-### Phase 2 — Design system reset
-- [~] 2.1 docs/DESIGN_SYSTEM.md + Tailwind tokens + apps/web/src/ui component library
-- [~] 2.2 formatKes() everywhere + lint/test guard
-- [~] 2.3 Landing page rewrite (no emoji/gradient/invented stats)
-- [~] 2.4 Console shell + dashboards: one layout, job-grouped nav, page headers
-- [~] 2.5 Loading/empty/error states on every data view; no insights without data
-- [~] 2.6 Mobile-first supervisor @390/360px, 44px targets, offline/sync header
-- [~] 2.7 A11y: labels, focus, keyboard nav, no colour-only status
+## Round J plan (2026-11-16)
 
-### Phase 3 — Real portals & wiring
-- [x] 3.1 Remove fake client sessions (demo-jwt-*, demo tokens, fake names) → seeded demo tenant or nothing
-- [x] 3.2 Wire consultant/subcontractor/supplier/compliance/client portals to real token endpoints
-- [x] 3.3 Remove hard-coded numbers (45000000, demo/sample grep sweep)
-- [x] 3.4 No-fetch views: wire or flag-hide (ContractorTenderBoard, ProjectDocumentVault, SafetyIncidentLog, SubcontractorValuation, SubscriptionBilling); wire /certificates + /subcontractor-valuations
-- [x] 3.5 Dead links: /reports/cost (DONE via cost.xlsx — verify), /reports/site-diary/latest
-- [x] 3.6 PublicQuoteView loading/not-found/expired/error states
-- [x] 3.7 Peripheral modules behind feature flags, out of nav; MVP core chain only
+- [ ] J1: offline read-cache privacy — scope keys by hash(user+tenant) /
+      hash(token), 7-day expiry, clear on sign-out/forced-401/portal
+      401/403/404/410/revoked-429, no POST caching, no tokens in keys;
+      offline-sync queue owner-scoped so user B never flushes user A's
+      writes. Tests first (red run committed).
+- [ ] J2: status enums → plain words via one shared helper + render test
+      scanning retention/cert/invoice/variation/valuation screens; hide
+      or explain role-blocked actions (Director Approve for PM) using
+      the same permission check as the API; sweep money screens.
+- [ ] J3: supplier portal — "Invoice submitted (ref)" state; completed
+      orders/deliveries collapse behind a count.
+- [ ] J4: safety register + everywhere → shared date helper; unit test
+      scanning rendered output for M/D/YYYY patterns.
+- [ ] J5: fresh-seed capture — no timestamped names in visible text,
+      run each journey once, re-capture under final sha.
+- [ ] J6: confirm captures — public quote 390px separators+deposit,
+      consultant/client/subcontractor portals post-wording.
 
-- [x] Phase 4 — Playwright (e2e/ suite, 18/18 green, CI workflow added) e2e A–F (real API+DB, no route stubs, traces, CI-gating)
+## Round J review (checklist 39–43) — complete on 8eff7e1
 
-- [x] Phase 5 — Report (PROJECT_STATUS + visual evidence + audit summary)
+- J1 offline privacy: read-cache keys hashed per user+company (portal tokens hashed, never stored raw), 7-day TTL, cleared on sign-out / forced-401 / portal auth failures; write queue owner-scoped so a new sign-in cannot replay the previous user's mutations. 8 tests in offline-privacy.test.ts (red run d3e66da).
+- J2 plain-words statuses: shared statusLabel() across all console/portal screens; retention actions gated by shared RETENTION_REVIEW/DIRECTOR_ROLES (same source as API). status-labels.test.tsx 11 tests.
+- J3 supplier portal: "Invoice submitted" badge with reference; finished orders and confirmed deliveries collapse behind counts.
+- J4 dates: formatDate/formatDateTime/formatTime everywhere; source gate + rendered-output test fail on M/D/YYYY.
+- J5 fresh-seed capture: fixture names de-timestamped; fresh DB, each journey once — visual/ed3cdac (24 PNGs).
+- J6: quote page, consultant, client, subcontractor recaptures in visual/ed3cdac/portal-flows.
+- All 6 auditor hashes verified unchanged; evidence hygiene clean.
 
-### Phase 5 — Report — Report: PROJECT_STATUS + before/after screenshots + audit summary
+## Round L review
 
-## Portal hardening pass (branch devin/portal-hardening)
-Plan per auditor items 1-13, failing test first each:
-- [x] {i}. Subcontractor link scoped to subcontractor_package_id; remove contains-matching; isolation test
-- [x] {i}. Link create/list: allow-list via requirePermission (admin/PM_QS only) + dedicated permission
-- [x] {i}. rateLimit on /api/v1/portals/*; identical 404 for invalid/expired/wrong-type
-- [x] {i}. Explicit DTOs for consultant/compliance/subcontractor/supplier payloads; drop unused queries
-- [x] {i}. Rectify: portal-scoped upload endpoint w/ magic-byte verify; tenant+project check
-- [x] {i}. Consultant reply: Zod schema, 400 missing, reject ANSWERED/CLOSED, no creator responder_id, external_responder_name/external_link_id
-- [x] {i}. Valuation: Decimal math, prev payments from valuations, cap vs package sum, WHT from config, package-scoped link required
-- [x] 8. Supplier confirm/dispute: note required on DISPUTE, invoiceRef on CONFIRM, block final-state
-- [x] {i}. Compliance: remove invented ncaSiteRegistration, "Not recorded"; "No tests yet" not 100%
-- [x] {i}. PortalAccessLinkManager: remove mock fallback, canonical linkUrl, regenerate/revoke, last-used/use-count/expiry
-- [x] {i}. Portal views: expiry banner, revoked state, shared error component
-- [x] {i}. Portal empty states + wording cleanup (done partially in 39f57c3)
-- [x] {i}. Supplier dispute fields; sub valuation context; client portal photos/certs/invoices
-- [x] E2E green: e-portals.spec.ts 12/12 (chromium + mobile-390) — two-sub isolation, revoked, expired (real expires_at mutation), role-restricted create, rectify w/ real upload. Fixed e2e infra: rls.sql functions must be owned by RLS-bypassing role (E2E_ADMIN_DATABASE_URL), psql URL schema-param strip, RLS-safe fixture UPDATE.
-- [x] Evidence: docs/evidence/portal-hardening.md; PROJECT_STATUS update; verify-local 730/730 (API 525, web 118, money 63, db 15, permissions 9)
+- L1 (937514b): NewProjectModal shared by console; l1-new-project.spec 6/6 both viewports.
+- L2 (0042963): l2-click-sweep.spec walks admin+PM consoles (all sections/tabs) and 4 portal landings at chromium+mobile-390. Findings fixed: missing aria-pressed/aria-current on ~10 filter/tab/nav controls (all had working handlers — sweep now distinguishes active-state no-ops). No genuinely dead handler found beyond L1's button.
+- L3 (166a91c): l3-admin-first-hour.spec UI-only journey, 12 shots @390px. FINDING: no UI path to add BoQ items (BoqWorkbookView read-only, BoqImportModal unmounted). Fixed VerifyEmailView StrictMode double-POST.
+- L4 (0bc6aac): label:value spacing sweep (Justification + invoice/quote/commitments/takeoff labels).
+- Pending: final solo Playwright + verify-local on 0bc6aac, evidence files, push.
 
-## Auditor punch list (PR #2 review) — DONE, evidence: docs/evidence/auditor-punch-list.md
-- [x] Landing page verified clean; real console screenshots wired
-- [x] Portals UI: ZERO SEAT TAX/Verified Token/uppercase pills removed; next-step empty states on every (0) tab; fabricated NCA badge + hardcoded 5% retention math fixed
-- [x] Fabricated defaults: all initialX fixture fallbacks DEV-gated; sim-success fallbacks removed (variation/cost/inspection booking); fake project/equipment IDs removed
-- [x] ci.yml confirmed: migrate deploy from empty DB + rls.sql + RLS tests as db_app
-- [x] route-authz-matrix.md regenerated: 279 routes, 255 authenticated all permission-guarded, 24 allowlisted, 0 violations
-- [x] External-product wording scrubbed from todo/STATUS/research summary
-- [x] font-mono: 472 uses, codes/numbers only (unchanged — prior pass already cleaned)
-- [x] Fresh screenshots: 16 files @1440+@390 via real seeded stack + UI login
+## Round A — Admin console (replaces round L scope; items 47-52 + A1-A8 + W1-W10 + speed)
 
-## Auditor re-review round 2 — DONE (evidence: docs/evidence/auditor-punch-list.md)
-- [x] console-desktop/mobile.png replaced with real admin-console captures; stale landing.png deleted
-- [x] font-mono 472→458: prose/status/unit/free-text usages removed; remainder codes/numbers/dates/coords/PINs/phones/numeric inputs
-- [x] Portal headers: dark bands → light console-style cards on all 5 portals; "What you can do here" card added; all-zero tiles hidden; "5% Retention" label now uses real rate
-- [x] "Shot SUBCONTRACTOR"/"Screenshot Stakeholder": zero hits in source — e2e fixtures only ("E2E <TYPE>")
-- [x] parity/reference-console wording: zero hits in todo.md + PROJECT_STATUS.md
-- [x] Fresh portal screenshots @1440+@390 post-change; PR #3 updated
-- [x] Bonus: fake SHA-256 seal removed, Daraja-verified claim → simulated label, eTIMS modal SIMULATED banner
+Plan (checkable):
+- [ ] A-inv: docs/evidence/admin-console-inventory.md — one row per sidebar tab, honest status
+- [ ] A1: New project (done in L: 937514b) — verify against new acceptance gates
+- [ ] A2: click sweep exists (l2) — extend skip list w/ reasons; console-error gate
+- [ ] A3: first-hour journey — add BoQ type+import, retention/deposit, pending-invite visibility, open project
+- [ ] BoQ manual item CRUD: API (BOQ_EDIT) + UI in BoqWorkbookView + mount BoqImportModal in console
+- [ ] Project settings UI: edit contract sum, retention rate/cap, NCA, dates (PATCH exists)
+- [ ] A4: fresh-seed varied captures (seed already varied; re-capture under final sha)
+- [ ] A5: spacing sweep done (0bc6aac) — verify no stragglers
+- [ ] A6: Home get-started checklist + attention/money/overdue widgets w/ links
+- [ ] A7: mobile project picker + always-visible selector + active states + 44px targets
+- [ ] A8: permission-driven gating + no-403 test
+- [ ] Speed: skeletons, waterfall fix (ProjectsSection N+1), double-submit guards, throttled-3G spec + admin-speed-<sha>.md
+- [ ] W1-W10 click-through workflow specs
+- [ ] Final: solo suite 0/0/0 + verify-local + evidence + push
 
-## NEXT TASK
-- Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM) → wire real integrations
-- Production deploy per docs/DEPLOY.md (DISABLED_MODULES, object storage, domain/TLS)
+## Phase 3 — redesign gate (3.1–3.3)
+
+Plan:
+- [x] 3.1 DESIGN.md exists; Home/Projects/New-project rebuilt to spec blocks
+- [x] 3.2 theme ratchet: scripts/check-design-tokens.sh + baseline (CI wired)
+- [x] 3.3 nav: 240px labelled collapsible sidebar w/ inline tabs; top bar status chip, no theme toggle; phone bottom bar Home/Projects/Site/Money/More + safe-area; mobile tab row scroll+fade
+- [ ] p3-design-gate.spec.ts: UI test + 390/1280 screenshots → docs/evidence/visual/<sha>/design-gate/
+- [ ] Run affected specs (a6, a7, l1, p2, w-admin, p1-break-it) on both viewports
+- [ ] Commit P3.1/P3.2/P3.3 separately per rules
+
+## Phase 3 review (closeout on da72747)
+
+- P3.1 (2c5c9d7): docs/design/DESIGN.md + Home/Projects/New-project rebuilt; p3-design-gate spec + 390/1280 shots.
+- P3.2 (72277ae): check-design-tokens.sh ratchet in CI, light-only theme.
+- P3.3 (f9d25ac): labelled collapsible sidebar, inline active tabs, phone bottom bar + More sheet.
+- P3.4 (85edeb1): tab roles, URL/back-forward sync fix in ConsoleContext, dead-control fix.
+- P3.6 (1aa902c): rt stacked-card tables under 640px (team, roles, BoQ workbook).
+- P3.7/P3.8 (68f18e3): banned-pattern review doc + sunlight fixes.
+- P3.9 (da72747): nav-contract assertion follows tab role (test fix only).
+- Regressions fixed en route: a6-home aggregate attention stats, a7/l1 duplicate-button locators, p1 mobile More-sheet scoping, c1 back-button timing.
+- Final: full solo suite on 60c0220 — 452/452 green (e2e-60c0220.md);
+  verify-local 6/6 green (verify-60c0220.log). Phase 3 ready for review.
+
+## Phase 4 — speed
+
+- [x] P4.1: GET /api/v1/home/summary — one call replaces Home dashboard fan-outs; shared cash-flow fetch; real snag/incident enums; members moved into ConsoleContext (kills duplicate shell fetches); get-started effect dep fixed (7b30cf1 + earlier P4 commits)
+- [x] P4.2: in-flight GET dedupe in lib/api.ts; section chunks warm on idle via warmChunk (AppShell) — hover prefetch unnecessary once idle-warm; charts are inline SVG (no heavy lib to defer); background revalidation NOT added — nav data measured 250–450 ms, far under the 1.5 s budget (honest partial)
+- [x] P4.3: loading=lazy on list photos; compressImageClientSide on portal uploads; usePagedList on diaries/invoices/members; immutable cache headers for hashed assets + no-cache sw.js in nginx template (7b30cf1)
+- [x] P4.4: CLS via PerformanceObserver + per-section shell/data timing in measure-admin-speed.mjs; wizard driver rewritten as draft-state machine (fixed stale 4-step flow + backdrop-close race + 409 stale-draft submit)
+- [x] P4.5 (50cfc92): SW precache deferred 5 s past load (was saturating throttled link); console chunks warmed in parallel with /auth/me; lessons.md pagination entry
+- [x] P4.3 fix (c6862c6): explicit `page=` disables transparent auto-pagination (was double-fetching/duplicating rows); server takes first value of duplicated query keys; mutation invalidates in-flight GET dedupe (d8f4976)
+- [x] P4.7 (ccb8974): gzip enabled in nginx.conf.template — template had cache headers but no compression; ~660 kB JS/CSS would have shipped raw. Verified via local nginx mirroring the template.
+- [x] P4.6 attempted + REVERTED (ab900bb/02d3ffd → e4c4d5c/f32f38e): lazy LoginForm/LandingPortalHub cut entry 327→270 kB but introduced a lazy-boundary race (specs + users see 'Loading…' flash on landing); ~57 kB saving didn't move first-screen reliably. Reverted, not shipped.
+- [x] Closeout evidence: ui-speed-ccb8974.md (18/19 budgets; first-screen 3436 ms MISS documented honestly — CPU-bound under 4x throttle, bandwidth fixed), e2e-ccb8974.md (452/452 solo suite on identical tree), verify-ccb8974.log (6/6 turbo tasks green)
+
+## Part A — auditor fixes on 699a61a (stop before Part B)
+
+- [ ] A1: sidebar tabs must render under their OWN section item; only active section expands; DOM-adjacent order test @1280px
+- [ ] A2: phone bottom bar text labels under every icon, 56px, active clear; test @390px
+- [ ] A3: phone header project selector truncate+ellipsis, status beside it; single nav level on phone
+- [ ] A4: clean seed/demo names (no timestamps, no 7 identical projects); "Context:" line shows project name not ID
+- [ ] A5: remove Home hero card + big Open projects button; order = Needs you now → Get started → spec blocks; full-page shots 390/1280 with real data
+- [ ] A6: extend break-it checks to every admin primary save (BoQ, diary, snag, inspection, safety, PO, invoice, payment, valuation, certificate, subcontractor, upload, announcement); coverage table
+- [ ] A7: first-screen <3000ms — route-level console split / defer non-critical; 5-run median on quiet host; honest miss if remains
+- [ ] A8: list >800-line files; split daily-use ones, no behaviour change
+- [ ] A9: evidence on FINAL commit; report table + counts + A6 table + screenshots; STOP
+
+## A8 review — eight oversized view splits (uncommitted)
+
+Pure code-motion splits; each original file keeps its public exports and
+import path, delegating presentational JSX to a sibling `<Name>.parts.tsx`.
+State, hooks, API calls, handlers, and currency-guard-sensitive formatting
+expressions stayed in the shells; formatted values are passed as props.
+
+| View | Shell lines | Parts lines | Parts file |
+|---|---|---|---|
+| PlantTelematicsView | 742 | 973 | PlantTelematicsView.parts.tsx |
+| TopographicSurveyView | 598 | 885 | TopographicSurveyView.parts.tsx |
+| ContractorTenderBoardView | 329 | 917 | ContractorTenderBoardView.parts.tsx |
+| ClientDashboard | 428 | 726 | ClientDashboard.parts.tsx |
+| LaborMusterRollView | 463 | 719 | LaborMusterRollView.parts.tsx |
+| PlantEquipmentView | 444 | 731 | PlantEquipmentView.parts.tsx |
+| RmcTransitTrackerView | 495 | 627 | RmcTransitTrackerView.parts.tsx |
+| AsphaltPavementView | 440 | 642 | AsphaltPavementView.parts.tsx |
+
+Verification: `pnpm exec tsc --noEmit` in apps/web — clean (0 errors).
+`vitest run src/currency-guard.test.ts` — 2/2 pass. No `.parts.tsx` file
+contains `KES <amount>` literals, `.toFixed(2)`, or `toLocaleString` money
+formatting (guard-safe by construction).
+
+Not touched per instructions: IndependentSiteReportView.tsx,
+RetentionAndBondsView.tsx, e2e/tests/aud-*.spec.ts, aud-specs.sha256.
+NOTE: IndependentSiteReportView/RetentionAndBondsView and their .parts/.modals
+files show pre-existing uncommitted changes from earlier work — not from this
+task; left untouched.
+
+## Part A progress (auditor fixes on 699a61a)
+
+- [x] A1 sidebar tab adjacency — pa-auditor-fixes.spec.ts, 7/7 chromium green (`7e7a616`)
+- [x] A2 phone bottom bar labels + real-click hit test — green on mobile-390 (`1b56ee5` + layout settled; earlier 463px overflow no longer reproduces — verified innerWidth=390, scrollWidth=390 on all sections)
+- [x] A3 phone project picker — truncated name + status chip (`1b56ee5`)
+- [x] A4 realistic fixture names — fixtureName() pools across 28 spec files (`0ab9327`, `a2958ea`); aud-*.spec.ts untouched
+- [x] A5 Home hero removed, Needs-you-now first, enriched seed (milestones/diaries/photos/invoices/EVM) (`f2618eb`, `43f6ef5`); screenshots `docs/evidence/visual/f8b9c3a/part-a/`
+- [~] A6 break-it 13 surfaces — pa-break-it-console.spec.ts; chromium 13/13 green across runs; mobile-390 in progress. Product bugs found+fixed: SiteDiaryModal fake-queue on HTTP errors (`27b8325`), SafetyIncidentLogView silent catch→fake-save (`405d8a0`), SubcontractorManagementView fire-and-forget close (`8866c2e`)
+- [~] A7 first screen — entry chunk 327.8→270.3 kB (lazy LoginForm/LandingPortalHub, `f8b9c3a`); 5-run median on CURRENT host ~5.2 s (load avg ~20 — host not quiet; honest miss to report)
+- [x] A8 ten >800-line views split shell+parts (`ff08d06`); 3 parts files remain >800 (single presentational tables)
+- [ ] A9 final-commit suite + verify-local + report — pending
+
+## Part A — auditor fixes on 699a61a — IN PROGRESS (awaiting review)
+
+- [x] A1 sidebar tabs under own item — 7e7a616 (+ pa-auditor-fixes spec)
+- [x] A2 bottom-bar labels 56px — 6c3abc6/1b56ee5
+- [x] A3 phone header picker truncate+status — 1b56ee5/0a83daa
+- [x] A4 realistic fixture names + clean seed — a2958ea/0ab9327/43f6ef5/a486643/343594e
+- [x] A5 Home hero removed, Needs-you-now first — f2618eb/74f08fb
+- [x] A6 break-it all 13 admin saves — pa-break-it-console.spec.ts (87a2038, green both viewports)
+- [x] A7 lazy landing-only views — f8b9c3a
+- [x] A8 split >800-line daily views — 8866c2e/ff08d06/405d8a0
+- [x] Suite fixes: tab race 53f400e, i-stage1 locator 11c11a2, aria-pressed f659ced, picker race e3fd29a, chip status a4536b6, App.test prerender 2047df6
+- [ ] A9 evidence + report — suite on e3fd29a (246+240 green, 1 spec-bug fail fixed+reverified), verify-local on 2047df6 running
+
+## Part B — Phase 5 (location, evidence, comms, queue) — IN PROGRESS
+
+Gap survey complete (subagent). Plan, one item = one commit, tests first:
+
+- [x] P5.1 Real GPS capture: enable geolocation in Permissions-Policy (vite+nginx), shared useGeolocation hook w/ accuracy, gps_accuracy_meters on SitePhoto/SnagPhoto/IndependentInspectionPhoto (+migration), replace hardcoded Nairobi coords (SiteDiaryModal, CreateSnagModal, GeofencedClockInView, PhotoEvidenceGallery, reports.ts, IndependentSiteReportView) — 882fa82, 026bfd5
+- [x] P5.2 Photos time+location: device timestamp + accuracy captured at shutter; display accuracy in gallery — covered by P5.1 fields + diary/snag/clock-in geolocation
+- [x] P5.3 Project map: map lib (react-leaflet+OSM), project pin picker in onboarding, map view showing project + geofences + photo pins — 56e9620
+- [x] P5.4 Camera link: FIELD portal_type on PortalAccessLink, token-gated mobile photo-capture page (capture=environment, GPS, daily photo), admin "copy link" UI — e071f14 (API), 0d10453 (UI+e2e)
+  - API: PortalTypeEnum+='FIELD'; GET /api/v1/portals/field/:token (project+stakeholder+today diary/photos); POST .../uploads (verified multipart); POST .../photos (find-or-create today EAT diary, weather/siteStatus required only when creating); GET .../files/* (token-scoped serve — /uploads/* needs session)
+  - Web: FieldPortalView (camera capture input, GPS via useGeolocation, weather/status chips when first photo of day), App.tsx 'field' case, PortalAccessLinkManager FIELD option
+  - Tests: field-portal.test.ts (API) + e2e p5-field-camera.spec.ts
+- [x] P5.5 Live notifications: SSE endpoint /api/v1/events (auth'd, tenant-scoped), web EventSource → toast + inbox refetch; pg_notify inside tx (commit-safe); web-push behind VAPID config NOT built — honest gap — 4c175f5
+- [x] P5.6 Comments/mentions: polymorphic EntityComment (diary, invoice, RFI, observation...), @mention → InboxMessage notify — 401027e (+6c1a7d2 hygiene fix)
+  - Model EntityComment (tenant, entity_type/id, project_id, author, body, mentions[]) + migration; CreateEntityCommentSchema
+  - GET/POST /api/v1/comments?entityType=&entityId= — whitelist resolver (SITE_DIARY, SNAG_ITEM, INVOICE, RFI, SITE_OBSERVATION, VARIATION_ORDER, QUOTE); mention tokens → member match (email/prefix/full name) → direct InboxMessage + publishInboxEvent
+  - Web: EntityComments.tsx mounted on invoice detail expand + snag cards; e2e p5-entity-comments.spec.ts (4/4 both viewports); API entity-comments.test.ts (4/4)
+  - Note: legacy snagComment (portal review notes) is a separate store — kept
+- [x] P5.7 Messaging delivery status: MessageDelivery model+migration, recordMessageDelivery wired into all dispatchNotification call sites (integrations test-send, platformServices inspection alerts, enterpriseOperations site alerts, scheduledReports), admin-only GET /api/v1/message-deliveries, delivery log UI under Files & reports → Integrations (COMPANY_ADMIN/ADMIN) — bdfea7a (red d15c23a); note: IntegrationsView was previously unreachable (only CompanyAdminDashboard referenced it) — now mounted in console FilesSection
+- [x] P5.8 pg-boss queue: pg-boss@12.38.2 (schema `pgboss`), startJobs after listen (queue outage can't block API), sweep */5min runs due ACTIVE scheduled reports via shared lib/scheduledReportRunner (route refactored to same runner), daily 06:00 UTC invoice-reminders (client email→SMS fallback, 72h dedupe via message_deliveries) — 33d22ee (red 4fd068e); jobs.test.ts 2/2, g5-9+deliveries regression 8/8
+- [x] P5.9 Meetings + .ics: Meeting model+migration, CRUD /api/v1/meetings (PROJECT_VIEW/EDIT), GET /:id/ics RFC5545 folded escaped text/calendar, Site→Meetings tab (schedule form, .ics link, cancel) — f116f49 (red 11847fe); p5-meetings e2e 2/2, meetings.test 3/3; P5.8 boot fixes 10734cd (pgboss schema migration + pre-listen onClose)
+- [x] P5.10 Slow work off request path: ExportJob model+migrations (PENDING default + claim_export_job SECURITY DEFINER in rls.sql), lib/reportWorkbooks.ts shared builders (sync *.xlsx endpoints unchanged for auditor specs), routes/exportJobs.ts (POST …/reports/{financials,cost}/export → 202, GET status, GET download via storage driver), pg-boss QUEUE_EXPORT + QUEUE_REPORT_DELIVERY workers + enqueue fallbacks + stale-PENDING reaper in sweep, /run route defers delivery (deliveriesStatus DONE|QUEUED), console FilesSection+MoneySection Excel buttons → queued flow — export-jobs.test.ts 3/3 (red 38edb17)
+- [x] P5.11 Closeout: solo suite 509/0/9 on 603726b (docs/evidence/e2e-603726b.md); verify-local 6/6 on cca2c88 (703 api tests, docs/evidence/verify-cca2c88.log); regressions fixed: route-guard allowlists 2489fd2, DB-default restore migration, document_counters fixture bypass cca2c88
+
+## Post-Phase-5 — Competitor backlog (Assistant QS suite — docs/research/assistant-qs-suite-notes.md)
+
+- [x] CB1 Indent depth — DONE
+  - Schema: MaterialRequisition + indent_kind(MATERIAL|SERVICE)/store/floor/unit/work-order/category/material type+subtype/lead_time/expected_delivery/notes; new IndentDeliveryBatch; requisition_id FK on PurchaseOrder + InventoryMovement (migration 20261127120000_cb1_indent_depth)
+  - API: create accepts depth fields + deliverySchedule[]; list filters (kind/store/floor/unit/fulfilment); fulfilment derived UNFULFILLED|PO_RAISED|PO_FULFILLED|ISSUED|FULFILLED; PATCH :id/amend (reason, field edits, batch replace, 409 when terminal, recordAuditLog AMEND); PO create + USAGE_OUT movement accept requisitionId — d853514 (red 6245040)
+  - Web: MaterialRequisitionView mounted LIVE as Money → "Material indents" (was dead code inside unmounted PmQsDashboard) — kind/store/fulfilment filters, depth fields on create, DeliveryScheduleEditor, AmendRequisitionModal, fulfilment badges, role-gated via COST_* permissions; IndentPrintModal + @media print [data-print-root] isolation; live errors surface via apiErrorMessage (no silent fake rows) — 7b8510f, 9804e0a
+  - Tests: indent-depth.test.ts 5/5 (API), cb1-indent-depth.spec.ts 8/8 chromium+mobile-390 (create/amend/print/API), a8-permissions + l2-click-sweep green with new tab
+- [x] CB2 Rate master — DONE
+  - Schema: RateMasterEntry (tenant, country/state/city, item_type, material_type/subtype, description, unit, unit_rate_kes, effective dates, source) + migration 20261127130000_cb2_rate_master + RLS
+  - API: /api/v1/rate-master CRUD + GET /lookup ranked match (q+unit, effective-date bonus) + POST /bulk upsert ≤500 by natural key — 4baa7f0 (red test rate-master.test.ts 5/5)
+  - Web: Money → "Rate master" tab (RateMasterView: filters, table, edit modal w/ AppDialog delete, CSV bulk upload); shared RateLookupButton prefill wired into BoqWorkbookView add/edit line + ProcurementView PO lines
+  - Tests: rate-master.test.ts 5/5 (API); cb2-rate-master.spec.ts 3/3 chromium + 3/3 mobile-390 (create, bulk upsert 1c/1u, BoQ prefill→790); a8-permissions + l2-click-sweep updated & green; frontend-hygiene clean
+- [x] CB3 Gate pass: material-exit authorization register — DONE
+  - Schema: GatePass (tenant, pass_number unique per tenant via document_counters 'GATE_PASS', project?, store, issued_to name/phone, destination, vehicle, purpose, items Json, status PENDING|AUTHORIZED|EXITED|CANCELLED, authorized_by/at, exited_at/by, cancel_reason) — migration 20261127140000_cb3_gate_pass + RLS
+  - API: /api/v1/gate-passes list (projectId/status/store/q) + get + create (COST_CREATE) + :id/authorize|exit|cancel (COST_APPROVE authorize/cancel, COST_CREATE exit); 409 illegal transitions; audit log — c36f342 (red dbac35f, 4/4)
+  - Web: Money → "Gate passes" tab (GatePassView register + status chips + search + create modal w/ item lines + authorize/exit/cancel via AppDialog, COST_* gated)
+  - Tests: gate-pass.test.ts 4/4; cb3-gate-pass.spec.ts 2/2 chromium + 2/2 mobile-390; a8-permissions green incl. new tab; l2-click-sweep/admin-console-capture lists updated
+- [x] CB4 GRN/PO register view: supplier+store+value columns, dedicated register screen — DONE
+  - Schema: store_location on purchase_orders + material_deliveries (migration 20261127150000_cb4_purchase_register)
+  - API: GET /api/v1/purchase-register unified rows (kind PO|GRN, ref, date, project, supplier, store, description, qty, value, status) + filters kind/status/supplierId/store/projectId/q + pagination; PO create + diary delivery accept storeLocation — d1051fb (red 55ff2b2, 3/3)
+  - Web: ProcurementView "Purchase orders | PO / GRN register" toggle → PurchaseRegisterView (kind badges, supplier/store/value columns, status chips, filters); PO create form gains store/site field — PurchaseRegisterView.tsx + ProcurementView diff
+  - Tests: purchase-register.test.ts 3/3; cb4-purchase-register.spec.ts 2/2 chromium + 2/2 mobile-390 (fixture PO+diary-GRN, register shows both rows; GRN inherits PO number as ref so assertions scoped by register-row-{kind} testids); frontend-hygiene clean; web tsc clean
+- [x] CB5 Contractor master: unified firm register — DONE
+  - Schema: ContractorFirm (tenant, firm_name, kra_pin @@unique[tenant,kra_pin] nullable-ok, contact, work_categories String[], approval_status PENDING|APPROVED|SUSPENDED|BLACKLISTED, approved_by/at, status_reason, is_active); SubcontractorPackage.contractor_id nullable FK (SetNull) — migration 20261127160000_cb5_contractor_master
+  - API: /api/v1/contractors list (q/status/category, COST_VIEW) + get (packages) + POST (COST_CREATE, P2002→409) + PATCH (COST_APPROVE; transition matrix PENDING→APPROVED, APPROVED→SUSPENDED|BLACKLISTED, SUSPENDED→APPROVED|BLACKLISTED, BLACKLISTED terminal→409, audit-logged); package create accepts contractorId (firm must exist + APPROVED else 404/409), package list returns contractorId/contractorFirmName/contractorKraPin — contractors.ts; contractor-master.test.ts 4/4 (red committed first)
+  - Web: People → subcontractors tab gains "Work packages | Contractor register" toggle → ContractorMasterView (register table, status chips, create/edit modal, approve/suspend/blacklist/reinstate via AppDialog prompt for reason, COST_* gated); SubcontractorManagementView award modal gains approved-firm select (prefills name/contact/phone, sends contractorId) + "Master: KRA…" badge on linked packages
+  - Tests: cb5-contractor-master.spec.ts 2/2 chromium + 2/2 mobile-390 (register via UI → API verify, approve+suspend via UI prompts → API verify); route-guard + operations-suite regression green; frontend-hygiene clean; web tsc clean
+- [x] CB6 BOQ floor/unit mapping for takeoff — DONE
+  - Schema: BOQItem + floor VARCHAR(100)? + unit_ref VARCHAR(100)? + indexes (migration 20261127170000_cb6_boq_floor_unit)
+  - API: POST/PATCH boq/items accept floor/unitRef (null clears); GET items filters floor/unitRef; POST boq/items/bulk-map {mappings[]} ≤500 on active BOQ, 404 on foreign/missing items, audit 'boq.items.bulk_map' — boq-floor-unit.test.ts 3/3 (red first)
+  - Web: BoqWorkbookView — Floor/Unit ref fields on add+edit form, Location column badges, floor/unit filter dropdowns (derived from items), "Map floors/units" bulk-assign mode (checkboxes + apply, blank keeps existing)
+  - Tests: cb6-boq-floor-unit.spec.ts 2/2 chromium + 2/2 mobile-390 (fixture items → bulk map → badges → filters → API verify); boq-manual-items + route-guard regression green; hygiene clean
+- [x] CB7 Print views: PO/GRN print — DONE (8b3271f)
+  - API: GET /api/v1/material-deliveries/:id (COST_VIEW) — delivery + supplier + linked PO + project for GRN print doc (PO print reuses existing PO detail endpoint)
+  - Web: components/procurement/ProcurementPrintModal.tsx — kind-aware fetch + printable doc (data-print-root, @media print isolation); PurchaseRegisterView gains Actions/Print column per row; ProcurementView PO cards gain Print button + projectName prop (MoneySection passes it)
+  - Tests: cb7-po-grn-print.spec.ts 3/3 chromium + 3/3 mobile-390 (register-row print PO+GRN, PO-card print); api+web tsc clean; hygiene clean
+
+## P6 — web push (P5.5 honest gap) — DONE
+
+- [x] Schema: push_subscriptions (tenant+user+endpoint unique, RLS) — migration 20261127180000_p6_push_subscriptions (41 migrations)
+- [x] API: GET /push/vapid-key + subscription CRUD (self-service allowlist); endpoint write-only; web-push@3.6.7
+- [x] Dispatch: dispatchTenantPush on inbox event bus post-commit; actor excluded; 404/410 pruned; VAPID_* unset = clean no-op; starts after listen, stops on close
+- [x] Web: public/push-sw.js (push→showNotification, click→focus/openWindow) via workbox importScripts; lib/push.ts capability probe; InboxView Enable/On/Blocked toggle (hidden unsupported/unconfigured)
+- [x] Tests: push-subscriptions.test.ts 4/4; p6-web-push.spec.ts 2/2 both viewports; route-guard 8/8; prod build verified (sw.js importScripts + dist/push-sw.js); DEPLOY.md + .env.example document VAPID_*
+- Honest limit: real push delivery needs prod build + VAPID keys + a push service; dev/e2e proves degradation path only.

@@ -4,19 +4,28 @@ import ChecklistsView from '../../ChecklistsView';
 import SnaggingListView from '../../SnaggingListView';
 import ObservationsView from '../../ObservationsView';
 import SafetyIncidentLogView from '../../SafetyIncidentLogView';
+import MeetingsView from '../../MeetingsView';
 import InspectionRequestModal from '../../InspectionRequestModal';
 import { GeofencedClockInView} from '../../GeofencedClockInView';
 import AttendanceView from '../../AttendanceView';
 import QualityControlView from '../../QualityControlView';
 import IndependentSiteReportView from '../../IndependentSiteReportView';
 import SiteDiaryModal from '../../SiteDiaryModal';
+import { lazyChunk } from '../../../lib/lazyChunk';
+import { Suspense } from 'react';
+
+// Leaflet + OSM tiles are heavy — keep the map out of the console bundle.
+const ProjectMapView = lazyChunk(() => import('../../ProjectMapView'));
 import { IconPlus} from '../icons';
+import { formatDate } from '../../../lib/format';
+import { api } from '../../../lib/api';
+import { Card } from '../../../ui';
 
 function EmptyProject({ what}: { what: string}): React.JSX.Element {
   return (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500 dark:text-slate-400">
+<Card className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
       Select a project to view {what}.
-</div>
+</Card>
 );
 }
 
@@ -28,9 +37,8 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
   const [logDate, setLogDate] = useState<string | undefined>(undefined);
 
   const load = () => {
-    fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((j) => setDiaries(j.data || []))
+    api.get<any>(`/api/v1/projects/${projectId}/site-diaries`)
+      .then((j) => setDiaries(j?.data || []))
       .catch(() => setDiaries([]))
       .finally(() => setLoading(false));
 };
@@ -53,23 +61,23 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 </div>
         {canEdit && (
 <button onClick={() => setModalOpen(true)}
-            className="px-3.5 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1.5">
+            className="px-3.5 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg flex items-center gap-1.5">
 <IconPlus className="w-3.5 h-3.5" /> New daily log
 </button>
 )}
 </div>
 
       {loading ? (
-<p className="text-xs text-slate-400">Loading…</p>
+<p className="text-xs text-slate-500">Loading…</p>
 ) : (
 <>
           {/* Week strip — last 14 days, logged vs not */}
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<Card className="overflow-hidden">
 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
 <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                 {days.length} of {Math.min(14, days.length + 14 - days.length)} recent days logged
 </p>
-<p className="text-[11px] text-slate-400">{days.length} day{days.length === 1 ? '' : 's'} with entries</p>
+<p className="text-[11px] text-slate-500">{days.length} day{days.length === 1 ? '' : 's'} with entries</p>
 </div>
 <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
               {Array.from({ length: 14}, (_, i) => {
@@ -84,8 +92,8 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 <div key={key} className="px-4 py-3 flex items-center justify-between gap-3">
 <div className="min-w-0">
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                        {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short'})}
-                        {isToday &&<span className="ml-2 text-[10px] font-bold text-orange-600 ">Today</span>}
+                        {formatDate(d)}
+                        {isToday &&<span className="ml-2 text-[10px] font-bold text-orange-700 ">Today</span>}
 </p>
 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                         {entries.length > 0
@@ -94,7 +102,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 </p>
 </div>
                     {entries.length === 0 && canEdit && !isToday && (
-<button onClick={() => { setLogDate(key); setModalOpen(true);}} className="text-[11px] font-bold text-orange-600 hover:underline shrink-0">Add log</button>
+<button onClick={() => { setLogDate(key); setModalOpen(true);}} className="text-[11px] font-bold text-orange-700 hover:underline shrink-0">Add log</button>
 )}
                     {entries.length > 0 && (
 <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900 shrink-0">Logged</span>
@@ -103,11 +111,11 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 );
 })}
 </div>
-</div>
+</Card>
 
 <div className="bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
 <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Why log every day</p>
-<p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+<p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
               A dated record of who was on site, what got done and what held you up is what wins extension-of-time claims and settles payment disputes. Two minutes at the end of each day is enough.
 </p>
 </div>
@@ -137,7 +145,7 @@ function InspectionsTab(): React.JSX.Element {
 <div className="space-y-4">
       {canRequest && livePid && (
 <div className="flex justify-end">
-<button onClick={() => setReqOpen(true)} className="px-4 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg">New Request</button>
+<button onClick={() => setReqOpen(true)} className="px-4 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg">New Request</button>
 </div>
 )}
 <IndependentSiteReportView projectId={livePid} projectName={projectName} userRole={role} />
@@ -157,9 +165,8 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/v1/projects/${projectId}/checklist-assignments`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((j) => setAssignments(j.data || j || []))
+    api.get<any>(`/api/v1/projects/${projectId}/checklist-assignments`)
+      .then((j) => setAssignments(j?.data || j || []))
       .catch(() => setAssignments([]))
       .finally(() => setLoading(false));
 }, [projectId]);
@@ -187,20 +194,20 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
             className="text-left p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition">
 <span className="text-lg">{a.icon}</span>
 <p className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1.5">{a.label}</p>
-<p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{a.desc}</p>
+<p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{a.desc}</p>
 </button>
 ))}
 </div>
 
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<Card className="p-5">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">My Assigned Checklists</h4>
 <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Complete your assigned QA checklists and safety inspections.</p>
         {loading ? (
-<p className="text-xs text-slate-400">Loading…</p>
+<p className="text-xs text-slate-500">Loading…</p>
 ) : open.length === 0 ? (
 <div className="text-center py-6">
 <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">No assigned checklists</p>
-<p className="text-xs text-slate-400 mt-1">Ask your supervisor to assign you a checklist from Assignments.</p>
+<p className="text-xs text-slate-500 mt-1">Ask your supervisor to assign you a checklist from Assignments.</p>
 </div>
 ) : (
 <div className="space-y-2">
@@ -209,14 +216,14 @@ function FieldView({ projectId, projectName, setTab}: { projectId: string; proje
                 className="w-full text-left flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition">
 <div>
 <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{a.title}</p>
-<p className="text-[10px] text-slate-400">{a.trade}{a.assigned_to_name ? ` · ${a.assigned_to_name}` : ''}{a.due_date ? ` · due ${String(a.due_date).slice(0, 10)}` : ''}</p>
+<p className="text-[10px] text-slate-500">{a.trade}{a.assigned_to_name ? ` · ${a.assigned_to_name}` : ''}{a.due_date ? ` · due ${String(a.due_date).slice(0, 10)}` : ''}</p>
 </div>
 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{String(a.status).replace(/_/g, ' ')}</span>
 </button>
 ))}
 </div>
 )}
-</div>
+</Card>
 </div>
 );
 }
@@ -236,6 +243,13 @@ export default function SiteSection(): React.JSX.Element {
   if (tab === 'fieldview') {
     return livePid ?<FieldView projectId={livePid} projectName={projectName} setTab={setTab} /> :<EmptyProject what="the field view" />;
 }
+  if (tab === 'map') {
+    return livePid ? (
+      <Suspense fallback={<Card className="p-10 text-center text-sm text-slate-500">Loading map…</Card>}>
+        <ProjectMapView projectId={livePid} canEdit={canEdit} />
+      </Suspense>
+    ) : <EmptyProject what="the project map" />;
+}
   switch (tab) {
     case 'checklists': return<ChecklistsView projectId={livePid} canManage={canEdit} initialTab="templates" />;
     case 'assignments': return<ChecklistsView projectId={livePid} canManage={canEdit} initialTab="assignments" />;
@@ -246,6 +260,7 @@ export default function SiteSection(): React.JSX.Element {
     case 'observations': return<ObservationsView projectId={livePid} canManage={canEdit} />;
     case 'actionplans': return<ObservationsView projectId={livePid} canManage={canEdit} />;
     case 'safety': return<SafetyIncidentLogView projectId={livePid} canLog={canEdit} canInvestigate={canInvestigate} />;
+    case 'meetings': return<MeetingsView projectId={livePid} canManage={canEdit} />;
     case 'attendance': return (
 <div className="space-y-4">
         {livePid &&<GeofencedClockInView projectId={livePid} projectName={projectName} />}

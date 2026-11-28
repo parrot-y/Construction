@@ -95,7 +95,7 @@ export default function CreateRfiModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close"
           >
             
@@ -113,7 +113,7 @@ export default function CreateRfiModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-              RFI Subject / Title<span className="text-rose-500">*</span>
+              RFI Subject / Title<span className="text-rose-700">*</span>
 </label>
 <input
               type="text"
@@ -137,7 +137,7 @@ export default function CreateRfiModal({
 </div>
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Assigned Consultant<span className="text-rose-500">*</span>
+                Assigned Consultant<span className="text-rose-700">*</span>
 </label>
 <select
                 value={assignedConsultant}
@@ -153,7 +153,7 @@ export default function CreateRfiModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Priority Level<span className="text-rose-500">*</span>
+                Priority Level<span className="text-rose-700">*</span>
 </label>
 <select
                 value={priority}
@@ -183,7 +183,7 @@ export default function CreateRfiModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Technical Query Narrative<span className="text-rose-500">*</span>
+              Technical Query Narrative<span className="text-rose-700">*</span>
 </label>
 <textarea
               rows={4}
@@ -206,7 +206,7 @@ export default function CreateRfiModal({
               placeholder="e.g. Photo-Grid-C4-Discrepancy.jpg or SK-02.pdf"
               className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800 placeholder-slate-400"
             />
-<p className="text-[11px] text-slate-400 mt-1">
+<p className="text-[11px] text-slate-600 mt-1">
               Simulates attaching marked-up DWG/PDF drawings or site photos for the consultant.
 </p>
 </div>

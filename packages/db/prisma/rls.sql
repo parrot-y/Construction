@@ -51,6 +51,29 @@ END
 $$;
 
 -- ==============================================================================
+-- SECURITY DEFINER LOOKUP FUNCTIONS — OWNER MUST BYPASS RLS
+-- FORCE ROW LEVEL SECURITY binds even the table owner, so a SECURITY DEFINER
+-- function owned by db_migrator sees zero rows and silently breaks login,
+-- portal links, token lookups, etc. Re-own every definer function in public
+-- to the role applying this script (the deploy admin — postgres in
+-- verify-local and the documented deploy flow).
+-- ==============================================================================
+DO $$
+DECLARE
+    fn RECORD;
+BEGIN
+    FOR fn IN
+        SELECT p.oid::regprocedure AS signature
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.prosecdef
+    LOOP
+        EXECUTE format('ALTER FUNCTION %s OWNER TO CURRENT_USER', fn.signature);
+    END LOOP;
+END
+$$;
+
+-- ==============================================================================
 -- LEDGER IMMUTABILITY & ANTI-TAMPER CONTROLS (C4, R-024)
 -- ==============================================================================
 
@@ -200,6 +223,7 @@ RETURNS TABLE (
   email VARCHAR,
   phone VARCHAR,
   role VARCHAR,
+  pin_hash VARCHAR,
   status VARCHAR,
   expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ
@@ -207,13 +231,37 @@ RETURNS TABLE (
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE sql AS $$
-  SELECT id, tenant_id, email, phone, role, status, expires_at, created_at
+  SELECT id, tenant_id, email, phone, role, pin_hash, status, expires_at, created_at
   FROM public.invitations
   WHERE token = p_token
   LIMIT 1;
 $$;
 REVOKE ALL ON FUNCTION lookup_invitation_by_token(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_invitation_by_token(TEXT) TO db_app;
+
+-- Narrow SECURITY DEFINER lookup for password-reset tokens. The reset flow is
+-- unauthenticated, so the caller has no tenant context; the function returns
+-- only the fields needed to validate + consume the token (hash-only storage).
+DROP FUNCTION IF EXISTS lookup_password_reset_token(TEXT);
+CREATE OR REPLACE FUNCTION lookup_password_reset_token(p_token_hash TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  user_id UUID,
+  expires_at TIMESTAMPTZ,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id, user_id, expires_at, used_at, created_at
+  FROM public.password_reset_tokens
+  WHERE token_hash = p_token_hash
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_password_reset_token(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_password_reset_token(TEXT) TO db_app;
 
 -- Narrow SECURITY DEFINER lookup function for Stakeholder Portal by SHA-256 Hash (H4, H5, 2c, 2d)
 DROP FUNCTION IF EXISTS lookup_portal_link_by_hash(TEXT);
@@ -226,6 +274,8 @@ RETURNS TABLE (
   stakeholder_name VARCHAR,
   stakeholder_role VARCHAR,
   subcontractor_package_id UUID,
+  supplier_id UUID,
+  scope VARCHAR,
   is_active BOOLEAN,
   expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ
@@ -233,7 +283,7 @@ RETURNS TABLE (
 SECURITY DEFINER
 SET search_path = public
 LANGUAGE sql AS $$
-  SELECT id, tenant_id, project_id, portal_type, stakeholder_name, stakeholder_role, subcontractor_package_id, is_active, expires_at, created_at
+  SELECT id, tenant_id, project_id, portal_type, stakeholder_name, stakeholder_role, subcontractor_package_id, supplier_id, scope, is_active, expires_at, created_at
   FROM public.portal_access_links
   WHERE token_hash = p_token_hash
   LIMIT 1;
@@ -333,3 +383,52 @@ LANGUAGE sql AS $$
 $$;
 REVOKE ALL ON FUNCTION lookup_mpesa_b2c_transaction(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_mpesa_b2c_transaction(TEXT) TO db_app;
+
+-- Narrow SECURITY DEFINER lookup for provider payment webhooks (Paystack seam).
+-- The unauthenticated webhook resolves tenant context from (provider, reference)
+-- before entering withTenantTx. Re-created here (as the postgres role that owns
+-- rls.sql) so it bypasses FORCE RLS like every other lookup_* function — the
+-- migration-time copy is owned by db_migrator and would see zero rows.
+DROP FUNCTION IF EXISTS lookup_provider_payment_charge(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION lookup_provider_payment_charge(p_provider TEXT, p_reference TEXT)
+RETURNS TABLE (
+  id UUID,
+  tenant_id UUID,
+  invoice_id UUID,
+  amount_minor INTEGER,
+  currency VARCHAR,
+  status VARCHAR,
+  invoice_payment_id UUID
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE sql AS $$
+  SELECT id, tenant_id, invoice_id, amount_minor, currency, status, invoice_payment_id
+  FROM public.provider_payment_charges
+  WHERE provider = p_provider AND reference = p_reference
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_provider_payment_charge(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_provider_payment_charge(TEXT, TEXT) TO db_app;
+
+-- Export-job worker claim (P5.10): the pg-boss export worker has no tenant
+-- context when it picks up a job, so it cannot read export_jobs under FORCE
+-- RLS. This function atomically flips PENDING -> RUNNING and returns the row
+-- (including tenant_id) so the worker can enter withTenantTx for the rest of
+-- the work. Re-created here so the deploy role owns it and it bypasses RLS.
+DROP FUNCTION IF EXISTS claim_export_job(UUID);
+CREATE OR REPLACE FUNCTION claim_export_job(p_id UUID)
+RETURNS SETOF public.export_jobs
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN QUERY
+  UPDATE public.export_jobs
+  SET status = 'RUNNING'
+  WHERE id = p_id AND status IN ('PENDING', 'QUEUED')
+  RETURNING *;
+END;
+$$;
+REVOKE ALL ON FUNCTION claim_export_job(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION claim_export_job(UUID) TO db_app;

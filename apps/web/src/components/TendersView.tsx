@@ -1,4 +1,8 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatMoney } from '@construction/money';
+import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Tender {
   id: string; tenderCode: string; title: string; tradeCategory?: string;
@@ -19,9 +23,9 @@ const STATUS_STYLE: Record<string, string> = {
   UNDER_EVALUATION: 'bg-amber-50 text-amber-700',
   AWARDED: 'bg-emerald-50 text-emerald-700',
   CLOSED: 'bg-slate-100 text-slate-500',
-  CANCELLED: 'bg-rose-50 text-rose-600',
+  CANCELLED: 'bg-rose-50 text-rose-700',
 };
-const fmt = (n: string | number) => `KES ${Number(n).toLocaleString('en-KE', { maximumFractionDigits: 0})}`;
+const fmt = (n: string | number) => formatMoney(n);
 
 export default function TendersView({ projectId, canManage = true}: { projectId?: string; canManage?: boolean}): React.JSX.Element {
   const [projects, setProjects] = useState<ProjectOpt[]>([]);
@@ -39,8 +43,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 
   useEffect(() => {
     if (projectId) return;
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<any>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
@@ -54,11 +57,9 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/tenders`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load tenders');
-      setTenders(await res.json());
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+      setTenders(await api.get<any>(`/api/v1/projects/${pid}/tenders`));
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
       setTenders([]);
 } finally {
       setLoading(false);
@@ -72,11 +73,8 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
     setExpanded(id);
     if (!bids[id]) {
       try {
-        const res = await fetch(`/api/v1/projects/${pid}/tenders/${id}/bids`, { credentials: 'include'});
-        if (res.ok) {
-          const json = await res.json();
-          setBids((prev) => ({ ...prev, [id]: json.bids || json.data || []}));
-}
+        const json = await api.get<any>(`/api/v1/projects/${pid}/tenders/${id}/bids`);
+        setBids((prev) => ({ ...prev, [id]: json.bids || json.data || []}));
 } catch { /* leave empty */}
 }
 };
@@ -84,25 +82,20 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
   const createTender = async () => {
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/tenders`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          tenderCode: tForm.tenderCode || undefined,
-          title: tForm.title,
-          tradeCategory: tForm.tradeCategory || undefined,
-          scopeOfWork: tForm.scopeOfWork,
-          budgetKes: tForm.budgetKes || undefined,
-          durationWeeks: Number(tForm.durationWeeks) || 24,
-          submissionDeadline: new Date(tForm.submissionDeadline).toISOString(),
-}),
+      await api.post(`/api/v1/projects/${pid}/tenders`, {
+        tenderCode: tForm.tenderCode || undefined,
+        title: tForm.title,
+        tradeCategory: tForm.tradeCategory || undefined,
+        scopeOfWork: tForm.scopeOfWork,
+        budgetKes: tForm.budgetKes || undefined,
+        durationWeeks: Number(tForm.durationWeeks) || 24,
+        submissionDeadline: new Date(tForm.submissionDeadline).toISOString(),
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowTenderForm(false);
       setTForm({ tenderCode: '', title: '', tradeCategory: '', scopeOfWork: '', budgetKes: '', durationWeeks: '24', submissionDeadline: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setSaving(false);
 }
@@ -111,26 +104,21 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
   const submitBid = async (tenderId: string) => {
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/tenders/${tenderId}/bids`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          contractorName: bForm.contractorName,
-          contractorNcaCategory: bForm.contractorNcaCategory,
-          amountKes: bForm.amountKes,
-          durationWeeks: Number(bForm.durationWeeks) || 12,
-          technicalScore: Number(bForm.technicalScore) || 70,
-          proposalNotes: bForm.proposalNotes || null,
-}),
+      await api.post(`/api/v1/projects/${pid}/tenders/${tenderId}/bids`, {
+        contractorName: bForm.contractorName,
+        contractorNcaCategory: bForm.contractorNcaCategory,
+        amountKes: bForm.amountKes,
+        durationWeeks: Number(bForm.durationWeeks) || 12,
+        technicalScore: Number(bForm.technicalScore) || 70,
+        proposalNotes: bForm.proposalNotes || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowBidForm(null);
       setBids((prev) => { const next = { ...prev}; delete next[tenderId]; return next;});
       setExpanded(tenderId);
       await toggle(tenderId); // refetch bids
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Bid failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Bid failed'));
 } finally {
       setSaving(false);
 }
@@ -139,16 +127,13 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
   const award = async (tenderId: string, bidId: string) => {
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/tenders/${tenderId}/bids/${bidId}/award`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ awardReason: 'Best combined score — technical & financial evaluation'}),
+      await api.post(`/api/v1/projects/${pid}/tenders/${tenderId}/bids/${bidId}/award`, {
+        awardReason: 'Best combined score — technical & financial evaluation',
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       await load();
       await toggle(tenderId);
-} catch (err: any) {
-      setError(err?.message || 'Award failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Award failed'));
 } finally {
       setSaving(false);
 }
@@ -171,7 +156,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 </select>
 )}
           {canManage && (
-<button onClick={() => setShowTenderForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+<button onClick={() => setShowTenderForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
               {showTenderForm ? 'Cancel' : '+ Post tender'}
 </button>
 )}
@@ -199,7 +184,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
               placeholder="Quantities, specs, programme constraints…" className={input} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void createTender()} disabled={saving || tForm.title.length< 3 || tForm.scopeOfWork.length< 5 || !tForm.submissionDeadline}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {saving ? 'Posting…' : 'Post tender'}
 </button>
 </div>
@@ -218,16 +203,16 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <div className="flex items-center justify-between gap-3 flex-wrap">
 <div className="min-w-0">
 <p className="text-xs font-bold text-slate-900">
-<span className="font-mono text-indigo-600">{t.tenderCode}</span> — {t.title}
+<span className="tabular-nums text-indigo-700">{t.tenderCode}</span> — {t.title}
 </p>
 <p className="text-[10px] text-slate-500 mt-0.5">
-                      {t.tradeCategory || 'General'} · Budget {fmt(t.budgetKes)} · {t.durationWeeks}w · due {new Date(t.submissionDeadline).toLocaleDateString()}
+                      {t.tradeCategory || 'General'} · Budget {fmt(t.budgetKes)} · {t.durationWeeks}w · due {formatDate(new Date(t.submissionDeadline))}
 </p>
 </div>
 <div className="flex items-center gap-2">
 <span className="text-[10px] font-bold text-slate-500">{t.bidsCount} bid{t.bidsCount === 1 ? '' : 's'}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLE[t.status] || 'bg-slate-100 text-slate-600'}`}>
-                      {t.status.replace(/_/g, ' ')}
+                      {statusLabel(t.status)}
 </span>
 </div>
 </div>
@@ -238,7 +223,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <p className="text-[11px] text-slate-600 leading-relaxed">{t.scopeOfWork}</p>
 
                   {(bids[t.id] || []).length === 0 ? (
-<p className="text-[11px] text-slate-400">No bids submitted yet.</p>
+<p className="text-[11px] text-slate-600">No bids submitted yet.</p>
 ) : (
 <div className="overflow-x-auto">
 <table className="w-full text-[11px]">
@@ -255,7 +240,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <td className="py-1.5 pr-3 font-bold text-slate-500">{b.rank || '—'}</td>
 <td className="pr-3 font-semibold text-slate-800">{b.contractorName}</td>
 <td className="pr-3 text-slate-500">{b.contractorNcaCategory}</td>
-<td className="pr-3 font-mono">{fmt(b.amountKes)}</td>
+<td className="pr-3 tabular-nums">{fmt(b.amountKes)}</td>
 <td className="pr-3">{b.durationWeeks}</td>
 <td className="pr-3">{Number(b.technicalScore).toFixed(0)}</td>
 <td className="pr-3">{Number(b.financialScore).toFixed(0)}</td>
@@ -263,7 +248,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <td className="text-right">
                                 {canManage && t.status !== 'AWARDED' && t.status === 'PUBLISHED' && (
 <button onClick={() => void award(t.id, b.id)} disabled={saving}
-                                    className="px-2 py-1 text-[10px] font-bold bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50">
+                                    className="px-2 py-1 text-[10px] font-bold bg-emerald-700 text-white rounded hover:bg-emerald-800 disabled:opacity-50">
                                     Award
 </button>
 )}
@@ -289,13 +274,13 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <div className="col-span-2 sm:col-span-3 flex justify-end gap-2">
 <button onClick={() => setShowBidForm(null)} className="px-3 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg">Cancel</button>
 <button onClick={() => void submitBid(t.id)} disabled={saving || bForm.contractorName.length< 2 || !bForm.amountKes}
-                              className="px-3 py-1 text-[11px] font-semibold text-white bg-indigo-600 rounded-lg disabled:opacity-50">
+                              className="px-3 py-1 text-[11px] font-semibold text-white bg-indigo-700 rounded-lg disabled:opacity-50">
                               {saving ? 'Submitting…' : 'Submit bid'}
 </button>
 </div>
 </div>
 ) : (
-<button onClick={() => setShowBidForm(t.id)} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800">
+<button onClick={() => setShowBidForm(t.id)} className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-800">
                           + Record subcontractor bid
 </button>
 )}

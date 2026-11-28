@@ -1,0 +1,9 @@
+output "alb_dns_name" { value = aws_lb.main.dns_name }
+output "api_url" { value = "https://api.${var.product_domain}" }
+output "app_url" { value = "https://app.${var.product_domain}" }
+output "ecr_api_url" { value = aws_ecr_repository.api.repository_url }
+output "ecr_web_url" { value = aws_ecr_repository.web.repository_url }
+output "db_endpoint" { value = aws_db_instance.main.endpoint }
+output "db_master_secret_arn" { value = aws_db_instance.main.master_user_secret[0].secret_arn }
+output "app_env_secret_arn" { value = aws_secretsmanager_secret.app_env.arn }
+output "github_deploy_role_arn" { value = aws_iam_role.github_deploy.arn }

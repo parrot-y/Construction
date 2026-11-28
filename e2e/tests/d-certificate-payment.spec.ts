@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, apiGet, apiPost, apiPatch, firstProjectId, unwrap } from './helpers';
+import { login, apiGet, apiPost, apiPatch, firstProjectId, unwrap, fixtureName } from './helpers';
 
 /**
  * Workflow D — payment certificate created → approved → invoiced →
@@ -17,7 +17,7 @@ test.describe('D. Certificate → invoice → payment → retention', () => {
       periodEnd: '2026-01-31',
       thisPeriodAmount: '500000.00',
       retentionPct: '5.00',
-      notes: 'E2E IPC January',
+      notes: 'January 2026 valuation — superstructure works to date',
     });
     expect(certRes.status(), await certRes.text()).toBe(201);
     const cert = unwrap(await certRes.json());
@@ -44,8 +44,8 @@ test.describe('D. Certificate → invoice → payment → retention', () => {
 
     // 3. Invoice the certified amount
     const invRes = await apiPost(request, admin, '/api/v1/invoices', {
-      title: `E2E IPC Invoice ${certId.slice(0, 8)}`,
-      clientName: 'E2E Client',
+      title: fixtureName('invoice', certId),
+      clientName: fixtureName('client', certId),
       projectId,
       currency: 'KES',
       items: [{ description: 'IPC certified works', unit: 'sum', quantity: 1, unitRate: 475000 }],
@@ -56,14 +56,14 @@ test.describe('D. Certificate → invoice → payment → retention', () => {
     expect(invoiceId).toBeTruthy();
 
     // 3b. Send the invoice (payments only allowed on SENT/PART_PAID)
-    const sendRes = await apiPost(request, admin, `/api/v1/invoices/${invoiceId}/send`, {});
+    const sendRes = await apiPost(request, admin, `/api/v1/invoices/${invoiceId}/send`, { selfApprovalReason: 'Certificate invoice sent by QS on behalf of site admin' });
     expect([200, 201], await sendRes.text()).toContain(sendRes.status());
 
     // 4. Record payment (simulated — real endpoint; M-Pesa stays SIMULATED)
     const payRes = await apiPost(request, admin, `/api/v1/invoices/${invoiceId}/payments`, {
       amount: 475000,
       method: 'M_PESA',
-      reference: `E2E-${Date.now()}`,
+      reference: `MPESA-B2B-${certId.replace(/[^0-9a-z]/gi, '').slice(0, 6).toUpperCase()}`,
     });
     expect(payRes.status(), await payRes.text()).toBe(201);
 

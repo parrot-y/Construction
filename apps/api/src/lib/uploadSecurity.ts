@@ -62,6 +62,18 @@ export function verifyUpload(buffer: Buffer, mimetype: string): AllowedUpload | 
   return spec.magic(buffer) ? spec : null;
 }
 
+/**
+ * Sniff the real mime type from magic bytes alone — used for base64 JSON
+ * uploads (offline queue) that carry no multipart content-type. Returns the
+ * canonical mime or null when no allowed signature matches.
+ */
+export function sniffMime(buffer: Buffer): string | null {
+  for (const [mime, spec] of Object.entries(ALLOWED_UPLOADS)) {
+    if (spec.magic(buffer)) return mime;
+  }
+  return null;
+}
+
 /** Extension for an already-stored key, derived from the key's own extension. */
 export function contentTypeForKey(storageKey: string): string {
   const ext = path.extname(storageKey).toLowerCase();

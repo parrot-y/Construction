@@ -12,7 +12,26 @@
     "NODE_ENV",
     "PORT",
     "HOST",
-    "WEB_ORIGIN"
+    "WEB_ORIGIN",
+    "UPLOAD_DRIVER",
+    "UPLOAD_DIR",
+    "S3_BUCKET",
+    "S3_ENDPOINT",
+    "S3_REGION",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+    "AWS_REGION",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "EMAIL_DRIVER",
+    "EMAIL_FROM",
+    "RESEND_API_KEY",
+    "SES_FROM",
+    "SES_REGION",
+    "SENTRY_DSN",
+    "VITE_SENTRY_DSN",
+    "VITE_APP_VERSION",
+    "PRODUCT_NAME"
   ],
   "tasks": {
     "build": {

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { execSync } from 'node:child_process';
-import { login, apiPost, firstProjectId, unwrap, API } from './helpers';
+import { login, apiPost, firstProjectId, unwrap, fixtureName, API } from './helpers';
 
 /**
  * Workflow E — every external portal: valid token renders real data,
@@ -13,8 +13,8 @@ test.describe('E. External portals', () => {
 
     // Create an RFI to reply to
     const rfiRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/rfis`, {
-      title: `E2E RFI ${Date.now()}`,
-      question: 'E2E: confirm slab edge distance',
+      title: fixtureName('rfi', `${Date.now()}-${test.info().project.name}-rfi`),
+      question: 'Confirm slab edge distance at grid line 3',
       priority: 'MEDIUM',
       assignedToRole: 'CONSULTANT',
     });
@@ -27,7 +27,8 @@ test.describe('E. External portals', () => {
     // Valid consultant link
     const linkRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
       portalType: 'CONSULTANT',
-      stakeholderName: 'E2E Consultant',
+      stakeholderName: 'Amina Hassan',
+      stakeholderRole: 'Consultant',
       expiresInDays: 7,
     });
     expect(linkRes.status(), await linkRes.text()).toBe(201);
@@ -47,7 +48,7 @@ test.describe('E. External portals', () => {
     if (rfiId) {
       const replyRes = await request.post(
         `${API}/api/v1/portals/consultant/${token}/rfis/${rfiId}/reply`,
-        { data: { officialAnswer: 'E2E consultant answer: 100mm edge distance confirmed.' } },
+        { data: { officialAnswer: 'Confirmed: 100mm edge distance per structural drawing S-201.' } },
       );
       expect([200, 201, 400, 404], await replyRes.text()).toContain(replyRes.status());
     }
@@ -59,7 +60,7 @@ test.describe('E. External portals', () => {
     // Expired token rejected
     const expRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
       portalType: 'CONSULTANT',
-      stakeholderName: 'E2E Expired',
+      stakeholderName: 'Daniel Kiprop',
       expiresInDays: 1,
     });
     const expLink = unwrap(await expRes.json());
@@ -75,13 +76,33 @@ test.describe('E. External portals', () => {
     const sup = await login(request, 'qs@apexbuilders.co.ke');
     const projectId = await firstProjectId(request, sup);
 
-    const linkRes = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
+    // Stage-3 contract: a SUPPLIER link without supplierId auto-resolves (or
+    // onboards) the Supplier record from stakeholderName — never free-text.
+    const autoLink = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
       portalType: 'SUPPLIER',
-      stakeholderName: 'E2E Supplier',
+      stakeholderName: fixtureName('supplier', `${Date.now()}-${test.info().project.name}-autosup`),
       stakeholderRole: 'Cement supplier',
       expiresInDays: 7,
     });
-    expect(linkRes.status()).toBe(201);
+    expect(autoLink.status(), await autoLink.text()).toBe(201);
+    expect(unwrap(await autoLink.json()).supplierId, 'link must bind a Supplier record').toBeTruthy();
+
+    const supRes = await apiPost(request, sup, '/api/v1/suppliers', {
+      name: fixtureName('supplier', `${Date.now()}-${test.info().project.name}-cement`),
+      phone: '+254700000001',
+    });
+    expect(supRes.status(), await supRes.text()).toBe(201);
+    const supplier = unwrap(await supRes.json());
+    const supplierId = supplier.id || supplier.data?.id;
+
+    const linkRes = await apiPost(request, sup, `/api/v1/projects/${projectId}/portals/links`, {
+      portalType: 'SUPPLIER',
+      stakeholderName: fixtureName('supplier', `e-sup-link-${Date.now()}`),
+      stakeholderRole: 'Cement supplier',
+      expiresInDays: 7,
+      supplierId,
+    });
+    expect(linkRes.status(), await linkRes.text()).toBe(201);
     const link = unwrap(await linkRes.json());
     const token = link.token || link.rawToken;
 
@@ -99,7 +120,7 @@ test.describe('E. External portals', () => {
     // SUBCONTRACTOR links must bind to a work package
     const pkgRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/subcontractors`, {
       tradeCategory: 'PLUMBING',
-      firmName: 'E2E Simba Plumbing',
+      firmName: fixtureName('subcontractor', `e-plumb-${Date.now()}`),
       subcontractSum: '1200000.00',
       retentionRatePct: '5.00',
       status: 'ACTIVE',
@@ -111,7 +132,9 @@ test.describe('E. External portals', () => {
     for (const type of ['SUBCONTRACTOR', 'COMPLIANCE'] as const) {
       const linkRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
         portalType: type,
-        stakeholderName: `E2E ${type}`,
+        stakeholderName: type === 'SUBCONTRACTOR'
+          ? fixtureName('subcontractor', `e-${type}-${Date.now()}`)
+          : 'Wanjiru Njeri',
         expiresInDays: 7,
         ...(type === 'SUBCONTRACTOR' ? { subcontractorPackageId: pkgId } : {}),
       });
@@ -128,6 +151,12 @@ test.describe('E. External portals', () => {
   test('subcontractor links are package-scoped — two subs cannot see each other', async ({ request }) => {
     const qs = await login(request, 'qs@apexbuilders.co.ke');
     const projectId = await firstProjectId(request, qs);
+    const saltBase = `${Date.now()}-${test.info().project.name}-iso`;
+    const firmA = fixtureName('subcontractor', `${saltBase}-a`);
+    // Guarantee the two package firm names differ so the isolation
+    // assertions below stay meaningful.
+    let firmB = fixtureName('subcontractor', `${saltBase}-b`);
+    while (firmB === firmA) firmB = fixtureName('subcontractor', `${firmB}-x`);
 
     const mkPkg = async (firm: string, trade: string, sum: string) => {
       const r = await apiPost(request, qs, `/api/v1/projects/${projectId}/subcontractors`, {
@@ -137,8 +166,8 @@ test.describe('E. External portals', () => {
       const p = unwrap(await r.json());
       return p.id || p.data?.id;
     };
-    const pkgA = await mkPkg(`E2E Iso Plumbing ${Date.now()}`, 'PLUMBING', '900000.00');
-    const pkgB = await mkPkg(`E2E Iso Electrical ${Date.now()}`, 'ELECTRICAL', '800000.00');
+    const pkgA = await mkPkg(firmA, 'PLUMBING', '900000.00');
+    const pkgB = await mkPkg(firmB, 'ELECTRICAL', '800000.00');
 
     const mkLink = async (pkgId: string, name: string) => {
       const r = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
@@ -147,8 +176,8 @@ test.describe('E. External portals', () => {
       expect(r.status()).toBe(201);
       return unwrap(await r.json());
     };
-    const linkA = await mkLink(pkgA, 'E2E Sub A');
-    const linkB = await mkLink(pkgB, 'E2E Sub B');
+    const linkA = await mkLink(pkgA, firmA);
+    const linkB = await mkLink(pkgB, firmB);
 
     const a = unwrap(await (await request.get(`${API}/api/v1/portals/subcontractor/${linkA.token || linkA.rawToken}`)).json());
     const b = unwrap(await (await request.get(`${API}/api/v1/portals/subcontractor/${linkB.token || linkB.rawToken}`)).json());
@@ -156,8 +185,8 @@ test.describe('E. External portals', () => {
     expect(a.packages[0].id).toBe(pkgA);
     expect(b.packages.length).toBe(1);
     expect(b.packages[0].id).toBe(pkgB);
-    expect(JSON.stringify(a)).not.toContain('Iso Electrical');
-    expect(JSON.stringify(b)).not.toContain('Iso Plumbing');
+    expect(JSON.stringify(a)).not.toContain(firmB);
+    expect(JSON.stringify(b)).not.toContain(firmA);
 
     // Cross-package valuation is forbidden
     const cross = await request.post(`${API}/api/v1/portals/subcontractor/${linkA.token || linkA.rawToken}/valuations`, {
@@ -183,7 +212,7 @@ test.describe('E. External portals', () => {
 
     // Create + revoke
     const linkRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
-      portalType: 'CLIENT', stakeholderName: 'E2E Revoke Me', expiresInDays: 7,
+      portalType: 'CLIENT', stakeholderName: 'Wanjiru Kamau', expiresInDays: 7,
     });
     expect(linkRes.status()).toBe(201);
     const link = unwrap(await linkRes.json());
@@ -198,7 +227,7 @@ test.describe('E. External portals', () => {
 
     // Regenerate on a fresh link: old token dies, new works, canonical linkUrl
     const link2 = unwrap(await (await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
-      portalType: 'CLIENT', stakeholderName: 'E2E Regen', expiresInDays: 7,
+      portalType: 'CLIENT', stakeholderName: 'Daniel Otieno', expiresInDays: 7,
     })).json());
     const regen = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links/${link2.id}/regenerate`, {});
     expect(regen.status()).toBe(201);
@@ -209,7 +238,7 @@ test.describe('E. External portals', () => {
 
     // Expired link: force expires_at into the past via SQL
     const expired = unwrap(await (await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
-      portalType: 'CLIENT', stakeholderName: 'E2E Expired', expiresInDays: 7,
+      portalType: 'CLIENT', stakeholderName: 'Peter Njoroge', expiresInDays: 7,
     })).json());
     // psql URIs don't accept Prisma's `schema` query param — strip it.
     // Fixture mutation must run as a role that bypasses RLS — the app/migrator
@@ -225,14 +254,15 @@ test.describe('E. External portals', () => {
     const qs = await login(request, 'qs@apexbuilders.co.ke');
     const projectId = await firstProjectId(request, qs);
 
+    const tileFirm = fixtureName('subcontractor', `e-tile-${Date.now()}`);
     const pkgRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/subcontractors`, {
-      tradeCategory: 'TILING', firmName: 'E2E Tile Pros', subcontractSum: '500000.00', retentionRatePct: '5.00', status: 'ACTIVE',
+      tradeCategory: 'TILING', firmName: tileFirm, subcontractSum: '500000.00', retentionRatePct: '5.00', status: 'ACTIVE',
     });
     const pkg = unwrap(await pkgRes.json());
     const pkgId = pkg.id || pkg.data?.id;
 
     const linkRes = await apiPost(request, qs, `/api/v1/projects/${projectId}/portals/links`, {
-      portalType: 'SUBCONTRACTOR', stakeholderName: 'E2E Tile Pros', expiresInDays: 7, subcontractorPackageId: pkgId,
+      portalType: 'SUBCONTRACTOR', stakeholderName: tileFirm, expiresInDays: 7, subcontractorPackageId: pkgId,
     });
     const link = unwrap(await linkRes.json());
     const token = link.token || link.rawToken;

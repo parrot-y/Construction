@@ -9,17 +9,23 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "check:hygiene": "node ../../scripts/check-frontend-hygiene.mjs --root src"
   },
   "dependencies": {
     "@construction/money": "workspace:*",
     "@construction/permissions": "workspace:*",
     "@construction/validation": "workspace:*",
+    "@sentry/react": "^11.12.0",
+    "leaflet": "^1.9.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-leaflet": "^5.0.0",
+    "wouter": "^3.13.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
+    "@types/leaflet": "^1.9.22",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",

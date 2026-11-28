@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import PhotoLightboxModal, { PhotoEvidenceItem} from './PhotoLightboxModal';
+import { api } from '../lib/api';
 
 interface PhotoEvidenceGalleryProps {
   photos?: PhotoEvidenceItem[];
@@ -18,10 +19,8 @@ export default function PhotoEvidenceGallery({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/site-diaries`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
-      const diaries = (json.data || []) as any[];
+      const json = await api.get<{ data?: any[] }>(`/api/v1/projects/${projectId}/site-diaries`);
+      const diaries = json.data || [];
       const mapped: PhotoEvidenceItem[] = diaries
         .flatMap((d) => (d.photos || []).map((p: any) => ({
           id: p.id,
@@ -31,6 +30,7 @@ export default function PhotoEvidenceGallery({
             : `/uploads/${p.storage_key || ''}`,
           latitude: p.gps_latitude != null ? parseFloat(String(p.gps_latitude)) : null,
           longitude: p.gps_longitude != null ? parseFloat(String(p.gps_longitude)) : null,
+          gps_accuracy_meters: p.gps_accuracy_meters != null ? parseFloat(String(p.gps_accuracy_meters)) : null,
           captured_at: p.taken_at || p.created_at || '',
           weather: d.weather || undefined,
           recorded_by_name: undefined,
@@ -80,7 +80,7 @@ export default function PhotoEvidenceGallery({
 
       {displayPhotos.length === 0 ? (
 <div className="border border-slate-200 rounded-xl p-8 text-center bg-slate-50/50 space-y-2">
-<div className="text-3xl text-slate-400"></div>
+<div className="text-3xl text-slate-600"></div>
 <p className="text-xs font-semibold text-slate-700">No Photo Records Available</p>
 <p className="text-[11px] text-slate-500 max-w-md mx-auto">
             Site progress photos will appear here as field inspections and site diaries are logged.
@@ -89,8 +89,10 @@ export default function PhotoEvidenceGallery({
 ) : (
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
           {displayPhotos.map((photo) => {
-            const lat = photo.latitude !== null && photo.latitude !== undefined ? photo.latitude.toFixed(6) : '-1.286389';
-            const lng = photo.longitude !== null && photo.longitude !== undefined ? photo.longitude.toFixed(6) : '36.817223';
+            const hasGps = photo.latitude !== null && photo.latitude !== undefined
+              && photo.longitude !== null && photo.longitude !== undefined;
+            const lat = hasGps ? photo.latitude!.toFixed(6) : null;
+            const lng = hasGps ? photo.longitude!.toFixed(6) : null;
 
             return (
 <div
@@ -104,9 +106,10 @@ export default function PhotoEvidenceGallery({
 <span className="text-3xl mb-1 group-hover:scale-110 transition duration-200"></span>
 <span className="text-[11px] text-slate-300 font-medium line-clamp-1">{photo.caption}</span>
 </div>
-<div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-[10px] text-white/90">
-<span className="bg-slate-950/70 backdrop-blur-sm px-2 py-0.5 rounded font-mono">
-                       {lat}, {lng}
+<div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-[10px] text-white/90 gap-1">
+<span className="bg-slate-950/70 backdrop-blur-sm px-2 py-0.5 rounded tabular-nums">
+                       {hasGps ? `${lat}, ${lng}` : 'No GPS fix'}
+                       {hasGps && photo.gps_accuracy_meters != null ? ` ±${Math.round(photo.gps_accuracy_meters)}m` : ''}
 </span>
 <span className="bg-emerald-600/90 backdrop-blur-sm px-2 py-0.5 rounded font-semibold">
                       Verified
@@ -125,9 +128,9 @@ export default function PhotoEvidenceGallery({
 </p>
 </div>
 
-<div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-400">
-<span>{photo.captured_at ? photo.captured_at.split('T')[0] : '2026-02-01'}</span>
-<span className="text-emerald-600 font-semibold group-hover:underline">
+<div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+<span>{photo.captured_at ? photo.captured_at.split('T')[0] : '—'}</span>
+<span className="text-emerald-700 font-semibold group-hover:underline">
                       Inspect Photo →
 </span>
 </div>

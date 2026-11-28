@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, withTenantTx, recordAuditLog } from '@construction/db';
+import { getTaxSettings } from '../lib/tax';
 import {
   CreateDelayEventSchema,
   ReviewDelayEventSchema,
@@ -93,6 +95,7 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -100,17 +103,26 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
-          const events = await tx.projectDelayEvent.findMany({
-            where: { project_id: projectId },
-            orderBy: { start_date: 'desc' },
-          });
+          const [events, allEvents] = await Promise.all([
+            tx.projectDelayEvent.findMany({
+              where: { project_id: projectId },
+              orderBy: { start_date: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.projectDelayEvent.findMany({
+              where: { project_id: projectId },
+              select: { days_claimed: true, status: true, approved_days: true, lad_financial_relief_kes: true },
+            }),
+          ]);
+          const pagedEvents = listPage(events, pg);
 
           let totalDaysClaimed = 0;
           let totalApprovedDays = 0;
           let totalFinancialRelief = toDecimal(0);
           let approvedCount = 0;
 
-          for (const ev of events) {
+          for (const ev of allEvents) {
             totalDaysClaimed += ev.days_claimed;
             if (ev.status === 'APPROVED_BY_ARCHITECT' && ev.approved_days) {
               totalApprovedDays += ev.approved_days;
@@ -122,9 +134,10 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
           }
 
           return {
-            delayEvents: events,
+            page: pagedEvents.page,
+            delayEvents: pagedEvents.data,
             summary: {
-              totalClaimsCount: events.length,
+              totalClaimsCount: allEvents.length,
               approvedClaimsCount: approvedCount,
               totalDaysClaimed,
               totalApprovedDays,
@@ -216,7 +229,7 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
   // MODULE 2: KRA STATUTORY WITHHOLDING TAX (CAP 470) & WHVAT CERTIFICATES
   // ===========================================================================
 
-  // 2.1 Generate Statutory Tax Certificate (3% WHT, 2% WHVAT)
+  // 2.1 Generate Statutory Tax Certificate (WHT + WHVAT rates from tenant tax settings)
   server.post(
     '/api/v1/projects/:projectId/tax-certificates',
     { preHandler: [server.authenticate] },
@@ -240,8 +253,10 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
 
       const data = parseResult.data;
       const grossDecimal = toDecimal(data.grossAmount);
-      const whtRateDecimal = toDecimal(data.whtRatePct || '3.00');
-      const whvatRateDecimal = toDecimal(data.whvatRatePct || '2.00');
+      // Rates resolve from tenant tax settings unless explicitly overridden.
+      const taxSettings = await withTenantTx(prisma, tenantId, async (tx) => getTaxSettings(tx, tenantId));
+      const whtRateDecimal = data.whtRatePct != null ? toDecimal(data.whtRatePct) : taxSettings.whtContractorPct;
+      const whvatRateDecimal = data.whvatRatePct != null ? toDecimal(data.whvatRatePct) : taxSettings.whvatPct;
 
       // Kenyan KRA Cap 470 Mathematical Formulation:
       // WHT = Gross * (whtRate / 100)
@@ -307,6 +322,7 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
+      const pg = listParams(request);
 
       if (!UUID_REGEX.test(projectId)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
@@ -314,17 +330,23 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
-          const certs = await tx.statutoryTaxCertificate.findMany({
-            where: { project_id: projectId },
-            orderBy: { created_at: 'desc' },
-          });
+          const [certs, allCerts] = await Promise.all([
+            tx.statutoryTaxCertificate.findMany({
+              where: { project_id: projectId },
+              orderBy: { created_at: 'desc' },
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.statutoryTaxCertificate.findMany({ where: { project_id: projectId } }),
+          ]);
+          const pagedCerts = listPage(certs, pg);
 
           let totalGross = toDecimal(0);
           let totalWht = toDecimal(0);
           let totalWhvat = toDecimal(0);
           let totalNet = toDecimal(0);
 
-          for (const c of certs) {
+          for (const c of allCerts) {
             totalGross = totalGross.plus(toDecimal(c.gross_amount));
             totalWht = totalWht.plus(toDecimal(c.wht_deducted));
             totalWhvat = totalWhvat.plus(toDecimal(c.whvat_deducted));
@@ -332,9 +354,10 @@ export async function contractClaimsRoutes(server: FastifyInstance) {
           }
 
           return {
-            certificates: certs,
+            page: pagedCerts.page,
+            certificates: pagedCerts.data,
             summary: {
-              totalCertificates: certs.length,
+              totalCertificates: allCerts.length,
               totalGrossCertifiedKes: totalGross.toFixed(2),
               totalWhtDeductedKes: totalWht.toFixed(2),
               totalWhvatDeductedKes: totalWhvat.toFixed(2),

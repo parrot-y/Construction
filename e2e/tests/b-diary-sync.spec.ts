@@ -11,12 +11,13 @@ test.describe('B. Offline diary sync', () => {
     const sup = await login(request, 'supervisor@apexbuilders.co.ke');
     const projectId = await firstProjectId(request, sup);
 
+    const notes = 'Poured level 2 suspended slab; bricklayer gang of 14 on site';
     const payload = {
       projectId,
       entryDate: new Date().toISOString().slice(0, 10),
       weather: 'SUNNY_CLEAR',
       siteStatus: 'OPERATIONAL',
-      generalNotes: 'E2E offline-sync diary entry',
+      generalNotes: notes,
       laborHeadcounts: [{ tradeType: 'MASON', headcount: 14 }],
     };
     const key = `e2e-diary-${Date.now()}`;
@@ -44,7 +45,7 @@ test.describe('B. Offline diary sync', () => {
     const un = unwrap(list);
     const rows = Array.isArray(un) ? un : un.diaries || un.data || [];
     const matches = rows.filter((d: any) =>
-      (d.general_notes || d.generalNotes || '').includes('E2E offline-sync diary entry'));
+      (d.general_notes || d.generalNotes || '').includes(notes));
     expect(matches.length).toBe(1);
   });
 });

@@ -20,6 +20,7 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
   let supplierToken: string;
   let complianceToken: string;
   let subcontractorPackageId: string;
+  let supplierId: string;
 
   beforeAll(async () => {
     await server.ready();
@@ -56,12 +57,13 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
     const defaultPasswordHash = await hashPassword('Password123!');
     const userB = await prisma.user.upsert({
       where: { email: 'admin@kilimanjarolifecycle.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@kilimanjarolifecycle.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Nelson Kibet',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 
@@ -176,6 +178,21 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
     });
     expect(pkgRes.statusCode).toBe(201);
     subcontractorPackageId = JSON.parse(pkgRes.body).id || JSON.parse(pkgRes.body).data?.id;
+
+    // Supplier record — SUPPLIER portal links must bind to a Supplier row
+    // (stage-3: no free-text supplier names).
+    const supCreate = await server.inject({
+      method: 'POST',
+      url: '/api/v1/suppliers',
+      headers: { cookie: adminCookie },
+      payload: {
+        name: 'Bamburi Ready-Mix Nairobi',
+        contactPerson: 'Plant Manager',
+        phone: '+254700000001',
+      },
+    });
+    expect(supCreate.statusCode).toBe(201);
+    supplierId = JSON.parse(supCreate.body).data.id;
   });
 
   // ===========================================================================
@@ -242,6 +259,7 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
         stakeholderName: 'Bamburi Ready-Mix Nairobi',
         stakeholderRole: 'Concrete Batching Plant',
         expiresInDays: 90,
+        supplierId,
       },
     });
     expect(supplierRes.statusCode).toBe(201);
@@ -477,9 +495,11 @@ describe('External Stakeholder Portals Suite: Token-Based Access', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body).data;
     expect(body.regulatoryAuditor.agency).toBe('NCA Regional Auditor');
-    expect(body.complianceSummary.ncaSiteRegistration).toBeNull();
-    expect(body.complianceSummary.statutoryLevyPaid).toBe(true);
-    expect(body.complianceSummary.certifiedSiteSupervisorPresent).toBe(true);
+    // Stage 4: derived indicators removed — complianceSummary carries only
+    // record-backed figures; permits/visits live in their own registers.
+    expect(body.complianceSummary.ncaSiteRegistration).toBeUndefined();
+    expect(body.complianceSummary.statutoryLevyPaid).toBeUndefined();
+    expect(body.complianceSummary.certifiedSiteSupervisorPresent).toBeUndefined();
     expect(body.cubeTests.length).toBeGreaterThan(0);
   });
 

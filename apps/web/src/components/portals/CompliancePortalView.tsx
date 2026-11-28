@@ -1,5 +1,9 @@
 import React, { useEffect, useState} from 'react';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
+import { ResponsiveTable, SavedDataNotice, formatDate } from '../../ui';
+import { fetchJsonCached } from '../../services/offline-cache';
+import { statusLabel } from '../../lib/status-labels';
+import { api, apiErrorMessage } from '../../lib/api';
 
 export interface ComplianceSummary {
   ncaSiteRegistration: string;
@@ -12,14 +16,31 @@ export interface ComplianceSummary {
 
 export interface StatutoryPermit {
   id: string;
-  authority: string;
+  permitType: string;
   permitNumber: string;
-  description: string;
-  issueDate: string;
-  expiryDate?: string;
-  status: 'VALID' | 'APPROVED_STAMPED' | 'CONDITIONAL' | 'PENDING';
-  leadOfficer: string;
+  issuer: string;
+  issuedDate?: string | null;
+  expiryDate?: string | null;
+  notes?: string | null;
+  status: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED';
+  statusLabel: string;
 }
+
+export interface ComplianceVisit {
+  id: string;
+  visitDate: string;
+  outcome: 'COMPLIANT' | 'CONDITIONAL' | 'NON_COMPLIANT' | 'FOLLOW_UP_REQUIRED';
+  notes?: string | null;
+  recordedByName?: string | null;
+  actions?: { id: string; description: string; dueDate?: string | null; status?: string }[];
+}
+
+const PERMIT_TYPE_LABELS: Record<string, string> = {
+  NCA_REGISTRATION: 'NCA site registration',
+  NEMA_LICENSE: 'NEMA environmental licence',
+  COUNTY_APPROVAL: 'County building approval',
+  OTHER: 'Other statutory permit',
+};
 
 interface CompliancePortalViewProps {
   token?: string;
@@ -36,10 +57,10 @@ export default function CompliancePortalView({
   auditorAgency,
   projectName,
   projectCode,
-  onBackToDashboard,
 }: CompliancePortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [auditor, setAuditor] = useState({ name: auditorName || '', agency: auditorAgency || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
@@ -51,21 +72,28 @@ export default function CompliancePortalView({
     totalBatchesSampled: 0,
     prePourInspectionsConducted: 0,
   });
-  const [statutoryPermits] = useState<StatutoryPermit[]>([]);
+  const [statutoryPermits, setStatutoryPermits] = useState<StatutoryPermit[]>([]);
   const [cubeTests, setCubeTests] = useState<any[]>([]);
   const [inspections, setInspections] = useState<any[]>([]);
   const [, setCertificates] = useState<any[]>([]);
+  const [visits, setVisits] = useState<ComplianceVisit[]>([]);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [visitForm, setVisitForm] = useState({ visitDate: new Date().toISOString().slice(0, 10), outcome: 'COMPLIANT' as ComplianceVisit['outcome'], notes: '', actionDescription: '', actionDueDate: '' });
+  const [visitBusy, setVisitBusy] = useState(false);
+  const [visitFeedback, setVisitFeedback] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/portals/compliance/${token}`, { credentials: 'include' });
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.message || 'This portal link is invalid or has expired');
+        const { body, savedAt: staleAt } = await fetchJsonCached(
+          `/api/v1/portals/compliance/${token}`,
+          `portal:compliance:${token}`,
+        );
         if (cancelled) return;
+        if (staleAt) setSavedAt(staleAt);
         const d = body.data || body;
         if (d.regulatoryAuditor) setAuditor({ name: d.regulatoryAuditor.name || '', agency: d.regulatoryAuditor.agency || '' });
         if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
@@ -101,8 +129,27 @@ export default function CompliancePortalView({
           location: i.location,
         })));
         setCertificates(d.certificates || []);
-      } catch (e: any) {
-        if (!cancelled) setLoadError(e.message || 'Failed to load portal');
+        setStatutoryPermits((d.permits || []).map((p: any) => ({
+          id: p.id,
+          permitType: p.permitType || 'OTHER',
+          permitNumber: p.permitNumber || '',
+          issuer: p.issuer || '',
+          issuedDate: p.issuedDate || null,
+          expiryDate: p.expiryDate || null,
+          notes: p.notes || null,
+          status: p.status || 'VALID',
+          statusLabel: p.statusLabel || p.status || 'Valid',
+        })));
+        setVisits((d.visits || []).map((v: any) => ({
+          id: v.id,
+          visitDate: v.visitDate,
+          outcome: v.outcome,
+          notes: v.notes,
+          recordedByName: v.recordedByName,
+          actions: v.actions || [],
+        })));
+      } catch (e) {
+        if (!cancelled) { setLoadError(apiErrorMessage(e, 'Failed to load portal')); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -110,16 +157,45 @@ export default function CompliancePortalView({
     return () => { cancelled = true; };
   }, [token]);
 
+  const recordVisit = async () => {
+    if (!token || !visitForm.visitDate || !visitForm.outcome) return;
+    setVisitBusy(true);
+    setVisitFeedback(null);
+    try {
+      const actions = visitForm.actionDescription.trim()
+        ? [{ description: visitForm.actionDescription.trim(), dueDate: visitForm.actionDueDate || null }]
+        : [];
+      const body = await api.post<{ data?: any }>(`/api/v1/portals/compliance/${token}/visits`, {
+        visitDate: visitForm.visitDate,
+        outcome: visitForm.outcome,
+        notes: visitForm.notes || null,
+        actions,
+      });
+      const created = body.data || body;
+      setVisits((prev) => [{
+        id: created.id,
+        visitDate: created.visitDate || created.visit_date || visitForm.visitDate,
+        outcome: created.outcome || visitForm.outcome,
+        notes: created.notes || visitForm.notes || null,
+        recordedByName: created.recordedByName || auditor.name || null,
+        actions: (created.actions || []).map((a: any) => ({ id: a.id, description: a.description, dueDate: a.dueDate ?? a.due_date, status: a.status })),
+      }, ...prev]);
+      setVisitForm((f) => ({ ...f, notes: '', actionDescription: '', actionDueDate: '' }));
+      setVisitFeedback('Visit recorded — the site team has been notified.');
+    } catch (e) {
+      setVisitFeedback(apiErrorMessage(e, 'Network error — visit not recorded.'));
+    } finally {
+      setVisitBusy(false);
+    }
+  };
+
   if (loading) {
-    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
+    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-600">Loading portal…</div>;
   }
   if (loadError) {
-    const isExpired = /expired/i.test(loadError);
-    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
       <div className="max-w-5xl mx-auto">
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={loadError || undefined} />
       </div>
     );
   }
@@ -127,17 +203,19 @@ export default function CompliancePortalView({
   const getPermitStatusBadge = (status: StatutoryPermit['status']) => {
     switch (status) {
       case 'VALID':
-      case 'APPROVED_STAMPED':
         return 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      case 'CONDITIONAL':
+      case 'EXPIRING_SOON':
         return 'bg-amber-100 text-amber-800 border-amber-300';
-      case 'PENDING':
+      case 'EXPIRED':
+        return 'bg-rose-100 text-rose-800 border-rose-300';
+      default:
         return 'bg-slate-100 text-slate-800 border-slate-300';
 }
 };
 
   return (
-<div className="max-w-5xl mx-auto space-y-6" data-testid="compliance-portal-view">
+<div className="w-full max-w-5xl mx-auto space-y-6" data-testid="compliance-portal-view">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -160,18 +238,10 @@ export default function CompliancePortalView({
 <button
             onClick={() => setShowCertificateModal(true)}
             data-testid="view-statutory-certificate-btn"
-            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-lg transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-white bg-emerald-50 hover:bg-emerald-800 border border-emerald-200 hover:border-emerald-600 rounded-lg transition flex items-center gap-1.5"
           >
 <span> Statutory Docket Certificate</span>
 </button>
-          {onBackToDashboard && (
-<button
-              onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
-            >
-              ← Back to Project
-</button>
-)}
 </div>
 </header>
       {/* What you can do here */}
@@ -180,6 +250,7 @@ export default function CompliancePortalView({
 <ul className="text-xs text-slate-600 space-y-1">
             <li>• Review NCA registration, statutory levy and supervisor certification status</li>
             <li>• Inspect concrete cube test results and site inspection records</li>
+            <li>• Record site inspection visits with outcomes and required actions</li>
             <li>• Issue statutory docket certificates for completed works</li>
 </ul>
 </div>
@@ -189,7 +260,7 @@ export default function CompliancePortalView({
 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
 <p className="text-[11px] font-semibold text-slate-500">NCA Registration</p>
-<p className="text-xs font-mono font-bold text-slate-900 truncate">
+<p className="text-xs font-bold text-slate-900 truncate">
             {complianceSummary.ncaSiteRegistration || 'Not recorded'}
 </p>
 {complianceSummary.ncaSiteRegistration && (
@@ -200,8 +271,8 @@ export default function CompliancePortalView({
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-<p className="text-[11px] font-semibold text-slate-500">0.5% Statutory Levy</p>
-<p className="text-sm font-bold text-emerald-600">
+<p className="text-[11px] font-semibold text-slate-500">Statutory Levy</p>
+<p className="text-sm font-bold text-emerald-700">
             {complianceSummary.statutoryLevyPaid === null ? 'Not tracked' : complianceSummary.statutoryLevyPaid ? 'Paid & Reconciled' : 'Pending'}
 </p>
 <p className="text-[10px] text-slate-500">National Construction Levy</p>
@@ -209,7 +280,7 @@ export default function CompliancePortalView({
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
 <p className="text-[11px] font-semibold text-slate-500">Accredited Supervisor</p>
-<p className="text-sm font-bold text-emerald-600">
+<p className="text-sm font-bold text-emerald-700">
             {complianceSummary.certifiedSiteSupervisorPresent === null ? 'Not tracked' : complianceSummary.certifiedSiteSupervisorPresent ? 'Active on Site' : 'Not Certified'}
 </p>
 <p className="text-[10px] text-slate-500">NCA Registered Professional</p>
@@ -238,43 +309,28 @@ export default function CompliancePortalView({
 </span>
 </div>
 
-<div className="overflow-x-auto">
-<table className="w-full text-xs text-left">
-<thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-<tr>
-<th className="p-3">Statutory Authority</th>
-<th className="p-3">Permit / Reference No</th>
-<th className="p-3">Scope / Approval Scope</th>
-<th className="p-3">Issue Date</th>
-<th className="p-3">Supervising Official</th>
-<th className="p-3">Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100">
-              {statutoryPermits.length === 0 && (
-<tr><td colSpan={6} className="p-6 text-center text-sm text-slate-400">No statutory permits on file yet — the contractor uploads NEMA, county, DOSHS and NCWSC documents here.</td></tr>
-)}
-              {statutoryPermits.map((p) => (
-<tr key={p.id} className="hover:bg-slate-50">
-<td className="p-3 font-semibold text-slate-900">{p.authority}</td>
-<td className="p-3 font-mono font-bold text-blue-700">{p.permitNumber}</td>
-<td className="p-3 text-slate-600 max-w-xs">{p.description}</td>
-<td className="p-3 text-slate-600">{p.issueDate}</td>
-<td className="p-3 text-slate-700 font-medium">{p.leadOfficer}</td>
-<td className="p-3">
-<span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getPermitStatusBadge(
-                        p.status
-)}`}
-                    >
-                      {p.status.replace('_', ' ')}
-</span>
-</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
+<ResponsiveTable
+            head={['Statutory Authority', 'Permit / Reference No', 'Scope / Approval Scope', 'Issue Date', 'Expiry', 'Status']}
+            className="text-xs"
+            empty="No statutory permits on file yet — the contractor registers NEMA, county and NCA permits here."
+            rows={statutoryPermits.map((p) => ({
+              key: p.id,
+              className: 'hover:bg-slate-50',
+              cells: [
+                { content: p.issuer, className: 'font-semibold text-slate-900' },
+                { content: p.permitNumber, className: 'font-mono tabular-nums font-bold text-blue-700' },
+                { content: p.notes || PERMIT_TYPE_LABELS[p.permitType] || p.permitType, className: 'text-slate-600 max-w-xs' },
+                { content: p.issuedDate ? formatDate(p.issuedDate) : '—', className: 'text-slate-600' },
+                { content: p.expiryDate ? `Expires ${formatDate(p.expiryDate)}` : '—', className: 'text-slate-600' },
+                <span
+                  key="st"
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getPermitStatusBadge(p.status)}`}
+                >
+                  {p.statusLabel || p.status.replace(/_/g, ' ')}
+</span>,
+              ],
+            }))}
+          />
 </div>
 
       {/* Concrete Cube Crushing Register */}
@@ -289,57 +345,36 @@ export default function CompliancePortalView({
 </span>
 </div>
 
-<div className="overflow-x-auto">
-<table className="w-full text-xs text-left">
-<thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-<tr>
-<th className="p-3">Batch Ref</th>
-<th className="p-3">Pour Date</th>
-<th className="p-3">Element / Structural Location</th>
-<th className="p-3">Design Grade</th>
-<th className="p-3">7-Day Test</th>
-<th className="p-3">28-Day Test</th>
-<th className="p-3">Compliance Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100">
-              {cubeTests.length === 0 && (
-<tr><td colSpan={7} className="p-6 text-center text-sm text-slate-400">No concrete cube tests recorded yet — cube results appear here once the contractor logs batch tests.</td></tr>
-)}
-              {cubeTests.map((c) => {
-                const day7 = c.break_results?.find((b: any) => b.age_days === 7);
-                const day28 = c.break_results?.find((b: any) => b.age_days === 28);
-                const allPassed = c.break_results?.every((b: any) => b.is_pass) ?? true;
-
-                return (
-<tr key={c.id} className="hover:bg-slate-50">
-<td className="p-3 font-mono font-bold text-blue-700">{c.batch_reference}</td>
-<td className="p-3 text-slate-600">{c.pour_date}</td>
-<td className="p-3 font-medium text-slate-900">{c.element_location}</td>
-<td className="p-3 font-bold text-slate-800">C{c.design_grade_mpa}</td>
-<td className="p-3 font-mono">
-                      {day7 ? `${day7.compressive_strength_mpa} MPa` : '—'}
-</td>
-<td className="p-3 font-mono">
-                      {day28 ? `${day28.compressive_strength_mpa} MPa` : 'In Curing Tank'}
-</td>
-<td className="p-3">
-<span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          allPassed
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-red-100 text-red-800'
-}`}
-                      >
-                        {allPassed ? 'Compliant' : 'Investigation Required'}
-</span>
-</td>
-</tr>
-);
-})}
-</tbody>
-</table>
-</div>
+<ResponsiveTable
+            head={['Batch Ref', 'Pour Date', 'Element / Structural Location', 'Design Grade', '7-Day Test', '28-Day Test', 'Compliance Status']}
+            className="text-xs"
+            empty="No concrete cube tests recorded yet — cube results appear here once the contractor logs batch tests."
+            rows={cubeTests.map((c) => {
+              const day7 = c.break_results?.find((b: any) => b.age_days === 7);
+              const day28 = c.break_results?.find((b: any) => b.age_days === 28);
+              const allPassed = c.break_results?.every((b: any) => b.is_pass) ?? true;
+              return {
+                key: c.id,
+                className: 'hover:bg-slate-50',
+                cells: [
+                  { content: c.batch_reference, className: 'font-mono tabular-nums font-bold text-blue-700' },
+                  { content: c.pour_date, className: 'text-slate-600' },
+                  { content: c.element_location, className: 'font-medium text-slate-900' },
+                  { content: `C${c.design_grade_mpa}`, className: 'font-bold text-slate-800' },
+                  { content: day7 ? `${day7.compressive_strength_mpa} MPa` : '—', className: 'tabular-nums' },
+                  { content: day28 ? `${day28.compressive_strength_mpa} MPa` : 'In Curing Tank', className: 'tabular-nums' },
+                  <span
+                    key="st"
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                      allPassed ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {allPassed ? 'Compliant' : 'Investigation Required'}
+</span>,
+                ],
+              };
+            })}
+          />
 </div>
 
       {/* Pre-pour QA Register */}
@@ -360,8 +395,119 @@ export default function CompliancePortalView({
 <p className="text-slate-500 text-[11px]">Inspection Date: {insp.scheduled_date} • {insp.category}</p>
 </div>
 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {insp.status}
+                {statusLabel(insp.status)}
 </span>
+</div>
+))}
+</div>
+</div>
+
+      {/* Site visits — inspector records each visit; contractor sees outcomes */}
+<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4" data-testid="compliance-visits-card">
+<div>
+<h3 className="text-sm font-bold text-slate-900">Site inspection visits</h3>
+<p className="text-xs text-slate-500">Record each site visit — the outcome and any required actions are shared with the site team.</p>
+</div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+<label className="text-[11px] font-semibold text-slate-600">
+            Visit date
+            <input
+              type="date"
+              className="mt-1 block w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+              value={visitForm.visitDate}
+              onChange={(e) => setVisitForm((f) => ({ ...f, visitDate: e.target.value }))}
+              data-testid="visit-date-input"
+            />
+</label>
+<label className="text-[11px] font-semibold text-slate-600">
+            Outcome
+            <select
+              className="mt-1 block w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+              value={visitForm.outcome}
+              onChange={(e) => setVisitForm((f) => ({ ...f, outcome: e.target.value as ComplianceVisit['outcome'] }))}
+              data-testid="visit-outcome-select"
+            >
+              <option value="COMPLIANT">Compliant</option>
+              <option value="CONDITIONAL">Conditional</option>
+              <option value="NON_COMPLIANT">Non-compliant</option>
+              <option value="FOLLOW_UP_REQUIRED">Follow-up required</option>
+</select>
+</label>
+<label className="text-[11px] font-semibold text-slate-600 sm:col-span-2">
+            Notes (optional)
+            <input
+              type="text"
+              className="mt-1 block w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+              placeholder="What was inspected and observed"
+              value={visitForm.notes}
+              onChange={(e) => setVisitForm((f) => ({ ...f, notes: e.target.value }))}
+              data-testid="visit-notes-input"
+            />
+</label>
+</div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+<label className="text-[11px] font-semibold text-slate-600 sm:col-span-2">
+            Required action (optional)
+            <input
+              type="text"
+              className="mt-1 block w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+              placeholder="e.g. Submit revised edge-protection detail by Friday"
+              value={visitForm.actionDescription}
+              onChange={(e) => setVisitForm((f) => ({ ...f, actionDescription: e.target.value }))}
+              data-testid="visit-action-input"
+            />
+</label>
+<label className="text-[11px] font-semibold text-slate-600">
+            Action due date
+            <input
+              type="date"
+              className="mt-1 block w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg"
+              value={visitForm.actionDueDate}
+              onChange={(e) => setVisitForm((f) => ({ ...f, actionDueDate: e.target.value }))}
+            />
+</label>
+<button
+          type="button"
+          disabled={visitBusy}
+          onClick={() => void recordVisit()}
+          className="px-4 py-2 text-xs font-bold rounded-lg bg-rose-700 hover:bg-rose-800 text-white disabled:opacity-50"
+          data-testid="record-visit-btn"
+        >
+          {visitBusy ? 'Recording…' : 'Record visit'}
+</button>
+</div>
+
+        {visitFeedback && (
+<div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg">{visitFeedback}</div>
+)}
+
+        <div className="divide-y divide-slate-100 text-xs">
+          {visits.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-4">No inspection visits recorded yet.</p>
+)}
+          {visits.map((v) => (
+<div key={v.id} className="py-3 space-y-1" data-testid={`visit-${v.id}`}>
+<div className="flex justify-between items-center gap-3">
+<div>
+<p className="font-bold text-slate-900">{formatDate(v.visitDate)}</p>
+<p className="text-slate-500 text-[11px]">{v.recordedByName || 'Inspector'}{v.notes ? ` • ${v.notes}` : ''}</p>
+</div>
+<span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                v.outcome === 'COMPLIANT' ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                : v.outcome === 'NON_COMPLIANT' ? 'bg-rose-100 text-rose-800 border-rose-200'
+                : 'bg-amber-100 text-amber-800 border-amber-200'
+              }`}>
+                {statusLabel(v.outcome)}
+</span>
+</div>
+              {(v.actions || []).map((a) => (
+<p key={a.id} className="text-[11px] text-slate-600 pl-3 border-l-2 border-rose-200">
+                  Required: {a.description}{a.dueDate ? ` — due ${formatDate(a.dueDate)}` : ''}
+                  {a.status ? ` (${statusLabel(a.status).toLowerCase()})` : ''}
+</p>
+))}
 </div>
 ))}
 </div>
@@ -383,7 +529,7 @@ export default function CompliancePortalView({
 </div>
 <button
                 onClick={() => setShowCertificateModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+                className="text-slate-600 hover:text-slate-600 text-lg font-bold"
               >
                 
 </button>
@@ -392,15 +538,15 @@ export default function CompliancePortalView({
 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3">
 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
 <span className="text-slate-500">NCA Registration:</span>
-<span className="font-bold text-slate-900 font-mono">{complianceSummary.ncaSiteRegistration || 'Not recorded'}</span>
+<span className="font-bold text-slate-900">{complianceSummary.ncaSiteRegistration || 'Not recorded'}</span>
 </div>
 {statutoryPermits.length === 0 ? (
-<div className="text-slate-500">No statutory permits on file — the contractor has not uploaded NEMA, county, DOSHS or NCWSC documents for this project.</div>
+<div className="text-slate-500">No statutory permits on file — the contractor has not registered NEMA, county or NCA permits for this project.</div>
 ) : (
 statutoryPermits.map((pm) => (
 <div key={pm.id} className="flex justify-between items-center border-b border-slate-200 pb-2">
-<span className="text-slate-500">{pm.authority}:</span>
-<span className="font-bold text-slate-900"><span className="font-mono">{pm.permitNumber}</span> ({pm.status})</span>
+<span className="text-slate-500">{pm.issuer}:</span>
+<span className="font-bold text-slate-900"><span className="font-mono tabular-nums">{pm.permitNumber}</span> ({pm.statusLabel || pm.status})</span>
 </div>
 ))
 )}

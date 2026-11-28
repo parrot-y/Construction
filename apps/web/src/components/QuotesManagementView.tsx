@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
+import { api, apiErrorMessage } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
+import { formatDate, formatDateTime } from '../lib/format';
 
 interface QuoteItem {
   id?: string;
@@ -127,12 +130,10 @@ export default function QuotesManagementView(): React.JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/quotes', { credentials: 'include'});
-      if (!res.ok) throw new Error(`Failed to load quotes (${res.status})`);
-      const body = await res.json();
+      const body = await api.get<{ quotes?: Quote[] }>('/api/v1/quotes');
       setQuotes(body.quotes ?? []);
 } catch (e: any) {
-      setError(e.message);
+      setError(apiErrorMessage(e));
 } finally {
       setLoading(false);
 }
@@ -151,10 +152,12 @@ export default function QuotesManagementView(): React.JSX.Element {
     setExpandedId(id);
     setDetail(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${id}`, { credentials: 'include'});
-      if (res.ok) setDetail((await res.json()).quote);
+      try {
+        const body = await api.get<{ quote: Quote }>(`/api/v1/quotes/${id}`);
+        setDetail(body.quote);
+      } catch { /* detail is best-effort */ }
 } catch {
-      // detail is best-effort
+      // detail is best-effort — hygiene-allow: intentionally ignored
 }
 };
 
@@ -171,17 +174,28 @@ export default function QuotesManagementView(): React.JSX.Element {
   const total = itemSubtotal + taxAmt;
   const depositAmt = total * (depositPctNum / 100);
 
+  // The deposit % field is the single source of truth shown to the client.
+  // Warn when free-text terms mention a different payment-stage percentage.
+  const termsPaymentPct = (() => {
+    const m = form.terms.match(/(\d+(?:\.\d+)?)\s*%[^.\n]{0,40}(advance|deposit|mobilis|upfront|commence|instal|stage|demand|retention)|(?:advance|deposit|mobilis|upfront|commence|instal|stage|demand|retention)[^.\n]{0,40}(\d+(?:\.\d+)?)\s*%/i);
+    if (!m) return null;
+    const pct = parseFloat((m[1] ?? m[2]) as string);
+    return Number.isFinite(pct) && depositPctNum > 0 && Math.abs(pct - depositPctNum) > 0.001 ? pct : null;
+})();
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusyId('create');
     setError(null);
     try {
-      const res = await fetch('/api/v1/quotes', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ quote: Quote }>('/api/v1/quotes', {
           ...form,
+          // Optional contact fields: empty string fails server email/phone
+          // validation — send null instead.
+          clientEmail: form.clientEmail.trim() || null,
+          clientPhone: form.clientPhone.trim() || null,
+          siteLocation: form.siteLocation.trim() || null,
+          terms: form.terms.trim() || null,
           taxPct: taxPctNum,
           depositPct: depositPctNum,
           validDays: parseInt(form.validDays, 10) || null,
@@ -194,17 +208,14 @@ export default function QuotesManagementView(): React.JSX.Element {
               quantity: parseFloat(it.quantity) || 0,
               unitRate: parseFloat(it.unitRate) || 0,
 })),
-}),
 });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to create quote');
       setShowForm(false);
       setNotice(`Quote Q-${String(body.quote.quote_no).padStart(4, '0')} created as draft`);
       setForm({ title: '', clientName: '', clientEmail: '', clientPhone: '', siteLocation: '', currency: 'KES', taxPct: '16', depositPct: '50', validDays: '30', terms: ''});
       setItems([{ section: '', description: '', unit: 'item', quantity: '1', unitRate: ''}]);
       load();
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }
@@ -214,21 +225,14 @@ export default function QuotesManagementView(): React.JSX.Element {
     setBusyId(q.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${q.id}/send`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ channel: 'link'}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to send quote');
+      const body = await api.post<{ shareToken: string }>(`/api/v1/quotes/${q.id}/send`, { channel: 'link' });
       const absolute = `${window.location.origin}/?portal=quote&token=${body.shareToken}`;
       setShareInfo({ quoteId: q.id, url: absolute, token: body.shareToken});
       setNotice(`Quote Q-${String(q.quote_no).padStart(4, '0')} sent — share link ready (shown once)`);
       load();
       openDetail(q.id);
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }
@@ -238,22 +242,15 @@ export default function QuotesManagementView(): React.JSX.Element {
     setBusyId(q.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/quotes/${q.id}/convert`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ createDepositInvoice: true}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to convert quote');
+      const body = await api.post<{ depositInvoice?: { invoice_no?: number }; project?: { id?: string; name?: string; code?: string } }>(`/api/v1/quotes/${q.id}/convert`, { createDepositInvoice: true });
       setNotice(
         body.depositInvoice
-          ? `Quote converted to project ${body.project.code} — deposit invoice INV-${String(body.depositInvoice.invoice_no).padStart(5, '0')} drafted`
-          : `Quote converted to project ${body.project.code} (${body.project.name})`,
+          ? `Quote converted to project ${body.project?.code} — deposit invoice INV-${String(body.depositInvoice.invoice_no).padStart(5, '0')} drafted`
+          : `Quote converted to project ${body.project?.code} (${body.project?.name})`,
 );
       load();
-} catch (err: any) {
-      setError(err.message);
+} catch (err) {
+      setError(apiErrorMessage(err, 'Request failed'));
 } finally {
       setBusyId(null);
 }
@@ -283,7 +280,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 </div>
 <button
           onClick={() => setShowForm((v) => !v)}
-          className="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition"
+          className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm transition"
         >
           {showForm ? 'Close Form' : '+ New Quote'}
 </button>
@@ -295,7 +292,7 @@ export default function QuotesManagementView(): React.JSX.Element {
       {notice && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {notice}</span>
-<button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setNotice(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -303,12 +300,12 @@ export default function QuotesManagementView(): React.JSX.Element {
 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs space-y-2">
 <p className="font-semibold text-blue-900">Share link (shown once — copy now):</p>
 <div className="flex flex-col sm:flex-row gap-2">
-<code className="flex-1 bg-white border border-blue-200 rounded px-2 py-1.5 text-[11px] font-mono break-all">{shareInfo.url}</code>
+<code className="flex-1 bg-white border border-blue-200 rounded px-2 py-1.5 text-[11px] font-mono tabular-nums break-all">{shareInfo.url}</code>
 <button onClick={copyShare} className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg shrink-0">
               Copy link
 </button>
 </div>
-<button onClick={() => setShareInfo(null)} className="text-blue-600 hover:text-blue-900 font-semibold">Dismiss</button>
+<button onClick={() => setShareInfo(null)} className="text-blue-700 hover:text-blue-900 font-semibold">Dismiss</button>
 </div>
 )}
 
@@ -366,8 +363,13 @@ export default function QuotesManagementView(): React.JSX.Element {
 <div className="sm:col-span-3">
 <label className="block text-[11px] font-semibold text-slate-600 mb-1">Terms & Conditions</label>
 <textarea value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value})} rows={2}
-                placeholder="e.g. 50% deposit to mobilize; 30-day payment terms; prices exclude transport unless stated"
+                placeholder="e.g. Deposit to mobilize; 30-day payment terms; prices exclude transport unless stated"
                 className="w-full text-xs p-2 border border-slate-300 rounded-lg" />
+            {termsPaymentPct !== null && (
+<p className="mt-1 text-[11px] font-semibold text-amber-700" data-testid="terms-deposit-mismatch">
+                Heads up — your terms mention {termsPaymentPct}% but the deposit is set to {depositPctNum}%. The deposit figure above is what the client sees, so keep them consistent.
+</p>
+)}
 </div>
 </div>
 
@@ -401,17 +403,17 @@ export default function QuotesManagementView(): React.JSX.Element {
 <input type="number" step="0.01" value={it.unitRate} onChange={(e) => setItem(idx, { unitRate: e.target.value})} placeholder="Rate"
                   className="col-span-2 text-[11px] p-1.5 border border-slate-300 rounded" />
 <button type="button" onClick={() => removeItem(idx)} disabled={items.length === 1}
-                  className="col-span-1 text-[11px] text-rose-600 hover:text-rose-800 font-bold disabled:opacity-30"></button>
+                  className="col-span-1 text-[11px] text-rose-700 hover:text-rose-800 font-bold disabled:opacity-30"></button>
 </div>
 ))}
 </div>
 
 <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
 <span className="text-slate-600">
-              Subtotal:<strong>{form.currency} {toCurrencyString(itemSubtotal)}</strong>
-              {' • '}Tax ({taxPctNum}%):<strong>{toCurrencyString(taxAmt)}</strong>
-              {' • '}Total:<strong>{form.currency} {toCurrencyString(total)}</strong>
-              {' • '}Deposit ({depositPctNum}%):<strong>{toCurrencyString(depositAmt)}</strong>
+              Subtotal: <strong>{formatMoney(itemSubtotal, form.currency)}</strong>
+              {' • '}Tax ({taxPctNum}%): <strong>{formatMoney(taxAmt)}</strong>
+              {' • '}Total: <strong>{formatMoney(total, form.currency)}</strong>
+              {' • '}Deposit ({depositPctNum}%): <strong>{formatMoney(depositAmt)}</strong>
 </span>
 <button type="submit" disabled={busyId === 'create'}
               className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50">
@@ -422,14 +424,14 @@ export default function QuotesManagementView(): React.JSX.Element {
 )}
 
       {loading ? (
-<p className="text-xs text-slate-400 text-center py-6">Loading quotes…</p>
+<p className="text-xs text-slate-600 text-center py-6">Loading quotes…</p>
 ) : quotes.length === 0 ? (
-<p className="text-xs text-slate-400 text-center py-6">No quotes yet. Create your first quotation to start the quotes-to-cash flow.</p>
+<p className="text-xs text-slate-600 text-center py-6">No quotes yet. Create your first quotation to start the quotes-to-cash flow.</p>
 ) : (
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
-<tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
+<tr className="text-left text-[10px] text-slate-600 border-b border-slate-200">
 <th className="py-2 pr-3">Quote</th>
 <th className="py-2 pr-3">Client</th>
 <th className="py-2 pr-3">Total</th>
@@ -451,21 +453,21 @@ export default function QuotesManagementView(): React.JSX.Element {
 </td>
 <td className="py-2.5 pr-3">
 <span className="font-medium text-slate-800">{q.client_name}</span>
-                      {q.client_email &&<span className="block text-[10px] text-slate-400">{q.client_email}</span>}
+                      {q.client_email &&<span className="block text-[10px] text-slate-600">{q.client_email}</span>}
 </td>
-<td className="py-2.5 pr-3 font-mono font-semibold text-slate-800">{q.currency} {toCurrencyString(q.total)}</td>
-<td className="py-2.5 pr-3 font-mono text-slate-600">{q.currency} {toCurrencyString(q.deposit_amount)}</td>
+<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{formatMoney(q.total, q.currency)}</td>
+<td className="py-2.5 pr-3 tabular-nums text-slate-600">{formatMoney(q.deposit_amount, q.currency)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[q.status] ?? STATUS_STYLES.DRAFT}`}>
-                        {q.status}
+                        {statusLabel(q.status)}
 </span>
-                      {q.responded_by &&<span className="block text-[10px] text-slate-400 mt-0.5">by {q.responded_by}</span>}
+                      {q.responded_by &&<span className="block text-[10px] text-slate-600 mt-0.5">by {q.responded_by}</span>}
 </td>
-<td className="py-2.5 pr-3 text-slate-500">{q.valid_until ? new Date(q.valid_until).toLocaleDateString() : '—'}</td>
+<td className="py-2.5 pr-3 text-slate-500">{q.valid_until ? formatDate(new Date(q.valid_until)) : '—'}</td>
 <td className="py-2.5 space-x-1.5 whitespace-nowrap">
                       {(q.status === 'DRAFT' || q.status === 'SENT') && (
 <button onClick={() => handleSend(q)} disabled={busyId === q.id}
-                          className="px-2 py-1 text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50">
+                          className="px-2 py-1 text-[10px] font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded disabled:opacity-50">
                           {q.status === 'DRAFT' ? 'Send' : 'Resend'}
 </button>
 )}
@@ -484,7 +486,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <tr className="bg-slate-50">
 <td colSpan={7} className="p-4">
                         {!detail ? (
-<p className="text-[11px] text-slate-400">Loading detail…</p>
+<p className="text-[11px] text-slate-600">Loading detail…</p>
 ) : (
 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
 <div className="lg:col-span-2 space-y-2">
@@ -493,7 +495,7 @@ export default function QuotesManagementView(): React.JSX.Element {
                               {detail.terms &&<p className="text-slate-600 whitespace-pre-wrap">{detail.terms}</p>}
 <table className="w-full text-[11px] mt-2">
 <thead>
-<tr className="text-left text-slate-400 border-b border-slate-200">
+<tr className="text-left text-slate-600 border-b border-slate-200">
 <th className="py-1 pr-2">Item</th>
 <th className="py-1 pr-2">Unit</th>
 <th className="py-1 pr-2 text-right">Qty</th>
@@ -505,22 +507,22 @@ export default function QuotesManagementView(): React.JSX.Element {
                                   {(detail.items ?? []).map((it) => (
 <tr key={it.id} className="border-b border-slate-100">
 <td className="py-1 pr-2 text-slate-700">
-                                        {it.section &&<span className="text-slate-400">[{it.section}]</span>}
+                                        {it.section &&<span className="text-slate-600">[{it.section}]</span>}
                                         {it.description}
 </td>
 <td className="py-1 pr-2 text-slate-500">{it.unit}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.quantity}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.unit_rate}</td>
-<td className="py-1 text-right font-mono font-semibold">{toCurrencyString(it.total_amount ?? '0')}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{it.quantity}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{it.unit_rate}</td>
+<td className="py-1 text-right tabular-nums font-semibold">{formatMoney(it.total_amount ?? '0')}</td>
 </tr>
 ))}
 </tbody>
 </table>
 <div className="text-right space-y-0.5 pt-1">
-<p className="text-slate-600">Subtotal:<span className="font-mono">{detail.currency} {toCurrencyString(detail.subtotal)}</span></p>
-<p className="text-slate-600">Tax ({detail.tax_pct}%):<span className="font-mono">{detail.currency} {toCurrencyString(detail.tax_amount)}</span></p>
-<p className="font-bold text-slate-900">Total:<span className="font-mono">{detail.currency} {toCurrencyString(detail.total)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit due ({detail.deposit_pct}%):<span className="font-mono">{detail.currency} {toCurrencyString(detail.deposit_amount)}</span></p>
+<p className="text-slate-600">Subtotal:<span className="tabular-nums">{formatMoney(detail.subtotal, detail.currency)}</span></p>
+<p className="text-slate-600">Tax ({detail.tax_pct}%):<span className="tabular-nums">{formatMoney(detail.tax_amount, detail.currency)}</span></p>
+<p className="font-bold text-slate-900">Total:<span className="tabular-nums">{formatMoney(detail.total, detail.currency)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit due ({detail.deposit_pct}%):<span className="tabular-nums">{formatMoney(detail.deposit_amount, detail.currency)}</span></p>
 </div>
 </div>
 <div>
@@ -530,8 +532,8 @@ export default function QuotesManagementView(): React.JSX.Element {
 <li key={ev.id} className="text-[11px] text-slate-600 border-l-2 border-slate-200 pl-2">
 <span className="font-bold text-slate-800">{ev.event}</span>
                                     {ev.actor_name ? ` — ${ev.actor_name}` : ''}
-<span className="block text-[10px] text-slate-400">
-                                      {ev.actor_type} • {new Date(ev.created_at).toLocaleString()}
+<span className="block text-[10px] text-slate-600">
+                                      {ev.actor_type} • {formatDateTime(new Date(ev.created_at))}
                                       {ev.note ? ` • ${ev.note}` : ''}
 </span>
 </li>

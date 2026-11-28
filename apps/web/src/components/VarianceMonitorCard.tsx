@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { formatKes, EmptyState } from '../ui';
+import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
 
 export interface SectionBreakdownItem {
   sectionId: string;
@@ -73,8 +75,7 @@ export default function VarianceMonitorCard({
     if (!needsLive) return;
     let cancelled = false;
     setLiveLoading(true);
-    fetch('/api/v1/dashboard', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
+    api.get<any>('/api/v1/dashboard')
       .then((j) => {
         if (cancelled || !j) return;
         const rows = j.data?.projects || j.projects || j.data || [];
@@ -97,7 +98,7 @@ export default function VarianceMonitorCard({
           });
         }
       })
-      .catch(() => {})
+      .catch(() => { /* intentionally ignored: variance card is best-effort; props still render */ })
       .finally(() => { if (!cancelled) setLiveLoading(false); });
     return () => { cancelled = true; };
   }, [needsLive, projectId]);
@@ -151,7 +152,7 @@ export default function VarianceMonitorCard({
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
 <div>
 <div className="flex items-center gap-2">
-<span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+<span className="w-2.5 h-2.5 rounded-full bg-blue-700" />
 <span className="text-[11px] font-bold text-slate-500">
               Variance Monitor &amp; Health Guard • {resolvedName}
 </span>
@@ -171,7 +172,7 @@ export default function VarianceMonitorCard({
 <span>{statusIcon}</span>
 <span>{`${resolvedVariance.statusLabel} (${resolvedVariance.status})`}</span>
 </span>
-<span className="text-xs font-mono font-bold px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg border border-slate-200">
+<span className="text-xs tabular-nums font-bold px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg border border-slate-200">
             Δ {resolvedVariance.differencePercentage}
 </span>
 </div>
@@ -196,17 +197,17 @@ export default function VarianceMonitorCard({
 <div className="space-y-1.5">
 <div className="flex justify-between items-center text-xs">
 <div className="flex items-center gap-2">
-<span className="w-2 h-2 rounded-full bg-purple-600" />
+<span className="w-2 h-2 rounded-full bg-purple-700" />
 <span className="font-semibold text-slate-700">Cost Consumption (Approved)</span>
 </div>
-<span className="font-mono font-bold text-slate-900">
+<span className="tabular-nums font-bold text-slate-900">
               {`${resolvedVariance.costConsumptionPercentage}% (${formatKes(approvedCost)} of ${formatKes(approvedBudget)} • ${formatKes(pendingCost)} pending)`}
 </span>
 </div>
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
 <div
               className={`h-3 rounded-full transition-all duration-500 ${
-                isActionRequired ? 'bg-rose-500' : isAttention ? 'bg-amber-500' : 'bg-purple-600'
+                isActionRequired ? 'bg-rose-700' : isAttention ? 'bg-amber-700' : 'bg-purple-700'
 }`}
               style={{ width: `${Math.min(costPct, 100)}%`}}
             />
@@ -217,16 +218,16 @@ export default function VarianceMonitorCard({
 <div className="space-y-1.5">
 <div className="flex justify-between items-center text-xs">
 <div className="flex items-center gap-2">
-<span className="w-2 h-2 rounded-full bg-blue-600" />
+<span className="w-2 h-2 rounded-full bg-blue-700" />
 <span className="font-semibold text-slate-700">Physical Milestone Progress</span>
 </div>
-<span className="font-mono font-bold text-blue-700">
+<span className="tabular-nums font-bold text-blue-700">
               {`${resolvedVariance.physicalProgressPercentage}% (Verified On-Site)`}
 </span>
 </div>
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
 <div
-              className="h-3 rounded-full bg-blue-600 transition-all duration-500"
+              className="h-3 rounded-full bg-blue-700 transition-all duration-500"
               style={{ width: `${Math.min(physPct, 100)}%`}}
             />
 </div>
@@ -242,50 +243,50 @@ export default function VarianceMonitorCard({
 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Materials</span>
-<span className="font-mono font-bold text-slate-800 block text-xs mt-1">
+<span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.MATERIAL.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.MATERIAL.pending)} pend
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Labor</span>
-<span className="font-mono font-bold text-slate-800 block text-xs mt-1">
+<span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.LABOR.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.LABOR.pending)} pend
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Plant / Hire</span>
-<span className="font-mono font-bold text-slate-800 block text-xs mt-1">
+<span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.PLANT.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.PLANT.pending)} pend
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Subcontracts</span>
-<span className="font-mono font-bold text-slate-800 block text-xs mt-1">
+<span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.SUBCONTRACT.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.SUBCONTRACT.pending)} pend
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
 <span className="text-[11px] font-bold text-slate-600 block"> Preliminaries</span>
-<span className="font-mono font-bold text-slate-800 block text-xs mt-1">
+<span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.PRELIMINARY.approved)}
 </span>
-<span className="text-[10px] text-amber-600 font-mono block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.PRELIMINARY.pending)} pend
 </span>
 </div>
@@ -326,16 +327,16 @@ export default function VarianceMonitorCard({
                 return (
 <tr key={sec.sectionId} className="hover:bg-slate-50/50">
 <td className="p-3 font-semibold text-slate-900">{title}</td>
-<td className="p-3 text-right font-mono font-medium">{formatKes(sec.allocatedBudget)}</td>
-<td className="p-3 text-right font-mono font-medium">{formatKes(sec.actualSpent)}</td>
-<td className="p-3 text-right font-mono text-amber-700">
+<td className="p-3 text-right tabular-nums font-medium">{formatKes(sec.allocatedBudget)}</td>
+<td className="p-3 text-right tabular-nums font-medium">{formatKes(sec.actualSpent)}</td>
+<td className="p-3 text-right tabular-nums text-amber-700">
                       {formatKes(sec.pendingSpent || '0.00')}
 </td>
-<td className="p-3 text-right font-mono font-medium">{formatKes(sec.remainingBudget)}</td>
-<td className="p-3 text-right font-mono font-bold">{`${sec.consumptionPercentage}%`}</td>
+<td className="p-3 text-right tabular-nums font-medium">{formatKes(sec.remainingBudget)}</td>
+<td className="p-3 text-right tabular-nums font-bold">{`${sec.consumptionPercentage}%`}</td>
 <td className="p-3 text-center">
 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${tagClass}`}>
-                        {sec.status}
+                        {statusLabel(sec.status)}
 </span>
 </td>
 </tr>

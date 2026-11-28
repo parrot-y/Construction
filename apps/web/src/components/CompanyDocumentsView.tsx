@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface CompanyDoc {
   id: string; title: string; category?: string | null; reference_no?: string | null;
@@ -38,12 +40,10 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
       else if (tab !== 'ALL') params.set('category', tab);
       if (expiringOnly) params.set('expiring', '1');
       if (q.trim()) params.set('q', q.trim());
-      const res = await fetch(`/api/v1/company/documents?${params}`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load documents');
-      const json = await res.json();
+      const json = await api.get<{ data?: CompanyDoc[] }>(`/api/v1/company/documents?${params}`);
       setDocs(json.data || []);
 } catch (err: any) {
-      setError(err?.message || 'Load failed');
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -64,23 +64,19 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
       if (form.category) payload.category = form.category;
       if (form.fileName) payload.fileName = form.fileName;
 
-      const res = editing
-        ? await fetch(`/api/v1/company/documents/${editing.id}`, {
-            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ title: form.title, category: form.category || null, referenceNo: form.referenceNo || null, expiryDate: form.expiryDate || null, notes: form.notes || null}),
-})
-        : await fetch('/api/v1/company/documents', {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify(payload),
+      if (editing) {
+        await api.patch(`/api/v1/company/documents/${editing.id}`, {
+          title: form.title, category: form.category || null, referenceNo: form.referenceNo || null, expiryDate: form.expiryDate || null, notes: form.notes || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+      } else {
+        await api.post('/api/v1/company/documents', payload);
+      }
       setShowForm(false);
       setEditing(null);
       setForm({ title: '', category: '', referenceNo: '', expiryDate: '', fileName: '', notes: ''});
       await load();
 } catch (err: any) {
-      setError(err?.message || 'Save failed');
+      setError(apiErrorMessage(err, 'Save failed'));
 } finally {
       setSaving(false);
 }
@@ -88,12 +84,11 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 
   const archive = async (id: string) => {
     try {
-      await fetch(`/api/v1/company/documents/${id}`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ status: 'ARCHIVED'}),
-});
+      await api.patch(`/api/v1/company/documents/${id}`, { status: 'ARCHIVED'});
       await load();
-} catch { /* ignore */}
+} catch {
+      // hygiene-allow: intentionally ignored — archive failures leave the list unchanged
+}
 };
 
   if (loading) {
@@ -112,7 +107,7 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 </div>
         {canManage && (
 <button onClick={() => { setEditing(null); setForm({ title: '', category: '', referenceNo: '', expiryDate: '', fileName: '', notes: ''}); setShowForm((v) => !v);}}
-            className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+            className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
             {showForm ? 'Cancel' : '+ Upload'}
 </button>
 )}
@@ -123,16 +118,16 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 <div className="flex items-center gap-2 flex-wrap">
 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title or reference…"
           className="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs w-56 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-<button onClick={() => setExpiringOnly((v) => !v)}
-          className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg ${expiringOnly ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+<button onClick={() => setExpiringOnly((v) => !v)} aria-pressed={expiringOnly}
+          className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg ${expiringOnly ? 'bg-amber-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
           Expiring soon
 </button>
 </div>
 
 <div className="flex gap-1 flex-wrap border-b border-slate-100 pb-2">
         {['ALL', 'UNFILED', ...CATEGORIES].map((c) => (
-<button key={c} onClick={() => setTab(c)}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md ${tab === c ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+<button key={c} onClick={() => setTab(c)} aria-pressed={tab === c}
+            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md ${tab === c ? 'bg-indigo-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
             {c === 'ALL' ? 'All' : c === 'UNFILED' ? 'Unfiled' : CAT_LABEL[c]}
 </button>
 ))}
@@ -157,7 +152,7 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 <textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value})} className={`${input} resize-none`} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void submit()} disabled={saving || form.title.length< 2}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {saving ? 'Saving…' : editing ? 'Save changes' : 'Upload document'}
 </button>
 </div>
@@ -183,7 +178,7 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
 )}
 </div>
 <p className="text-[11px] text-slate-500 mt-0.5">
-                  {d.reference_no ? `Ref: ${d.reference_no} · ` : ''}{d.file_name ? `${d.file_name} · ` : ''}{d.uploaded_by_name} · {new Date(d.created_at).toLocaleDateString()}
+                  {d.reference_no ? `Ref: ${d.reference_no} · ` : ''}{d.file_name ? `${d.file_name} · ` : ''}{d.uploaded_by_name} · {formatDate(new Date(d.created_at))}
 </p>
                 {d.notes &&<p className="text-[11px] text-slate-600 mt-1">{d.notes}</p>}
 </div>
@@ -194,7 +189,7 @@ export default function CompanyDocumentsView({ canManage = false, initialTab}: {
                     setForm({ title: d.title, category: d.category || '', referenceNo: d.reference_no || '', expiryDate: d.expiry_date || '', fileName: d.file_name || '', notes: d.notes || ''});
                     setShowForm(true);
 }} className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">Edit</button>
-<button onClick={() => void archive(d.id)} className="px-2.5 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg">Archive</button>
+<button onClick={() => void archive(d.id)} className="px-2.5 py-1 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg">Archive</button>
 </div>
 )}
 </div>

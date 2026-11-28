@@ -1,30 +1,35 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../../../ui';
+import { Card, formatKes } from '../../../ui';
 import { useConsole} from '../ConsoleContext';
 import CompanyDocumentsView from '../../CompanyDocumentsView';
+import IntegrationsView from '../../IntegrationsView';
 import ScheduledReportsView from '../../ScheduledReportsView';
+import { api } from '../../../lib/api';
+import { downloadQueuedExport, type ExportKind } from '../../../lib/exportJob';
+import { useToast } from '../../feedback/Toast';
 
 const PERIODS = ['7D', '30D', 'QTD', 'YTD'];
 
-const REPORT_LINKS = [
+const REPORT_LINKS: Array<{ label: string; path?: (pid: string) => string; kind?: ExportKind; desc: string; fmt: string }> = [
   { label: 'Interim Payment Certificate (IPC)', path: (pid: string) => `/api/v1/projects/${pid}/reports/ipc`, desc: 'Certified valuation for the current period', fmt: 'PDF'},
   { label: 'Project Summary', path: (pid: string) => `/api/v1/projects/${pid}/reports/summary`, desc: 'Budget, spend and progress snapshot', fmt: 'PDF'},
-  { label: 'Cost Report', path: (pid: string) => `/api/v1/projects/${pid}/reports/cost.xlsx`, desc: 'Cost ledger by category (Excel)', fmt: 'XLSX'},
-  { label: 'Financial workbook', path: (pid: string) => `/api/v1/projects/${pid}/reports/financials.xlsx`, desc: 'Cash flow, change orders, commitments', fmt: 'XLSX'},
+  { label: 'Cost Report', kind: 'cost', desc: 'Cost ledger by category (Excel)', fmt: 'XLSX'},
+  { label: 'Financial workbook', kind: 'financials', desc: 'Cash flow, change orders, commitments', fmt: 'XLSX'},
 ];
 
 /** Reports — period selector + export cards (reference"Reports" tab). */
 function ReportsView(): React.JSX.Element {
   const { projectId, projects} = useConsole();
   const [period, setPeriod] = useState('30D');
+  const [busyExport, setBusyExport] = useState<string | null>(null);
+  const toast = useToast();
   const [coMetrics, setCoMetrics] = useState<{ total: number; approvalRate: number | null; medianCycle: number | null; reworkRate: number | null; byStatus?: Record<string, number>} | null>(null);
   const livePid = projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : '';
   const pname = projects.find((p) => p.id === projectId)?.name;
 
   useEffect(() => {
     if (!livePid) { setCoMetrics(null); return;}
-    fetch(`/api/v1/projects/${livePid}/variations`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<{ data?: any[] }>(`/api/v1/projects/${livePid}/variations`)
       .then((j) => {
         const rows = (j.data || j || []) as any[];
         if (!rows.length) { setCoMetrics(null); return;}
@@ -58,10 +63,10 @@ function ReportsView(): React.JSX.Element {
 <p className="text-xs text-slate-500 dark:text-slate-400">Financial and operational reporting across your projects.</p>
 </div>
 <div className="flex items-center gap-2">
-<span className="text-[11px] font-semibold text-slate-400">Period</span>
+<span className="text-[11px] font-semibold text-slate-500">Period</span>
 <div className="flex gap-1">
             {PERIODS.map((p) => (
-<button key={p} onClick={() => setPeriod(p)}
+<button key={p} onClick={() => setPeriod(p)} aria-pressed={period === p}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${period === p ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
                 {p}
 </button>
@@ -78,56 +83,74 @@ function ReportsView(): React.JSX.Element {
             ['Median Cycle', coMetrics.medianCycle === null ? '—' : `${coMetrics.medianCycle}d`, 'submit → decision'],
             ['Rework Rate', `${coMetrics.reworkRate}%`, 'rejected or rework'],
           ].map(([label, value, sub]) => (
-<div key={label as string} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
-<p className="text-[10px] font-bold text-slate-400">{label}</p>
+<Card key={label as string} className="p-4">
+<p className="text-[10px] font-bold text-slate-500">{label}</p>
 <p className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">{value}</p>
-<p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>
-</div>
+<p className="text-[10px] text-slate-500 mt-0.5">{sub}</p>
+</Card>
 ))}
 </div>
 )}
 
       {coMetrics?.byStatus && Object.keys(coMetrics.byStatus).length > 0 && (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<Card className="p-5">
 <div className="flex items-center justify-between mb-3">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">CO Volume by Status</h4>
-<span className="text-[10px] text-slate-400">Number of change orders</span>
+<span className="text-[10px] text-slate-500">Number of change orders</span>
 </div>
 <div className="space-y-2">
             {Object.entries(coMetrics.byStatus).sort((a, b) => b[1] - a[1]).map(([st, n]) => {
               const max = Math.max(...Object.values(coMetrics.byStatus!));
               const pct = max ? Math.round((n / max) * 100) : 0;
-              const colors: Record<string, string> = { APPROVED: 'bg-emerald-500', REJECTED: 'bg-rose-500', DRAFT: 'bg-slate-400', PM_REVIEW: 'bg-amber-500', OWNER_REVIEW: 'bg-violet-500', SUBMITTED: 'bg-sky-500'};
+              const colors: Record<string, string> = { APPROVED: 'bg-emerald-700', REJECTED: 'bg-rose-700', DRAFT: 'bg-slate-400', PM_REVIEW: 'bg-amber-700', OWNER_REVIEW: 'bg-violet-700', SUBMITTED: 'bg-sky-700'};
               return (
 <div key={st} className="flex items-center gap-3">
 <span className="w-28 text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">{st.replace(/_/g, ' ')}</span>
 <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
 <div className={`h-full rounded-full ${colors[st] || 'bg-slate-500'}`} style={{ width: `${pct}%`}} />
 </div>
-<span className="w-8 text-right text-xs font-bold font-mono text-slate-700 dark:text-slate-200">{n}</span>
+<span className="w-8 text-right text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200">{n}</span>
 </div>
 );
 })}
 </div>
-</div>
+</Card>
 )}
 
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {REPORT_LINKS.map((r) => (
-<div key={r.label} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col">
+<Card key={r.label} className="p-5 flex flex-col">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{r.label}</h4>
 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex-1">{r.desc}</p>
             {livePid ? (
-<a href={r.path(livePid)} download
+              r.kind ? (
+<button type="button" disabled={busyExport !== null}
+                  onClick={async () => {
+                    setBusyExport(r.label);
+                    try {
+                      await downloadQueuedExport(r.kind!, livePid);
+                      toast.success(`${r.label} is downloading.`);
+                    } catch (err) {
+                      toast.error(err, 'Export failed — try again.');
+                    } finally {
+                      setBusyExport(null);
+                    }
+                  }}
+                  className="mt-4 inline-flex items-center justify-center px-3.5 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg hover:opacity-90 disabled:opacity-50">
+                  {busyExport === r.label ? 'Preparing…' : `Export ${r.fmt}`}
+</button>
+) : (
+<a href={r.path!(livePid)} download
                 className="mt-4 inline-flex items-center justify-center px-3.5 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg hover:opacity-90">
                 Export {r.fmt}
 </a>
+)
 ) : (
-<span className="mt-4 text-[11px] text-slate-400">Select a project</span>
+<span className="mt-4 text-[11px] text-slate-500">Select a project</span>
 )}
-</div>
+</Card>
 ))}
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col">
+<Card className="p-5 flex flex-col">
 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">BOQ workbook</h4>
 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex-1">Active bill of quantities as Excel.</p>
           {livePid ? (
@@ -136,12 +159,12 @@ function ReportsView(): React.JSX.Element {
               Export Excel
 </a>
 ) : (
-<span className="mt-4 text-[11px] text-slate-400">Select a project</span>
+<span className="mt-4 text-[11px] text-slate-500">Select a project</span>
 )}
-</div>
+</Card>
 </div>
 
-      {pname &&<p className="text-[11px] text-slate-400">Project: {pname} · period {period} (filters apply to scheduled reports below)</p>}
+      {pname &&<p className="text-[11px] text-slate-500">Project: {pname} · period {period} (filters apply to scheduled reports below)</p>}
 <ScheduledReportsView canManage={false} />
 </div>
 );
@@ -153,6 +176,7 @@ export default function FilesSection(): React.JSX.Element {
     case 'reports': return<ReportsView />;
     case 'companydocs': return<CompanyDocumentsView canManage />;
     case 'unfiled': return<CompanyDocumentsView canManage initialTab="UNFILED" />;
+    case 'integrations': return<IntegrationsView />;
     default: return<CompanyDocumentsView canManage />;
 }
 }

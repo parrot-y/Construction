@@ -1,0 +1,703 @@
+================================================================================
+PLATFORM LOCAL CI VERIFICATION REPLICA
+Commit:   a4536b6
+Log file: <repo>/docs/evidence/verify-a4536b6.log
+Started:  2026-11-25T18:14:52Z
+================================================================================
+Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
+psql (PostgreSQL) 17.6 (Debian 17.6-1)
+
+=== Step 1: Initializing Fresh Ephemeral PostgreSQL Cluster ===
+Data Directory:   /tmp/verify-local-db-qpdw2q
+Socket Directory: /tmp/verify-local-sock-7f0QsG
+Port:             50169
+Starting PostgreSQL daemon...
+Waiting for PostgreSQL to accept connections...
+PostgreSQL is ready.
+
+=== Step 2: Creating Database & Roles (db_migrator & db_app) ===
+CREATE DATABASE
+DO
+GRANT
+GRANT
+
+=== Step 3: Applying Prisma migrations as db_migrator (baseline + RLS policies) ===
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "construction_test", schema "public" at "localhost:50169"
+
+26 migrations found in prisma/migrations
+
+Applying migration `0001_baseline`
+Applying migration `0002_rls_policies`
+Applying migration `0003_refresh_tokens`
+Applying migration `0004_supplier_delivery_confirmation`
+Applying migration `0005_portal_hardening`
+Applying migration `0006_user_verification_columns`
+Applying migration `0007_lifecycle_money`
+Applying migration `0008_tax_contractor_wht`
+Applying migration `0009_whvat_setting`
+Applying migration `0010_valuation_reviewer`
+Applying migration `0011_account_lifecycle`
+Applying migration `0012_stage2_stage3`
+Applying migration `0013_po_invoice_item_link`
+Applying migration `0014_stage4`
+Applying migration `0015_tenant_fx_rates`
+Applying migration `0016_maker_checker_self_approval`
+Applying migration `0017_audit_hardening`
+Applying migration `0018_tenant_module_flags`
+Applying migration `0019_provider_payment_charges`
+Applying migration `0020_provider_charge_resolution`
+Applying migration `0021_closeout_retention_writeoff`
+Applying migration `0022_pc_acknowledgement`
+Applying migration `0023_project_retention_settings`
+Applying migration `0024_subcontractor_release_workflow`
+Applying migration `0025_document_counter_backfill`
+Applying migration `20261117192146_project_types_nca_rules`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 0001_baseline/
+    └─ migration.sql
+  └─ 0002_rls_policies/
+    └─ migration.sql
+  └─ 0003_refresh_tokens/
+    └─ migration.sql
+  └─ 0004_supplier_delivery_confirmation/
+    └─ migration.sql
+  └─ 0005_portal_hardening/
+    └─ migration.sql
+  └─ 0006_user_verification_columns/
+    └─ migration.sql
+  └─ 0007_lifecycle_money/
+    └─ migration.sql
+  └─ 0008_tax_contractor_wht/
+    └─ migration.sql
+  └─ 0009_whvat_setting/
+    └─ migration.sql
+  └─ 0010_valuation_reviewer/
+    └─ migration.sql
+  └─ 0011_account_lifecycle/
+    └─ migration.sql
+  └─ 0012_stage2_stage3/
+    └─ migration.sql
+  └─ 0013_po_invoice_item_link/
+    └─ migration.sql
+  └─ 0014_stage4/
+    └─ migration.sql
+  └─ 0015_tenant_fx_rates/
+    └─ migration.sql
+  └─ 0016_maker_checker_self_approval/
+    └─ migration.sql
+  └─ 0017_audit_hardening/
+    └─ migration.sql
+  └─ 0018_tenant_module_flags/
+    └─ migration.sql
+  └─ 0019_provider_payment_charges/
+    └─ migration.sql
+  └─ 0020_provider_charge_resolution/
+    └─ migration.sql
+  └─ 0021_closeout_retention_writeoff/
+    └─ migration.sql
+  └─ 0022_pc_acknowledgement/
+    └─ migration.sql
+  └─ 0023_project_retention_settings/
+    └─ migration.sql
+  └─ 0024_subcontractor_release_workflow/
+    └─ migration.sql
+  └─ 0025_document_counter_backfill/
+    └─ migration.sql
+  └─ 20261117192146_project_types_nca_rules/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+
+=== Step 4: Granting Schema Permissions to db_app AFTER Tables Exist (C5) ===
+GRANT
+GRANT
+GRANT
+ALTER DEFAULT PRIVILEGES
+ALTER DEFAULT PRIVILEGES
+
+=== Step 5: Re-applying rls.sql (idempotent re-enforcement on every deploy) ===
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "refresh_tokens" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "payment_certificate_lines" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "tenant_tax_settings" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "password_reset_tokens" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "suppliers" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_orders" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_order_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_order_invoices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "client_payment_notices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "drawing_acknowledgements" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "project_permits" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "compliance_visits" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "compliance_actions" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "document_counters" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "tenant_module_flags" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "provider_payment_charges" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "practical_completion_acknowledgements" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "nca_class_rules" does not exist, skipping
+DO
+DO
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:222: NOTICE:  function lookup_password_reset_token(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+
+=== Step 6: Seeding Database as db_migrator ===
+$ tsx prisma/seed.ts
+Seeding initial Kenyan construction tenant and V1 users...
+Database seeded successfully! Tenant: Apex Builders Kenya Ltd (a1cbf628-7e9c-4f16-a0b8-2d495fde0470), Project: Riverside Commercial Plaza
+
+=== Step 7: Secret Scanning ===
+Secret scanning passed: No secrets detected.
+
+=== Step 8: Running Linter (pnpm run lint) ===
+$ turbo run lint
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running lint in 7 packages
+   • Remote caching disabled
+
+@construction/db:lint: cache miss, executing 6f9e58e9437e5c0a
+@construction/permissions:lint: cache hit, replaying logs 0c9d1e823a30a18b
+@construction/api:lint: cache hit, replaying logs 817361adbfb6566c
+@construction/api:lint: $ tsc --noEmit
+@construction/web:lint: cache miss, executing 5478fdbffb33577e
+@construction/permissions:lint: $ tsc --noEmit
+@construction/money:lint: cache hit, replaying logs 6bf6a38d7369c7a9
+@construction/money:lint: $ tsc --noEmit
+@construction/validation:lint: cache hit, replaying logs 9dd5adb4b0e7ac91
+@construction/validation:lint: $ tsc --noEmit
+@construction/web:lint: $ tsc --noEmit
+@construction/db:lint: $ tsc --noEmit
+
+ Tasks:    6 successful, 6 total
+Cached:    4 cached, 6 total
+  Time:    50.577s 
+
+
+=== Step 9: Running Typecheck (pnpm run typecheck) ===
+$ turbo run typecheck
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running typecheck in 7 packages
+   • Remote caching disabled
+
+@construction/e2e:typecheck: cache miss, executing 1f5f607f745d0c17
+@construction/db:typecheck: cache miss, executing ed10116d13bea71e
+@construction/permissions:typecheck: cache hit, replaying logs 90cedf1985406ec5
+@construction/money:typecheck: cache hit, replaying logs 13032bac8d8656c4
+@construction/permissions:typecheck: $ tsc --noEmit
+@construction/db:build: cache miss, executing ca409a40893f551b
+@construction/web:typecheck: cache miss, executing 36fbc925aac83f12
+@construction/validation:typecheck: cache hit, replaying logs 310824b26b3488b6
+@construction/money:typecheck: $ tsc --noEmit
+@construction/validation:typecheck: $ tsc --noEmit
+@construction/web:typecheck: $ tsc --noEmit
+@construction/db:build: $ tsc
+@construction/db:typecheck: $ tsc --noEmit
+@construction/e2e:typecheck: $ tsc --noEmit
+@construction/api:typecheck: cache miss, executing fbf1ca41c4dc574e
+@construction/api:typecheck: $ tsc --noEmit
+
+ Tasks:    8 successful, 8 total
+Cached:    3 cached, 8 total
+  Time:    1m54.09s 
+
+
+=== Step 10: Building All Packages (pnpm run build) ===
+$ turbo run build
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running build in 7 packages
+   • Remote caching disabled
+
+@construction/web:build: cache miss, executing 644a6a858b110a66
+@construction/db:build: cache hit, replaying logs ca409a40893f551b
+@construction/db:build: $ tsc
+@construction/api:build: cache miss, executing 849cf822faa556ad
+@construction/web:build: $ tsc && vite build
+@construction/api:build: $ tsc
+@construction/web:build: vite v6.4.5 building for production...
+@construction/web:build: transforming...
+@construction/web:build: ✓ 450 modules transformed.
+@construction/web:build: rendering chunks...
+@construction/web:build: computing gzip size...
+@construction/web:build: dist/manifest.webmanifest                            0.38 kB
+@construction/web:build: dist/index.html                                      0.85 kB │ gzip:  0.49 kB
+@construction/web:build: dist/assets/index-DL9BGgW8.css                     107.72 kB │ gzip: 17.08 kB
+@construction/web:build: dist/assets/InlineError-2uFiUmxn.js                  0.47 kB │ gzip:  0.32 kB
+@construction/web:build: dist/assets/modules-B3kch5Ig.js                      0.47 kB │ gzip:  0.30 kB
+@construction/web:build: dist/assets/format-BonXX2El.js                       0.97 kB │ gzip:  0.42 kB
+@construction/web:build: dist/assets/usePagedList-3UjSGcvh.js                 1.14 kB │ gzip:  0.64 kB
+@construction/web:build: dist/assets/status-labels-BHUFKtaA.js                1.54 kB │ gzip:  0.87 kB
+@construction/web:build: dist/assets/PortalErrorState-DjUuvM3v.js             3.00 kB │ gzip:  1.44 kB
+@construction/web:build: dist/assets/AppDialog-Bo8VPeaE.js                    3.48 kB │ gzip:  1.46 kB
+@construction/web:build: dist/assets/OperatorAdoptionView--NmcZdvN.js         3.69 kB │ gzip:  1.38 kB
+@construction/web:build: dist/assets/OfflineSyncBanner-B1EOzf8y.js            3.76 kB │ gzip:  1.44 kB
+@construction/web:build: dist/assets/LegalPage-B97ECorD.js                    4.07 kB │ gzip:  1.54 kB
+@construction/web:build: dist/assets/SignupForm-DkduJs7y.js                   4.78 kB │ gzip:  1.66 kB
+@construction/web:build: dist/assets/LoginForm-oMwI-YR-.js                    5.43 kB │ gzip:  1.80 kB
+@construction/web:build: dist/assets/LandingPortalHub-B6sYw8Eg.js             5.91 kB │ gzip:  2.24 kB
+@construction/web:build: dist/assets/PasswordResetViews-Ox4-29db.js           6.45 kB │ gzip:  1.89 kB
+@construction/web:build: dist/assets/InviteAcceptView-BnWZgOS7.js             6.54 kB │ gzip:  2.23 kB
+@construction/web:build: dist/assets/OwnerDashboard-D7Vy2q4z.js               6.61 kB │ gzip:  2.49 kB
+@construction/web:build: dist/assets/CrewsView-CEkUPCoR.js                    6.65 kB │ gzip:  2.19 kB
+@construction/web:build: dist/assets/index-DB_YYM6B.js                        6.89 kB │ gzip:  1.31 kB
+@construction/web:build: dist/assets/PublicQuoteView-D-Cl-B3z.js              8.03 kB │ gzip:  2.46 kB
+@construction/web:build: dist/assets/PhotoEvidenceGallery-CgjpDLzZ.js         8.72 kB │ gzip:  2.62 kB
+@construction/web:build: dist/assets/AskAiPanel-CR63EPgg.js                   9.27 kB │ gzip:  3.68 kB
+@construction/web:build: dist/assets/VarianceMonitorCard-CqP_4JFy.js          9.86 kB │ gzip:  2.48 kB
+@construction/web:build: dist/assets/ConsoleContext-vupwqinS.js              11.90 kB │ gzip:  4.49 kB
+@construction/web:build: dist/assets/InboxView-CZbdRtCy.js                   12.40 kB │ gzip:  3.52 kB
+@construction/web:build: dist/assets/ClientPortalView-niMRGQez.js            12.67 kB │ gzip:  3.68 kB
+@construction/web:build: dist/assets/FieldDashboard-CH779kYV.js              18.13 kB │ gzip:  5.23 kB
+@construction/web:build: dist/assets/ConsultantPortalView-DrkswJ3b.js        18.72 kB │ gzip:  5.25 kB
+@construction/web:build: dist/assets/CompliancePortalView-B_sBbYjG.js        19.25 kB │ gzip:  5.17 kB
+@construction/web:build: dist/assets/SupplierPortalView-Ce_WSJdB.js          20.89 kB │ gzip:  5.32 kB
+@construction/web:build: dist/assets/SubcontractorPortalView-Bk1eyw_O.js     21.56 kB │ gzip:  5.96 kB
+@construction/web:build: dist/assets/FilesSection-B-dawcOO.js                22.27 kB │ gzip:  5.94 kB
+@construction/web:build: dist/assets/VariationManagementView-D9Xt2AV3.js     23.62 kB │ gzip:  6.62 kB
+@construction/web:build: dist/assets/HomeSection-BM4lWgjX.js                 26.09 kB │ gzip:  7.95 kB
+@construction/web:build: dist/assets/SnaggingListView-bKwEP4SC.js            29.21 kB │ gzip:  6.68 kB
+@construction/web:build: dist/assets/PeopleSection-CegbCTco.js               34.79 kB │ gzip:  8.65 kB
+@construction/web:build: dist/assets/index-Daweol2W.js                       38.46 kB │ gzip: 15.24 kB
+@construction/web:build: dist/assets/IndependentSiteReportView-B0mO4qGp.js   39.63 kB │ gzip:  9.23 kB
+@construction/web:build: dist/assets/ProjectsSection-2kQpOJ8P.js             40.83 kB │ gzip: 10.23 kB
+@construction/web:build: dist/assets/AppShell-CrXjWTek.js                    42.83 kB │ gzip: 11.20 kB
+@construction/web:build: dist/assets/SiteSection-AphWGIQJ.js                 56.65 kB │ gzip: 13.82 kB
+@construction/web:build: dist/assets/ProjectScheduleGanttView-mDZGkixP.js    58.07 kB │ gzip: 13.41 kB
+@construction/web:build: dist/assets/SafetyIncidentLogView-BU8_rxLC.js       64.23 kB │ gzip: 13.97 kB
+@construction/web:build: dist/assets/ClientDashboard-D9CUDP58.js             93.68 kB │ gzip: 20.91 kB
+@construction/web:build: dist/assets/index-BFPeYEuJ.js                      122.23 kB │ gzip: 28.35 kB
+@construction/web:build: dist/assets/MoneySection-G5FTcZSz.js               227.54 kB │ gzip: 46.46 kB
+@construction/web:build: dist/assets/index-DAyOr1yD.js                      270.28 kB │ gzip: 84.86 kB
+@construction/web:build: ✓ built in 19.50s
+@construction/web:build: 
+@construction/web:build: PWA v0.21.2
+@construction/web:build: mode      generateSW
+@construction/web:build: precache  58 entries (1745.35 KiB)
+@construction/web:build: files generated
+@construction/web:build:   dist/sw.js
+@construction/web:build:   dist/workbox-2fbc6a65.js
+
+ Tasks:    3 successful, 3 total
+Cached:    1 cached, 3 total
+  Time:    1m34.357s 
+
+
+=== Step 11: Security Vulnerability Audit (pnpm audit) ===
+1 vulnerabilities found
+Severity: 1 moderate
+1 ignored: 1 high
+Security vulnerability audit passed.
+
+=== Step 12: Running Tests as db_app (Non-superuser, RLS Enforced) ===
+$ turbo run test --force
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running test in 7 packages
+   • Remote caching disabled
+
+@construction/permissions:test: cache bypass, force executing 3de8a0accf3d9a2c
+@construction/money:test: cache bypass, force executing de444c6180034e03
+@construction/web:test: cache bypass, force executing ce78a252e3b19fcd
+@construction/db:build: cache bypass, force executing ca409a40893f551b
+@construction/db:test: cache bypass, force executing 5815a87ff6820148
+@construction/db:build: $ tsc
+@construction/permissions:test: $ vitest run
+@construction/db:test: $ vitest run
+@construction/web:test: $ vitest run
+@construction/money:test: $ vitest run
+@construction/money:test: 
+@construction/money:test:  RUN  v3.2.7 <repo>/packages/money
+@construction/money:test: 
+@construction/db:test: 
+@construction/db:test:  RUN  v3.2.7 <repo>/packages/db
+@construction/db:test: 
+@construction/web:test: 
+@construction/web:test:  RUN  v3.2.7 <repo>/apps/web
+@construction/web:test: 
+@construction/permissions:test: 
+@construction/permissions:test:  RUN  v3.2.7 <repo>/packages/permissions
+@construction/permissions:test: 
+@construction/db:test:  ✓ src/seed-data.test.ts (3 tests) 34ms
+@construction/money:test:  ✓ src/coverage-supplement.test.ts (11 tests) 434ms
+@construction/money:test:  ✓ src/index.test.ts (66 tests) 273ms
+@construction/money:test: 
+@construction/money:test:  Test Files  2 passed (2)
+@construction/money:test:       Tests  77 passed (77)
+@construction/money:test:    Start at  21:19:42
+@construction/money:test:    Duration  7.56s (transform 2.49s, setup 0ms, collect 3.16s, tests 708ms, environment 1ms, prepare 5.88s)
+@construction/money:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > A5 Cross-Tenant Write Rejection: writing with mismatched tenant_id throws PostgreSQL RLS error
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.project.create()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:200:26
+@construction/db:test: 
+@construction/db:test:   197 // Scoped to Tenant A, but attempting to insert a row with tenant_id = tenantBId
+@construction/db:test:   198 await expect(
+@construction/db:test:   199   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 200     await tx.project.create(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "42501", message: "new row violates row-level security policy for table \"projects\"", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Database-Level Ledger Immutability: db_app cannot DELETE or UPDATE audit_logs (permission denied)
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `prisma.$executeRawUnsafe()` invocation:
+@construction/db:test: 
+@construction/db:test: 
+@construction/db:test: Raw query failed. Code: `42501`. Message: `ERROR: permission denied for table audit_logs`
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Database-Level Ledger Immutability: db_app cannot DELETE or UPDATE audit_logs (permission denied)
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `prisma.$executeRawUnsafe()` invocation:
+@construction/db:test: 
+@construction/db:test: 
+@construction/db:test: Raw query failed. Code: `42501`. Message: `ERROR: permission denied for table audit_logs`
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Financial Immutability: database trigger blocks UPDATE of amount and DELETE on cost_entries
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.costEntry.update()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:331:28
+@construction/db:test: 
+@construction/db:test:   328 // 1. Attempting to change the financial amount throws trigger exception
+@construction/db:test:   329 await expect(
+@construction/db:test:   330   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 331     await tx.costEntry.update(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "Financial immutability violation: cost_entries.amount cannot be updated once created", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Financial Immutability: database trigger blocks UPDATE of amount and DELETE on cost_entries
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.costEntry.delete()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:341:28
+@construction/db:test: 
+@construction/db:test:   338 // 2. Attempting to delete the cost entry throws trigger exception
+@construction/db:test:   339 await expect(
+@construction/db:test:   340   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 341     await tx.costEntry.delete(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "cost_entries are append-only: deletion is prohibited by database ledger invariant", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Variation Immutability: database trigger blocks financial tampering on finalized variation_orders
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.variationOrder.update()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:378:33
+@construction/db:test: 
+@construction/db:test:   375 // Attempting to modify net_amount of an APPROVED variation order throws trigger exception
+@construction/db:test:   376 await expect(
+@construction/db:test:   377   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 378     await tx.variationOrder.update(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "Financial immutability violation: decided variation net_amount cannot be modified", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Variation Immutability: database trigger blocks financial tampering on finalized variation_orders
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.variationOrder.delete()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:388:33
+@construction/db:test: 
+@construction/db:test:   385 // Attempting to delete a variation order throws trigger exception
+@construction/db:test:   386 await expect(
+@construction/db:test:   387   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 388     await tx.variationOrder.delete(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "variation_orders are immutable: deletion is prohibited by database ledger invariant", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test:  ✓ src/isolation.test.ts (12 tests) 5191ms
+@construction/db:test:    ✓ PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > A4 Catalog Verification: asserts that EVERY table with tenant_id has ENABLE and FORCE RLS active  324ms
+@construction/db:test:    ✓ PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > A5 Cross-Tenant Write Rejection: writing with mismatched tenant_id throws PostgreSQL RLS error  867ms
+@construction/db:test:    ✓ PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Financial Immutability: database trigger blocks UPDATE of amount and DELETE on cost_entries  377ms
+@construction/permissions:test:  ✓ src/index.test.ts (9 tests) 274ms
+@construction/permissions:test: 
+@construction/permissions:test:  Test Files  1 passed (1)
+@construction/permissions:test:       Tests  9 passed (9)
+@construction/permissions:test:    Start at  21:19:46
+@construction/permissions:test:    Duration  8.16s (transform 2.32s, setup 0ms, collect 2.24s, tests 274ms, environment 5ms, prepare 876ms)
+@construction/permissions:test: 
+@construction/db:test:  ✓ src/index.test.ts (3 tests) 11143ms
+@construction/db:test:    ✓ packages/db cryptographic security functions > correctly hashes and verifies a valid password  8162ms
+@construction/db:test:    ✓ packages/db cryptographic security functions > rejects an incorrect password  2968ms
+@construction/db:test: 
+@construction/db:test:  Test Files  3 passed (3)
+@construction/db:test:       Tests  18 passed (18)
+@construction/db:test:    Start at  21:19:43
+@construction/db:test:    Duration  16.78s (transform 2.11s, setup 0ms, collect 3.74s, tests 16.37s, environment 11ms, prepare 5.16s)
+@construction/db:test: 
+@construction/web:test:  ✓ src/components/portals/SupplierPortalView.test.tsx (3 tests) 1034ms
+@construction/web:test:    ✓ SupplierPortalView — J3 states > fully-invoiced accepted PO shows "Invoice submitted" with reference, not Submit invoice  758ms
+@construction/web:test:  ✓ src/lib/api.test.ts (21 tests) 5329ms
+@construction/web:test:    ✓ api request layer (P1.1) > GET retries twice on network failure then succeeds  1245ms
+@construction/web:test:    ✓ api request layer (P1.1) > HTTP 500 → kind server  1257ms
+@construction/web:test:    ✓ api request layer (P1.1) > HTTP 429 → kind server  1244ms
+@construction/web:test:    ✓ api request layer (P1.1) > plain messages never contain raw TypeError text  1210ms
+@construction/web:test:  ✓ src/currency-guard.test.ts (2 tests) 185ms
+@construction/web:test: stderr | src/components/AppDialog.test.tsx > AppErrorBoundary > a throwing module shows the fallback with ref id and keeps the shell alive
+@construction/web:test: Error: module exploded
+@construction/web:test:     at Bomb [90m(<repo>/apps/web/[39msrc/components/AppDialog.test.tsx:23:44[90m)[39m
+@construction/web:test:     at Object.react_stack_bottom_frame (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:28571:20)
+@construction/web:test:     at renderWithHooks (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:8030:22)
+@construction/web:test:     at updateFunctionComponent (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:10569:19)
+@construction/web:test:     at beginWork (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:12205:18)
+@construction/web:test:     at runWithFiberInDEV (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:1048:13)
+@construction/web:test:     at performUnitOfWork (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:19176:22)
+@construction/web:test:     at workLoopSync (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:19004:41)
+@construction/web:test:     at renderRootSync (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18985:11)
+@construction/web:test:     at performWorkOnRoot (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18094:35) {
+@construction/web:test:   [stack]: [36m[Getter/Setter][39m,
+@construction/web:test:   [message]: [32m'module exploded'[39m
+@construction/web:test: }
+@construction/web:test: 
+@construction/web:test: The above error occurred in the <Bomb> component.
+@construction/web:test: 
+@construction/web:test: React will try to recreate this component tree from scratch using the error boundary you provided, AppErrorBoundary.
+@construction/web:test: 
+@construction/web:test: 
+@construction/web:test:  ✓ src/components/AppDialog.test.tsx (2 tests) 554ms
+@construction/web:test:    ✓ AppErrorBoundary > a throwing module shows the fallback with ref id and keeps the shell alive  352ms
+@construction/web:test:  ✓ src/components/portals/portal-data-labels.test.tsx (2 tests) 378ms
+@construction/web:test:  ✓ src/lib/format-dates.test.tsx (3 tests) 592ms
+@construction/web:test:    ✓ rendered screens never show M/D/YYYY > safety incident log renders "16 Nov 2026, …" not "11/16/2026, 7:45:00 AM"  516ms
+@construction/web:test:  ✓ src/lib/status-labels.test.tsx (11 tests) 371ms
+@construction/web:test:  ✓ src/components/PublicQuoteView.test.tsx (1 test) 568ms
+@construction/web:test:    ✓ PublicQuoteView — money formatting > renders every amount with thousands separators and spaced colons  556ms
+@construction/web:test:  ✓ src/lib/apiClient.test.ts (6 tests) 129ms
+@construction/web:test:  ✓ src/services/offline-privacy.test.ts (8 tests) 39ms
+@construction/web:test:  ✓ src/components/console/sections/HomeSection.test.tsx (2 tests) 97ms
+@construction/web:test:  ❯ src/App.test.tsx (106 tests | 2 failed) 9127ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders the login screen without demo credentials by default (A1) 244ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders demo accounts only when VITE_DEMO_MODE=true 17ms
+@construction/web:test:    × Web App walking skeleton & login suite (Milestone M1 & M3) > renders the App component root unauthenticated 260ms
+@construction/web:test:      → expected '<main class="min-h-screen bg-slate-10…' to contain 'SiteSafi'
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders COMPANY_ADMIN dashboard with portfolio stats, projects, members, and audit trail  523ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders PM_QS dashboard with budget baseline, BOQ structure, core loop, and variance guard  654ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders CLIENT dashboard with physical progress, certified costs, and retention ledger terms 93ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders BoqImportModal with EASMM sections, arithmetic status badges, and 6-stage lifecycle 5ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders CostCaptureModal with KES currency, category dropdown, vendor, and receipt upload 8ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders BudgetSummaryCard with approved budget, actual spent, pending approvals, and category breakdown 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders CostManagementView with append-only ledger, status filters, and action buttons 5ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders OfflineSyncBanner as a compact status dot when online with empty queue 4ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders SiteDiaryModal with weather, headcount matrix, material deliveries, and photo compression preview 12ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders PhysicalProgressModal with cumulative progress, BOQ milestone items, and offline fallback 4ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M7: Variance Monitor & Health Visualization > renders VarianceMonitorCard with default ON_TRACK status, comparison bars, and section breakdown 12ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M7: Variance Monitor & Health Visualization > renders VarianceMonitorCard with ACTION_REQUIRED status and neutral non-accusatory alert 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M7: Variance Monitor & Health Visualization > renders VarianceMonitorCard inside PM_QS and CLIENT dashboards  328ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M8: Variations Workflow UI Suite > renders CreateVariationModal with addition/omission toggle, quantity, rate, calculated line total, and live net amount 8ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M8: Variations Workflow UI Suite > renders VariationManagementView with ADR-010 status badges, formatted KES net amount, and action buttons 9ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M8: Variations Workflow UI Suite > renders VariationManagementView embedded inside PM_QS and CLIENT dashboards  882ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M9: Client / Developer Portal UI Suite > renders the 5 plain-language financial cards with KES formatting and visual budget progress bar  332ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M9: Client / Developer Portal UI Suite > renders the Diaspora Multi-Currency converter controls for overseas property owners  401ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M9: Client / Developer Portal UI Suite > renders interactive photo evidence gallery with Nairobi GPS tags and lightbox modal opens 28ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M9: Client / Developer Portal UI Suite > renders milestone progress timeline with percentage badges and inspector notes 35ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M9: Client / Developer Portal UI Suite > ensures variation review actions (approve/reject) are available for Client 73ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M9: Client / Developer Portal UI Suite > displays neutral project health guard card with factual notice and variance metrics 66ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M9: Client / Developer Portal UI Suite > displays Kenyan standard contract retention terms with 10% deduction and 5% cap 53ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M10: Reports & PDF Export Integration > renders PDF report download buttons in ClientDashboard 50ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M10: Reports & PDF Export Integration > renders PDF report download buttons in PmQsDashboard 206ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: RFI Technical Queries Suite > renders RfiManagementView with RFI register, priority badges, consultant roles, status badges, and elapsed days 6ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: RFI Technical Queries Suite > renders CreateRfiModal with consultant role dropdown, priority options, drawing ref, and technical query form 13ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Quality Control & Concrete Cubes Suite > renders QualityControlView with pre-pour checklist items, PASS/FAIL verification, and location details 3ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Quality Control & Concrete Cubes Suite > renders QualityControlView concrete cube tests with 7-day break, 28-day scheduled break, MPa gauge, and 25 MPa pass badge 3ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Quality Control & Concrete Cubes Suite > renders ConcreteCubeTestModal with pour location, concrete class dropdown, batch ticket, and MPa break inputs 6ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Practical Completion Snagging Suite > renders SnaggingListView with spatial location breadcrumbs, trade categories, severity badges, and status counters 6ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Practical Completion Snagging Suite > renders CreateSnagModal with spatial zoning hierarchy (Block, Floor, Room), trade dropdown, severity levels, and GPS inputs 14ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Practical Completion & Retention Release Card Suite > renders PracticalCompletionCard with Certificate of Practical Completion, BORAQS registration numbers, and issue date 12ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Practical Completion & Retention Release Card Suite > displays First Moiety (50%) retention release formatted in KES 21ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Practical Completion & Retention Release Card Suite > displays 6-Month Defects Liability Period (DLP) countdown and days remaining 11ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Practical Completion & Retention Release Card Suite > displays Certificate of Making Good Defects and Second Moiety escrow status 14ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Multi-Role Dashboard Embeddings > embeds RfiManagementView, QualityControlView, and PracticalCompletionCard into PmQsDashboard 270ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Construction Lifecycle Extensions: Multi-Role Dashboard Embeddings > embeds PracticalCompletionCard and SnaggingListView into ClientDashboard with verification capability 59ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > External Stakeholder Portals (Token Architecture) > renders ConsultantPortalView with token access, pending RFIs, cube strength tests, and pre-pour QA 8ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > External Stakeholder Portals (Token Architecture) > renders SubcontractorPortalView with trade-filtered snags and defect rectification form 8ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > External Stakeholder Portals (Token Architecture) > renders SupplierPortalView with batch delivery schedule, docket numbers, and receiving logs 9ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > External Stakeholder Portals (Token Architecture) > renders CompliancePortalView with NCA registration, statutory levy, supervisor accreditation, and cube pass rate 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > External Stakeholder Portals (Token Architecture) > renders PortalAccessLinkManager shell — links load from the API, no fabricated rows 4ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > External Stakeholder Portals (Token Architecture) > allows unauthenticated stakeholder entry into Consultant portal via App component with initialPortal 9ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > External Stakeholder Portals (Token Architecture) > embeds PortalAccessLinkManager into PmQsDashboard and CompanyAdminDashboard  301ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > renders ProjectScheduleGanttView with WBS phases, tasks, and progress indicators 22ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > renders SiteInventoryManagementView with store stock cards, low-stock warnings, and valuation 10ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > renders SafetyIncidentLogView with OSHA 2007 classification, severity, and CAPA actions 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > renders ProjectDocumentVaultView with architectural/structural registers and revision codes 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > renders SubcontractorManagementView with trade contracts, KES commitments, and Kenyan retention rates 11ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > verifies that PmQsDashboard includes all 5 new operations modules in navigation tabs and views  316ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > renders WeatherDelayClaimsView with meteorological station proofs, claimed days, and LAD financial relief 8ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > renders StatutoryTaxManagementView with KRA Cap 470 3% WHT, 2% WHVAT, and iTax status 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M11: Operations Suite Frontend Components  > embeds StatutoryTaxManagementView into CompanyAdminDashboard for executive compliance review 99ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations > renders MaterialRequisitionView with item descriptions, calculated commitment, and urgency badges 10ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations > renders MaterialWastageVarianceCard with theoretical vs actual consumption, allowable tolerance, and financial loss 5ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations > renders ProjectSCurveCashFlowCard with EVM metrics (CPI, SPI, EAC) and SVG S-Curve visualization 4ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations > renders SubcontractorValuationView with JBC 1999 10% retention, 3% KRA WHT, and net payable calculations 6ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations > embeds all 4 commercial modules into PmQsDashboard with navigation tabs  349ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M13, M14 & M15: Commercial Operations, Wastage Variance, S-Curve & Subcontractor Valuations > embeds Cash Flow S-Curve and Subcontractor Valuations into CompanyAdminDashboard 104ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M16, M17 & M18: Plant Equipment, Labor Muster Roll & Safety Audits UI Suite > renders PlantEquipmentView with machinery registry, fuel burn rate and siphoning alerts 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M16, M17 & M18: Plant Equipment, Labor Muster Roll & Safety Audits UI Suite > renders LaborMusterRollView with Kenyan National ID validation, Fundis/Casuals count and M-Pesa payroll 6ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M16, M17 & M18: Plant Equipment, Labor Muster Roll & Safety Audits UI Suite > renders SafetyAuditScorecardView with DOSHS/NCA scorecards and stop-work order triggers 12ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M16, M17 & M18: Plant Equipment, Labor Muster Roll & Safety Audits UI Suite > embeds Plant Equipment, Labor Muster Roll and Safety Audits into PmQsDashboard 294ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M16, M17 & M18: Plant Equipment, Labor Muster Roll & Safety Audits UI Suite > embeds Plant Equipment, Labor Muster Roll and Safety Audits into CompanyAdminDashboard 79ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M19, M20 & M21: Enterprise Operations Suite (e-TIMS, WhatsApp, Retention & Bonds) > renders ETimsTaxComplianceView with KRA VSCU invoice metrics, QR preview and TCC status 11ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M19, M20 & M21: Enterprise Operations Suite (e-TIMS, WhatsApp, Retention & Bonds) > renders WhatsAppSiteWebhookView with inbound feed, Swahili bot auto-reply and emergency alert status 14ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M19, M20 & M21: Enterprise Operations Suite (e-TIMS, WhatsApp, Retention & Bonds) > renders RetentionAndBondsView with JBC 1999 dual-moiety retention and commercial bank bonds 10ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M19, M20 & M21: Enterprise Operations Suite (e-TIMS, WhatsApp, Retention & Bonds) > embeds e-TIMS, WhatsApp and Retention/Bonds into PmQsDashboard  303ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M19, M20 & M21: Enterprise Operations Suite (e-TIMS, WhatsApp, Retention & Bonds) > embeds e-TIMS and Retention/Bonds into CompanyAdminDashboard  341ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M22, M23 & M24: Platform Services, Site Geofencing & IoT Telematics Suite > renders SubscriptionBillingView with Safaricom Daraja STK Push, metrics, and plan tiers 13ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M22, M23 & M24: Platform Services, Site Geofencing & IoT Telematics Suite > renders GeofencedClockInView with Haversine distance calculator, on-site verified and flagged violations 31ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M22, M23 & M24: Platform Services, Site Geofencing & IoT Telematics Suite > renders PlantTelematicsView with machinery fleet IoT telemetry, live fuel meters, and sudden diesel siphoning anomaly alert 42ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M22, M23 & M24: Platform Services, Site Geofencing & IoT Telematics Suite > embeds SubscriptionBillingView into CompanyAdminDashboard 118ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestones M22, M23 & M24: Platform Services, Site Geofencing & IoT Telematics Suite > embeds GeofencedClockInView and PlantTelematicsView into PmQsDashboard  333ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M25 & M26: Rebar BBS Takeoff & Safaricom Daraja B2C Disbursements Suite > renders BarBendingScheduleView standalone with BS 8666 schedules and 12m stock math 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M25 & M26: Rebar BBS Takeoff & Safaricom Daraja B2C Disbursements Suite > renders MpesaDisbursementView standalone with B2C bulk wages and retention releases 5ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M25 & M26: Rebar BBS Takeoff & Safaricom Daraja B2C Disbursements Suite > embeds BarBendingScheduleView and MpesaDisbursementView into PmQsDashboard  327ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M25 & M26: Rebar BBS Takeoff & Safaricom Daraja B2C Disbursements Suite > embeds MpesaDisbursementView into CompanyAdminDashboard for executive payouts 62ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M25 & M26: Rebar BBS Takeoff & Safaricom Daraja B2C Disbursements Suite > renders RmcTransitTrackerView with BS EN 206 cold joint defense and slump verification 13ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M25 & M26: Rebar BBS Takeoff & Safaricom Daraja B2C Disbursements Suite > renders StructuralSteelTakeoffView with BS 4 sections and intumescent coating estimator 11ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M25 & M26: Rebar BBS Takeoff & Safaricom Daraja B2C Disbursements Suite > embeds RmcTransitTrackerView and StructuralSteelTakeoffView into PmQsDashboard 104ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality > renders GeotechnicalSoilView with Proctor compaction, relative density, and DCP CBR calculations 10ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality > renders AsphaltPavementView with BS 594987 temperature envelope and core drill test tracker 7ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality > embeds GeotechnicalSoilView and AsphaltPavementView into PmQsDashboard 198ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality > renders TopographicSurveyView with Mass Haul Diagram, Cut/Fill metrics, and station takeoff table 12ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality > embeds TopographicSurveyView into PmQsDashboard 210ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality > renders PlantTelematicsView CAN-bus Live Diagnostics Dashboard with overheat threshold indicators and ECU DTC codes 16ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality > renders Diesel Siphoning Anomaly Incident Feed with severity badges and fuel loss rates 14ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M29 & M30 - Geotechnical Soil Compaction QA & Asphalt Pavement Quality > renders Maintenance Alerts Feed and accessible Acknowledge Alert modal 27ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > renders IndependentSiteReportView honest empty state without inspection data 6ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > renders IndependentSiteReportView empty state — no variance data without inspections 4ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > renders ContractorTenderBoardView with active tenders, 70/30 technical/financial ranking, and award actions 34ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > renders the rewritten LandingPortalHub with plain copy and no invented stats 9ms
+@construction/web:test:    × Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > renders LandingPortalHub by default in unauthenticated App and provides sign-in toggle 35ms
+@construction/web:test:      → expected '<main class="min-h-screen bg-slate-10…' to contain 'Run your construction sites from one …'
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > embeds IndependentSiteReportView and ContractorTenderBoardView into ClientDashboard and verifies multi-currency conversion 63ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > embeds IndependentSiteReportView and ContractorTenderBoardView into PmQsDashboard with navigation tabs 158ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > renders IndependentSiteReportView honest empty state 2ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > renders CompliancePortalView loading state pending token verification 2ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Gate-4 S1/S2: Quotes-to-cash & Invoicing UI > renders QuotesManagementView shell with quote lifecycle affordances 2ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Gate-4 S1/S2: Quotes-to-cash & Invoicing UI > renders InvoicingView shell with AR status filters and payment affordances 3ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Gate-4 S1/S2: Quotes-to-cash & Invoicing UI > embeds quotes and invoicing views into PmQsDashboard tabs 57ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > Gate-4 S1/S2: Quotes-to-cash & Invoicing UI > embeds quotes and invoicing into the Company Admin dashboard 18ms
+@construction/web:test: 
+@construction/web:test: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+@construction/web:test: 
+@construction/web:test:  FAIL  src/App.test.tsx > Web App walking skeleton & login suite (Milestone M1 & M3) > renders the App component root unauthenticated
+@construction/web:test: AssertionError: expected '<main class="min-h-screen bg-slate-10…' to contain 'SiteSafi'
+@construction/web:test: 
+@construction/web:test: [32m- Expected[39m
+@construction/web:test: [31m+ Received[39m
+@construction/web:test: 
+@construction/web:test: [32m- SiteSafi[39m
+@construction/web:test: [31m+ <main class="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center"><!--$!--><template data-msg="Switched to client rendering because the server rendering aborted due to:[39m
+@construction/web:test: [31m+[39m
+@construction/web:test: [31m+ The server used &quot;renderToString&quot; which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to &quot;renderToPipeableStream&quot; which supports Suspense on the server" data-cstck="[39m
+@construction/web:test: [31m+     at Lazy (&lt;anonymous&gt;)[39m
+@construction/web:test: [31m+     at Suspense (&lt;anonymous&gt;)[39m
+@construction/web:test: [31m+     at main (&lt;anonymous&gt;)[39m
+@construction/web:test: [31m+     at AppShell (<repo>/apps/web/src/App.tsx:90:21)[39m
+@construction/web:test: [31m+     at AppErrorBoundary (<repo>/apps/web/src/components/AppErrorBoundary.tsx:11:1)[39m
+@construction/web:test: [31m+     at ToastProvider (<repo>/apps/web/src/components/feedback/Toast.tsx:16:26)[39m
+@construction/web:test: [31m+     at App (&lt;anonymous&gt;)"></template><div class="min-h-[50vh] flex items-center justify-center text-sm text-slate-400">Loading…</div><!--/$--></main><div class="fixed bottom-20 sm:bottom-4 right-4 z-[100] flex w-[min(92vw,360px)] flex-col gap-2 pointer-events-none"></div>[39m
+@construction/web:test: 
+@construction/web:test:  ❯ src/App.test.tsx:93:18
+@construction/web:test:      91|   it('renders the App component root unauthenticated', () => {
+@construction/web:test:      92|     const html = renderToString(<App />);
+@construction/web:test:      93|     expect(html).toContain('SiteSafi');
+@construction/web:test:        |                  ^
+@construction/web:test:      94|     expect(html).toContain('Sign in to your workspace');
+@construction/web:test:      95| });
+@construction/web:test: 
+@construction/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+@construction/web:test: 
+@construction/web:test:  FAIL  src/App.test.tsx > Web App walking skeleton & login suite (Milestone M1 & M3) > Milestone M33: Platform Independent Site Inspection, Contractor Tender Board & Interactive Landing Portal Hub Suite > renders LandingPortalHub by default in unauthenticated App and provides sign-in toggle
+@construction/web:test: AssertionError: expected '<main class="min-h-screen bg-slate-10…' to contain 'Run your construction sites from one …'
+@construction/web:test: 
+@construction/web:test: [32m- Expected[39m
+@construction/web:test: [31m+ Received[39m
+@construction/web:test: 
+@construction/web:test: [32m- Run your construction sites from one place.[39m
+@construction/web:test: [31m+ <main class="min-h-screen bg-slate-100 p-4 sm:p-8 font-sans flex flex-col justify-center"><!--$!--><template data-msg="Switched to client rendering because the server rendering aborted due to:[39m
+@construction/web:test: [31m+[39m
+@construction/web:test: [31m+ The server used &quot;renderToString&quot; which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to &quot;renderToPipeableStream&quot; which supports Suspense on the server" data-cstck="[39m
+@construction/web:test: [31m+     at Lazy (&lt;anonymous&gt;)[39m
+@construction/web:test: [31m+     at Suspense (&lt;anonymous&gt;)[39m
+@construction/web:test: [31m+     at main (&lt;anonymous&gt;)[39m
+@construction/web:test: [31m+     at AppShell (<repo>/apps/web/src/App.tsx:90:21)[39m
+@construction/web:test: [31m+     at AppErrorBoundary (<repo>/apps/web/src/components/AppErrorBoundary.tsx:11:1)[39m
+@construction/web:test: [31m+     at ToastProvider (<repo>/apps/web/src/components/feedback/Toast.tsx:16:26)[39m
+@construction/web:test: [31m+     at App (&lt;anonymous&gt;)"></template><div class="min-h-[50vh] flex items-center justify-center text-sm text-slate-400">Loading…</div><!--/$--></main><div class="fixed bottom-20 sm:bottom-4 right-4 z-[100] flex w-[min(92vw,360px)] flex-col gap-2 pointer-events-none"></div>[39m
+@construction/web:test: 
+@construction/web:test:  ❯ src/App.test.tsx:2135:20
+@construction/web:test:     2133| 
+@construction/web:test:     2134|       // LandingPortalHub is loaded unauthenticated
+@construction/web:test:     2135|       expect(html).toContain('Run your construction sites from one pla…
+@construction/web:test:        |                    ^
+@construction/web:test:     2136|       expect(html).toContain('Sign in to your workspace');
+@construction/web:test:     2137| });
+@construction/web:test: 
+@construction/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+@construction/web:test: 
+@construction/web:test: 
+@construction/web:test:  Test Files  1 failed | 11 passed (12)
+@construction/web:test:       Tests  2 failed | 165 passed (167)
+@construction/web:test:    Start at  21:19:43
+@construction/web:test:    Duration  52.94s (transform 28.34s, setup 0ms, collect 44.68s, tests 18.40s, environment 50.65s, prepare 10.62s)
+@construction/web:test: 
+@construction/web:test: [ELIFECYCLE] Test failed. See above for more details.
+@construction/web#test:  ERROR  command (<repo>/apps/web) <repo>/.bin/pnpm run test exited (1)
+
+ Tasks:    3 successful, 5 total
+Cached:    0 cached, 5 total
+  Time:    58.203s 
+Failed:    @construction/web#test
+
+ ERROR  run failed: command  exited (1)
+[ELIFECYCLE] Test failed. See above for more details.
+
+=== Cleaning up local PostgreSQL verification cluster ===
+PostgreSQL cluster stopped.
+Cleaned up temporary directories.

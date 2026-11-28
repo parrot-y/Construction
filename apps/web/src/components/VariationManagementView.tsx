@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { formatKes } from '../ui';
+import { FilterTabs, formatKes, formatDate, formatDateTime } from '../ui';
 import CreateVariationModal from './CreateVariationModal';
+import { useAppDialog } from './AppDialog';
+import { api, apiErrorMessage } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
 
 export interface VariationItemData {
   id: string;
@@ -56,10 +59,11 @@ const STATUS_STYLES: Record<string, string> = {
   OWNER_REVIEW: 'bg-orange-50 text-orange-700 border-orange-200',
   APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-  VOID: 'bg-slate-100 text-slate-400 border-slate-200',
+  VOID: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 const TRIGGER_LABELS: Record<string, string> = {
+  CLIENT_REQUEST: 'Client request',
   DESIGN_CLARIFICATION: 'Design clarification',
   OWNER_REQUEST: 'Owner request',
   UNFORESEEN_CONDITION: 'Unforeseen condition',
@@ -80,6 +84,7 @@ export default function VariationManagementView({
   initialVariations,
   onVariationUpdated,
 }: VariationManagementViewProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const [variations, setVariations] = useState<VariationOrderData[]>(initialVariations ?? []);
   const [loading, setLoading] = useState(!initialVariations);
   const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>('ALL');
@@ -91,13 +96,10 @@ export default function VariationManagementView({
   const loadVariations = useCallback(async () => {
     if (!projectId) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/variations`, { credentials: 'include'});
-      if (res.ok) {
-        const json = await res.json();
-        setVariations(json.data || []);
-}
+      const json = await api.get<{ data?: VariationOrderData[] }>(`/api/v1/projects/${projectId}/variations`);
+      setVariations(json.data || []);
 } catch {
-      // offline/demo — keep current list
+      // offline/demo — keep current list — hygiene-allow: intentionally ignored
 } finally {
       setLoading(false);
 }
@@ -125,19 +127,8 @@ export default function VariationManagementView({
       ? `/api/v1/projects/${projectId}/variations/${variationId}/submit`
       : `/api/v1/projects/${projectId}/variations/${variationId}/review`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify(isSubmit ? {} : { action, comments}),
-});
-
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody.message || `Request failed (${res.status})`);
-}
-    const json = await res.json();
-    return json.data as VariationOrderData;
+    const json = await api.post<{ data: VariationOrderData }>(url, isSubmit ? {} : { action, comments });
+    return json.data;
 };
 
   const handleReviewAction = async (variationId: string, action: 'EVALUATE' | 'APPROVE' | 'REJECT' | 'VOID') => {
@@ -151,7 +142,12 @@ export default function VariationManagementView({
             ? 'Enter reason for voiding this change order:'
             : 'Enter reason for rejecting this change order:';
 
-    const comments = window.prompt(promptMessage, '');
+    const comments = await dialog.prompt({
+      title: action === 'APPROVE' ? 'Approve change order' : action === 'VOID' ? 'Void change order' : action === 'REJECT' ? 'Reject change order' : 'Evaluate change order',
+      inputLabel: promptMessage.replace(/:$/, ''),
+      confirmLabel: action === 'REJECT' || action === 'VOID' ? action : 'Submit',
+      danger: action === 'REJECT' || action === 'VOID',
+    });
     if (comments === null) return;
     if (action === 'REJECT' && comments.trim().length< 3) {
       setActionError('A rejection reason is required.');
@@ -162,9 +158,9 @@ export default function VariationManagementView({
       const updatedVo = await postAction(variationId, action, comments);
       setVariations((prev) => prev.map((v) => (v.id === variationId ? updatedVo : v)));
       if (onVariationUpdated) onVariationUpdated(updatedVo);
-      setActionFeedback(`CO-${String(updatedVo.variation_no).padStart(4, '0')} is now ${updatedVo.status}`);
+      setActionFeedback(`CO-${String(updatedVo.variation_no).padStart(4, '0')} is now ${statusLabel(updatedVo.status)}`);
 } catch (err: any) {
-      setActionError(err?.message || 'Action failed');
+      setActionError(apiErrorMessage(err, 'Action failed'));
 }
 };
 
@@ -176,7 +172,7 @@ export default function VariationManagementView({
       if (onVariationUpdated) onVariationUpdated(updatedVo);
       setActionFeedback(`CO-${String(updatedVo.variation_no).padStart(4, '0')} submitted for PM review`);
 } catch (err: any) {
-      setActionError(err?.message || 'Submit failed');
+      setActionError(apiErrorMessage(err, 'Submit failed'));
 }
 };
 
@@ -215,7 +211,7 @@ export default function VariationManagementView({
         {canRequest && (
 <button
             onClick={() => setShowCreateModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            className="px-3.5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
             + New Change Order
 </button>
@@ -225,7 +221,7 @@ export default function VariationManagementView({
       {actionFeedback && (
 <div className="p-3 bg-purple-50 border border-purple-200 text-purple-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {actionFeedback}</span>
-<button onClick={() => setActionFeedback(null)} className="text-purple-600 hover:text-purple-900 font-bold ml-2">
+<button onClick={() => setActionFeedback(null)} className="text-purple-700 hover:text-purple-900 font-bold ml-2">
             ×
 </button>
 </div>
@@ -233,38 +229,33 @@ export default function VariationManagementView({
       {actionError && (
 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {actionError}</span>
-<button onClick={() => setActionError(null)} className="text-rose-600 hover:text-rose-900 font-bold ml-2">
+<button onClick={() => setActionError(null)} className="text-rose-700 hover:text-rose-900 font-bold ml-2">
             ×
 </button>
 </div>
 )}
 
-      {/* Filter Tabs */}
-<div className="flex items-center gap-1 border-b border-slate-100 pb-2 overflow-x-auto text-xs">
-        {FILTERS.map((filter) => (
-<button
-            key={filter}
-            onClick={() => setActiveFilter(filter)}
-            className={`px-3 py-1.5 font-semibold rounded-lg transition whitespace-nowrap ${
-              activeFilter === filter
-                ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-}`}
-          >
-            {filter.replace(/_/g, ' ')}
-</button>
-))}
-</div>
+      {/* Filter Tabs — shared wrapping strip, never clipped at phone width */}
+      <FilterTabs
+        testId="variation-filter-tabs"
+        tabs={FILTERS.map((f) => ({ id: f, label: statusLabel(f) }))}
+        active={activeFilter}
+        onChange={(id) => setActiveFilter(id as typeof activeFilter)}
+        className="border-b border-slate-100 pb-2 text-xs"
+        tabClassName="px-3 py-1.5 font-semibold rounded-lg transition whitespace-nowrap"
+        activeClassName="bg-purple-50 text-purple-700 border border-purple-200"
+        inactiveClassName="text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+      />
 
       {/* Variations List */}
 <div className="space-y-3">
         {loading ? (
-<div className="text-center py-8 text-xs text-slate-400">Loading change orders…</div>
+<div className="text-center py-8 text-xs text-slate-600">Loading change orders…</div>
 ) : filteredVariations.length === 0 ? (
 <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl">
-<span className="text-2xl text-slate-400 block mb-1"></span>
+<span className="text-2xl text-slate-600 block mb-1"></span>
 <p className="text-xs font-semibold text-slate-600">No change orders found</p>
-<p className="text-[11px] text-slate-400">There are no change orders matching the selected filter</p>
+<p className="text-[11px] text-slate-600">There are no change orders matching the selected filter</p>
 </div>
 ) : (
           filteredVariations.map((vo) => {
@@ -280,13 +271,13 @@ export default function VariationManagementView({
               >
 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
                       CO-{String(vo.variation_no).padStart(4, '0')}
 </span>
 <h4 className="text-xs font-bold text-slate-900">{vo.title}</h4>
 
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${STATUS_STYLES[status] || STATUS_STYLES.DRAFT}`}>
-                      {status.replace(/_/g, ' ')}
+                      {statusLabel(status)}
 </span>
                     {vo.trigger_type && vo.trigger_type !== 'OTHER' && (
 <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-slate-50 text-slate-500 border border-slate-200">
@@ -299,20 +290,20 @@ export default function VariationManagementView({
 <div className="flex items-center gap-3">
 <div className="text-right">
 <span
-                        className={`text-xs font-mono font-bold block ${
+                        className={`text-xs tabular-nums font-bold block ${
                           isPositive ? 'text-emerald-700' : 'text-amber-700'
 }`}
                       >
                         {isPositive ? '+' : '-'}{formatKes(Math.abs(netNum))}
 </span>
-<span className="text-[10px] text-slate-400 block">
+<span className="text-[10px] text-slate-600 block">
                         {vo.time_extension_days > 0 ? `+${vo.time_extension_days} Days Extension` : '0 Days Extension'}
 </span>
 </div>
 
 <button
                       onClick={() => toggleExpand(vo.id)}
-                      className="text-xs text-slate-400 hover:text-slate-600 p-1 rounded"
+                      className="text-xs text-slate-600 hover:text-slate-600 p-1 rounded"
                       aria-label="Toggle details"
                     >
                       {isExpanded ? '▲' : '▼'}
@@ -322,7 +313,7 @@ export default function VariationManagementView({
 
                 {/* Reason snippet */}
 <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/60 p-2.5 rounded-lg border border-slate-100">
-<strong className="text-slate-700">Justification:</strong>
+<strong className="text-slate-700">Justification:</strong>{' '}
                   {vo.reason}
 </p>
 
@@ -361,12 +352,12 @@ export default function VariationManagementView({
                                       {isAddition ? 'ADDITION' : 'OMISSION'}
 </span>
 </td>
-<td className="p-2.5 font-mono">
+<td className="p-2.5 tabular-nums">
                                     {isAddition ? `+${item.quantity}` : `${item.quantity}`} {item.unit}
 </td>
-<td className="p-2.5 font-mono">{formatKes(item.unit_rate)}</td>
+<td className="p-2.5 tabular-nums">{formatKes(item.unit_rate)}</td>
 <td
-                                    className={`p-2.5 font-mono font-bold text-right ${
+                                    className={`p-2.5 tabular-nums font-bold text-right ${
                                       itemTotalNum >= 0 ? 'text-emerald-700' : 'text-rose-700'
 }`}
                                   >
@@ -387,8 +378,8 @@ export default function VariationManagementView({
 <ul className="space-y-1.5">
                           {vo.events.map((ev) => (
 <li key={ev.id} className="flex items-start gap-2 text-[11px] text-slate-600">
-<span className="font-mono text-slate-400 shrink-0">
-                                {new Date(ev.created_at).toLocaleString()}
+<span className="font-mono tabular-nums text-slate-600 shrink-0">
+                                {formatDateTime(ev.created_at)}
 </span>
 <span>
 <strong>{ev.actor_name}</strong> — {ev.event}
@@ -404,10 +395,10 @@ export default function VariationManagementView({
 
                 {/* Action Buttons Row */}
 <div className="flex flex-wrap items-center justify-between pt-1 border-t border-slate-100 text-[11px] gap-2">
-<span className="text-slate-400">
-                    Logged: {new Date(vo.created_at).toLocaleDateString()}
-                    {vo.submitted_at && ` • Submitted: ${new Date(vo.submitted_at).toLocaleDateString()}`}
-                    {vo.approved_at && ` • Approved: ${new Date(vo.approved_at).toLocaleDateString()}`}
+<span className="text-slate-600">
+                    Logged: {formatDate(vo.created_at)}
+                    {vo.submitted_at && ` • Submitted: ${formatDate(vo.submitted_at)}`}
+                    {vo.approved_at && ` • Approved: ${formatDate(vo.approved_at)}`}
 </span>
 
 <div className="flex items-center gap-1.5">
@@ -415,7 +406,7 @@ export default function VariationManagementView({
                     {canRequest && status === 'DRAFT' && (
 <button
                         onClick={() => void handleSubmit(vo.id)}
-                        className="px-2.5 py-1 font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-md transition shadow-xs"
+                        className="px-2.5 py-1 font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-md transition shadow-xs"
                       >
                         Submit for PM review
 </button>
@@ -432,10 +423,13 @@ export default function VariationManagementView({
 )}
 
                     {/* Approve (pending stages; server enforces limits) */}
-                    {canApprove && isPending(status) && (
+                    {/* Approve only appears when the order can actually be decided:
+                    owner-side viewers (OWNER/CLIENT) act solely at OWNER_REVIEW;
+                    staff approvers act at either pending stage (limits enforced server-side). */}
+                {canApprove && (['OWNER', 'CLIENT'].includes(userRole) ? status === 'OWNER_REVIEW' : isPending(status)) && (
 <button
                         onClick={() => void handleReviewAction(vo.id, 'APPROVE')}
-                        className="px-2.5 py-1 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition shadow-xs"
+                        className="px-2.5 py-1 font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md transition shadow-xs"
                       >
                         {status === 'OWNER_REVIEW' ? 'Owner Approve' : 'Approve'}
 </button>
@@ -475,6 +469,7 @@ export default function VariationManagementView({
         projectId={projectId}
         onVariationCreated={handleVariationCreated}
       />
+{dialog.element}
 </div>
 );
 }

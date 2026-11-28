@@ -5,8 +5,37 @@ import { toCurrencyString, Decimal } from '@construction/money';
 import { requirePermission } from '../plugins/rbac';
 import { parseBOQWorkbook, ParsedBOQSection } from '../services/boq-parser';
 import ExcelJS from 'exceljs';
+import { PRODUCT_NAME } from '../lib/product';
+import { listParams, listPage } from '../lib/pagination';
 
 export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
+  // GET /api/v1/boq/template - downloadable BOQ workbook template (F3).
+  // Pre-formatted headers + one example row per problem class so importers
+  // see the expected shape before uploading a real document.
+  server.get(
+    '/api/v1/boq/template',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_IMPORT),
+      ],
+    },
+    async (_request, reply) => {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Bills of Quantities');
+      sheet.addRow(['Item No', 'Description', 'Unit', 'Qty', 'Rate (KES)', 'Amount (KES)']);
+      sheet.addRow(['', 'BILL NO. 1 - PRELIMINARIES & GENERAL CONDITIONS', '', '', '', '']);
+      sheet.addRow(['1.1', 'Example measured item — excavate in normal soil', 'M3', 100, 850, 85000]);
+      sheet.addRow(['1.2', 'Example provisional sum item', 'SUM', '', '', 250000]);
+      sheet.addRow(['', 'BILL NO. 2 - SUPERSTRUCTURE', '', '', '', '']);
+      sheet.addRow(['2.1', 'Example prime-cost item (flagged for review)', 'ITEM', 1, 0, 0]);
+      const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+      reply.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      reply.header('Content-Disposition', 'attachment; filename="sitesafi-boq-template.xlsx"');
+      return reply.send(buffer);
+    },
+  );
+
   // POST /api/v1/projects/:projectId/boq/preview - Staged Excel BOQ Parser & Validator
   server.post(
     '/api/v1/projects/:projectId/boq/preview',
@@ -79,6 +108,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
         sourceFilename?: string;
         sections: ParsedBOQSection[];
         excludeRejected?: boolean;
+        dryRun?: boolean;
       };
 
       if (!body || !Array.isArray(body.sections) || body.sections.length === 0) {
@@ -86,6 +116,46 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       }
 
       const excludeRejected = body.excludeRejected !== false;
+
+      // F3 dry-run: report what WOULD be imported (row-by-row problems,
+      // totals, version) without writing a single row.
+      if ((body as { dryRun?: boolean }).dryRun === true) {
+        const problems: Array<{ section: string; itemCode: string; description: string; problem: string }> = [];
+        let dryItems = 0;
+        let dryRejected = 0;
+        let dryTotal = new Decimal(0);
+        for (const sec of body.sections) {
+          for (const item of sec.items) {
+            dryItems++;
+            if (excludeRejected && item.status === 'REJECTED') {
+              dryRejected++;
+              problems.push({ section: sec.title, itemCode: item.itemCode, description: item.description, problem: item.rejectionReason || 'REJECTED row excluded' });
+              continue;
+            }
+            if (item.status === 'WARNING' || item.status === 'REJECTED') {
+              problems.push({ section: sec.title, itemCode: item.itemCode, description: item.description, problem: item.rejectionReason || item.status });
+            }
+            if (item.isProvisional) {
+              problems.push({ section: sec.title, itemCode: item.itemCode, description: item.description, problem: 'Provisional sum — confirm PC settlement before certification' });
+            }
+            if (!item.unit || item.unit === 'ITEM') {
+              problems.push({ section: sec.title, itemCode: item.itemCode, description: item.description, problem: 'Missing or generic unit of measure' });
+            }
+            dryTotal = dryTotal.plus(item.totalAmount || '0');
+          }
+        }
+        return reply.status(200).send({
+          data: {
+            dryRun: true,
+            saved: false,
+            sections: body.sections.length,
+            items: dryItems,
+            excludedRows: dryRejected,
+            calculatedGrandTotal: toCurrencyString(dryTotal),
+            problems,
+          },
+        });
+      }
 
       const createdBOQ = await withTenantTx(prisma, tenantId, async (tx) => {
         // Verify project
@@ -297,7 +367,7 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       }
 
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'Site Safi';
+      workbook.creator = PRODUCT_NAME;
       const sheet = workbook.addWorksheet('BOQ');
 
       sheet.columns = [
@@ -362,7 +432,8 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
     async (request, reply) => {
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
-      const { q, sectionId } = request.query as { q?: string; sectionId?: string };
+      const { q, sectionId, floor, unitRef } = request.query as { q?: string; sectionId?: string; floor?: string; unitRef?: string };
+      const pg = listParams(request);
 
       const items = await withTenantTx(prisma, tenantId, async (tx) => {
         const activeBOQ = await tx.bOQ.findFirst({
@@ -378,6 +449,8 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
               boq_id: activeBOQ.id,
               ...(sectionId ? { id: sectionId } : {}),
             },
+            ...(floor ? { floor } : {}),
+            ...(unitRef ? { unit_ref: unitRef } : {}),
             ...(q
               ? {
                   OR: [
@@ -389,10 +462,371 @@ export const boqRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
           },
           include: { section: { select: { title: true, order_idx: true } } },
           orderBy: { created_at: 'asc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.status(200).send({ data: items });
+      const paged = listPage(items, pg);
+      return reply.status(200).send({ data: paged.data, page: paged.page });
+    },
+  );
+  // ---------------------------------------------------------------
+  // Round A: manual BoQ item entry — a contractor can type items by
+  // hand, not only import Excel. Writes land on the ACTIVE BOQ (one is
+  // created on first use) and section/BOQ totals are recomputed.
+  // ---------------------------------------------------------------
+
+  async function recomputeBoqTotals(tx: any, boqId: string) {
+    const sections = await tx.bOQSection.findMany({
+      where: { boq_id: boqId },
+      include: { items: { select: { total_amount: true } } },
+    });
+    let boqTotal = new Decimal(0);
+    for (const section of sections) {
+      const sectionTotal = section.items.reduce(
+        (sum: Decimal, item: { total_amount: unknown }) => sum.plus(new Decimal(item.total_amount?.toString() ?? '0')),
+        new Decimal(0),
+      );
+      boqTotal = boqTotal.plus(sectionTotal);
+      await tx.bOQSection.update({
+        where: { id: section.id },
+        data: { total_amount: sectionTotal.toFixed(2) },
+      });
+    }
+    await tx.bOQ.update({
+      where: { id: boqId },
+      data: { total_amount: boqTotal.toFixed(2) },
+    });
+    return boqTotal;
+  }
+
+  async function activeOrNewBoq(tx: any, tenantId: string, projectId: string) {
+    let boq = await tx.bOQ.findFirst({
+      where: { project_id: projectId, tenant_id: tenantId, status: 'ACTIVE' },
+    });
+    if (!boq) {
+      boq = await tx.bOQ.create({
+        data: {
+          tenant_id: tenantId,
+          project_id: projectId,
+          version: 1,
+          status: 'ACTIVE',
+          source_filename: 'manual-entry',
+        },
+      });
+      await tx.bOQSection.create({
+        data: { tenant_id: tenantId, boq_id: boq.id, order_idx: 0, title: 'General' },
+      });
+    }
+    return boq;
+  }
+
+  function validItemBody(body: any): string | null {
+    if (!body || typeof body.description !== 'string' || body.description.trim().length < 3) {
+      return 'Description is required (at least 3 characters).';
+    }
+    const qty = Number(body.quantity);
+    const rate = Number(body.unitRate);
+    if (!Number.isFinite(qty) || qty <= 0) return 'Quantity must be a number greater than zero.';
+    if (!Number.isFinite(rate) || rate < 0) return 'Rate must be zero or more.';
+    if (typeof body.unit !== 'string' || !body.unit.trim()) return 'Unit is required (e.g. M3, SM, ITEM).';
+    if (body.floor !== undefined && body.floor !== null && (typeof body.floor !== 'string' || body.floor.length > 100)) {
+      return 'Floor must be a short text label.';
+    }
+    if (body.unitRef !== undefined && body.unitRef !== null && (typeof body.unitRef !== 'string' || body.unitRef.length > 100)) {
+      return 'Unit reference must be a short text label.';
+    }
+    return null;
+  }
+
+  // POST /api/v1/projects/:projectId/boq/items - add one item by hand
+  server.post(
+    '/api/v1/projects/:projectId/boq/items',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_EDIT),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      const body = request.body as any;
+
+      const invalid = validItemBody(body);
+      if (invalid) return reply.status(400).send({ error: invalid });
+
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const project = await tx.project.findFirst({
+          where: { id: projectId, tenant_id: tenantId },
+          select: { id: true },
+        });
+        if (!project) return { error: 'Project not found in current company workspace', status: 404 as const };
+
+        const boq = await activeOrNewBoq(tx, tenantId, projectId);
+
+        // Resolve target section: explicit title match, else first section.
+        let section = null;
+        const sections = await tx.bOQSection.findMany({
+          where: { boq_id: boq.id },
+          orderBy: { order_idx: 'asc' },
+        });
+        if (body.sectionTitle?.trim()) {
+          section = sections.find((s) => s.title.toLowerCase() === body.sectionTitle.trim().toLowerCase()) ?? null;
+          if (!section) {
+            section = await tx.bOQSection.create({
+              data: {
+                tenant_id: tenantId,
+                boq_id: boq.id,
+                order_idx: sections.length,
+                title: body.sectionTitle.trim(),
+              },
+            });
+          }
+        } else {
+          section = sections[0] ?? await tx.bOQSection.create({
+            data: { tenant_id: tenantId, boq_id: boq.id, order_idx: 0, title: 'General' },
+          });
+        }
+
+        const qty = new Decimal(Number(body.quantity));
+        const rate = new Decimal(Number(body.unitRate));
+        const item = await tx.bOQItem.create({
+          data: {
+            tenant_id: tenantId,
+            section_id: section.id,
+            item_code: (body.itemCode ?? '').toString().slice(0, 50),
+            description: body.description.trim(),
+            unit: body.unit.trim().toUpperCase().slice(0, 20),
+            quantity: qty.toString(),
+            unit_rate: rate.toString(),
+            total_amount: qty.times(rate).toFixed(2),
+            is_provisional: Boolean(body.isProvisional),
+            floor: body.floor?.trim() || null,
+            unit_ref: body.unitRef?.trim() || null,
+          },
+        });
+
+        await recomputeBoqTotals(tx, boq.id);
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            actor_id: sub,
+            project_id: projectId,
+            action: 'boq.item.create',
+            entity_type: 'BOQItem',
+            entity_id: item.id,
+            changes: { description: item.description, quantity: qty.toString(), unitRate: rate.toString() },
+          },
+        });
+        return { item, boqId: boq.id };
+      });
+
+      if ('error' in result) return reply.status(result.status ?? 400).send({ error: result.error });
+      return reply.status(201).send({ data: result.item });
+    },
+  );
+
+  // PATCH /api/v1/projects/:projectId/boq/items/:itemId - edit one item
+  server.patch(
+    '/api/v1/projects/:projectId/boq/items/:itemId',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_EDIT),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, itemId } = request.params as { projectId: string; itemId: string };
+      const body = request.body as any;
+
+      const merged = {
+        description: body.description ?? undefined,
+        unit: body.unit ?? undefined,
+        quantity: body.quantity ?? undefined,
+        unitRate: body.unitRate ?? undefined,
+        itemCode: body.itemCode ?? undefined,
+        isProvisional: body.isProvisional ?? undefined,
+      };
+      // CB6 takeoff fields: undefined = untouched, null = clear, string = set.
+      for (const key of ['floor', 'unitRef'] as const) {
+        const v = body[key];
+        if (v !== undefined && v !== null && (typeof v !== 'string' || v.length > 100)) {
+          return reply.status(400).send({ error: `${key === 'unitRef' ? 'Unit reference' : 'Floor'} must be a short text label.` });
+        }
+      }
+      // Validate against the effective (merged) values.
+      const existing = await withTenantTx(prisma, tenantId, async (tx) =>
+        tx.bOQItem.findFirst({
+          where: { id: itemId, tenant_id: tenantId, section: { boq: { project_id: projectId, status: 'ACTIVE' } } },
+        }),
+      );
+      if (!existing) return reply.status(404).send({ error: 'BoQ item not found on the active BOQ' });
+
+      const eff = {
+        description: merged.description ?? existing.description,
+        unit: merged.unit ?? existing.unit,
+        quantity: merged.quantity ?? Number(existing.quantity),
+        unitRate: merged.unitRate ?? Number(existing.unit_rate),
+      };
+      const invalid = validItemBody(eff);
+      if (invalid) return reply.status(400).send({ error: invalid });
+
+      const item = await withTenantTx(prisma, tenantId, async (tx) => {
+        const qty = new Decimal(Number(eff.quantity));
+        const rate = new Decimal(Number(eff.unitRate));
+        const updated = await tx.bOQItem.update({
+          where: { id: itemId },
+          data: {
+            ...(merged.description !== undefined ? { description: merged.description.trim() } : {}),
+            ...(merged.unit !== undefined ? { unit: merged.unit.trim().toUpperCase().slice(0, 20) } : {}),
+            ...(merged.itemCode !== undefined ? { item_code: String(merged.itemCode).slice(0, 50) } : {}),
+            ...(merged.isProvisional !== undefined ? { is_provisional: Boolean(merged.isProvisional) } : {}),
+            ...(body.floor !== undefined ? { floor: body.floor === null ? null : body.floor.trim() || null } : {}),
+            ...(body.unitRef !== undefined ? { unit_ref: body.unitRef === null ? null : body.unitRef.trim() || null } : {}),
+            quantity: qty.toString(),
+            unit_rate: rate.toString(),
+            total_amount: qty.times(rate).toFixed(2),
+          },
+        });
+        await recomputeBoqTotals(tx, existing.section_id ? (await tx.bOQSection.findUnique({ where: { id: existing.section_id }, select: { boq_id: true } }))!.boq_id : '');
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            actor_id: sub,
+            project_id: projectId,
+            action: 'boq.item.update',
+            entity_type: 'BOQItem',
+            entity_id: itemId,
+            changes: { quantity: qty.toString(), unitRate: rate.toString() },
+          },
+        });
+        return updated;
+      });
+
+      return reply.status(200).send({ data: item });
+    },
+  );
+
+  // CB6 — POST /api/v1/projects/:projectId/boq/items/bulk-map
+  // Takeoff mapping: assign floor/unitRef to many items on the ACTIVE BOQ
+  // in one call. Each mapping may set floor and/or unitRef; null clears.
+  server.post(
+    '/api/v1/projects/:projectId/boq/items/bulk-map',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_EDIT),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId } = request.params as { projectId: string };
+      const body = request.body as any;
+
+      const mappings = body?.mappings;
+      if (!Array.isArray(mappings) || mappings.length === 0 || mappings.length > 500) {
+        return reply.status(400).send({ error: 'mappings must be a non-empty array of at most 500 entries.' });
+      }
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      for (const m of mappings) {
+        if (!m || typeof m !== 'object' || !UUID_RE.test(m.itemId ?? '')) {
+          return reply.status(400).send({ error: 'Each mapping needs a valid itemId.' });
+        }
+        for (const key of ['floor', 'unitRef'] as const) {
+          const v = m[key];
+          if (v !== undefined && v !== null && (typeof v !== 'string' || v.length > 100)) {
+            return reply.status(400).send({ error: `${key === 'unitRef' ? 'unitRef' : 'floor'} must be a short text label or null.` });
+          }
+        }
+      }
+
+      const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        const activeBOQ = await tx.bOQ.findFirst({
+          where: { project_id: projectId, tenant_id: tenantId, status: 'ACTIVE' },
+          select: { id: true },
+        });
+        if (!activeBOQ) return { error: 'No active BOQ for this project', status: 404 as const };
+
+        const itemIds = mappings.map((m: any) => m.itemId);
+        const existing = await tx.bOQItem.findMany({
+          where: { id: { in: itemIds }, tenant_id: tenantId, section: { boq_id: activeBOQ.id } },
+          select: { id: true },
+        });
+        const found = new Set(existing.map((i: { id: string }) => i.id));
+        const missing = itemIds.filter((id: string) => !found.has(id));
+        if (missing.length > 0) {
+          return { error: `${missing.length} item(s) not found on the active BOQ`, status: 404 as const };
+        }
+
+        let updated = 0;
+        for (const m of mappings) {
+          const data: Record<string, unknown> = {};
+          if (m.floor !== undefined) data.floor = m.floor === null ? null : m.floor.trim() || null;
+          if (m.unitRef !== undefined) data.unit_ref = m.unitRef === null ? null : m.unitRef.trim() || null;
+          if (Object.keys(data).length === 0) continue;
+          await tx.bOQItem.update({ where: { id: m.itemId }, data });
+          updated += 1;
+        }
+
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            actor_id: sub,
+            project_id: projectId,
+            action: 'boq.items.bulk_map',
+            entity_type: 'BOQ',
+            entity_id: activeBOQ.id,
+            changes: { mapped: updated, mappings: mappings.length },
+          },
+        });
+        return { updated, boqId: activeBOQ.id };
+      });
+
+      if ('error' in result) return reply.status(result.status ?? 400).send({ error: result.error });
+      return reply.status(200).send({ data: result });
+    },
+  );
+
+  // DELETE /api/v1/projects/:projectId/boq/items/:itemId - remove one item
+  server.delete(
+    '/api/v1/projects/:projectId/boq/items/:itemId',
+    {
+      preHandler: [
+        server.authenticate,
+        requirePermission(Permissions.BOQ_EDIT),
+      ],
+    },
+    async (request, reply) => {
+      const { tenantId, sub } = request.user;
+      const { projectId, itemId } = request.params as { projectId: string; itemId: string };
+
+      const done = await withTenantTx(prisma, tenantId, async (tx) => {
+        const existing = await tx.bOQItem.findFirst({
+          where: { id: itemId, tenant_id: tenantId, section: { boq: { project_id: projectId, status: 'ACTIVE' } } },
+          include: { section: { select: { boq_id: true } } },
+        });
+        if (!existing) return false;
+        await tx.bOQItem.delete({ where: { id: itemId } });
+        await recomputeBoqTotals(tx, existing.section.boq_id);
+        await tx.auditLog.create({
+          data: {
+            tenant_id: tenantId,
+            actor_id: sub,
+            project_id: projectId,
+            action: 'boq.item.delete',
+            entity_type: 'BOQItem',
+            entity_id: itemId,
+            changes: { description: existing.description },
+          },
+        });
+        return true;
+      });
+
+      if (!done) return reply.status(404).send({ error: 'BoQ item not found on the active BOQ' });
+      return reply.status(200).send({ data: { deleted: true } });
     },
   );
 };

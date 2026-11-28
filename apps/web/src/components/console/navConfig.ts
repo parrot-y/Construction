@@ -26,11 +26,11 @@ const ALL_PROJECT_TABS = ['all', 'schedule', 'drawings', 'changeorders', 'coordi
 const NO_CO_PROJECT_TABS = ['all', 'schedule', 'drawings', 'coordination', 'correspondence'];
 const DRAWINGS_ONLY_PROJECT_TABS = ['drawings'];
 
-const ALL_SITE_TABS = ['fieldview', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'attendance'];
-const VIEWER_SITE_TABS = ['dailylog', 'checklists', 'punch', 'inspections', 'observations', 'safety', 'attendance'];
+const ALL_SITE_TABS = ['fieldview', 'map', 'dailylog', 'checklists', 'assignments', 'punch', 'inspections', 'observations', 'actionplans', 'safety', 'meetings', 'attendance'];
+const VIEWER_SITE_TABS = ['dailylog', 'map', 'checklists', 'punch', 'inspections', 'observations', 'safety', 'attendance'];
 
-const ALL_MONEY_TABS = ['financials', 'commitments', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations', 'billing'];
-const NO_BILLING_MONEY_TABS = ['financials', 'commitments', 'quotes', 'invoices', 'inventory', 'certificates', 'subvaluations'];
+const ALL_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'requisitions', 'rates', 'gatepass', 'certificates', 'subvaluations', 'billing'];
+const NO_BILLING_MONEY_TABS = ['financials', 'commitments', 'procurement', 'quotes', 'invoices', 'inventory', 'requisitions', 'rates', 'gatepass', 'certificates', 'subvaluations'];
 const INVOICES_INVENTORY = ['invoices', 'inventory'];
 const INVENTORY_ONLY = ['inventory'];
 const VIEWER_MONEY_TABS = ['commitments', 'invoices', 'inventory'];
@@ -43,6 +43,9 @@ const CREWS_ONLY_PEOPLE_TABS = ['crews', 'subcontractors', 'directory'];
 const VIEWER_PEOPLE_TABS = ['subcontractors', 'directory', 'roles'];
 
 const ALL_FILES_TABS = ['reports', 'companydocs', 'unfiled'];
+// Company-manage roles also get the integrations/delivery-log surface —
+// the API enforces COMPANY_MANAGE regardless.
+const ADMIN_FILES_TABS = [...ALL_FILES_TABS, 'integrations'];
 const DOCS_ONLY_FILES_TABS = ['companydocs', 'unfiled'];
 
 function nav(
@@ -62,14 +65,14 @@ export const ROLE_NAV: Record<string, RoleNav> = {
     S('site', 'Site', ALL_SITE_TABS),
     S('money', 'Money', ALL_MONEY_TABS),
     S('people', 'People', ALL_PEOPLE_TABS),
-    S('files', 'Files & reports', ALL_FILES_TABS),
+    S('files', 'Files & reports', ADMIN_FILES_TABS),
   ], ['dashboard', 'inbox', 'announcements']),
   ADMIN: nav('exec', [
     S('projects', 'Projects', ALL_PROJECT_TABS),
     S('site', 'Site', ALL_SITE_TABS),
     S('money', 'Money', ALL_MONEY_TABS),
     S('people', 'People', ALL_PEOPLE_TABS),
-    S('files', 'Files & reports', ALL_FILES_TABS),
+    S('files', 'Files & reports', ADMIN_FILES_TABS),
   ], ['dashboard', 'inbox', 'announcements']),
   EXECUTIVE: nav('exec', [
     S('projects', 'Projects', ALL_PROJECT_TABS),
@@ -199,6 +202,7 @@ export const SUBTAB_LABELS: Record<string, string> = {
   correspondence: 'Correspondence',
   // site
   fieldview: 'Field view',
+  map: 'Map',
   dailylog: 'Daily log',
   checklists: 'Checklists',
   assignments: 'Assignments',
@@ -207,13 +211,18 @@ export const SUBTAB_LABELS: Record<string, string> = {
   observations: 'Observations',
   actionplans: 'Action plans',
   safety: 'Safety',
+  meetings: 'Meetings',
   attendance: 'Attendance',
   // money
   financials: 'Financials',
   commitments: 'Commitments',
+  procurement: 'Procurement',
   quotes: 'Quotes',
   invoices: 'Invoices',
   inventory: 'Inventory',
+  requisitions: 'Material indents',
+  rates: 'Rate master',
+  gatepass: 'Gate passes',
   certificates: 'Certificates',
   subvaluations: 'Sub valuations',
   billing: 'Billing & plan',
@@ -227,6 +236,7 @@ export const SUBTAB_LABELS: Record<string, string> = {
   reports: 'Reports',
   companydocs: 'Company documents',
   unfiled: 'Unfiled documents',
+  integrations: 'Integrations',
   // home
   dashboard: 'Dashboard',
   inbox: 'Inbox',

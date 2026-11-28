@@ -3,6 +3,7 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import { CreateCompanyDocumentSchema, UpdateCompanyDocumentSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXPIRING_SOON_DAYS = 60;
@@ -22,6 +23,7 @@ export const companyDocumentsRoutes: FastifyPluginAsync = async (server: Fastify
     async (request, reply) => {
       const { tenantId } = request.user;
       const { category, expiring, unfiled, q } = request.query as { category?: string; expiring?: string; unfiled?: string; q?: string };
+      const pg = listParams(request);
       try {
         const soon = new Date(Date.now() + EXPIRING_SOON_DAYS * 24 * 60 * 60 * 1000);
         const data = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -34,6 +36,8 @@ export const companyDocumentsRoutes: FastifyPluginAsync = async (server: Fastify
               ...(q ? { OR: [{ title: { contains: q, mode: 'insensitive' } }, { reference_no: { contains: q, mode: 'insensitive' } }] } : {}),
             },
             orderBy: [{ expiry_date: 'asc' }, { created_at: 'desc' }],
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
           const today = new Date();
           return docs.map((d) => ({
@@ -44,7 +48,8 @@ export const companyDocumentsRoutes: FastifyPluginAsync = async (server: Fastify
             expiry_date: d.expiry_date?.toISOString().slice(0, 10) ?? null,
           }));
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list documents' });
@@ -147,6 +152,7 @@ export const companyDocumentsRoutes: FastifyPluginAsync = async (server: Fastify
     { preHandler: [server.authenticate, requirePermission(Permissions.REPORT_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
+      const pg = listParams(request);
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) => {
           const docs = await tx.companyDocument.findMany({
@@ -163,7 +169,8 @@ export const companyDocumentsRoutes: FastifyPluginAsync = async (server: Fastify
             }))
             .filter((d) => d.expiry_status !== 'VALID');
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load expiring documents' });

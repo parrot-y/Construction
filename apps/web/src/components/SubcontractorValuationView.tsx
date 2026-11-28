@@ -1,5 +1,8 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../ui';
+import { formatKes, SavedDataNotice } from '../ui';
+import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
+import { api, apiErrorMessage } from '../lib/apiClient';
+import { statusLabel } from '../lib/status-labels';
 
 export interface SubcontractorValuationItem {
   id: string;
@@ -55,28 +58,29 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
   const [valuations, setValuations] = useState<SubcontractorValuationItem[]>(initialValuations ?? []);
   const [livePackages, setLivePackages] = useState<{ id: string; firmName: string; tradeCategory: string}[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const effectivePackages = subcontractorPackages ?? livePackages;
 
   const load = async () => {
     try {
-      const [vRes, pRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/subcontractor-valuations`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'}),
+      const [vb, pb] = await Promise.all([
+        fetchJsonCached(`/api/v1/projects/${projectId}/subcontractor-valuations`, `sub-valuations:${projectId}`),
+        api.get<unknown>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => null),
       ]);
-      if (!vRes.ok) throw new Error('Failed to load valuations');
-      const vb = await vRes.json();
-      setValuations(initialValuations ?? (vb.valuations || []));
-      if (!subcontractorPackages && pRes.ok) {
-        const pb = await pRes.json();
-        const rows = pb.packages || pb.subcontractors || pb || [];
-        setLivePackages((Array.isArray(rows) ? rows : []).map((p: any) => ({
-          id: p.id, firmName: p.firm_name || p.firmName, tradeCategory: p.trade_category || p.tradeCategory,
-        })));
+      if (vb.savedAt) setSavedAt(vb.savedAt);
+      setValuations(initialValuations ?? (vb.body.valuations || vb.body.data?.valuations || []));
+      if (!subcontractorPackages && pb) {
+        const rows = (pb as { packages?: unknown[]; subcontractors?: unknown[] }).packages
+          || (pb as { subcontractors?: unknown[] }).subcontractors || pb;
+        setLivePackages((Array.isArray(rows) ? rows : []).map((p) => {
+          const r = p as { id: string; firm_name?: string; firmName?: string; trade_category?: string; tradeCategory?: string };
+          return { id: r.id, firmName: r.firm_name || r.firmName || '', tradeCategory: r.trade_category || r.tradeCategory || '' };
+        }));
       }
       setLoadError(null);
     } catch (e: any) {
-      setLoadError(e.message || 'Failed to load valuations');
+      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : apiErrorMessage(e, 'Failed to load valuations'));
     }
   };
 
@@ -136,20 +140,9 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       await onCreateValuation(payload);
 } else {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-valuations`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          setLoadError(err.message || 'Failed to create valuation');
-          setIsSubmitting(false);
-          return;
-        }
-      } catch (e: any) {
-        setLoadError(e.message || 'Network error — valuation not recorded');
+        await api.post(`/api/v1/projects/${projectId}/subcontractor-valuations`, payload);
+      } catch (e) {
+        setLoadError(apiErrorMessage(e, 'Network error — valuation not recorded'));
         setIsSubmitting(false);
         return;
       }
@@ -171,20 +164,9 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
       await onReviewValuation(selectedValId, 'PAID', paymentReference);
 } else {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-valuations/${selectedValId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ paymentStatus: 'PAID', paymentReference }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          setLoadError(err.message || 'Failed to record payment');
-          setIsSubmitting(false);
-          return;
-        }
-      } catch (e: any) {
-        setLoadError(e.message || 'Network error — payment not recorded');
+        await api.patch(`/api/v1/projects/${projectId}/subcontractor-valuations/${selectedValId}`, { paymentStatus: 'PAID', paymentReference });
+      } catch (e) {
+        setLoadError(apiErrorMessage(e, 'Network error — payment not recorded'));
         setIsSubmitting(false);
         return;
       }
@@ -212,12 +194,13 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </div>
 <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-medium text-sm rounded-lg shadow-sm transition"
         >
 <span>+</span> New Subcontractor Claim
 </button>
 </div>
 
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       {loadError && (
 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">{loadError}</div>
 )}
@@ -268,14 +251,14 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </thead>
 <tbody className="divide-y divide-slate-100">
             {valuations.length === 0 && (
-<tr><td colSpan={8} className="py-8 px-4 text-center text-sm text-slate-400">No subcontractor valuations recorded yet.</td></tr>
+<tr><td colSpan={8} className="py-8 px-4 text-center text-sm text-slate-600">No subcontractor valuations recorded yet.</td></tr>
 )}
             {valuations.map((val) => (
 <tr key={val.id} className="hover:bg-slate-50/80 transition">
-<td className="py-3 px-4 font-mono font-semibold text-slate-900">{val.certificateNo}</td>
+<td className="py-3 px-4 font-mono tabular-nums font-semibold text-slate-900">{val.certificateNo}</td>
 <td className="py-3 px-4">
 <p className="font-semibold text-slate-900">{val.subcontractorFirm}</p>
-<p className="text-xs text-slate-400">Date: {val.valuationDate}</p>
+<p className="text-xs text-slate-600">Date: {val.valuationDate}</p>
 </td>
 <td className="py-3 px-4">
 <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
@@ -306,10 +289,10 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
                         : 'bg-amber-100 text-amber-800'
 }`}
                   >
-                    {val.paymentStatus.replace(/_/g, ' ')}
+                    {statusLabel(val.paymentStatus)}
 </span>
                   {val.paymentReference && (
-<p className="text-xs text-slate-400 font-mono mt-0.5">{val.paymentReference}</p>
+<p className="text-xs text-slate-600 tabular-nums mt-0.5">{val.paymentReference}</p>
 )}
 </td>
 <td className="py-3 px-4 text-right">
@@ -319,7 +302,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
                         setSelectedValId(val.id);
                         setIsPayModalOpen(true);
 }}
-                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded transition"
+                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium rounded transition"
                     >
                       Record Payment
 </button>
@@ -337,7 +320,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
 <h3 className="text-lg font-bold text-slate-900">Generate Subcontractor Valuation</h3>
-<button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={() => setIsModalOpen(false)} className="text-slate-600 hover:text-slate-600 font-bold">
                 
 </button>
 </div>
@@ -458,7 +441,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Generating...' : 'Issue Certificate'}
 </button>
@@ -474,7 +457,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
 <h3 className="text-lg font-bold text-slate-900">Record Settlement / RTGS</h3>
-<button onClick={() => setIsPayModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={() => setIsPayModalOpen(false)} className="text-slate-600 hover:text-slate-600 font-bold">
                 
 </button>
 </div>
@@ -505,7 +488,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Recording...' : 'Confirm Paid'}
 </button>

@@ -3,8 +3,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* Brand — safety orange, the only accent */
   --color-brand-50: #fff7ed;
@@ -80,4 +80,81 @@ body {
 /* Press feedback */
 button:active, a:active {
   transform: scale(0.98);
+}
+
+/* ------------------------------------------------------------------ */
+/* ResponsiveTable — below 640px every row becomes a stacked card of   */
+/* label/value pairs (labels come from each td's data-label attribute). */
+/* Semantic table markup is preserved so tests and screen readers still */
+/* see rows/cells; only the visual layout changes.                     */
+/* ------------------------------------------------------------------ */
+@media (max-width: 639.98px) {
+  table.rt,
+  table.rt tbody,
+  table.rt tr,
+  table.rt td {
+    display: block;
+  }
+  table.rt thead {
+    display: none;
+  }
+  table.rt tbody tr {
+    border: 1px solid rgb(226 232 240 / 0.9);
+    border-radius: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    background: #fff;
+  }
+  table.rt td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.3rem 0;
+    border: none;
+    text-align: right;
+  }
+  table.rt td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    text-align: left;
+  }
+  /* Full-width cells (empty states, colspan) stay plain block text. */
+  table.rt td[colspan] {
+    display: block;
+    text-align: center;
+    padding: 1.25rem 0;
+  }
+  table.rt td[colspan]::before {
+    content: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Print documents (e.g. indent print view) — only [data-print-root]   */
+/* is visible; everything else is hidden but keeps layout.             */
+/* ------------------------------------------------------------------ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-print-root],
+  [data-print-root] * {
+    visibility: visible;
+  }
+  [data-print-root] {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
 }

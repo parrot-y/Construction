@@ -1,6 +1,8 @@
 import React from 'react';
+import { projectTypeLabel } from '@construction/validation';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { SiteDiaryReportData } from './types';
+import { PRODUCT_NAME } from '../lib/product';
 
 const styles = StyleSheet.create({
   page: {
@@ -353,6 +355,12 @@ export const SiteDiaryReportPdf: React.FC<{ data: SiteDiaryReportData }> = ({ da
               <Text style={styles.metaLabel}>NCA Number:</Text>
               <Text style={styles.metaValue}>{project.ncaRegistrationNo || 'NCA Reg.'}</Text>
             </View>
+            {project.projectType && (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Type:</Text>
+              <Text style={styles.metaValue}>{projectTypeLabel(project.projectType, project.projectSubtype)}</Text>
+            </View>
+            )}
           </View>
 
           <View style={styles.metaCard}>
@@ -491,7 +499,7 @@ export const SiteDiaryReportPdf: React.FC<{ data: SiteDiaryReportData }> = ({ da
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>Site Safi Daily Site Diary • Project: {project.code}</Text>
+          <Text>{PRODUCT_NAME} Daily Site Diary • Project: {project.code}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

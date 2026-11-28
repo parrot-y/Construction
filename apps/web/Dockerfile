@@ -30,27 +30,12 @@ RUN rm -rf ./*
 # Copy built SPA assets
 COPY --from=builder /app/apps/web/dist ./
 
-# Configure Nginx for SPA routing and PWA caching
-RUN printf 'server {\n\
-    listen 80;\n\
-    server_name _;\n\
-    root /usr/share/nginx/html;\n\
-    index index.html;\n\
-\n\
-    location / {\n\
-        try_files $uri $uri/ /index.html;\n\
-    }\n\
-\n\
-    location /sw.js {\n\
-        add_header Cache-Control "no-cache";\n\
-        expires 0;\n\
-    }\n\
-\n\
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {\n\
-        expires 1y;\n\
-        add_header Cache-Control "public, immutable";\n\
-    }\n\
-}\n' > /etc/nginx/conf.d/default.conf
+# Nginx config is a template — API_UPSTREAM is injected at container start
+# so the SPA's same-origin /api calls reach the API service.
+RUN apk add --no-cache gettext
+COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY apps/web/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

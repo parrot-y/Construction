@@ -3,6 +3,7 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import { CreateCorrespondenceSchema, UpdateCorrespondenceSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,6 +25,7 @@ export const correspondenceRoutes: FastifyPluginAsync = async (server: FastifyIn
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
       const { type, direction, status, q } = request.query as { type?: string; direction?: string; status?: string; q?: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(projectId)) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -36,6 +38,8 @@ export const correspondenceRoutes: FastifyPluginAsync = async (server: FastifyIn
               ...(q ? { OR: [{ subject: { contains: q, mode: 'insensitive' } }, { reference: { contains: q, mode: 'insensitive' } }, { from_name: { contains: q, mode: 'insensitive' } }, { to_name: { contains: q, mode: 'insensitive' } }] } : {}),
             },
             orderBy: { created_at: 'desc' },
+            skip: pg.skip,
+            take: pg.limit + 1,
           });
           return rows.map((c) => ({
             ...c,
@@ -45,7 +49,8 @@ export const correspondenceRoutes: FastifyPluginAsync = async (server: FastifyIn
             updated_at: c.updated_at.toISOString(),
           }));
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to list correspondence' });

@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api } from '../lib/api';
 
 export interface ETimsInvoiceItem {
   id: string;
@@ -88,21 +89,18 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive || !projectId) return;
     try {
-      const [invRes, tccRes, pkgRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/etims-invoices`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractor-tcc`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'}),
+      const [ij, tj, pj] = await Promise.all([
+        api.get<any>(`/api/v1/projects/${projectId}/etims-invoices`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
+        api.get<any>(`/api/v1/projects/${projectId}/subcontractor-tcc`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
+        api.get<any>(`/api/v1/projects/${projectId}/subcontractors`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
       ]);
-      if (invRes.ok) {
-        const ij = await invRes.json();
+      if (ij) {
         setInvoices((ij.invoices || []) as ETimsInvoiceItem[]);
 }
-      if (tccRes.ok) {
-        const tj = await tccRes.json();
+      if (tj) {
         setTccRecords((tj.records || []) as SubcontractorTccItem[]);
 }
-      if (pkgRes.ok) {
-        const pj = await pkgRes.json();
+      if (pj) {
         setSubPkgs((pj.packages || []).map((p: any) => ({ id: p.id, firm_name: p.firm_name})));
 }
 } catch { /* keep demo */}
@@ -228,27 +226,24 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
     if (isLive && projectId) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/etims-invoices`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              invoiceNumber,
-              cuInvoiceNumber: cuNo,
-              invoiceType: 'ORIGINAL',
-              buyerPin,
-              buyerName,
-              totalTaxableAmount: taxable.toFixed(2),
-              totalTaxAmount: vat16.toFixed(2),
-              totalInvoiceAmount: gross.toFixed(2),
-              taxBreakdown16: vat16.toFixed(2),
-              taxBreakdown8: '0.00',
-              taxBreakdown0: '0.00',
-              taxBreakdownExempt: '0.00',
-              // Server assigns the sandbox QR/signature; schema requires the fields.
-              qrCodeUrl: 'urn:mjengo:pending-kra-transmission',
-              cryptographicSignature: 'PENDING',
-}),
+          await api.post(`/api/v1/projects/${projectId}/etims-invoices`, {
+            invoiceNumber,
+            cuInvoiceNumber: cuNo,
+            invoiceType: 'ORIGINAL',
+            buyerPin,
+            buyerName,
+            totalTaxableAmount: taxable.toFixed(2),
+            totalTaxAmount: vat16.toFixed(2),
+            totalInvoiceAmount: gross.toFixed(2),
+            taxBreakdown16: vat16.toFixed(2),
+            taxBreakdown8: '0.00',
+            taxBreakdown0: '0.00',
+            taxBreakdownExempt: '0.00',
+            // Server assigns the sandbox QR/signature; schema requires the fields.
+            qrCodeUrl: 'urn:etims:pending-kra-transmission',
+            cryptographicSignature: 'PENDING',
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowInvoiceModal(false);
@@ -285,20 +280,17 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
       if (!tccPackageId) return;
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractor-tcc`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              subcontractorPackageId: tccPackageId,
-              pinNumber: tccPin,
-              taxpayerName: firmName,
-              tccNumber,
-              tccExpiryDate: tccExpiry,
-              complianceStatus: newTcc.complianceStatus,
-              withholdingTaxRate: newTcc.withholdingTaxRate,
-              withholdingVatRate: newTcc.withholdingVatRate,
-}),
+          await api.post(`/api/v1/projects/${projectId}/subcontractor-tcc`, {
+            subcontractorPackageId: tccPackageId,
+            pinNumber: tccPin,
+            taxpayerName: firmName,
+            tccNumber,
+            tccExpiryDate: tccExpiry,
+            complianceStatus: newTcc.complianceStatus,
+            withholdingTaxRate: newTcc.withholdingTaxRate,
+            withholdingVatRate: newTcc.withholdingVatRate,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowTccModal(false);
@@ -322,7 +314,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <div className="bg-gradient-to-r from-red-900 to-slate-900 rounded-xl p-6 text-white shadow-lg border border-red-800/40">
 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 <div>
-<div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-red-600/30 text-red-300 border border-red-500/30 mb-2">
+<div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-red-600/30 text-red-700 border border-red-500/30 mb-2">
 <span> KRA e-TIMS Tax Compliance Engine</span>
 <span>•</span>
 <span>VSCU / OSCU Compliant</span>
@@ -335,7 +327,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <div className="flex items-center gap-3">
 <button
               onClick={() => setShowInvoiceModal(true)}
-              className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
+              className="bg-red-700 hover:bg-red-800 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
             >
 <span>+</span>
 <span>Generate e-TIMS Invoice</span>
@@ -355,22 +347,22 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <div className="bg-slate-900/60 rounded-lg p-3 border border-red-800/30">
 <div className="text-xs text-red-200/70">Total e-TIMS Invoices</div>
 <div className="text-xl font-bold text-white mt-1">{summary.totalInvoices}</div>
-<div className="text-[10px] text-emerald-400 mt-1">100% KRA Validated</div>
+<div className="text-[10px] text-emerald-700 mt-1">100% KRA Validated</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-red-800/30">
 <div className="text-xs text-red-200/70">Taxable Construction Turnover</div>
 <div className="text-xl font-bold text-white mt-1">KES {Number(summary.totalTaxableAmount).toLocaleString()}</div>
-<div className="text-[10px] text-slate-400 mt-1">Base Contract Sum</div>
+<div className="text-[10px] text-slate-600 mt-1">Base Contract Sum</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-red-800/30">
 <div className="text-xs text-red-200/70">16% VAT Collected</div>
-<div className="text-xl font-bold text-amber-300 mt-1">KES {Number(summary.totalTaxAmount).toLocaleString()}</div>
+<div className="text-xl font-bold text-amber-700 mt-1">KES {Number(summary.totalTaxAmount).toLocaleString()}</div>
 <div className="text-[10px] text-amber-300/80 mt-1">Remittable on 20th</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-red-800/30">
 <div className="text-xs text-red-200/70">Gross Invoiced (with VAT)</div>
-<div className="text-xl font-bold text-emerald-400 mt-1">KES {Number(summary.totalGrossAmount).toLocaleString()}</div>
-<div className="text-[10px] text-slate-400 mt-1">IPC Cumulative</div>
+<div className="text-xl font-bold text-emerald-700 mt-1">KES {Number(summary.totalGrossAmount).toLocaleString()}</div>
+<div className="text-[10px] text-slate-600 mt-1">IPC Cumulative</div>
 </div>
 </div>
 </div>
@@ -381,7 +373,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
           onClick={() => setActiveTab('INVOICES')}
           className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'INVOICES'
-              ? 'border-red-600 text-red-600 dark:text-red-400'
+              ? 'border-red-600 text-red-700 dark:text-red-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
 }`}
         >
@@ -391,7 +383,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
           onClick={() => setActiveTab('TCC_AUDIT')}
           className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'TCC_AUDIT'
-              ? 'border-red-600 text-red-600 dark:text-red-400'
+              ? 'border-red-600 text-red-700 dark:text-red-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
 }`}
         >
@@ -428,18 +420,18 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
                 {invoices.map((inv) => (
 <tr key={inv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-<td className="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-white">
+<td className="py-3 px-4 font-mono tabular-nums font-semibold text-slate-900 dark:text-white">
                       {inv.invoiceNumber}
 </td>
-<td className="py-3 px-4 font-mono text-xs text-red-600 dark:text-red-400">
+<td className="py-3 px-4 tabular-nums text-xs text-red-700 dark:text-red-400">
                       {inv.cuInvoiceNumber}
 </td>
 <td className="py-3 px-4">{inv.buyerName}</td>
-<td className="py-3 px-4 font-mono text-xs">{inv.buyerPin}</td>
+<td className="py-3 px-4 tabular-nums text-xs">{inv.buyerPin}</td>
 <td className="py-3 px-4 text-right font-medium">
                       {Number(inv.totalTaxableAmount).toLocaleString(undefined, { minimumFractionDigits: 2})}
 </td>
-<td className="py-3 px-4 text-right text-amber-600 dark:text-amber-400 font-medium">
+<td className="py-3 px-4 text-right text-amber-700 dark:text-amber-400 font-medium">
                       {Number(inv.totalTaxAmount).toLocaleString(undefined, { minimumFractionDigits: 2})}
 </td>
 <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
@@ -453,7 +445,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <td className="py-3 px-4 text-center">
 <button
                         onClick={() => setSelectedInvoice(inv)}
-                        className="text-xs text-red-600 dark:text-red-400 hover:underline font-medium inline-flex items-center gap-1"
+                        className="text-xs text-red-700 dark:text-red-400 hover:underline font-medium inline-flex items-center gap-1"
                       >
 <span> View QR</span>
 </button>
@@ -500,11 +492,11 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                         {tcc.firmName}
 </td>
 <td className="py-3 px-4 text-xs">{tcc.tradeCategory}</td>
-<td className="py-3 px-4 font-mono text-xs">{tcc.pinNumber}</td>
-<td className="py-3 px-4 font-mono text-xs text-slate-600 dark:text-slate-400">
+<td className="py-3 px-4 tabular-nums text-xs">{tcc.pinNumber}</td>
+<td className="py-3 px-4 tabular-nums text-xs text-slate-600 dark:text-slate-400">
                         {tcc.tccNumber}
 </td>
-<td className="py-3 px-4 font-mono text-xs">{tcc.tccExpiryDate}</td>
+<td className="py-3 px-4 tabular-nums text-xs">{tcc.tccExpiryDate}</td>
 <td className="py-3 px-4 text-center">
 <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -516,7 +508,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                           {isExp ? ' EXPIRED' : ' COMPLIANT'}
 </span>
 </td>
-<td className="py-3 px-4 text-center font-bold text-amber-600 dark:text-amber-400">
+<td className="py-3 px-4 text-center font-bold text-amber-700 dark:text-amber-400">
                         {tcc.withholdingTaxRate}%
 </td>
 <td className="py-3 px-4 text-center font-medium">{tcc.withholdingVatRate}%</td>
@@ -539,9 +531,9 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <p className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-3 inline-block">
               SIMULATED — not transmitted to KRA eTIMS
 </p>
-<p className="text-xs text-slate-500 mb-4 font-mono">{selectedInvoice.cuInvoiceNumber}</p>
+<p className="text-xs text-slate-500 mb-4 font-mono tabular-nums">{selectedInvoice.cuInvoiceNumber}</p>
 <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-lg inline-block my-2 border border-slate-300 dark:border-slate-700">
-<div className="w-48 h-48 bg-white p-2 mx-auto flex items-center justify-center text-slate-900 font-mono text-xs border border-dashed border-slate-400">
+<div className="w-48 h-48 bg-white p-2 mx-auto flex items-center justify-center text-slate-900 tabular-nums text-xs border border-dashed border-slate-400">
 <div className="space-y-2">
 <div className="text-2xl"></div>
 <div className="font-bold text-[10px]">SCAN TO VERIFY ON iTAX</div>
@@ -553,7 +545,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 <div><strong>Buyer:</strong> {selectedInvoice.buyerName}</div>
 <div><strong>PIN:</strong> {selectedInvoice.buyerPin}</div>
 <div><strong>Gross Amount:</strong> KES {Number(selectedInvoice.totalInvoiceAmount).toLocaleString()}</div>
-<div><strong>VSCU Signature:</strong><span className="font-mono text-[9px]">{selectedInvoice.cryptographicSignature.slice(0, 24)}...</span></div>
+<div><strong>VSCU Signature:</strong><span className="font-mono tabular-nums text-[9px]">{selectedInvoice.cryptographicSignature.slice(0, 24)}...</span></div>
 </div>
 <div className="mt-6 flex justify-end">
 <button
@@ -586,7 +578,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                   type="text"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                   required
                 />
 </div>
@@ -611,7 +603,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                     type="text"
                     value={buyerPin}
                     onChange={(e) => setBuyerPin(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono "
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums "
                     required
                   />
 </div>
@@ -625,7 +617,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                   step="0.01"
                   value={taxableAmount}
                   onChange={(e) => setTaxableAmount(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                   required
                 />
 <div className="flex justify-between text-xs text-slate-500 mt-1">
@@ -643,7 +635,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow"
+                  className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-medium rounded-lg shadow"
                 >
                   Sign &amp; Validate with KRA
 </button>
@@ -703,7 +695,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                     type="text"
                     value={tccPin}
                     onChange={(e) => setTccPin(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono "
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums "
                     required
                   />
 </div>
@@ -715,7 +707,7 @@ export const ETimsTaxComplianceView: React.FC<ETimsTaxComplianceViewProps> = ({
                     type="text"
                     value={tccNumber}
                     onChange={(e) => setTccNumber(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-mono"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 tabular-nums"
                     required
                   />
 </div>

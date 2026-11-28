@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface SubcontractorPackage {
   id: string;
@@ -13,6 +14,19 @@ export interface SubcontractorPackage {
   status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'COMPLETED' | 'TERMINATED';
   awarded_date?: string | null;
   created_at: string;
+  contractor_id?: string | null;
+  contractorId?: string | null;
+  contractorFirmName?: string | null;
+  contractorKraPin?: string | null;
+}
+
+interface ContractorFirmOption {
+  id: string;
+  firmName: string;
+  kraPin?: string | null;
+  contactPerson?: string | null;
+  phone?: string | null;
+  workCategories?: string[];
 }
 
 interface SubcontractorManagementViewProps {
@@ -41,9 +55,7 @@ export default function SubcontractorManagementView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/subcontractors`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/subcontractors`);
       const list = (json.packages || []) as any[];
       setPackages(list.map((p) => ({
         ...p,
@@ -69,6 +81,32 @@ export default function SubcontractorManagementView({
   const [newSum, setNewSum] = useState<string>('1500000.00');
   const [newRetention, setNewRetention] = useState<string>('5.00');
   const [newScope, setNewScope] = useState<string>('');
+  const [contractors, setContractors] = useState<ContractorFirmOption[]>([]);
+  const [selectedContractorId, setSelectedContractorId] = useState<string>('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // CB5 — approved firms from the contractor master can be linked to a
+  // package; picking one prefills the firm details.
+  useEffect(() => {
+    if (!isLive) return;
+    void (async () => {
+      try {
+        const json = await api.get<{ contractors: ContractorFirmOption[] }>(`/api/v1/contractors?status=APPROVED&limit=200`);
+        setContractors(json.contractors ?? []);
+      } catch { /* register optional — free-text firm entry still works */ }
+    })();
+  }, [isLive]);
+
+  const pickContractor = (id: string) => {
+    setSelectedContractorId(id);
+    const firm = contractors.find((c) => c.id === id);
+    if (firm) {
+      setNewFirmName(firm.firmName);
+      setNewContactPerson(firm.contactPerson ?? '');
+      setNewPhone(firm.phone ?? '');
+    }
+  };
 
   const filtered = packages.filter((p) => {
     const matchesTrade = tradeFilter === 'ALL' || p.trade_category === tradeFilter;
@@ -82,9 +120,12 @@ export default function SubcontractorManagementView({
 );
   const activeCount = packages.filter((p) => p.status === 'ACTIVE').length;
 
-  const handleAwardPackage = (e: React.FormEvent) => {
+  const handleAwardPackage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!newFirmName.trim() || !newSum) return;
+    setSaving(true);
+    setFormError(null);
 
     const created: SubcontractorPackage = {
       id: `sub-${Date.now()}`,
@@ -101,30 +142,34 @@ export default function SubcontractorManagementView({
 };
 
     if (isLive) {
-      void (async () => {
-        try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractors`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              tradeCategory: created.trade_category,
-              firmName: created.firm_name,
-              contactPerson: created.contact_person,
-              phoneNumber: created.phone_number,
-              subcontractSum: String(created.subcontract_sum),
-              retentionRatePct: String(created.retention_rate_pct),
-              status: 'ACTIVE',
-              scopeDescription: created.scope_description,
-}),
+      try {
+        await api.post(`/api/v1/projects/${projectId}/subcontractors`, {
+          tradeCategory: created.trade_category,
+          firmName: created.firm_name,
+          contactPerson: created.contact_person,
+          phoneNumber: created.phone_number,
+          subcontractSum: String(created.subcontract_sum),
+          retentionRatePct: String(created.retention_rate_pct),
+          status: 'ACTIVE',
+          scopeDescription: created.scope_description,
+          contractorId: selectedContractorId || null,
 });
-          if (res.ok) await reload();
-} catch { /* keep local */}
-})();
-      setShowModal(false);
-      setNewFirmName('');
-      setNewContactPerson('');
-      setNewPhone('');
-      setNewSum('1500000.00');
-      setNewScope('');
+        await reload();
+        setShowModal(false);
+        setNewFirmName('');
+        setNewContactPerson('');
+        setNewPhone('');
+        setNewSum('1500000.00');
+        setNewScope('');
+        setSelectedContractorId('');
+        if (onPackageAwarded) onPackageAwarded(created);
+      } catch (err) {
+        // Server rejections and transport failures both surface honestly —
+        // the modal stays open with the entered data intact.
+        setFormError(apiErrorMessage(err, 'Failed to award subcontract package'));
+      } finally {
+        setSaving(false);
+      }
       return;
 }
 
@@ -136,17 +181,15 @@ export default function SubcontractorManagementView({
     setNewPhone('');
     setNewSum('1500000.00');
     setNewScope('');
+    setSaving(false);
 };
 
   const handleStatusUpdate = (packageId: string, status: SubcontractorPackage['status']) => {
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/subcontractors/${packageId}`, {
-            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ status: status === 'PENDING' ? 'AWARDED' : status}),
-});
-          if (res.ok) await reload();
+          await api.patch(`/api/v1/projects/${projectId}/subcontractors/${packageId}`, { status: status === 'PENDING' ? 'AWARDED' : status});
+          await reload();
 } catch { /* ignore */}
 })();
       return;
@@ -195,7 +238,7 @@ export default function SubcontractorManagementView({
           {canAward && (
 <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-amber-600 hover:bg-amber-700 shadow-sm"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-amber-700 hover:bg-amber-800 shadow-sm"
             >
                Award Subcontract Package
 </button>
@@ -219,8 +262,8 @@ export default function SubcontractorManagementView({
 <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Active Trade Contractors</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-emerald-600">{activeCount}</span>
-<span className="text-xs text-slate-400">firms on site</span>
+<span className="text-2xl font-bold text-emerald-700">{activeCount}</span>
+<span className="text-xs text-slate-600">firms on site</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               Executing specialized trade works
@@ -231,7 +274,7 @@ export default function SubcontractorManagementView({
 <span className="text-xs text-slate-500 font-medium">Total Subcontract Packages</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{packages.length}</span>
-<span className="text-xs text-slate-400">packages</span>
+<span className="text-xs text-slate-600">packages</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               Plumbing, Electrical, Steel, etc.
@@ -298,8 +341,13 @@ export default function SubcontractorManagementView({
 </span>
                     {getStatusBadge(pkg.status)}
                     {pkg.awarded_date && (
-<span className="text-xs text-slate-400">
+<span className="text-xs text-slate-600">
                         • Awarded: {pkg.awarded_date}
+</span>
+)}
+{(pkg.contractorKraPin || pkg.contractorFirmName) && (
+<span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-brand-50 text-brand-800" data-testid={`pkg-contractor-link-${pkg.id}`}>
+                        Master: {pkg.contractorKraPin || pkg.contractorFirmName}
 </span>
 )}
 </div>
@@ -333,8 +381,8 @@ export default function SubcontractorManagementView({
 
                 {/* Subcontract Sum & Action */}
 <div className="lg:w-60 flex flex-col items-start lg:items-end justify-center">
-<span className="text-xs text-slate-400">Subcontract Sum</span>
-<span className="text-lg font-bold text-slate-900 font-mono">
+<span className="text-xs text-slate-600">Subcontract Sum</span>
+<span className="text-lg font-bold text-slate-900 tabular-nums">
                     {formatKes(pkg.subcontract_sum)}
 </span>
                   {canAward && (
@@ -368,6 +416,28 @@ export default function SubcontractorManagementView({
               Contract commitment with Kenyan statutory retention guidelines (BORAQS / JBC).
 </p>
 <form onSubmit={handleAwardPackage} className="space-y-3">
+{formError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-medium" role="alert">
+              {formError}
+</div>
+)}
+{contractors.length > 0 && (
+<div>
+<label className="block text-xs font-semibold text-slate-700 mb-1">Contractor register (approved firms)</label>
+<select
+                    value={selectedContractorId}
+                    onChange={(e) => pickContractor(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2"
+                    data-testid="award-contractor-select"
+                  >
+<option value="">— select approved firm to link —</option>
+{contractors.map((c) => (
+<option key={c.id} value={c.id}>{c.firmName}{c.kraPin ? ` · ${c.kraPin}` : ''}</option>
+))}
+</select>
+<p className="text-[11px] text-slate-600 mt-1">Linking pulls the firm from the contractor master; only APPROVED firms are listed.</p>
+</div>
+)}
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">Subcontractor Firm Name</label>
 <input
@@ -479,9 +549,10 @@ export default function SubcontractorManagementView({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm"
+                  disabled={saving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-amber-700 hover:bg-amber-800 rounded-lg shadow-sm disabled:opacity-50"
                 >
-                  Award Subcontract
+                  {saving ? 'Awarding…' : 'Award Subcontract'}
 </button>
 </div>
 </form>

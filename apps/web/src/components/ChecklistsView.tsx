@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface Template {
   id: string; title: string; trade_category: string; kind: string;
@@ -44,9 +46,8 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 
   useEffect(() => {
     if (projectId) return;
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
-      .then((j) => {
+    api.get('/api/v1/projects')
+      .then((j: any) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
         if (list.length) setPid(list[0].id);
@@ -58,19 +59,16 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
     setLoading(true);
     setError(null);
     try {
-      const [tRes, aRes] = await Promise.all([
-        fetch('/api/v1/checklists/templates', { credentials: 'include'}),
-        pid ? fetch(`/api/v1/projects/${pid}/checklist-assignments`, { credentials: 'include'}) : Promise.resolve(null),
+      const [tJson, aJson] = await Promise.all([
+        api.get<{ data?: Template[] }>('/api/v1/checklists/templates'),
+        pid ? api.get<{ data?: Assignment[] }>(`/api/v1/projects/${pid}/checklist-assignments`) : Promise.resolve(null),
       ]);
-      if (!tRes.ok) throw new Error('Failed to load templates');
-      const tJson = await tRes.json();
       setTemplates(tJson.data || []);
-      if (aRes && aRes.ok) {
-        const aJson = await aRes.json();
+      if (aJson) {
         setAssignments(aJson.data || []);
 }
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err));
 } finally {
       setLoading(false);
 }
@@ -82,24 +80,19 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
     setBusy('tpl');
     setError(null);
     try {
-      const res = await fetch('/api/v1/checklists/templates', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          title: tpl.title, tradeCategory: tpl.tradeCategory, kind: tpl.kind, isGlobal: tpl.isGlobal,
-          questions: questions.filter((q) => q.text.trim()).map((q) => ({
-            text: q.text, type: q.type, required: q.required,
-            ...(q.type === 'DROPDOWN' && q.options.trim() ? { options: q.options.split(',').map((o) => o.trim()).filter(Boolean)} : {}),
+      await api.post('/api/v1/checklists/templates', {
+        title: tpl.title, tradeCategory: tpl.tradeCategory, kind: tpl.kind, isGlobal: tpl.isGlobal,
+        questions: questions.filter((q) => q.text.trim()).map((q) => ({
+          text: q.text, type: q.type, required: q.required,
+          ...(q.type === 'DROPDOWN' && q.options.trim() ? { options: q.options.split(',').map((o) => o.trim()).filter(Boolean)} : {}),
 })),
-}),
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowTemplateForm(false);
       setTpl({ title: '', tradeCategory: 'GENERAL', kind: 'CUSTOM', isGlobal: false});
       setQuestions([{ text: '', type: 'PASS_FAIL', options: '', required: true}]);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Create failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Create failed'));
 } finally {
       setBusy(null);
 }
@@ -109,21 +102,16 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
     setBusy('assign');
     setError(null);
     try {
-      const res = await fetch(`/api/v1/projects/${pid}/checklist-assignments`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          templateId: assign.templateId || null,
-          title: assign.title, trade: assign.trade,
-          assignedToName: assign.assignedToName || null, dueDate: assign.dueDate || null,
-}),
+      await api.post(`/api/v1/projects/${pid}/checklist-assignments`, {
+        templateId: assign.templateId || null,
+        title: assign.title, trade: assign.trade,
+        assignedToName: assign.assignedToName || null, dueDate: assign.dueDate || null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
       setShowAssignForm(false);
       setAssign({ templateId: '', title: '', trade: '', assignedToName: '', dueDate: ''});
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Assign failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Assign failed'));
 } finally {
       setBusy(null);
 }
@@ -133,16 +121,11 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
     setBusy(`${kind}-${a.id}`);
     setError(null);
     try {
-      let url = `/api/v1/projects/${pid}/checklist-assignments/${a.id}/${kind}`;
-      const res = await fetch(url, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: payload ? JSON.stringify(payload) : undefined,
-});
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Failed (${res.status})`);
+      const url = `/api/v1/projects/${pid}/checklist-assignments/${a.id}/${kind}`;
+      await api.post(url, payload);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Action failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Action failed'));
 } finally {
       setBusy(null);
 }
@@ -178,16 +161,16 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 </select>
 )}
 <div className="flex rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
-<button onClick={() => setTab('assignments')} className={`px-3 py-1.5 ${tab === 'assignments' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Assignments</button>
-<button onClick={() => setTab('templates')} className={`px-3 py-1.5 ${tab === 'templates' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Templates</button>
+<button onClick={() => setTab('assignments')} aria-pressed={tab === 'assignments'} className={`px-3 py-1.5 ${tab === 'assignments' ? 'bg-indigo-700 text-white' : 'bg-white text-slate-600'}`}>Assignments</button>
+<button onClick={() => setTab('templates')} aria-pressed={tab === 'templates'} className={`px-3 py-1.5 ${tab === 'templates' ? 'bg-indigo-700 text-white' : 'bg-white text-slate-600'}`}>Templates</button>
 </div>
           {canManage && tab === 'templates' && (
-<button onClick={() => setShowTemplateForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+<button onClick={() => setShowTemplateForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
               {showTemplateForm ? 'Cancel' : '+ New Template'}
 </button>
 )}
           {canManage && tab === 'assignments' && (
-<button onClick={() => setShowAssignForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+<button onClick={() => setShowAssignForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
               {showAssignForm ? 'Cancel' : '+ Assign a form'}
 </button>
 )}
@@ -231,16 +214,16 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 <input type="checkbox" checked={q.required} onChange={(e) => setQuestions(questions.map((x, j) => j === i ? { ...x, required: e.target.checked} : x))} />Req
 </label>
                 {questions.length > 1 && (
-<button onClick={() => setQuestions(questions.filter((_, j) => j !== i))} className="text-rose-500 text-xs px-1"></button>
+<button onClick={() => setQuestions(questions.filter((_, j) => j !== i))} className="text-rose-700 text-xs px-1"></button>
 )}
 </div>
 ))}
 <button onClick={() => setQuestions([...questions, { text: '', type: 'PASS_FAIL', options: '', required: false}])}
-              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800">+ Add question</button>
+              className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-800">+ Add question</button>
 </div>
 <div className="flex justify-end">
 <button onClick={() => void createTemplate()} disabled={busy === 'tpl' || tpl.title.length< 3 || !questions.some((q) => q.text.trim())}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {busy === 'tpl' ? 'Saving…' : 'Create template'}
 </button>
 </div>
@@ -267,7 +250,7 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 <input type="date" value={assign.dueDate} onChange={(e) => setAssign({ ...assign, dueDate: e.target.value})} className={input} /></label>
 <div className="flex items-end justify-end">
 <button onClick={() => void createAssignment()} disabled={busy === 'assign' || assign.title.length< 3 || assign.trade.length< 2}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {busy === 'assign' ? 'Assigning…' : 'Assign form'}
 </button>
 </div>
@@ -277,8 +260,8 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
       {tab === 'assignments' && assignments.length > 0 && (
 <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-semibold text-slate-500">
 <span>{assignments.length} assignment{assignments.length === 1 ? '' : 's'} in view</span>
-<span className="text-amber-600">{assignments.filter((a) => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status)).length} out with the team</span>
-<span className="text-orange-600">{assignments.filter((a) => a.status === 'SUBMITTED').length} waiting on your review</span>
+<span className="text-amber-700">{assignments.filter((a) => ['ASSIGNED', 'IN_PROGRESS'].includes(a.status)).length} out with the team</span>
+<span className="text-orange-700">{assignments.filter((a) => a.status === 'SUBMITTED').length} waiting on your review</span>
 </div>
 )}
       {tab === 'assignments' ? (
@@ -297,7 +280,7 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 <p className="text-[11px] text-slate-500 mt-0.5">
                       Trade: {a.trade}{a.assigned_to_name ? ` · → ${a.assigned_to_name}` : ''}
                       {a.due_date ? ` · due ${a.due_date}` : ''}
-                      {a.submitted_at ? ` · submitted ${new Date(a.submitted_at).toLocaleDateString()}` : ''}
+                      {a.submitted_at ? ` · submitted ${formatDate(new Date(a.submitted_at))}` : ''}
 </p>
                     {a.review_notes &&<p className="text-[11px] text-slate-500 mt-1 italic">Review: {a.review_notes}{a.reviewed_by_name ? ` — ${a.reviewed_by_name}` : ''}</p>}
 </div>
@@ -338,7 +321,7 @@ export default function ChecklistsView({ projectId, canManage = true, initialTab
 <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-600 rounded-full">{t.trade_category.replace(/_/g, ' ')}</span>
 <span className="px-2 py-0.5 text-[10px] font-bold bg-violet-50 text-violet-700 rounded-full">{t.kind.replace(/_/g, ' ')}</span>
                   {t.is_global &&<span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 rounded-full">Global</span>}
-<span className="text-[10px] text-slate-400 ml-auto">{t.questions.length} questions{t.created_by_name ? ` · ${t.created_by_name}` : ''}</span>
+<span className="text-[10px] text-slate-600 ml-auto">{t.questions.length} questions{t.created_by_name ? ` · ${t.created_by_name}` : ''}</span>
 </div>
 </div>
 ))}

@@ -1,0 +1,624 @@
+================================================================================
+PLATFORM LOCAL CI VERIFICATION REPLICA
+Commit:   0d9bca7
+Log file: <repo>/docs/evidence/verify-0d9bca7.log
+Started:  2026-11-26T18:41:26Z
+================================================================================
+Using PostgreSQL binaries from: /usr/lib/postgresql/17/bin
+psql (PostgreSQL) 17.6 (Debian 17.6-1)
+
+=== Step 1: Initializing Fresh Ephemeral PostgreSQL Cluster ===
+Data Directory:   /tmp/verify-local-db-oCFvGs
+Socket Directory: /tmp/verify-local-sock-VPa4rG
+Port:             59635
+Starting PostgreSQL daemon...
+Waiting for PostgreSQL to accept connections...
+PostgreSQL is ready.
+
+=== Step 2: Creating Database & Roles (db_migrator & db_app) ===
+CREATE DATABASE
+DO
+GRANT
+GRANT
+
+=== Step 3: Applying Prisma migrations as db_migrator (baseline + RLS policies) ===
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "construction_test", schema "public" at "localhost:59635"
+
+33 migrations found in prisma/migrations
+
+Applying migration `0001_baseline`
+Applying migration `0002_rls_policies`
+Applying migration `0003_refresh_tokens`
+Applying migration `0004_supplier_delivery_confirmation`
+Applying migration `0005_portal_hardening`
+Applying migration `0006_user_verification_columns`
+Applying migration `0007_lifecycle_money`
+Applying migration `0008_tax_contractor_wht`
+Applying migration `0009_whvat_setting`
+Applying migration `0010_valuation_reviewer`
+Applying migration `0011_account_lifecycle`
+Applying migration `0012_stage2_stage3`
+Applying migration `0013_po_invoice_item_link`
+Applying migration `0014_stage4`
+Applying migration `0015_tenant_fx_rates`
+Applying migration `0016_maker_checker_self_approval`
+Applying migration `0017_audit_hardening`
+Applying migration `0018_tenant_module_flags`
+Applying migration `0019_provider_payment_charges`
+Applying migration `0020_provider_charge_resolution`
+Applying migration `0021_closeout_retention_writeoff`
+Applying migration `0022_pc_acknowledgement`
+Applying migration `0023_project_retention_settings`
+Applying migration `0024_subcontractor_release_workflow`
+Applying migration `0025_document_counter_backfill`
+Applying migration `20261117192146_project_types_nca_rules`
+Applying migration `20261125233000_photo_gps_accuracy`
+Applying migration `20261126010000_entity_comments_mentions`
+Applying migration `20261126011157_message_deliveries`
+Applying migration `20261126120000_meetings`
+Applying migration `20261126130000_pgboss_schema`
+Applying migration `20261126165954_export_jobs`
+Applying migration `20261126170339_export_jobs_pending_default`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 0001_baseline/
+    └─ migration.sql
+  └─ 0002_rls_policies/
+    └─ migration.sql
+  └─ 0003_refresh_tokens/
+    └─ migration.sql
+  └─ 0004_supplier_delivery_confirmation/
+    └─ migration.sql
+  └─ 0005_portal_hardening/
+    └─ migration.sql
+  └─ 0006_user_verification_columns/
+    └─ migration.sql
+  └─ 0007_lifecycle_money/
+    └─ migration.sql
+  └─ 0008_tax_contractor_wht/
+    └─ migration.sql
+  └─ 0009_whvat_setting/
+    └─ migration.sql
+  └─ 0010_valuation_reviewer/
+    └─ migration.sql
+  └─ 0011_account_lifecycle/
+    └─ migration.sql
+  └─ 0012_stage2_stage3/
+    └─ migration.sql
+  └─ 0013_po_invoice_item_link/
+    └─ migration.sql
+  └─ 0014_stage4/
+    └─ migration.sql
+  └─ 0015_tenant_fx_rates/
+    └─ migration.sql
+  └─ 0016_maker_checker_self_approval/
+    └─ migration.sql
+  └─ 0017_audit_hardening/
+    └─ migration.sql
+  └─ 0018_tenant_module_flags/
+    └─ migration.sql
+  └─ 0019_provider_payment_charges/
+    └─ migration.sql
+  └─ 0020_provider_charge_resolution/
+    └─ migration.sql
+  └─ 0021_closeout_retention_writeoff/
+    └─ migration.sql
+  └─ 0022_pc_acknowledgement/
+    └─ migration.sql
+  └─ 0023_project_retention_settings/
+    └─ migration.sql
+  └─ 0024_subcontractor_release_workflow/
+    └─ migration.sql
+  └─ 0025_document_counter_backfill/
+    └─ migration.sql
+  └─ 20261117192146_project_types_nca_rules/
+    └─ migration.sql
+  └─ 20261125233000_photo_gps_accuracy/
+    └─ migration.sql
+  └─ 20261126010000_entity_comments_mentions/
+    └─ migration.sql
+  └─ 20261126011157_message_deliveries/
+    └─ migration.sql
+  └─ 20261126120000_meetings/
+    └─ migration.sql
+  └─ 20261126130000_pgboss_schema/
+    └─ migration.sql
+  └─ 20261126165954_export_jobs/
+    └─ migration.sql
+  └─ 20261126170339_export_jobs_pending_default/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+
+=== Step 4: Granting Schema Permissions to db_app AFTER Tables Exist (C5) ===
+GRANT
+GRANT
+GRANT
+ALTER DEFAULT PRIVILEGES
+ALTER DEFAULT PRIVILEGES
+
+=== Step 5: Re-applying rls.sql (idempotent re-enforcement on every deploy) ===
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "refresh_tokens" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "payment_certificate_lines" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "tenant_tax_settings" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "password_reset_tokens" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "suppliers" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_orders" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_order_items" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "purchase_order_invoices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "client_payment_notices" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "drawing_acknowledgements" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "project_permits" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "compliance_visits" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "compliance_actions" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "document_counters" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "tenant_module_flags" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "provider_payment_charges" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "practical_completion_acknowledgements" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "nca_class_rules" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "entity_comments" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "message_deliveries" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "meetings" does not exist, skipping
+psql:packages/db/prisma/rls.sql:51: NOTICE:  policy "tenant_isolation_policy" for relation "export_jobs" does not exist, skipping
+DO
+DO
+DO
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+DROP TRIGGER
+CREATE TRIGGER
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:245: NOTICE:  function lookup_password_reset_token(text) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+psql:packages/db/prisma/rls.sql:419: NOTICE:  function claim_export_job(uuid) does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+
+=== Step 6: Seeding Database as db_migrator ===
+$ tsx prisma/seed.ts
+Seeding initial Kenyan construction tenant and V1 users...
+Database seeded successfully! Tenant: Apex Builders Kenya Ltd (796e7701-7d4d-41ff-94b4-1b862ce79da6), Project: Riverside Commercial Plaza
+
+=== Step 7: Secret Scanning ===
+Secret scanning passed: No secrets detected.
+
+=== Step 8: Running Linter (pnpm run lint) ===
+$ turbo run lint
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running lint in 7 packages
+   • Remote caching disabled
+
+@construction/validation:lint: cache miss, executing d4b854589ad427d3
+@construction/web:lint: cache miss, executing c3ecd0155eecbf0d
+@construction/permissions:lint: cache hit, replaying logs 0c9d1e823a30a18b
+@construction/permissions:lint: $ tsc --noEmit
+@construction/money:lint: cache hit, replaying logs 6bf6a38d7369c7a9
+@construction/api:lint: cache miss, executing 491f36d6716f79ce
+@construction/money:lint: $ tsc --noEmit
+@construction/db:lint: cache miss, executing ad995049972a803c
+@construction/db:lint: $ tsc --noEmit
+@construction/api:lint: $ tsc --noEmit
+@construction/web:lint: $ tsc --noEmit
+@construction/validation:lint: $ tsc --noEmit
+
+ Tasks:    6 successful, 6 total
+Cached:    2 cached, 6 total
+  Time:    45.518s 
+
+
+=== Step 9: Running Typecheck (pnpm run typecheck) ===
+$ turbo run typecheck
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running typecheck in 7 packages
+   • Remote caching disabled
+
+@construction/e2e:typecheck: cache miss, executing aea97517394ec13b
+@construction/db:build: cache miss, executing 25dd2dc2873207fa
+@construction/permissions:typecheck: cache hit, replaying logs 90cedf1985406ec5
+@construction/db:typecheck: cache miss, executing e234005d160446c7
+@construction/permissions:typecheck: $ tsc --noEmit
+@construction/validation:typecheck: cache hit, replaying logs 99e410f421d9bd16
+@construction/money:typecheck: cache hit, replaying logs 13032bac8d8656c4
+@construction/money:typecheck: $ tsc --noEmit
+@construction/web:typecheck: cache miss, executing 3704aa865f8553d0
+@construction/validation:typecheck: $ tsc --noEmit
+@construction/db:typecheck: $ tsc --noEmit
+@construction/e2e:typecheck: $ tsc --noEmit
+@construction/web:typecheck: $ tsc --noEmit
+@construction/db:build: $ tsc
+@construction/api:typecheck: cache miss, executing 53b777e68a5335e5
+@construction/api:typecheck: $ tsc --noEmit
+
+ Tasks:    8 successful, 8 total
+Cached:    3 cached, 8 total
+  Time:    58.423s 
+
+
+=== Step 10: Building All Packages (pnpm run build) ===
+$ turbo run build
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running build in 7 packages
+   • Remote caching disabled
+
+@construction/web:build: cache miss, executing ccf1447c48250d79
+@construction/db:build: cache hit, replaying logs 25dd2dc2873207fa
+@construction/db:build: $ tsc
+@construction/api:build: cache miss, executing f0250d917e5206e3
+@construction/web:build: $ tsc && vite build
+@construction/api:build: $ tsc
+@construction/web:build: vite v6.4.5 building for production...
+@construction/web:build: transforming...
+@construction/web:build: ✓ 503 modules transformed.
+@construction/web:build: rendering chunks...
+@construction/web:build: computing gzip size...
+@construction/web:build: dist/manifest.webmanifest                            0.38 kB
+@construction/web:build: dist/index.html                                      0.85 kB │ gzip:  0.48 kB
+@construction/web:build: dist/assets/ProjectMapView-CIGW-MKW.css             15.61 kB │ gzip:  6.46 kB
+@construction/web:build: dist/assets/index-SOQOCLvl.css                     108.15 kB │ gzip: 17.18 kB
+@construction/web:build: dist/assets/useInboxEvents-DcnX1M0d.js               0.44 kB │ gzip:  0.33 kB
+@construction/web:build: dist/assets/InlineError-CH_f6yVW.js                  0.47 kB │ gzip:  0.32 kB
+@construction/web:build: dist/assets/modules-B3kch5Ig.js                      0.47 kB │ gzip:  0.30 kB
+@construction/web:build: dist/assets/exportJob-C5Xz4jZZ.js                    0.67 kB │ gzip:  0.44 kB
+@construction/web:build: dist/assets/useGeolocation-DIsF3-xS.js               0.83 kB │ gzip:  0.50 kB
+@construction/web:build: dist/assets/format-BonXX2El.js                       0.97 kB │ gzip:  0.42 kB
+@construction/web:build: dist/assets/usePagedList-C7Fd7T-a.js                 1.14 kB │ gzip:  0.65 kB
+@construction/web:build: dist/assets/status-labels-BHUFKtaA.js                1.54 kB │ gzip:  0.87 kB
+@construction/web:build: dist/assets/EntityComments-CbHg2kSY.js               2.91 kB │ gzip:  1.25 kB
+@construction/web:build: dist/assets/PortalErrorState-98c5dK9_.js             3.00 kB │ gzip:  1.44 kB
+@construction/web:build: dist/assets/AppDialog-CZKb8SsO.js                    3.48 kB │ gzip:  1.46 kB
+@construction/web:build: dist/assets/OperatorAdoptionView-CzNZcgMq.js         3.69 kB │ gzip:  1.39 kB
+@construction/web:build: dist/assets/OfflineSyncBanner-CNlIdgTY.js            3.76 kB │ gzip:  1.44 kB
+@construction/web:build: dist/assets/LegalPage-rooN-aKB.js                    4.07 kB │ gzip:  1.54 kB
+@construction/web:build: dist/assets/SignupForm-W9HGm1qy.js                   4.78 kB │ gzip:  1.66 kB
+@construction/web:build: dist/assets/LoginForm-thBnu9Yr.js                    5.43 kB │ gzip:  1.80 kB
+@construction/web:build: dist/assets/index-CQ5aeqVY.js                        5.52 kB │ gzip:  2.22 kB
+@construction/web:build: dist/assets/LandingPortalHub-3Iavn6lb.js             5.94 kB │ gzip:  2.26 kB
+@construction/web:build: dist/assets/PasswordResetViews-C2r51Bne.js           6.45 kB │ gzip:  1.89 kB
+@construction/web:build: dist/assets/InviteAcceptView-DzQyq7ew.js             6.54 kB │ gzip:  2.23 kB
+@construction/web:build: dist/assets/OwnerDashboard-hdN7rumF.js               6.63 kB │ gzip:  2.51 kB
+@construction/web:build: dist/assets/CrewsView-DVf1WUiV.js                    6.65 kB │ gzip:  2.19 kB
+@construction/web:build: dist/assets/index-DB_YYM6B.js                        6.89 kB │ gzip:  1.31 kB
+@construction/web:build: dist/assets/FieldPortalView-66AFhO1q.js              7.23 kB │ gzip:  2.73 kB
+@construction/web:build: dist/assets/PublicQuoteView-CUZuqvK-.js              8.06 kB │ gzip:  2.47 kB
+@construction/web:build: dist/assets/PhotoEvidenceGallery-CT56tEEM.js         8.90 kB │ gzip:  2.70 kB
+@construction/web:build: dist/assets/AskAiPanel-DtDElgv7.js                   9.34 kB │ gzip:  3.72 kB
+@construction/web:build: dist/assets/VarianceMonitorCard-BaF0BFLb.js          9.86 kB │ gzip:  2.48 kB
+@construction/web:build: dist/assets/ConsoleContext-DAqiPplJ.js              12.00 kB │ gzip:  4.55 kB
+@construction/web:build: dist/assets/InboxView-h7Ced8Ns.js                   12.56 kB │ gzip:  3.59 kB
+@construction/web:build: dist/assets/ClientPortalView-DW5O7erJ.js            12.71 kB │ gzip:  3.70 kB
+@construction/web:build: dist/assets/FieldDashboard-CEbw6KaJ.js              18.27 kB │ gzip:  5.29 kB
+@construction/web:build: dist/assets/ConsultantPortalView-DWn4VMoJ.js        18.75 kB │ gzip:  5.27 kB
+@construction/web:build: dist/assets/CompliancePortalView-BQBjl7WC.js        19.28 kB │ gzip:  5.18 kB
+@construction/web:build: dist/assets/SupplierPortalView-tPlPLkWZ.js          20.92 kB │ gzip:  5.34 kB
+@construction/web:build: dist/assets/SubcontractorPortalView-CHa-r7uQ.js     21.58 kB │ gzip:  5.98 kB
+@construction/web:build: dist/assets/VariationManagementView-CVTisWlI.js     23.65 kB │ gzip:  6.63 kB
+@construction/web:build: dist/assets/HomeSection-BZBAM_mh.js                 26.16 kB │ gzip:  7.98 kB
+@construction/web:build: dist/assets/FilesSection-BX4Sw2b0.js                29.29 kB │ gzip:  7.66 kB
+@construction/web:build: dist/assets/SnaggingListView-NDKezrrr.js            30.79 kB │ gzip:  7.22 kB
+@construction/web:build: dist/assets/index-CmQCZLKL.js                       32.94 kB │ gzip: 13.12 kB
+@construction/web:build: dist/assets/PeopleSection-B3yAT-Zd.js               34.86 kB │ gzip:  8.68 kB
+@construction/web:build: dist/assets/IndependentSiteReportView-DWv3nqJ1.js   39.84 kB │ gzip:  9.27 kB
+@construction/web:build: dist/assets/ProjectsSection-CEurvEXs.js             41.08 kB │ gzip: 10.33 kB
+@construction/web:build: dist/assets/AppShell-Bre1adXa.js                    43.15 kB │ gzip: 11.31 kB
+@construction/web:build: dist/assets/ProjectScheduleGanttView-CgNIY_9N.js    58.07 kB │ gzip: 13.42 kB
+@construction/web:build: dist/assets/SiteSection-BInzHsNo.js                 64.49 kB │ gzip: 15.78 kB
+@construction/web:build: dist/assets/SafetyIncidentLogView-DDNoXwME.js       64.64 kB │ gzip: 14.12 kB
+@construction/web:build: dist/assets/ClientDashboard-C-Dyxcsk.js             93.82 kB │ gzip: 20.98 kB
+@construction/web:build: dist/assets/index-BOQ_ViZG.js                      123.88 kB │ gzip: 28.63 kB
+@construction/web:build: dist/assets/ProjectMapView-hsJVMS8l.js             160.80 kB │ gzip: 47.44 kB
+@construction/web:build: dist/assets/MoneySection-BSiMrqs0.js               228.04 kB │ gzip: 46.67 kB
+@construction/web:build: dist/assets/index-B48YkUd0.js                      270.87 kB │ gzip: 85.01 kB
+@construction/web:build: ✓ built in 8.96s
+@construction/web:build: 
+@construction/web:build: PWA v0.21.2
+@construction/web:build: mode      generateSW
+@construction/web:build: precache  66 entries (1950.90 KiB)
+@construction/web:build: files generated
+@construction/web:build:   dist/sw.js
+@construction/web:build:   dist/workbox-2fbc6a65.js
+
+ Tasks:    3 successful, 3 total
+Cached:    1 cached, 3 total
+  Time:    44.961s 
+
+
+=== Step 11: Security Vulnerability Audit (pnpm audit) ===
+1 vulnerabilities found
+Severity: 1 moderate
+1 ignored: 1 high
+Security vulnerability audit passed.
+
+=== Step 12: Running Tests as db_app (Non-superuser, RLS Enforced) ===
+$ turbo run test --force
+
+   • turbo 2.11.10
+   • Packages in scope: @construction/api, @construction/db, @construction/e2e, @construction/money, @construction/permissions, @construction/validation, @construction/web
+   • Running test in 7 packages
+   • Remote caching disabled
+
+@construction/permissions:test: cache bypass, force executing 3de8a0accf3d9a2c
+@construction/money:test: cache bypass, force executing de444c6180034e03
+@construction/db:test: cache bypass, force executing 289ca241761fdf7c
+@construction/web:test: cache bypass, force executing 775ea76896d73c8c
+@construction/db:build: cache bypass, force executing 25dd2dc2873207fa
+@construction/db:test: $ vitest run
+@construction/money:test: $ vitest run
+@construction/permissions:test: $ vitest run
+@construction/db:build: $ tsc
+@construction/web:test: $ vitest run
+@construction/permissions:test: 
+@construction/permissions:test:  RUN  v3.2.7 <repo>/packages/permissions
+@construction/permissions:test: 
+@construction/web:test: 
+@construction/web:test:  RUN  v3.2.7 <repo>/apps/web
+@construction/web:test: 
+@construction/money:test: 
+@construction/money:test:  RUN  v3.2.7 <repo>/packages/money
+@construction/money:test: 
+@construction/db:test: 
+@construction/db:test:  RUN  v3.2.7 <repo>/packages/db
+@construction/db:test: 
+@construction/permissions:test:  ✓ src/index.test.ts (9 tests) 90ms
+@construction/permissions:test: 
+@construction/permissions:test:  Test Files  1 passed (1)
+@construction/permissions:test:       Tests  9 passed (9)
+@construction/permissions:test:    Start at  21:44:12
+@construction/permissions:test:    Duration  2.42s (transform 559ms, setup 0ms, collect 562ms, tests 90ms, environment 1ms, prepare 642ms)
+@construction/permissions:test: 
+@construction/db:test:  ✓ src/seed-data.test.ts (3 tests) 19ms
+@construction/money:test:  ✓ src/coverage-supplement.test.ts (11 tests) 81ms
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > A5 Cross-Tenant Write Rejection: writing with mismatched tenant_id throws PostgreSQL RLS error
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.project.create()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:200:26
+@construction/db:test: 
+@construction/db:test:   197 // Scoped to Tenant A, but attempting to insert a row with tenant_id = tenantBId
+@construction/db:test:   198 await expect(
+@construction/db:test:   199   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 200     await tx.project.create(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "42501", message: "new row violates row-level security policy for table \"projects\"", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/money:test:  ✓ src/index.test.ts (66 tests) 371ms
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Database-Level Ledger Immutability: db_app cannot DELETE or UPDATE audit_logs (permission denied)
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `prisma.$executeRawUnsafe()` invocation:
+@construction/db:test: 
+@construction/db:test: 
+@construction/db:test: Raw query failed. Code: `42501`. Message: `ERROR: permission denied for table audit_logs`
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Database-Level Ledger Immutability: db_app cannot DELETE or UPDATE audit_logs (permission denied)
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `prisma.$executeRawUnsafe()` invocation:
+@construction/db:test: 
+@construction/db:test: 
+@construction/db:test: Raw query failed. Code: `42501`. Message: `ERROR: permission denied for table audit_logs`
+@construction/db:test: 
+@construction/money:test: 
+@construction/money:test:  Test Files  2 passed (2)
+@construction/money:test:       Tests  77 passed (77)
+@construction/money:test:    Start at  21:44:12
+@construction/money:test:    Duration  4.26s (transform 1.76s, setup 0ms, collect 2.78s, tests 452ms, environment 1ms, prepare 1.77s)
+@construction/money:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Financial Immutability: database trigger blocks UPDATE of amount and DELETE on cost_entries
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.costEntry.update()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:331:28
+@construction/db:test: 
+@construction/db:test:   328 // 1. Attempting to change the financial amount throws trigger exception
+@construction/db:test:   329 await expect(
+@construction/db:test:   330   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 331     await tx.costEntry.update(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "Financial immutability violation: cost_entries.amount cannot be updated once created", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Financial Immutability: database trigger blocks UPDATE of amount and DELETE on cost_entries
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.costEntry.delete()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:341:28
+@construction/db:test: 
+@construction/db:test:   338 // 2. Attempting to delete the cost entry throws trigger exception
+@construction/db:test:   339 await expect(
+@construction/db:test:   340   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 341     await tx.costEntry.delete(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "cost_entries are append-only: deletion is prohibited by database ledger invariant", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Variation Immutability: database trigger blocks financial tampering on finalized variation_orders
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.variationOrder.update()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:378:33
+@construction/db:test: 
+@construction/db:test:   375 // Attempting to modify net_amount of an APPROVED variation order throws trigger exception
+@construction/db:test:   376 await expect(
+@construction/db:test:   377   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 378     await tx.variationOrder.update(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "Financial immutability violation: decided variation net_amount cannot be modified", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test: stdout | src/isolation.test.ts > PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > C4 Variation Immutability: database trigger blocks financial tampering on finalized variation_orders
+@construction/db:test: prisma:error 
+@construction/db:test: Invalid `tx.variationOrder.delete()` invocation in
+@construction/db:test: <repo>/packages/db/src/isolation.test.ts:388:33
+@construction/db:test: 
+@construction/db:test:   385 // Attempting to delete a variation order throws trigger exception
+@construction/db:test:   386 await expect(
+@construction/db:test:   387   withTenantTx(prisma, tenantAId, async (tx) => {
+@construction/db:test: → 388     await tx.variationOrder.delete(
+@construction/db:test: Error occurred during query execution:
+@construction/db:test: ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "variation_orders are immutable: deletion is prohibited by database ledger invariant", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+@construction/db:test: 
+@construction/db:test:  ✓ src/isolation.test.ts (12 tests) 2448ms
+@construction/db:test:    ✓ PostgreSQL Row-Level Security & Multi-Tenancy Isolation Suite (ADR-001 / Milestone M2) > A5 Cross-Tenant Write Rejection: writing with mismatched tenant_id throws PostgreSQL RLS error  310ms
+@construction/web:test:  ✓ src/lib/status-labels.test.tsx (11 tests) 690ms
+@construction/db:test:  ✓ src/index.test.ts (3 tests) 5927ms
+@construction/db:test:    ✓ packages/db cryptographic security functions > correctly hashes and verifies a valid password  3618ms
+@construction/db:test:    ✓ packages/db cryptographic security functions > rejects an incorrect password  2270ms
+@construction/db:test: 
+@construction/db:test:  Test Files  3 passed (3)
+@construction/db:test:       Tests  18 passed (18)
+@construction/db:test:    Start at  21:44:13
+@construction/db:test:    Duration  8.66s (transform 1.11s, setup 0ms, collect 2.67s, tests 8.39s, environment 1ms, prepare 2.01s)
+@construction/db:test: 
+@construction/web:test:  ✓ src/lib/api.test.ts (21 tests) 5042ms
+@construction/web:test:    ✓ api request layer (P1.1) > GET retries twice on network failure then succeeds  1209ms
+@construction/web:test:    ✓ api request layer (P1.1) > HTTP 500 → kind server  1213ms
+@construction/web:test:    ✓ api request layer (P1.1) > HTTP 429 → kind server  1209ms
+@construction/web:test:    ✓ api request layer (P1.1) > plain messages never contain raw TypeError text  1203ms
+@construction/web:test: stderr | src/components/AppDialog.test.tsx > AppErrorBoundary > a throwing module shows the fallback with ref id and keeps the shell alive
+@construction/web:test: Error: module exploded
+@construction/web:test:     at Bomb [90m(<repo>/apps/web/[39msrc/components/AppDialog.test.tsx:23:44[90m)[39m
+@construction/web:test:     at Object.react_stack_bottom_frame (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:28571:20)
+@construction/web:test:     at renderWithHooks (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:8030:22)
+@construction/web:test:     at updateFunctionComponent (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:10569:19)
+@construction/web:test:     at beginWork (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:12205:18)
+@construction/web:test:     at runWithFiberInDEV (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:1048:13)
+@construction/web:test:     at performUnitOfWork (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:19176:22)
+@construction/web:test:     at workLoopSync (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:19004:41)
+@construction/web:test:     at renderRootSync (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18985:11)
+@construction/web:test:     at performWorkOnRoot (<repo>/node_modules/[4m.pnpm[24m/react-dom@19.3.1_react@19.3.1/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18094:35) {
+@construction/web:test:   [stack]: [36m[Getter/Setter][39m,
+@construction/web:test:   [message]: [32m'module exploded'[39m
+@construction/web:test: }
+@construction/web:test: 
+@construction/web:test: The above error occurred in the <Bomb> component.
+@construction/web:test: 
+@construction/web:test: React will try to recreate this component tree from scratch using the error boundary you provided, AppErrorBoundary.
+@construction/web:test: 
+@construction/web:test: 
+@construction/web:test:  ✓ src/components/AppDialog.test.tsx (2 tests) 199ms
+@construction/web:test:  ✓ src/components/portals/SupplierPortalView.test.tsx (3 tests) 319ms
+@construction/web:test:  ✓ src/components/portals/portal-data-labels.test.tsx (2 tests) 255ms
+@construction/web:test:  ✓ src/components/PublicQuoteView.test.tsx (1 test) 109ms
+@construction/web:test:  ❯ src/lib/format-dates.test.tsx (3 tests | 1 failed) 187ms
+@construction/web:test:    ✓ shared date helpers > formats dates, date-times and times in one readable style 13ms
+@construction/web:test:    ✓ rendered screens never show M/D/YYYY > safety incident log renders "16 Nov 2026, …" not "11/16/2026, 7:45:00 AM" 133ms
+@construction/web:test:    × rendered screens never show M/D/YYYY > no component renders a locale date string that can produce M/D/YYYY 37ms
+@construction/web:test:      → locale date renders remain in: <repo>/apps/web/src/components/IntegrationsView.tsx, <repo>/apps/web/src/components/ProjectMapView.tsx: expected [ …(2) ] to deeply equal []
+@construction/web:test:  ❯ src/currency-guard.test.ts (2 tests | 1 failed) 84ms
+@construction/web:test:    ✓ currency guard > no literal "KES <amount>" strings in components 25ms
+@construction/web:test:    × currency guard > legacy money formatting does not grow beyond baseline 56ms
+@construction/web:test:      → expected [ Array(1) ] to deeply equal []
+@construction/web:test:  ✓ src/components/console/sections/HomeSection.test.tsx (2 tests) 37ms
+@construction/web:test:  ✓ src/services/offline-privacy.test.ts (8 tests) 40ms
+@construction/web:test:  ✓ src/lib/apiClient.test.ts (6 tests) 69ms
+@construction/web:test:  ✓ src/lib/useGeolocation.test.tsx (4 tests) 18ms
+@construction/web:test:  ✓ src/App.test.tsx (106 tests) 4759ms
+@construction/web:test:    ✓ Web App walking skeleton & login suite (Milestone M1 & M3) > renders PM_QS dashboard with budget baseline, BOQ structure, core loop, and variance guard  312ms
+@construction/web:test: 
+@construction/web:test: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+@construction/web:test: 
+@construction/web:test:  FAIL  src/currency-guard.test.ts > currency guard > legacy money formatting does not grow beyond baseline
+@construction/web:test: AssertionError: expected [ Array(1) ] to deeply equal []
+@construction/web:test: 
+@construction/web:test: [32m- Expected[39m
+@construction/web:test: [31m+ Received[39m
+@construction/web:test: 
+@construction/web:test: [32m- [][39m
+@construction/web:test: [31m+ [[39m
+@construction/web:test: [31m+   "src/components/IntegrationsView.tsx (1 hits)",[39m
+@construction/web:test: [31m+ ][39m
+@construction/web:test: 
+@construction/web:test:  ❯ src/currency-guard.test.ts:100:23
+@construction/web:test:      98|       }
+@construction/web:test:      99|     }
+@construction/web:test:     100|     expect(offenders).toEqual([]);
+@construction/web:test:        |                       ^
+@construction/web:test:     101|   });
+@construction/web:test:     102| });
+@construction/web:test: 
+@construction/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+@construction/web:test: 
+@construction/web:test:  FAIL  src/lib/format-dates.test.tsx > rendered screens never show M/D/YYYY > no component renders a locale date string that can produce M/D/YYYY
+@construction/web:test: AssertionError: locale date renders remain in: <repo>/apps/web/src/components/IntegrationsView.tsx, <repo>/apps/web/src/components/ProjectMapView.tsx: expected [ …(2) ] to deeply equal []
+@construction/web:test: 
+@construction/web:test: [32m- Expected[39m
+@construction/web:test: [31m+ Received[39m
+@construction/web:test: 
+@construction/web:test: [32m- [][39m
+@construction/web:test: [31m+ [[39m
+@construction/web:test: [31m+   "<repo>/apps/web/src/components/IntegrationsView.tsx",[39m
+@construction/web:test: [31m+   "<repo>/apps/web/src/components/ProjectMapView.tsx",[39m
+@construction/web:test: [31m+ ][39m
+@construction/web:test: 
+@construction/web:test:  ❯ src/lib/format-dates.test.tsx:76:81
+@construction/web:test:      74|     };
+@construction/web:test:      75|     walk(join(__dirname, '..', 'components'));
+@construction/web:test:      76|     expect(offenders, `locale date renders remain in: ${offenders.join…
+@construction/web:test:        |                                                                                 ^
+@construction/web:test:      77|   });
+@construction/web:test:      78| });
+@construction/web:test: 
+@construction/web:test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+@construction/web:test: 
+@construction/web:test: 
+@construction/web:test:  Test Files  2 failed | 11 passed (13)
+@construction/web:test:       Tests  2 failed | 169 passed (171)
+@construction/web:test:    Start at  21:44:12
+@construction/web:test:    Duration  21.50s (transform 10.14s, setup 0ms, collect 17.11s, tests 11.81s, environment 21.73s, prepare 3.85s)
+@construction/web:test: 
+@construction/web:test: [ELIFECYCLE] Test failed. See above for more details.
+@construction/web#test:  ERROR  command (<repo>/apps/web) <repo>/.bin/pnpm run test exited (1)
+
+ Tasks:    3 successful, 5 total
+Cached:    0 cached, 5 total
+  Time:    23.599s 
+Failed:    @construction/web#test
+
+ ERROR  run failed: command  exited (1)
+[ELIFECYCLE] Test failed. See above for more details.
+
+=== Cleaning up local PostgreSQL verification cluster ===
+PostgreSQL cluster stopped.
+Cleaned up temporary directories.

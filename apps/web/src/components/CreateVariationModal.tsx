@@ -1,6 +1,7 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState, useMemo} from 'react';
 import { calculateLineTotal, Decimal} from '@construction/money';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface VariationItemDraft {
   id: string;
@@ -54,12 +55,10 @@ export default function CreateVariationModal({
 
   useEffect(() => {
     if (!projectId || !/^[0-9a-f-]{36}$/i.test(projectId)) return;
-    fetch(`/api/v1/projects/${projectId}/rfis`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
+    api.get<any>(`/api/v1/projects/${projectId}/rfis`)
       .then((j) => setRfis(j.data || j || []))
-      .catch(() => {});
-    fetch(`/api/v1/projects/${projectId}`, { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => { /* intentionally ignored: optional dropdown data */ });
+    api.get<any>(`/api/v1/projects/${projectId}`)
       .then((j) => {
         const p = j?.data || j;
         setMembers((p?.members || []).map((m: any) => ({
@@ -68,7 +67,7 @@ export default function CreateVariationModal({
           role: m.role,
 })));
 })
-      .catch(() => {});
+      .catch(() => { /* intentionally ignored: optional dropdown data */ });
 }, [projectId]);
 
   // Compute line total for each item and overall live net amount
@@ -191,27 +190,13 @@ export default function CreateVariationModal({
 }),
 };
 
-      const res = await fetch(`/api/v1/projects/${projectId}/variations`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-},
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to submit variation order (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData = await api.post<{ data?: any }>(`/api/v1/projects/${projectId}/variations`, payload);
       if (onVariationCreated) {
         onVariationCreated(resData.data);
-}
+      }
       onClose();
-} catch (err: any) {
-      setError(err.message || 'Failed to submit variation order');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to submit variation order'));
 } finally {
       setIsSubmitting(false);
 }
@@ -242,7 +227,7 @@ export default function CreateVariationModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition"
+            className="text-slate-600 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition"
             aria-label="Close"
           >
             
@@ -252,7 +237,7 @@ export default function CreateVariationModal({
         {error && (
 <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center justify-between">
 <span> {error}</span>
-<button onClick={() => setError(null)} className="text-rose-500 font-bold ml-2">×</button>
+<button onClick={() => setError(null)} className="text-rose-700 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -281,6 +266,7 @@ export default function CreateVariationModal({
                 onChange={(e) => setTriggerType(e.target.value)}
                 className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
               >
+<option value="CLIENT_REQUEST">Client request</option>
 <option value="DESIGN_CLARIFICATION">Design clarification</option>
 <option value="OWNER_REQUEST">Owner request</option>
 <option value="UNFORESEEN_CONDITION">Unforeseen condition</option>
@@ -307,7 +293,7 @@ export default function CreateVariationModal({
                 className="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white">
                 {members.map((m) =><option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ''}</option>)}
 </select>
-<p className="text-[10px] text-slate-400 mt-0.5">Ctrl/Cmd-click to select multiple</p>
+<p className="text-[10px] text-slate-600 mt-0.5">Ctrl/Cmd-click to select multiple</p>
 </div>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -373,7 +359,7 @@ export default function CreateVariationModal({
                           onClick={() => handleItemChange(index, 'type', 'ADDITION')}
                           className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition ${
                             item.type === 'ADDITION'
-                              ? 'bg-emerald-600 text-white shadow-xs'
+                              ? 'bg-emerald-700 text-white shadow-xs'
                               : 'text-slate-600 hover:text-slate-900'
 }`}
                         >
@@ -384,7 +370,7 @@ export default function CreateVariationModal({
                           onClick={() => handleItemChange(index, 'type', 'OMISSION')}
                           className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition ${
                             item.type === 'OMISSION'
-                              ? 'bg-rose-600 text-white shadow-xs'
+                              ? 'bg-rose-700 text-white shadow-xs'
                               : 'text-slate-600 hover:text-slate-900'
 }`}
                         >
@@ -394,14 +380,14 @@ export default function CreateVariationModal({
 </div>
 
 <div className="flex items-center gap-2">
-<span className="font-mono font-bold text-slate-800">
+<span className="tabular-nums font-bold text-slate-800">
                         Line Total: {itemCalculations.lineTotals[index]?.formatted || formatKes(0)}
 </span>
                       {items.length > 1 && (
 <button
                           type="button"
                           onClick={() => handleRemoveItem(index)}
-                          className="text-slate-400 hover:text-rose-600 p-1 rounded"
+                          className="text-slate-600 hover:text-rose-600 p-1 rounded"
                           title="Remove item"
                         >
                           
@@ -492,7 +478,7 @@ export default function CreateVariationModal({
           {/* Live Net Amount Summary Card */}
 <div className="p-3.5 bg-slate-900 text-white rounded-xl flex items-center justify-between">
 <div>
-<span className="text-[10px] font-bold text-slate-400 block">
+<span className="text-[10px] font-bold text-slate-600 block">
                 Calculated Net Amount
 </span>
 <span className="text-xs text-slate-300">
@@ -501,13 +487,13 @@ export default function CreateVariationModal({
 </div>
 <div className="text-right">
 <span
-                className={`text-lg font-mono font-bold ${
-                  isNetPositive ? 'text-emerald-400' : 'text-amber-400'
+                className={`text-lg tabular-nums font-bold ${
+                  isNetPositive ? 'text-emerald-700' : 'text-amber-700'
 }`}
               >
                 {isNetPositive ? '+' : '-'} {formatKes(itemCalculations.netAmount.abs().toString())}
 </span>
-<span className="block text-[10px] text-slate-400">
+<span className="block text-[10px] text-slate-600">
                 {isNetPositive ? 'Net Budget Addition' : 'Net Budget Omission'}
 </span>
 </div>
@@ -526,7 +512,7 @@ export default function CreateVariationModal({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition shadow-xs flex items-center gap-1.5"
+              className="px-4 py-2 text-xs font-semibold text-white bg-purple-700 rounded-lg hover:bg-purple-800 disabled:opacity-50 transition shadow-xs flex items-center gap-1.5"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Variation Order'}
 </button>

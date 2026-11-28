@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
 import { prisma, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import {
@@ -9,6 +10,12 @@ import {
   Decimal,
 } from '@construction/money';
 import { requirePermission } from '../plugins/rbac';
+import { notifyTeam } from '../lib/notify';
+import {
+  CLIENT_PROJECT_REQUEST_TYPES,
+  CLIENT_BUDGET_RANGES,
+  CLIENT_START_TIMEFRAMES,
+} from '@construction/validation';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -312,27 +319,115 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             paid_at: c.paid_at ? c.paid_at.toISOString() : null,
           }));
 
-          // 11. Kenyan Standard Retention Terms
-          const maxCapAmountDec = originalBudgetDec.times(0.05);
-          const retention_terms = {
-            interim_deduction_rate: '10%',
-            max_cap_rate: '5%',
+          // 11. Retention terms — tenant-configured (Stage-2); falls back to
+          // the standard Kenyan schedule only when the tenant has not set one.
+          const tenantRow = await tx.tenant.findUnique({
+            where: { id: tenantId },
+            select: { retention_terms: true, payment_instructions: true },
+          });
+          // Round H3: the fallback schedule mirrors the project's own
+          // retention settings (single source of truth) — a tenant-level
+          // retention_terms override still wins when present.
+          const projRatePct = toDecimal(String(project.retention_rate_pct ?? '5'));
+          const projCapPct = toDecimal(String(project.retention_cap_pct ?? '5'));
+          const projFirstMoietyPct = toDecimal(String(project.retention_first_moiety_pct ?? '50'));
+          const projSecondMoietyPct = new Decimal(100).minus(projFirstMoietyPct);
+          const rateLabel = `${projRatePct.toFixed(2).replace(/\.00$/, '')}%`;
+          const capLabel = `${projCapPct.toFixed(2).replace(/\.00$/, '')}%`;
+          const firstLabel = `${projFirstMoietyPct.toFixed(2).replace(/\.00$/, '')}%`;
+          const secondLabel = `${projSecondMoietyPct.toFixed(2).replace(/\.00$/, '')}%`;
+          const maxCapAmountDec = originalBudgetDec.times(projCapPct).dividedBy(100);
+          const defaultRetentionTerms = {
+            retention_pct: projRatePct.toNumber(),
+            interim_deduction_rate: rateLabel,
+            max_cap_rate: capLabel,
             max_cap_amount: toCurrencyString(maxCapAmountDec),
             release_schedule: [
               {
                 milestone: 'Practical Completion',
-                percentage: '50%',
-                rate: '50%',
-                description: '50% released at Practical Completion (Section Handover)',
+                percentage: firstLabel,
+                rate: firstLabel,
+                description: `${firstLabel} released at Practical Completion (Section Handover)`,
               },
               {
                 milestone: 'Defects Liability Period',
-                percentage: '50%',
-                rate: '50%',
-                description: '50% released at end of Defects Liability Period (DLP)',
+                percentage: secondLabel,
+                rate: secondLabel,
+                description: `${secondLabel} released at end of Defects Liability Period (DLP)`,
               },
             ],
           };
+          // Canonical snake_case output regardless of the stored JSON shape —
+          // PATCH /company/settings accepts free-form records, so tenants may
+          // have camelCase keys (interimDeductionRatePct) or snake_case ones.
+          const normalizeRetentionTerms = (raw: any): any => {
+            const src = raw && typeof raw === 'object' ? raw : {};
+            const pct = (v: any): string | undefined =>
+              v === undefined || v === null ? undefined : (typeof v === 'number' ? `${v}%` : String(v));
+            const scheduleRaw = src.release_schedule ?? src.releaseSchedule;
+            const schedule = Array.isArray(scheduleRaw)
+              ? scheduleRaw.map((s: any) => ({
+                  milestone: s.milestone ?? s.milestone_name ?? null,
+                  percentage: pct(s.percentage ?? s.rate ?? s.pct),
+                  rate: pct(s.rate ?? s.percentage ?? s.pct),
+                  description: s.description ?? null,
+                }))
+              : scheduleRaw;
+            const interim = pct(src.interim_deduction_rate ?? src.interimDeductionRatePct) ?? defaultRetentionTerms.interim_deduction_rate;
+            const capRate = pct(src.max_cap_rate ?? src.maxCapRatePct) ?? defaultRetentionTerms.max_cap_rate;
+            // Effective retention vs contract = the lower of the interim
+            // deduction rate and the max-cap rate (Kenyan 10%/5% schedule).
+            const effectivePct = (() => {
+              const i = parseFloat(String(interim).replace('%', ''));
+              const c = parseFloat(String(capRate).replace('%', ''));
+              return Number.isFinite(i) && Number.isFinite(c) ? Math.min(i, c) : undefined;
+            })();
+            return {
+              ...src,
+              // Convenience numeric mirror for API consumers (e.g. "5%" -> 5).
+              retention_pct: src.retention_pct ?? src.retentionPct ?? effectivePct,
+              interim_deduction_rate: interim,
+              max_cap_rate: capRate,
+              max_cap_amount: src.max_cap_amount ?? src.maxCapAmount ?? defaultRetentionTerms.max_cap_amount,
+              release_schedule: schedule ?? defaultRetentionTerms.release_schedule,
+            };
+          };
+          const retention_terms = tenantRow?.retention_terms
+            ? normalizeRetentionTerms(tenantRow.retention_terms)
+            : defaultRetentionTerms;
+
+          // Client-visible invoices with balances and payment history —
+          // mirrors what the token portal shows (Stage-2 contract).
+          const invoicesRaw = await tx.invoice.findMany({
+            // Client-visible invoices only — DRAFT/VOID never leave the console.
+            where: { project_id: projectId, status: { in: ['SENT', 'PART_PAID', 'PAID'] } },
+            orderBy: { created_at: 'desc' },
+            include: { payments: { orderBy: { paid_at: 'desc' } } },
+          });
+          const invoices = invoicesRaw.map((inv: any) => ({
+            id: inv.id,
+            invoice_id: inv.id,
+            invoice_no: inv.invoice_no,
+            title: inv.title,
+            status: inv.status,
+            currency: inv.currency,
+            subtotal: toCurrencyString(inv.subtotal?.toString()),
+            tax_amount: toCurrencyString(inv.tax_amount?.toString()),
+            total: toCurrencyString(inv.total?.toString()),
+            amount_paid: toCurrencyString(inv.amount_paid?.toString()),
+            paid: toCurrencyString(inv.amount_paid?.toString()),
+            balance_due: toCurrencyString(inv.balance_due?.toString()),
+            balance: toCurrencyString(inv.balance_due?.toString()),
+            issue_date: inv.issue_date ? inv.issue_date.toISOString().split('T')[0] : null,
+            due_date: inv.due_date ? inv.due_date.toISOString().split('T')[0] : null,
+            payments: (inv.payments ?? []).map((pay: any) => ({
+              id: pay.id,
+              amount: toCurrencyString(pay.amount?.toString()),
+              method: pay.method,
+              reference: pay.reference,
+              paid_at: pay.paid_at ? pay.paid_at.toISOString() : null,
+            })),
+          }));
 
           return {
             project: {
@@ -363,7 +458,15 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
             timeline,
             pending_variations,
             payment_certificates,
+            invoices,
+            // Top-level budget mirrors (auditor contract reads them directly,
+            // not nested under financials).
+            original_agreed_budget: toCurrencyString(originalBudgetDec),
+            approved_variations_total: toCurrencyString(approvedVariationsTotalDec),
+            current_approved_budget: toCurrencyString(currentApprovedBudgetDec),
+            total_spent_to_date: toCurrencyString(totalSpentDec),
             retention_terms,
+            payment_instructions: tenantRow?.payment_instructions ?? null,
           };
         });
 
@@ -393,15 +496,11 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
   // ---------------------------------------------------------------------------
   // Client-initiated project requests ("Request a project" portal flow)
   // ---------------------------------------------------------------------------
-  const PROJECT_TYPES = [
-    'New house / bungalow', 'Maisonette or villa', 'Apartments / flats',
-    'Commercial building', 'Renovation / remodeling', 'Kitchen or bathroom remodel',
-    'Interior design & finishes', 'Fencing & gates', 'Borehole / water works',
-    'Solar / electrical installation', 'CCTV & security', 'Landscaping & gardening',
-    'Roads, drainage or civil works', 'Land clearing & surveying', 'Other',
-  ];
-  const BUDGET_RANGES = ['Below KES 1M', 'KES 1M - 5M', 'KES 5M - 20M', 'KES 20M - 50M', 'Above KES 50M', 'Not sure yet'];
-  const START_TFRAMES = ['As soon as possible', 'Within 3 months', 'In 3 - 6 months', 'In 6 - 12 months', 'Just planning for now'];
+  // Shared vocabulary lives in @construction/validation project-types.ts —
+  // the web form and this route validate against the same list.
+  const PROJECT_TYPES: readonly string[] = CLIENT_PROJECT_REQUEST_TYPES;
+  const BUDGET_RANGES: readonly string[] = CLIENT_BUDGET_RANGES;
+  const START_TFRAMES: readonly string[] = CLIENT_START_TIMEFRAMES;
 
   server.post(
     '/api/v1/client/project-requests',
@@ -413,8 +512,10 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
       }
       const body = (request.body || {}) as Record<string, unknown>;
       const projectType = String(body.projectType || '').trim();
-      const locationText = String(body.locationText || '').trim();
-      const description = String(body.description || '').trim();
+      // Accept both field vocabularies: locationText/siteLocation and
+      // description/workDescription (auditor contract uses the latter).
+      const locationText = String(body.locationText || body.siteLocation || '').trim();
+      const description = String(body.description || body.workDescription || '').trim();
       if (!PROJECT_TYPES.includes(projectType)) {
         return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid project type' });
       }
@@ -428,8 +529,8 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
       const startTimeframe = START_TFRAMES.includes(String(body.startTimeframe)) ? String(body.startTimeframe) : null;
       const contactPhone = body.contactPhone ? String(body.contactPhone).slice(0, 30) : null;
       try {
-        const created = await withTenantTx(prisma, tenantId, async (tx) =>
-          tx.clientProjectRequest.create({
+        const created = await withTenantTx(prisma, tenantId, async (tx) => {
+          const row = await tx.clientProjectRequest.create({
             data: {
               tenant_id: tenantId,
               user_id: sub,
@@ -440,8 +541,18 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
               description,
               contact_phone: contactPhone,
             },
-          }),
-        );
+          });
+          // Stage-2: client project requests must reach the contractor inbox.
+          const requesterName = (request.user as any).fullName || (request.user as any).email || 'A client';
+          await notifyTeam(tx, {
+            tenantId,
+            senderId: sub,
+            senderName: `${requesterName} (client)`,
+            audience: 'ALL_MEMBERS',
+            body: `New project request from ${requesterName}: ${projectType} at ${locationText}. ${description.slice(0, 200)}${description.length > 200 ? '…' : ''}`,
+          });
+          return row;
+        });
         return reply.status(201).send({ data: created });
       } catch (err) {
         server.log.error(err);
@@ -455,20 +566,24 @@ export const clientPortalRoutes: FastifyPluginAsync = async (server: FastifyInst
     { preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)] },
     async (request, reply) => {
       const { tenantId, sub, role } = request.user as any;
+      const pg = listParams(request);
       try {
         const rows = await withTenantTx(prisma, tenantId, async (tx) =>
           tx.clientProjectRequest.findMany({
             where: role === 'CLIENT' ? { user_id: sub } : {},
             orderBy: { created_at: 'desc' },
-            take: 50,
+            skip: pg.skip,
+            take: pg.limit + 1,
           }),
         );
+        const paged = listPage(rows, pg);
         return reply.status(200).send({
-          data: rows.map((r) => ({
+          data: paged.data.map((r) => ({
             ...r,
             created_at: r.created_at.toISOString(),
             updated_at: r.updated_at.toISOString(),
           })),
+          page: paged.page,
         });
       } catch (err) {
         server.log.error(err);

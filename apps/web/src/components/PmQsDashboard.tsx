@@ -1,4 +1,4 @@
-import { formatKes} from '../ui';
+import { formatKes, ResponsiveTable} from '../ui';
 import React, { useEffect, useState} from 'react';
 import { AuthSession} from '../types/auth';
 import BoqImportModal from './BoqImportModal';
@@ -54,6 +54,7 @@ import ContractorTenderBoardView from './ContractorTenderBoardView';
 import { isModuleEnabled } from '../lib/modules';
 import QuotesManagementView from './QuotesManagementView';
 import InvoicingView from './InvoicingView';
+import { api } from '../lib/api';
 
 interface PmQsDashboardProps {
   session: AuthSession;
@@ -71,12 +72,11 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
   const [projects, setProjects] = useState<{ id: string; name: string; code: string}[]>([]);
   const [pid, setPid] = useState('');
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<{ data?: { id: string; name: string; code: string }[] }>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
-        if (list.length) setPid(list[0].id);
+        if (list.length) setPid(list[0]!.id);
 })
       .catch(() => setProjects([]));
 }, []);
@@ -84,14 +84,12 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
   useEffect(() => {
     if (!pid) return;
     let cancelled = false;
-    fetch(`/api/v1/projects/${pid}`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
+    api.get<any>(`/api/v1/projects/${pid}`)
       .then((j) => { if (!cancelled && j) setProjectDetail(j.data || j); })
-      .catch(() => {});
-    fetch(`/api/v1/projects/${pid}/budget/summary`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => { /* intentionally ignored: best-effort project detail */ });
+    api.get<any>(`/api/v1/projects/${pid}/budget/summary`)
       .then((j) => { if (!cancelled && j) setBudgetSummary(j.data || j); })
-      .catch(() => {});
+      .catch(() => { /* intentionally ignored: best-effort budget summary */ });
     return () => { cancelled = true; };
   }, [pid]);
   const [tabGroup, setTabGroup] = useState<'all' | 'core' | 'field' | 'money' | 'collab'>('core');
@@ -198,13 +196,13 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </a>
 <button
             onClick={() => setShowProgressModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
              Record Progress
 </button>
 <button
             onClick={() => setShowBoqModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            className="px-3.5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
              Import Excel BOQ
 </button>
@@ -226,14 +224,14 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {progressSuccess && (
 <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {progressSuccess}</span>
-<button onClick={() => setProgressSuccess(null)} className="text-blue-600 hover:text-blue-900 font-bold ml-2">×</button>
+<button onClick={() => setProgressSuccess(null)} className="text-blue-700 hover:text-blue-900 font-bold ml-2">×</button>
 </div>
 )}
 
       {boqSuccess && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {boqSuccess}</span>
-<button onClick={() => setBoqSuccess(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setBoqSuccess(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -283,10 +281,10 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <span className="text-[11px] font-semibold text-slate-500 block">
             Approved Budget Baseline
 </span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {budgetSummary?.approvedBudget ? formatKes(budgetSummary.approvedBudget) : '—'}
 </span>
-<span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">Locked contract baseline</span>
+<span className="text-[11px] text-emerald-700 font-medium mt-0.5 block">Locked contract baseline</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -294,7 +292,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             Active BOQs
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">1 Active</span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">EASMM 2008 Standard</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">EASMM 2008 Standard</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -302,7 +300,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             Pending Cost Reviews
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Pending</span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">All cost entries settled</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">All cost entries settled</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -310,7 +308,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             Variations Under Review
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Orders</span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">Net adjustment: {formatKes(0)}</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">Net adjustment: {formatKes(0)}</span>
 </div>
 </div>
 
@@ -359,7 +357,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
 <div className="flex justify-between items-start">
 <div>
-<span className="text-xs font-bold text-slate-400 ">Assigned Project Baseline</span>
+<span className="text-xs font-bold text-slate-600 ">Assigned Project Baseline</span>
 <h3 className="text-lg font-bold text-slate-900 mt-0.5">{projectDetail?.name || projects.find((p) => p.id === pid)?.name || '—'}</h3>
 <p className="text-xs text-slate-500">{[projectDetail?.location, projectDetail?.code || projects.find((p) => p.id === pid)?.code].filter(Boolean).join(' • ') || '—'}</p>
 </div>
@@ -369,31 +367,23 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </div>
 
 <div className="border border-slate-200 rounded-lg overflow-hidden">
-<table className="w-full text-left text-xs">
-<thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold ">
-<tr>
-<th className="p-3">BOQ Section</th>
-<th className="p-3">Standard Reference</th>
-<th className="p-3">Original Budget</th>
-<th className="p-3">Current Budget</th>
-<th className="p-3">Actual Cost</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100 text-slate-700">
-{(budgetSummary?.sectionBreakdown || []).length === 0 && (
-<tr><td colSpan={5} className="p-6 text-center text-sm text-slate-400">No BOQ sections yet — import a BOQ to populate this baseline.</td></tr>
-)}
-{(budgetSummary?.sectionBreakdown || []).map((sec: any) => (
-<tr key={sec.sectionId || sec.title} className="hover:bg-slate-50/50">
-<td className="p-3 font-semibold text-slate-900">{sec.title || sec.sectionTitle || 'Section'}</td>
-<td className="p-3 text-slate-500">{sec.itemCount != null ? `${sec.itemCount} items` : '—'}</td>
-<td className="p-3 font-mono font-medium">{formatKes(sec.allocatedBudget)}</td>
-<td className="p-3 font-mono font-medium">{formatKes(sec.allocatedBudget)}</td>
-<td className="p-3 font-mono text-slate-400">{formatKes(sec.actualSpent)}</td>
-</tr>
-))}
-</tbody>
-</table>
+<ResponsiveTable
+            head={['BOQ Section', 'Standard Reference', 'Original Budget', 'Current Budget', 'Actual Cost']}
+            className="text-xs"
+            headClassName="bg-slate-50"
+            empty="No BOQ sections yet — import a BOQ to populate this baseline."
+            rows={(budgetSummary?.sectionBreakdown || []).map((sec: any) => ({
+              key: sec.sectionId || sec.title,
+              className: 'hover:bg-slate-50/50',
+              cells: [
+                { content: sec.title || sec.sectionTitle || 'Section', className: 'font-semibold text-slate-900' },
+                { content: sec.itemCount != null ? `${sec.itemCount} items` : '—', className: 'text-slate-500' },
+                { content: formatKes(sec.allocatedBudget), className: 'tabular-nums font-medium' },
+                { content: formatKes(sec.allocatedBudget), className: 'tabular-nums font-medium' },
+                { content: formatKes(sec.actualSpent), className: 'tabular-nums text-slate-600' },
+              ],
+            }))}
+          />
 </div>
 </div>
 
@@ -405,6 +395,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
         projectId={pid}
         canApprove={true}
         canCreate={true}
+        userRole={user.role}
       />
 
       {/* Variations & Scope Adjustments Workflow (Milestone M8) */}
@@ -519,7 +510,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {(activeTab === 'all' || activeTab === 'requisitions') && (
 <MaterialRequisitionView
           projectId={pid}
-          projectName="Riverside Commercial Plaza"
+          projectName={projects.find((p) => p.id === pid)?.name || ''}
           userRole="PM_QS"
         />
 )}
@@ -568,7 +559,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 )}
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
-      {(activeTab === 'all' || activeTab === 'safetyaudit') && (
+      {(activeTab === 'all' || activeTab === 'safetyaudit') && isModuleEnabled('safetyaudit') && (
 <SafetyAuditScorecardView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
@@ -599,7 +590,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <RetentionAndBondsView
           projectId={pid}
           projectName="Riverside Commercial Plaza"
-          userRole="PM_QS"
+          userRole={user.role}
         />
 )}
 
@@ -697,7 +688,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {(activeTab === 'all' || activeTab === 'quotes') &&<QuotesManagementView />}
 
       {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
-      {(activeTab === 'all' || activeTab === 'invoices') &&<InvoicingView />}
+      {(activeTab === 'all' || activeTab === 'invoices') &&<InvoicingView userRole={user.role} />}
 
       {/* Commitments -> Claims -> Payment Applications (Gate-4 S5) */}
       {(activeTab === 'all' || activeTab === 'commitments') && (

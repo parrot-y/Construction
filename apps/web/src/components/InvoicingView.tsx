@@ -1,5 +1,13 @@
-import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import React, { useEffect, useState} from 'react';
+import { usePagedList } from './console/usePagedList';
+import { formatMoney } from '@construction/money';
+import { useAppDialog } from './AppDialog';
+import { api, ApiError, apiErrorMessage } from '../lib/apiClient';
+import { formatKes } from '../ui';
+import PaymentReviewPanel from './PaymentReviewPanel';
+import EntityComments from './EntityComments';
+import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
 
 interface InvoiceItem {
   id?: string;
@@ -83,10 +91,12 @@ const STATUS_STYLES: Record<string, string> = {
   VOID: 'bg-slate-100 text-slate-500 border-slate-300 line-through',
 };
 
-export default function InvoicingView(): React.JSX.Element {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+// Roles holding cost.approve may resolve held provider payments (G1).
+const REVIEW_ROLES = new Set(['ADMIN', 'COMPANY_ADMIN', 'PM_QS', 'EXECUTIVE', 'SUPERINTENDENT']);
+
+export default function InvoicingView({ userRole = '' }: { userRole?: string } = {}): React.JSX.Element {
+  const dialog = useAppDialog();
   const [projects, setProjects] = useState<ProjectOption[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -117,30 +127,16 @@ export default function InvoicingView(): React.JSX.Element {
   const [payForm, setPayForm] = useState({ amount: '', method: 'M_PESA', reference: '', note: ''});
   const [showPayForm, setShowPayForm] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
-      const res = await fetch(`/api/v1/invoices${qs}`, { credentials: 'include'});
-      if (!res.ok) throw new Error(`Failed to load invoices (${res.status})`);
-      const body = await res.json();
-      setInvoices(body.invoices ?? []);
-} catch (e: any) {
-      setError(e.message);
-} finally {
-      setLoading(false);
-}
-}, [statusFilter]);
+  // P4.3 — paged loading: page 1 on mount/filter change, "Load more"
+  // appends; lists over the server page size are no longer truncated.
+  const listUrl = `/api/v1/invoices${statusFilter !== 'ALL' ? `?status=${statusFilter}` : ''}`;
+  const { items: invoices, hasMore, loading, loadingMore, error: listError, loadMore, reload: load } =
+    usePagedList<Invoice>(listUrl, [statusFilter]);
+  const displayError = error ?? listError;
 
   useEffect(() => {
-    load();
-}, [load]);
-
-  useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : { data: []}))
-      .then((b) => setProjects((b.data ?? []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}))))
+    api.get<{ data?: Array<{ id: string; name: string; code?: string }> }>('/api/v1/projects')
+      .then((b) => setProjects((b.data ?? []).map((p) => ({ id: p.id, name: p.name, code: p.code ?? ''}))))
       .catch(() => setProjects([]));
 }, []);
 
@@ -155,16 +151,18 @@ export default function InvoicingView(): React.JSX.Element {
     setDetail(null);
     setShowPayForm(false);
     try {
-      const res = await fetch(`/api/v1/invoices/${id}`, { credentials: 'include'});
-      if (res.ok) setDetail((await res.json()).invoice);
+      const body = await api.get<{ invoice: Invoice }>(`/api/v1/invoices/${id}`);
+      setDetail(body.invoice);
 } catch {
-      // detail is best-effort
+      // detail is best-effort — hygiene-allow: intentionally ignored
 }
 };
 
   const refreshDetail = async (id: string) => {
-    const res = await fetch(`/api/v1/invoices/${id}`, { credentials: 'include'});
-    if (res.ok) setDetail((await res.json()).invoice);
+    try {
+      const body = await api.get<{ invoice: Invoice }>(`/api/v1/invoices/${id}`);
+      setDetail(body.invoice);
+    } catch { /* detail is best-effort */ }
 };
 
   const addItem = () =>
@@ -188,11 +186,7 @@ export default function InvoicingView(): React.JSX.Element {
     setBusyId('create');
     setError(null);
     try {
-      const res = await fetch('/api/v1/invoices', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
+      const body = await api.post<{ invoice: Invoice }>('/api/v1/invoices', {
           title: form.title,
           clientName: form.clientName,
           clientEmail: form.clientEmail || null,
@@ -216,16 +210,13 @@ export default function InvoicingView(): React.JSX.Element {
               quantity: parseFloat(it.quantity) || 0,
               unitRate: parseFloat(it.unitRate) || 0,
 })),
-}),
 });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to create invoice');
       setShowForm(false);
       resetForm();
       setNotice(`Invoice INV-${String(body.invoice.invoice_no).padStart(5, '0')} created as draft`);
       load();
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setBusyId(null);
 }
@@ -235,43 +226,44 @@ export default function InvoicingView(): React.JSX.Element {
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/send`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to send invoice');
+      const sendOnce = (selfApprovalReason?: string) =>
+        api.post<{ invoice?: Invoice }>(`/api/v1/invoices/${inv.id}/send`, selfApprovalReason ? { selfApprovalReason } : {});
+      try {
+        await sendOnce();
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409 && /selfApprovalReason|different approver/i.test(err.message)) { // hygiene-allow
+          if (!['COMPANY_ADMIN', 'ADMIN'].includes(userRole)) {
+            throw new Error('A different approver is required.');
+          }
+          const reason = await dialog.prompt({ title: 'Self-approval reason required', inputLabel: 'Self-approval reason (min 15 characters)', confirmLabel: 'Send anyway', minLength: 15 });
+          if (!reason || !reason.trim()) throw new Error('Self-approval cancelled — a reason is required.');
+          await sendOnce(reason.trim());
+        } else {
+          throw err;
+        }
+      }
       setNotice(`Invoice INV-${String(inv.invoice_no).padStart(5, '0')} marked as sent`);
       load();
       if (expandedId === inv.id) refreshDetail(inv.id);
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setBusyId(null);
 }
 };
 
   const handleVoid = async (inv: Invoice) => {
-    const reason = window.prompt('Reason for voiding this invoice?');
+    const reason = await dialog.prompt({ title: 'Void invoice', inputLabel: 'Reason for voiding', confirmLabel: 'Void', danger: true });
     if (!reason) return;
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/void`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ reason}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to void invoice');
+      await api.post(`/api/v1/invoices/${inv.id}/void`, { reason });
       setNotice(`Invoice INV-${String(inv.invoice_no).padStart(5, '0')} voided`);
       load();
       if (expandedId === inv.id) refreshDetail(inv.id);
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setBusyId(null);
 }
@@ -281,30 +273,23 @@ export default function InvoicingView(): React.JSX.Element {
     setBusyId(inv.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/invoices/${inv.id}/payments`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          amount: parseFloat(payForm.amount),
-          method: payForm.method,
-          reference: payForm.reference || null,
-          note: payForm.note || null,
-}),
-});
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Failed to record payment');
+      const body = await api.post<{ invoice: Invoice }>(`/api/v1/invoices/${inv.id}/payments`, {
+        amount: parseFloat(payForm.amount),
+        method: payForm.method,
+        reference: payForm.reference || null,
+        note: payForm.note || null,
+      });
       setPayForm({ amount: '', method: 'M_PESA', reference: '', note: ''});
       setShowPayForm(false);
       setNotice(
         body.invoice.status === 'PAID'
           ? `Invoice INV-${String(inv.invoice_no).padStart(5, '0')} fully paid`
-          : `Payment recorded — balance ${inv.currency} ${toCurrencyString(body.invoice.balance_due)}`,
+          : `Payment recorded — balance ${inv.currency} ${formatMoney(body.invoice.balance_due)}`,
 );
       load();
       refreshDetail(inv.id);
 } catch (err: any) {
-      setError(err.message);
+      setError(apiErrorMessage(err));
 } finally {
       setBusyId(null);
 }
@@ -314,7 +299,7 @@ export default function InvoicingView(): React.JSX.Element {
     window.open(`/api/v1/invoices/${id}/pdf`, '_blank');
 };
 
-  const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
+  const fmtDate = (d?: string | null) => (d ? formatDate(new Date(d)) : '—');
 
   return (
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
@@ -336,29 +321,34 @@ export default function InvoicingView(): React.JSX.Element {
 </button>
 </div>
 
+      {REVIEW_ROLES.has(userRole) && (
+<PaymentReviewPanel invoices={invoices} onChanged={load} />
+)}
+
 <div className="flex flex-wrap gap-1.5">
         {FILTERS.map((f) => (
 <button
             key={f}
             onClick={() => setStatusFilter(f)}
+            aria-pressed={statusFilter === f}
             className={`px-2.5 py-1 text-[10px] font-bold rounded-full border transition ${
               statusFilter === f
                 ? 'bg-slate-800 text-white border-slate-800'
                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
 }`}
           >
-            {f.replace('_', ' ')}
+            {statusLabel(f)}
 </button>
 ))}
 </div>
 
-      {error && (
-<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium rounded-lg">{error}</div>
+      {displayError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium rounded-lg">{displayError}</div>
 )}
       {notice && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {notice}</span>
-<button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setNotice(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -474,16 +464,16 @@ export default function InvoicingView(): React.JSX.Element {
 <input type="number" step="0.01" value={it.unitRate} onChange={(e) => setItem(idx, { unitRate: e.target.value})} placeholder="Rate"
                   className="col-span-2 text-[11px] p-1.5 border border-slate-300 rounded" />
 <button type="button" onClick={() => removeItem(idx)} disabled={items.length === 1}
-                  className="col-span-1 text-[11px] text-rose-600 hover:text-rose-800 font-bold disabled:opacity-30"></button>
+                  className="col-span-1 text-[11px] text-rose-700 hover:text-rose-800 font-bold disabled:opacity-30"></button>
 </div>
 ))}
 </div>
 
 <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
 <span className="text-slate-600">
-              Subtotal:<strong>{form.currency} {toCurrencyString(itemSubtotal)}</strong>
-              {' • '}VAT ({taxPctNum}%):<strong>{toCurrencyString(taxAmt)}</strong>
-              {' • '}Total:<strong>{form.currency} {toCurrencyString(total)}</strong>
+              Subtotal: <strong>{formatMoney(itemSubtotal, form.currency)}</strong>
+              {' • '}VAT ({taxPctNum}%): <strong>{formatMoney(taxAmt)}</strong>
+              {' • '}Total: <strong>{formatMoney(total, form.currency)}</strong>
 </span>
 <button type="submit" disabled={busyId === 'create'}
               className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50">
@@ -494,14 +484,15 @@ export default function InvoicingView(): React.JSX.Element {
 )}
 
       {loading ? (
-<p className="text-xs text-slate-400 text-center py-6">Loading invoices…</p>
+<p className="text-xs text-slate-600 text-center py-6">Loading invoices…</p>
 ) : invoices.length === 0 ? (
-<p className="text-xs text-slate-400 text-center py-6">No invoices yet. Create your first invoice to start tracking accounts receivable.</p>
+<p className="text-xs text-slate-600 text-center py-6">No invoices yet. Create your first invoice to start tracking accounts receivable.</p>
 ) : (
+<>
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
-<tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
+<tr className="text-left text-[10px] text-slate-600 border-b border-slate-200">
 <th className="py-2 pr-3">Invoice</th>
 <th className="py-2 pr-3">Client</th>
 <th className="py-2 pr-3">Total</th>
@@ -523,26 +514,26 @@ export default function InvoicingView(): React.JSX.Element {
 </td>
 <td className="py-2.5 pr-3">
 <span className="font-medium text-slate-800">{inv.client_name}</span>
-                      {inv.client_email &&<span className="block text-[10px] text-slate-400">{inv.client_email}</span>}
+                      {inv.client_email &&<span className="block text-[10px] text-slate-600">{inv.client_email}</span>}
 </td>
-<td className="py-2.5 pr-3 font-mono font-semibold text-slate-800">{inv.currency} {toCurrencyString(inv.total)}</td>
-<td className="py-2.5 pr-3 font-mono text-slate-600">{inv.currency} {toCurrencyString(inv.balance_due)}</td>
+<td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{formatMoney(inv.total, inv.currency)}</td>
+<td className="py-2.5 pr-3 tabular-nums text-slate-600">{formatMoney(inv.balance_due, inv.currency)}</td>
 <td className="py-2.5 pr-3 text-slate-500">{fmtDate(inv.due_date)}</td>
 <td className="py-2.5 pr-3">
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.DRAFT}`}>
-                        {inv.status.replace('_', ' ')}
+                        {statusLabel(inv.status)}
 </span>
 </td>
 <td className="py-2.5 space-x-1.5 whitespace-nowrap">
                       {inv.status === 'DRAFT' && (
 <button onClick={() => handleSend(inv)} disabled={busyId === inv.id}
-                          className="px-2 py-1 text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50">
+                          className="px-2 py-1 text-[10px] font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded disabled:opacity-50">
                           Send
 </button>
 )}
                       {(inv.status === 'SENT' || inv.status === 'PART_PAID' || inv.status === 'OVERDUE') && (
-<button onClick={() => { setExpandedId(inv.id); setShowPayForm(true); openDetail(inv.id);}}
-                          className="px-2 py-1 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded">
+<button onClick={async () => { await openDetail(inv.id); setShowPayForm(true); }}
+                          className="px-2 py-1 text-[10px] font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded">
                           Record payment
 </button>
 )}
@@ -556,14 +547,14 @@ export default function InvoicingView(): React.JSX.Element {
 <tr className="border-b border-slate-100 bg-slate-50">
 <td colSpan={7} className="py-3 px-2">
                         {!detail ? (
-<p className="text-[11px] text-slate-400 py-2">Loading detail…</p>
+<p className="text-[11px] text-slate-600 py-2">Loading detail…</p>
 ) : (
 <div className="space-y-3">
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-<div><span className="text-slate-400">Issue:</span><strong>{fmtDate(detail.issue_date)}</strong></div>
-<div><span className="text-slate-400">Due:</span><strong>{fmtDate(detail.due_date)}</strong></div>
-<div><span className="text-slate-400">Paid:</span><strong>{detail.currency} {toCurrencyString(detail.amount_paid)}</strong></div>
-<div><span className="text-slate-400">Balance:</span><strong className="text-rose-700">{detail.currency} {toCurrencyString(detail.balance_due)}</strong></div>
+<div><span className="text-slate-600">Issue:</span><strong>{fmtDate(detail.issue_date)}</strong></div>
+<div><span className="text-slate-600">Due:</span><strong>{fmtDate(detail.due_date)}</strong></div>
+<div><span className="text-slate-600">Paid:</span><strong>{formatMoney(detail.amount_paid, detail.currency)}</strong></div>
+<div><span className="text-slate-600">Balance:</span><strong className="text-rose-700">{formatMoney(detail.balance_due, detail.currency)}</strong></div>
 </div>
                             {detail.po_number &&<p className="text-[11px] text-slate-500">PO Ref: {detail.po_number}</p>}
                             {detail.bill_to &&<p className="text-[11px] text-slate-500 whitespace-pre-line">Bill to: {detail.bill_to}</p>}
@@ -572,7 +563,7 @@ export default function InvoicingView(): React.JSX.Element {
 
 <table className="w-full text-[11px]">
 <thead>
-<tr className="text-left text-[9px] text-slate-400 border-b border-slate-200">
+<tr className="text-left text-[9px] text-slate-600 border-b border-slate-200">
 <th className="py-1 pr-2">Description</th>
 <th className="py-1 pr-2">Unit</th>
 <th className="py-1 pr-2 text-right">Qty</th>
@@ -585,28 +576,28 @@ export default function InvoicingView(): React.JSX.Element {
 <tr key={it.id ?? i} className="border-b border-slate-100">
 <td className="py-1 pr-2">{it.section ? `[${it.section}] ` : ''}{it.description}</td>
 <td className="py-1 pr-2">{it.unit}</td>
-<td className="py-1 pr-2 text-right font-mono">{it.quantity}</td>
-<td className="py-1 pr-2 text-right font-mono">{toCurrencyString(it.unit_rate)}</td>
-<td className="py-1 text-right font-mono font-semibold">{detail.currency} {toCurrencyString(it.total_amount ?? 0)}</td>
+<td className="py-1 pr-2 text-right font-mono tabular-nums">{it.quantity}</td>
+<td className="py-1 pr-2 text-right tabular-nums">{formatMoney(it.unit_rate)}</td>
+<td className="py-1 text-right tabular-nums font-semibold">{formatMoney(it.total_amount ?? 0, detail.currency)}</td>
 </tr>
 ))}
 </tbody>
 </table>
 
 <div className="text-[11px] text-slate-600 space-x-3">
-<span>Subtotal:<strong>{detail.currency} {toCurrencyString(detail.subtotal)}</strong></span>
-<span>VAT ({detail.tax_pct}%):<strong>{detail.currency} {toCurrencyString(detail.tax_amount)}</strong></span>
-<span>Total:<strong>{detail.currency} {toCurrencyString(detail.total)}</strong></span>
+<span>Subtotal: <strong>{formatMoney(detail.subtotal, detail.currency)}</strong></span>
+<span>VAT ({detail.tax_pct}%): <strong>{formatMoney(detail.tax_amount, detail.currency)}</strong></span>
+<span>Total: <strong>{formatMoney(detail.total, detail.currency)}</strong></span>
 </div>
 
                             {(detail.payments ?? []).length > 0 && (
 <div>
-<p className="text-[10px] font-bold text-slate-400 mb-1">Payments received</p>
+<p className="text-[10px] font-bold text-slate-600 mb-1">Payments received</p>
 <div className="space-y-1">
                                   {detail.payments!.map((p) => (
 <div key={p.id} className="flex justify-between text-[11px] text-slate-600">
-<span>{fmtDate(p.paid_at)} • {p.method.replace('_', ' ')}{p.reference ? ` • ${p.reference}` : ''}{p.note ? ` — ${p.note}` : ''}</span>
-<span className="font-mono font-semibold">{detail.currency} {toCurrencyString(p.amount)}</span>
+<span>{fmtDate(p.paid_at)} • {statusLabel(p.method)}{p.reference ? ` • ${p.reference}` : ''}{p.note ? ` — ${p.note}` : ''}</span>
+<span className="font-mono tabular-nums font-semibold">{formatMoney(p.amount, detail.currency)}</span>
 </div>
 ))}
 </div>
@@ -619,13 +610,13 @@ export default function InvoicingView(): React.JSX.Element {
 <div className="flex flex-wrap gap-2 pt-1">
                               {detail.status === 'DRAFT' && (
 <button onClick={() => handleSend(detail)} disabled={busyId === detail.id}
-                                  className="px-2.5 py-1 text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50">
+                                  className="px-2.5 py-1 text-[10px] font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded disabled:opacity-50">
                                   Mark as Sent
 </button>
 )}
                               {(detail.status === 'SENT' || detail.status === 'PART_PAID' || detail.status === 'OVERDUE') && (
 <button onClick={() => setShowPayForm((v) => !v)}
-                                  className="px-2.5 py-1 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded">
+                                  className="px-2.5 py-1 text-[10px] font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded">
                                   {showPayForm ? 'Cancel payment' : 'Record payment'}
 </button>
 )}
@@ -654,7 +645,7 @@ export default function InvoicingView(): React.JSX.Element {
 <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Method</label>
 <select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value})}
                                     className="w-full text-[11px] p-1.5 border border-slate-300 rounded">
-                                    {PAYMENT_METHODS.map((m) =><option key={m} value={m}>{m.replace('_', ' ')}</option>)}
+                                    {PAYMENT_METHODS.map((m) =><option key={m} value={m}>{statusLabel(m)}</option>)}
 </select>
 </div>
 <div>
@@ -674,6 +665,19 @@ export default function InvoicingView(): React.JSX.Element {
 </button>
 </div>
 )}
+{showPayForm && payForm.method === 'M_PESA' && (
+<div className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                            M-Pesa collections are capped at <strong>{formatKes(150000)} per transaction</strong>.
+                            For a larger balance, record the payment in parts — each part must stay under the cap
+                            {(parseFloat(payForm.amount) || 0) > 150000 && (
+                              <span className="font-semibold"> — this amount exceeds it.</span>
+                            )}
+</div>
+)}
+
+<div className="border-t border-slate-200 pt-3">
+<EntityComments entityType="INVOICE" entityId={inv.id} title={`INV-${String(inv.invoice_no).padStart(5, '0')}`} />
+</div>
 </div>
 )}
 </td>
@@ -684,7 +688,15 @@ export default function InvoicingView(): React.JSX.Element {
 </tbody>
 </table>
 </div>
+            {hasMore && (
+<button type="button" onClick={loadMore} disabled={loadingMore}
+              className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300">
+                {loadingMore ? 'Loading…' : 'Load more invoices'}
+</button>
 )}
+</>
+)}
+{dialog.element}
 </div>
 );
 }

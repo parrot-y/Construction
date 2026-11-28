@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
+import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface ClientQuoteItem {
   id: string;
@@ -53,12 +56,10 @@ export default function ClientQuotesView(): React.JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/client/quotes', { credentials: 'include'});
-      if (!res.ok) throw new Error(`Failed to load quotes (${res.status})`);
-      const body = await res.json();
+      const body = await api.get<{ quotes?: ClientQuote[] }>('/api/v1/client/quotes');
       setQuotes(body.quotes ?? []);
 } catch (e: any) {
-      setError(e.message);
+      setError(apiErrorMessage(e));
 } finally {
       setLoading(false);
 }
@@ -72,21 +73,16 @@ export default function ClientQuotesView(): React.JSX.Element {
     setRespondingId(q.id);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/client/quotes/${q.id}/respond`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ action, typedName: typedName || undefined, note: note || undefined}),
+      await api.post(`/api/v1/client/quotes/${q.id}/respond`, {
+        action, typedName: typedName || undefined, note: note || undefined,
 });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Response failed');
       setNotice(action === 'accept' ? `Quote Q-${String(q.quote_no).padStart(4, '0')} accepted — the contractor has been notified` : `Quote Q-${String(q.quote_no).padStart(4, '0')} declined`);
       setRespondingId(null);
       setTypedName('');
       setNote('');
       load();
 } catch (e: any) {
-      setError(e.message);
+      setError(apiErrorMessage(e));
       setRespondingId(null);
 }
 };
@@ -107,14 +103,14 @@ export default function ClientQuotesView(): React.JSX.Element {
       {notice && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {notice}</span>
-<button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setNotice(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
       {loading ? (
-<p className="text-xs text-slate-400 text-center py-6">Loading your quotes…</p>
+<p className="text-xs text-slate-600 text-center py-6">Loading your quotes…</p>
 ) : quotes.length === 0 ? (
-<p className="text-xs text-slate-400 text-center py-6">No quotes yet. When your contractor sends you a quotation it will appear here.</p>
+<p className="text-xs text-slate-600 text-center py-6">No quotes yet. When your contractor sends you a quotation it will appear here.</p>
 ) : (
 <div className="space-y-4">
           {quotes.map((q) => (
@@ -125,13 +121,13 @@ export default function ClientQuotesView(): React.JSX.Element {
                     Q-{String(q.quote_no).padStart(4, '0')} — {q.title}
 </p>
 <p className="text-[11px] text-slate-500">
-                    Issued {new Date(q.created_at).toLocaleDateString()}
-                    {q.valid_until ? ` • Valid until ${new Date(q.valid_until).toLocaleDateString()}` : ''}
+                    Issued {formatDate(new Date(q.created_at))}
+                    {q.valid_until ? ` • Valid until ${formatDate(new Date(q.valid_until))}` : ''}
                     {q.responded_by ? ` • Responded by ${q.responded_by}` : ''}
 </p>
 </div>
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[q.status] ?? 'bg-slate-100 text-slate-700 border-slate-300'}`}>
-                  {q.status}
+                  {statusLabel(q.status)}
 </span>
 </div>
 
@@ -140,12 +136,12 @@ export default function ClientQuotesView(): React.JSX.Element {
                   {(q.items ?? []).map((it) => (
 <tr key={it.id} className="border-b border-slate-100">
 <td className="py-1.5 pr-2 text-slate-700">
-                        {it.section &&<span className="text-slate-400">[{it.section}]</span>}
+                        {it.section &&<span className="text-slate-600">[{it.section}]</span>}
                         {it.description}
 </td>
 <td className="py-1.5 pr-2 text-slate-500 text-right">{it.quantity} {it.unit}</td>
-<td className="py-1.5 text-right font-mono font-semibold text-slate-800">
-                        {q.currency} {toCurrencyString(it.total_amount)}
+<td className="py-1.5 text-right tabular-nums font-semibold text-slate-800">
+                        {formatMoney(it.total_amount, q.currency)}
 </td>
 </tr>
 ))}
@@ -153,10 +149,10 @@ export default function ClientQuotesView(): React.JSX.Element {
 </table>
 
 <div className="text-right space-y-0.5 text-xs">
-<p className="text-slate-600">Subtotal:<span className="font-mono">{q.currency} {toCurrencyString(q.subtotal)}</span></p>
-<p className="text-slate-600">Tax ({q.tax_pct}%):<span className="font-mono">{q.currency} {toCurrencyString(q.tax_amount)}</span></p>
-<p className="font-bold text-slate-900">Total:<span className="font-mono">{q.currency} {toCurrencyString(q.total)}</span></p>
-<p className="text-emerald-700 font-semibold">Deposit required ({q.deposit_pct}%):<span className="font-mono">{q.currency} {toCurrencyString(q.deposit_amount)}</span></p>
+<p className="text-slate-600">Subtotal:<span className="tabular-nums">{formatMoney(q.subtotal, q.currency)}</span></p>
+<p className="text-slate-600">Tax ({q.tax_pct}%):<span className="tabular-nums">{formatMoney(q.tax_amount, q.currency)}</span></p>
+<p className="font-bold text-slate-900">Total:<span className="tabular-nums">{formatMoney(q.total, q.currency)}</span></p>
+<p className="text-emerald-700 font-semibold">Deposit required ({q.deposit_pct}%):<span className="tabular-nums">{formatMoney(q.deposit_amount, q.currency)}</span></p>
 </div>
 
               {q.terms &&<p className="text-[11px] text-slate-500 whitespace-pre-wrap border-t border-slate-100 pt-2">{q.terms}</p>}
@@ -193,13 +189,13 @@ export default function ClientQuotesView(): React.JSX.Element {
                       Decline
 </button>
 </div>
-<p className="text-[10px] text-slate-400">Accepting confirms you agree to the quoted scope, prices and terms. Your typed name is recorded as your signature.</p>
+<p className="text-[10px] text-slate-600">Accepting confirms you agree to the quoted scope, prices and terms. Your typed name is recorded as your signature.</p>
 </div>
 )}
 
               {q.status === 'ACCEPTED' && (
 <p className="text-[11px] font-semibold text-emerald-700 border-t border-slate-100 pt-2">
-                   Accepted{q.responded_at ? ` on ${new Date(q.responded_at).toLocaleDateString()}` : ''}
+                   Accepted{q.responded_at ? ` on ${formatDate(new Date(q.responded_at))}` : ''}
                   {q.responded_by ? ` by ${q.responded_by}` : ''}. The contractor will commence project setup.
 </p>
 )}

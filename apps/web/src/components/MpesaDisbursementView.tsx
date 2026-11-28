@@ -1,5 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { formatTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface MpesaDisbursementItem {
   id: string;
@@ -39,9 +41,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/b2c-disbursements`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/b2c-disbursements`);
       const list = (json.disbursements || []) as any[];
       setDisbursements(list.map((d) => ({
         id: d.id,
@@ -77,17 +77,11 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
   const handleApproval = async (id: string, action: 'approve' | 'reject') => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/b2c-disbursements/${id}/${action}`, {
-        method: 'POST', credentials: 'include',
-});
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => null);
-        throw new Error(errBody?.message || `Approval failed (${res.status})`);
-}
+      await api.post(`/api/v1/projects/${projectId}/b2c-disbursements/${id}/${action}`);
       await reload();
       setFeedback(` Disbursement ${action}d (simulated dispatch)`);
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 } finally {
       setLoading(false);
 }
@@ -105,22 +99,14 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
       const idempotencyKey = `B2C-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
       if (isLive) {
-        const res = await fetch(`/api/v1/projects/${projectId}/b2c-disburse`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
+        const created = await api.post<any>(`/api/v1/projects/${projectId}/b2c-disburse`, {
             disbursementType,
             recipientPhone,
             recipientName,
             amount,
             remarks,
             idempotencyKey,
-}),
-});
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => null);
-          throw new Error(errBody?.message || `B2C disbursement failed (${res.status})`);
-}
-        const created = await res.json();
+        }, { idempotencyKey });
         await reload();
         setIsModalOpen(false);
         setFeedback(
@@ -157,8 +143,8 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
       setDisbursements([newDisbursement, ...disbursements]);
       setIsModalOpen(false);
       setFeedback(` Safaricom Daraja B2C Disbursement Sent: ${formatKes(parseFloat(amount))} disbursed to ${recipientName} (${mpesaTxId})`);
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 } finally {
       setLoading(false);
 }
@@ -186,7 +172,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 </div>
 <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
+          className="inline-flex items-center justify-center px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
         >
            Disburse via M-Pesa B2C
 </button>
@@ -203,7 +189,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Total Disbursed</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">{formatKes(totalDisbursedKes)}</p>
-<span className="text-xs text-emerald-600 font-medium">B2C Salary & Business Payouts</span>
+<span className="text-xs text-emerald-700 font-medium">B2C Salary & Business Payouts</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Completed Payouts</p>
@@ -214,12 +200,12 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Disbursement Types</p>
-<p className="text-2xl font-bold text-blue-600 mt-1">3 Categories</p>
+<p className="text-2xl font-bold text-blue-700 mt-1">3 Categories</p>
 <span className="text-xs text-gray-500 font-medium">Casuals • Subcontractors • Petty</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Daraja Gateway</p>
-<p className="text-2xl font-bold text-emerald-600 mt-1">OPERATIONAL</p>
+<p className="text-2xl font-bold text-emerald-700 mt-1">OPERATIONAL</p>
 <span className="text-xs text-gray-500 font-medium">Safaricom B2C API 2.0</span>
 </div>
 </div>
@@ -243,7 +229,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
             {disbursements.map((tx) => (
 <tr key={tx.id} className="hover:bg-gray-50">
 <td className="px-4 py-3 font-medium text-gray-900">{tx.recipientName}</td>
-<td className="px-4 py-3 text-gray-600 font-mono text-xs">{tx.recipientPhone}</td>
+<td className="px-4 py-3 text-gray-600 font-mono tabular-nums text-xs">{tx.recipientPhone}</td>
 <td className="px-4 py-3 text-xs text-gray-500">
 <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
                     {tx.disbursementType.replace(/_/g, ' ')}
@@ -265,11 +251,11 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
                     SIM
 </span>
 </td>
-<td className="px-4 py-3 text-center font-mono text-xs font-bold text-blue-600">
+<td className="px-4 py-3 text-center font-mono tabular-nums text-xs font-bold text-blue-700">
                   {tx.mpesaTransactionId || '—'}
 </td>
 <td className="px-4 py-3 text-right text-xs text-gray-500">
-                  {tx.completedAt ? new Date(tx.completedAt).toLocaleTimeString() : '—'}
+                  {tx.completedAt ? formatTime(new Date(tx.completedAt)) : '—'}
 </td>
 <td className="px-4 py-3 text-center">
                   {isLive && tx.status === 'PENDING_APPROVAL' && (
@@ -277,7 +263,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 <button
                         type="button"
                         onClick={() => void handleApproval(tx.id, 'approve')}
-                        className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                        className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-700 text-white hover:bg-emerald-800"
                       >Approve</button>
 <button
                         type="button"
@@ -338,7 +324,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
                   placeholder="+2547XXXXXXXX"
                   value={recipientPhone}
                   onChange={(e) => setRecipientPhone(e.target.value)}
-                  className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm font-mono"
+                  className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm tabular-nums"
                   required
                 />
 </div>
@@ -380,7 +366,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium rounded-md shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Disbursing...' : 'Confirm & Disburse M-Pesa'}
 </button>

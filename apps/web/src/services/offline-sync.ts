@@ -1,7 +1,14 @@
 /**
  * Client-Side Offline Storage & Synchronization Engine (ADR-004)
  * Manages IndexedDB queue, client-side photo compression, and idempotent sync.
+ *
+ * Canonical storage keys are `sitesafi_*`. `migrateOfflineStorage()`
+ * copies queued mutations forward from the legacy `buildsasa_*`/`mjengo_*`
+ * names once (read-only sources) — pending offline work is never dropped
+ * by the rename.
  */
+
+import { apiTransport } from '../lib/api';
 
 export interface OfflineMutationRecord {
   id: string;
@@ -14,11 +21,137 @@ export interface OfflineMutationRecord {
   status: 'PENDING' | 'SYNCING' | 'FAILED' | 'SYNCED';
   retry_count: number;
   last_error?: string;
+  /** J1: scope of the user who queued this write — never flushed under another session. */
+  owner_scope?: string;
 }
 
-const DB_NAME = 'mjengo_offline_db';
+const DB_NAME = 'sitesafi_offline_db';
+const LEGACY_DB_NAME = 'mjengo_offline_db';
+const PREV_DB_NAME = 'buildsasa_offline_db';
 const STORE_NAME = 'mutations_queue';
 const DB_VERSION = 1;
+
+const LS_KEY = 'sitesafi_offline_queue';
+
+// J1: queued writes belong to the user who created them. flushSyncQueue and
+// getQueuedMutations only expose records owned by the CURRENT scope, so a
+// different person signing in on the same phone can never send (or even
+// see the count of) the previous user's offline work. Records written
+// before scoping existed (no owner_scope) are adopted by the current
+// scope — same one-time-migration reasoning as migrateOfflineStorage().
+let syncScope = 'anon';
+
+export function setOfflineSyncScope(scope: string | null): void {
+  syncScope = scope ?? 'anon';
+}
+
+export function currentSyncScope(): string {
+  return syncScope;
+}
+
+function ownedByCurrentScope(r: OfflineMutationRecord): boolean {
+  return !r.owner_scope || r.owner_scope === syncScope;
+}
+const LEGACY_LS_KEY = 'mjengo_offline_queue';
+const PREV_LS_KEY = 'buildsasa_offline_queue';
+
+function readLsQueue(): OfflineMutationRecord[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY) ?? localStorage.getItem(PREV_LS_KEY) ?? localStorage.getItem(LEGACY_LS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLsQueue(records: OfflineMutationRecord[]): void {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(records));
+    localStorage.removeItem(LEGACY_LS_KEY);
+    localStorage.removeItem(PREV_LS_KEY);
+  } catch {
+    // Storage unavailable — queue lives in IndexedDB anyway
+  }
+}
+
+/**
+ * One-time migration: copies legacy `buildsasa_*`/`mjengo_*` offline queue
+ * data into the `sitesafi_*` keys (read-only sources). Safe to call
+ * repeatedly — dedupes by id.
+ */
+export async function migrateOfflineStorage(): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  // 1. localStorage queues (both legacy generations)
+  try {
+    const legacyRecords: OfflineMutationRecord[] = [];
+    for (const key of [LEGACY_LS_KEY, PREV_LS_KEY]) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) legacyRecords.push(...parsed);
+      } catch { /* corrupt payload — skip this key */ }
+      localStorage.removeItem(key);
+    }
+    if (legacyRecords.length > 0) {
+      const merged = new Map<string, OfflineMutationRecord>();
+      for (const r of [...readLsQueue(), ...legacyRecords]) {
+        if (r?.id) merged.set(r.id, r);
+      }
+      writeLsQueue([...merged.values()]);
+    }
+  } catch {
+    // Storage unavailable — IndexedDB migration below still applies
+  }
+
+  // 2. IndexedDB stores (both legacy generations)
+  const readLegacyDb = (dbName: string): Promise<OfflineMutationRecord[]> =>
+    new Promise((resolve) => {
+      let settled = false;
+      const done = (v: OfflineMutationRecord[]) => { if (!settled) { settled = true; resolve(v); } };
+      try {
+        const req = window.indexedDB.open(dbName);
+        req.onsuccess = () => {
+          const oldDb = req.result;
+          try {
+            if (!oldDb.objectStoreNames.contains(STORE_NAME)) { oldDb.close(); done([]); return; }
+            const tx = oldDb.transaction(STORE_NAME, 'readonly');
+            const getAll = tx.objectStore(STORE_NAME).getAll();
+            getAll.onsuccess = () => { oldDb.close(); done(getAll.result || []); };
+            getAll.onerror = () => { oldDb.close(); done([]); };
+          } catch { oldDb.close(); done([]); }
+        };
+        req.onerror = () => done([]);
+        req.onblocked = () => done([]);
+      } catch { done([]); }
+    });
+
+  try {
+    const legacyRecords = [
+      ...(await readLegacyDb(LEGACY_DB_NAME)),
+      ...(await readLegacyDb(PREV_DB_NAME)),
+    ];
+
+    if (legacyRecords.length > 0) {
+      const db = await openDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        for (const r of legacyRecords) {
+          if (r?.id) store.put(r);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+      // Legacy DBs left in place (read-only); new writes go to sitesafi_offline_db.
+    }
+  } catch {
+    // IndexedDB unavailable — localStorage migration above still applies
+  }
+}
 
 /**
  * Initializes IndexedDB storage for offline field mutations.
@@ -79,6 +212,7 @@ export async function queueOfflineMutation(
     client_timestamp: new Date().toISOString(),
     status: 'PENDING',
     retry_count: 0,
+    owner_scope: syncScope,
   };
 
   try {
@@ -93,9 +227,9 @@ export async function queueOfflineMutation(
   } catch (err) {
     // Fallback to localStorage if IndexedDB is blocked
     try {
-      const existing = JSON.parse(localStorage.getItem('mjengo_offline_queue') || '[]');
+      const existing = readLsQueue();
       existing.push(mutation);
-      localStorage.setItem('mjengo_offline_queue', JSON.stringify(existing));
+      writeLsQueue(existing);
     } catch {
       // Ignored in purely simulated contexts
     }
@@ -116,14 +250,13 @@ export async function getQueuedMutations(): Promise<OfflineMutationRecord[]> {
       const req = store.getAll();
       req.onsuccess = () => {
         const records: OfflineMutationRecord[] = req.result || [];
-        resolve(records.filter((r) => r.status === 'PENDING' || r.status === 'FAILED'));
+        resolve(records.filter((r) => (r.status === 'PENDING' || r.status === 'FAILED') && ownedByCurrentScope(r)));
       };
       req.onerror = () => reject(req.error);
     });
   } catch {
     try {
-      const existing = JSON.parse(localStorage.getItem('mjengo_offline_queue') || '[]');
-      return existing.filter((r: OfflineMutationRecord) => r.status === 'PENDING' || r.status === 'FAILED');
+      return readLsQueue().filter((r) => (r.status === 'PENDING' || r.status === 'FAILED') && ownedByCurrentScope(r));
     } catch {
       return [];
     }
@@ -142,7 +275,7 @@ export async function flushSyncQueue(): Promise<{ syncedCount: number; failedCou
 
   for (const item of queue) {
     try {
-      const res = await fetch(item.endpoint, {
+      const res = await apiTransport(item.endpoint, {
         method: item.method,
         headers: {
           'Content-Type': 'application/json',
@@ -180,9 +313,8 @@ export async function removeMutation(id: string): Promise<void> {
     });
   } catch {
     try {
-      const existing = JSON.parse(localStorage.getItem('mjengo_offline_queue') || '[]');
-      const filtered = existing.filter((r: OfflineMutationRecord) => r.id !== id);
-      localStorage.setItem('mjengo_offline_queue', JSON.stringify(filtered));
+      const filtered = readLsQueue().filter((r) => r.id !== id);
+      writeLsQueue(filtered);
     } catch {
       // Ignored
     }
@@ -272,4 +404,20 @@ export async function compressImageClientSide(file: File, maxDimension = 1280, q
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * P4.3 — FormData-ready upload file: images are resized/compressed client-side
+ * (same pipeline as SiteDiaryModal), everything else passes through untouched.
+ * Best-effort: a compressor failure uploads the original rather than blocking.
+ */
+export async function compressUploadFile(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  try {
+    const c = await compressImageClientSide(file);
+    const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+    return new File([c.blob], name, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
 }

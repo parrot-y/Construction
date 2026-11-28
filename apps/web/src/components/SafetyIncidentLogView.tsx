@@ -1,4 +1,10 @@
 import React, { useEffect, useState} from 'react';
+import { queueOfflineMutation } from '../services/offline-sync';
+import { fetchJsonCached, isOfflineError } from '../services/offline-cache';
+import { SavedDataNotice } from '../ui';
+import { statusLabel } from '../lib/status-labels';
+import { formatDateTime } from '../lib/format';
+import { api, apiErrorMessage, ApiError } from '../lib/api';
 
 export interface SafetyIncident {
   id: string;
@@ -36,11 +42,15 @@ export default function SafetyIncidentLogView({
   const [incidents, setIncidents] = useState<SafetyIncident[]>(initialIncidents ?? []);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
   const load = async () => {
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/safety-incidents`, { credentials: 'include'});
-      if (!res.ok) throw new Error('Failed to load safety incidents');
-      const body = await res.json();
+      const { body, savedAt: staleAt } = await fetchJsonCached(
+        `/api/v1/projects/${projectId}/safety-incidents`,
+        `safety-incidents:${projectId}`,
+      );
+      if (staleAt) setSavedAt(staleAt);
       const sevMap: Record<string, SafetyIncident['severity']> = { MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' };
       setIncidents((body.incidents || []).map((i: any): SafetyIncident => ({
         id: i.id,
@@ -58,8 +68,8 @@ export default function SafetyIncidentLogView({
         reported_at: i.created_at,
       })));
       setLoadError(null);
-    } catch (e: any) {
-      setLoadError(e.message || 'Failed to load safety incidents');
+    } catch (e) {
+      setLoadError(isOfflineError(e) ? 'You appear to be offline — showing whatever was saved on this device.' : apiErrorMessage(e, 'Failed to load safety incidents'));
     }
   };
 
@@ -78,6 +88,8 @@ export default function SafetyIncidentLogView({
   const [newImmediate, setNewImmediate] = useState<string>('');
   const [newCorrective, setNewCorrective] = useState<string>('');
   const [newOsha, setNewOsha] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const filtered = incidents.filter((i) => {
     const matchesType = typeFilter === 'ALL' || i.incident_type === typeFilter;
@@ -90,25 +102,82 @@ export default function SafetyIncidentLogView({
   const lostTimeCount = incidents.filter((i) => i.incident_type === 'LOST_TIME_INJURY').length;
   const oshaReportableCount = incidents.filter((i) => i.is_osha_reportable).length;
 
-  const handleCreateIncident = (e: React.FormEvent) => {
+  const handleCreateIncident = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!newLocation.trim() || !newDescription.trim()) return;
+    setSaving(true);
+    setFormError(null);
 
-    const created: SafetyIncident = {
-      id: `inc-${Date.now()}`,
-      incident_date: new Date(newDate).toISOString(),
-      location_on_site: newLocation.trim(),
-      incident_type: newType,
-      severity: newSeverity,
+    const sevToApi: Record<SafetyIncident['severity'], string> = { LOW: 'MINOR', MEDIUM: 'MODERATE', HIGH: 'SERIOUS', CRITICAL: 'CRITICAL' };
+    const payload = {
+      incidentDate: newDate.slice(0, 10),
+      incidentTime: newDate.slice(11, 16) || undefined,
+      incidentType: newType,
+      severity: sevToApi[newSeverity],
+      exactLocation: newLocation.trim(),
+      affectedPersonName: newAffected.trim() || undefined,
       description: newDescription.trim(),
-      affected_person: newAffected.trim() || null,
-      immediate_action: newImmediate.trim() || null,
-      corrective_action: newCorrective.trim() || null,
-      is_osha_reportable: newOsha,
-      status: 'OPEN',
-      reported_at: new Date().toISOString(),
-      recorded_by: { full_name: 'Site HSE Officer'},
-};
+      immediateAction: newImmediate.trim() || undefined,
+      preventativeAction: newCorrective.trim() || undefined,
+      isOshaReportable: newOsha,
+      investigatedBy: 'Site HSE Officer',
+    };
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    let created: SafetyIncident | null = null;
+
+    if (!isOffline) {
+      try {
+        const body: any = await api.post(`/api/v1/projects/${projectId}/safety-incidents`, payload);
+        const i = body?.data ?? body;
+        created = {
+          id: i.id,
+          incident_date: i.incident_date,
+          location_on_site: i.exact_location,
+          incident_type: i.incident_type,
+          severity: ({ MINOR: 'LOW', MODERATE: 'MEDIUM', SERIOUS: 'HIGH', CRITICAL: 'CRITICAL' } as const)[i.severity as 'MINOR'] || 'MEDIUM',
+          description: i.description,
+          affected_person: i.affected_person_name,
+          immediate_action: i.immediate_action,
+          corrective_action: i.preventative_action,
+          is_osha_reportable: !!i.is_osha_reportable,
+          status: 'OPEN',
+          recorded_by: { full_name: i.investigated_by || 'Site team' },
+          reported_at: i.created_at,
+        };
+      } catch (err) {
+        // Only transport failures (offline/network/timeout — no HTTP status)
+        // may queue for later sync. Server rejections (403/409/422/500) must
+        // surface honestly so the user can fix and retry — never fake-saved.
+        if (!(err instanceof ApiError && err.status === undefined)) {
+          setFormError(apiErrorMessage(err, 'Failed to log safety incident'));
+          setSaving(false);
+          return;
+        }
+      }
+    }
+
+    if (!created) {
+      // Offline (or API unreachable): queue with idempotency key — the sync
+      // engine replays it exactly once when connectivity returns.
+      await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/safety-incidents`, payload);
+      created = {
+        id: `inc-${Date.now()}`,
+        incident_date: new Date(newDate).toISOString(),
+        location_on_site: newLocation.trim(),
+        incident_type: newType,
+        severity: newSeverity,
+        description: newDescription.trim(),
+        affected_person: newAffected.trim() || null,
+        immediate_action: newImmediate.trim() || null,
+        corrective_action: newCorrective.trim() || null,
+        is_osha_reportable: newOsha,
+        status: 'OPEN',
+        recorded_by: { full_name: 'Site HSE Officer'},
+        reported_at: new Date().toISOString(),
+      };
+    }
 
     setIncidents([created, ...incidents]);
     if (onIncidentLogged) onIncidentLogged(created);
@@ -119,6 +188,7 @@ export default function SafetyIncidentLogView({
     setNewImmediate('');
     setNewCorrective('');
     setNewOsha(false);
+    setSaving(false);
 };
 
   const handleStatusChange = (incidentId: string, status: SafetyIncident['status']) => {
@@ -131,7 +201,7 @@ export default function SafetyIncidentLogView({
   const getSeverityBadge = (sev: SafetyIncident['severity']) => {
     switch (sev) {
       case 'CRITICAL':
-        return<span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-600 text-white">CRITICAL</span>;
+        return<span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-700 text-white">CRITICAL</span>;
       case 'HIGH':
         return<span className="px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">HIGH</span>;
       case 'MEDIUM':
@@ -160,7 +230,7 @@ export default function SafetyIncidentLogView({
           {canLog && (
 <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-rose-600 hover:bg-rose-700 shadow-sm"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-rose-700 hover:bg-rose-800 shadow-sm"
             >
                Log Safety Incident
 </button>
@@ -173,7 +243,7 @@ export default function SafetyIncidentLogView({
 <span className="text-xs text-slate-500 font-medium">Total Logged Incidents</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{totalIncidents}</span>
-<span className="text-xs text-slate-400">cases</span>
+<span className="text-xs text-slate-600">cases</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">All time on site</div>
 </div>
@@ -181,8 +251,8 @@ export default function SafetyIncidentLogView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Near Misses Logged</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-amber-600">{nearMisses}</span>
-<span className="text-xs text-slate-400">proactive</span>
+<span className="text-2xl font-bold text-amber-700">{nearMisses}</span>
+<span className="text-xs text-slate-600">proactive</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Hazard identification</div>
 </div>
@@ -190,10 +260,10 @@ export default function SafetyIncidentLogView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Lost Time Injuries (LTI)</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className={`text-2xl font-bold ${lostTimeCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+<span className={`text-2xl font-bold ${lostTimeCount > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                 {lostTimeCount}
 </span>
-<span className="text-xs text-slate-400">LTI</span>
+<span className="text-xs text-slate-600">LTI</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               {lostTimeCount === 0 ? 'Zero Harm achieved' : 'LTI investigation open'}
@@ -203,10 +273,10 @@ export default function SafetyIncidentLogView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">OSHA 2007 Reportable</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className={`text-2xl font-bold ${oshaReportableCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+<span className={`text-2xl font-bold ${oshaReportableCount > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                 {oshaReportableCount}
 </span>
-<span className="text-xs text-slate-400">to DOSHS</span>
+<span className="text-xs text-slate-600">to DOSHS</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               {oshaReportableCount === 0 ? 'No statutory filing needed' : 'DOSHS notice filed'}
@@ -257,6 +327,7 @@ export default function SafetyIncidentLogView({
 </div>
 </div>
 
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       {loadError && (
 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">{loadError}</div>
 )}
@@ -274,7 +345,7 @@ export default function SafetyIncidentLogView({
 <div className="flex-1 min-w-0">
 <div className="flex flex-wrap items-center gap-2 mb-2">
 <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
-                      {item.incident_type.replace('_', ' ')}
+                      {statusLabel(item.incident_type)}
 </span>
                     {getSeverityBadge(item.severity)}
                     {item.is_osha_reportable && (
@@ -282,8 +353,8 @@ export default function SafetyIncidentLogView({
                          OSHA 2007 REPORTABLE
 </span>
 )}
-<span className="text-xs text-slate-400">
-                      • {new Date(item.incident_date).toLocaleString()}
+<span className="text-xs text-slate-600">
+                      • {formatDateTime(new Date(item.incident_date))}
 </span>
 </div>
 
@@ -316,10 +387,10 @@ export default function SafetyIncidentLogView({
                 {/* Status & Actions */}
 <div className="lg:w-48 flex flex-col items-start lg:items-end justify-between self-stretch">
 <div className="text-right">
-<span className="text-xs text-slate-400 block mb-1">Investigation Status</span>
+<span className="text-xs text-slate-600 block mb-1">Investigation Status</span>
                     {canInvestigate ? (
 <select
-                        value={item.status}
+                        value={statusLabel(item.status)}
                         onChange={(e) => handleStatusChange(item.id, e.target.value as any)}
                         className="text-xs font-semibold border border-slate-300 rounded px-2.5 py-1 bg-white text-slate-800 focus:outline-none"
                       >
@@ -330,13 +401,13 @@ export default function SafetyIncidentLogView({
 </select>
 ) : (
 <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded">
-                        {item.status}
+                        {statusLabel(item.status)}
 </span>
 )}
 </div>
 
                   {item.recorded_by && (
-<div className="text-[11px] text-slate-400 mt-4 text-right">
+<div className="text-[11px] text-slate-600 mt-4 text-right">
                       Logged by:<span className="text-slate-600">{item.recorded_by.full_name}</span>
 </div>
 )}
@@ -356,6 +427,11 @@ export default function SafetyIncidentLogView({
               Permanent statutory record under Kenya OSHA 2007 and NCA building safety code.
 </p>
 <form onSubmit={handleCreateIncident} className="space-y-3">
+{formError && (
+<div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-medium" role="alert">
+              {formError}
+</div>
+)}
 <div className="grid grid-cols-2 gap-3">
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">Date &amp; Time</label>
@@ -470,7 +546,7 @@ export default function SafetyIncidentLogView({
                     type="checkbox"
                     checked={newOsha}
                     onChange={(e) => setNewOsha(e.target.checked)}
-                    className="rounded text-rose-600 focus:ring-rose-500"
+                    className="rounded text-rose-700 focus:ring-rose-500"
                   />
 <span>Mandatory OSHA 2007 reportable to Directorate of Occupational Safety (DOSHS)?</span>
 </label>
@@ -486,9 +562,10 @@ export default function SafetyIncidentLogView({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm"
+                  disabled={saving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-rose-700 hover:bg-rose-800 rounded-lg shadow-sm disabled:opacity-50"
                 >
-                  Save Incident Entry
+                  {saving ? 'Saving…' : 'Save Incident Entry'}
 </button>
 </div>
 </form>

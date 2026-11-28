@@ -3,6 +3,19 @@ packages:
   - 'packages/*'
   - 'e2e'
 
+overrides:
+  # GHSA-83w8-p2f5-377r — @fastify/static path-traversal guard bypass,
+  # pulled in only by @fastify/swagger-ui (non-production docs surface).
+  '@fastify/static': '>=10.1.1'
+
+auditConfig:
+  ignoreGhsas:
+    # GHSA-mrhx-c7xc-m3w5 — zod 3.x DoS on oversized constrained
+    # collections. Accepted for pilot: every money/BOQ payload schema
+    # bounds arrays (.max) and request bodies are size-limited upstream;
+    # zod 4 migration tracked as follow-up (major-version API review).
+    - GHSA-mrhx-c7xc-m3w5
+
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true

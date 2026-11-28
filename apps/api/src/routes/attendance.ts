@@ -3,6 +3,7 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
 import { RecordAttendanceSchema, CheckInOutSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
+import { listParams, listPage } from '../lib/pagination';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -42,6 +43,7 @@ export const attendanceRoutes: FastifyPluginAsync = async (server: FastifyInstan
       const { tenantId } = request.user;
       const { projectId } = request.params as { projectId: string };
       const { date, status, from, to } = request.query as { date?: string; status?: string; from?: string; to?: string };
+      const pg = listParams(request);
       if (!UUID_REGEX.test(projectId)) return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Project not found' });
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -59,24 +61,31 @@ export const attendanceRoutes: FastifyPluginAsync = async (server: FastifyInstan
             where.work_date = todayUTC();
           }
           if (status) where.status = status;
-          const rows = await tx.dailyAttendance.findMany({
-            where,
-            include: {
-              laborer: { select: { id: true, full_name: true, worker_code: true, trade_category: true } },
-              crew: { select: { id: true, name: true, trade: true } },
-            },
-            orderBy: [{ work_date: 'desc' }, { created_at: 'asc' }],
-          });
-          return { laborers, rows: rows.map(formatRow) };
+          const [rows, allRows] = await Promise.all([
+            tx.dailyAttendance.findMany({
+              where,
+              include: {
+                laborer: { select: { id: true, full_name: true, worker_code: true, trade_category: true } },
+                crew: { select: { id: true, name: true, trade: true } },
+              },
+              orderBy: [{ work_date: 'desc' }, { created_at: 'asc' }],
+              skip: pg.skip,
+              take: pg.limit + 1,
+            }),
+            tx.dailyAttendance.findMany({ where, select: { status: true } }),
+          ]);
+          return { laborers, rows: rows.map(formatRow), allRows: allRows.map((r) => r.status) };
         });
+        const pagedRows = listPage(result.rows, pg);
         return reply.status(200).send({
-          data: result.rows,
+          data: pagedRows.data,
+          page: pagedRows.page,
           laborers: result.laborers,
-          count: result.rows.length,
+          count: pagedRows.data.length,
           summary: {
-            present: result.rows.filter((r: any) => r.status === 'PRESENT' || r.status === 'HALF_DAY').length,
-            on_leave: result.rows.filter((r: any) => r.status === 'LEAVE' || r.status === 'OFF_DAY').length,
-            absent: result.rows.filter((r: any) => r.status === 'ABSENT').length,
+            present: result.allRows.filter((st: string) => st === 'PRESENT' || st === 'HALF_DAY').length,
+            on_leave: result.allRows.filter((st: string) => st === 'LEAVE' || st === 'OFF_DAY').length,
+            absent: result.allRows.filter((st: string) => st === 'ABSENT').length,
           },
         });
       } catch (err) {

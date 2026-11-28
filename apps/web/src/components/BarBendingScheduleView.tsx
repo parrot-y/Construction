@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface BarBendingItem {
   id: string;
@@ -112,9 +113,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/bar-bending-schedules`);
       const list = (json.schedules || []) as any[];
       setSchedules(list.map((s) => ({
         ...s,
@@ -172,12 +171,9 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
   const handleViewSchedule = async (schedule: BarBendingScheduleItem) => {
     if (isLive && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(schedule.id)) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules/${schedule.id}`, { credentials: 'include'});
-        if (res.ok) {
-          const detail = await res.json();
-          setSelectedSchedule({ ...schedule, ...detail, items: detail.items ?? []});
-          return;
-}
+        const detail = await api.get<any>(`/api/v1/projects/${projectId}/bar-bending-schedules/${schedule.id}`);
+        setSelectedSchedule({ ...schedule, ...detail, items: detail.items ?? []});
+        return;
 } catch { /* fall through to local view */}
 }
     setSelectedSchedule(schedule);
@@ -192,37 +188,29 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            scheduleNumber,
-            elementName,
-            drawingRef: drawingRef || null,
-            steelGrade,
-            items: [
-              {
-                memberTag,
-                barMark,
-                barType,
-                numberOfMembers,
-                barsPerMember,
-                shapeCode,
-                dimensionAMm: dimA,
-                dimensionBMm: shapeCode !== '00' ? dimB : null,
+        await api.post(`/api/v1/projects/${projectId}/bar-bending-schedules`, {
+          scheduleNumber,
+          elementName,
+          drawingRef: drawingRef || null,
+          steelGrade,
+          items: [
+            {
+              memberTag,
+              barMark,
+              barType,
+              numberOfMembers,
+              barsPerMember,
+              shapeCode,
+              dimensionAMm: dimA,
+              dimensionBMm: shapeCode !== '00' ? dimB : null,
 },
-            ],
-}),
+          ],
 });
-        if (res.ok) {
-          await reload();
-          setIsModalOpen(false);
-          setFeedback(` Created Bar Bending Schedule ${scheduleNumber}`);
-} else {
-          const errJson = await res.json().catch(() => null);
-          setFeedback(`Error: ${errJson?.message || `Request failed (${res.status})`}`);
-}
-} catch {
-        setFeedback('Error: Network request failed');
+        await reload();
+        setIsModalOpen(false);
+        setFeedback(` Created Bar Bending Schedule ${scheduleNumber}`);
+} catch (err) {
+        setFeedback(`Error: ${apiErrorMessage(err)}`);
 }
       return;
 }
@@ -283,27 +271,19 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
       setSchedules([newSchedule, ...schedules]);
       setIsModalOpen(false);
       setFeedback(` Created Bar Bending Schedule ${scheduleNumber} (${tonnage} Tonnes calculated)`);
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 }
 };
 
   const handleStatusChange = async (scheduleId: string, newStatus: string) => {
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/bar-bending-schedules/${scheduleId}/status`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ status: newStatus}),
-});
-        if (res.ok) {
-          await reload();
-          setFeedback(` Schedule status updated to ${newStatus}`);
-} else {
-          const errJson = await res.json().catch(() => null);
-          setFeedback(`Error: ${errJson?.message || `Request failed (${res.status})`}`);
-}
-} catch {
-        setFeedback('Error: Network request failed');
+        await api.patch(`/api/v1/projects/${projectId}/bar-bending-schedules/${scheduleId}/status`, { status: newStatus});
+        await reload();
+        setFeedback(` Schedule status updated to ${newStatus}`);
+} catch (err) {
+        setFeedback(`Error: ${apiErrorMessage(err)}`);
 }
       return;
 }
@@ -315,8 +295,8 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
         schedules.map((s) => (s.id === scheduleId ? { ...s, status: newStatus as any} : s))
 );
       setFeedback(` Schedule status updated to ${newStatus}`);
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 }
 };
 
@@ -342,7 +322,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 </div>
 <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
+          className="inline-flex items-center justify-center px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
         >
           + New BBS Schedule
 </button>
@@ -359,7 +339,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Total Steel Tonnage</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">{totalTonnageSum}<span className="text-sm font-normal text-gray-500">Tonnes</span></p>
-<span className="text-xs text-blue-600 font-medium">BS 8666 Compliant</span>
+<span className="text-xs text-blue-700 font-medium">BS 8666 Compliant</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">BBS Schedules</p>
@@ -368,7 +348,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Approved for Cutting</p>
-<p className="text-2xl font-bold text-green-600 mt-1">
+<p className="text-2xl font-bold text-green-700 mt-1">
             {schedules.filter((s) => s.status === 'APPROVED_FOR_CUTTING').length}
 </p>
 <span className="text-xs text-gray-500 font-medium">Ready for Steel Fixers</span>
@@ -376,7 +356,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Stock Bar Length</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">12.0<span className="text-sm font-normal text-gray-500">Meters</span></p>
-<span className="text-xs text-green-600 font-medium">East African Commercial Std</span>
+<span className="text-xs text-green-700 font-medium">East African Commercial Std</span>
 </div>
 </div>
 
@@ -397,7 +377,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 <tbody className="divide-y divide-gray-200 bg-white">
             {schedules.map((schedule) => (
 <tr key={schedule.id} className="hover:bg-gray-50">
-<td className="px-4 py-3 font-semibold text-blue-600">{schedule.scheduleNumber}</td>
+<td className="px-4 py-3 font-semibold text-blue-700">{schedule.scheduleNumber}</td>
 <td className="px-4 py-3 font-medium text-gray-900">{schedule.elementName}</td>
 <td className="px-4 py-3 text-gray-500">{schedule.drawingRef || '—'}</td>
 <td className="px-4 py-3 text-gray-600">{schedule.steelGrade}</td>
@@ -447,7 +427,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
                   {selectedSchedule.scheduleNumber}: {selectedSchedule.elementName}
 </h3>
 <p className="text-xs text-gray-500">
-                  Total Calculated Tonnage:<strong>{selectedSchedule.totalTonnage} Tonnes</strong> • Drawing: {selectedSchedule.drawingRef}
+                  Total Calculated Tonnage: <strong>{selectedSchedule.totalTonnage} Tonnes</strong> • Drawing: {selectedSchedule.drawingRef}
 </p>
 </div>
 <button onClick={() => setSelectedSchedule(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">
@@ -475,15 +455,15 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
                   {selectedSchedule.items?.map((item) => (
 <tr key={item.id} className="hover:bg-gray-50">
 <td className="px-3 py-2 font-medium text-gray-900">{item.memberTag}</td>
-<td className="px-3 py-2 text-center text-blue-600 font-bold">{item.barMark}</td>
+<td className="px-3 py-2 text-center text-blue-700 font-bold">{item.barMark}</td>
 <td className="px-3 py-2 text-center font-semibold">{item.barType}</td>
 <td className="px-3 py-2 text-center text-gray-600">{item.totalBars} ({item.numberOfMembers}x{item.barsPerMember})</td>
-<td className="px-3 py-2 text-center bg-gray-50 font-mono">Shape {item.shapeCode}</td>
+<td className="px-3 py-2 text-center bg-gray-50 tabular-nums">Shape {item.shapeCode}</td>
 <td className="px-3 py-2 text-right font-medium">{item.cutLengthMeters}m</td>
 <td className="px-3 py-2 text-right">{item.totalLengthMeters}m</td>
 <td className="px-3 py-2 text-right text-gray-500">{item.unitWeightKgPerM}</td>
 <td className="px-3 py-2 text-right font-bold text-gray-900">{item.totalWeightKg} kg</td>
-<td className="px-3 py-2 text-center font-bold text-indigo-600">{item.standardBarsNeeded12m}</td>
+<td className="px-3 py-2 text-center font-bold text-indigo-700">{item.standardBarsNeeded12m}</td>
 </tr>
 ))}
 </tbody>
@@ -657,8 +637,8 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
               {/* Real-time Math Summary Preview */}
 <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4 text-xs space-y-1 text-blue-900">
 <p><strong>Live Takeoff Preview:</strong></p>
-<p>Cut Length:<strong>{cutLengthMeters.toFixed(3)}m</strong> • Total Bars:<strong>{totalBarsPreview}</strong> • Total Linear:<strong>{totalLengthMeters.toFixed(3)}m</strong></p>
-<p>Total Weight:<strong>{totalWeightKg.toFixed(2)} kg</strong> ({ (totalWeightKg / 1000).toFixed(3)} Tonnes) • 12m Stock Bars:<strong>{standardBars12m}</strong></p>
+<p>Cut Length: <strong>{cutLengthMeters.toFixed(3)}m</strong> • Total Bars: <strong>{totalBarsPreview}</strong> • Total Linear: <strong>{totalLengthMeters.toFixed(3)}m</strong></p>
+<p>Total Weight: <strong>{totalWeightKg.toFixed(2)} kg</strong> ({ (totalWeightKg / 1000).toFixed(3)} Tonnes) • 12m Stock Bars: <strong>{standardBars12m}</strong></p>
 </div>
 </div>
 
@@ -672,7 +652,7 @@ export const BarBendingScheduleView: React.FC<BarBendingScheduleViewProps> = ({
 </button>
 <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm"
+                className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-md shadow-sm"
               >
                 Generate BBS Schedule
 </button>

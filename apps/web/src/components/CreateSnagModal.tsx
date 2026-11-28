@@ -1,5 +1,8 @@
 import React, { useState} from 'react';
 import { SNAG_TRADE_CATEGORIES} from '@construction/validation';
+import { queueOfflineMutation } from '../services/offline-sync';
+import { api, apiErrorMessage } from '../lib/api';
+import { useGeolocation } from '../lib/useGeolocation';
 
 export type SnagSeverity = 'COSMETIC' | 'FUNCTIONAL' | 'CRITICAL_SAFETY';
 export type SnagPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -39,9 +42,14 @@ export default function CreateSnagModal({
   const [dueDate, setDueDate] = useState('');
   const [distributionText, setDistributionText] = useState('');
   const [description, setDescription] = useState('');
-  const [latitude, setLatitude] = useState('-1.2683');
-  const [longitude, setLongitude] = useState('36.8044');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [geoAccuracy, setGeoAccuracy] = useState<number | null>(null);
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'requesting' | 'ready' | 'denied' | 'unavailable' | 'timeout'>('idle');
+  const { request: requestGeo } = useGeolocation();
   const [photoUrl, setPhotoUrl] = useState('');
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoName, setPhotoName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -68,57 +76,94 @@ export default function CreateSnagModal({
     setError(null);
 
     // Gate-4 S6: real API submission — server assigns snag_number & status.
-    try {
-      const distributions = distributionText
+    const payload = {
+      locationBlock: block,
+      locationFloor: floor,
+      locationRoom: room.trim(),
+      tradeCategory: effectiveTrade,
+      description: description.trim(),
+      severity,
+      priority,
+      itemType,
+      isPrivate,
+      managerName: managerName || undefined,
+      finalApproverName: finalApproverName || undefined,
+      costImpactKes: costImpactKes || undefined,
+      scheduleImpactDays: scheduleImpactDays ? parseInt(scheduleImpactDays, 10) : undefined,
+      costCode: costCode || undefined,
+      referenceDoc: referenceDoc || undefined,
+      dueDate: dueDate || undefined,
+      identifiedByName: 'Site Team',
+      photos: photoUrl.trim()
+        ? [{ photoType: 'DEFECT', storageKey: photoUrl.trim(), caption: 'Before evidence', gpsLatitude: parseFloat(latitude) || null, gpsLongitude: parseFloat(longitude) || null, gpsAccuracyMeters: geoAccuracy }]
+        : undefined,
+      photoBase64: photoBase64 || undefined,
+      photoLatitude: photoBase64 && latitude ? parseFloat(latitude) : null,
+      photoLongitude: photoBase64 && longitude ? parseFloat(longitude) : null,
+      photoAccuracyMeters: photoBase64 ? geoAccuracy : null,
+      distributions: distributionText
         .split(',')
         .map((d) => d.trim())
         .filter(Boolean)
-        .map((name) => ({ recipientName: name}));
+        .map((name) => ({ recipientName: name})),
+};
 
-      const res = await fetch(`/api/v1/projects/${projectId}/snags`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          locationBlock: block,
-          locationFloor: floor,
-          locationRoom: room.trim(),
-          tradeCategory: effectiveTrade,
-          description: description.trim(),
-          severity,
-          priority,
-          itemType,
-          isPrivate,
-          managerName: managerName || undefined,
-          finalApproverName: finalApproverName || undefined,
-          costImpactKes: costImpactKes || undefined,
-          scheduleImpactDays: scheduleImpactDays ? parseInt(scheduleImpactDays, 10) : undefined,
-          costCode: costCode || undefined,
-          referenceDoc: referenceDoc || undefined,
-          dueDate: dueDate || undefined,
-          identifiedByName: 'Site Team',
-          photos: photoUrl.trim()
-            ? [{ photoType: 'DEFECT', storageKey: photoUrl.trim(), caption: 'Before evidence', gpsLatitude: parseFloat(latitude) || null, gpsLongitude: parseFloat(longitude) || null}]
-            : undefined,
-          distributions: distributions.length ? distributions : undefined,
-}),
-});
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || `Failed to log snag (${res.status})`);
+    try {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        // Queue the whole snag (photo included as verified base64) — the sync
+        // engine replays it with an Idempotency-Key exactly once.
+        await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/snags`, payload);
+        if (onSnagCreated) onSnagCreated({ queuedOffline: true });
+        setRoom(''); setDescription(''); setPhotoUrl(''); setPhotoBase64(null); setPhotoName('');
+        onClose();
+        return;
+      }
 
+      const body = await api.post(`/api/v1/projects/${projectId}/snags`, payload);
       if (onSnagCreated) {
         onSnagCreated(body);
-}
+      }
 
       setRoom('');
       setDescription('');
       setPhotoUrl('');
+      setPhotoBase64(null);
+      setPhotoName('');
       onClose();
-} catch (err: any) {
-      setError(err?.message || 'Failed to log snag item');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to log snag item'));
 } finally {
       setIsSubmitting(false);
 }
+};
+
+  const captureDeviceLocation = async () => {
+    setGeoStatus('requesting');
+    const fix = await requestGeo();
+    if (fix) {
+      setLatitude(fix.latitude.toFixed(6));
+      setLongitude(fix.longitude.toFixed(6));
+      setGeoAccuracy(fix.accuracy);
+      setGeoStatus('ready');
+    } else {
+      setGeoStatus('denied');
+    }
+  };
+
+  const handlePhotoFile = (file: File | null) => {
+    if (!file) { setPhotoBase64(null); setPhotoName(''); return; }
+    if (file.size > 6 * 1024 * 1024) { setError('Photo must be under 6 MB'); return; }
+    // Grab a fresh fix at shutter time so the geotag matches the photo.
+    void captureDeviceLocation();
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      setPhotoBase64(dataUrl.includes(',') ? (dataUrl.split(',')[1] ?? null) : dataUrl);
+      setPhotoName(file.name);
+      setError(null);
+    };
+    reader.readAsDataURL(file);
 };
 
   return (
@@ -137,7 +182,7 @@ export default function CreateSnagModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close"
           >
             
@@ -196,7 +241,7 @@ export default function CreateSnagModal({
 
 <div>
 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Room / Zone<span className="text-rose-500">*</span>
+                  Room / Zone<span className="text-rose-700">*</span>
 </label>
 <input
                   type="text"
@@ -213,7 +258,7 @@ export default function CreateSnagModal({
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Trade Category<span className="text-rose-500">*</span>
+                Trade Category<span className="text-rose-700">*</span>
 </label>
 <select
                 value={tradeCategory}
@@ -238,7 +283,7 @@ export default function CreateSnagModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Severity Level<span className="text-rose-500">*</span>
+                Severity Level<span className="text-rose-700">*</span>
 </label>
 <select
                 value={severity}
@@ -328,7 +373,7 @@ export default function CreateSnagModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Defect Description<span className="text-rose-500">*</span>
+              Defect Description<span className="text-rose-700">*</span>
 </label>
 <textarea
               rows={3}
@@ -349,8 +394,9 @@ export default function CreateSnagModal({
 <input
                 type="text"
                 value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 font-mono"
+                onChange={(e) => { setLatitude(e.target.value); setGeoAccuracy(null); }}
+                placeholder="e.g. -1.286389"
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 tabular-nums"
               />
 </div>
 <div>
@@ -360,22 +406,44 @@ export default function CreateSnagModal({
 <input
                 type="text"
                 value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 font-mono"
+                onChange={(e) => { setLongitude(e.target.value); setGeoAccuracy(null); }}
+                placeholder="e.g. 36.817223"
+                className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 tabular-nums"
               />
 </div>
+</div>
+<div className="flex items-center gap-2 -mt-1">
+<button
+                type="button"
+                onClick={() => void captureDeviceLocation()}
+                disabled={geoStatus === 'requesting'}
+                className="text-[11px] font-semibold text-rose-700 hover:text-rose-800 disabled:opacity-50"
+              >
+                {geoStatus === 'requesting' ? 'Locating…' : 'Use my current location'}
+</button>
+<span className={`text-[10px] ${geoStatus === 'ready' ? 'text-emerald-700' : 'text-slate-600'}`}>
+                {geoStatus === 'ready' && geoAccuracy != null ? `GPS fix ±${Math.round(geoAccuracy)} m` : geoStatus === 'denied' ? 'Location permission denied — enter coordinates manually or leave blank' : ' '}
+</span>
 </div>
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Before Photo Evidence URL / Filename
+              Before Photo Evidence
 </label>
+<input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => handlePhotoFile(e.target.files?.[0] || null)}
+              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-rose-50 file:text-rose-800 file:text-xs file:font-semibold"
+            />
+{photoName && <p className="mt-1 text-[11px] text-emerald-700 font-medium">Attached: {photoName} (verified on upload)</p>}
 <input
               type="text"
               value={photoUrl}
               onChange={(e) => setPhotoUrl(e.target.value)}
-              placeholder="e.g. photo-crack-tile-204.jpg or leave blank for sample photo"
-              className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 placeholder-slate-400"
+              placeholder="…or paste an existing storage key/filename"
+              className="mt-2 w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 placeholder-slate-400"
             />
 </div>
 

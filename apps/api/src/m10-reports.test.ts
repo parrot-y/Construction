@@ -65,12 +65,13 @@ describe('Milestone M10: Reports, Hardening & Export Integration Suite', () => {
 
     const userB = await prisma.user.upsert({
       where: { email: 'admin@kilimanjarodev-m10.co.ke' },
-      update: { password_hash: defaultPasswordHash },
+      update: { password_hash: defaultPasswordHash, email_verified_at: new Date() },
       create: {
         email: 'admin@kilimanjarodev-m10.co.ke',
         password_hash: defaultPasswordHash,
         full_name: 'Daniel Kiptoo M10',
         is_active: true,
+        email_verified_at: new Date(),
       },
     });
 

@@ -1,4 +1,6 @@
 import React, { useEffect, useState} from 'react';
+import { formatDate } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface SoilTestRecord {
   id: string;
@@ -121,9 +123,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/soil-tests`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/soil-tests`);
       const list = (json.tests || []) as any[];
       setTests(list.map((t) => ({
         id: t.id,
@@ -209,29 +209,24 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 
       if (isLive) {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/soil-tests`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              testNumber: newRecord.testNumber,
-              testDate: newRecord.testDate,
-              locationElement: newRecord.locationElement,
-              layerType: newRecord.layerType,
-              testMethod: newRecord.testMethod,
-              laboratoryMddGCm3: newRecord.laboratoryMddGCm3,
-              laboratoryOmcPercent: newRecord.laboratoryOmcPercent,
-              fieldWetDensityGCm3: newRecord.fieldWetDensityGCm3,
-              fieldMoisturePercent: newRecord.fieldMoisturePercent,
-              requiredCompactionPercent: newRecord.requiredCompactionPercent,
-              dcpBlowsPer100mm: newRecord.dcpBlowsPer100mm,
-              inspectedBy: newRecord.inspectedBy,
-}),
+          await api.post(`/api/v1/projects/${projectId}/soil-tests`, {
+            testNumber: newRecord.testNumber,
+            testDate: newRecord.testDate,
+            locationElement: newRecord.locationElement,
+            layerType: newRecord.layerType,
+            testMethod: newRecord.testMethod,
+            laboratoryMddGCm3: newRecord.laboratoryMddGCm3,
+            laboratoryOmcPercent: newRecord.laboratoryOmcPercent,
+            fieldWetDensityGCm3: newRecord.fieldWetDensityGCm3,
+            fieldMoisturePercent: newRecord.fieldMoisturePercent,
+            requiredCompactionPercent: newRecord.requiredCompactionPercent,
+            dcpBlowsPer100mm: newRecord.dcpBlowsPer100mm,
+            inspectedBy: newRecord.inspectedBy,
 });
-          if (res.ok) {
-            await reload();
-            setShowAddModal(false);
-            setLocationElement('');
-            return;
-}
+          await reload();
+          setShowAddModal(false);
+          setLocationElement('');
+          return;
 } catch { /* fall through to local */}
 }
 
@@ -242,8 +237,8 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
       setTests([newRecord, ...tests]);
       setShowAddModal(false);
       setLocationElement('');
-} catch (err: any) {
-      setErrorMessage(err.message || 'Failed to submit soil test to server');
+} catch (err) {
+      setErrorMessage(apiErrorMessage(err, 'Failed to submit soil test to server'));
 } finally {
       setIsSubmitting(false);
 }
@@ -293,7 +288,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 </div>
 <button
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg shadow-sm transition"
+          className="inline-flex items-center px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium rounded-lg shadow-sm transition"
         >
           + Log Field Compaction Test
 </button>
@@ -308,18 +303,18 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Compaction Pass Rate</span>
-<p className="text-2xl font-bold text-emerald-600 mt-1">{passRate}%</p>
-<span className="text-xs text-emerald-500">{passedTests} of {totalTests} verified</span>
+<p className="text-2xl font-bold text-emerald-700 mt-1">{passRate}%</p>
+<span className="text-xs text-emerald-700">{passedTests} of {totalTests} verified</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Re-Rolling Required</span>
-<p className="text-2xl font-bold text-red-600 mt-1">{totalTests - passedTests}</p>
-<span className="text-xs text-red-500">Failed density / moisture</span>
+<p className="text-2xl font-bold text-red-700 mt-1">{totalTests - passedTests}</p>
+<span className="text-xs text-red-700">Failed density / moisture</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Kenya Road Standard (KS 02-102)</span>
-<p className="text-2xl font-bold text-blue-600 mt-1">≥95% RC</p>
-<span className="text-xs text-blue-500">Subbase (≥98% Pad / Base)</span>
+<p className="text-2xl font-bold text-blue-700 mt-1">≥95% RC</p>
+<span className="text-xs text-blue-700">Subbase (≥98% Pad / Base)</span>
 </div>
 </div>
 
@@ -378,10 +373,10 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 <tr key={test.id} className="hover:bg-gray-50 transition">
 <td className="px-4 py-3">
 <div className="font-semibold text-gray-900">{test.testNumber}</div>
-<div className="text-xs text-gray-500 font-mono mt-0.5">
-                        {new Date(test.testDate).toLocaleDateString()}
+<div className="text-xs text-gray-500 font-mono tabular-nums mt-0.5">
+                        {formatDate(new Date(test.testDate))}
 </div>
-<span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">
+<span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
                         {test.testMethod.replace('_', ' ')}
 </span>
 </td>
@@ -634,7 +629,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-amber-700 text-white font-medium rounded-lg hover:bg-amber-800 disabled:opacity-50"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Soil Test Record'}
 </button>

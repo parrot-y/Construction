@@ -6,6 +6,7 @@ export interface PhotoEvidenceItem {
   photo_url: string;
   latitude?: number | null;
   longitude?: number | null;
+  gps_accuracy_meters?: number | null;
   captured_at: string;
   weather?: string;
   recorded_by_name?: string;
@@ -42,7 +43,7 @@ export default function PhotoLightboxModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
+            className="text-slate-600 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
             aria-label="Close modal"
           >
             
@@ -66,7 +67,7 @@ export default function PhotoLightboxModal({
 <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white pointer-events-none bg-gradient-to-t from-slate-950/80 via-transparent to-transparent">
 <span className="text-4xl mb-2 drop-shadow-md"></span>
 <p className="text-sm font-semibold drop-shadow">{photo.caption}</p>
-<span className="text-[11px] font-mono opacity-80 mt-1">
+<span className="text-[11px] tabular-nums opacity-80 mt-1">
                  GPS {lat}, {lng} (Nairobi, Kenya)
 </span>
 </div>
@@ -75,16 +76,16 @@ export default function PhotoLightboxModal({
           {/* Metadata Card Grid */}
 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
                 Nairobi GPS Pin
 </span>
-<span className="font-mono font-medium text-slate-800 mt-0.5 block">
+<span className="tabular-nums font-medium text-slate-800 mt-0.5 block">
                  {lat}, {lng}
 </span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
                 Captured At
 </span>
 <span className="font-medium text-slate-800 mt-0.5 block">
@@ -93,7 +94,7 @@ export default function PhotoLightboxModal({
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
                 Weather Conditions
 </span>
 <span className="font-medium text-slate-800 mt-0.5 block">
@@ -102,7 +103,7 @@ export default function PhotoLightboxModal({
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg sm:col-span-3">
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
                 Verified Inspector / Recorded By
 </span>
 <span className="font-medium text-slate-800 mt-0.5 block">

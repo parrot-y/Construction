@@ -1,5 +1,7 @@
 import React, { useEffect, useState} from 'react';
 import ConcreteCubeTestModal from './ConcreteCubeTestModal';
+import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
 
 export type ChecklistType =
   | 'PRE_POUR_CONCRETE'
@@ -136,20 +138,14 @@ export default function QualityControlView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const [chkRes, cubeRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/inspections`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/cube-tests`, { credentials: 'include'}),
+      const [chkList, cubeList] = await Promise.all([
+        api.get<any>(`/api/v1/projects/${projectId}/inspections`),
+        api.get<any>(`/api/v1/projects/${projectId}/cube-tests`),
       ]);
-      if (chkRes.ok) {
-        const list = (await chkRes.json()) as any[];
-        const mapped = (Array.isArray(list) ? list : []).map(mapApiChecklist);
-        setChecklists(mapped);
-        setSelectedChecklistId((prev) => (mapped.some((c) => c.id === prev) ? prev : mapped[0]?.id || prev));
-}
-      if (cubeRes.ok) {
-        const list = (await cubeRes.json()) as any[];
-        setCubeTests((Array.isArray(list) ? list : []).map(mapApiCubeTest));
-}
+      const mapped = (Array.isArray(chkList) ? chkList : []).map(mapApiChecklist);
+      setChecklists(mapped);
+      setSelectedChecklistId((prev) => (mapped.some((c) => c.id === prev) ? prev : mapped[0]?.id || prev));
+      setCubeTests((Array.isArray(cubeList) ? cubeList : []).map(mapApiCubeTest));
 } catch { /* keep demo fixtures */}
     setLiveLoaded(true);
 }, [isLive, projectId]);
@@ -168,14 +164,10 @@ export default function QualityControlView({
     if (isLive && selectedChecklist) {
       void (async () => {
         try {
-          const res = await fetch(
-            `/api/v1/projects/${projectId}/inspections/${selectedChecklist.id}/items/${itemId}`,
-            {
-              method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-              body: JSON.stringify({ result: nextStatus, deficiencyNotes: target?.notes || null}),
-}
-);
-          if (res.ok) await reload();
+          await api.put(`/api/v1/projects/${projectId}/inspections/${selectedChecklist.id}/items/${itemId}`, {
+            result: nextStatus, deficiencyNotes: target?.notes || null,
+          });
+          await reload();
 } catch { /* keep local */}
 })();
 }
@@ -209,21 +201,16 @@ export default function QualityControlView({
             'Class 15/20': 'CLASS_15_20', 'Class 20/20': 'CLASS_20_20', 'Class 25/20': 'CLASS_25_20',
             'Class 30/20': 'CLASS_30_20', 'Class 35/20': 'CLASS_35_20', 'Class 40/20': 'CLASS_40_20',
 };
-          const res = await fetch(`/api/v1/projects/${projectId}/cube-tests`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              batchReference: newTest.testNo || `CUBE-${Date.now()}`,
-              pourLocation: newTest.pourLocation,
-              pourDate: newTest.pourDate,
-              concreteClass: classMap[newTest.concreteClass] || 'CLASS_25_20',
-              targetStrengthMpa: String(newTest.targetStrengthMpa ?? 25),
-              slumpTestedMm: newTest.slumpMm ?? null,
-              deliveryDocketNo: newTest.batchTicket || null,
-              notes: `Testing lab: ${newTest.testingLab || 'On-site'}`,
-}),
-});
-          if (!res.ok) return;
-          const created = await res.json();
+          const created = await api.post<any>(`/api/v1/projects/${projectId}/cube-tests`, {
+            batchReference: newTest.testNo || `CUBE-${Date.now()}`,
+            pourLocation: newTest.pourLocation,
+            pourDate: newTest.pourDate,
+            concreteClass: classMap[newTest.concreteClass] || 'CLASS_25_20',
+            targetStrengthMpa: String(newTest.targetStrengthMpa ?? 25),
+            slumpTestedMm: newTest.slumpMm ?? null,
+            deliveryDocketNo: newTest.batchTicket || null,
+            notes: `Testing lab: ${newTest.testingLab || 'On-site'}`,
+          });
           const breaks: any[] = [];
           if (newTest.sevenDayStrengthMpa != null) {
             breaks.push({ cubeNumber: 1, breakAgeDays: 7, scheduledBreakDate: newTest.sevenDayBreakDate, compressiveMpa: String(newTest.sevenDayStrengthMpa), labName: newTest.testingLab});
@@ -232,10 +219,7 @@ export default function QualityControlView({
             breaks.push({ cubeNumber: 2, breakAgeDays: 28, scheduledBreakDate: newTest.twentyEightDayBreakDate, compressiveMpa: String(newTest.twentyEightDayStrengthMpa), labName: newTest.testingLab});
 }
           for (const b of breaks) {
-            await fetch(`/api/v1/projects/${projectId}/cube-tests/${created.id}/breaks`, {
-              method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-              body: JSON.stringify(b),
-});
+            await api.post(`/api/v1/projects/${projectId}/cube-tests/${created.id}/breaks`, b);
 }
           await reload();
 } catch { /* keep local */}
@@ -294,7 +278,7 @@ export default function QualityControlView({
 <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
               Quality Assurance & Structural Inspection
 </span>
-<span className="text-xs text-slate-400 font-mono">KS 02-598 / BORAQS</span>
+<span className="text-xs text-slate-600 tabular-nums">KS 02-598 / BORAQS</span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
             Pre-Pour Hold Points & Concrete Cube Crushing
@@ -359,7 +343,7 @@ export default function QualityControlView({
 }`}
                 >
 <div className="flex justify-between items-start">
-<span className="font-mono font-bold text-slate-800">
+<span className="tabular-nums font-bold text-slate-800">
                       {chk.checklistNumber}
 </span>
 <span
@@ -376,7 +360,7 @@ export default function QualityControlView({
 </div>
 <div className="font-semibold text-slate-900 line-clamp-1">{chk.location}</div>
 <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-<span className="font-mono">{chk.checklistType}</span>
+<span className="tabular-nums">{chk.checklistType}</span>
 <span className="font-semibold text-blue-700">
                       {passCount}/{chk.items.length} Passed
 </span>
@@ -391,11 +375,11 @@ export default function QualityControlView({
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-4">
 <div>
 <div className="flex items-center gap-2">
-<span className="text-xs font-mono font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded">
+<span className="text-xs tabular-nums font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded">
                     {selectedChecklist.checklistNumber}
 </span>
 <span className="text-xs font-semibold text-slate-600">
-                    Type:<span className="font-mono text-slate-900">{selectedChecklist.checklistType}</span>
+                    Type:<span className="tabular-nums text-slate-900">{selectedChecklist.checklistType}</span>
 </span>
 </div>
 <h4 className="text-base font-bold text-slate-900 mt-1">
@@ -412,7 +396,7 @@ export default function QualityControlView({
                     selectedChecklist.status
 )}`}
                 >
-                  {selectedChecklist.status}
+                  {statusLabel(selectedChecklist.status)}
 </span>
 
                 {canApprove && (
@@ -426,7 +410,7 @@ export default function QualityControlView({
 </button>
 <button
                       onClick={() => handleSetChecklistStatus('REJECTED_REWORK_REQUIRED')}
-                      className="px-3 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-xs transition"
+                      className="px-3 py-1.5 text-xs font-semibold bg-rose-700 hover:bg-rose-800 text-white rounded-lg shadow-xs transition"
                       title="Reject pour and require structural rework"
                     >
                        Reject / Rework
@@ -455,7 +439,7 @@ export default function QualityControlView({
                         {item.description}
 </td>
 <td className="p-3 whitespace-nowrap">
-<span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-mono border border-slate-200">
+<span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] tabular-nums border border-slate-200">
                           {item.category}
 </span>
 </td>
@@ -472,7 +456,7 @@ export default function QualityControlView({
                               : 'bg-amber-50 text-amber-800 border-amber-200'
 }`}
                         >
-                          {item.status}
+                          {statusLabel(item.status)}
 </span>
 </td>
 <td className="p-3 text-right whitespace-nowrap">
@@ -551,47 +535,47 @@ export default function QualityControlView({
                   return (
 <tr key={test.id} className="hover:bg-slate-50/80 transition">
 <td className="p-3 whitespace-nowrap">
-<div className="font-mono font-bold text-blue-900">{test.testNo}</div>
-<div className="text-[11px] text-slate-500 font-mono mt-0.5">
+<div className="font-mono tabular-nums font-bold text-blue-900">{test.testNo}</div>
+<div className="text-[11px] text-slate-500 font-mono tabular-nums mt-0.5">
                           {test.batchTicket}
 </div>
 </td>
 <td className="p-3">
 <div className="font-semibold text-slate-900">{test.pourLocation}</div>
-<div className="text-[11px] text-slate-400 mt-0.5">
+<div className="text-[11px] text-slate-600 mt-0.5">
                           {`Poured: ${test.pourDate} • Slump: ${test.slumpMm}mm`}
 </div>
 </td>
 <td className="p-3 whitespace-nowrap">
-<span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-mono font-medium text-[11px] border border-slate-200">
+<span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded tabular-nums font-medium text-[11px] border border-slate-200">
                           {test.concreteClass}
 </span>
 </td>
 <td className="p-3 whitespace-nowrap">
                         {test.sevenDayStrengthMpa !== null ? (
 <div>
-<span className="font-mono font-bold text-slate-800">
+<span className="tabular-nums font-bold text-slate-800">
                               {`${test.sevenDayStrengthMpa.toFixed(1)} MPa`}
 </span>
-<span className="text-[10px] text-slate-400 block font-mono">
+<span className="text-[10px] text-slate-600 block tabular-nums">
                               {test.sevenDayBreakDate}
 </span>
 </div>
 ) : (
-<span className="text-slate-400 text-[11px]">Pending break</span>
+<span className="text-slate-600 text-[11px]">Pending break</span>
 )}
 </td>
 <td className="p-3 whitespace-nowrap">
                         {test.twentyEightDayStrengthMpa !== null ? (
 <div>
 <span
-                              className={`font-mono font-bold ${
+                              className={`tabular-nums font-bold ${
                                 isPass ? 'text-emerald-700' : 'text-rose-700'
 }`}
                             >
                               {`${test.twentyEightDayStrengthMpa.toFixed(1)} MPa`}
 </span>
-<span className="text-[10px] text-slate-400 block font-mono">
+<span className="text-[10px] text-slate-600 block tabular-nums">
                               {test.twentyEightDayBreakDate}
 </span>
 </div>
@@ -600,7 +584,7 @@ export default function QualityControlView({
 <span className="text-amber-700 font-medium text-[11px]">
                               Scheduled
 </span>
-<span className="text-[10px] text-slate-400 block font-mono">
+<span className="text-[10px] text-slate-600 block tabular-nums">
                               {test.twentyEightDayBreakDate}
 </span>
 </div>
@@ -610,11 +594,11 @@ export default function QualityControlView({
                       {/* Compressive strength gauge */}
 <td className="p-3 min-w-[180px]">
 <div className="space-y-1">
-<div className="flex justify-between items-center text-[10px] font-mono">
+<div className="flex justify-between items-center text-[10px] tabular-nums">
 <span className="font-semibold text-slate-700">
                               {effectiveStrength > 0 ? `${effectiveStrength.toFixed(1)} MPa` : '0 MPa'}
 </span>
-<span className="text-slate-400">
+<span className="text-slate-600">
                               {`target ${test.targetStrengthMpa.toFixed(0)} MPa`}
 </span>
 </div>
@@ -623,14 +607,14 @@ export default function QualityControlView({
                               className={`h-full transition-all rounded-full ${
                                 test.twentyEightDayStrengthMpa !== null
                                   ? isPass
-                                    ? 'bg-emerald-600'
-                                    : 'bg-rose-500'
-                                  : 'bg-blue-500'
+                                    ? 'bg-emerald-700'
+                                    : 'bg-rose-700'
+                                  : 'bg-blue-700'
 }`}
                               style={{ width: `${Math.min(100, ratio)}%`}}
                             />
 </div>
-<div className="text-[10px] text-right font-mono text-slate-500">
+<div className="text-[10px] text-right tabular-nums text-slate-500">
                             {`${ratio}% of target`}
 </div>
 </div>

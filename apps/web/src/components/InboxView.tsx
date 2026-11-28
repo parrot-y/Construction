@@ -1,4 +1,8 @@
 import React, { useCallback, useEffect, useState} from 'react';
+import { formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
+import { INBOX_EVENT } from '../lib/useInboxEvents';
+import { disablePush, enablePush, pushState, type PushState } from '../lib/push';
 
 interface InboxMessage {
   id: string;
@@ -34,23 +38,22 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
   const [projectId, setProjectId] = useState('');
   const [targetRoles, setTargetRoles] = useState('');
   const [sending, setSending] = useState(false);
+  const [push, setPush] = useState<PushState>('unsupported');
+  const [pushBusy, setPushBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [mRes, pRes] = await Promise.all([
-        fetch(`/api/v1/inbox${unreadOnly ? '?unread=true' : ''}`, { credentials: 'include'}),
-        fetch('/api/v1/projects', { credentials: 'include'}).catch(() => null),
+      const [mJson, pJson] = await Promise.all([
+        api.get<any>(`/api/v1/inbox${unreadOnly ? '?unread=true' : ''}`),
+        api.get<any>('/api/v1/projects').catch(() => { /* intentionally ignored: project picker is optional */ return null; }),
       ]);
-      if (!mRes.ok) throw new Error('Failed to load inbox');
-      const mJson = await mRes.json();
       setMessages(mJson.data || []);
-      if (pRes?.ok) {
-        const pJson = await pRes.json();
+      if (pJson) {
         setProjects((pJson.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code})));
 }
-} catch (err: any) {
-      setError(err?.message || 'Load failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Load failed'));
 } finally {
       setLoading(false);
 }
@@ -58,11 +61,41 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
 
   useEffect(() => { void load();}, [load]);
 
+  // P6: probe push capability once — hidden entirely when unsupported or
+  // the deployment has no VAPID keys.
+  useEffect(() => {
+    let alive = true;
+    void pushState().then((s) => { if (alive) setPush(s); }).catch(() => {
+      // Probe failure → stay 'unsupported' (toggle hidden); push is optional.
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const togglePush = async () => {
+    setPushBusy(true);
+    setError(null);
+    try {
+      setPush(push === 'on' ? (await disablePush(), 'off') : await enablePush());
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not update notifications.'));
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  // P5.5: live refresh — an SSE inbox hint refetches through the normal
+  // filtered endpoint (audience/role rules still apply server-side).
+  useEffect(() => {
+    const onEvent = () => { void load(); };
+    window.addEventListener(INBOX_EVENT, onEvent);
+    return () => window.removeEventListener(INBOX_EVENT, onEvent);
+  }, [load]);
+
   const markRead = async (id: string) => {
     try {
-      await fetch(`/api/v1/inbox/${id}/read`, { method: 'POST', credentials: 'include'});
+      await api.post(`/api/v1/inbox/${id}/read`);
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, read_by_me: true} : m)));
-} catch { /* best effort */}
+} catch { /* intentionally ignored: best-effort mark-read */ }
 };
 
   const send = async () => {
@@ -70,26 +103,19 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
     setSending(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/inbox', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          body: body.trim(),
-          projectId: projectId || null,
-          audience,
-          targetRoles: audience === 'ROLE' ? targetRoles.split(',').map((r) => r.trim()).filter(Boolean) : undefined,
-          parentId: replyTo?.id ?? null,
-}),
+      await api.post('/api/v1/inbox', {
+        body: body.trim(),
+        projectId: projectId || null,
+        audience,
+        targetRoles: audience === 'ROLE' ? targetRoles.split(',').map((r) => r.trim()).filter(Boolean) : undefined,
+        parentId: replyTo?.id ?? null,
 });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || `Send failed (${res.status})`);
       setBody('');
       setReplyTo(null);
       setShowCompose(false);
       await load();
-} catch (err: any) {
-      setError(err?.message || 'Send failed');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Send failed'));
 } finally {
       setSending(false);
 }
@@ -113,15 +139,25 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
 <p className="text-xs text-slate-500">Messages to your project teams — replies keep threads together</p>
 </div>
 <div className="flex items-center gap-2">
+{(push === 'on' || push === 'off' || push === 'denied') && (
+<button
+              onClick={() => void togglePush()}
+              disabled={pushBusy || push === 'denied'}
+              title={push === 'denied' ? 'Notifications are blocked in browser settings' : undefined}
+              className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg disabled:opacity-50 ${push === 'on' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              {pushBusy ? 'Updating…' : push === 'on' ? 'Notifications on' : push === 'denied' ? 'Notifications blocked' : 'Enable notifications'}
+</button>
+)}
 <button
             onClick={() => setUnreadOnly((v) => !v)}
-            className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg ${unreadOnly ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg ${unreadOnly ? 'bg-indigo-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
             Unread only
 </button>
 <button
             onClick={() => { setReplyTo(null); setShowCompose((v) => !v);}}
-            className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+            className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg"
           >
             {showCompose ? 'Cancel' : '+ Message'}
 </button>
@@ -163,7 +199,7 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
 <button
               onClick={() => void send()}
               disabled={sending || !body.trim()}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50"
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg disabled:opacity-50"
             >
               {sending ? 'Sending…' : replyTo ? 'Send reply' : 'Send'}
 </button>
@@ -211,13 +247,13 @@ function MessageCard({ m, unread, onRead, onReply}: { m: InboxMessage; unread: b
 <div className="flex items-start justify-between gap-3">
 <div className="min-w-0">
 <div className="flex items-center gap-2 flex-wrap">
-            {unread &&<span className="w-2 h-2 rounded-full bg-indigo-500" title="Unread" />}
+            {unread &&<span className="w-2 h-2 rounded-full bg-indigo-700" title="Unread" />}
 <span className="text-xs font-bold text-slate-800">{m.sender_name}</span>
 <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-500 rounded-full">{AUDIENCE_LABEL[m.audience] || m.audience}</span>
-<span className="text-[10px] text-slate-400 font-mono">{new Date(m.created_at).toLocaleString()}</span>
+<span className="text-[10px] text-slate-600 tabular-nums">{formatDateTime(new Date(m.created_at))}</span>
 </div>
 <p className="text-xs text-slate-700 mt-1.5 whitespace-pre-wrap">{m.body}</p>
-<p className="text-[10px] text-slate-400 mt-1">{m.read_count} read{m.read_count === 1 ? '' : 's'}</p>
+<p className="text-[10px] text-slate-600 mt-1">{m.read_count} read{m.read_count === 1 ? '' : 's'}</p>
 </div>
 <div className="flex flex-col gap-1 shrink-0">
           {unread && (

@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { login, apiGet, apiPost, API } from './helpers';
+import { login, apiGet, apiPost, fixtureName, API } from './helpers';
+
+const CLIENT_NAME = fixtureName('client', `q2c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
 /**
  * Workflow A — quote created → sent → public link opened → accepted →
@@ -13,8 +15,8 @@ test.describe('A. Quote → cash', () => {
 
     // 1. Create quote
     const createRes = await apiPost(request, admin, '/api/v1/quotes', {
-      title: `E2E Family Home Extension ${Date.now()}`,
-      clientName: 'E2E Client',
+      title: fixtureName('quote', `${Date.now()}-${test.info().project.name}-a`),
+      clientName: CLIENT_NAME,
       clientEmail: 'e2e-client@example.com',
       siteLocation: 'Nairobi',
       currency: 'KES',
@@ -43,7 +45,7 @@ test.describe('A. Quote → cash', () => {
 
     // 4. Accept via the public endpoint (same call the page makes)
     const acceptRes = await request.post(`${API}/api/public/quotes/${shareToken}/respond`, {
-      data: { action: 'accept', typedName: 'E2E Client' },
+      data: { action: 'accept', typedName: CLIENT_NAME },
     });
     expect(acceptRes.status(), await acceptRes.text()).toBe(200);
 

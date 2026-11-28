@@ -5,6 +5,7 @@ import AnnouncementsView from './AnnouncementsView';
 import ObservationsView from './ObservationsView';
 import ScheduledReportsView from './ScheduledReportsView';
 import CompanyDocumentsView from './CompanyDocumentsView';
+import { api } from '../lib/api';
 
 interface ProjectOpt { id: string; name: string; code: string; status?: string}
 
@@ -20,13 +21,12 @@ export default function ExecutiveDashboard({ session}: { session: AuthSession}):
   const [kpis, setKpis] = useState<{ projects: number; openObservations: number; openSnags: number} | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<any>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code, status: p.status}));
         setProjects(list);
         if (list.length) setProjectId(list[0].id);
-})
+      })
       .catch(() => setProjects([]));
 }, []);
 
@@ -34,8 +34,8 @@ export default function ExecutiveDashboard({ session}: { session: AuthSession}):
     if (!projectId) return;
     // Lightweight KPI probes — failures degrade gracefully to 0
     Promise.all([
-      fetch(`/api/v1/projects/${projectId}/observations?status=OPEN`, { credentials: 'include'}).then((r) => r.ok ? r.json() : { data: []}).catch(() => ({ data: []})),
-      fetch(`/api/v1/projects/${projectId}/snags`, { credentials: 'include'}).then((r) => r.ok ? r.json() : { data: []}).catch(() => ({ data: []})),
+      api.get<any>(`/api/v1/projects/${projectId}/observations?status=OPEN`).catch(() => { /* intentionally ignored: KPI probe degrades to 0 */ return { data: [] as any[]}; }),
+      api.get<any>(`/api/v1/projects/${projectId}/snags`).catch(() => { /* intentionally ignored: KPI probe degrades to 0 */ return { data: [] as any[]}; }),
     ]).then(([obs, snags]) => {
       setKpis({
         projects: projects.length,
@@ -50,16 +50,16 @@ export default function ExecutiveDashboard({ session}: { session: AuthSession}):
       {/* Portfolio strip */}
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 <div className="bg-white rounded-xl border border-slate-200 p-4">
-<p className="text-[10px] font-bold text-slate-400">Active projects</p>
+<p className="text-[10px] font-bold text-slate-600">Active projects</p>
 <p className="text-2xl font-bold text-slate-900 mt-1">{projects.length}</p>
 </div>
 <div className="bg-white rounded-xl border border-slate-200 p-4">
-<p className="text-[10px] font-bold text-slate-400">Open observations</p>
-<p className="text-2xl font-bold text-amber-600 mt-1">{kpis?.openObservations ?? '—'}</p>
+<p className="text-[10px] font-bold text-slate-600">Open observations</p>
+<p className="text-2xl font-bold text-amber-700 mt-1">{kpis?.openObservations ?? '—'}</p>
 </div>
 <div className="bg-white rounded-xl border border-slate-200 p-4">
-<p className="text-[10px] font-bold text-slate-400">Open snags</p>
-<p className="text-2xl font-bold text-rose-600 mt-1">{kpis?.openSnags ?? '—'}</p>
+<p className="text-[10px] font-bold text-slate-600">Open snags</p>
+<p className="text-2xl font-bold text-rose-700 mt-1">{kpis?.openSnags ?? '—'}</p>
 </div>
 </div>
 

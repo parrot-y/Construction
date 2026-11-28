@@ -1,0 +1,120 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useConsole } from './console/ConsoleContext';
+import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
+import { Card } from '../ui';
+
+interface ChecklistStep {
+  key: string;
+  label: string;
+  hint: string;
+  done: boolean;
+  section: string;
+  tab: string;
+}
+
+/**
+ * Guided project checklist — each step is derived from real API data and
+ * deep-links to the screen where the work happens. Shown on the project
+ * overview (Projects → All) for the selected project.
+ */
+export default function ProjectChecklist({ projectId }: { projectId: string }): React.JSX.Element | null {
+  const { setSection, setTab } = useConsole();
+  const [steps, setSteps] = useState<ChecklistStep[] | null>(null);
+  const [error, setError] = useState(false);
+
+  // Rapid project switching can leave an in-flight load for the previous
+  // project resolving after the new one — without a generation guard its
+  // stale steps overwrite the current project's progress.
+  const gen = useRef(0);
+  const load = useCallback(async () => {
+    const mine = ++gen.current;
+    const stale = () => mine !== gen.current;
+    if (!/^[0-9a-f-]{36}$/i.test(projectId)) { setSteps(null); return; }
+    setError(false);
+    // Checklist probes are best-effort, but they run on heavy list endpoints —
+    // under load the 20s default can be too tight and a timeout silently
+    // zeroes real progress. Give them headroom; failures still degrade to
+    // "not done" rather than crashing the card.
+    const get = (url: string) => api.get<any>(url, { timeoutMs: 30_000 }).catch(() => null);
+
+    const [project, quotes, diaries, certs, invoices, closeout] = await Promise.all([
+      get(`/api/v1/projects/${projectId}`),
+      get(`/api/v1/quotes?projectId=${projectId}&status=ACCEPTED`),
+      get(`/api/v1/projects/${projectId}/site-diaries`),
+      get(`/api/v1/projects/${projectId}/payment-certificates`),
+      get(`/api/v1/invoices?projectId=${projectId}&status=PAID`),
+      get(`/api/v1/projects/${projectId}/closeout`),
+    ]);
+
+    if (stale()) return;
+    if (!project?.data) { setError(true); setSteps(null); return; }
+
+    const p = project.data;
+    const quoteAccepted = (quotes?.quotes || quotes?.data || []).length > 0;
+    const boqImported = Array.isArray(p.boqs) && p.boqs.length > 0;
+    const teamAssigned = Array.isArray(p.members) && p.members.length > 0;
+    const diaryList = diaries?.data || diaries || [];
+    const firstDiary = Array.isArray(diaryList) && diaryList.length > 0;
+    const certList = certs?.data || [];
+    const firstCert = Array.isArray(certList) && certList.length > 0;
+    const invList = invoices?.invoices || invoices?.data || [];
+    const firstInvoicePaid = Array.isArray(invList) && invList.length > 0;
+    const closeoutStage = closeout?.data?.stage;
+    const closed = closeoutStage === 'CLOSED';
+
+    if (stale()) return;
+    setSteps([
+      { key: 'quote', label: 'Quote accepted', hint: 'Client accepted a quote for this project', done: quoteAccepted, section: 'money', tab: 'quotes' },
+      { key: 'boq', label: 'BoQ imported', hint: 'Bill of quantities loaded and priced', done: boqImported, section: 'money', tab: 'boq' },
+      { key: 'team', label: 'Team assigned', hint: 'PM, QS and site roles assigned to the project', done: teamAssigned, section: 'people', tab: 'team' },
+      { key: 'diary', label: 'First site diary', hint: 'Daily site log filed by the supervisor', done: firstDiary, section: 'site', tab: 'dailylog' },
+      { key: 'cert', label: 'First certificate', hint: 'Interim payment certificate certified', done: firstCert, section: 'money', tab: 'certificates' },
+      { key: 'invoice', label: 'First invoice paid', hint: 'A client invoice recorded as paid', done: firstInvoicePaid, section: 'money', tab: 'invoices' },
+      { key: 'closeout', label: 'Closeout', hint: closeoutStage && closeoutStage !== 'IN_PROGRESS' ? `Closeout stage: ${statusLabel(closeoutStage)}` : 'Practical completion through to closed', done: closed, section: 'money', tab: 'certificates' },
+    ]);
+  }, [projectId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (error) return null;
+  if (!steps) {
+    return (
+<Card className="p-5">
+<p className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">Project checklist</p>
+<p className="text-xs text-slate-600">Loading progress…</p>
+</Card>
+);
+  }
+
+  const doneCount = steps.filter((s) => s.done).length;
+
+  return (
+<Card className="p-5">
+<div className="flex items-center justify-between mb-3">
+<h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Project checklist</h3>
+<span className="text-[11px] font-bold text-slate-500">{doneCount} of {steps.length} done</span>
+</div>
+<div className="space-y-1.5">
+      {steps.map((s, i) => (
+<button
+          key={s.key}
+          onClick={() => { setSection(s.section as any); setTab(s.tab); }}
+          className="w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 transition"
+        >
+<span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+            s.done ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+          }`}>
+            {s.done ? '✓' : i + 1}
+</span>
+<span className="min-w-0">
+<span className={`block text-xs font-bold ${s.done ? 'text-slate-500 dark:text-slate-400 line-through' : 'text-slate-800 dark:text-slate-200'}`}>{s.label}</span>
+<span className="block text-[10px] text-slate-600 truncate">{s.hint}</span>
+</span>
+<span className="ml-auto text-[10px] font-bold text-orange-700 shrink-0">{s.done ? 'View' : 'Go →'}</span>
+</button>
+))}
+</div>
+</Card>
+);
+}

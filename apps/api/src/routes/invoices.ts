@@ -1,8 +1,9 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import type { Prisma } from '@construction/db';
 import React from 'react';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
-import { toCurrencyString, toDecimal, Decimal, calculateLineTotal, DecimalValue } from '@construction/money';
+import { toCurrencyString, toDecimal, Decimal, calculateLineTotal, DecimalValue, formatMoneyNumber } from '@construction/money';
 import {
   CreateInvoiceSchema,
   UpdateInvoiceSchema,
@@ -10,12 +11,17 @@ import {
   VoidInvoiceSchema,
 } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
-import { renderPdfToBuffer } from '../reports/renderPdf';
+import { listParams, listPage } from '../lib/pagination';
+import { nextDocumentNumber } from '../lib/counters';
+import { evaluateSelfApproval } from '../plugins/makerChecker';
+import { recordInvoicePaymentTx } from '../services/invoicePayments';
+import { renderPdfToBufferLimited } from '../reports/renderPdf';
 import { InvoicePdf, InvoicePdfData } from '../reports/InvoicePdf';
+import type { RouteError } from '../types/errors';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const MONEY = (v: any) => (v == null ? '0' : v.toString());
+const MONEY = (v: unknown) => (v == null ? '0' : v.toString());
 
 /**
  * ADR-005 / C-03: invoice money math uses decimal.js; line totals rounded
@@ -36,31 +42,54 @@ function computeInvoiceTotals(
 }
 
 /** OVERDUE is derived, never stored: unpaid invoice past its due date. */
-function effectiveStatus(inv: any): string {
+type InvoiceRecord = {
+  status: string;
+  due_date?: Date | string | null;
+  amount_paid?: unknown;
+  total?: unknown;
+  subtotal?: unknown;
+  tax_pct?: { toString(): string } | null;
+  tax_amount?: unknown;
+  certificate_id?: string | null;
+  wht_pct?: { toString(): string } | null;
+  wht_amount?: unknown;
+  balance_due?: unknown;
+  self_approved?: boolean | null;
+  items?: Array<Record<string, unknown> & { quantity?: unknown; unit_rate?: unknown; total_amount?: unknown }> | null;
+  payments?: unknown[] | null;
+  [key: string]: unknown;
+};
+
+function effectiveStatus(inv: InvoiceRecord): string {
   if ((inv.status === 'SENT' || inv.status === 'PART_PAID') && inv.due_date && new Date(inv.due_date) < new Date()) {
     return 'OVERDUE';
   }
   return inv.status;
 }
 
-function formatInvoice(inv: any) {
+function formatInvoice(inv: InvoiceRecord | null | undefined) {
   if (!inv) return null;
   const paid = Number(inv.amount_paid ?? 0);
   const total = Number(inv.total ?? 0);
   return {
     ...inv,
     status: effectiveStatus(inv),
+    selfApproved: !!inv.self_approved,
     stored_status: inv.status,
     subtotal: toCurrencyString(MONEY(inv.subtotal)),
     tax_pct: inv.tax_pct ? inv.tax_pct.toString() : '0',
     tax_amount: toCurrencyString(MONEY(inv.tax_amount)),
+    certificate_id: inv.certificate_id ?? null,
+    certificateId: inv.certificate_id ?? null,
+    wht_pct: inv.wht_pct ? inv.wht_pct.toString() : '0',
+    wht_amount: toCurrencyString(MONEY(inv.wht_amount)),
     total: toCurrencyString(MONEY(inv.total)),
     amount_paid: toCurrencyString(MONEY(inv.amount_paid)),
     balance_due: toCurrencyString(MONEY(inv.balance_due)),
     amount_paid_num: paid,
     balance_due_num: Math.round((total - paid) * 100) / 100,
     items: inv.items
-      ? inv.items.map((i: any) => ({
+      ? inv.items.map((i) => ({
           ...i,
           quantity: i.quantity ? i.quantity.toString() : '0',
           unit_rate: i.unit_rate ? i.unit_rate.toString() : '0',
@@ -77,12 +106,15 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.get(
     '/api/v1/invoices',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_VIEW)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "List invoices", "security": [{"cookieAuth": []}], "parameters": [{"name": "status", "in": "query", "schema": {"type": "string", "enum": ["DRAFT", "SENT", "PART_PAID", "PAID", "VOID", "OVERDUE", "ALL"]}}, {"name": "projectId", "in": "query", "schema": {"type": "string", "format": "uuid"}}, {"name": "q", "in": "query", "schema": {"type": "string"}}, {"name": "page", "in": "query", "schema": {"type": "integer", "default": 1}}, {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 25}}]},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
       const { status, projectId, q } = request.query as Record<string, string | undefined>;
+      const pg = listParams(request);
 
-      const where: any = {
+      const where: Prisma.InvoiceWhereInput = {
         ...(projectId && UUID_REGEX.test(projectId) ? { project_id: projectId } : {}),
         ...(q ? { title: { contains: q, mode: 'insensitive' } } : {}),
       };
@@ -101,14 +133,17 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           where,
           include: {
             items: true,
-            project: { select: { id: true, name: true, code: true } },
+            project: { select: { id: true, name: true, code: true, project_type: true, project_subtype: true } },
             _count: { select: { payments: true } },
           },
           orderBy: { invoice_no: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.send({ invoices: invoices.map(formatInvoice) });
+      const paged = listPage(invoices.map(formatInvoice), pg);
+      return reply.send({ invoices: paged.data, page: paged.page });
     },
   );
 
@@ -117,7 +152,10 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.post(
     '/api/v1/invoices',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Create invoice with line items", "security": [{"cookieAuth": []}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["title", "clientName", "items"], "properties": {"title": {"type": "string"}, "clientName": {"type": "string"}, "clientEmail": {"type": "string"}, "projectId": {"type": "string", "format": "uuid"}, "currency": {"type": "string", "default": "KES"}, "taxPct": {"type": "number"}, "issueDate": {"type": "string", "format": "date"}, "dueDays": {"type": "integer"}, "items": {"type": "array", "items": {"type": "object"}}}}}}}},
+      preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_CREATE)],
+    },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const parsed = CreateInvoiceSchema.safeParse(request.body);
@@ -143,11 +181,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             if (!quote) throw { status: 404, message: 'Quote not found' };
           }
 
-          const maxNo = await tx.invoice.aggregate({
-            where: { tenant_id: tenantId },
-            _max: { invoice_no: true },
-          });
-          const invoiceNo = (maxNo._max.invoice_no ?? 0) + 1;
+          const invoiceNo = await nextDocumentNumber(tx, tenantId, 'INVOICE');
 
           const totals = computeInvoiceTotals(data.items, data.taxPct);
           const issueDate = data.issueDate ? new Date(`${data.issueDate}T00:00:00Z`) : new Date();
@@ -210,8 +244,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
         });
 
         return reply.status(201).send({ invoice: formatInvoice(invoice) });
-      } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -222,7 +257,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.get(
     '/api/v1/invoices/:id',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_VIEW)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Invoice detail", "security": [{"cookieAuth": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}]},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_VIEW)] },
     async (request, reply) => {
       const { tenantId } = request.user;
       const { id } = request.params as { id: string };
@@ -235,7 +272,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
           include: {
             items: { orderBy: { sort_order: 'asc' } },
             payments: { orderBy: { paid_at: 'asc' } },
-            project: { select: { id: true, name: true, code: true } },
+            project: { select: { id: true, name: true, code: true, project_type: true, project_subtype: true } },
             quote: { select: { id: true, quote_no: true, title: true } },
           },
         });
@@ -277,10 +314,10 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
 
           const itemSource = data.items ?? [];
           const keptItems = !data.items
-            ? (await tx.invoiceLineItem.findMany({ where: { invoice_id: id } })).map((i: any) => ({
+            ? (await tx.invoiceLineItem.findMany({ where: { invoice_id: id } })).map((i) => ({
                 section: i.section,
                 description: i.description,
-                unit: i.unit as any,
+                unit: i.unit,
                 quantity: i.quantity.toString(),
                 unitRate: i.unit_rate.toString(),
               }))
@@ -351,8 +388,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
         });
 
         return reply.send({ invoice: formatInvoice(invoice) });
-      } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -363,13 +401,16 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.post(
     '/api/v1/invoices/:id/send',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_SEND)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Send invoice (DRAFT\u2192SENT)", "security": [{"cookieAuth": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"selfApprovalReason": {"type": "string", "minLength": 15}}}}}}},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_SEND)] },
     async (request, reply) => {
-      const { tenantId, sub } = request.user;
+      const { tenantId, sub, role } = request.user;
       const { id } = request.params as { id: string };
       if (!UUID_REGEX.test(id)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invoice not found' });
       }
+      const sendBody = (request.body ?? {}) as { selfApprovalReason?: string | null };
 
       try {
         const invoice = await withTenantTx(prisma, tenantId, async (tx) => {
@@ -379,9 +420,24 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             throw { status: 409, message: `Cannot send an invoice in status ${existing.status}` };
           }
 
+          // Maker-checker: the invoice creator cannot send it themselves;
+          // COMPANY_ADMIN/ADMIN only with a recorded selfApprovalReason.
+          const selfAppr = evaluateSelfApproval({
+            creatorId: existing.created_by,
+            actorId: sub,
+            actorRole: role,
+            reason: sendBody.selfApprovalReason,
+            entity: 'invoice',
+          });
+
           const updated = await tx.invoice.update({
             where: { id },
-            data: { status: 'SENT', sent_at: new Date() },
+            data: {
+              status: 'SENT',
+              sent_at: new Date(),
+              self_approved: selfAppr.selfApproved,
+              self_approval_reason: selfAppr.reason,
+            },
             include: { items: true, payments: true },
           });
 
@@ -392,7 +448,11 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
             action: 'INVOICE_SENT',
             entityType: 'Invoice',
             entityId: id,
-            changes: { invoiceNo: existing.invoice_no },
+            changes: {
+              invoiceNo: existing.invoice_no,
+              selfApproved: selfAppr.selfApproved,
+              selfApprovalReason: selfAppr.reason,
+            },
             ipAddress: request.ip,
             userAgent: (request.headers['user-agent'] as string) || null,
           });
@@ -400,8 +460,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
         });
 
         return reply.send({ invoice: formatInvoice(invoice) });
-      } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -412,12 +473,23 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.post(
     '/api/v1/invoices/:id/payments',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_EDIT)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Record payment (Idempotency-Key required)", "security": [{"cookieAuth": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}, {"name": "Idempotency-Key", "in": "header", "required": true, "schema": {"type": "string"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["amount", "method"], "properties": {"amount": {"type": "number"}, "method": {"type": "string", "enum": ["CASH", "BANK_TRANSFER", "M_PESA", "CHEQUE", "CARD", "OTHER"]}, "reference": {"type": "string"}, "note": {"type": "string"}}}}}}},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_EDIT)] },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { id } = request.params as { id: string };
       if (!UUID_REGEX.test(id)) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Invoice not found' });
+      }
+      // Idempotent payment recording (Stage-7): every payment POST must carry
+      // an Idempotency-Key; a replay returns the originally recorded payment.
+      const idempotencyKey = (request.headers['idempotency-key'] as string | undefined)?.trim();
+      if (!idempotencyKey || idempotencyKey.length > 255) {
+        return reply.status(400).send({
+          statusCode: 400, error: 'Bad Request',
+          message: 'Idempotency-Key header is required for payment recording',
+        });
       }
       const parsed = RecordInvoicePaymentSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -427,80 +499,38 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
 
       try {
         const result = await withTenantTx(prisma, tenantId, async (tx) => {
-          const existing = await tx.invoice.findFirst({ where: { id } });
-          if (!existing) throw { status: 404, message: 'Invoice not found' };
-          if (existing.status !== 'SENT' && existing.status !== 'PART_PAID') {
-            throw { status: 409, message: `Payments can only be recorded on SENT or PART_PAID invoices (current: ${existing.status})` };
-          }
+          // Row lock FIRST: serialise all payment posts on this invoice, then
+          // re-check the idempotency key — a concurrent same-key request that
+          // queued on the lock must see the committed replay, not double-post.
+          await tx.$queryRaw`SELECT id FROM invoices WHERE id = ${id}::uuid FOR UPDATE`;
 
-          const totalDec = toDecimal(existing.total.toString());
-          const paidDec = toDecimal(existing.amount_paid.toString());
-          const amountDec = toDecimal(data.amount);
-          const balanceDec = totalDec.minus(paidDec);
-
-          if (amountDec.lte(0)) throw { status: 400, message: 'Payment amount must be positive' };
-          if (amountDec.gt(balanceDec)) {
-            throw { status: 400, message: `Payment exceeds balance due (${balanceDec.toFixed(2)})` };
-          }
-
-          const newPaidDec = paidDec.plus(amountDec);
-          const newBalanceDec = totalDec.minus(newPaidDec);
-          const newStatus = newBalanceDec.lte(0) ? 'PAID' : 'PART_PAID';
-          const paidAt = data.paidAt ? new Date(`${data.paidAt}T00:00:00Z`) : new Date();
-
-          const payment = await tx.invoicePayment.create({
-            data: {
-              tenant_id: tenantId,
-              invoice_id: id,
-              amount: amountDec.toFixed(2),
-              method: data.method,
-              reference: data.reference ?? null,
-              paid_at: paidAt,
-              note: data.note ?? null,
-              recorded_by: sub,
-            },
-          });
-
-          const updated = await tx.invoice.update({
-            where: { id },
-            data: {
-              amount_paid: newPaidDec.toFixed(2),
-              balance_due: newBalanceDec.toFixed(2),
-              status: newStatus,
-              paid_at: newStatus === 'PAID' ? paidAt : existing.paid_at,
-            },
-            include: { items: true, payments: { orderBy: { paid_at: 'asc' } } },
-          });
-
-          await recordAuditLog(tx, {
+          return recordInvoicePaymentTx(tx, {
             tenantId,
-            projectId: existing.project_id,
-            actorId: sub,
-            action: 'INVOICE_PAYMENT_RECORDED',
-            entityType: 'Invoice',
-            entityId: id,
-            changes: {
-              paymentId: payment.id,
-              amount: amountDec.toFixed(2),
-              method: data.method,
-              reference: data.reference ?? null,
-              newStatus,
-              amountPaid: newPaidDec.toFixed(2),
-              balanceDue: newBalanceDec.toFixed(2),
-            },
+            invoiceId: id,
+            amount: data.amount,
+            method: data.method,
+            reference: data.reference ?? null,
+            note: data.note ?? null,
+            paidAt: data.paidAt ? new Date(`${data.paidAt}T00:00:00Z`) : null,
+            recordedBy: sub,
+            idempotencyKey,
             ipAddress: request.ip,
             userAgent: (request.headers['user-agent'] as string) || null,
+            buildBody: (invoice, payment) => ({ invoice: formatInvoice(invoice as InvoiceRecord), payment }),
           });
-
-          return { invoice: updated, payment };
         });
 
-        return reply.status(201).send({
-          invoice: formatInvoice(result.invoice),
-          payment: result.payment,
-        });
-      } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+        return reply.status(result.status).send(result.body);
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
+        const p2002Text = (JSON.stringify(err?.meta ?? '') + ' ' + String(err?.message ?? '')).toLowerCase();
+        if (err?.code === 'P2002' && (p2002Text.includes('reference') || p2002Text.includes('invoicepayment') || p2002Text.includes('invoice_payments'))) {
+          return reply.status(409).send({
+            statusCode: 409, error: 'Conflict', code: 'DUPLICATE_PAYMENT_REFERENCE',
+            message: 'A payment with this reference has already been recorded',
+          });
+        }
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -511,7 +541,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
   // -------------------------------------------------------------------------
   server.post(
     '/api/v1/invoices/:id/void',
-    { preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_EDIT)] },
+    {
+      schema: {"tags": ["Invoices"], "summary": "Void invoice", "security": [{"cookieAuth": []}], "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["reason"], "properties": {"reason": {"type": "string"}}}}}}},
+ preHandler: [server.authenticate, requirePermission(Permissions.INVOICE_EDIT)] },
     async (request, reply) => {
       const { tenantId, sub } = request.user;
       const { id } = request.params as { id: string };
@@ -556,8 +588,9 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
         });
 
         return reply.send({ invoice: formatInvoice(invoice) });
-      } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },
@@ -577,13 +610,14 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
       }
 
       try {
-        const result = await withTenantTx(prisma, tenantId, async (tx) => {
+        // I6: short read tx — render + audit happen outside it.
+        const { pdfData, invoiceProjectId } = await withTenantTx(prisma, tenantId, async (tx) => {
           const invoice = await tx.invoice.findFirst({
             where: { id },
             include: {
               items: { orderBy: { sort_order: 'asc' } },
               payments: { orderBy: { paid_at: 'asc' } },
-              project: { select: { id: true, name: true, code: true, location: true, nca_project_no: true } },
+              project: { select: { id: true, name: true, code: true, location: true, nca_project_no: true, project_type: true, project_subtype: true } },
             },
           });
           if (!invoice) throw { status: 404, message: 'Invoice not found' };
@@ -609,7 +643,7 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
               currency: invoice.currency,
             },
             project: invoice.project
-              ? { name: invoice.project.name, code: invoice.project.code, location: invoice.project.location }
+              ? { name: invoice.project.name, code: invoice.project.code, location: invoice.project.location, projectType: invoice.project.project_type, projectSubtype: invoice.project.project_subtype }
               : null,
             items: invoice.items.map((it) => ({
               description: it.description,
@@ -617,50 +651,54 @@ export const invoicesRoutes: FastifyPluginAsync = async (server: FastifyInstance
               unit: it.unit,
               quantity: it.quantity.toString(),
               unitRate: it.unit_rate.toString(),
-              total: toCurrencyString(it.total_amount.toString()),
+              total: formatMoneyNumber(it.total_amount.toString()),
             })),
             totals: {
-              subtotal: toCurrencyString(invoice.subtotal.toString()),
+              subtotal: formatMoneyNumber(invoice.subtotal.toString()),
               taxPct: invoice.tax_pct.toString(),
-              taxAmount: toCurrencyString(invoice.tax_amount.toString()),
-              total: toCurrencyString(invoice.total.toString()),
-              amountPaid: toCurrencyString(invoice.amount_paid.toString()),
-              balanceDue: toCurrencyString(invoice.balance_due.toString()),
+              taxAmount: formatMoneyNumber(invoice.tax_amount.toString()),
+              total: formatMoneyNumber(invoice.total.toString()),
+              amountPaid: formatMoneyNumber(invoice.amount_paid.toString()),
+              balanceDue: formatMoneyNumber(invoice.balance_due.toString()),
             },
             terms: invoice.terms,
             notes: invoice.notes,
             paybill: invoice.paybill,
             payments: invoice.payments.map((p) => ({
-              amount: toCurrencyString(p.amount.toString()),
+              amount: formatMoneyNumber(p.amount.toString()),
               method: p.method,
               reference: p.reference,
               paidAt: p.paid_at.toISOString().split('T')[0] ?? '',
             })),
           };
 
-          const buffer = await renderPdfToBuffer(React.createElement(InvoicePdf, { data: pdfData }));
-
-          await recordAuditLog(tx, {
-            tenantId,
-            projectId: invoice.project_id,
-            actorId: sub,
-            action: 'INVOICE_PDF_GENERATED',
-            entityType: 'Invoice',
-            entityId: id,
-            changes: { invoiceNo: pdfData.invoiceNo },
-            ipAddress: request.ip,
-            userAgent: (request.headers['user-agent'] as string) || null,
-          });
-
-          return { buffer, invoiceNo: pdfData.invoiceNo };
+          return { pdfData, invoiceProjectId: invoice.project_id };
         });
+
+        const buffer = await renderPdfToBufferLimited(React.createElement(InvoicePdf, { data: pdfData }));
+
+        // Append-only audit log in its own short tx (I6).
+        await withTenantTx(prisma, tenantId, (tx) => recordAuditLog(tx, {
+          tenantId,
+          projectId: invoiceProjectId,
+          actorId: sub,
+          action: 'INVOICE_PDF_GENERATED',
+          entityType: 'Invoice',
+          entityId: id,
+          changes: { invoiceNo: pdfData.invoiceNo },
+          ipAddress: request.ip,
+          userAgent: (request.headers['user-agent'] as string) || null,
+        }));
+
+        const result = { buffer, invoiceNo: pdfData.invoiceNo };
 
         return reply
           .type('application/pdf')
           .header('Content-Disposition', `attachment; filename="${result.invoiceNo}.pdf"`)
           .send(result.buffer);
-      } catch (err: any) {
-        if (err?.status) return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message });
+      } catch (rawErr) {
+        const err = rawErr as RouteError;
+        if (err?.status) { if (err.retryAfterSeconds) reply.header('Retry-After', String(err.retryAfterSeconds)); return reply.status(err.status).send({ statusCode: err.status, error: 'Error', message: err.message }); }
         throw err;
       }
     },

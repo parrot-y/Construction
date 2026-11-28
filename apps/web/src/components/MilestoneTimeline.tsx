@@ -43,7 +43,7 @@ export default function MilestoneTimeline({
 
 <div className="space-y-3 pt-2">
         {displayItems.length === 0 && (
-<div className="p-6 text-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-xl">
+<div className="p-6 text-center text-sm text-slate-600 border border-dashed border-slate-200 rounded-xl">
             No milestone progress recorded yet — entries appear here as physical progress is certified.
 </div>
 )}
@@ -69,7 +69,7 @@ export default function MilestoneTimeline({
                       {item.item_description}
 </span>
                     {item.section_code && (
-<span className="px-2 py-0.5 text-[10px] font-mono bg-white text-slate-600 border border-slate-200 rounded">
+<span className="px-2 py-0.5 text-[10px] tabular-nums bg-white text-slate-600 border border-slate-200 rounded">
                         {item.section_code}
 </span>
 )}
@@ -82,7 +82,7 @@ export default function MilestoneTimeline({
 </div>
 
 <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-<span className="text-[11px] text-slate-400 font-mono">
+<span className="text-[11px] text-slate-600 tabular-nums">
                     {item.recorded_at ? item.recorded_at.split('T')[0] : ''}
 </span>
 <span
@@ -103,7 +103,7 @@ export default function MilestoneTimeline({
 <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2.5 overflow-hidden">
 <div
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    isComplete ? 'bg-emerald-500' : 'bg-blue-500'
+                    isComplete ? 'bg-emerald-700' : 'bg-blue-700'
 }`}
                   style={{ width: `${Math.min(100, Math.max(0, item.percentage))}%`}}
                 />

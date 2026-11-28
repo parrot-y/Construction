@@ -1,4 +1,6 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { listParams, listPage } from '../lib/pagination';
+import { nextDocumentNumber } from '../lib/counters';
 import { randomBytes, createHash } from 'node:crypto';
 import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { Permissions } from '@construction/permissions';
@@ -115,6 +117,7 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
     async (request, reply) => {
       const { tenantId } = request.user;
       const { status, projectId, q } = request.query as Record<string, string | undefined>;
+      const pg = listParams(request);
 
       const quotes = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.quote.findMany({
@@ -125,10 +128,13 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
           },
           include: { items: true, project: { select: { id: true, name: true, code: true } } },
           orderBy: { quote_no: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.send({ quotes: quotes.map(formatQuote) });
+      const paged = listPage(quotes.map(formatQuote), pg);
+      return reply.send({ quotes: paged.data, page: paged.page });
     },
   );
 
@@ -503,11 +509,16 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
             const depositPctNum = Number(quote.deposit_pct ?? 0);
             const depositAmt = toDecimal(quote.deposit_amount?.toString() ?? '0');
             if (depositPctNum > 0 && depositAmt.gt(0)) {
-              const invAgg = await tx.invoice.aggregate({
-                where: { tenant_id: tenantId },
-                _max: { invoice_no: true },
-              });
-              const invNo = (invAgg._max.invoice_no ?? 0) + 1;
+              // deposit_amount is a percentage of the quote TOTAL (VAT-inclusive).
+              // Split it back into net + VAT at the quote's tax rate so the
+              // invoice carries a real tax_pct instead of a silent 0%.
+              const quoteVatPct = toDecimal(quote.tax_pct?.toString() ?? '0');
+              const vatDivisor = new Decimal(1).plus(quoteVatPct.dividedBy(100));
+              const depositNet = vatDivisor.gt(0)
+                ? depositAmt.dividedBy(vatDivisor).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+                : depositAmt;
+              const depositVat = depositAmt.minus(depositNet).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+              const invNo = await nextDocumentNumber(tx, tenantId, 'INVOICE');
               const issueDate = new Date();
               const dueDate = new Date(issueDate.getTime() + 7 * 86400000);
               depositInvoice = await tx.invoice.create({
@@ -522,9 +533,9 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
                   quote_id: quote.id,
                   currency: quote.currency,
                   status: 'DRAFT',
-                  subtotal: depositAmt,
-                  tax_pct: 0,
-                  tax_amount: 0,
+                  subtotal: depositNet,
+                  tax_pct: quoteVatPct.toDecimalPlaces(2).toFixed(2),
+                  tax_amount: depositVat,
                   total: depositAmt,
                   balance_due: depositAmt,
                   issue_date: issueDate,
@@ -538,10 +549,23 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
                         description: `Mobilization deposit (${depositPctNum}% of contract sum) — ${quote.title}`,
                         unit: 'sum',
                         quantity: 1,
-                        unit_rate: depositAmt,
-                        total_amount: depositAmt,
+                        unit_rate: depositNet,
+                        total_amount: depositNet,
                         sort_order: 0,
                       },
+                      ...(depositVat.gt(0)
+                        ? [
+                            {
+                              tenant_id: tenantId,
+                              description: `VAT @ ${quoteVatPct.toDecimalPlaces(2).toFixed(2)}% (included in deposit)`,
+                              unit: 'item',
+                              quantity: 1,
+                              unit_rate: depositVat,
+                              total_amount: depositVat,
+                              sort_order: 1,
+                            },
+                          ]
+                        : []),
                     ],
                   },
                 },
@@ -619,6 +643,7 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
       if (!user?.email) {
         return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'User not found' });
       }
+      const pg = listParams(request);
 
       const quotes = await withTenantTx(prisma, tenantId, async (tx) => {
         return tx.quote.findMany({
@@ -631,10 +656,13 @@ export const quotesRoutes: FastifyPluginAsync = async (server: FastifyInstance) 
             project: { select: { id: true, name: true, code: true } },
           },
           orderBy: { created_at: 'desc' },
+          skip: pg.skip,
+          take: pg.limit + 1,
         });
       });
 
-      return reply.send({ quotes: quotes.map(formatQuote) });
+      const paged = listPage(quotes.map(formatQuote), pg);
+      return reply.send({ quotes: paged.data, page: paged.page });
     },
   );
 

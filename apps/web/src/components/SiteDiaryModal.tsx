@@ -1,5 +1,7 @@
 import React, { useState} from 'react';
 import { queueOfflineMutation, compressImageClientSide} from '../services/offline-sync';
+import { api, apiErrorMessage, ApiError } from '../lib/api';
+import { useGeolocation, type GeoFix } from '../lib/useGeolocation';
 
 interface SiteDiaryModalProps {
   isOpen: boolean;
@@ -49,6 +51,8 @@ export default function SiteDiaryModal({
   const [compressedInfo, setCompressedInfo] = useState<{ originalKB: number; compressedKB: number} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { status: geoStatus, request: requestGeo } = useGeolocation();
+  const [photoGeo, setPhotoGeo] = useState<GeoFix | null>(null);
 
   if (!isOpen) return null;
 
@@ -63,6 +67,11 @@ export default function SiteDiaryModal({
     if (!file) return;
 
     setPhotoFile(file);
+    // Capture the device fix at photo-pick time — closest available moment
+    // to the shutter. No fix means the photo saves without coordinates;
+    // we never substitute a default location.
+    const fix = await requestGeo();
+    setPhotoGeo(fix);
     try {
       const compressed = await compressImageClientSide(file);
       setCompressedInfo({
@@ -70,7 +79,7 @@ export default function SiteDiaryModal({
         compressedKB: Math.round(compressed.compressedSize / 1024),
 });
 } catch {
-      // Ignored
+      // hygiene-allow: intentionally ignored — client-side compression is best-effort
 }
 };
 
@@ -87,14 +96,9 @@ export default function SiteDiaryModal({
       try {
         const fd = new FormData();
         fd.append('file', photoFile);
-        const up = await fetch(`/api/v1/projects/${projectId}/uploads`, {
-          method: 'POST', credentials: 'include', body: fd,
-});
-        if (up.ok) {
-          const uj = await up.json();
-          uploadedStorageKey = uj?.data?.storageKey || null;
-}
-} catch { /* fall through to metadata-only */}
+        const uj: any = await api.post(`/api/v1/projects/${projectId}/uploads`, fd);
+        uploadedStorageKey = uj?.data?.storageKey || null;
+} catch { /* intentionally ignored: photo upload is best-effort — diary saves without it */ }
 }
 
     const equipmentLog = equipmentName.trim()
@@ -131,8 +135,10 @@ export default function SiteDiaryModal({
               storageKey: uploadedStorageKey || `evidence/${projectId}/${Date.now()}-${photoFile.name}`,
               caption: photoCaption.trim() || undefined,
               clientVisible: photoClientVisible,
-              gpsLatitude: -1.286389, // Nairobi site coordinates
-              gpsLongitude: 36.817223,
+              gpsLatitude: photoGeo?.latitude ?? null,
+              gpsLongitude: photoGeo?.longitude ?? null,
+              gpsAccuracyMeters: photoGeo?.accuracy ?? null,
+              takenAt: photoGeo?.capturedAt,
 },
           ]
         : [],
@@ -149,8 +155,8 @@ export default function SiteDiaryModal({
 });
 }
         onClose();
-} catch (err: any) {
-        setError(err.message || 'Failed to queue offline diary');
+} catch (err) {
+        setError(apiErrorMessage(err, 'Failed to queue offline diary'));
 } finally {
         setIsSubmitting(false);
 }
@@ -158,32 +164,26 @@ export default function SiteDiaryModal({
 }
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/site-diaries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        credentials: 'include',
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to record diary (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData = await api.post<{ data: unknown }>(`/api/v1/projects/${projectId}/site-diaries`, payload);
       if (onDiarySubmitted) onDiarySubmitted(resData.data);
       onClose();
 } catch (err: any) {
-      // If network fails, queue offline
-      await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/site-diaries`, payload);
-      if (onDiarySubmitted) {
-        onDiarySubmitted({
-          ...payload,
-          isOfflineQueued: true,
-          totalHeadcount,
+      // Only transport failures (offline/network/timeout — no HTTP status)
+      // may queue for later sync. Server rejections (403/409/422/500) must
+      // surface honestly so the user can fix and retry — never fake-saved.
+      if (err instanceof ApiError && err.status === undefined) {
+        await queueOfflineMutation(projectId, `/api/v1/projects/${projectId}/site-diaries`, payload);
+        if (onDiarySubmitted) {
+          onDiarySubmitted({
+            ...payload,
+            isOfflineQueued: true,
+            totalHeadcount,
 });
 }
-      onClose();
+        onClose();
+      } else {
+        setError(apiErrorMessage(err, 'Could not save the diary. Check the connection and try again.'));
+      }
 } finally {
       setIsSubmitting(false);
 }
@@ -191,12 +191,12 @@ export default function SiteDiaryModal({
 
   return (
 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-<div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
+<div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh] my-8 animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-<div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+<div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center sticky top-0 z-10">
 <div>
 <div className="flex items-center gap-2">
-<span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span className="w-2.5 h-2.5 rounded-full bg-amber-700"></span>
 <h3 className="font-bold text-slate-900 text-base">Record Daily Site Diary</h3>
 </div>
 <p className="text-xs text-slate-500 mt-0.5">
@@ -205,7 +205,7 @@ export default function SiteDiaryModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close modal"
           >
             
@@ -230,7 +230,7 @@ export default function SiteDiaryModal({
                 required
                 value={entryDate}
                 onChange={(e) => setEntryDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-hidden font-mono"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-hidden tabular-nums"
               />
 </div>
 
@@ -283,7 +283,7 @@ export default function SiteDiaryModal({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
 <div className="flex justify-between items-center">
 <span className="font-bold text-slate-800"> On-Site Trade Headcount</span>
-<span className="font-mono font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[11px]">
+<span className="font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[11px]">
                 Total: {totalHeadcount} workers
 </span>
 </div>
@@ -295,7 +295,7 @@ export default function SiteDiaryModal({
                   min="0"
                   value={masons}
                   onChange={(e) => setMasons(e.target.value)}
-                  className="w-full p-1.5 text-xs font-mono font-bold border border-slate-300 rounded-md bg-white text-center"
+                  className="w-full p-1.5 text-xs tabular-nums font-bold border border-slate-300 rounded-md bg-white text-center"
                 />
 </div>
 <div>
@@ -305,7 +305,7 @@ export default function SiteDiaryModal({
                   min="0"
                   value={carpenters}
                   onChange={(e) => setCarpenters(e.target.value)}
-                  className="w-full p-1.5 text-xs font-mono font-bold border border-slate-300 rounded-md bg-white text-center"
+                  className="w-full p-1.5 text-xs tabular-nums font-bold border border-slate-300 rounded-md bg-white text-center"
                 />
 </div>
 <div>
@@ -315,7 +315,7 @@ export default function SiteDiaryModal({
                   min="0"
                   value={steelFixers}
                   onChange={(e) => setSteelFixers(e.target.value)}
-                  className="w-full p-1.5 text-xs font-mono font-bold border border-slate-300 rounded-md bg-white text-center"
+                  className="w-full p-1.5 text-xs tabular-nums font-bold border border-slate-300 rounded-md bg-white text-center"
                 />
 </div>
 <div>
@@ -325,7 +325,7 @@ export default function SiteDiaryModal({
                   min="0"
                   value={casuals}
                   onChange={(e) => setCasuals(e.target.value)}
-                  className="w-full p-1.5 text-xs font-mono font-bold border border-slate-300 rounded-md bg-white text-center"
+                  className="w-full p-1.5 text-xs tabular-nums font-bold border border-slate-300 rounded-md bg-white text-center"
                 />
 </div>
 </div>
@@ -350,14 +350,14 @@ export default function SiteDiaryModal({
                   placeholder="Qty"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  className="w-20 p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
+                  className="w-20 p-1.5 text-xs border border-slate-300 rounded-md bg-white tabular-nums"
                 />
 <input
                   type="text"
                   placeholder="Unit"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="w-16 p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono "
+                  className="w-16 p-1.5 text-xs border border-slate-300 rounded-md bg-white tabular-nums "
                 />
 </div>
 </div>
@@ -402,7 +402,7 @@ export default function SiteDiaryModal({
                   placeholder="Hours"
                   value={equipmentHours}
                   onChange={(e) => setEquipmentHours(e.target.value)}
-                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
+                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white tabular-nums"
                 />
 <span className="text-[11px] text-slate-500">hrs</span>
 </div>
@@ -412,7 +412,7 @@ export default function SiteDiaryModal({
                   placeholder="Fuel"
                   value={fuelLitres}
                   onChange={(e) => setFuelLitres(e.target.value)}
-                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white font-mono"
+                  className="w-full p-1.5 text-xs border border-slate-300 rounded-md bg-white tabular-nums"
                 />
 <span className="text-[11px] text-slate-500">L</span>
 </div>
@@ -423,8 +423,12 @@ export default function SiteDiaryModal({
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
 <div className="flex justify-between items-center">
 <span className="font-bold text-slate-800"> Geotagged Photo Evidence</span>
-<span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                GPS Geotagged • Nairobi
+<span className={`text-[10px] px-2 py-0.5 rounded ${photoGeo ? 'text-emerald-700 bg-emerald-100' : 'text-slate-500 bg-slate-100'}`}>
+                {photoGeo
+                  ? `GPS ±${Math.round(photoGeo.accuracy ?? 0)} m`
+                  : geoStatus === 'requesting'
+                    ? 'Getting location…'
+                    : 'No GPS fix — saved without location'}
 </span>
 </div>
 <input
@@ -438,7 +442,7 @@ export default function SiteDiaryModal({
 <div className="pt-1 flex flex-col sm:flex-row justify-between items-start sm:items-center text-[11px] text-slate-600 gap-1">
 <span> {photoFile.name}</span>
                 {compressedInfo && (
-<span className="text-emerald-700 font-mono font-semibold">
+<span className="text-emerald-700 tabular-nums font-semibold">
                     Compressed: {compressedInfo.originalKB} KB → {compressedInfo.compressedKB} KB (Saved{' '}
                     {Math.round((1 - compressedInfo.compressedKB / compressedInfo.originalKB) * 100)}%)
 </span>
@@ -480,7 +484,7 @@ export default function SiteDiaryModal({
 </div>
 
           {/* Actions */}
-<div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+<div className="pt-2 flex justify-end gap-2 border-t border-slate-100 sticky bottom-0 bg-white pb-1">
 <button
               type="button"
               onClick={onClose}
@@ -492,7 +496,7 @@ export default function SiteDiaryModal({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
+              className="px-5 py-2 text-xs font-semibold bg-amber-700 hover:bg-amber-800 text-white rounded-lg shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
             >
               {isSubmitting ? 'Saving...' : ' Record Daily Site Diary'}
 </button>

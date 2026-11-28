@@ -79,7 +79,7 @@ export default async function globalSetup(): Promise<void> {
   });
   execSync('pnpm --filter @construction/db exec tsx prisma/seed.ts', {
     cwd: repoRoot,
-    env: { ...env, NODE_ENV: 'test' },
+    env: { ...env, NODE_ENV: 'test', UPLOAD_DIR: process.env.E2E_UPLOAD_DIR || '/tmp/e2e-uploads' },
     stdio: 'inherit',
   });
 }

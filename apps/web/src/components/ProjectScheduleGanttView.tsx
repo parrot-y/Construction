@@ -1,4 +1,5 @@
 import React, { useEffect, useState} from 'react';
+import { api } from '../lib/api';
 
 export interface ScheduleTask {
   id: string;
@@ -94,9 +95,7 @@ export default function ProjectScheduleGanttView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/tasks`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/tasks`);
       const list = (json.tasks || json.data || []) as any[];
       setTasks(list.map((t) => ({
         ...t,
@@ -162,18 +161,15 @@ export default function ProjectScheduleGanttView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/tasks`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              wbsPhase: newPhase, taskName: newTaskName.trim(),
-              description: newDesc.trim() || null,
-              plannedStartDate: newStartDate, plannedEndDate: newEndDate,
-              durationDays: newDuration,
-              assignedTrade: newTrade.trim() || null,
-              orderIndex: tasks.length + 1,
-}),
-});
-          if (res.ok) await reload();
+          await api.post(`/api/v1/projects/${projectId}/tasks`, {
+            wbsPhase: newPhase, taskName: newTaskName.trim(),
+            description: newDesc.trim() || null,
+            plannedStartDate: newStartDate, plannedEndDate: newEndDate,
+            durationDays: newDuration,
+            assignedTrade: newTrade.trim() || null,
+            orderIndex: tasks.length + 1,
+          });
+          await reload();
 } catch { /* ignore */}
 })();
 } else {
@@ -190,10 +186,7 @@ export default function ProjectScheduleGanttView({
     if (isLive) {
       void (async () => {
         try {
-          await fetch(`/api/v1/projects/${projectId}/tasks/${taskId}`, {
-            method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ progressPercentage: String(newProgress), status: nextStatus}),
-});
+          await api.patch(`/api/v1/projects/${projectId}/tasks/${taskId}`, { progressPercentage: String(newProgress), status: nextStatus });
           await reload();
 } catch { /* ignore */}
 })();
@@ -249,7 +242,7 @@ export default function ProjectScheduleGanttView({
           {canEdit && (
 <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-700 hover:bg-indigo-800 focus:outline-none"
             >
               + Add Schedule Task
 </button>
@@ -262,10 +255,10 @@ export default function ProjectScheduleGanttView({
 <span className="text-xs text-slate-500 font-medium">Overall Progress</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{overallProgress}%</span>
-<span className="text-xs text-slate-400">weighted avg</span>
+<span className="text-xs text-slate-600">weighted avg</span>
 </div>
 <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
-<div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${overallProgress}%`}}></div>
+<div className="bg-indigo-700 h-1.5 rounded-full" style={{ width: `${overallProgress}%`}}></div>
 </div>
 </div>
 
@@ -273,9 +266,9 @@ export default function ProjectScheduleGanttView({
 <span className="text-xs text-slate-500 font-medium">Total Milestones</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{totalTasks}</span>
-<span className="text-xs text-slate-400">tasks</span>
+<span className="text-xs text-slate-600">tasks</span>
 </div>
-<div className="text-xs text-emerald-600 mt-2 font-medium">
+<div className="text-xs text-emerald-700 mt-2 font-medium">
               {completedTasks} completed
 </div>
 </div>
@@ -283,8 +276,8 @@ export default function ProjectScheduleGanttView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Active In-Progress</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-amber-600">{inProgressTasks}</span>
-<span className="text-xs text-slate-400">on site</span>
+<span className="text-2xl font-bold text-amber-700">{inProgressTasks}</span>
+<span className="text-xs text-slate-600">on site</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               Executing trades
@@ -294,10 +287,10 @@ export default function ProjectScheduleGanttView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Schedule Variance</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className={`text-2xl font-bold ${delayedTasks > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+<span className={`text-2xl font-bold ${delayedTasks > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                 {delayedTasks}
 </span>
-<span className="text-xs text-slate-400">delayed</span>
+<span className="text-xs text-slate-600">delayed</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               {delayedTasks === 0 ? 'On program track' : 'Action required'}
@@ -358,7 +351,7 @@ export default function ProjectScheduleGanttView({
                       {task.wbs_phase}
 </span>
                     {getStatusBadge(task.status)}
-<span className="text-xs text-slate-400">
+<span className="text-xs text-slate-600">
                       • {task.duration_days} days
 </span>
 </div>
@@ -397,10 +390,10 @@ export default function ProjectScheduleGanttView({
 <div
                       className={`h-2 rounded-full transition-all duration-300 ${
                         Number(task.progress_percentage) === 100
-                          ? 'bg-emerald-500'
+                          ? 'bg-emerald-700'
                           : Number(task.progress_percentage) > 50
-                          ? 'bg-indigo-600'
-                          : 'bg-amber-500'
+                          ? 'bg-indigo-700'
+                          : 'bg-amber-700'
 }`}
                       style={{ width: `${task.progress_percentage}%`}}
                     ></div>
@@ -528,7 +521,7 @@ export default function ProjectScheduleGanttView({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg shadow-sm"
                 >
                   Save Task
 </button>

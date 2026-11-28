@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { queueOfflineMutation} from '../services/offline-sync';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface PhysicalProgressModalProps {
   isOpen: boolean;
@@ -61,8 +62,8 @@ export default function PhysicalProgressModal({
           onProgressRecorded({ ...payload, isOfflineQueued: true});
 }
         onClose();
-} catch (err: any) {
-        setError(err.message || 'Failed to queue progress offline');
+} catch (err) {
+        setError(apiErrorMessage(err, 'Failed to queue progress offline'));
 } finally {
         setIsSubmitting(false);
 }
@@ -70,18 +71,7 @@ export default function PhysicalProgressModal({
 }
 
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/progress`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to record progress (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData = await api.post<{ data?: any }>(`/api/v1/projects/${projectId}/progress`, payload);
       if (onProgressRecorded) onProgressRecorded(resData.data);
       onClose();
 } catch {
@@ -102,7 +92,7 @@ export default function PhysicalProgressModal({
 <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
 <div>
 <div className="flex items-center gap-2">
-<span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+<span className="w-2.5 h-2.5 rounded-full bg-blue-700"></span>
 <h3 className="font-bold text-slate-900 text-base">Record Physical Site Progress</h3>
 </div>
 <p className="text-xs text-slate-500 mt-0.5">
@@ -111,7 +101,7 @@ export default function PhysicalProgressModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close modal"
           >
             
@@ -136,7 +126,7 @@ export default function PhysicalProgressModal({
                 required
                 value={recordDate}
                 onChange={(e) => setRecordDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden font-mono"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden tabular-nums"
               />
 </div>
 
@@ -151,9 +141,9 @@ export default function PhysicalProgressModal({
                   required
                   value={overallProgressPct}
                   onChange={(e) => setOverallProgressPct(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden font-mono font-bold"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden tabular-nums font-bold"
                 />
-<span className="absolute right-3 top-2 text-xs font-bold text-slate-400">%</span>
+<span className="absolute right-3 top-2 text-xs font-bold text-slate-600">%</span>
 </div>
 </div>
 </div>
@@ -184,7 +174,7 @@ export default function PhysicalProgressModal({
                       step="0.0001"
                       value={completedQty}
                       onChange={(e) => setCompletedQty(e.target.value)}
-                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md font-mono"
+                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md tabular-nums"
                     />
 </div>
 <div>
@@ -196,7 +186,7 @@ export default function PhysicalProgressModal({
                       max="100"
                       value={itemCompletionPct}
                       onChange={(e) => setItemCompletionPct(e.target.value)}
-                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md font-mono font-bold"
+                      className="w-full p-1.5 text-xs border border-slate-300 rounded-md tabular-nums font-bold"
                     />
 </div>
 </div>
@@ -229,7 +219,7 @@ export default function PhysicalProgressModal({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition disabled:opacity-50"
+              className="px-5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm transition disabled:opacity-50"
             >
               {isSubmitting ? 'Recording...' : ' Record Physical Progress'}
 </button>

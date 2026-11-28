@@ -1,5 +1,8 @@
 import { formatKes} from '../ui';
 import React, { useEffect, useState} from 'react';
+import { formatDate, formatDateTime } from '../lib/format';
+import { api, apiErrorMessage } from '../lib/api';
+import { InlineError } from './feedback/InlineError';
 
 export interface SubscriptionTransactionItem {
   id: string;
@@ -47,26 +50,20 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
   useEffect(() => {
     (async () => {
       try {
-        const [sRes, tRes] = await Promise.all([
-          fetch('/api/v1/billing/subscription-status', { credentials: 'include'}),
-          fetch('/api/v1/billing/transactions', { credentials: 'include'}),
+        const [sb, tb] = await Promise.all([
+          api.get<any>('/api/v1/billing/subscription-status'),
+          api.get<any>('/api/v1/billing/transactions'),
         ]);
-        if (sRes.ok) {
-          const sb = await sRes.json();
-          if (!initialSubState) setSubscriptionState(sb.subscriptionState);
-          if (!initialActivePlan) setActivePlan(sb.activePlan);
-          if (!initialFee) setMonthlyFee(sb.monthlyFeeKes);
-          if (initialDays === undefined) setDaysRemaining(sb.daysRemaining);
-          if (initialReceipt === undefined) setLastPaymentRef(sb.lastPaymentRef);
-          if (!tenantName) setTenantLabel(sb.tenantName);
-        }
-        if (tRes.ok) {
-          const tb = await tRes.json();
-          if (!initialTransactions) setTransactions(tb.transactions || []);
-        }
+        if (!initialSubState) setSubscriptionState(sb.subscriptionState);
+        if (!initialActivePlan) setActivePlan(sb.activePlan);
+        if (!initialFee) setMonthlyFee(sb.monthlyFeeKes);
+        if (initialDays === undefined) setDaysRemaining(sb.daysRemaining);
+        if (initialReceipt === undefined) setLastPaymentRef(sb.lastPaymentRef);
+        if (!tenantName) setTenantLabel(sb.tenantName);
+        if (!initialTransactions) setTransactions(tb.transactions || []);
         setLoadError(null);
-      } catch (e: any) {
-        setLoadError(e.message || 'Failed to load billing status');
+      } catch (e) {
+        setLoadError(apiErrorMessage(e, 'Failed to load billing status'));
       }
     })();
   }, []);
@@ -95,17 +92,9 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 
       // Real API call — server records an INITIATED transaction and reports
       // SIMULATED until live Daraja credentials are configured.
-      const res = await fetch('/api/v1/billing/mpesa-express', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ phoneNumber: formattedPhone, planCode: selectedPlan, amount}),
-});
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => null);
-        throw new Error(errBody?.message || `STK push failed (${res.status})`);
-}
-      const created = await res.json();
+      const created = await api.post<any>('/api/v1/billing/mpesa-express',
+        { phoneNumber: formattedPhone, planCode: selectedPlan, amount},
+        { money: true });
 
       const newTx: SubscriptionTransactionItem = {
         id: created.transactionId ?? `tx-${Date.now()}`,
@@ -125,8 +114,8 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
         setShowStkModal(false);
         setStkFeedback(null);
 }, 1500);
-} catch (err: any) {
-      setStkFeedback(`Failed: ${err.message || 'M-Pesa STK push error'}`);
+} catch (err) {
+      setStkFeedback(`Failed: ${apiErrorMessage(err, 'M-Pesa STK push error')}`);
 } finally {
       setIsSubmitting(false);
 }
@@ -160,7 +149,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 </div>
 <button
           onClick={() => setShowStkModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm shadow-sm transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-medium text-sm shadow-sm transition-colors"
         >
 <span>Pay / Upgrade with M-Pesa</span>
 </button>
@@ -173,7 +162,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <p className="text-xl font-bold text-slate-800 mt-1">
             {activePlan === 'PORTFOLIO_TIER' ? 'Portfolio Tier' : 'Single Project Tier'}
 </p>
-<p className="text-xs text-emerald-600 mt-1 font-medium">{formatKes(monthlyFee)} / Month</p>
+<p className="text-xs text-emerald-700 mt-1 font-medium">{formatKes(monthlyFee)} / Month</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -181,7 +170,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <p className="text-xl font-bold text-slate-800 mt-1">{daysRemaining ?? '—'} Days</p>
 <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
 <div
-              className="bg-emerald-500 h-1.5 rounded-full"
+              className="bg-emerald-700 h-1.5 rounded-full"
               style={{ width: `${Math.min(100, ((daysRemaining ?? 0) / 30) * 100)}%`}}
             ></div>
 </div>
@@ -197,8 +186,8 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Last M-Pesa Receipt</p>
-<p className="text-lg font-mono font-bold text-slate-800 mt-1">{lastPaymentRef || 'None'}</p>
-<p className="text-xs text-slate-400 mt-1">M-Pesa payment record — simulated until Daraja is configured</p>
+<p className="text-lg tabular-nums font-bold text-slate-800 mt-1">{lastPaymentRef || 'None'}</p>
+<p className="text-xs text-slate-600 mt-1">M-Pesa payment record — simulated until Daraja is configured</p>
 </div>
 </div>
 
@@ -208,7 +197,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div className={`p-6 rounded-xl border ${activePlan === 'PROJECT_TIER' ? 'border-emerald-500 ring-2 ring-emerald-100 bg-white' : 'border-slate-200 bg-slate-50'}`}>
 <div className="flex justify-between items-start">
 <div>
-<span className="text-xs font-bold text-emerald-600 ">Single Project</span>
+<span className="text-xs font-bold text-emerald-700 ">Single Project</span>
 <h3 className="text-lg font-bold text-slate-800 mt-1">Project Tier</h3>
 <p className="text-2xl font-bold text-slate-900 mt-2">{formatKes(7500)}<span className="text-xs font-normal text-slate-500">/ month</span></p>
 </div>
@@ -226,7 +215,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <button
             onClick={() => { setSelectedPlan('PROJECT_TIER'); setShowStkModal(true);}}
             className={`w-full mt-5 py-2 px-4 rounded-lg font-medium text-xs transition-colors ${
-              activePlan === 'PROJECT_TIER' ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              activePlan === 'PROJECT_TIER' ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-emerald-700 text-white hover:bg-emerald-800'
 }`}
           >
             {activePlan === 'PROJECT_TIER' ? 'Renew Single Project Tier' : 'Switch to Project Tier'}
@@ -237,7 +226,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div className={`p-6 rounded-xl border ${activePlan === 'PORTFOLIO_TIER' ? 'border-emerald-500 ring-2 ring-emerald-100 bg-white' : 'border-slate-200 bg-slate-50'}`}>
 <div className="flex justify-between items-start">
 <div>
-<span className="text-xs font-bold text-indigo-600 ">Enterprise</span>
+<span className="text-xs font-bold text-indigo-700 ">Enterprise</span>
 <h3 className="text-lg font-bold text-slate-800 mt-1">Portfolio Tier</h3>
 <p className="text-2xl font-bold text-slate-900 mt-2">{formatKes(25000)}<span className="text-xs font-normal text-slate-500">/ month</span></p>
 </div>
@@ -255,7 +244,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <button
             onClick={() => { setSelectedPlan('PORTFOLIO_TIER'); setShowStkModal(true);}}
             className={`w-full mt-5 py-2 px-4 rounded-lg font-medium text-xs transition-colors ${
-              activePlan === 'PORTFOLIO_TIER' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              activePlan === 'PORTFOLIO_TIER' ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-indigo-700 text-white hover:bg-indigo-800'
 }`}
           >
             {activePlan === 'PORTFOLIO_TIER' ? 'Renew Portfolio Tier' : 'Upgrade to Enterprise Portfolio Tier'}
@@ -269,7 +258,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <div>
 <h3 className="font-bold text-slate-800 text-sm">Daraja M-Pesa Subscription Transactions</h3>
 <p className="text-xs text-slate-500">Real-time payment audit log for tenant: {tenantLabel || 'your workspace'}</p>
-{loadError && <p className="text-xs text-rose-600 mt-1">{loadError}</p>}
+{loadError && <InlineError error={loadError} className="mt-1" />}
 </div>
 <span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-600 rounded">
             {transactions.length} Transactions
@@ -291,11 +280,11 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 </thead>
 <tbody className="divide-y divide-slate-100">
               {transactions.length === 0 && (
-<tr><td colSpan={6} className="py-6 text-center text-sm text-slate-400">No subscription payments recorded yet.</td></tr>
+<tr><td colSpan={6} className="py-6 text-center text-sm text-slate-600">No subscription payments recorded yet.</td></tr>
 )}
 {transactions.map((tx) => (
 <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
-<td className="p-3 font-mono font-bold text-slate-800">
+<td className="p-3 font-mono tabular-nums font-bold text-slate-800">
                     {tx.mpesaReceiptNumber || 'PENDING'}
 </td>
 <td className="p-3">
@@ -303,8 +292,8 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
                       {tx.planCode === 'PORTFOLIO_TIER' ? 'Portfolio Tier' : 'Project Tier'}
 </span>
 </td>
-<td className="p-3 font-mono">{tx.phoneNumber}</td>
-<td className="p-3 font-mono font-bold text-slate-800">{formatKes(tx.amount)}</td>
+<td className="p-3 tabular-nums">{tx.phoneNumber}</td>
+<td className="p-3 tabular-nums font-bold text-slate-800">{formatKes(tx.amount)}</td>
 <td className="p-3">
                     {tx.transactionStatus === 'SUCCESS' ? (
 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">SUCCESS</span>
@@ -315,10 +304,10 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 )}
 </td>
 <td className="p-3 text-slate-500">
-                    {tx.subscriptionPeriodEnd ? new Date(tx.subscriptionPeriodEnd).toLocaleDateString('en-KE') : '—'}
+                    {tx.subscriptionPeriodEnd ? formatDate(new Date(tx.subscriptionPeriodEnd)) : '—'}
 </td>
-<td className="p-3 text-slate-400">
-                    {new Date(tx.createdAt).toLocaleString('en-KE')}
+<td className="p-3 text-slate-600">
+                    {formatDateTime(new Date(tx.createdAt))}
 </td>
 </tr>
 ))}
@@ -335,7 +324,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <h3 className="font-bold text-slate-800 text-base">Lipa Na M-Pesa Online (STK Push)</h3>
 <button
                 onClick={() => setShowStkModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-600 hover:text-slate-600 font-bold"
               >
                 
 </button>
@@ -359,7 +348,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 }`}
                   >
 <p className="font-bold text-slate-800">Project Tier</p>
-<p className="text-emerald-700 font-mono font-semibold mt-0.5">{formatKes(7500)}/mo</p>
+<p className="text-emerald-700 tabular-nums font-semibold mt-0.5">{formatKes(7500)}/mo</p>
 </button>
 <button
                     type="button"
@@ -369,7 +358,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 }`}
                   >
 <p className="font-bold text-slate-800">Portfolio Tier</p>
-<p className="text-emerald-700 font-mono font-semibold mt-0.5">{formatKes(25000)}/mo</p>
+<p className="text-emerald-700 tabular-nums font-semibold mt-0.5">{formatKes(25000)}/mo</p>
 </button>
 </div>
 </div>
@@ -381,10 +370,10 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="0712345678"
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
                 />
-<p className="text-[11px] text-slate-400 mt-1">Enter Kenyan phone registered for M-Pesa</p>
+<p className="text-[11px] text-slate-600 mt-1">Enter Kenyan phone registered for M-Pesa</p>
 </div>
 
 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center font-semibold">
@@ -405,7 +394,7 @@ export const SubscriptionBillingView: React.FC<SubscriptionBillingViewProps> = (
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg font-bold shadow-sm"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-400 text-white rounded-lg font-bold shadow-sm"
                 >
                   {isSubmitting ? 'Dispatching STK Push...' : 'Authorize on Handset'}
 </button>

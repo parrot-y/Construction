@@ -1,12 +1,16 @@
 import React, { useState} from 'react';
 import { AuthSession} from '../types/auth';
+import { PRODUCT_NAME } from '../lib/product';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface LoginFormProps {
   onLoginSuccess: (session: AuthSession) => void;
+  onOpenSignup?: () => void;
+  onForgotPassword?: () => void;
   apiBaseUrl?: string;
 }
 
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV === true;
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 const DEMO_ACCOUNTS = DEMO_MODE ? [
   { label: 'Company Admin', email: 'admin@apexbuilders.co.ke', role: 'COMPANY_ADMIN', badge: 'bg-blue-100 text-blue-800'},
@@ -17,7 +21,7 @@ const DEMO_ACCOUNTS = DEMO_MODE ? [
   { label: 'Client', email: 'client@apexbuilders.co.ke', role: 'CLIENT', badge: 'bg-emerald-100 text-emerald-800'},
 ] : [];
 
-export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
+export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPassword, apiBaseUrl = ''}: LoginFormProps): React.JSX.Element {
   const [email, setEmail] = useState(DEMO_MODE ? 'admin@apexbuilders.co.ke' : '');
   const [password, setPassword] = useState(DEMO_MODE ? 'Password123!' : '');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,26 +33,10 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        credentials: 'include',
-        body: JSON.stringify({ email, password}),
-});
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed. Please check your credentials.');
-}
-
-      onLoginSuccess(data as AuthSession);
-} catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMessage(err.message);
-} else {
-        setErrorMessage('An unexpected authentication error occurred.');
-}
+      const data = await api.post<AuthSession>(`${apiBaseUrl}/api/v1/auth/login`, { email, password });
+      onLoginSuccess(data);
+} catch (err) {
+      setErrorMessage(apiErrorMessage(err, 'Login failed. Please check your credentials.'));
 } finally {
       setIsLoading(false);
 }
@@ -72,8 +60,8 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
               S
 </div>
 <div>
-<p className="text-lg font-extrabold ">Site Safi</p>
-<p className="text-[11px] text-slate-400 font-medium">Kenya Construction OS</p>
+<p className="text-lg font-extrabold ">{PRODUCT_NAME}</p>
+<p className="text-[11px] text-slate-600 font-medium">Kenya Construction OS</p>
 </div>
 </div>
 </div>
@@ -81,18 +69,18 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
 <h2 className="text-2xl font-extrabold leading-snug">
             Run every site,<br />from one workspace.
 </h2>
-<p className="text-sm text-slate-400 leading-relaxed">
+<p className="text-sm text-slate-600 leading-relaxed">
             BOQs, site diaries, attendance, variations, certificates and client
             portals — built for Kenyan contractors, quantity surveyors and the
             clients who fund them.
 </p>
 <ul className="space-y-2 text-xs text-slate-300">
-<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />KES-first money, KRA e-TIMS &amp; M-Pesa ready</li>
-<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Offline-capable field app for engineers &amp; foremen</li>
-<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Client &amp; stakeholder portals — external guests never consume paid seats</li>
+<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-700" />KES-first money, KRA e-TIMS &amp; M-Pesa ready</li>
+<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-700" />Offline-capable field app for engineers &amp; foremen</li>
+<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-700" />Client &amp; stakeholder portals — external guests never consume paid seats</li>
 </ul>
 </div>
-<p className="relative text-[11px] text-slate-500">Sign in to your Site Safi workspace</p>
+<p className="relative text-[11px] text-slate-500">Sign in to your {PRODUCT_NAME} workspace</p>
 </div>
 
       {/* Form panel */}
@@ -102,7 +90,7 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
             S
 </div>
 <div>
-<p className="text-base font-extrabold text-slate-900">Site Safi</p>
+<p className="text-base font-extrabold text-slate-900">{PRODUCT_NAME}</p>
 <p className="text-[11px] text-slate-500">Kenya Construction OS</p>
 </div>
 </div>
@@ -156,11 +144,29 @@ export default function LoginForm({ onLoginSuccess, apiBaseUrl = ''}: LoginFormP
 <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2.5 px-4 bg-orange-700 hover:bg-orange-800 text-white font-semibold text-sm rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Signing in…' : 'Sign in to workspace'}
 </button>
+{onForgotPassword && (
+<button
+            type="button"
+            onClick={onForgotPassword}
+            className="w-full text-center text-xs font-semibold text-slate-500 hover:text-brand-600 transition min-h-[44px] flex items-center justify-center"
+          >
+            Forgot password?
+</button>
+)}
 </form>
+
+{onOpenSignup && (
+<p className="mt-4 text-center text-sm text-slate-600">
+            New contractor?{' '}
+<button type="button" onClick={onOpenSignup} className="font-semibold text-brand-700 hover:text-brand-700">
+              Create your company workspace
+</button>
+</p>
+)}
 
 {DEMO_MODE && (
 <div className="mt-8 pt-6 border-t border-slate-100">

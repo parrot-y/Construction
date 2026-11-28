@@ -1,4 +1,6 @@
 import React, { useEffect, useState} from 'react';
+import { statusLabel } from '../lib/status-labels';
+import { api } from '../lib/api';
 
 export interface StructuralSteelMemberItem {
   id: string;
@@ -144,10 +146,8 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/structural-steel-takeoffs`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
-      const list = (json.takeoffs || []) as any[];
+      const json: any = await api.get(`/api/v1/projects/${projectId}/structural-steel-takeoffs`);
+      const list = (json?.takeoffs || []) as any[];
       const mapped = list.map((t) => ({
         ...t,
         steelGrade: t.steelGrade as StructuralSteelTakeoffRecord['steelGrade'],
@@ -169,13 +169,10 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
   const handleSelectTakeoff = async (takeoff: StructuralSteelTakeoffRecord) => {
     if (isLive && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(takeoff.id)) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/structural-steel-takeoffs/${takeoff.id}`, { credentials: 'include'});
-        if (res.ok) {
-          const detail = await res.json();
-          setSelectedTakeoff({ ...takeoff, ...detail, members: detail.members ?? []});
-          return;
-}
-} catch { /* fall through to local selection */}
+        const detail: any = await api.get(`/api/v1/projects/${projectId}/structural-steel-takeoffs/${takeoff.id}`);
+        setSelectedTakeoff({ ...takeoff, ...detail, members: detail?.members ?? []});
+        return;
+} catch { /* intentionally ignored: fall through to local selection */ }
 }
     setSelectedTakeoff(takeoff);
 };
@@ -270,35 +267,30 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/structural-steel-takeoffs`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            takeoffNo,
-            structureTitle,
-            drawingReference: drawingRef || null,
-            steelGrade,
-            members: memberRows.map((m) => {
-              const sec = STEEL_SECTIONS_LIB[m.sectionDesignation] || { type: 'UB', unitWeightKgPerM: '0', paintAreaM2PerM: '0'};
-              return {
-                memberMark: m.memberMark,
-                sectionType: sec.type,
-                sectionDesignation: m.sectionDesignation,
-                unitWeightKgPerM: sec.unitWeightKgPerM,
-                paintAreaM2PerM: sec.paintAreaM2PerM,
-                lengthMeters: m.lengthMeters,
-                quantity: m.quantity,
-                connectionBoltsCount: m.connectionBoltsCount,
+        await api.post(`/api/v1/projects/${projectId}/structural-steel-takeoffs`, {
+          takeoffNo,
+          structureTitle,
+          drawingReference: drawingRef || null,
+          steelGrade,
+          members: memberRows.map((m) => {
+            const sec = STEEL_SECTIONS_LIB[m.sectionDesignation] || { type: 'UB', unitWeightKgPerM: '0', paintAreaM2PerM: '0'};
+            return {
+              memberMark: m.memberMark,
+              sectionType: sec.type,
+              sectionDesignation: m.sectionDesignation,
+              unitWeightKgPerM: sec.unitWeightKgPerM,
+              paintAreaM2PerM: sec.paintAreaM2PerM,
+              lengthMeters: m.lengthMeters,
+              quantity: m.quantity,
+              connectionBoltsCount: m.connectionBoltsCount,
 };
 }),
-}),
 });
-        if (res.ok) {
-          await reload();
-          setShowAddModal(false);
-          setStructureTitle('');
-          setDrawingRef('');
-}
-} catch { /* keep modal open on failure */}
+        await reload();
+        setShowAddModal(false);
+        setStructureTitle('');
+        setDrawingRef('');
+} catch { /* intentionally ignored: keep modal open on failure */ }
       return;
 }
 
@@ -374,15 +366,10 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
   const handleStatusChange = async (takeoffId: string, newStatus: any) => {
     if (isLive) {
       try {
-        const res = await fetch(`/api/v1/projects/${projectId}/structural-steel-takeoffs/${takeoffId}/status`, {
-          method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({ status: newStatus}),
-});
-        if (res.ok) {
-          await reload();
-          setSelectedTakeoff((prev) => (prev && prev.id === takeoffId ? { ...prev, status: newStatus} : prev));
-}
-} catch { /* keep current state on failure */}
+        await api.patch(`/api/v1/projects/${projectId}/structural-steel-takeoffs/${takeoffId}/status`, { status: newStatus});
+        await reload();
+        setSelectedTakeoff((prev) => (prev && prev.id === takeoffId ? { ...prev, status: newStatus} : prev));
+} catch { /* intentionally ignored: keep current state on failure */ }
       return;
 }
     if (onUpdateStatus) {
@@ -410,7 +397,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
       case 'ERECTED':
         return<span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800">Site Erected</span>;
       default:
-        return<span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-gray-100 text-gray-700">{status}</span>;
+        return<span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-gray-100 text-gray-700">{statusLabel(status)}</span>;
 }
 };
 
@@ -444,7 +431,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 </div>
 <button
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition"
+          className="inline-flex items-center px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-sm font-medium rounded-lg shadow-sm transition"
         >
           + New Steel Takeoff
 </button>
@@ -459,18 +446,18 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Intumescent Paint Area</span>
-<p className="text-2xl font-bold text-indigo-600 mt-1">{totalPaintAreaSum.toFixed(2)} m²</p>
-<span className="text-xs text-indigo-500">Surface Fireproofing / Primer</span>
+<p className="text-2xl font-bold text-indigo-700 mt-1">{totalPaintAreaSum.toFixed(2)} m²</p>
+<span className="text-xs text-indigo-700">Surface Fireproofing / Primer</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Total Schedules</span>
-<p className="text-2xl font-bold text-blue-600 mt-1">{takeoffs.length}</p>
-<span className="text-xs text-blue-500">Frames, Mezzanines, Trusses</span>
+<p className="text-2xl font-bold text-blue-700 mt-1">{takeoffs.length}</p>
+<span className="text-xs text-blue-700">Frames, Mezzanines, Trusses</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Standard Specification</span>
-<p className="text-2xl font-bold text-emerald-600 mt-1">S355JR</p>
-<span className="text-xs text-emerald-500">KS / BS High-Yield Steel</span>
+<p className="text-2xl font-bold text-emerald-700 mt-1">S355JR</p>
+<span className="text-xs text-emerald-700">KS / BS High-Yield Steel</span>
 </div>
 </div>
 
@@ -522,7 +509,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 <div className="flex justify-between items-center text-xs text-gray-500 mt-2">
 <span> {takeoff.totalTonnage} T</span>
 <span> {takeoff.totalPaintAreaM2} m²</span>
-<span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{takeoff.steelGrade}</span>
+<span className="tabular-nums bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{takeoff.steelGrade}</span>
 </div>
 </div>
 ))
@@ -542,7 +529,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 </div>
 <p className="text-sm text-gray-600 font-medium">{selectedTakeoff.structureTitle}</p>
                   {selectedTakeoff.drawingReference && (
-<span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mt-1 inline-block">
+<span className="text-xs text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded mt-1 inline-block">
                        Drawing Ref: {selectedTakeoff.drawingReference}
 </span>
 )}
@@ -572,11 +559,11 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 </div>
 <div>
 <span className="text-xs text-gray-500">Intumescent Paint Area</span>
-<div className="text-base font-bold text-indigo-600">{selectedTakeoff.totalPaintAreaM2} m²</div>
+<div className="text-base font-bold text-indigo-700">{selectedTakeoff.totalPaintAreaM2} m²</div>
 </div>
 <div>
 <span className="text-xs text-gray-500">Steel Grade Spec</span>
-<div className="text-base font-bold text-emerald-600">{selectedTakeoff.steelGrade}</div>
+<div className="text-base font-bold text-emerald-700">{selectedTakeoff.steelGrade}</div>
 </div>
 </div>
 
@@ -611,7 +598,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 <td className="px-3 py-2">{m.totalLengthMeters} m</td>
 <td className="px-3 py-2 text-gray-500">{m.unitWeightKgPerM}</td>
 <td className="px-3 py-2 font-bold text-gray-900">{m.totalWeightKg}</td>
-<td className="px-3 py-2 text-indigo-600 font-semibold">{m.totalPaintAreaM2}</td>
+<td className="px-3 py-2 text-indigo-700 font-semibold">{m.totalPaintAreaM2}</td>
 <td className="px-3 py-2">{m.connectionBoltsCount} pcs</td>
 </tr>
 ))
@@ -767,7 +754,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
 <button
                           type="button"
                           onClick={() => removeMemberRow(idx)}
-                          className="text-red-500 hover:text-red-700 px-1 font-bold text-sm"
+                          className="text-red-700 hover:text-red-700 px-1 font-bold text-sm"
                         >
                           
 </button>
@@ -797,7 +784,7 @@ export const StructuralSteelTakeoffView: React.FC<StructuralSteelTakeoffViewProp
                 >
                   Cancel
 </button>
-<button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700">
+<button type="submit" className="px-4 py-2 bg-indigo-700 text-white font-medium rounded-lg hover:bg-indigo-800">
                   Save Takeoff Schedule
 </button>
 </div>

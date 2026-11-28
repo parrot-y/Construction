@@ -1,6 +1,10 @@
 import React, { useEffect, useState} from 'react';
-import { formatKes } from '../../ui';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { formatKes, ResponsiveTable, SavedDataNotice } from '../../ui';
+import { fetchJsonCached } from '../../services/offline-cache';
+import { compressUploadFile } from '../../services/offline-sync';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
+import { statusLabel } from '../../lib/status-labels';
+import { api, apiErrorMessage } from '../../lib/api';
 
 export interface SubcontractorSnag {
   id: string;
@@ -27,7 +31,7 @@ export interface SubcontractMilestone {
   grossKes: string;
   retentionKes: string;
   netKes: string;
-  status: 'PAID' | 'CERTIFIED' | 'UNDER_REVIEW' | 'PENDING_CLAIM';
+  status: 'PAID' | 'CERTIFIED' | 'UNDER_REVIEW' | 'PENDING_CLAIM' | 'REJECTED';
   certifiedDate?: string;
 }
 
@@ -55,10 +59,10 @@ export default function SubcontractorPortalView({
   subcontractorTrade,
   projectName,
   projectCode,
-  onBackToDashboard,
 }: SubcontractorPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [stakeholder, setStakeholder] = useState({ name: subcontractorName || '', trade: subcontractorTrade || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
@@ -75,16 +79,23 @@ export default function SubcontractorPortalView({
   const [claimPackageId, setClaimPackageId] = useState('');
   const [claimAmount, setClaimAmount] = useState('');
   const [claimNotes, setClaimNotes] = useState('');
+  const [resubmitValuationId, setResubmitValuationId] = useState<string | null>(null);
+  const [retentionRelease, setRetentionRelease] = useState<any>(null);
+  const [retentionReleases, setRetentionReleases] = useState<any[]>([]);
+  const [releaseBusy, setReleaseBusy] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/portals/subcontractor/${token}`, { credentials: 'include' });
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.message || 'This portal link is invalid or has expired');
+        const { body, savedAt: staleAt } = await fetchJsonCached(
+          `/api/v1/portals/subcontractor/${token}`,
+          `portal:subcontractor:${token}`,
+        );
         if (cancelled) return;
+        if (staleAt) setSavedAt(staleAt);
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', trade: d.stakeholder.trade || '' });
         if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
@@ -104,9 +115,11 @@ export default function SubcontractorPortalView({
           })),
         })));
         setPackages(d.packages || []);
+        setRetentionRelease(d.retentionRelease || null);
+        setRetentionReleases(d.retentionReleases || []);
         if ((d.packages || []).length > 0) setClaimPackageId(d.packages[0].id);
-      } catch (e: any) {
-        if (!cancelled) setLoadError(e.message || 'Failed to load portal');
+      } catch (e) {
+        if (!cancelled) { setLoadError(apiErrorMessage(e, 'Failed to load portal')); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -115,15 +128,12 @@ export default function SubcontractorPortalView({
   }, [token]);
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
+    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-600">Loading portal…</div>;
   }
   if (loadError) {
-    const isExpired = /expired/i.test(loadError);
-    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
       <div className="max-w-5xl mx-auto">
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={loadError || undefined} />
       </div>
     );
   }
@@ -146,16 +156,24 @@ export default function SubcontractorPortalView({
           grossKes: v.grossWorkCertifiedKes,
           retentionKes: v.retentionDeductedKes,
           netKes: v.netPayableKes,
-          status: v.paymentStatus === 'PAID' ? 'PAID' : v.paymentStatus === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
+          status:
+            v.paymentStatus === 'PAID' ? 'PAID'
+            : v.paymentStatus === 'REJECTED' ? 'REJECTED'
+            : v.paymentStatus === 'APPROVED_FOR_PAYMENT' ? 'CERTIFIED'
+            : v.paymentStatus === 'UNDER_REVIEW' ? 'UNDER_REVIEW'
+            : 'PENDING_CLAIM',
           certifiedDate: v.valuationDate ? String(v.valuationDate).split('T')[0] : undefined,
         };
       }),
     );
+    const wAvgRetentionRate = contractSum > 0
+      ? packages.reduce((a: number, p: any) => a + (Number(p.retentionRatePct) || 0) * Number(p.subcontractSum || 0), 0) / contractSum
+      : (packages[0] ? Number(packages[0].retentionRatePct) || 0 : 0);
     return {
       contractSumKes: String(contractSum),
       cumulativeCertifiedKes: String(certified),
       retentionWithheldKes: String(retention),
-      retentionRatePct: packages[0] ? Number(packages[0].retentionRatePct || 5) : 5,
+      retentionRatePct: Math.round(wAvgRetentionRate * 100) / 100,
       netDisbursedKes: allVals.filter((v: any) => v.paymentStatus === 'PAID')
         .reduce((a: number, v: any) => a + Number(v.netPayableKes || 0), 0)
         .toString(),
@@ -175,26 +193,33 @@ export default function SubcontractorPortalView({
     setSubmitting(true);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/portals/subcontractor/${token}/snags/${snagId}/rectify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          photoStorageKey: rectifyPhotoKey.trim(),
-          notes: rectifyNotes.trim() || `Rectified by ${stakeholder.name}`,
-        }),
+      await api.post(`/api/v1/portals/subcontractor/${token}/snags/${snagId}/rectify`, {
+        photoStorageKey: rectifyPhotoKey.trim(),
+        notes: rectifyNotes.trim() || `Rectified by ${stakeholder.name}`,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Error updating snag rectification.');
       setFeedback('Defect marked as rectified! Awaiting Site Supervisor sign-off.');
       setSnagList((prev) => prev.map((s) => s.id === snagId ? { ...s, status: 'RECTIFIED_BY_CONTRACTOR' } : s));
       setSelectedSnagId(null);
       setRectifyPhotoKey('');
       setRectifyNotes('');
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — rectification not submitted.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — rectification not submitted.'));
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openClaimModal = (replacesValuationId: string | null = null, packageId?: string) => {
+    setResubmitValuationId(replacesValuationId);
+    if (packageId) setClaimPackageId(packageId);
+    setClaimAmount('');
+    setClaimNotes('');
+    setShowClaimModal(true);
+  };
+
+  const closeClaimModal = () => {
+    setShowClaimModal(false);
+    setResubmitValuationId(null);
   };
 
   const handleSubmitClaim = async (e: React.FormEvent) => {
@@ -207,26 +232,49 @@ export default function SubcontractorPortalView({
     setSubmitting(true);
     setFeedback(null);
     try {
-      const res = await fetch(`/api/v1/portals/subcontractor/${token}/valuations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageId: claimPackageId, grossWorkCertifiedKes: gross, notes: claimNotes.trim() || undefined }),
+      const body = await api.post<{ data?: any }>(`/api/v1/portals/subcontractor/${token}/valuations`, {
+        packageId: claimPackageId,
+        grossWorkCertifiedKes: gross,
+        notes: claimNotes.trim() || undefined,
+        ...(resubmitValuationId ? { replacesValuationId: resubmitValuationId } : {}),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || 'Valuation submission failed.');
       setFeedback(`Valuation ${body.data?.certificate_no || ''} submitted to QS for verification.`);
       setShowClaimModal(false);
+      setResubmitValuationId(null);
       setClaimAmount('');
       setClaimNotes('');
-    } catch (e: any) {
-      setFeedback(e.message || 'Network error — valuation not submitted.');
+      const fb = await api.get<any>(`/api/v1/portals/subcontractor/${token}`);
+      const d = fb.data || fb;
+      setPackages(d.packages || []);
+      setRetentionRelease(d.retentionRelease || null);
+      setRetentionReleases(d.retentionReleases || []);
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — valuation not submitted.'));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleRequestRelease = async () => {
+    setReleaseBusy(true);
+    setFeedback(null);
+    try {
+      const body = await api.post<{ data?: any }>(`/api/v1/portals/subcontractor/${token}/retention-release`);
+      setFeedback(`Retention release ${body.data?.releaseNo || ''} requested — awaiting QS review.`);
+      const fb = await api.get<any>(`/api/v1/portals/subcontractor/${token}`);
+      const d = fb.data || fb;
+      setRetentionRelease(d.retentionRelease || null);
+      setRetentionReleases(d.retentionReleases || []);
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — release not requested.'));
+    } finally {
+      setReleaseBusy(false);
+    }
+  };
+
   return (
-<div className="max-w-5xl mx-auto space-y-6" data-testid="subcontractor-portal-view">
+<div className="w-full max-w-5xl mx-auto space-y-6" data-testid="subcontractor-portal-view">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -245,16 +293,6 @@ export default function SubcontractorPortalView({
 </p>
 </div>
 
-<div className="flex items-center gap-3">
-          {onBackToDashboard && (
-<button
-              onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
-            >
-              ← Back to Project
-</button>
-)}
-</div>
 </header>
       {/* What you can do here */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -273,32 +311,32 @@ export default function SubcontractorPortalView({
 {openCount > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Open Defects</p>
-<p className="text-2xl font-bold text-amber-600 mt-1">{openCount}</p>
+<p className="text-2xl font-bold text-amber-700 mt-1">{openCount}</p>
 </div>
 )}
 {rectifiedCount > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Rectified (Pending Sign-off)</p>
-<p className="text-2xl font-bold text-blue-600 mt-1">{rectifiedCount}</p>
-<span className="text-[10px] text-slate-400">({closedCount} verified &amp; closed)</span>
+<p className="text-2xl font-bold text-blue-700 mt-1">{rectifiedCount}</p>
+<span className="text-[10px] text-slate-600">({closedCount} verified &amp; closed)</span>
 </div>
 )}
 {closedCount > 0 && rectifiedCount === 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Verified &amp; Closed</p>
-<p className="text-2xl font-bold text-emerald-600 mt-1">{closedCount}</p>
+<p className="text-2xl font-bold text-emerald-700 mt-1">{closedCount}</p>
 </div>
 )}
 {Number(commercialSummary.contractSumKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Subcontract Sum</p>
-<p className="text-base font-bold text-slate-900 mt-1 font-mono">{formatKes(commercialSummary.contractSumKes)}</p>
+<p className="text-base font-bold text-slate-900 mt-1 tabular-nums">{formatKes(commercialSummary.contractSumKes)}</p>
 </div>
 )}
 {Number(commercialSummary.retentionWithheldKes) > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">{commercialSummary.retentionRatePct}% Retention Held</p>
-<p className="text-base font-bold text-purple-700 mt-1 font-mono">{formatKes(commercialSummary.retentionWithheldKes)}</p>
+<p className="text-base font-bold text-purple-700 mt-1 tabular-nums">{formatKes(commercialSummary.retentionWithheldKes)}</p>
 </div>
 )}
 </div>
@@ -307,13 +345,13 @@ export default function SubcontractorPortalView({
       {feedback && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex justify-between items-center shadow-sm">
 <span> {feedback}</span>
-<button onClick={() => setFeedback(null)} className="text-emerald-600 font-bold ml-2">×</button>
+<button onClick={() => setFeedback(null)} className="text-emerald-700 font-bold ml-2">×</button>
 </div>
 )}
 
       {/* Navigation Tabs */}
 <div className="flex border-b border-slate-200 gap-2">
-<button
+<button aria-pressed={activeTab === 'DEFECTS'}
           onClick={() => setActiveTab('DEFECTS')}
           className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition ${
             activeTab === 'DEFECTS'
@@ -323,7 +361,7 @@ export default function SubcontractorPortalView({
         >
            Defect Rectification Register ({openCount} open)
 </button>
-<button
+<button aria-pressed={activeTab === 'VALUATIONS'}
           onClick={() => setActiveTab('VALUATIONS')}
           data-testid="subcontractor-valuations-tab"
           className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition ${
@@ -332,7 +370,7 @@ export default function SubcontractorPortalView({
               : 'border-transparent text-slate-500 hover:text-slate-800'
 }`}
         >
-           Trade Valuations &amp; 5% Retention Ledger
+           Trade Valuations &amp; {commercialSummary.retentionRatePct}% Retention Ledger
 </button>
 </div>
 
@@ -355,7 +393,7 @@ export default function SubcontractorPortalView({
               >
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                       {snag.snag_number}
 </span>
 <span className="text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
@@ -400,7 +438,7 @@ export default function SubcontractorPortalView({
 <span className="font-bold text-slate-600 text-[10px]">
                           [{p.photo_type} Photo]:
 </span>
-<span className="text-slate-500 font-mono text-[10px] truncate max-w-xs">{p.storage_key}</span>
+<span className="text-slate-500 font-mono tabular-nums text-[10px] truncate max-w-xs">{p.storage_key}</span>
 </div>
 ))}
 </div>
@@ -412,7 +450,7 @@ export default function SubcontractorPortalView({
                     {!isSelected ? (
 <button
                         onClick={() => setSelectedSnagId(snag.id)}
-                        className="px-3.5 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition"
+                        className="px-3.5 py-1.5 text-xs font-semibold bg-amber-700 hover:bg-amber-800 text-white rounded-lg transition"
                       >
                         Submit Defect Rectification Proof
 </button>
@@ -437,14 +475,12 @@ export default function SubcontractorPortalView({
                               setFeedback(null);
                               try {
                                 const fd = new FormData();
-                                fd.append('file', file);
-                                const up = await fetch(`/api/v1/portals/subcontractor/${token}/snags/${snag.id}/upload`, { method: 'POST', body: fd });
-                                const ub = await up.json().catch(() => ({}));
-                                if (!up.ok) throw new Error(ub.message || 'Photo upload failed');
+                                fd.append('file', await compressUploadFile(file));
+                                const ub = await api.post<any>(`/api/v1/portals/subcontractor/${token}/snags/${snag.id}/upload`, fd);
                                 setRectifyPhotoKey(ub.data?.storageKey || '');
                                 setFeedback('Photo uploaded — submit to mark the defect rectified.');
-                              } catch (err: any) {
-                                setFeedback(err.message || 'Photo upload failed');
+                              } catch (err) {
+                                setFeedback(apiErrorMessage(err, 'Photo upload failed'));
                               } finally {
                                 setUploadingPhoto(false);
                                 e.target.value = '';
@@ -485,7 +521,7 @@ export default function SubcontractorPortalView({
                             type="button"
                             disabled={submitting || uploadingPhoto || !rectifyPhotoKey.trim()}
                             onClick={() => handleRectifySubmit(snag.id)}
-                            className="px-4 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 transition"
+                            className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50 transition"
                           >
                             {submitting ? 'Submitting...' : 'Mark Rectified (GPS Verified)'}
 </button>
@@ -515,7 +551,7 @@ export default function SubcontractorPortalView({
 </div>
 <button
                 type="button"
-                onClick={() => setShowClaimModal(true)}
+                onClick={() => openClaimModal()}
                 data-testid="submit-milestone-claim-btn"
                 className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg shadow-xs transition"
               >
@@ -523,53 +559,133 @@ export default function SubcontractorPortalView({
 </button>
 </div>
 
-<div className="overflow-x-auto">
-<table className="w-full text-xs text-left">
-<thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-<tr>
-<th className="p-3">Milestone Scope of Work</th>
-<th className="p-3">Weight (%)</th>
-<th className="p-3">Contract Value</th>
-<th className="p-3">{commercialSummary.retentionRatePct}% Retention</th>
-<th className="p-3">Net Payable</th>
-<th className="p-3">Claim Status</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100">
-                  {commercialSummary.milestones.length === 0 && (
-<tr><td colSpan={6} className="p-6 text-center text-sm text-slate-400">No valuation claims certified yet — submit a milestone claim below and the QS will certify it here.</td></tr>
+<ResponsiveTable
+            head={['Milestone Scope of Work', 'Weight (%)', 'Contract Value', `${commercialSummary.retentionRatePct}% Retention`, 'Net Payable', 'Claim Status']}
+            className="text-xs"
+            empty="No valuation claims certified yet — submit a milestone claim below and the QS will certify it here."
+            rows={commercialSummary.milestones.map((m) => ({
+              key: m.id,
+              className: 'hover:bg-slate-50',
+              cells: [
+                {
+                  content: (
+                    <>
+                      {m.milestoneName}
+                      {m.certifiedDate && (
+<span className="block text-[10px] text-slate-600">Certified: {m.certifiedDate}</span>
 )}
-                  {commercialSummary.milestones.map((m) => (
-<tr key={m.id} className="hover:bg-slate-50">
-<td className="p-3 font-medium text-slate-900">
-                          {m.milestoneName}
-                          {m.certifiedDate && (
-<span className="block text-[10px] text-slate-400">Certified: {m.certifiedDate}</span>
-)}
-</td>
-<td className="p-3 font-bold text-slate-700">{m.pct}%</td>
-<td className="p-3 font-mono font-bold text-slate-900">{formatKes(m.grossKes)}</td>
-<td className="p-3 font-mono text-purple-700">{formatKes(m.retentionKes)}</td>
-<td className="p-3 font-mono font-bold text-emerald-700">{formatKes(m.netKes)}</td>
-<td className="p-3">
-<span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                              m.status === 'PAID'
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : m.status === 'CERTIFIED'
-                                ? 'bg-blue-100 text-blue-800 border-blue-300'
-                                : 'bg-slate-100 text-slate-600 border-slate-300'
-}`}
-                          >
-                            {m.status.replace('_', ' ')}
-</span>
-</td>
-</tr>
+                    </>
+                  ),
+                  className: 'font-medium text-slate-900',
+                },
+                { content: `${m.pct}%`, className: 'font-bold text-slate-700' },
+                { content: formatKes(m.grossKes), className: 'tabular-nums font-bold text-slate-900' },
+                { content: formatKes(m.retentionKes), className: 'tabular-nums text-purple-700' },
+                { content: formatKes(m.netKes), className: 'tabular-nums font-bold text-emerald-700' },
+                <span
+                  key="st"
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                    m.status === 'PAID'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : m.status === 'CERTIFIED'
+                      ? 'bg-blue-100 text-blue-800 border-blue-300'
+                      : m.status === 'REJECTED'
+                      ? 'bg-rose-100 text-rose-800 border-rose-300'
+                      : 'bg-slate-100 text-slate-600 border-slate-300'
+                  }`}
+                >
+                  {statusLabel(m.status)}
+</span>,
+              ],
+            }))}
+          />
+</div>
+
+{/* Rejected claims awaiting corrected resubmission — a rejection already
+    superseded via replacesValuationId is resolved and drops off the panel. */}
+{(() => {
+  const allVals = packages.flatMap((p: any) => p.valuations || []);
+  const superseded = new Set(allVals.map((v: any) => v.replacesValuationId).filter(Boolean));
+  const pendingRejected = packages.flatMap((p: any) =>
+    (p.valuations || [])
+      .filter((v: any) => v.paymentStatus === 'REJECTED' && !superseded.has(v.id))
+      .map((v: any) => ({ ...v, packageId: p.id })),
+  );
+  return pendingRejected.length > 0 ? (
+<div className="bg-rose-50/60 p-5 rounded-xl border border-rose-200 shadow-sm space-y-3" data-testid="rejected-claims-panel">
+<h3 className="text-sm font-bold text-rose-900">Claims rejected by the QS — resubmit corrected</h3>
+<ul className="space-y-2">
+{pendingRejected.map((v: any) => (
+      <li key={v.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white rounded-lg border border-rose-100 px-3 py-2.5">
+        <div className="text-xs">
+          <span className="font-mono font-bold text-slate-900">{v.certificateNo}</span>
+          <span className="text-slate-500"> · {formatKes(v.grossWorkCertifiedKes)}</span>
+          {v.rejectionReason && <p className="text-rose-700 mt-0.5">Reason: {v.rejectionReason}</p>}
+        </div>
+        <button
+          type="button"
+          onClick={() => openClaimModal(v.id, v.packageId)}
+          data-testid={`resubmit-claim-${v.certificateNo}`}
+          className="px-3 py-1.5 min-h-[36px] text-[11px] font-semibold bg-rose-700 hover:bg-rose-800 text-white rounded-lg transition shrink-0"
+        >
+          Resubmit corrected claim
+        </button>
+      </li>
+    ))}
+</ul>
+</div>
+) : null;
+})()}
+
+{/* Stage 6: retention release request */}
+{retentionRelease && retentionRelease.status !== 'NONE' && (
+<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3" data-testid="sub-retention-release-card">
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
+<div>
+<h3 className="text-sm font-bold text-slate-900">Retention release</h3>
+<p className="text-xs text-slate-500">
+                    Held {formatKes(retentionRelease.held)} · Released {formatKes(retentionRelease.released)}
+                    {Number(retentionRelease.pending) > 0 && <> · Pending {formatKes(retentionRelease.pending)}</>}
+</p>
+</div>
+<span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                      retentionRelease.status === 'RELEASED'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : retentionRelease.status === 'PENDING'
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-slate-100 text-slate-700 border-slate-300'
+}`}>{statusLabel(retentionRelease.status)}</span>
+</div>
+
+{retentionReleases.length > 0 && (
+<ul className="space-y-1.5">
+                  {retentionReleases.map((r) => (
+<li key={r.id} className="flex items-center justify-between text-[11px] bg-slate-50 rounded-lg px-3 py-2">
+<span className="font-mono tabular-nums font-semibold text-slate-800">{r.releaseNo}</span>
+<span className="text-slate-500">{statusLabel(r.moietyStage)}</span>
+<span className="tabular-nums font-bold text-slate-900">{formatKes(r.releaseAmount)}</span>
+<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' : r.status === 'REJECTED' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{statusLabel(r.status)}</span>
+</li>
 ))}
-</tbody>
-</table>
+</ul>
+)}
+
+{retentionRelease.status === 'HELD' && (
+<button
+                  type="button"
+                  disabled={releaseBusy}
+                  onClick={() => void handleRequestRelease()}
+                  data-testid="request-retention-release-btn"
+                  className="px-3.5 py-2 min-h-[44px] text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg disabled:opacity-50 transition"
+                >
+                  {releaseBusy ? 'Requesting…' : 'Request retention release (first moiety)'}
+</button>
+)}
+{retentionRelease.status === 'PENDING' && (
+<p className="text-[11px] text-amber-700">A release request is already with the QS for review.</p>
+)}
 </div>
-</div>
+)}
 </div>
 )}
 
@@ -583,10 +699,10 @@ export default function SubcontractorPortalView({
                   Subcontractor Interim Claim
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">
-                  Submit Milestone Progress Claim
+                  {resubmitValuationId ? 'Resubmit Corrected Milestone Claim' : 'Submit Milestone Progress Claim'}
 </h3>
 </div>
-<button onClick={() => setShowClaimModal(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={closeClaimModal} className="text-slate-600 hover:text-slate-600 font-bold">
                 
 </button>
 </div>
@@ -619,15 +735,15 @@ export default function SubcontractorPortalView({
 <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-center">
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Package value</p>
-<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(packageSum))}</p>
+<p className="text-xs font-bold text-slate-900 tabular-nums">{formatKes(String(packageSum))}</p>
 </div>
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Certified to date</p>
-<p className="text-xs font-bold text-slate-900 font-mono">{formatKes(String(certifiedToDate))}</p>
+<p className="text-xs font-bold text-slate-900 tabular-nums">{formatKes(String(certifiedToDate))}</p>
 </div>
 <div>
 <p className="text-[10px] text-slate-500 font-semibold">Remaining</p>
-<p className="text-xs font-bold text-emerald-700 font-mono">{formatKes(String(remaining))}</p>
+<p className="text-xs font-bold text-emerald-700 tabular-nums">{formatKes(String(remaining))}</p>
 </div>
 </div>
 );
@@ -642,10 +758,10 @@ export default function SubcontractorPortalView({
                   required
                   value={claimAmount}
                   onChange={(e) => setClaimAmount(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 tabular-nums"
                 />
 <p className="text-[10px] text-slate-500 mt-0.5">
-                  Contract retention and 3% WHT are calculated automatically on submission.
+                  Contract retention and withholding tax are calculated automatically on submission.
 </p>
 </div>
 
@@ -661,7 +777,7 @@ export default function SubcontractorPortalView({
 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
 <button
                   type="button"
-                  onClick={() => setShowClaimModal(false)}
+                  onClick={closeClaimModal}
                   className="px-3.5 py-2 text-slate-600 border border-slate-300 rounded-lg font-semibold"
                 >
                   Cancel

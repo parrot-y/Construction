@@ -1,5 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import { formatKes } from '../ui';
+import { api } from '../lib/api';
 
 export interface ProjectDelayEvent {
   id: string;
@@ -82,9 +83,7 @@ export default function WeatherDelayClaimsView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/delay-events`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const json = await res.json();
+      const json = await api.get<any>(`/api/v1/projects/${projectId}/delay-events`);
       const list = (json.delayEvents || []) as any[];
       setEvents(list.map((e) => ({
         ...e,
@@ -154,22 +153,19 @@ export default function WeatherDelayClaimsView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/delay-events`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              delayType: created.delay_type,
-              title: created.title,
-              startDate: created.start_date,
-              endDate: created.end_date,
-              daysClaimed: created.days_claimed,
-              criticalPathImpact: created.critical_path_impact,
-              dailyLadRateKes: created.daily_lad_rate_kes,
-              siteDiaryReference: created.site_diary_reference,
-              meteorologicalProof: created.meteorological_proof,
-              notes: created.notes,
-}),
+          await api.post(`/api/v1/projects/${projectId}/delay-events`, {
+            delayType: created.delay_type,
+            title: created.title,
+            startDate: created.start_date,
+            endDate: created.end_date,
+            daysClaimed: created.days_claimed,
+            criticalPathImpact: created.critical_path_impact,
+            dailyLadRateKes: created.daily_lad_rate_kes,
+            siteDiaryReference: created.site_diary_reference,
+            meteorologicalProof: created.meteorological_proof,
+            notes: created.notes,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
       setShowModal(false);
@@ -206,16 +202,13 @@ export default function WeatherDelayClaimsView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/delay-events/${id}/review`, {
-            method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              status: 'APPROVED_BY_ARCHITECT',
-              approvedDays,
-              certifyingAuthority: updates.certifying_authority,
-              notes: target.notes || null,
-}),
+          await api.put(`/api/v1/projects/${projectId}/delay-events/${id}/review`, {
+            status: 'APPROVED_BY_ARCHITECT',
+            approvedDays,
+            certifyingAuthority: updates.certifying_authority,
+            notes: target.notes || null,
 });
-          if (res.ok) await reload();
+          await reload();
 } catch { /* keep local */}
 })();
 }
@@ -277,7 +270,7 @@ export default function WeatherDelayClaimsView({
 <span className="text-xs text-slate-500 font-medium">Total Delay Claims</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{totalClaims}</span>
-<span className="text-xs text-slate-400">events</span>
+<span className="text-xs text-slate-600">events</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Formal notifications logged</div>
 </div>
@@ -285,8 +278,8 @@ export default function WeatherDelayClaimsView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Days Claimed</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-amber-600">{totalDaysClaimed}</span>
-<span className="text-xs text-slate-400">calendar days</span>
+<span className="text-2xl font-bold text-amber-700">{totalDaysClaimed}</span>
+<span className="text-xs text-slate-600">calendar days</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Adverse weather / force majeure</div>
 </div>
@@ -294,8 +287,8 @@ export default function WeatherDelayClaimsView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Certified EOT Granted</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-emerald-600">{totalApprovedDays}</span>
-<span className="text-xs text-slate-400">days approved</span>
+<span className="text-2xl font-bold text-emerald-700">{totalApprovedDays}</span>
+<span className="text-xs text-slate-600">days approved</span>
 </div>
 <div className="text-xs text-emerald-700 mt-2 font-medium">Contract completion extended</div>
 </div>
@@ -303,7 +296,7 @@ export default function WeatherDelayClaimsView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">LAD Financial Relief</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-xl font-bold text-slate-900 font-mono">
+<span className="text-xl font-bold text-slate-900 tabular-nums">
                 {formatKes(totalFinancialRelief)}
 </span>
 </div>
@@ -362,7 +355,7 @@ export default function WeatherDelayClaimsView({
                       {item.delay_type.replace('_', ' ')}
 </span>
                     {getStatusBadge(item.status)}
-<span className="text-xs text-slate-400">
+<span className="text-xs text-slate-600">
                       • {item.days_claimed} days claimed ({item.start_date} → {item.end_date})
 </span>
 </div>
@@ -403,8 +396,8 @@ export default function WeatherDelayClaimsView({
                 {/* Status & Review Controls */}
 <div className="lg:w-64 flex flex-col items-start lg:items-end justify-between self-stretch">
 <div className="text-right">
-<span className="text-xs text-slate-400 block mb-0.5">Approved EOT Days</span>
-<span className="text-xl font-bold font-mono text-emerald-700">
+<span className="text-xs text-slate-600 block mb-0.5">Approved EOT Days</span>
+<span className="text-xl font-bold tabular-nums text-emerald-700">
                       {item.approved_days ? `${item.approved_days} Days` : '0 Days'}
 </span>
                     {item.lad_financial_relief_kes && (
@@ -418,7 +411,7 @@ export default function WeatherDelayClaimsView({
 <div className="mt-3 flex items-center gap-2">
 <button
                         onClick={() => handleReview(item.id, Math.max(1, item.days_claimed - 2))}
-                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded shadow-xs"
+                        className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded shadow-xs"
                       >
                          Certify EOT
 </button>
@@ -510,7 +503,7 @@ export default function WeatherDelayClaimsView({
                     type="text"
                     value={newLadRate}
                     onChange={(e) => setNewLadRate(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2 font-mono"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2 tabular-nums"
                   />
 </div>
 <div>

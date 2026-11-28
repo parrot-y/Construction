@@ -1,5 +1,5 @@
 import React, { useEffect, useState} from 'react';
-import { toCurrencyString} from '@construction/money';
+import { formatMoney } from '@construction/money';
 import { formatKes } from '../ui';
 import { AuthSession} from '../types/auth';
 import PortalAccessLinkManager from './PortalAccessLinkManager';
@@ -23,6 +23,10 @@ import CompanyDocumentsView from './CompanyDocumentsView';
 import InboxView from './InboxView';
 import IntegrationsView from './IntegrationsView';
 import ScheduledReportsView from './ScheduledReportsView';
+import { useAppDialog } from './AppDialog';
+import { statusLabel } from '../lib/status-labels';
+import { formatDateTime } from '../lib/format';
+import { api } from '../lib/api';
 
 interface CompanyAdminDashboardProps {
   session: AuthSession;
@@ -30,6 +34,7 @@ interface CompanyAdminDashboardProps {
 }
 
 export default function CompanyAdminDashboard({ session, onPreviewPortal}: CompanyAdminDashboardProps): React.JSX.Element {
+  const dialog = useAppDialog();
   const { user} = session;
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -50,27 +55,28 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
   const ASSIGN_ROLES = ['ADMIN','COMPANY_ADMIN','EXECUTIVE','PM_QS','SITE_SUPERVISOR','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CLIENT','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE'];
   const handleRoleChange = async (membershipId: string, role: string) => {
     try {
-      const r = await fetch(`/api/v1/company/members/${membershipId}/role`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({ role}),
-});
-      if (r.ok) setMembers((prev) => prev ? prev.map((m: any) => m.membershipId === membershipId ? { ...m, role} : m) : prev);
-} catch { /* leave unchanged */}
+      await api.patch(`/api/v1/company/members/${membershipId}/role`, { role });
+      setMembers((prev) => prev ? prev.map((m: any) => m.membershipId === membershipId ? { ...m, role} : m) : prev);
+} catch {
+      // hygiene-allow: intentionally ignored — on failure leave the member list unchanged
+}
 };
   const handleRevoke = async (membershipId: string) => {
-    if (!window.confirm('Revoke this member\u2019s access to the workspace?')) return;
+    const ok = await dialog.confirm({ title: 'Revoke member access', message: 'Revoke this member’s access to the workspace?', confirmLabel: 'Revoke', danger: true });
+    if (!ok) return;
     try {
-      const r = await fetch(`/api/v1/company/members/${membershipId}`, { method: 'DELETE', credentials: 'include'});
-      if (r.ok) setMembers((prev) => prev ? prev.filter((m: any) => m.membershipId !== membershipId) : prev);
-} catch { /* leave unchanged */}
+      await api.delete(`/api/v1/company/members/${membershipId}`);
+      setMembers((prev) => prev ? prev.filter((m: any) => m.membershipId !== membershipId) : prev);
+} catch {
+      // hygiene-allow: intentionally ignored — on failure leave the member list unchanged
+}
 };
   useEffect(() => {
-    fetch('/api/v1/projects', { credentials: 'include'})
-      .then((r) => r.json())
+    api.get<{ data?: { id: string; name: string; code: string }[] }>('/api/v1/projects')
       .then((j) => {
         const list = (j.data || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code}));
         setProjects(list);
-        if (list.length) setPid(list[0].id);
+        if (list.length) setPid(list[0]!.id);
 })
       .catch(() => setProjects([]));
 }, []);
@@ -79,14 +85,16 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
   const [dash, setDash] = useState<any>(null);
   const [members, setMembers] = useState<any[] | null>(null);
   useEffect(() => {
-    fetch('/api/v1/dashboard', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
+    api.get<{ data?: any }>('/api/v1/dashboard')
       .then((j) => { if (j?.data) setDash(j.data);})
-      .catch(() => {});
-    fetch('/api/v1/company/members', { credentials: 'include'})
-      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => {
+        // intentionally ignored: dashboard stays on demo fixtures until data arrives
+      });
+    api.get<{ data?: any[] }>('/api/v1/company/members')
       .then((j) => { if (j?.data) setMembers(j.data);})
-      .catch(() => {});
+      .catch(() => {
+        // intentionally ignored: member list stays empty until data arrives
+      });
 }, []);
   const metrics = dash?.metrics;
   const liveProjects: any[] = dash?.projects || [];
@@ -145,7 +153,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 )}
 <button
             onClick={() => setShowProjectModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition"
+            className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm transition"
           >
             + Create Project
 </button>
@@ -179,14 +187,14 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
       {inviteSuccess && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {inviteSuccess}</span>
-<button onClick={() => setInviteSuccess(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setInviteSuccess(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
       {projectSuccess && (
 <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {projectSuccess}</span>
-<button onClick={() => setProjectSuccess(null)} className="text-blue-600 hover:text-blue-900 font-bold ml-2">×</button>
+<button onClick={() => setProjectSuccess(null)} className="text-blue-700 hover:text-blue-900 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -197,27 +205,27 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
             Active Projects
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">{metrics ? `${metrics.activeProjectsCount} Active` : '1 Active'}</span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">{metrics ? `${metrics.totalProjectsCount ?? liveProjects.length} Total registered` : '1 Total registered'}</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">{metrics ? `${metrics.totalProjectsCount ?? liveProjects.length} Total registered` : '1 Total registered'}</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <span className="text-[11px] font-semibold text-slate-500 block">
             Total Contract Value
 </span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {formatKes(metrics?.totalContractSum ?? 0)}
 </span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">Sum across projects</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">Sum across projects</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
 <span className="text-[11px] font-semibold text-slate-500 block">
             Approved Budget
 </span>
-<span className="text-lg font-bold font-mono text-slate-900 mt-1 block">
+<span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {formatKes(metrics?.totalApprovedBudget ?? 0)}
 </span>
-<span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingApprovalsCount ?? 0} pending approvals` : 'No data yet'}</span>
+<span className="text-[11px] text-emerald-700 font-medium mt-0.5 block">{metrics ? `${metrics.pendingApprovalsCount ?? 0} pending approvals` : 'No data yet'}</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -225,7 +233,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
             Team & Invites
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">{metrics ? `${metrics.teamMembersCount} Members` : '—'}</span>
-<span className="text-[11px] text-amber-600 font-medium mt-0.5 block">{metrics ? `${metrics.pendingInvitesCount ?? 0} pending invites` : ''}</span>
+<span className="text-[11px] text-amber-700 font-medium mt-0.5 block">{metrics ? `${metrics.pendingInvitesCount ?? 0} pending invites` : ''}</span>
 </div>
 </div>
 
@@ -257,31 +265,31 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <tr key={p.id} className="hover:bg-slate-50/50">
 <td className="p-3">
 <span className="font-bold text-slate-900 block">{p.name}</span>
-<span className="font-mono text-[11px] text-slate-500">Code: {p.code}</span>
+<span className="font-mono tabular-nums text-[11px] text-slate-500">Code: {p.code}</span>
 </td>
 <td className="p-3">
 <span>{p.location || '—'}</span>
-<span className="block text-[11px] text-slate-400">{p.nca_project_no ? `NCA Reg: ${p.nca_project_no}` : ''}</span>
+<span className="block text-[11px] text-slate-600">{p.nca_project_no ? `NCA Reg: ${p.nca_project_no}` : ''}</span>
 </td>
-<td className="p-3 font-mono font-semibold text-slate-900">
-                    {p.contract_currency || 'KES'} {toCurrencyString(String(p.original_contract_sum ?? '0'))}
+<td className="p-3 font-mono tabular-nums font-semibold text-slate-900">
+                    {p.contract_currency || 'KES'} {formatMoney(String(p.original_contract_sum ?? '0'))}
 </td>
 <td className="p-3">
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${p.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                      {p.status}
+                      {statusLabel(p.status)}
 </span>
 </td>
 <td className="p-3">
 <button
                       onClick={() => { setPid(p.id); setActiveTab('overview');}}
-                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                      className="text-[11px] font-semibold text-blue-700 hover:text-blue-800"
                     >
                       Open workspace →
 </button>
 </td>
 </tr>
 )) : (
-<tr><td colSpan={5} className="p-8 text-center text-sm text-slate-400">No projects yet — create your first project to get started.</td></tr>
+<tr><td colSpan={5} className="p-8 text-center text-sm text-slate-600">No projects yet — create your first project to get started.</td></tr>
 
 )}
 </tbody>
@@ -300,7 +308,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 <button
               onClick={() => setShowInviteModal(true)}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+              className="text-xs font-semibold text-blue-700 hover:text-blue-800"
             >
               + Invite
 </button>
@@ -329,7 +337,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </select>
 <button
                       onClick={() => handleRevoke(m.membershipId)}
-                      className="text-[10px] font-bold text-red-500 hover:text-red-700 px-1"
+                      className="text-[10px] font-bold text-red-700 hover:text-red-700 px-1"
                       title="Revoke access"
                     >
                       
@@ -339,7 +347,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 ))}
 {members !== null && members.length === 0 && (
-<p className="text-slate-400 text-center py-4 text-xs">No team members yet — invite your first user.</p>
+<p className="text-slate-600 text-center py-4 text-xs">No team members yet — invite your first user.</p>
 )}
 </div>
 </div>
@@ -354,14 +362,14 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <div className="space-y-2.5 text-xs">
             {liveAudits.length > 0 ? liveAudits.map((a: any, i: number) => (
 <div key={a.id || i} className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-start gap-2.5">
-<span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+<span className="w-2 h-2 rounded-full bg-blue-700 mt-1.5 shrink-0" />
 <div>
 <p className="font-semibold text-slate-800">{a.action} • {a.entity_type}</p>
-<p className="text-[11px] text-slate-500">{a.created_at ? new Date(a.created_at).toLocaleString() : ''}</p>
+<p className="text-[11px] text-slate-500">{a.created_at ? formatDateTime(new Date(a.created_at)) : ''}</p>
 </div>
 </div>
 )) : (
-<p className="text-slate-400 text-center py-4">No audit events yet.</p>
+<p className="text-slate-600 text-center py-4">No audit events yet.</p>
 )}
 </div>
 </div>
@@ -429,11 +437,13 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
       />
 
       {/* Field Safety Audits & DOSHS/NCA Compliance Scorecards (Milestone M18) */}
+{isModuleEnabled('safety-audits') && (
 <SafetyAuditScorecardView
         projectId={pid}
         projectName={selectedProjectName}
         userRole="COMPANY_ADMIN"
       />
+)}
 
 </div>
 <div className={panelCls('compliance')}>
@@ -448,7 +458,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <RetentionAndBondsView
         projectId={pid}
         projectName={selectedProjectName}
-        userRole="COMPANY_ADMIN"
+        userRole={user.role}
       />
 
 </div>
@@ -474,7 +484,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <QuotesManagementView />
 
       {/* Invoicing: AR invoices, payments, PDF tax invoices (Gate-4 S2) */}
-<InvoicingView />
+<InvoicingView userRole="COMPANY_ADMIN" />
 
 </div>
 <div className={panelCls('people')}>
@@ -499,7 +509,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
 <div className="flex justify-between items-center">
 <h3 className="text-base font-bold text-slate-900">Invite Team Member</h3>
-<button onClick={() => setShowInviteModal(false)} className="text-slate-400 hover:text-slate-600 font-bold"></button>
+<button onClick={() => setShowInviteModal(false)} className="text-slate-600 hover:text-slate-600 font-bold"></button>
 </div>
 <form onSubmit={handleInviteSubmit} className="space-y-4">
 <div>
@@ -547,7 +557,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </button>
 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm"
+                  className="px-4 py-1.5 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm"
                 >
                   Send Invitation
 </button>
@@ -563,7 +573,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
 <div className="flex justify-between items-center">
 <h3 className="text-base font-bold text-slate-900">Create New Project</h3>
-<button onClick={() => setShowProjectModal(false)} className="text-slate-400 hover:text-slate-600 font-bold"></button>
+<button onClick={() => setShowProjectModal(false)} className="text-slate-600 hover:text-slate-600 font-bold"></button>
 </div>
 <form onSubmit={handleProjectSubmit} className="space-y-4">
 <div>
@@ -586,7 +596,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                     value={projectCode}
                     onChange={(e) => setProjectCode(e.target.value)}
                     placeholder="e.g. WOT-2026"
-                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                   />
 </div>
 <div>
@@ -596,7 +606,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                     value={projectNcaNo}
                     onChange={(e) => setProjectNcaNo(e.target.value)}
                     placeholder="NCA-PRJ-2026-XXXX"
-                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                   />
 </div>
 </div>
@@ -619,7 +629,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
                   value={projectContractSum}
                   onChange={(e) => setProjectContractSum(e.target.value)}
                   placeholder="e.g. 45000000"
-                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 tabular-nums"
                 />
 </div>
 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
@@ -632,7 +642,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </button>
 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm"
+                  className="px-4 py-1.5 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm"
                 >
                   Register Project
 </button>
@@ -641,6 +651,7 @@ export default function CompanyAdminDashboard({ session, onPreviewPortal}: Compa
 </div>
 </div>
 )}
+{dialog.element}
 </div>
 );
 }

@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { formatKes } from '../ui';
+import { api, apiErrorMessage } from '../lib/api';
 
 export interface BOQItemPreview {
   itemCode: string;
@@ -74,17 +75,11 @@ export default function BoqImportModal({
     try {
       const form = new FormData();
       form.append('file', selectedFile);
-      const res = await fetch(`/api/v1/projects/${projectId}/boq/preview`, {
-        method: 'POST',
-        credentials: 'include',
-        body: form,
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || json.message || 'Parse failed');
+      const json = await api.post<{ data: BOQPreviewData }>(`/api/v1/projects/${projectId}/boq/preview`, form);
       setPreviewData(json.data);
       setStep('PREVIEW');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to parse workbook');
+    } catch (err) {
+      setErrorMsg(apiErrorMessage(err, 'Failed to parse workbook'));
       setStep('UPLOAD');
     }
   };
@@ -93,22 +88,15 @@ export default function BoqImportModal({
     if (!previewData) return;
     setStep('COMMITTING');
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/boq/confirm`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceFilename: previewData.sourceFilename,
-          sections: previewData.sections,
-          excludeRejected,
-        }),
+      const json = await api.post<{ data: any }>(`/api/v1/projects/${projectId}/boq/confirm`, {
+        sourceFilename: previewData.sourceFilename,
+        sections: previewData.sections,
+        excludeRejected,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || json.message || 'Import failed');
       onImportSuccess(json.data);
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to commit BOQ import');
+    } catch (err) {
+      setErrorMsg(apiErrorMessage(err, 'Failed to commit BOQ import'));
       setStep('PREVIEW');
     }
   };
@@ -124,14 +112,14 @@ export default function BoqImportModal({
 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 ">
                 EASMM 2008 Standard Pipeline
 </span>
-<span className="text-xs text-slate-400">• ADR-003 Staged Import</span>
+<span className="text-xs text-slate-600">• ADR-003 Staged Import</span>
 </div>
 <h2 className="text-lg font-bold text-slate-900 mt-1">Import Bill of Quantities (BOQ)</h2>
 <p className="text-xs text-slate-500">Project: {projectName} ({projectId})</p>
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 font-bold text-lg p-1"
+            className="text-slate-600 hover:text-slate-600 font-bold text-lg p-1"
           >
             
 </button>
@@ -149,7 +137,7 @@ export default function BoqImportModal({
 <div className="space-y-6">
               {/* Dropzone Area */}
 <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-purple-500 transition bg-slate-50/50 space-y-3">
-<div className="text-4xl text-purple-600"></div>
+<div className="text-4xl text-purple-700"></div>
 <div>
 <label className="cursor-pointer font-semibold text-purple-700 hover:text-purple-800 text-sm">
                     Click to select Excel spreadsheet
@@ -167,10 +155,21 @@ export default function BoqImportModal({
                 {selectedFile && (
 <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-lg text-xs font-medium text-purple-900">
 <span> {selectedFile.name}</span>
-<span className="text-slate-400">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+<span className="text-slate-600">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
 </div>
 )}
 </div>
+
+              <div className="flex items-center justify-between">
+                <a
+                  href="/api/v1/boq/template"
+                  download="sitesafi-boq-template.xlsx"
+                  className="text-xs font-semibold text-purple-700 hover:text-purple-900 underline"
+                >
+                  Download BOQ template (.xlsx)
+                </a>
+                <span className="text-[10px] text-slate-600">Preview is a dry run — nothing is saved until you confirm.</span>
+              </div>
 
               {/* Kenyan Format Guidance */}
 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-600">
@@ -193,7 +192,7 @@ export default function BoqImportModal({
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
 <span className="text-[10px] font-semibold text-slate-500 block">Grand Total</span>
-<span className="text-base font-bold font-mono text-slate-900 mt-0.5 block">
+<span className="text-base font-bold tabular-nums text-slate-900 mt-0.5 block">
                     {formatKes(previewData.calculatedGrandTotal)}
 </span>
 </div>
@@ -223,7 +222,7 @@ export default function BoqImportModal({
 <div key={section.orderIdx} className="border border-slate-200 rounded-lg overflow-hidden">
 <div className="bg-slate-100 px-4 py-2.5 flex justify-between items-center text-xs border-b border-slate-200">
 <span className="font-bold text-slate-800">{section.title}</span>
-<span className="font-mono font-semibold text-slate-900">
+<span className="tabular-nums font-semibold text-slate-900">
                         Subtotal: {formatKes(section.subtotal)}
 </span>
 </div>
@@ -242,7 +241,7 @@ export default function BoqImportModal({
 <tbody className="divide-y divide-slate-100 text-slate-700">
                         {section.items.map((item, idx) => (
 <tr key={idx} className="hover:bg-slate-50/50">
-<td className="p-2.5 font-mono text-slate-500">{item.itemCode}</td>
+<td className="p-2.5 tabular-nums text-slate-500">{item.itemCode}</td>
 <td className="p-2.5 max-w-xs font-medium">
                               {item.description}
                               {item.isProvisional && (
@@ -254,10 +253,10 @@ export default function BoqImportModal({
 <p className="text-[10px] text-amber-700 mt-0.5"> {item.rejectionReason}</p>
 )}
 </td>
-<td className="p-2.5 font-mono text-slate-500">{item.unit}</td>
-<td className="p-2.5 text-right font-mono">{item.quantity}</td>
-<td className="p-2.5 text-right font-mono">{formatKes(item.unitRate)}</td>
-<td className="p-2.5 text-right font-mono font-semibold text-slate-900">
+<td className="p-2.5 tabular-nums text-slate-500">{item.unit}</td>
+<td className="p-2.5 text-right tabular-nums">{item.quantity}</td>
+<td className="p-2.5 text-right tabular-nums">{formatKes(item.unitRate)}</td>
+<td className="p-2.5 text-right tabular-nums font-semibold text-slate-900">
                               {formatKes(item.totalAmount)}
 </td>
 <td className="p-2.5 text-center">
@@ -292,7 +291,7 @@ export default function BoqImportModal({
                   id="excludeRejected"
                   checked={excludeRejected}
                   onChange={(e) => setExcludeRejected(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-purple-500"
+                  className="rounded text-purple-700 focus:ring-purple-500"
                 />
 <label htmlFor="excludeRejected" className="text-xs text-slate-700 font-medium">
                   Exclude rejected line items during import (prevents bad data from entering the database)
@@ -316,7 +315,7 @@ export default function BoqImportModal({
 <button
                 type="button"
                 onClick={handleParse}
-                className="px-5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition"
+                className="px-5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition"
               >
                 Parse &amp; Preview BOQ
 </button>
@@ -335,7 +334,7 @@ export default function BoqImportModal({
                 type="button"
                 onClick={handleConfirmImport}
                 disabled={step === 'COMMITTING'}
-                className="px-5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+                className="px-5 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
               >
                 {step === 'COMMITTING' ? 'Importing...' : 'Confirm & Commit BOQ Baseline'}
 </button>

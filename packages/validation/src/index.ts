@@ -33,6 +33,30 @@ export const LoginRequestSchema = z.object({
 
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
+export const RegisterCompanySchema = z.object({
+  companyName: z.string().min(2, { message: 'Company name must be at least 2 characters' }).max(255),
+  // Accept both naming conventions used across clients: adminFullName/email
+  // (current console) and adminName/adminEmail/adminPhone (auditor journey).
+  adminFullName: z.string().min(2).max(255).optional(),
+  adminName: z.string().min(2).max(255).optional(),
+  email: z.string().email({ message: 'Must be a valid email address' }).optional(),
+  adminEmail: z.string().email({ message: 'Must be a valid email address' }).optional(),
+  phone: KenyanPhoneSchema.optional().or(z.literal('')),
+  adminPhone: KenyanPhoneSchema.optional().or(z.literal('')),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128),
+}).refine((v) => !!(v.adminFullName ?? v.adminName), {
+  message: 'adminFullName (or adminName) is required',
+}).refine((v) => !!(v.email ?? v.adminEmail), {
+  message: 'email (or adminEmail) is required',
+}).transform((v) => ({
+  companyName: v.companyName,
+  adminFullName: (v.adminFullName ?? v.adminName)!,
+  email: (v.email ?? v.adminEmail)!,
+  phone: v.phone || v.adminPhone || '',
+  password: v.password,
+}));
+export type RegisterCompany = z.infer<typeof RegisterCompanySchema>;
+
 export const AuthUserResponseSchema = z.object({
   user: z.object({
     id: z.string().uuid(),
@@ -72,7 +96,11 @@ export const CreateCostEntrySchema = z.object({
   projectId: z.string().uuid(),
   boqItemId: z.string().uuid().optional().nullable(),
   costCategory: CostCategoryEnum,
-  amount: CurrencyAmountSchema,
+  // Accept JSON numbers as well as decimal strings; normalised to the
+  // canonical "1234.50" string the Decimal columns expect.
+  amount: z
+    .union([CurrencyAmountSchema, z.number().finite().nonnegative()])
+    .transform((v) => (typeof v === 'number' ? v.toFixed(2) : v)),
   vendorName: z.string().max(255).optional().nullable(),
   invoiceRef: z.string().max(100).optional().nullable(),
   description: z.string().min(3).max(2000),
@@ -92,6 +120,7 @@ export type CreateCostEntry = z.infer<typeof CreateCostEntrySchema>;
 export const ApproveCostEntrySchema = z.object({
   action: z.enum(['APPROVED', 'REJECTED']),
   comments: z.string().max(1000).optional().nullable(),
+  selfApprovalReason: z.string().max(500).optional().nullable(),
 });
 export type ApproveCostEntry = z.infer<typeof ApproveCostEntrySchema>;
 
@@ -135,7 +164,12 @@ export const MaterialDeliverySchema = z.object({
   quantity: QuantitySchema,
   unit: z.string().min(1).max(20),
   supplierName: z.string().max(255).optional().nullable(),
+  // Stage 3: record-bound supplier + optional PO line linkage.
+  supplierId: z.string().uuid().optional().nullable(),
+  purchaseOrderId: z.string().uuid().optional().nullable(),
+  purchaseOrderItemId: z.string().uuid().optional().nullable(),
   deliveryNote: z.string().max(100).optional().nullable(),
+  storeLocation: z.string().max(255).optional().nullable(),
 });
 export type MaterialDelivery = z.infer<typeof MaterialDeliverySchema>;
 
@@ -146,6 +180,7 @@ export const SitePhotoInputSchema = z.object({
   takenAt: z.string().datetime().optional(),
   gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
   gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+  gpsAccuracyMeters: z.number().min(0).max(100000).optional().nullable(),
 });
 
 export const UpdateSitePhotoVisibilitySchema = z.object({
@@ -153,6 +188,15 @@ export const UpdateSitePhotoVisibilitySchema = z.object({
 });
 export type UpdateSitePhotoVisibility = z.infer<typeof UpdateSitePhotoVisibilitySchema>;
 export type SitePhotoInput = z.infer<typeof SitePhotoInputSchema>;
+
+// FIELD portal daily-photo payload: photo metadata plus the weather/site
+// status needed only when the capture files the project's first diary of
+// the day (the diary row requires both columns).
+export const FieldPortalPhotoSchema = SitePhotoInputSchema.extend({
+  weather: WeatherConditionEnum.optional(),
+  siteStatus: SiteStatusEnum.optional(),
+});
+export type FieldPortalPhoto = z.infer<typeof FieldPortalPhotoSchema>;
 
 export const CreateSiteDiarySchema = z.object({
   projectId: z.string().uuid(),
@@ -197,16 +241,22 @@ export const VariationQuantitySchema = z
     message: 'Variation quantity must be a decimal with up to 4 decimal places (positive for additions, negative for omissions)',
   });
 
+const decimalOrNumber = (schema: z.ZodString) =>
+  z
+    .union([schema, z.number().finite()])
+    .transform((v) => (typeof v === 'number' ? String(v) : v));
+
 export const VariationItemInputSchema = z.object({
   boqItemId: z.string().uuid().optional().nullable(),
   description: z.string().min(2).max(1000),
   unit: z.string().min(1).max(20),
-  quantity: VariationQuantitySchema,
-  unitRate: UnitRateSchema,
+  quantity: decimalOrNumber(VariationQuantitySchema),
+  unitRate: decimalOrNumber(UnitRateSchema),
 });
 export type VariationItemInput = z.infer<typeof VariationItemInputSchema>;
 
 export const VariationTriggerTypeSchema = z.enum([
+  'CLIENT_REQUEST',
   'DESIGN_CLARIFICATION',
   'OWNER_REQUEST',
   'UNFORESEEN_CONDITION',
@@ -253,10 +303,55 @@ export type ClientVariationRespond = z.infer<typeof ClientVariationRespondSchema
 
 export const AcceptInvitationSchema = z.object({
   token: z.string().min(16, { message: 'Invalid invitation token' }).max(128),
+  // Optional: when omitted the invited email is used. When supplied it must
+  // match the invitation (wrong-email tokens are still rejected).
+  email: z.string().email({ message: 'Must be the invited email address' }).optional(),
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters long' }).max(255),
+  // Required for email/password invites: the invitee always sets/confirms
+  // their own password. Phone+PIN field invites (pin_hash on the invitation)
+  // skip this — the invitee authenticates with their PIN instead.
   password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128).optional(),
+  // Phone+PIN field invites may set the PIN at accept time instead of invite
+  // time — the admin vouches for the worker, the worker chooses their own PIN.
+  pin: z.string().regex(/^\d{6}$/, { message: 'PIN must be exactly 6 digits' }).optional(),
 });
 export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
+
+// Field-role phone + PIN login (rate-limited server-side)
+export const FieldLoginSchema = z.object({
+  phone: z.string().min(9).max(30),
+  pin: z.string().regex(/^\d{6}$/, { message: 'PIN must be exactly 6 digits' }),
+});
+export type FieldLogin = z.infer<typeof FieldLoginSchema>;
+
+// Invite member — either email+role (password account) or phone+role (PIN set
+// at accept time, or phone+pin when the admin chooses it)
+export const InviteMemberSchema = z.object({
+  email: z.string().email().optional(),
+  phone: z.string().min(9).max(30).optional(),
+  pin: z.string().regex(/^\d{6}$/).optional(),
+  role: z.string().min(2).max(50),
+  fullName: z.string().min(2).max(255).optional(),
+}).refine((v) => v.email || v.phone, {
+  message: 'Provide either email, or phone for a field-role invite',
+});
+export type InviteMember = z.infer<typeof InviteMemberSchema>;
+
+export const RequestPasswordResetSchema = z.object({
+  email: z.string().email({ message: 'Must be a valid email address' }),
+});
+export type RequestPasswordReset = z.infer<typeof RequestPasswordResetSchema>;
+
+export const ResetPasswordSchema = z.object({
+  token: z.string().min(16, { message: 'Invalid reset token' }).max(128),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }).max(128),
+});
+export type ResetPassword = z.infer<typeof ResetPasswordSchema>;
+
+export const VerifyEmailSchema = z.object({
+  token: z.string().min(16, { message: 'Invalid verification token' }).max(128),
+});
+export type VerifyEmail = z.infer<typeof VerifyEmailSchema>;
 
 export type AuthUserResponse = z.infer<typeof AuthUserResponseSchema>;
 
@@ -402,7 +497,12 @@ export const RecordCubeBreakSchema = z.object({
 export type RecordCubeBreak = z.infer<typeof RecordCubeBreakSchema>;
 
 // Domain 4: Snag Items (Punch List)
-export const SnagSeverityEnum = z.enum(['COSMETIC', 'FUNCTIONAL', 'CRITICAL_SAFETY']);
+// Field crews report MAJOR/MINOR colloquially — map onto the stored scale
+// (MINOR->COSMETIC, MAJOR->FUNCTIONAL) so the DB enum stays canonical.
+export const SnagSeverityEnum = z.preprocess(
+  (v) => (v === 'MINOR' ? 'COSMETIC' : v === 'MAJOR' ? 'FUNCTIONAL' : v),
+  z.enum(['COSMETIC', 'FUNCTIONAL', 'CRITICAL_SAFETY']),
+);
 export type SnagSeverity = z.infer<typeof SnagSeverityEnum>;
 
 export const SnagStatusEnum = z.enum([
@@ -467,6 +567,7 @@ export const SnagPhotoInputSchema = z.object({
   caption: z.string().max(255).optional().nullable(),
   gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
   gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+  gpsAccuracyMeters: z.number().min(0).max(100000).optional().nullable(),
 });
 export type SnagPhotoInput = z.infer<typeof SnagPhotoInputSchema>;
 
@@ -489,8 +590,17 @@ export const CreateSnagItemSchema = z.object({
   referenceDoc: z.string().max(255).optional().nullable(),
   assignedTradeFirm: z.string().max(255).optional().nullable(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
-  identifiedByName: z.string().min(2).max(255),
+  // Optional — defaults to the reporting user's name server-side.
+  identifiedByName: z.string().min(2).max(255).optional().nullable(),
   photos: z.array(SnagPhotoInputSchema).optional(),
+  // Optional inline defect photo as base64 — verified by magic bytes
+  // server-side; lets the offline queue carry photo+snag in one mutation.
+  photoBase64: z.string().min(32).max(8 * 1024 * 1024).optional().nullable(),
+  // GPS fix captured at shutter time for the inline base64 photo — the
+  // photos[] array can't carry it because the storage key doesn't exist yet.
+  photoLatitude: z.number().min(-90).max(90).optional().nullable(),
+  photoLongitude: z.number().min(-180).max(180).optional().nullable(),
+  photoAccuracyMeters: z.number().min(0).max(100000).optional().nullable(),
   distributions: z.array(z.object({
     recipientName: z.string().min(1).max(255),
     recipientContact: z.string().max(255).optional().nullable(),
@@ -553,6 +663,7 @@ export const PortalTypeEnum = z.enum([
   'SUBCONTRACTOR',
   'SUPPLIER',
   'COMPLIANCE',
+  'FIELD',
 ]);
 export type PortalType = z.infer<typeof PortalTypeEnum>;
 
@@ -563,6 +674,13 @@ export const CreatePortalLinkSchema = z.object({
   expiresInDays: z.number().int().min(1).max(365).default(30),
   // SUBCONTRACTOR links must bind to one work package (audit: no cross-subs visibility)
   subcontractorPackageId: z.string().uuid().optional().nullable(),
+  // SUPPLIER links must bind to a Supplier record — never free-text names.
+  supplierId: z.string().uuid().optional().nullable(),
+  // CONSULTANT links may be scope-limited so a link only returns the
+  // sections it was issued for (Stage 4). `scopes` (array) is the
+  // auditor-contract form; `scope` (single) is canonical.
+  scope: z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES', 'SNAGS']).optional().nullable(),
+  scopes: z.array(z.enum(['ALL', 'RFI', 'INSPECTIONS', 'CERTIFICATES', 'SNAGS'])).max(5).optional().nullable(),
 });
 
 // Consultant portal RFI reply (external, unauthenticated token scope)
@@ -570,6 +688,15 @@ export const ConsultantRfiReplySchema = z.object({
   officialAnswer: z.string().min(3).max(5000),
   consultantName: z.string().max(255).optional().nullable(),
   consultantBoraqsNo: z.string().max(50).optional().nullable(),
+  // Storage keys of files the consultant uploaded via the portal uploads
+  // endpoint — each must belong to this project/tenant (verified server-side).
+  attachmentStorageKeys: z.array(z.string().min(3).max(500)).max(10).optional(),
+  // Alternative shape: objects with storageKey + optional caption (auditor
+  // contract); captions surface as the attachment filename for staff.
+  attachments: z.array(z.object({
+    storageKey: z.string().min(3).max(500),
+    caption: z.string().max(255).optional().nullable(),
+  })).max(10).optional(),
 });
 export type ConsultantRfiReply = z.infer<typeof ConsultantRfiReplySchema>;
 
@@ -583,7 +710,7 @@ export type SupplierDeliveryAction = z.infer<typeof SupplierDeliveryActionSchema
 export type CreatePortalLink = z.infer<typeof CreatePortalLinkSchema>;
 
 // -------------------------------------------------------------
-// PROJECT SCHEDULE & GANTT TASKS (BUILD-SASA BENCHMARK)
+// PROJECT SCHEDULE & GANTT TASKS 
 // -------------------------------------------------------------
 export const TaskStatusEnum = z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'DELAYED']);
 export type TaskStatus = z.infer<typeof TaskStatusEnum>;
@@ -616,7 +743,7 @@ export const UpdateScheduleTaskSchema = z.object({
 export type UpdateScheduleTask = z.infer<typeof UpdateScheduleTaskSchema>;
 
 // -------------------------------------------------------------
-// SITE STORE INVENTORY (BUILD-SASA BENCHMARK)
+// SITE STORE INVENTORY 
 // -------------------------------------------------------------
 export const CreateInventoryItemSchema = z.object({
   materialName: z.string().min(2).max(255),
@@ -644,6 +771,7 @@ export const RecordInventoryMovementSchema = z.object({
   referenceNo: z.string().max(100).optional().nullable(),
   notes: z.string().optional().nullable(),
   recordedByName: z.string().min(2).max(255),
+  requisitionId: z.string().uuid().optional().nullable(),
 });
 export type RecordInventoryMovement = z.infer<typeof RecordInventoryMovementSchema>;
 
@@ -671,7 +799,15 @@ export type IncidentType = z.infer<typeof IncidentTypeEnum>;
 export const SeverityLevelEnum = z.enum(['MINOR', 'MODERATE', 'SERIOUS', 'CRITICAL']);
 export type SeverityLevel = z.infer<typeof SeverityLevelEnum>;
 
-export const CreateSafetyIncidentSchema = z.object({
+export const CreateSafetyIncidentSchema = z.preprocess((v) => {
+  if (v && typeof v === 'object') {
+    const o = { ...(v as Record<string, unknown>) };
+    // Field crews report `location` (auditor contract) — map to exactLocation.
+    if (o.location !== undefined && o.exactLocation === undefined) o.exactLocation = o.location;
+    return o;
+  }
+  return v;
+}, z.object({
   incidentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
   incidentTime: z.string().max(20).optional().nullable(),
   incidentType: IncidentTypeEnum,
@@ -683,12 +819,13 @@ export const CreateSafetyIncidentSchema = z.object({
   immediateAction: z.string().optional().nullable(),
   preventativeAction: z.string().optional().nullable(),
   isOshaReportable: z.boolean().default(false),
-  investigatedBy: z.string().min(2).max(255),
-});
+  // Optional — defaults to the reporting user server-side when absent.
+  investigatedBy: z.string().min(2).max(255).optional().nullable(),
+}));
 export type CreateSafetyIncident = z.infer<typeof CreateSafetyIncidentSchema>;
 
 // -------------------------------------------------------------
-// PROJECT DOCUMENTS & DRAWINGS (BUILD-SASA BENCHMARK)
+// PROJECT DOCUMENTS & DRAWINGS 
 // -------------------------------------------------------------
 export const DocumentCategoryEnum = z.enum([
   'ARCHITECTURAL_DRAWING',
@@ -720,11 +857,12 @@ export const CreateProjectDocumentSchema = z.object({
   status: DocumentStatusEnum.default('APPROVED_FOR_CONSTRUCTION'),
   uploadedByName: z.string().min(2).max(255),
   notes: z.string().optional().nullable(),
+  issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
 });
 export type CreateProjectDocument = z.infer<typeof CreateProjectDocumentSchema>;
 
 // -------------------------------------------------------------
-// SUBCONTRACTOR WORK PACKAGES (BUILD-SASA BENCHMARK)
+// SUBCONTRACTOR WORK PACKAGES 
 // -------------------------------------------------------------
 export const SubcontractorStatusEnum = z.enum(['AWARDED', 'ACTIVE', 'COMPLETED', 'TERMINATED']);
 export type SubcontractorStatus = z.infer<typeof SubcontractorStatusEnum>;
@@ -738,6 +876,7 @@ export const CreateSubcontractorPackageSchema = z.object({
   retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Must be a valid percentage' }).default('5.00'),
   status: SubcontractorStatusEnum.default('ACTIVE'),
   scopeDescription: z.string().optional().nullable(),
+  contractorId: z.string().uuid().optional().nullable(),
 });
 export type CreateSubcontractorPackage = z.infer<typeof CreateSubcontractorPackageSchema>;
 
@@ -807,8 +946,8 @@ export const CreateTaxCertificateSchema = z.object({
   payeeKraPin: z.string().regex(/^[A-Z]\d{9}[A-Z]$/, { message: 'Must be a valid Kenyan KRA PIN (e.g. P051234567Z)' }),
   invoiceOrIpcRef: z.string().min(2).max(100),
   grossAmount: CurrencyAmountSchema,
-  whtRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).default('3.00'),
-  whvatRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).default('2.00'),
+  whtRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).optional().nullable(),
+  whvatRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid rate percentage' }).optional().nullable(),
 });
 export type CreateTaxCertificate = z.infer<typeof CreateTaxCertificateSchema>;
 
@@ -834,6 +973,16 @@ export const RequisitionStatusEnum = z.enum([
 ]);
 export type RequisitionStatus = z.infer<typeof RequisitionStatusEnum>;
 
+// CB1 — delivery schedule batch on an indent
+export const IndentDeliveryBatchInputSchema = z.object({
+  batchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  quantity: QuantitySchema.refine((q) => Number(q) > 0, { message: 'Batch quantity must be positive' }),
+});
+export type IndentDeliveryBatchInput = z.infer<typeof IndentDeliveryBatchInputSchema>;
+
+export const IndentKindEnum = z.enum(['MATERIAL', 'SERVICE']);
+export type IndentKind = z.infer<typeof IndentKindEnum>;
+
 export const CreateMaterialRequisitionSchema = z.object({
   requisitionNo: z.string().min(2).max(100),
   inventoryItemId: z.string().uuid().optional().nullable(),
@@ -845,8 +994,42 @@ export const CreateMaterialRequisitionSchema = z.object({
   requiredByDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
   supplierName: z.string().max(255).optional().nullable(),
   requestedBy: z.string().min(2).max(255),
+  // CB1 indent depth
+  indentKind: IndentKindEnum.default('MATERIAL'),
+  storeLocation: z.string().max(255).optional().nullable(),
+  floorRef: z.string().max(100).optional().nullable(),
+  unitRef: z.string().max(100).optional().nullable(),
+  workOrderRef: z.string().max(100).optional().nullable(),
+  indentCategory: z.string().max(100).optional().nullable(),
+  materialType: z.string().max(100).optional().nullable(),
+  materialSubType: z.string().max(100).optional().nullable(),
+  leadTimeDays: z.number().int().min(0).max(365).optional().nullable(),
+  expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  deliverySchedule: z.array(IndentDeliveryBatchInputSchema).max(60).optional().nullable(),
 });
 export type CreateMaterialRequisition = z.infer<typeof CreateMaterialRequisitionSchema>;
+
+// CB1 — amend-material workflow (Assistant QS "Amend & Modify Material")
+export const AmendMaterialRequisitionSchema = z.object({
+  reason: z.string().min(5).max(1000),
+  itemDescription: z.string().min(2).max(255).optional(),
+  unitOfMeasure: z.string().min(1).max(50).optional(),
+  requestedQuantity: QuantitySchema.optional(),
+  estimatedUnitCostKes: CurrencyAmountSchema.optional(),
+  storeLocation: z.string().max(255).optional().nullable(),
+  floorRef: z.string().max(100).optional().nullable(),
+  unitRef: z.string().max(100).optional().nullable(),
+  workOrderRef: z.string().max(100).optional().nullable(),
+  indentCategory: z.string().max(100).optional().nullable(),
+  materialType: z.string().max(100).optional().nullable(),
+  materialSubType: z.string().max(100).optional().nullable(),
+  leadTimeDays: z.number().int().min(0).max(365).optional().nullable(),
+  expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  deliverySchedule: z.array(IndentDeliveryBatchInputSchema).max(60).optional().nullable(),
+});
+export type AmendMaterialRequisition = z.infer<typeof AmendMaterialRequisitionSchema>;
 
 export const ReviewMaterialRequisitionSchema = z.object({
   status: RequisitionStatusEnum,
@@ -854,6 +1037,98 @@ export const ReviewMaterialRequisitionSchema = z.object({
   rejectionReason: z.string().max(1000).optional().nullable(),
 });
 export type ReviewMaterialRequisition = z.infer<typeof ReviewMaterialRequisitionSchema>;
+
+// -------------------------------------------------------------
+// CB2 — RATE MASTER (shared rate library: geo + item/material typing)
+// -------------------------------------------------------------
+export const RateMasterItemTypeEnum = z.enum(['MATERIAL', 'SERVICE', 'LABOUR', 'EQUIPMENT', 'OTHER']);
+export type RateMasterItemType = z.infer<typeof RateMasterItemTypeEnum>;
+
+const RateDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' });
+
+// Accepts decimal strings or JSON numbers; normalised to a ≤4dp string.
+const RateAmountSchema = z
+  .union([UnitRateSchema, z.number().finite().positive()])
+  .transform((v) => (typeof v === 'number' ? String(v) : v));
+
+export const RateMasterEntryInputSchema = z.object({
+  country: z.string().min(2).max(100).default('Kenya'),
+  stateRegion: z.string().max(100).optional().nullable(),
+  city: z.string().max(100).optional().nullable(),
+  itemType: RateMasterItemTypeEnum.default('MATERIAL'),
+  materialType: z.string().max(100).optional().nullable(),
+  materialSubType: z.string().max(100).optional().nullable(),
+  description: z.string().min(2).max(500),
+  unit: z.string().min(1).max(20),
+  unitRateKes: RateAmountSchema,
+  effectiveFrom: RateDateSchema.optional().nullable(),
+  effectiveTo: RateDateSchema.optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type RateMasterEntryInput = z.infer<typeof RateMasterEntryInputSchema>;
+
+export const UpdateRateMasterEntrySchema = RateMasterEntryInputSchema.partial();
+export type UpdateRateMasterEntry = z.infer<typeof UpdateRateMasterEntrySchema>;
+
+export const BulkRateMasterSchema = z.object({
+  entries: z.array(RateMasterEntryInputSchema).min(1).max(500),
+});
+export type BulkRateMaster = z.infer<typeof BulkRateMasterSchema>;
+
+// -------------------------------------------------------------
+// CB3 — GATE PASS (material-exit authorization register)
+// -------------------------------------------------------------
+export const GatePassItemSchema = z.object({
+  description: z.string().min(2).max(500),
+  unit: z.string().min(1).max(20),
+  quantity: z.union([z.string().regex(/^\d+(\.\d{1,4})?$/), z.number().finite().positive()]),
+});
+export type GatePassItem = z.infer<typeof GatePassItemSchema>;
+
+export const CreateGatePassSchema = z.object({
+  projectId: z.string().uuid().optional().nullable(),
+  storeLocation: z.string().max(255).optional().nullable(),
+  issuedToName: z.string().min(2).max(255),
+  issuedToPhone: z.string().max(50).optional().nullable(),
+  destination: z.string().max(255).optional().nullable(),
+  vehicleRegistration: z.string().max(50).optional().nullable(),
+  purpose: z.string().max(255).optional().nullable(),
+  items: z.array(GatePassItemSchema).min(1).max(100),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateGatePass = z.infer<typeof CreateGatePassSchema>;
+
+export const GatePassActionSchema = z.object({
+  reason: z.string().max(500).optional().nullable(),
+  vehicleRegistration: z.string().max(50).optional().nullable(),
+});
+export type GatePassAction = z.infer<typeof GatePassActionSchema>;
+
+// -------------------------------------------------------------
+// CB5 — CONTRACTOR MASTER (firm register: KRA PIN, categories, approval)
+// -------------------------------------------------------------
+export const ContractorApprovalStatusEnum = z.enum(['PENDING', 'APPROVED', 'SUSPENDED', 'BLACKLISTED']);
+export type ContractorApprovalStatus = z.infer<typeof ContractorApprovalStatusEnum>;
+
+export const ContractorFirmInputSchema = z.object({
+  firmName: z.string().min(2).max(255),
+  kraPin: z.string().min(3).max(20).optional().nullable(),
+  contactPerson: z.string().max(255).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable().or(z.literal('')),
+  workCategories: z.array(z.string().min(1).max(100)).max(50).default([]),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type ContractorFirmInput = z.infer<typeof ContractorFirmInputSchema>;
+
+export const UpdateContractorFirmSchema = ContractorFirmInputSchema.partial().extend({
+  approvalStatus: ContractorApprovalStatusEnum.optional(),
+  statusReason: z.string().max(1000).optional().nullable(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateContractorFirm = z.infer<typeof UpdateContractorFirmSchema>;
 
 // -------------------------------------------------------------
 // MATERIAL WASTAGE & THEORETICAL CONSUMPTION VARIANCE ENGINE
@@ -906,7 +1181,8 @@ export type CreateCashFlowForecast = z.infer<typeof CreateCashFlowForecastSchema
 // -------------------------------------------------------------
 export const SubcontractorValuationStatusEnum = z.enum([
   'SUBMITTED',
-  'QS_VERIFIED',
+  'UNDER_REVIEW',
+  'QS_VERIFIED', // legacy alias of UNDER_REVIEW — kept for backward compatibility
   'APPROVED_FOR_PAYMENT',
   'PAID',
   'REJECTED',
@@ -920,7 +1196,9 @@ export const CreateSubcontractorValuationSchema = z.object({
   grossWorkCertifiedKes: CurrencyAmountSchema,
   retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid retention percentage' }).default('10.00'),
   previousPaymentsDeductedKes: CurrencyAmountSchema.default('0.00'),
-  withholdingTaxPct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid WHT percentage' }).default('3.00'),
+  // Optional override — when omitted the route applies the tenant's configured
+  // WHT rate for the SUBCONTRACTOR category (no hard-coded default).
+  withholdingTaxPct: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Valid WHT percentage' }).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 export type CreateSubcontractorValuation = z.infer<typeof CreateSubcontractorValuationSchema>;
@@ -930,6 +1208,8 @@ export const ReviewSubcontractorValuationSchema = z.object({
   approvedBy: z.string().min(2).max(255).optional().nullable(),
   paymentReference: z.string().max(100).optional().nullable(),
   paidAt: z.string().optional().nullable(),
+  // Stage 3: COMPANY_ADMIN-only TCC override — mandatory reason, audit-logged.
+  tccOverrideReason: z.string().max(500).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 export type ReviewSubcontractorValuation = z.infer<typeof ReviewSubcontractorValuationSchema>;
@@ -1170,11 +1450,13 @@ export const CreateSubcontractorRetentionReleaseSchema = z.object({
 });
 export type CreateSubcontractorRetentionRelease = z.infer<typeof CreateSubcontractorRetentionReleaseSchema>;
 
-export const ReviewSubcontractorRetentionReleaseSchema = z.object({
-  status: z.enum(['PENDING_QS_REVIEW', 'APPROVED_BY_DIRECTOR', 'PAID', 'REJECTED']),
+export const SubcontractorRetentionReleaseActionSchema = z.object({
+  action: z.enum(['RECOMMEND', 'APPROVE', 'REJECT', 'MARK_PAID']),
+  qsRecommendationNotes: z.string().max(2000).optional().nullable(),
   disbursementRef: z.string().max(100).optional().nullable(),
+  overrideReason: z.string().max(500).optional().nullable(),
 });
-export type ReviewSubcontractorRetentionRelease = z.infer<typeof ReviewSubcontractorRetentionReleaseSchema>;
+export type SubcontractorRetentionReleaseAction = z.infer<typeof SubcontractorRetentionReleaseActionSchema>;
 
 export const BondTypeEnum = z.enum([
   'PERFORMANCE_BOND',
@@ -1584,6 +1866,7 @@ export const InspectionPhotoInputSchema = z.object({
   hasDiscrepancy: z.boolean().default(false),
   gpsLatitude: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]).optional().nullable(),
   gpsLongitude: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]).optional().nullable(),
+  gpsAccuracyMeters: z.union([z.number().min(0).max(100000), z.string().regex(/^\d+(?:\.\d+)?$/)]).optional().nullable(),
 });
 export type InspectionPhotoInput = z.infer<typeof InspectionPhotoInputSchema>;
 
@@ -1792,10 +2075,21 @@ export type VoidInvoice = z.infer<typeof VoidInvoiceSchema>;
 // Gate-4 S4: Payment Certificates & Closeout (ADR-008)
 // -----------------------------------------------------------------------------
 
+export const PaymentCertificateLineInputSchema = z.object({
+  boqItemId: z.string().uuid().optional().nullable(),
+  description: z.string().min(1).max(500),
+  unit: z.string().max(20).optional().nullable(),
+  progressPct: z.string().regex(/^\d+(\.\d{1,4})?$/, 'Valid progress percentage').optional().nullable(),
+  unitRate: z.string().regex(/^\d+(\.\d{1,4})?$/, 'Valid unit rate').optional().nullable(),
+  amount: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount'),
+});
+export type PaymentCertificateLineInput = z.infer<typeof PaymentCertificateLineInputSchema>;
+
 export const CreatePaymentCertificateSchema = z.object({
   periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart must be YYYY-MM-DD'),
   periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd must be YYYY-MM-DD'),
   thisPeriodAmount: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  lines: z.array(PaymentCertificateLineInputSchema).max(500).optional().nullable(),
   retentionPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
   retentionReleased: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
   advanceRecovery: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
@@ -1804,10 +2098,45 @@ export const CreatePaymentCertificateSchema = z.object({
 });
 export type CreatePaymentCertificate = z.infer<typeof CreatePaymentCertificateSchema>;
 
+export const UpdatePaymentCertificateSchema = z.object({
+  thisPeriodAmount: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  lines: z.array(PaymentCertificateLineInputSchema).max(500).optional().nullable(),
+  retentionPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage').optional().nullable(),
+  retentionReleased: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  advanceRecovery: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  amountDuePrevious: z.string().regex(/^-?\d+(\.\d{1,2})?$/, 'Must be a valid amount').optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type UpdatePaymentCertificate = z.infer<typeof UpdatePaymentCertificateSchema>;
+
+export const CreateInvoiceFromCertificateSchema = z.object({
+  // Optional — falls back to the accepted quote's client, then the project name.
+  clientName: z.string().min(2).max(255).optional(),
+  clientEmail: z.string().email().optional().nullable(),
+  clientPhone: z.string().max(50).optional().nullable(),
+  billTo: z.string().max(2000).optional().nullable(),
+  poNumber: z.string().max(100).optional().nullable(),
+  dueDays: z.number().int().min(0).max(365).default(30),
+  terms: z.string().max(2000).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+export type CreateInvoiceFromCertificate = z.infer<typeof CreateInvoiceFromCertificateSchema>;
+
+export const TaxSettingsSchema = z.object({
+  vatPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid VAT percentage').optional(),
+  whtContractorPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHT percentage').optional(),
+  whtSubcontractorPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHT percentage').optional(),
+  whtConsultantPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHT percentage').optional(),
+  whtSupplierPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHT percentage').optional(),
+  whvatPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Valid WHVAT percentage').optional(),
+});
+export type TaxSettings = z.infer<typeof TaxSettingsSchema>;
+
 export const PaymentCertificateActionSchema = z.object({
   action: z.enum(['SUBMIT', 'REVIEW', 'CERTIFY', 'REJECT', 'MARK_PAID']),
   comments: z.string().max(2000).optional(),
   paidReference: z.string().max(100).optional().nullable(),
+  selfApprovalReason: z.string().max(500).optional().nullable(),
 }).refine((v) => v.action !== 'REJECT' || (v.comments && v.comments.trim().length >= 3), {
   message: 'A rejection reason (comments) is required',
   path: ['comments'],
@@ -1817,6 +2146,9 @@ export type PaymentCertificateAction = z.infer<typeof PaymentCertificateActionSc
 export const CloseoutTransitionSchema = z.object({
   stage: z.enum(['HANDED_OVER', 'DEFECTS_LIABILITY', 'DEFECTS_EXPIRED', 'CLOSED']),
   notes: z.string().max(2000).optional(),
+  // Stage 6: required when closing with retention still outstanding —
+  // the admin writes it off with a reason of >= 15 non-space characters.
+  retentionWriteOffReason: z.string().max(500).optional(),
 });
 export type CloseoutTransition = z.infer<typeof CloseoutTransitionSchema>;
 
@@ -1918,7 +2250,14 @@ export const CreateProjectDetailsSchema = z.object({
   status: ProjectHealthStatusEnum.optional().nullable(),
   startDate: IsoDate.optional().nullable(),
   targetEndDate: IsoDate.optional().nullable(),
-});
+  // Phase 2.8: project taxonomy — validated against the shared config in
+  // project-types.ts (unknown keys rejected server-side).
+  projectType: z.string().max(30).optional().nullable(),
+  projectSubtype: z.string().max(60).optional().nullable(),
+  retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  retentionCapPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  retentionFirstMoietyPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+}).refine((v) => !v.projectSubtype || !!v.projectType, { message: 'projectSubtype requires projectType', path: ['projectSubtype'] });
 export type CreateProjectDetails = z.infer<typeof CreateProjectDetailsSchema>;
 
 export const UpdateProjectDetailsSchema = z.object({
@@ -1936,7 +2275,15 @@ export const UpdateProjectDetailsSchema = z.object({
   startDate: IsoDate.optional().nullable(),
   targetEndDate: IsoDate.optional().nullable(),
   progressPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
-}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field must be provided' });
+  // Round H3: project retention terms — locked once the first payment
+  // certificate exists (enforced server-side).
+  retentionRatePct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  retentionCapPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  retentionFirstMoietyPct: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a percentage 0-100').optional().nullable(),
+  projectType: z.string().max(30).optional().nullable(),
+  projectSubtype: z.string().max(60).optional().nullable(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field must be provided' })
+  .refine((v) => !v.projectSubtype || !!v.projectType, { message: 'projectSubtype requires projectType', path: ['projectSubtype'] });
 export type UpdateProjectDetails = z.infer<typeof UpdateProjectDetailsSchema>;
 
 export const AssignProjectMemberSchema = z.object({
@@ -1982,6 +2329,24 @@ export type UpdateAnnouncement = z.infer<typeof UpdateAnnouncementSchema>;
 // -----------------------------------------------------------------------------
 
 export const InboxAudienceEnum = z.enum(['ALL_MEMBERS', 'PROJECT_TEAM', 'ROLE']);
+
+// P5.6 — polymorphic entity comments (site diary, snag, invoice, RFI,
+// observation, variation, quote). Whitelisted server-side per entity type.
+export const CommentEntityTypeEnum = z.enum([
+  'SITE_DIARY',
+  'SNAG_ITEM',
+  'INVOICE',
+  'RFI',
+  'SITE_OBSERVATION',
+  'VARIATION_ORDER',
+  'QUOTE',
+]);
+export const CreateEntityCommentSchema = z.object({
+  entityType: CommentEntityTypeEnum,
+  entityId: z.string().uuid(),
+  body: z.string().min(1).max(2000),
+});
+export type CreateEntityComment = z.infer<typeof CreateEntityCommentSchema>;
 
 export const SendInboxMessageSchema = z.object({
   body: z.string().min(1).max(5000),
@@ -2147,6 +2512,36 @@ export const UpdateScheduledReportSchema = z.object({
 }).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
 
 // -----------------------------------------------------------------------------
+// P5.9 — Meetings (+ .ics export)
+// -----------------------------------------------------------------------------
+export const MeetingStatusEnum = z.enum(['SCHEDULED', 'CANCELLED', 'HELD']);
+
+export const CreateMeetingSchema = z.object({
+  title: z.string().min(3).max(255),
+  projectId: z.string().uuid().optional().nullable(),
+  description: z.string().max(4000).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+  startsAt: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid startsAt' }),
+  endsAt: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid endsAt' }),
+  attendees: z.array(z.string().min(1).max(255)).max(50).default([]),
+}).refine((v) => Date.parse(v.endsAt) > Date.parse(v.startsAt), {
+  message: 'endsAt must be after startsAt',
+  path: ['endsAt'],
+});
+export type CreateMeeting = z.infer<typeof CreateMeetingSchema>;
+
+export const UpdateMeetingSchema = z.object({
+  title: z.string().min(3).max(255).optional(),
+  description: z.string().max(4000).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
+  startsAt: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid startsAt' }).optional(),
+  endsAt: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid endsAt' }).optional(),
+  attendees: z.array(z.string().min(1).max(255)).max(50).optional(),
+  status: MeetingStatusEnum.optional(),
+}).refine((v) => Object.keys(v).length > 0, { message: 'At least one field required' });
+export type UpdateMeeting = z.infer<typeof UpdateMeetingSchema>;
+
+// -----------------------------------------------------------------------------
 // Gate-5 G5-4b: Consultant review on inspections
 // -----------------------------------------------------------------------------
 
@@ -2231,3 +2626,186 @@ export const ReviewChecklistAssignmentSchema = z.object({
   notes: z.string().max(5000).optional().nullable(),
 });
 export type ReviewChecklistAssignment = z.infer<typeof ReviewChecklistAssignmentSchema>;
+
+// -------------------------------------------------------------
+// STAGE 2 — tenant settings, client payment notices, me feeds
+// -------------------------------------------------------------
+
+export const FxRatesInputSchema = z.object({
+  base: z.literal('KES').default('KES'),
+  rates: z.record(z.number().positive()),
+  asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  source: z.string().min(3).max(255),
+});
+export type FxRatesInput = z.infer<typeof FxRatesInputSchema>;
+
+export const UpdateCompanySettingsSchema = z.object({
+  retentionTerms: z.record(z.unknown()).optional().nullable(),
+  paymentInstructions: z.record(z.unknown()).optional().nullable(),
+  fxRates: FxRatesInputSchema.optional().nullable(),
+});
+export type UpdateCompanySettings = z.infer<typeof UpdateCompanySettingsSchema>;
+
+export const ClientPaymentNoticeSchema = z.object({
+  amount: z.number().positive(),
+  method: z.enum(['CASH', 'BANK', 'M_PESA', 'CHEQUE', 'CARD', 'OTHER']),
+  reference: z.string().max(100).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
+});
+export type ClientPaymentNotice = z.infer<typeof ClientPaymentNoticeSchema>;
+
+// -------------------------------------------------------------
+// STAGE 3 — suppliers & purchase orders
+// -------------------------------------------------------------
+
+export const CreateSupplierSchema = z.object({
+  name: z.string().min(2).max(255),
+  contactPerson: z.string().max(255).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable(),
+});
+export type CreateSupplier = z.infer<typeof CreateSupplierSchema>;
+
+export const PurchaseOrderStatusEnum = z.enum([
+  'DRAFT', 'ISSUED', 'ACCEPTED', 'PART_DELIVERED', 'DELIVERED', 'CLOSED', 'CANCELLED',
+]);
+export type PurchaseOrderStatus = z.infer<typeof PurchaseOrderStatusEnum>;
+
+export const PurchaseOrderItemInputSchema = z.object({
+  description: z.string().min(2).max(500),
+  unit: z.string().min(1).max(20),
+  quantity: z.number().positive(),
+  // `rate` is canonical; `unitRate` accepted as an alias (auditor contract).
+  rate: z.number().min(0).optional(),
+  unitRate: z.number().min(0).optional(),
+}).refine((i) => i.rate !== undefined || i.unitRate !== undefined, {
+  message: 'rate or unitRate is required',
+  path: ['rate'],
+});
+
+export const CreatePurchaseOrderSchema = z.object({
+  // supplierId canonical; supplierName accepted — resolved (or created) by name.
+  supplierId: z.string().uuid().optional().nullable(),
+  supplierName: z.string().min(2).max(255).optional().nullable(),
+  orderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  requisitionId: z.string().uuid().optional().nullable(),
+  storeLocation: z.string().max(255).optional().nullable(),
+  items: z.array(PurchaseOrderItemInputSchema).min(1),
+});
+export type CreatePurchaseOrder = z.infer<typeof CreatePurchaseOrderSchema>;
+
+export const SupplierPoAcceptSchema = z.object({
+  expectedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+export type SupplierPoAccept = z.infer<typeof SupplierPoAcceptSchema>;
+
+export const SupplierPoInvoiceSchema = z.object({
+  reference: z.string().min(2).max(100),
+  amount: z.number().positive(),
+  purchaseOrderItemId: z.string().uuid().optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
+});
+export type SupplierPoInvoice = z.infer<typeof SupplierPoInvoiceSchema>;
+
+export const PoInvoiceReviewSchema = z.object({
+  action: z.enum(['ACCEPT', 'REJECT']),
+  reason: z.string().max(1000).optional().nullable(),
+  approveOverInvoice: z.boolean().optional(),
+});
+export type PoInvoiceReview = z.infer<typeof PoInvoiceReviewSchema>;
+
+// -------------------------------------------------------------
+// STAGE 4 — PERMITS, COMPLIANCE VISITS, FIELD & SNAG PHOTOS
+// -------------------------------------------------------------
+
+export const PermitTypeEnum = z.enum([
+  'NCA_REGISTRATION',
+  'NEMA_LICENSE',
+  'COUNTY_APPROVAL',
+  'OTHER',
+]);
+export type PermitType = z.infer<typeof PermitTypeEnum>;
+
+// Field-name aliases used by portal/staff clients (auditor contract):
+// type/number/issuedBy/expiresOn map onto the canonical columns.
+const PERMIT_TYPE_ALIASES: Record<string, string> = {
+  NEMA_EIA_LICENCE: 'NEMA_LICENSE',
+  COUNTY_BUILDING_APPROVAL: 'COUNTY_APPROVAL',
+};
+export const CreatePermitSchema = z.preprocess((v) => {
+  if (v && typeof v === 'object') {
+    const o = { ...(v as Record<string, unknown>) };
+    if (o.type !== undefined && o.permitType === undefined) {
+      const t = String(o.type);
+      o.permitType = PERMIT_TYPE_ALIASES[t] ?? t;
+    }
+    if (o.number !== undefined && o.permitNumber === undefined) o.permitNumber = o.number;
+    if (o.issuedBy !== undefined && o.issuer === undefined) o.issuer = o.issuedBy;
+    if (o.expiresOn !== undefined && o.expiryDate === undefined) o.expiryDate = o.expiresOn;
+    return o;
+  }
+  return v;
+}, z.object({
+  permitType: PermitTypeEnum,
+  permitNumber: z.string().min(2).max(100),
+  issuer: z.string().min(2).max(255),
+  issuedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+}));
+export type CreatePermit = z.infer<typeof CreatePermitSchema>;
+
+export const ComplianceVisitOutcomeEnum = z.enum([
+  'COMPLIANT',
+  'CONDITIONAL',
+  'NON_COMPLIANT',
+  'FOLLOW_UP_REQUIRED',
+]);
+export type ComplianceVisitOutcome = z.infer<typeof ComplianceVisitOutcomeEnum>;
+
+export const ComplianceActionInputSchema = z.object({
+  description: z.string().min(3).max(1000),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+export type ComplianceActionInput = z.infer<typeof ComplianceActionInputSchema>;
+
+export const CreateComplianceVisitSchema = z.preprocess((v) => {
+  if (v && typeof v === 'object') {
+    const o = { ...(v as Record<string, unknown>) };
+    // `requiredActions` is the auditor-contract alias for `actions`.
+    if (o.requiredActions !== undefined && o.actions === undefined) o.actions = o.requiredActions;
+    return o;
+  }
+  return v;
+}, z.object({
+  visitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Must be in YYYY-MM-DD format' }),
+  outcome: ComplianceVisitOutcomeEnum,
+  notes: z.string().max(4000).optional().nullable(),
+  actions: z.array(ComplianceActionInputSchema).max(50).default([]),
+}));
+export type CreateComplianceVisit = z.infer<typeof CreateComplianceVisitSchema>;
+
+// Snag photo upload via JSON base64 (offline-queue friendly). The bytes are
+// magic-byte verified server-side before storage — same checks as site
+// uploads, just transported as base64 instead of multipart.
+export const SnagPhotoUploadSchema = z.object({
+  photoBase64: z.string().min(32).max(8 * 1024 * 1024),
+  caption: z.string().max(255).optional().nullable(),
+  photoType: z.enum(['DEFECT', 'RECTIFIED']).default('DEFECT'),
+  gpsLatitude: z.number().min(-90).max(90).optional().nullable(),
+  gpsLongitude: z.number().min(-180).max(180).optional().nullable(),
+  gpsAccuracyMeters: z.number().min(0).max(100000).optional().nullable(),
+});
+export type SnagPhotoUpload = z.infer<typeof SnagPhotoUploadSchema>;
+
+// Stage 4 — platform-operator first-admin activation (x-operator-key guarded).
+export const OperatorAdminAccountSchema = z.object({
+  companySlug: z.string().min(1).max(100),
+  mode: z.enum(['activate', 'reset-password']),
+  newPassword: z.string().min(8).max(200).optional(),
+});
+export type OperatorAdminAccountInput = z.infer<typeof OperatorAdminAccountSchema>;
+
+export * from './project-types';

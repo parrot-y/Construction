@@ -34,6 +34,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'GET /api/v1/projects/:projectId/material-requisitions': Permissions.COST_VIEW,
   'POST /api/v1/projects/:projectId/material-requisitions': Permissions.COST_CREATE,
   'PATCH /api/v1/projects/:projectId/material-requisitions/:requisitionId': Permissions.COST_APPROVE,
+  'PATCH /api/v1/projects/:projectId/material-requisitions/:requisitionId/amend': Permissions.COST_APPROVE,
   'GET /api/v1/projects/:projectId/material-wastage': Permissions.COST_VIEW,
   'POST /api/v1/projects/:projectId/material-wastage': Permissions.COST_CREATE,
   'GET /api/v1/projects/:projectId/cash-flow': Permissions.COST_VIEW,
@@ -90,8 +91,14 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'GET /api/v1/projects/:projectId/snags/export': Permissions.REPORT_VIEW,
   'POST /api/v1/projects/:projectId/snags': Permissions.SITE_DIARY_CREATE,
   'PUT /api/v1/projects/:projectId/snags/:snagId/status': Permissions.PROGRESS_RECORD,
+  'PATCH /api/v1/projects/:projectId/snags/:snagId/status': Permissions.PROGRESS_RECORD,
   'GET /api/v1/projects/:projectId/snags/:snagId': Permissions.SITE_DIARY_VIEW,
   'POST /api/v1/projects/:projectId/snags/:snagId/comments': Permissions.SITE_DIARY_CREATE,
+  'POST /api/v1/projects/:projectId/snags/:snagId/photos': Permissions.SITE_DIARY_CREATE,
+  // Stage 4 — permits register + compliance visits (contractor view)
+  'GET /api/v1/projects/:projectId/permits': Permissions.SITE_DIARY_VIEW,
+  'POST /api/v1/projects/:projectId/permits': Permissions.DOCUMENT_MANAGE,
+  'GET /api/v1/projects/:projectId/compliance-visits': Permissions.SITE_DIARY_VIEW,
   'POST /api/v1/projects/:projectId/snags/:snagId/distributions': Permissions.PROGRESS_RECORD,
 
   // Lifecycle: certificates
@@ -109,7 +116,9 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'POST /api/v1/projects/:projectId/safety-incidents': Permissions.SITE_DIARY_CREATE,
   'GET /api/v1/projects/:projectId/documents': Permissions.REPORT_VIEW,
   'POST /api/v1/projects/:projectId/documents': Permissions.DOCUMENT_MANAGE,
-  'GET /api/v1/projects/:projectId/subcontractors': Permissions.PROJECT_VIEW,
+  'GET /api/v1/projects/:projectId/drawings': Permissions.REPORT_VIEW,
+  'POST /api/v1/projects/:projectId/drawings': Permissions.DOCUMENT_MANAGE,
+  'GET /api/v1/projects/:projectId/subcontractors': Permissions.COST_VIEW,
   'POST /api/v1/projects/:projectId/subcontractors': Permissions.COST_CREATE,
   'PATCH /api/v1/projects/:projectId/subcontractors/:packageId': Permissions.COST_APPROVE,
 
@@ -195,7 +204,21 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/client/project-requests': 'Client self-service intake; CLIENT role enforced in-handler',
   'GET /api/v1/client/quotes': 'Returns only quotes addressed to the caller',
   'POST /api/v1/client/quotes/:id/respond': 'Client accept/decline on own quote (e-signature in-handler)',
+  'GET /api/v1/fx-rates': 'Reference FX rates — dated/sourced tenant-level data for any member',
+  'GET /api/v1/me/invoices': 'Caller-scoped invoice list (CLIENT/OWNER scope enforced in-handler)',
+  'GET /api/v1/me/approvals': 'Caller-scoped "waiting for you" approval feed',
+  'GET /api/v1/product': 'Product metadata for any authenticated member',
+  'GET /api/v1/company/modules': 'Own-tenant module flags — member-readable pilot scope',
+  'GET /api/v1/project-types': 'Project-type taxonomy + tenant NCA bands — reference data any console member needs for project creation/filtering',
+  'POST /api/v1/problem-reports': 'Self-service problem report — actor/tenant bound to session',
+  'GET /api/v1/company/payment-instructions': 'Payment instructions any member (incl. CLIENT) may read to pay the contractor',
+  'POST /api/v1/client/invoices/:invoiceId/payment-notice': 'Client self-service payment notice on own invoice (non-mutating, notifies staff)',
   'GET /api/v1/billing/subscription-status': 'Caller\u2019s tenant subscription status',
+  'GET /api/v1/events': 'Caller-scoped SSE inbox stream — session cookie auth, tenant-bound events only',
+  'GET /api/v1/push/vapid-key': 'Public VAPID key — needed before subscribe; not a secret',
+  'GET /api/v1/push-subscriptions': 'Caller-scoped device list (endpoints never returned)',
+  'POST /api/v1/push-subscriptions': 'Self-service push subscribe — rows bound to session user+tenant',
+  'DELETE /api/v1/push-subscriptions/:id': 'Self-service unsubscribe — own rows only (404 otherwise)',
 };
 
 // ---------------------------------------------------------------------------
@@ -206,6 +229,7 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
 export const IN_HANDLER_GUARDED: Record<string, string> = {
   'POST /api/v1/projects/:projectId/commitments/:commitmentId/applications/:applicationId/action': 'Handler maps application action -> permission check',
   'GET /api/v1/integrations/status': 'Handler restricts to COMPANY_ADMIN',
+  'GET /api/v1/message-deliveries': 'Handler restricts to integration managers (canManageIntegrations)',
   'POST /api/v1/integrations/test': 'Handler restricts to COMPANY_ADMIN',
   'POST /api/v1/projects/:projectId/telematics-devices': 'Handler role-gates (CLIENT read-only)',
   'POST /api/v1/projects/:projectId/canbus-devices': 'Handler role-gates (CLIENT read-only)',
@@ -217,13 +241,14 @@ export const IN_HANDLER_GUARDED: Record<string, string> = {
   'PATCH /api/v1/projects/:projectId/independent-inspections/:inspectionId/submit': 'Handler role-gates + inspection.submit permission',
   'POST /api/v1/projects/:projectId/tenders': 'Handler role-gates tender creation',
   'PATCH /api/v1/projects/:projectId/tenders/:tenderId/bids/:bidId/award': 'Handler role-gates tender award',
+  'GET /api/v1/home/summary': 'Handler gates fields by COST_VIEW+INVOICE_VIEW / SITE_DIARY_VIEW and project membership',
   'GET /uploads/*': 'Handler enforces tenant match + project membership per storage key',
   'GET /api/v1/auth/sessions': 'Self-service — lists caller’s own sessions',
   'DELETE /api/v1/auth/sessions/:id': 'Self-service — revokes caller’s own sessions',
 };
 
 // Roles that see every project in the tenant without a ProjectMember row.
-const TENANT_WIDE_ROLES = new Set<Role>([Roles.COMPANY_ADMIN, Roles.ADMIN, Roles.EXECUTIVE]);
+export const TENANT_WIDE_ROLES = new Set<Role>([Roles.COMPANY_ADMIN, Roles.ADMIN, Roles.EXECUTIVE]);
 
 const PROJECT_PATH_RE = /\/api\/v1\/projects\/(?::projectId|:id)\//;
 const PROJECT_DETAIL_RE = /^\/api\/v1\/projects\/:id$/;

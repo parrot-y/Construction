@@ -1,5 +1,10 @@
 import React, { useEffect, useState} from 'react';
-import { PortalLinkNotice, PortalExpiryBanner } from './PortalErrorState';
+import { PortalLinkNotice, PortalExpiryBanner, portalErrorKind, type PortalLinkKind } from './PortalErrorState';
+import { fetchJsonCached } from '../../services/offline-cache';
+import { compressUploadFile } from '../../services/offline-sync';
+import { SavedDataNotice, formatDate } from '../../ui';
+import { statusLabel } from '../../lib/status-labels';
+import { api, apiErrorMessage } from '../../lib/api';
 
 export interface ConsultantRfiItem {
   id: string;
@@ -47,6 +52,21 @@ export interface ConsultantInspection {
 }>;
 }
 
+export interface ConsultantSnag {
+  id: string;
+  snagNumber: number;
+  description: string;
+  locationFloor?: string | null;
+  locationRoom?: string | null;
+  tradeCategory?: string | null;
+  severity?: string | null;
+  status: string;
+  identifiedAt?: string;
+  rectifiedAt?: string | null;
+  verifiedAt?: string | null;
+  photos?: Array<{ id: string; photoType: string; caption?: string | null; storageKey: string; capturedAt: string }>;
+}
+
 interface ConsultantPortalViewProps {
   token?: string;
   stakeholderName?: string;
@@ -62,31 +82,41 @@ export default function ConsultantPortalView({
   stakeholderRole,
   projectName,
   projectCode,
-  onBackToDashboard,
 }: ConsultantPortalViewProps): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<PortalLinkKind>('error');
   const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
   const [stakeholder, setStakeholder] = useState({ name: stakeholderName || '', role: stakeholderRole || '' });
   const [proj, setProj] = useState({ name: projectName || '', code: projectCode || '' });
   const [rfis, setRfis] = useState<ConsultantRfiItem[]>([]);
   const [cubeTests, setCubeTests] = useState<ConsultantCubeTest[]>([]);
   const [inspections, setInspections] = useState<ConsultantInspection[]>([]);
+  const [snags, setSnags] = useState<ConsultantSnag[]>([]);
+  const [drawings, setDrawings] = useState<any[] | null>(null);
+  const [drawingsBusy, setDrawingsBusy] = useState<string | null>(null);
   const [selectedRfi, setSelectedRfi] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'rfis' | 'cubes' | 'inspections'>('rfis');
+  const [activeTab, setActiveTab] = useState<'rfis' | 'cubes' | 'inspections' | 'snags' | 'drawings'>('rfis');
+  const [rejectingSnag, setRejectingSnag] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectPhoto, setRejectPhoto] = useState<File | null>(null);
+  const [snagBusy, setSnagBusy] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setLoading(false); setLoadError('Missing portal token.'); return; }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/portals/consultant/${token}`, { credentials: 'include' });
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.message || 'This portal link is invalid or has expired');
+        const { body, savedAt: staleAt } = await fetchJsonCached(
+          `/api/v1/portals/consultant/${token}`,
+          `portal:consultant:${token}`,
+        );
         if (cancelled) return;
+        if (staleAt) setSavedAt(staleAt);
         const d = body.data || body;
         if (d.stakeholder) setStakeholder({ name: d.stakeholder.name || '', role: d.stakeholder.role || '' });
         if (d.linkExpiresAt) setLinkExpiresAt(d.linkExpiresAt);
@@ -137,8 +167,25 @@ export default function ConsultantPortalView({
             notes: it.deficiencyNotes,
           })),
         })));
-      } catch (e: any) {
-        if (!cancelled) setLoadError(e.message || 'Failed to load portal');
+        setSnags((d.snags || []).map((s: any) => ({
+          id: s.id,
+          snagNumber: s.snagNumber,
+          description: s.description,
+          locationFloor: s.locationFloor,
+          locationRoom: s.locationRoom,
+          tradeCategory: s.tradeCategory,
+          severity: s.severity,
+          status: s.status,
+          identifiedAt: s.identifiedAt,
+          rectifiedAt: s.rectifiedAt,
+          verifiedAt: s.verifiedAt,
+          photos: s.photos || [],
+        })));
+        // Drawings only arrive for ALL-scoped consultant links — null keeps
+        // the tab hidden for section-scoped links.
+        if (Array.isArray(d.drawings)) setDrawings(d.drawings);
+      } catch (e) {
+        if (!cancelled) { setLoadError(apiErrorMessage(e, 'Failed to load portal')); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -147,15 +194,12 @@ export default function ConsultantPortalView({
   }, [token]);
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
+    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-600">Loading portal…</div>;
   }
   if (loadError) {
-    const isExpired = /expired/i.test(loadError);
-    const isRevoked = /revoked|invalid/i.test(loadError);
     return (
       <div className="max-w-5xl mx-auto">
-        <PortalLinkNotice kind={isExpired ? 'expired' : isRevoked ? 'revoked' : 'error'} message={loadError} />
-        {onBackToDashboard && <div className="text-center pb-8"><button onClick={onBackToDashboard} className="text-xs text-blue-600 hover:underline">Back</button></div>}
+        <PortalLinkNotice kind={errorKind} message={loadError || undefined} />
       </div>
     );
   }
@@ -166,33 +210,81 @@ export default function ConsultantPortalView({
     setFeedback(null);
 
     try {
-      const res = await fetch(`/api/v1/portals/consultant/${token}/rfis/${rfiId}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          officialAnswer: replyText.trim(),
-          consultantName: stakeholder.name,
-          consultantBoraqsNo: stakeholder.role,
-}),
+      await api.post(`/api/v1/portals/consultant/${token}/rfis/${rfiId}/reply`, {
+        officialAnswer: replyText.trim(),
+        consultantName: stakeholder.name,
+        consultantBoraqsNo: stakeholder.role,
 });
-
-      if (res.ok) {
-        setFeedback('Official Consultant Answer recorded successfully.');
-        setReplyText('');
-        setSelectedRfi(null);
-} else {
-        const err = await res.json().catch(() => ({}));
-        setFeedback(err.message || 'Failed to submit response. Please retry.');
-}
-} catch (e: any) {
-      setFeedback(e.message || 'Network error — answer not submitted.');
+      setFeedback('Official Consultant Answer recorded successfully.');
+      setReplyText('');
+      setSelectedRfi(null);
+} catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — answer not submitted.'));
 } finally {
       setSubmitting(false);
 }
 };
 
+  const reviewableSnags = snags.filter((s) => ['READY_FOR_REVIEW', 'RECTIFIED_BY_CONTRACTOR'].includes(s.status));
+
+  const handleSnagReview = async (snagId: string, action: 'VERIFY' | 'REJECT') => {
+    setSnagBusy(snagId);
+    setFeedback(null);
+    try {
+      let photoStorageKey: string | undefined;
+      if (action === 'REJECT' && rejectPhoto) {
+        const fd = new FormData();
+        fd.append('file', await compressUploadFile(rejectPhoto));
+        const upBody = await api.post<any>(`/api/v1/portals/consultant/${token}/uploads`, fd);
+        photoStorageKey = upBody.data?.storageKey || upBody.storageKey;
+      }
+      await api.post(`/api/v1/portals/consultant/${token}/snags/${snagId}/review`, {
+        action,
+        reason: rejectReason || undefined,
+        photoStorageKey,
+      });
+      setFeedback(action === 'VERIFY' ? 'Snag verified and closed.' : 'Snag rejected — sent back for rework.');
+      setRejectingSnag(null);
+      setRejectReason('');
+      setRejectPhoto(null);
+      // Refresh snag list in place.
+      const fb = await api.get<any>(`/api/v1/portals/consultant/${token}`);
+      const d = fb.data || fb;
+      setSnags((d.snags || []).map((s: any) => ({
+        id: s.id, snagNumber: s.snagNumber, description: s.description,
+        locationFloor: s.locationFloor, locationRoom: s.locationRoom,
+        tradeCategory: s.tradeCategory, severity: s.severity, status: s.status,
+        identifiedAt: s.identifiedAt, rectifiedAt: s.rectifiedAt, verifiedAt: s.verifiedAt,
+        photos: s.photos || [],
+      })));
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — review not submitted.'));
+    } finally {
+      setSnagBusy(null);
+    }
+  };
+
+  const handleAcknowledgeDrawing = async (documentId: string) => {
+    setDrawingsBusy(documentId);
+    setFeedback(null);
+    try {
+      await api.post(`/api/v1/portals/consultant/${token}/drawings/${documentId}/acknowledge`, {});
+      setDrawings((prev) => (prev || []).map((d) =>
+        d.documentId === documentId || d.id === documentId
+          ? { ...d, acknowledged: true, acknowledgedAt: new Date().toISOString() }
+          : d,
+      ));
+      setFeedback('Drawing revision acknowledged — the project team can see your sign-off.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — acknowledgement not recorded.'));
+    } finally {
+      setDrawingsBusy(null);
+    }
+  };
+
   return (
-<div className="max-w-5xl mx-auto space-y-6" data-testid="consultant-portal-view">
+<div className="w-full max-w-5xl mx-auto space-y-6" data-testid="consultant-portal-view">
+      {savedAt && <SavedDataNotice savedAt={savedAt} />}
       <PortalExpiryBanner expiresAt={linkExpiresAt} />
       {/* Portal header */}
 <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -207,20 +299,10 @@ export default function ConsultantPortalView({
 </div>
 <h1 className="text-xl font-bold mt-2 text-slate-900">{proj.name} ({proj.code})</h1>
 <p className="text-xs text-slate-500">
-            Welcome,<span className="text-slate-700 font-semibold">{stakeholder.name}</span> • {stakeholder.role}
+            Welcome, <span className="text-slate-700 font-semibold">{stakeholder.name}</span> • {stakeholder.role}
 </p>
 </div>
 
-<div className="flex items-center gap-3">
-          {onBackToDashboard && (
-<button
-              onClick={onBackToDashboard}
-              className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
-            >
-              ← Back to Project
-</button>
-)}
-</div>
 </header>
       {/* What you can do here */}
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -229,13 +311,14 @@ export default function ConsultantPortalView({
             <li>• Review RFIs raised by the site team and reply with technical answers</li>
             <li>• Track concrete cube test results against KS 02-598 targets</li>
             <li>• Complete pre-pour QA checklists for upcoming concrete works</li>
+            <li>• Verify snags the contractor has rectified, or reject them with a reason and photo</li>
 </ul>
 </div>
 
 
       {/* Tabs */}
-<div className="flex border-b border-slate-200 gap-4 text-xs font-semibold">
-<button
+<div className="flex flex-wrap border-b border-slate-200 gap-x-4 gap-y-1 text-xs font-semibold">
+<button aria-pressed={activeTab === 'rfis'}
           onClick={() => setActiveTab('rfis')}
           className={`pb-2 border-b-2 transition ${
             activeTab === 'rfis'
@@ -245,7 +328,7 @@ export default function ConsultantPortalView({
         >
           Architectural & Structural RFIs ({rfis.length})
 </button>
-<button
+<button aria-pressed={activeTab === 'cubes'}
           onClick={() => setActiveTab('cubes')}
           className={`pb-2 border-b-2 transition ${
             activeTab === 'cubes'
@@ -255,7 +338,7 @@ export default function ConsultantPortalView({
         >
           Concrete Cube Strength Tests ({cubeTests.length})
 </button>
-<button
+<button aria-pressed={activeTab === 'inspections'}
           onClick={() => setActiveTab('inspections')}
           className={`pb-2 border-b-2 transition ${
             activeTab === 'inspections'
@@ -265,12 +348,34 @@ export default function ConsultantPortalView({
         >
           Pre-Pour QA Checklists ({inspections.length})
 </button>
+<button aria-pressed={activeTab === 'snags'}
+          onClick={() => setActiveTab('snags')}
+          className={`pb-2 border-b-2 transition ${
+            activeTab === 'snags'
+              ? 'border-purple-600 text-purple-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+}`}
+        >
+          Snag Verification ({reviewableSnags.length})
+</button>
+{drawings !== null && (
+<button aria-pressed={activeTab === 'drawings'}
+          onClick={() => setActiveTab('drawings')}
+          className={`pb-2 border-b-2 transition ${
+            activeTab === 'drawings'
+              ? 'border-purple-600 text-purple-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+}`}
+        >
+          Drawings ({drawings.length})
+</button>
+)}
 </div>
 
       {feedback && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex justify-between items-center">
 <span>{feedback}</span>
-<button onClick={() => setFeedback(null)} className="text-emerald-600 font-bold ml-2">×</button>
+<button onClick={() => setFeedback(null)} className="text-emerald-700 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -292,7 +397,7 @@ export default function ConsultantPortalView({
               >
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div className="flex items-center gap-2">
-<span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                       {rfi.rfi_number}
 </span>
 <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
@@ -407,7 +512,7 @@ export default function ConsultantPortalView({
 <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
 <div className="flex justify-between items-start">
 <div>
-<span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+<span className="font-mono tabular-nums text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                       {c.batch_reference}
 </span>
 <h4 className="text-xs font-bold text-slate-900 mt-1">{c.element_location}</h4>
@@ -425,7 +530,7 @@ export default function ConsultantPortalView({
                     >
 <div>
 <span className="font-semibold text-slate-800">{b.age_days}-Day Crush:</span>{' '}
-<span className="font-mono">{b.compressive_strength_mpa} MPa</span>
+<span className="tabular-nums">{b.compressive_strength_mpa} MPa</span>
 <span className="text-[10px] text-slate-500 ml-1">({b.failure_load_kn} kN)</span>
 </div>
 <span
@@ -460,20 +565,186 @@ export default function ConsultantPortalView({
 <p className="text-xs text-slate-500">Scheduled Date: {insp.scheduled_date} • Category: {insp.category}</p>
 </div>
 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  {insp.status}
+                  {statusLabel(insp.status)}
 </span>
 </div>
 
 <div className="space-y-2 text-xs">
                 {insp.items?.map((it) => (
 <div key={it.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded border border-slate-200">
-<span className="text-emerald-600 font-bold text-sm"></span>
+<span className="text-emerald-700 font-bold text-sm"></span>
 <span className="text-slate-800">{it.item_description}</span>
 </div>
 ))}
 </div>
 </div>
 ))}
+</div>
+)}
+
+      {/* TAB 4: Snag verification (Stage 6 closeout loop) */}
+      {activeTab === 'snags' && (
+<div className="space-y-4">
+          {snags.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No snags on this project yet — rectified defects awaiting your verification appear here.</p>
+)}
+          {snags.map((sn) => {
+            const reviewable = ['READY_FOR_REVIEW', 'RECTIFIED_BY_CONTRACTOR'].includes(sn.status);
+            const isRejecting = rejectingSnag === sn.id;
+            return (
+<div key={sn.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3" data-testid={`consultant-snag-${sn.snagNumber}`}>
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+<div className="flex items-center gap-2">
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        SN-{String(sn.snagNumber).padStart(3, '0')}
+</span>
+<span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                        {sn.tradeCategory || 'General'}
+</span>
+<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          sn.severity === 'MAJOR' || sn.severity === 'CRITICAL'
+                            ? 'bg-red-100 text-red-800 border border-red-200'
+                            : 'bg-slate-100 text-slate-700'
+}`}>{sn.severity || 'COSMETIC'}</span>
+</div>
+<span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                        sn.status === 'VERIFIED_CLOSED'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : reviewable
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+}`}>{statusLabel(sn.status)}</span>
+</div>
+<h3 className="text-sm font-bold text-slate-900">{sn.description}</h3>
+<p className="text-xs text-slate-500">
+                  {[sn.locationFloor, sn.locationRoom].filter(Boolean).join(' • ')}
+                  {sn.rectifiedAt ? ` • Rectified ${formatDate(sn.rectifiedAt)}` : ''}
+                  {sn.verifiedAt ? ` • Verified ${formatDate(sn.verifiedAt)}` : ''}
+</p>
+{sn.photos && sn.photos.length > 0 && (
+<div className="flex gap-2 flex-wrap">
+                    {sn.photos.map((ph) => (
+<a key={ph.id} href={`/uploads/${ph.storageKey}`} target="_blank" rel="noreferrer" className="text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded hover:bg-purple-100">
+                        {ph.photoType === 'DEFECT' ? 'Defect photo' : 'Rectified photo'}{ph.caption ? ` — ${ph.caption}` : ''}
+</a>
+))}
+</div>
+)}
+
+                {reviewable && (
+<div className="pt-2 space-y-2">
+                    {!isRejecting ? (
+<div className="flex flex-wrap gap-2">
+<button
+                          type="button"
+                          disabled={snagBusy === sn.id}
+                          onClick={() => handleSnagReview(sn.id, 'VERIFY')}
+                          className="px-3.5 py-2 min-h-[44px] text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50 transition"
+                        >
+                          {snagBusy === sn.id ? 'Working…' : 'Verify — defect fixed'}
+</button>
+<button
+                          type="button"
+                          onClick={() => { setRejectingSnag(sn.id); setRejectReason(''); setRejectPhoto(null); }}
+                          className="px-3.5 py-2 min-h-[44px] text-xs font-semibold bg-white text-red-700 border border-red-300 hover:bg-red-50 rounded-lg transition"
+                        >
+                          Reject — needs rework
+</button>
+</div>
+) : (
+<div className="space-y-2 bg-red-50/50 p-3 rounded-lg border border-red-200">
+<label className="block text-xs font-bold text-red-900">Reason for rejection (min 15 characters):</label>
+<textarea
+                          rows={2}
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          placeholder="e.g. Tile alignment still visible at the patio door — please make good and resubmit photos."
+                          className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-400 focus:outline-none"
+                        />
+<label className="block text-xs font-bold text-red-900">Photo evidence (required):</label>
+<input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          capture="environment"
+                          onChange={(e) => setRejectPhoto(e.target.files?.[0] || null)}
+                          className="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-red-100 file:text-red-800 file:text-xs file:font-semibold"
+                        />
+<div className="flex gap-2 justify-end">
+<button
+                            type="button"
+                            onClick={() => { setRejectingSnag(null); setRejectReason(''); setRejectPhoto(null); }}
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg"
+                          >
+                            Cancel
+</button>
+<button
+                            type="button"
+                            disabled={snagBusy === sn.id || rejectReason.replace(/\s+/g, '').length < 15 || !rejectPhoto}
+                            onClick={() => handleSnagReview(sn.id, 'REJECT')}
+                            className="px-3.5 py-1.5 text-xs font-semibold bg-red-700 hover:bg-red-800 text-white rounded-lg disabled:opacity-50 transition"
+                          >
+                            {snagBusy === sn.id ? 'Submitting…' : 'Submit rejection'}
+</button>
+</div>
+</div>
+)}
+</div>
+)}
+</div>
+);
+})}
+</div>
+)}
+
+      {/* TAB 5: Drawings register + per-revision acknowledgement */}
+      {activeTab === 'drawings' && drawings !== null && (
+<div className="space-y-4">
+          {drawings.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No drawings on this project yet — issued revisions appear here for acknowledgement.</p>
+)}
+          {drawings.map((d: any) => {
+            const docId = d.documentId || d.id;
+            return (
+<div key={docId} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3" data-testid={`consultant-drawing-${d.drawingNumber || docId}`}>
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+<div>
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        {d.drawingNumber || d.drawingReference || 'Drawing'}
+</span>
+<h3 className="text-sm font-bold text-slate-900 mt-1">{d.title}</h3>
+<p className="text-xs text-slate-500">
+                          Rev {d.revisionCode || d.revision || '—'}
+                          {d.issuedDate ? ` • Issued ${formatDate(d.issuedDate)}` : ''}
+                          {d.status ? ` • ${statusLabel(d.status)}` : ''}
+</p>
+</div>
+<span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                        d.acknowledged
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          : d.isOverdue
+                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                          : 'bg-slate-100 text-slate-600 border-slate-300'
+}`}>{d.acknowledged ? 'Acknowledged' : d.isOverdue ? 'Revision review due' : 'Awaiting acknowledgement'}</span>
+</div>
+{d.acknowledgedBy && d.acknowledgedBy.length > 0 && (
+<p className="text-[11px] text-slate-500">
+                  Acknowledged by {d.acknowledgedBy.map((a: any) => a.stakeholderName).filter(Boolean).join(', ')}
+</p>
+)}
+{!d.acknowledged && (
+<button
+                    type="button"
+                    disabled={drawingsBusy === docId}
+                    onClick={() => handleAcknowledgeDrawing(docId)}
+                    data-testid={`acknowledge-drawing-${docId}`}
+                    className="px-3.5 py-1.5 min-h-[36px] text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg disabled:opacity-50 transition"
+                  >
+                    {drawingsBusy === docId ? 'Acknowledging…' : 'Acknowledge this revision'}
+</button>
+)}
+</div>
+);
+})}
 </div>
 )}
 </div>

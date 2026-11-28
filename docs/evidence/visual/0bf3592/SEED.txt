@@ -1,0 +1,4 @@
+tenant: Nyota Construction Ltd (admin@nyota-builders.co.ke)
+project: Kileleshwa Residential Villas (KIL-RES-01)
+seeded by: e2e/capture-visual.mjs via /api/v1/auth/register-company + /api/v1/invitations
+commit: 0bf3592

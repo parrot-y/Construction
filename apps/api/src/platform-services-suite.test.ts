@@ -160,7 +160,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
         method: 'POST',
         url: `/api/v1/billing/mpesa-callback?tenantId=${attackerTenantId}`,
         headers: {
-          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+          'x-mpesa-webhook-token': 'test-daraja-webhook-secret',
         },
         payload: {
           MerchantRequestID: 'MR_TEST_VALID',
@@ -180,7 +180,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
         method: 'POST',
         url: `/api/v1/billing/mpesa-callback?tenantId=${testTenantId}`,
         headers: {
-          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+          'x-mpesa-webhook-token': 'test-daraja-webhook-secret',
         },
         payload: {
           MerchantRequestID: 'MR_TEST_UNKNOWN',
@@ -200,7 +200,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
         method: 'POST',
         url: `/api/v1/billing/mpesa-callback?tenantId=${testTenantId}`,
         headers: {
-          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+          'x-mpesa-webhook-token': 'test-daraja-webhook-secret',
         },
         payload: {
           MerchantRequestID: 'MR_TEST_VALID',
@@ -708,7 +708,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
         method: 'POST',
         url: `/api/v1/billing/mpesa-b2c-callback?tenantId=${attackerTenantId}`,
         headers: {
-          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+          'x-mpesa-webhook-token': 'test-daraja-webhook-secret',
         },
         payload: {
           ConversationID: conversationId,
@@ -728,7 +728,7 @@ describe('Milestones M22, M23 & M24: Platform Services & Site Telematics Suite',
         method: 'POST',
         url: `/api/v1/billing/mpesa-b2c-callback?tenantId=${testTenantId}`,
         headers: {
-          'x-mpesa-webhook-token': 'mjengo-daraja-webhook-secret-production',
+          'x-mpesa-webhook-token': 'test-daraja-webhook-secret',
         },
         payload: {
           ConversationID: conversationId,

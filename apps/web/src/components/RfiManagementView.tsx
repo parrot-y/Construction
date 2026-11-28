@@ -1,5 +1,8 @@
 import React, { useEffect, useState} from 'react';
 import CreateRfiModal, { RfiPriority, ConsultantRole} from './CreateRfiModal';
+import { statusLabel } from '../lib/status-labels';
+import { formatDate } from '../lib/format';
+import { api } from '../lib/api';
 
 export type RfiStatus = 'SUBMITTED' | 'ANSWERED' | 'CLOSED';
 
@@ -79,9 +82,7 @@ export default function RfiManagementView({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/rfis`, { credentials: 'include'});
-      if (!res.ok) throw new Error('load failed');
-      const data = await res.json();
+      const data = await api.get<any>(`/api/v1/projects/${projectId}/rfis`);
       setRfis((data || []).map(mapApiRfi));
       setLiveLoaded(true);
 } catch {
@@ -103,17 +104,14 @@ export default function RfiManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/rfis`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              title: newRfi.title,
-              question: newRfi.query,
-              drawingReference: newRfi.drawingRef || null,
-              priority: newRfi.priority,
-              assignedToRole: Object.entries(CONSULTANT_MAP).find(([, v]) => v === newRfi.assignedConsultant)?.[0] || 'QS',
-}),
-});
-          if (res.ok) await reload();
+          await api.post(`/api/v1/projects/${projectId}/rfis`, {
+            title: newRfi.title,
+            question: newRfi.query,
+            drawingReference: newRfi.drawingRef || null,
+            priority: newRfi.priority,
+            assignedToRole: Object.entries(CONSULTANT_MAP).find(([, v]) => v === newRfi.assignedConsultant)?.[0] || 'QS',
+          });
+          await reload();
 } catch { /* keep local */}
 })();
       return;
@@ -130,8 +128,8 @@ export default function RfiManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/rfis/${id}/close`, { method: 'POST', credentials: 'include'});
-          if (res.ok) await reload();
+          await api.post(`/api/v1/projects/${projectId}/rfis/${id}/close`);
+          await reload();
 } catch { /* ignore */}
 })();
       return;
@@ -148,11 +146,9 @@ export default function RfiManagementView({
     if (isLive) {
       void (async () => {
         try {
-          const res = await fetch(`/api/v1/projects/${projectId}/rfis/${rfiId}/responses`, {
-            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-            body: JSON.stringify({ officialAnswer: text, isAccepted: true}),
-});
-          if (res.ok) { setReplyText((prev) => ({ ...prev, [rfiId]: ''})); await reload();}
+          await api.post(`/api/v1/projects/${projectId}/rfis/${rfiId}/responses`, { officialAnswer: text, isAccepted: true });
+          setReplyText((prev) => ({ ...prev, [rfiId]: ''}));
+          await reload();
 } catch { /* ignore */}
 })();
       return;
@@ -228,7 +224,7 @@ export default function RfiManagementView({
 <span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
               BORAQS / EBK Engineering Coordination
 </span>
-<span className="text-xs text-slate-400 font-mono">ISO 9001:2015</span>
+<span className="text-xs text-slate-600 tabular-nums">ISO 9001:2015</span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
             Request for Information (RFI) Register
@@ -253,34 +249,34 @@ export default function RfiManagementView({
       {/* Summary KPI Strip */}
 <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 bg-slate-50/30 border-b border-slate-200 text-xs">
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
             Total RFIs Logged
 </span>
-<span className="text-lg font-bold font-mono text-slate-800 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-slate-800 mt-0.5 block">
             {rfis.length}
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-amber-600 block">
+<span className="text-[10px] font-semibold text-amber-700 block">
             Pending Consultant Reply
 </span>
-<span className="text-lg font-bold font-mono text-amber-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-amber-700 mt-0.5 block">
             {rfis.filter((r) => r.status === 'SUBMITTED').length}
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-emerald-600 block">
+<span className="text-[10px] font-semibold text-emerald-700 block">
             Answered & Resolved
 </span>
-<span className="text-lg font-bold font-mono text-emerald-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-emerald-700 mt-0.5 block">
             {rfis.filter((r) => r.status === 'ANSWERED').length}
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-rose-600 block">
+<span className="text-[10px] font-semibold text-rose-700 block">
             Critical Path Queries
 </span>
-<span className="text-lg font-bold font-mono text-rose-700 mt-0.5 block">
+<span className="text-lg font-bold tabular-nums text-rose-700 mt-0.5 block">
             {rfis.filter((r) => r.priority === 'CRITICAL').length}
 </span>
 </div>
@@ -292,7 +288,7 @@ export default function RfiManagementView({
           {/* Status buttons */}
 <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
             {(['ALL', 'SUBMITTED', 'ANSWERED', 'CLOSED'] as const).map((st) => (
-<button
+<button aria-pressed={statusFilter === st}
                 key={st}
                 onClick={() => setStatusFilter(st)}
                 className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
@@ -342,7 +338,7 @@ export default function RfiManagementView({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full md:w-64 text-xs pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-slate-400"
           />
-<span className="absolute left-2.5 top-2 text-slate-400 text-xs"></span>
+<span className="absolute left-2.5 top-2 text-slate-600 text-xs"></span>
 </div>
 </div>
 
@@ -363,7 +359,7 @@ export default function RfiManagementView({
 <tbody className="divide-y divide-slate-100 text-slate-700">
             {filteredRfis.length === 0 ? (
 <tr>
-<td colSpan={7} className="p-8 text-center text-slate-400 text-xs">
+<td colSpan={7} className="p-8 text-center text-slate-600 text-xs">
                   No RFIs found matching your filters.
 </td>
 </tr>
@@ -378,13 +374,13 @@ export default function RfiManagementView({
 }`}
                       onClick={() => handleToggleExpand(rfi.id)}
                     >
-<td className="p-3 font-mono font-bold text-purple-900 whitespace-nowrap">
+<td className="p-3 font-mono tabular-nums font-bold text-purple-900 whitespace-nowrap">
                         {rfi.rfiNo}
 </td>
 <td className="p-3">
 <div className="font-semibold text-slate-900">{rfi.title}</div>
                         {rfi.drawingRef && (
-<div className="text-[11px] text-slate-400 font-mono mt-0.5">
+<div className="text-[11px] text-slate-600 tabular-nums mt-0.5">
                             {`Ref: ${rfi.drawingRef}`}
 </div>
 )}
@@ -410,10 +406,10 @@ export default function RfiManagementView({
                             rfi.status
 )}`}
                         >
-                          {rfi.status}
+                          {statusLabel(rfi.status)}
 </span>
 </td>
-<td className="p-3 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+<td className="p-3 whitespace-nowrap text-slate-500 tabular-nums text-[11px]">
                         {`${rfi.daysElapsed} days elapsed`}
 </td>
 <td className="p-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
@@ -439,7 +435,7 @@ export default function RfiManagementView({
                                     Submitted by: {rfi.submittedBy}
 </span>
 <span className="mx-1">•</span>
-<span>{new Date(rfi.submittedAt).toLocaleDateString()}</span>
+<span>{formatDate(new Date(rfi.submittedAt))}</span>
 </div>
 <span className="text-purple-700 font-semibold">
                                   Assigned to: {rfi.assignedConsultant}
@@ -453,11 +449,11 @@ export default function RfiManagementView({
                                   {rfi.attachments.map((att, i) => (
 <span
                                       key={i}
-                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono border border-slate-200 hover:bg-slate-200 cursor-pointer"
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[11px] tabular-nums border border-slate-200 hover:bg-slate-200 cursor-pointer"
                                     >
 <span></span>
 <span>{att.name}</span>
-<span className="text-slate-400">({att.size})</span>
+<span className="text-slate-600">({att.size})</span>
 </span>
 ))}
 </div>
@@ -496,8 +492,8 @@ export default function RfiManagementView({
 </span>
 </div>
 </div>
-<span className="text-[11px] text-slate-500 font-mono">
-                                        {new Date(resp.respondedAt).toLocaleDateString()}
+<span className="text-[11px] text-slate-500 tabular-nums">
+                                        {formatDate(new Date(resp.respondedAt))}
 </span>
 </div>
 <p className="text-slate-800 leading-relaxed font-sans">
@@ -508,11 +504,11 @@ export default function RfiManagementView({
                                         {resp.attachments.map((att, i) => (
 <span
                                             key={i}
-                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-emerald-900 rounded-md text-[11px] font-mono border border-emerald-200 shadow-2xs hover:bg-emerald-50 cursor-pointer"
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-emerald-900 rounded-md text-[11px] tabular-nums border border-emerald-200 shadow-2xs hover:bg-emerald-50 cursor-pointer"
                                           >
 <span></span>
 <span>{att.name}</span>
-<span className="text-emerald-600">({att.size})</span>
+<span className="text-emerald-700">({att.size})</span>
 </span>
 ))}
 </div>

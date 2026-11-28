@@ -1,5 +1,9 @@
 import React, { useEffect, useState} from 'react';
 import { queueOfflineMutation} from '../services/offline-sync';
+import { formatTime } from '../lib/format';
+import { useToast } from './feedback/Toast';
+import { api, apiErrorMessage } from '../lib/api';
+import { useGeolocation } from '../lib/useGeolocation';
 
 export interface GeofenceItem {
   id: string;
@@ -47,6 +51,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   onRecordClockIn,
   onCreateGeofence,
 }) => {
+  const toast = useToast();
   const isLive = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId);
   const [liveLoaded, setLiveLoaded] = useState(!isLive);
   const [laborers, setLaborers] = useState<SiteLaborerOption[]>([]);
@@ -55,23 +60,20 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   const reload = React.useCallback(async () => {
     if (!isLive) return;
     try {
-      const [geoRes, evtRes, labRes] = await Promise.all([
-        fetch(`/api/v1/projects/${projectId}/geofences`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/clock-events`, { credentials: 'include'}),
-        fetch(`/api/v1/projects/${projectId}/laborers`, { credentials: 'include'}),
+      const [gj, ej, lj] = await Promise.all([
+        api.get<any>(`/api/v1/projects/${projectId}/geofences`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
+        api.get<any>(`/api/v1/projects/${projectId}/clock-events`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
+        api.get<any>(`/api/v1/projects/${projectId}/laborers`).catch(() => { /* intentionally ignored: optional endpoint */ return null; }),
       ]);
-      if (geoRes.ok) {
-        const gj = await geoRes.json();
+      if (gj) {
         const list = (gj.geofences || []) as GeofenceItem[];
         setGeofences(list);
 }
-      if (evtRes.ok) {
-        const ej = await evtRes.json();
+      if (ej) {
         const list = (ej.events || []) as WorkerClockEventItem[];
         setClockEvents(list);
 }
-      if (labRes.ok) {
-        const lj = await labRes.json();
+      if (lj) {
         const list = (lj.laborers || lj.data || []) as any[];
         const mapped: SiteLaborerOption[] = list.map((l) => ({
           id: l.id,
@@ -143,6 +145,8 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
   const [clockType, setClockType] = useState<'CLOCK_IN' | 'CLOCK_OUT'>('CLOCK_IN');
   const [capturedLat, setCapturedLat] = useState('');
   const [capturedLng, setCapturedLng] = useState('');
+  const [geoNote, setGeoNote] = useState<string | null>(null);
+  const { status: deviceGeoStatus, request: requestDeviceGeo } = useGeolocation();
   const [selfieUrl, setSelfieUrl] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -179,6 +183,17 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
     : 0;
 
   const isWithinRadius = activeGeofence ? previewDistance<= parseFloat(activeGeofence.radiusMeters) : false;
+
+  const captureDeviceLocation = async () => {
+    const fix = await requestDeviceGeo();
+    if (fix) {
+      setCapturedLat(fix.latitude.toFixed(6));
+      setCapturedLng(fix.longitude.toFixed(6));
+      setGeoNote(fix.accuracy != null ? `Device GPS fix ±${Math.round(fix.accuracy)} m` : 'Device GPS fix captured');
+    } else {
+      setGeoNote(deviceGeoStatus === 'denied' ? 'Location permission denied' : 'Could not get a location fix');
+    }
+  };
 
   const setLocationPreset = (preset: 'GATE' | 'PERIMETER' | 'OFFSITE') => {
     if (preset === 'GATE') {
@@ -218,22 +233,14 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
         if (!selectedLaborerId) {
           throw new Error('No registered site laborer selected — register laborers first.');
 }
-        const res = await fetch(`/api/v1/projects/${projectId}/clock-in`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            laborerId: selectedLaborerId,
-            clockType,
-            capturedLatitude: capturedLat,
-            capturedLongitude: capturedLng,
-            photoSelfieUrl: selfieUrl || null,
-            deviceUserAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-}),
+        const created = await api.post<any>(`/api/v1/projects/${projectId}/clock-in`, {
+          laborerId: selectedLaborerId,
+          clockType,
+          capturedLatitude: capturedLat,
+          capturedLongitude: capturedLng,
+          photoSelfieUrl: selfieUrl || null,
+          deviceUserAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
 });
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => null);
-          throw new Error(errBody?.message || `Clock-in failed (${res.status})`);
-}
-        const created = await res.json();
         dist = created.calculatedDistanceMeters ?? dist;
         status = created.verificationStatus ?? status;
         await reload();
@@ -255,14 +262,14 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 };
         setClockEvents([newEvent, ...clockEvents]);
 }
-      const offlineSuffix = isOffline ? ' (Stored locally in IndexedDB offline queue)' : '';
+      const offlineSuffix = isOffline ? ' (saved on this phone — will send when you have signal)' : '';
       setFeedback(
         status === 'WITHIN_GEOFENCE'
           ? ` Verified On-Site Attendance: ${selectedWorker} clocked in at ${dist}m from centroid.${offlineSuffix}`
           : ` Off-Site Warning Flagged: ${selectedWorker} is ${dist}m away (exceeds ${activeGeofence?.radiusMeters}m radius).${offlineSuffix}`
 );
-} catch (err: any) {
-      setFeedback(`Error: ${err.message}`);
+} catch (err) {
+      setFeedback(`Error: ${apiErrorMessage(err)}`);
 } finally {
       setIsSubmitting(false);
 }
@@ -272,19 +279,12 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
     e.preventDefault();
     try {
       if (isLive) {
-        const res = await fetch(`/api/v1/projects/${projectId}/geofences`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            geofenceName: geoName,
-            centerLatitude: geoLat,
-            centerLongitude: geoLng,
-            radiusMeters: geoRadius,
-}),
+        await api.post(`/api/v1/projects/${projectId}/geofences`, {
+          geofenceName: geoName,
+          centerLatitude: geoLat,
+          centerLongitude: geoLng,
+          radiusMeters: geoRadius,
 });
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => null);
-          throw new Error(errBody?.message || `Geofence save failed (${res.status})`);
-}
         await reload();
         setShowGeofenceModal(false);
         return;
@@ -307,8 +307,8 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 };
       setGeofences([newG, ...geofences]);
       setShowGeofenceModal(false);
-} catch (err: any) {
-      alert(`Geofence error: ${err.message}`);
+} catch (err) {
+      toast.error(err, 'Could not save the geofence. Try again.');
 }
 };
 
@@ -347,7 +347,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Perimeter Centroid</p>
-<p className="text-sm font-mono font-bold text-slate-800 mt-1">
+<p className="text-sm tabular-nums font-bold text-slate-800 mt-1">
             {activeGeofence ? `${activeGeofence.centerLatitude}, ${activeGeofence.centerLongitude}` : 'None'}
 </p>
 <p className="text-xs text-slate-500 mt-1">Radius: {activeGeofence?.radiusMeters} meters</p>
@@ -356,19 +356,19 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Total Clock Events</p>
 <p className="text-xl font-bold text-slate-800 mt-1">{totalEvents}</p>
-<p className="text-xs text-slate-400 mt-1">Today's site muster roll</p>
+<p className="text-xs text-slate-600 mt-1">Today's site muster roll</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-emerald-600 ">Verified On-Site</p>
+<p className="text-xs font-semibold text-emerald-700 ">Verified On-Site</p>
 <p className="text-xl font-bold text-emerald-700 mt-1">{verifiedCount}</p>
-<p className="text-xs text-emerald-600 mt-1">Within authorized boundary</p>
+<p className="text-xs text-emerald-700 mt-1">Within authorized boundary</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-rose-600 ">Flagged Violations</p>
+<p className="text-xs font-semibold text-rose-700 ">Flagged Violations</p>
 <p className="text-xl font-bold text-rose-700 mt-1">{flaggedCount}</p>
-<p className="text-xs text-rose-500 mt-1">Off-site clock-in attempts</p>
+<p className="text-xs text-rose-700 mt-1">Off-site clock-in attempts</p>
 </div>
 </div>
 
@@ -431,7 +431,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                   type="button"
                   onClick={() => setClockType('CLOCK_IN')}
                   className={`py-2 rounded-lg font-bold border transition-colors ${
-                    clockType === 'CLOCK_IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 text-slate-700 border-slate-200'
+                    clockType === 'CLOCK_IN' ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-slate-50 text-slate-700 border-slate-200'
 }`}
                 >
                   Clock In
@@ -449,8 +449,16 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 </div>
 
 <div>
-<label className="block font-semibold text-slate-700 mb-1">GPS Telemetry Presets</label>
-<div className="flex gap-2">
+<label className="block font-semibold text-slate-700 mb-1">GPS Telemetry</label>
+<div className="flex flex-wrap gap-2 items-center">
+<button
+                  type="button"
+                  onClick={() => void captureDeviceLocation()}
+                  disabled={deviceGeoStatus === 'requesting'}
+                  className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold"
+                >
+                  {deviceGeoStatus === 'requesting' ? 'Locating…' : 'Use my location'}
+</button>
 <button
                   type="button"
                   onClick={() => setLocationPreset('GATE')}
@@ -483,7 +491,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                 type="text"
                 value={capturedLat}
                 onChange={(e) => setCapturedLat(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                 required
               />
 </div>
@@ -493,7 +501,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                 type="text"
                 value={capturedLng}
                 onChange={(e) => setCapturedLng(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 font-mono text-slate-800"
+                className="w-full p-2 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                 required
               />
 </div>
@@ -508,12 +516,14 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 </div>
 </div>
 
+{geoNote && <p className="text-[11px] text-slate-500 mt-1">{geoNote}</p>}
+
           {/* Real-time Haversine Distance Preview */}
 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-2">
 <div>
 <span className="text-slate-600 font-medium">Calculated Haversine Distance:</span>
-<span className="font-mono font-bold text-slate-900">{previewDistance.toFixed(2)} meters</span>
-<span className="text-slate-400"> (Allowed: {activeGeofence?.radiusMeters} m)</span>
+<span className="tabular-nums font-bold text-slate-900">{previewDistance.toFixed(2)} meters</span>
+<span className="text-slate-600"> (Allowed: {activeGeofence?.radiusMeters} m)</span>
 </div>
 <div>
               {isWithinRadius ? (
@@ -532,7 +542,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-sm"
+              className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-sm"
             >
               {isSubmitting ? 'Verifying Coordinates...' : 'Record Mobile Clock Event'}
 </button>
@@ -570,9 +580,9 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <tr key={evt.id} className="hover:bg-slate-50 transition-colors">
 <td className="p-3 font-medium text-slate-800">
 <div>{evt.workerName}</div>
-<div className="text-[10px] text-slate-400">{evt.tradeCategory || 'ARTISAN'}</div>
+<div className="text-[10px] text-slate-600">{evt.tradeCategory || 'ARTISAN'}</div>
 </td>
-<td className="p-3 font-mono font-bold text-slate-700">{evt.workerCode}</td>
+<td className="p-3 tabular-nums font-bold text-slate-700">{evt.workerCode}</td>
 <td className="p-3">
 <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -582,7 +592,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                       {evt.clockType}
 </span>
 </td>
-<td className="p-3 font-mono font-bold text-slate-800">
+<td className="p-3 tabular-nums font-bold text-slate-800">
                     {evt.calculatedDistanceMeters} m
 </td>
 <td className="p-3">
@@ -596,11 +606,11 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 </span>
 )}
 </td>
-<td className="p-3 font-mono text-[11px] text-slate-400 truncate max-w-[150px]">
+<td className="p-3 text-[11px] text-slate-600 truncate max-w-[150px]">
                     {evt.photoSelfieUrl ? 'Photo Verified' : 'No Photo'}
 </td>
-<td className="p-3 text-slate-400">
-                    {new Date(evt.eventTimestamp).toLocaleTimeString('en-KE')}
+<td className="p-3 text-slate-600">
+                    {formatTime(new Date(evt.eventTimestamp))}
 </td>
 </tr>
 ))}
@@ -617,7 +627,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <h3 className="font-bold text-slate-800 text-base">Configure Project Site Geofence</h3>
 <button
                 onClick={() => setShowGeofenceModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-600 hover:text-slate-600 font-bold"
               >
                 
 </button>
@@ -642,9 +652,19 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                     type="text"
                     value={geoLat}
                     onChange={(e) => setGeoLat(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
+<button
+                      type="button"
+                      onClick={async () => {
+                        const fix = await requestDeviceGeo();
+                        if (fix) { setGeoLat(fix.latitude.toFixed(6)); setGeoLng(fix.longitude.toFixed(6)); }
+                      }}
+                      className="mt-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
+                    >
+                      Use my location
+</button>
 </div>
 <div>
 <label className="block font-semibold text-slate-700 mb-1">Center Longitude</label>
@@ -652,7 +672,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                     type="text"
                     value={geoLng}
                     onChange={(e) => setGeoLng(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                    className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                     required
                   />
 </div>
@@ -664,10 +684,10 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                   type="text"
                   value={geoRadius}
                   onChange={(e) => setGeoRadius(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-slate-800"
+                  className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                   required
                 />
-<p className="text-[11px] text-slate-400 mt-1">Recommended: 100m - 250m for commercial high-rises</p>
+<p className="text-[11px] text-slate-600 mt-1">Recommended: 100m - 250m for commercial high-rises</p>
 </div>
 
 <div className="flex justify-end gap-2 pt-2">

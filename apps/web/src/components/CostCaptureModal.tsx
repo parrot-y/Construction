@@ -1,4 +1,5 @@
 import React, { useState} from 'react';
+import { api, apiErrorMessage } from '../lib/api';
 
 interface CostCaptureModalProps {
   isOpen: boolean;
@@ -65,26 +66,13 @@ export default function CostCaptureModal({
         ];
 }
 
-      const res = await fetch(`/api/v1/projects/${projectId}/costs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-},
-        body: JSON.stringify(payload),
-});
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(errJson?.message || `Failed to log cost (HTTP ${res.status})`);
-}
-
-      const resData = await res.json();
+      const resData: any = await api.post(`/api/v1/projects/${projectId}/costs`, payload);
       if (onCostCreated) {
-        onCostCreated(resData.data);
+        onCostCreated(resData?.data);
 }
       onClose();
-} catch (err: any) {
-      setError(err.message || 'Failed to submit cost entry');
+} catch (err) {
+      setError(apiErrorMessage(err, 'Failed to submit cost entry'));
 } finally {
       setIsSubmitting(false);
 }
@@ -97,7 +85,7 @@ export default function CostCaptureModal({
 <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
 <div>
 <div className="flex items-center gap-2">
-<span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span className="w-2.5 h-2.5 rounded-full bg-amber-700"></span>
 <h3 className="font-bold text-slate-900 text-base">Log Site Cost Entry</h3>
 </div>
 <p className="text-xs text-slate-500 mt-0.5">
@@ -106,7 +94,7 @@ export default function CostCaptureModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close modal"
           >
             
@@ -126,10 +114,10 @@ export default function CostCaptureModal({
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Amount (KES)<span className="text-red-500">*</span>
+                Amount (KES)<span className="text-red-700">*</span>
 </label>
 <div className="relative">
-<span className="absolute left-3 top-2.5 text-xs font-bold text-slate-400">KES</span>
+<span className="absolute left-3 top-2.5 text-xs font-bold text-slate-600">KES</span>
 <input
                   type="number"
                   step="0.01"
@@ -138,14 +126,14 @@ export default function CostCaptureModal({
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full pl-12 pr-3 py-2 text-sm font-mono font-semibold border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-hidden"
+                  className="w-full pl-12 pr-3 py-2 text-sm tabular-nums font-semibold border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-hidden"
                 />
 </div>
 </div>
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Cost Category<span className="text-red-500">*</span>
+                Cost Category<span className="text-red-700">*</span>
 </label>
 <select
                 value={costCategory}
@@ -214,7 +202,7 @@ export default function CostCaptureModal({
           {/* Description */}
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Description of Works / Materials<span className="text-red-500">*</span>
+              Description of Works / Materials<span className="text-red-700">*</span>
 </label>
 <textarea
               required
@@ -259,7 +247,7 @@ export default function CostCaptureModal({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
+              className="px-5 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
             >
               {isSubmitting ? 'Recording...' : ' Submit Cost for Approval'}
 </button>

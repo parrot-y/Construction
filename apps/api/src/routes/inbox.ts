@@ -3,6 +3,8 @@ import { prisma, recordAuditLog, withTenantTx } from '@construction/db';
 import { SendInboxMessageSchema } from '@construction/validation';
 import { requirePermission } from '../plugins/rbac';
 import { Permissions } from '@construction/permissions';
+import { listParams, listPage } from '../lib/pagination';
+import { publishInboxEvent } from '../lib/inboxEvents';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -33,6 +35,9 @@ async function visibleWhere(tx: any, tenantId: string, userId: string, role: str
   );
 
   return messages.filter((m: any) => {
+    // P5.6: direct messages (comment mentions) are visible only to the
+    // recipient and the sender — audience fields don't widen them.
+    if (m.recipient_id) return m.recipient_id === userId || m.sender_id === userId;
     if (m.sender_id === userId) return true;
     if (m.audience === 'ALL_MEMBERS') return true;
     if (m.audience === 'ROLE') return m.target_roles.includes(role);
@@ -55,6 +60,7 @@ function format(m: any) {
     audience: m.audience,
     target_roles: m.target_roles,
     parent_id: m.parent_id,
+    recipient_id: m.recipient_id ?? null,
     created_at: m.created_at.toISOString(),
     read_count: m._count?.reads ?? 0,
     read_by_me: (m.reads?.length ?? 0) > 0,
@@ -69,6 +75,7 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
     async (request, reply) => {
       const { tenantId, sub, role } = request.user;
       const { projectId, unread } = request.query as { projectId?: string; unread?: string };
+      const pg = listParams(request);
       try {
         const data = await withTenantTx(prisma, tenantId, async (tx) => {
           let msgs = await visibleWhere(tx, tenantId, sub, role);
@@ -76,10 +83,33 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
           if (unread === 'true') msgs = msgs.filter((m: any) => m.sender_id !== sub && m.reads.length === 0);
           return msgs.map(format);
         });
-        return reply.status(200).send({ data, count: data.length });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load inbox' });
+      }
+    },
+  );
+
+  // GET /api/v1/notifications — alias of the inbox feed under the name the
+  // auditor contract uses for "in-app notifications for the logged-in user".
+  server.get(
+    '/api/v1/notifications',
+    { preHandler: [server.authenticate, requirePermission(Permissions.PROJECT_VIEW)] },
+    async (request, reply) => {
+      const { tenantId, sub, role } = request.user;
+      const pg = listParams(request);
+      try {
+        const data = await withTenantTx(prisma, tenantId, async (tx) => {
+          const msgs = await visibleWhere(tx, tenantId, sub, role);
+          return msgs.map(format);
+        });
+        const paged = listPage(data, pg);
+        return reply.status(200).send({ data: paged.data, page: paged.page, count: paged.data.length });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: 'Failed to load notifications' });
       }
     },
   );
@@ -128,6 +158,7 @@ export const inboxRoutes: FastifyPluginAsync = async (server: FastifyInstance) =
             entityId: msg.id,
             changes: { audience: data.audience, projectId: data.projectId ?? null, replyTo: data.parentId ?? null },
           });
+          await publishInboxEvent(tx, { tenantId, messageId: msg.id, senderId: sub });
           return msg;
         });
         return reply.status(201).send({ data: { ...format({ ...created, reads: [], _count: { reads: 0 } }) } });

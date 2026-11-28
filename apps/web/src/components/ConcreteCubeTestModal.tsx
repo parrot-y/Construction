@@ -104,7 +104,7 @@ export default function ConcreteCubeTestModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close"
           >
             
@@ -122,7 +122,7 @@ export default function ConcreteCubeTestModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Pour Structural Location<span className="text-rose-500">*</span>
+              Pour Structural Location<span className="text-rose-700">*</span>
 </label>
 <input
               type="text"
@@ -137,7 +137,7 @@ export default function ConcreteCubeTestModal({
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Concrete Class & Target<span className="text-rose-500">*</span>
+                Concrete Class & Target<span className="text-rose-700">*</span>
 </label>
 <select
                 value={concreteClass}
@@ -153,7 +153,7 @@ export default function ConcreteCubeTestModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Pour Date<span className="text-rose-500">*</span>
+                Pour Date<span className="text-rose-700">*</span>
 </label>
 <input
                 type="date"
@@ -226,7 +226,7 @@ export default function ConcreteCubeTestModal({
                 />
 </div>
 </div>
-<p className="text-[11px] text-slate-400">
+<p className="text-[11px] text-slate-600">
               Leave blank if test cubes are still in curing tank awaiting schedule date.
 </p>
 </div>
