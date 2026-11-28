@@ -61,6 +61,7 @@ import { meRoutes, clientPaymentNoticeRoutes } from './routes/me';
 import { procurementRoutes } from './routes/procurement';
 import { operatorRoutes } from './routes/operator';
 import { problemReportRoutes } from './routes/problemReports';
+import { pushRoutes } from './routes/push';
 import { validateEnvironmentSecurity } from './services/securityConfig';
 
 export function buildServer(): FastifyInstance {
@@ -275,11 +276,14 @@ export function buildServer(): FastifyInstance {
   server.register(operatorRoutes);
   server.register(problemReportRoutes);
   server.register(paymentRoutes);
+  server.register(pushRoutes);
 
   // P5.8 — stop the job queue on shutdown (no-op when jobs never started;
   // must be registered before listen — Fastify rejects addHook after it).
   server.addHook('onClose', async () => {
     const { stopJobs } = await import('./jobs/queue');
+    const { stopPushDispatcher } = await import('./lib/pushDispatcher');
+    await stopPushDispatcher();
     await stopJobs();
   });
 
@@ -320,6 +324,14 @@ export async function startServer(): Promise<void> {
       await startJobs(server);
     } catch (err) {
       server.log.error({ err }, '[jobs] pg-boss failed to start — recurring jobs disabled');
+    }
+    // P6 — web push dispatcher rides the same inbox event bus as SSE;
+    // no-ops when VAPID_* is unset and never blocks boot on failure.
+    try {
+      const { startPushDispatcher } = await import('./lib/pushDispatcher');
+      await startPushDispatcher(server.log);
+    } catch (err) {
+      server.log.error({ err }, '[push] dispatcher failed to start — web push disabled');
     }
     server.log.info(`API Server successfully listening on http://${host}:${port}`);
   } catch (err) {

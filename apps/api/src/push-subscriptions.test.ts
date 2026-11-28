@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
 import { buildServer } from './index';
-import { prisma } from '@construction/db';
+import { prisma, withTenantTx } from '@construction/db';
 import { dispatchTenantPush, pushConfig } from './lib/webPush';
 
 vi.mock('web-push', () => ({
@@ -152,11 +152,13 @@ describe('P6 — web push subscriptions', () => {
     process.env.VAPID_SUBJECT = 'mailto:test@example.com';
 
     const mk = async (userId: string, endpoint: string) => {
-      await prisma.pushSubscription.upsert({
-        where: { tenant_id_user_id_endpoint: { tenant_id: tenantId, user_id: userId, endpoint } },
-        create: { tenant_id: tenantId, user_id: userId, endpoint, p256dh: 'p', auth: 'a' },
-        update: { last_seen_at: new Date() },
-      });
+      await withTenantTx(prisma, tenantId, (tx) =>
+        tx.pushSubscription.upsert({
+          where: { tenant_id_user_id_endpoint: { tenant_id: tenantId, user_id: userId, endpoint } },
+          create: { tenant_id: tenantId, user_id: userId, endpoint, p256dh: 'p', auth: 'a' },
+          update: { last_seen_at: new Date() },
+        }),
+      );
     };
     const supUserId = JSON.parse(
       (await server.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'supervisor@apexbuilders.co.ke', password: 'Password123!' } })).body,
@@ -189,14 +191,17 @@ describe('P6 — web push subscriptions', () => {
       tag: 'inbox-test',
     });
 
-    // Admin is the actor — only the supervisor's live endpoint gets a push.
+    // Admin is the actor — supervisor endpoints are attempted (the 410 one
+    // fails, which is how we learn to prune it); admin's own is not.
     const sentEndpoints = sendMock.mock.calls.map((c) => (c[0] as any).endpoint);
     expect(sentEndpoints).toContain(epSup);
+    expect(sentEndpoints).toContain(epDead);
     expect(sentEndpoints).not.toContain(epAdmin);
-    expect(sentEndpoints).not.toContain(epDead);
 
     // The 410 endpoint was pruned.
-    const dead = await prisma.pushSubscription.findFirst({ where: { endpoint: epDead } });
+    const dead = await withTenantTx(prisma, tenantId, (tx) =>
+      tx.pushSubscription.findFirst({ where: { endpoint: epDead } }),
+    );
     expect(dead).toBeNull();
 
     // Disabled config is a clean no-op (no throw, no sends).
