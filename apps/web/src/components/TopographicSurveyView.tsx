@@ -1,12 +1,8 @@
 import React, { useEffect, useState} from 'react';
 import { api, apiErrorMessage } from '../lib/api';
-import {
-  CreateSurveyModal,
-  DEFAULT_SURVEYS,
-  MassHaulDiagramCard,
-  SurveyHeaderControls,
-  SurveyMetadataBanner,
-} from './TopographicSurveyView.parts';
+import { DEFAULT_SURVEYS, SurveyHeaderControls, SurveyMetadataBanner } from './TopographicSurveyView.parts';
+import { MassHaulDiagramCard } from './MassHaulDiagram';
+import { CreateSurveyModal } from './TopographicSurveyModal';
 
 export interface CrossSectionStationRecord {
   id?: string;
