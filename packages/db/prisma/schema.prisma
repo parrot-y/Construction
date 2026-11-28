@@ -3714,3 +3714,18 @@ model ExportJob {
   @@index([tenant_id, status, created_at])
   @@map("export_jobs")
 }
+model PushSubscription {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenant_id    String   @db.Uuid
+  user_id      String   @db.Uuid
+  endpoint     String   @db.VarChar(1000)
+  p256dh       String   @db.VarChar(255)
+  auth         String   @db.VarChar(255)
+  user_agent   String?  @db.VarChar(500)
+  created_at   DateTime @default(now()) @db.Timestamptz
+  last_seen_at DateTime @default(now()) @db.Timestamptz
+
+  @@unique([tenant_id, user_id, endpoint])
+  @@index([tenant_id, user_id])
+  @@map("push_subscriptions")
+}
