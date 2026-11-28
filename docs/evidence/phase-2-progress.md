@@ -18,9 +18,15 @@
   `ui/` primitives is incremental. Sections migrated so far: PeopleSection
   (9 cards; also removed a duplicated subcontractors/suppliers directory
   card that rendered twice), FilesSection (6), ProjectsSection (2),
-  MoneySection (3), SiteSection (4), BoqWorkbookView (4), HomeSection (1).
-  All use `ui/Card`; visual output verified via unit suite + a11y + 360px
-  e2e gates.
+  MoneySection (3), SiteSection (4), BoqWorkbookView (4), HomeSection (1),
+  plus the remaining ad-hoc card surfaces: ProjectMapView (4),
+  PurchaseRegisterView (3), ProjectChecklist (2), ClientRequestView (2),
+  RateMasterView/GatePassView/ContractorMasterView tables (1 each),
+  ClientAccountView (1). The `bg-white … rounded-2xl` card pattern is now
+  fully migrated to `ui/Card`. Also fixed a real 360px overflow the sweep
+  caught: Money-per-project rows let a `truncate` (nowrap) project name
+  inflate the grid item's min-content — long project names now clamp with
+  `line-clamp-1 break-words` instead.
 - Console 360px sweep DONE: `e2e/tests/console-360-overflow.spec.ts` walks
   every console section tab at a forced 360px viewport asserting
   `scrollWidth <= innerWidth` (chromium + mobile-390 green). It caught and

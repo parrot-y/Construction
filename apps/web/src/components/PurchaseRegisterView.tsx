@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { formatKes } from '../ui';
+import { Card, formatKes } from '../ui';
 import { api, apiErrorMessage } from '../lib/api';
 import { formatDate } from '../lib/format';
 import { ProcurementPrintModal } from './procurement/ProcurementPrintModal';
@@ -97,16 +97,16 @@ export default function PurchaseRegisterView({ projectId }: { projectId?: string
       {loading ? (
         <p className="text-sm text-slate-600 py-8 text-center">Loading register…</p>
       ) : error ? (
-        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center">
+        <Card className="p-8 text-center">
           <p className="text-sm font-semibold text-rose-700">{apiErrorMessage(error, 'Failed to load the register.')}</p>
           <button type="button" onClick={() => void load()} className="mt-3 text-xs font-bold text-brand-700 hover:underline">Retry</button>
-        </div>
+        </Card>
       ) : rows.length === 0 ? (
-        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">
+        <Card className="p-10 text-center text-sm text-slate-500">
           No purchase orders or deliveries match these filters.
-        </div>
+        </Card>
       ) : (
-        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
+        <Card className="overflow-x-auto">
           <table className="w-full text-sm min-w-[900px]">
             <thead>
               <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-600 border-b border-slate-100 dark:border-slate-800">
@@ -156,7 +156,7 @@ export default function PurchaseRegisterView({ projectId }: { projectId?: string
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {printRow && (

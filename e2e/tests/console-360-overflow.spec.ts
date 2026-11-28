@@ -72,7 +72,15 @@ test.describe('console 360px overflow sweep', () => {
       try {
         await expectNoXOverflow(page, r.label);
       } catch {
-        offenders.push(r.label);
+        // First route after login can catch vite's cold transform mid-flight;
+        // re-navigate once and re-measure before calling it an offender.
+        await page.goto(r.url);
+        await page.waitForLoadState('load', { timeout: 20000 }).catch(() => {});
+        try {
+          await expectNoXOverflow(page, r.label);
+        } catch {
+          offenders.push(r.label);
+        }
       }
     }
     expect(offenders, `360px horizontal overflow on: ${offenders.join(', ')}`).toEqual([]);

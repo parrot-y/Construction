@@ -201,7 +201,7 @@ function MoneyPerProject({ projects, clientView, summary, loading, error }: { pr
         {projects.map((p) => (
           <div key={p.id}>
             <div className="mb-1 flex items-baseline justify-between gap-2">
-              <p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{p.name}</p>
+              <p className="min-w-0 line-clamp-1 break-words text-xs font-bold text-slate-700 dark:text-slate-200">{p.name}</p>
               <p className="shrink-0 text-xs text-slate-500">{formatKes(contract(p))} contract</p>
             </div>
             <div className="space-y-1">

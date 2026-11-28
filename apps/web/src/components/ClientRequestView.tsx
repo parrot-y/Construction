@@ -4,6 +4,7 @@ import { statusLabel } from '../lib/status-labels';
 import { api, apiErrorMessage } from '../lib/api';
 import { CLIENT_PROJECT_REQUEST_TYPES, CLIENT_BUDGET_RANGES, CLIENT_START_TIMEFRAMES } from '@construction/validation';
 import { InlineError } from './feedback/InlineError';
+import { Card } from '../ui';
 
 const PROJECT_TYPES = CLIENT_PROJECT_REQUEST_TYPES;
 const BUDGET_RANGES = CLIENT_BUDGET_RANGES;
@@ -73,7 +74,8 @@ export default function ClientRequestView(): React.JSX.Element {
 )}
 
       {showForm && (
-<form onSubmit={submit} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4">
+<Card className="p-5">
+<form onSubmit={submit} className="space-y-4">
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 <div>
 <label className={label}>What do you want done? *</label>
@@ -117,9 +119,10 @@ export default function ClientRequestView(): React.JSX.Element {
 </button>
 <p className="text-[11px] text-slate-600">Free, with no obligation. We call you within one working day.</p>
 </form>
+</Card>
 )}
 
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<Card className="overflow-hidden">
 <p className="px-5 py-3 text-xs font-bold text-slate-600 border-b border-slate-100 dark:border-slate-800">My requests</p>
         {requests.length === 0 ? (
 <p className="px-5 py-8 text-xs text-slate-600 text-center">No requests yet — send your first one above.</p>
@@ -139,7 +142,7 @@ export default function ClientRequestView(): React.JSX.Element {
 ))}
 </div>
 )}
-</div>
+</Card>
 </div>
 );
 }

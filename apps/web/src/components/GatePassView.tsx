@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, apiErrorMessage } from '../lib/api';
 import { formatDateTime } from '../lib/format';
-import { Modal, EmptyState, ErrorState } from '../ui';
+import { Card, Modal, EmptyState, ErrorState } from '../ui';
 import { InlineError } from './feedback/InlineError';
 import { hasPermission, Permissions, type Role } from '@construction/permissions';
 import { useToast } from './feedback/Toast';
@@ -192,7 +192,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
       ) : passes.length === 0 ? (
         <EmptyState title="No gate passes" hint="Create a pass to authorize material leaving the site or store." />
       ) : (
-        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
+        <Card className="overflow-x-auto">
           <table className="w-full text-sm min-w-[860px]">
             <thead>
               <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-600 border-b border-slate-100 dark:border-slate-800">
@@ -246,7 +246,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {pageMeta && (pageMeta.page > 1 || pageMeta.hasMore) && (

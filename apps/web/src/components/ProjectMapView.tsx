@@ -6,6 +6,7 @@ import { api, apiErrorMessage } from '../lib/api';
 import { formatDate } from '../lib/format';
 import { useGeolocation } from '../lib/useGeolocation';
 import { useToast } from './feedback/Toast';
+import { Card } from '../ui';
 
 interface GeoPoint {
   id: string;
@@ -150,10 +151,10 @@ export default function ProjectMapView({ projectId, canEdit = false }: { project
   };
 
   if (loading) {
-    return <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Loading project map…</div>;
+    return <Card className="p-10 text-center text-sm text-slate-500">Loading project map…</Card>;
   }
   if (error) {
-    return <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-red-700">{error}</div>;
+    return <Card className="p-10 text-center text-sm text-red-700">{error}</Card>;
   }
 
   const hasAnything = projectPin || geofences.length > 0 || photos.length > 0;
@@ -181,7 +182,7 @@ export default function ProjectMapView({ projectId, canEdit = false }: { project
       </div>
 
       {!hasAnything ? (
-        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center space-y-3">
+        <Card className="p-10 text-center space-y-3">
           <p className="text-sm text-slate-600 dark:text-slate-300">No location data yet.</p>
           <p className="text-xs text-slate-500">Set the site pin with your device GPS, or add geofences under Site → Attendance.</p>
           {canEdit && (
@@ -190,9 +191,9 @@ export default function ProjectMapView({ projectId, canEdit = false }: { project
               {locating ? 'Locating…' : 'Set site location'}
             </button>
           )}
-        </div>
+        </Card>
       ) : (
-        <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm" style={{ height: 'min(60vh, 560px)' }}>
+        <Card className="overflow-hidden" style={{ height: 'min(60vh, 560px)' }}>
           <MapContainer
             center={center}
             zoom={projectPin ? 16 : 12}
@@ -240,7 +241,7 @@ export default function ProjectMapView({ projectId, canEdit = false }: { project
               </Marker>
             ))}
           </MapContainer>
-        </div>
+        </Card>
       )}
     </div>
   );

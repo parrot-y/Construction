@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConsole } from './console/ConsoleContext';
 import { statusLabel } from '../lib/status-labels';
 import { api } from '../lib/api';
+import { Card } from '../ui';
 
 interface ChecklistStep {
   key: string;
@@ -79,17 +80,17 @@ export default function ProjectChecklist({ projectId }: { projectId: string }): 
   if (error) return null;
   if (!steps) {
     return (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<Card className="p-5">
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">Project checklist</p>
 <p className="text-xs text-slate-600">Loading progress…</p>
-</div>
+</Card>
 );
   }
 
   const doneCount = steps.filter((s) => s.done).length;
 
   return (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<Card className="p-5">
 <div className="flex items-center justify-between mb-3">
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Project checklist</h3>
 <span className="text-[11px] font-bold text-slate-500">{doneCount} of {steps.length} done</span>
@@ -114,6 +115,6 @@ export default function ProjectChecklist({ projectId }: { projectId: string }): 
 </button>
 ))}
 </div>
-</div>
+</Card>
 );
 }

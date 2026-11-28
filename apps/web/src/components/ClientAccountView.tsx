@@ -1,6 +1,7 @@
 import React, { useState} from 'react';
 import { AuthSession} from '../types/auth';
 import { api, apiErrorMessage } from '../lib/api';
+import { Card } from '../ui';
 
 const input = 'w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500';
 const label = 'block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1';
@@ -32,7 +33,7 @@ export default function ClientAccountView({ session, onSaved}: { session: AuthSe
 };
 
   return (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 max-w-lg">
+<Card className="p-5 max-w-lg">
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Account</h3>
 <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{user.email}</p>
 <form onSubmit={submit} className="space-y-4">
@@ -57,6 +58,6 @@ export default function ClientAccountView({ session, onSaved}: { session: AuthSe
           {saving ? 'Saving…' : 'Save'}
 </button>
 </form>
-</div>
+</Card>
 );
 }
