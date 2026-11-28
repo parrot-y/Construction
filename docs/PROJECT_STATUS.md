@@ -229,7 +229,7 @@ None.
 
 ### What remains OPEN
 - Live provider credentials (Daraja, Africa's Talking, Meta WhatsApp, Resend, eTIMS, LLM).
-- Second seeded tenant for a stronger two-tenant isolation e2e (current proof uses membership/RLS on nonexistent + non-member projects).
+- ~~Second seeded tenant for a stronger two-tenant isolation e2e~~ — DONE: `e2e/tests/tenant-isolation.spec.ts` registers a real second tenant via `register-company`, seeds marker project+supplier in each, and proves cross-tenant project reads return 403/404 or empty RLS-filtered lists, and project/supplier/purchase-register lists never leak the other tenant's rows. 3/3 chromium + mobile-390.
 - Phase 2 remainder: full legacy-view migration to the design system.
 - Stage-2/3/4 UI depth: subcontractor portal page has no dedicated click spec for package-summary/retention/resubmit; consultant drawings-ack and compliance permits/visits UI controls are API + portal-payload only (no dedicated click spec); FieldDashboard has no dedicated Playwright click spec yet. (PO match view + supplier-portal PO accept/invoice now have UI + click coverage — see procurement-ui.md.)
 - `PRODUCT_NAME` is env-configured (`PRODUCT_NAME`/`VITE_PRODUCT_NAME`, default `BuildSasa`) — no tenant-level override UI; final brand undecided.
