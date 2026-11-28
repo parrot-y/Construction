@@ -420,3 +420,12 @@ Gap survey complete (subagent). Plan, one item = one commit, tests first:
   - API: GET /api/v1/material-deliveries/:id (COST_VIEW) — delivery + supplier + linked PO + project for GRN print doc (PO print reuses existing PO detail endpoint)
   - Web: components/procurement/ProcurementPrintModal.tsx — kind-aware fetch + printable doc (data-print-root, @media print isolation); PurchaseRegisterView gains Actions/Print column per row; ProcurementView PO cards gain Print button + projectName prop (MoneySection passes it)
   - Tests: cb7-po-grn-print.spec.ts 3/3 chromium + 3/3 mobile-390 (register-row print PO+GRN, PO-card print); api+web tsc clean; hygiene clean
+
+## P6 — web push (P5.5 honest gap) — DONE
+
+- [x] Schema: push_subscriptions (tenant+user+endpoint unique, RLS) — migration 20261127180000_p6_push_subscriptions (41 migrations)
+- [x] API: GET /push/vapid-key + subscription CRUD (self-service allowlist); endpoint write-only; web-push@3.6.7
+- [x] Dispatch: dispatchTenantPush on inbox event bus post-commit; actor excluded; 404/410 pruned; VAPID_* unset = clean no-op; starts after listen, stops on close
+- [x] Web: public/push-sw.js (push→showNotification, click→focus/openWindow) via workbox importScripts; lib/push.ts capability probe; InboxView Enable/On/Blocked toggle (hidden unsupported/unconfigured)
+- [x] Tests: push-subscriptions.test.ts 4/4; p6-web-push.spec.ts 2/2 both viewports; route-guard 8/8; prod build verified (sw.js importScripts + dist/push-sw.js); DEPLOY.md + .env.example document VAPID_*
+- Honest limit: real push delivery needs prod build + VAPID keys + a push service; dev/e2e proves degradation path only.
