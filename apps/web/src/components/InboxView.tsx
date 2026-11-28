@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState} from 'react';
 import { formatDateTime } from '../lib/format';
 import { api, apiErrorMessage } from '../lib/api';
 import { INBOX_EVENT } from '../lib/useInboxEvents';
+import { disablePush, enablePush, pushState, type PushState } from '../lib/push';
 
 interface InboxMessage {
   id: string;
@@ -37,6 +38,8 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
   const [projectId, setProjectId] = useState('');
   const [targetRoles, setTargetRoles] = useState('');
   const [sending, setSending] = useState(false);
+  const [push, setPush] = useState<PushState>('unsupported');
+  const [pushBusy, setPushBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +60,28 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
 }, [unreadOnly]);
 
   useEffect(() => { void load();}, [load]);
+
+  // P6: probe push capability once — hidden entirely when unsupported or
+  // the deployment has no VAPID keys.
+  useEffect(() => {
+    let alive = true;
+    void pushState().then((s) => { if (alive) setPush(s); }).catch(() => {
+      // Probe failure → stay 'unsupported' (toggle hidden); push is optional.
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const togglePush = async () => {
+    setPushBusy(true);
+    setError(null);
+    try {
+      setPush(push === 'on' ? (await disablePush(), 'off') : await enablePush());
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not update notifications.'));
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   // P5.5: live refresh — an SSE inbox hint refetches through the normal
   // filtered endpoint (audience/role rules still apply server-side).
@@ -114,6 +139,16 @@ export default function InboxView({ currentUserId}: { currentUserId?: string}): 
 <p className="text-xs text-slate-500">Messages to your project teams — replies keep threads together</p>
 </div>
 <div className="flex items-center gap-2">
+{(push === 'on' || push === 'off' || push === 'denied') && (
+<button
+              onClick={() => void togglePush()}
+              disabled={pushBusy || push === 'denied'}
+              title={push === 'denied' ? 'Notifications are blocked in browser settings' : undefined}
+              className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg disabled:opacity-50 ${push === 'on' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              {pushBusy ? 'Updating…' : push === 'on' ? 'Notifications on' : push === 'denied' ? 'Notifications blocked' : 'Enable notifications'}
+</button>
+)}
 <button
             onClick={() => setUnreadOnly((v) => !v)}
             className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg ${unreadOnly ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}

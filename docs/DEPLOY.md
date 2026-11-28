@@ -19,6 +19,7 @@ Copy `.env.example` → `.env` (API) and configure:
 | `DISABLED_MODULES` | no | Comma list: `plant,survey,tender,steel,asphalt,geofence` → 404 |
 | `OPERATOR_KEY` | **yes in production** | ≥32-char secret guarding `/api/v1/operator/*` (first-admin activation — see §7). Unset = operator endpoints disabled (503) |
 | `PRODUCT_NAME` | no | Display name shown in UI strings, PDFs, notifications, sender names. Default `BuildSasa` until the brand is decided |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | no | Web push (P6). Generate via `npx web-push generate-vapid-keys`. Unset = push disabled; SSE live notifications unaffected. Subject should be a `mailto:` or `https:` contact |
 | `VITE_PRODUCT_NAME` | no | Web build-time equivalent of `PRODUCT_NAME` |
 | Provider keys | later | `AT_API_KEY`, `WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID`, `RESEND_API_KEY`, `MPESA_*`, `ETIMS_*` — all optional; unconfigured = honest SIMULATED |
 

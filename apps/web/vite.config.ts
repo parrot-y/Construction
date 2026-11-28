@@ -64,6 +64,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // P6 — push/notificationclick handlers ride inside the generated
+        // SW; public/push-sw.js is copied to dist root unchanged.
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

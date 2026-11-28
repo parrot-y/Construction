@@ -215,6 +215,10 @@ export const SELF_SERVICE_ALLOWLIST: Record<string, string> = {
   'POST /api/v1/client/invoices/:invoiceId/payment-notice': 'Client self-service payment notice on own invoice (non-mutating, notifies staff)',
   'GET /api/v1/billing/subscription-status': 'Caller\u2019s tenant subscription status',
   'GET /api/v1/events': 'Caller-scoped SSE inbox stream — session cookie auth, tenant-bound events only',
+  'GET /api/v1/push/vapid-key': 'Public VAPID key — needed before subscribe; not a secret',
+  'GET /api/v1/push-subscriptions': 'Caller-scoped device list (endpoints never returned)',
+  'POST /api/v1/push-subscriptions': 'Self-service push subscribe — rows bound to session user+tenant',
+  'DELETE /api/v1/push-subscriptions/:id': 'Self-service unsubscribe — own rows only (404 otherwise)',
 };
 
 // ---------------------------------------------------------------------------
