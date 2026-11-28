@@ -16,6 +16,8 @@ interface BoqItem {
   unit_rate: string;
   total_amount: string;
   is_provisional?: boolean;
+  floor?: string | null;
+  unit_ref?: string | null;
 }
 interface BoqSection {
   id: string;
@@ -39,8 +41,10 @@ interface ItemForm {
   unit: string;
   quantity: string;
   unit_rate: string;
+  floor: string;
+  unitRef: string;
 }
-const emptyForm: ItemForm = { item_code: '', description: '', unit: 'm', quantity: '', unit_rate: '' };
+const emptyForm: ItemForm = { item_code: '', description: '', unit: 'm', quantity: '', unit_rate: '', floor: '', unitRef: '' };
 
 /**
  * Active BOQ workbook — sections → items → amounts.
@@ -69,6 +73,13 @@ export default function BoqWorkbookView({
   const [editForm, setEditForm] = useState<ItemForm>(emptyForm);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // CB6 — takeoff mapping: floor/unit filters + bulk assign mode.
+  const [floorFilter, setFloorFilter] = useState('');
+  const [unitFilter, setUnitFilter] = useState('');
+  const [mapping, setMapping] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [mapFloor, setMapFloor] = useState('');
+  const [mapUnit, setMapUnit] = useState('');
 
   const load = useCallback(() => {
     setState('loading');
@@ -110,6 +121,8 @@ export default function BoqWorkbookView({
         quantity: Number(form.quantity),
         unitRate: Number(form.unit_rate),
         sectionTitle: chosen?.title ?? (sectionTitle.trim() || undefined),
+        floor: form.floor.trim() || null,
+        unitRef: form.unitRef.trim() || null,
       });
       setForm(emptyForm);
       setSectionTitle('');
@@ -131,6 +144,8 @@ export default function BoqWorkbookView({
       unit: it.unit,
       quantity: String(it.quantity),
       unit_rate: String(it.unit_rate),
+      floor: it.floor ?? '',
+      unitRef: it.unit_ref ?? '',
     });
     setError(null);
   };
@@ -146,6 +161,8 @@ export default function BoqWorkbookView({
         unit: editForm.unit.trim() || undefined,
         quantity: Number(editForm.quantity),
         unitRate: Number(editForm.unit_rate),
+        floor: editForm.floor.trim() || null,
+        unitRef: editForm.unitRef.trim() || null,
       });
       setEditingId(null);
       load();
@@ -172,6 +189,55 @@ export default function BoqWorkbookView({
       load();
     } catch (err: any) {
       setError(apiErrorMessage(err, 'Could not delete the item. Try again.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // CB6 — distinct takeoff values + filtered sections for the table.
+  const colCount = (mapping ? 1 : 0) + 6 + 1 + (canEdit ? 1 : 0);
+  const allItems = boq?.sections.flatMap((s) => s.items) ?? [];
+  const floors = [...new Set(allItems.map((i) => i.floor).filter((v): v is string => Boolean(v)))].sort();
+  const units = [...new Set(allItems.map((i) => i.unit_ref).filter((v): v is string => Boolean(v)))].sort();
+  const visibleSections = (boq?.sections ?? [])
+    .map((sec) => ({
+      ...sec,
+      items: sec.items.filter(
+        (it) => (!floorFilter || it.floor === floorFilter) && (!unitFilter || (it.unit_ref ?? '') === unitFilter),
+      ),
+    }))
+    .filter((sec) => sec.items.length > 0);
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
+  const applyMap = async () => {
+    if (busy || selected.size === 0) return;
+    if (!mapFloor.trim() && !mapUnit.trim()) {
+      setError('Enter a floor and/or unit reference to apply — blank fields keep existing values.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(`/api/v1/projects/${projectId}/boq/items/bulk-map`, {
+        mappings: [...selected].map((itemId) => ({
+          itemId,
+          ...(mapFloor.trim() ? { floor: mapFloor.trim() } : {}),
+          ...(mapUnit.trim() ? { unitRef: mapUnit.trim() } : {}),
+        })),
+      });
+      setSelected(new Set());
+      setMapping(false);
+      setMapFloor('');
+      setMapUnit('');
+      load();
+    } catch (err: any) {
+      setError(apiErrorMessage(err, 'Could not apply the floor/unit mapping.'));
     } finally {
       setBusy(false);
     }
@@ -250,12 +316,12 @@ export default function BoqWorkbookView({
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Bill of Quantities</h3>
           <p className="text-[11px] text-slate-500">Version {boq.version} · {boq.status}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {canEdit && (
             <>
               <button
                 type="button"
-                onClick={() => setAdding((v) => !v)}
+                onClick={() => { setAdding((v) => !v); setMapping(false); }}
                 className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-[11px] font-bold hover:bg-brand-700"
               >
                 {adding ? 'Close' : 'Add item'}
@@ -267,11 +333,48 @@ export default function BoqWorkbookView({
               >
                 Import Excel
               </button>
+              <button
+                type="button"
+                onClick={() => { setMapping((v) => !v); setSelected(new Set()); setAdding(false); }}
+                className={`px-3 py-1.5 rounded-lg border text-[11px] font-bold ${mapping ? 'border-brand-600 text-brand-700 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                data-testid="boq-map-toggle"
+              >
+                {mapping ? 'Done mapping' : 'Map floors/units'}
+              </button>
             </>
           )}
           <span className="text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100">{fmt(boq.total_amount)}</span>
         </div>
       </div>
+
+      {(floors.length > 0 || units.length > 0) && (
+        <div className="px-5 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 flex-wrap" data-testid="boq-takeoff-filters">
+          <span className="text-[11px] font-semibold text-slate-500">Takeoff:</span>
+          <select value={floorFilter} onChange={(e) => setFloorFilter(e.target.value)} className="text-[11px] border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200" data-testid="boq-floor-filter">
+            <option value="">All floors</option>
+            {floors.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+          <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} className="text-[11px] border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200" data-testid="boq-unit-filter">
+            <option value="">All units</option>
+            {units.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+          {(floorFilter || unitFilter) && (
+            <button type="button" onClick={() => { setFloorFilter(''); setUnitFilter(''); }} className="text-[11px] font-bold text-brand-600 hover:underline">Clear</button>
+          )}
+        </div>
+      )}
+
+      {mapping && canEdit && (
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-brand-50/50 dark:bg-brand-900/10 flex items-center gap-3 flex-wrap" data-testid="boq-map-bar">
+          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">{selected.size} item(s) selected</span>
+          <input value={mapFloor} onChange={(e) => setMapFloor(e.target.value)} placeholder="Floor (e.g. First, Roof)" className="px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800" data-testid="boq-map-floor" />
+          <input value={mapUnit} onChange={(e) => setMapUnit(e.target.value)} placeholder="Unit ref (e.g. A1, Retail podium)" className="px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800" data-testid="boq-map-unit" />
+          <button type="button" onClick={() => void applyMap()} disabled={busy || selected.size === 0} className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-[11px] font-bold hover:bg-brand-700 disabled:opacity-50" data-testid="boq-map-apply">
+            Apply mapping
+          </button>
+          <span className="text-[10px] text-slate-400">Blank fields keep existing values.</span>
+        </div>
+      )}
 
       {error && (
         <div className="px-5 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/40 text-xs text-red-700 dark:text-red-300">
@@ -285,34 +388,55 @@ export default function BoqWorkbookView({
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-slate-500 border-b border-slate-100 dark:border-slate-800">
+              {mapping && canEdit && (
+                <th className="px-3 py-2.5 w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all items"
+                    checked={visibleSections.flatMap((s) => s.items).length > 0 && selected.size === visibleSections.flatMap((s) => s.items).length}
+                    onChange={(e) => {
+                      const ids = visibleSections.flatMap((s) => s.items).map((i) => i.id);
+                      setSelected(e.target.checked ? new Set(ids) : new Set());
+                    }}
+                    data-testid="boq-map-all"
+                  />
+                </th>
+              )}
               <th className="px-5 py-2.5 font-semibold">Code</th>
               <th className="px-3 py-2.5 font-semibold">Description</th>
               <th className="px-3 py-2.5 font-semibold">Unit</th>
               <th className="px-3 py-2.5 font-semibold text-right">Qty</th>
               <th className="px-3 py-2.5 font-semibold text-right">Rate</th>
               <th className="px-5 py-2.5 font-semibold text-right">Amount</th>
+              <th className="px-3 py-2.5 font-semibold">Location</th>
               {canEdit && <th className="px-3 py-2.5 font-semibold text-right">Actions</th>}
             </tr>
           </thead>
           <tbody>
-            {boq.sections.map((sec) => (
+            {visibleSections.map((sec) => (
               <React.Fragment key={sec.id}>
                 <tr className="bg-slate-50 dark:bg-slate-900/60">
-                  <td colSpan={5} className="px-5 py-2 font-bold text-slate-800 dark:text-slate-200">{sec.title}</td>
+                  <td colSpan={colCount - (canEdit ? 3 : 2)} className="px-5 py-2 font-bold text-slate-800 dark:text-slate-200">{sec.title}</td>
                   <td className="px-5 py-2 text-right font-bold font-mono tabular-nums">{fmt(sec.total_amount)}</td>
+                  <td className="px-3 py-2" />
                   {canEdit && <td />}
                 </tr>
                 {sec.items.map((it) => (
                   <React.Fragment key={it.id}>
                     {editingId === it.id ? (
                       <tr className="border-t border-slate-100 dark:border-slate-800/60 bg-brand-50/40 dark:bg-brand-900/10">
-                        <td colSpan={6} className="px-5 py-3">
+                        <td colSpan={colCount - 1} className="px-5 py-3">
                           {renderForm('Save changes', editForm, setEditForm, (e) => { e.preventDefault(); void saveEdit(it.id); }, () => setEditingId(null), busy, error, boq, '', () => {}, '', () => {}, false)}
                         </td>
                         {canEdit && <td className="px-3 py-3 text-right"><button type="button" onClick={() => setEditingId(null)} className="text-[11px] font-bold text-slate-500 hover:underline">Cancel</button></td>}
                       </tr>
                     ) : (
-                      <tr className="border-t border-slate-50 dark:border-slate-800/60 text-slate-700 dark:text-slate-300">
+                      <tr className="border-t border-slate-50 dark:border-slate-800/60 text-slate-700 dark:text-slate-300" data-testid={`boq-item-row-${it.id}`}>
+                        {mapping && canEdit && (
+                          <td className="px-3 py-2 w-8">
+                            <input type="checkbox" aria-label={`Select ${it.description}`} checked={selected.has(it.id)} onChange={() => toggleSelect(it.id)} data-testid={`boq-select-${it.id}`} />
+                          </td>
+                        )}
                         <td className="px-5 py-2 font-mono tabular-nums text-[11px]">{it.item_code}</td>
                         <td className="px-3 py-2 max-w-[320px]">
                           {it.description}
@@ -322,6 +446,14 @@ export default function BoqWorkbookView({
                         <td className="px-3 py-2 text-right tabular-nums">{Number(it.quantity).toLocaleString()}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmt(it.unit_rate)}</td>
                         <td className="px-5 py-2 text-right tabular-nums font-semibold">{fmt(it.total_amount)}</td>
+                        <td className="px-3 py-2">
+                          {(it.floor || it.unit_ref) ? (
+                            <span className="inline-flex flex-col text-[10px] font-semibold text-slate-500 dark:text-slate-400" data-testid={`boq-loc-${it.id}`}>
+                              {it.floor && <span>{it.floor}</span>}
+                              {it.unit_ref && <span className="text-slate-400">{it.unit_ref}</span>}
+                            </span>
+                          ) : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                        </td>
                         {canEdit && (
                           <td className="px-3 py-2 text-right whitespace-nowrap">
                             <button type="button" onClick={() => startEdit(it)} className="text-[11px] font-bold text-brand-600 hover:underline mr-3">Edit</button>
@@ -334,6 +466,9 @@ export default function BoqWorkbookView({
                 ))}
               </React.Fragment>
             ))}
+            {visibleSections.length === 0 && (
+              <tr><td colSpan={colCount} className="px-5 py-8 text-center text-xs text-slate-400">No BoQ items match the takeoff filters.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -432,6 +567,14 @@ function renderForm(
               onPick={(m) => setForm({ ...form, unit_rate: m.unitRateKes, ...(form.unit.trim() ? {} : { unit: m.unit }) })}
             />
           </span>
+        </label>
+        <label className="text-[11px] font-semibold text-slate-500">
+          Floor / storey
+          <input value={form.floor} onChange={(e) => setForm({ ...form, floor: e.target.value })} placeholder="e.g. Ground, First, Roof" className={`${input} mt-1`} data-testid="boq-form-floor" />
+        </label>
+        <label className="text-[11px] font-semibold text-slate-500">
+          Unit ref
+          <input value={form.unitRef} onChange={(e) => setForm({ ...form, unitRef: e.target.value })} placeholder="e.g. A1, Retail podium" className={`${input} mt-1`} data-testid="boq-form-unitref" />
         </label>
       </div>
       {error && <InlineError error={error} className="mt-2" />}
