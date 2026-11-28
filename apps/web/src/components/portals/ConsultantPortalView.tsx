@@ -93,11 +93,13 @@ export default function ConsultantPortalView({
   const [cubeTests, setCubeTests] = useState<ConsultantCubeTest[]>([]);
   const [inspections, setInspections] = useState<ConsultantInspection[]>([]);
   const [snags, setSnags] = useState<ConsultantSnag[]>([]);
+  const [drawings, setDrawings] = useState<any[] | null>(null);
+  const [drawingsBusy, setDrawingsBusy] = useState<string | null>(null);
   const [selectedRfi, setSelectedRfi] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'rfis' | 'cubes' | 'inspections' | 'snags'>('rfis');
+  const [activeTab, setActiveTab] = useState<'rfis' | 'cubes' | 'inspections' | 'snags' | 'drawings'>('rfis');
   const [rejectingSnag, setRejectingSnag] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectPhoto, setRejectPhoto] = useState<File | null>(null);
@@ -179,6 +181,9 @@ export default function ConsultantPortalView({
           verifiedAt: s.verifiedAt,
           photos: s.photos || [],
         })));
+        // Drawings only arrive for ALL-scoped consultant links — null keeps
+        // the tab hidden for section-scoped links.
+        if (Array.isArray(d.drawings)) setDrawings(d.drawings);
       } catch (e) {
         if (!cancelled) { setLoadError(apiErrorMessage(e, 'Failed to load portal')); setErrorKind(portalErrorKind(e)); setErrorKind(portalErrorKind(e)); }
       } finally {
@@ -259,6 +264,24 @@ export default function ConsultantPortalView({
     }
   };
 
+  const handleAcknowledgeDrawing = async (documentId: string) => {
+    setDrawingsBusy(documentId);
+    setFeedback(null);
+    try {
+      await api.post(`/api/v1/portals/consultant/${token}/drawings/${documentId}/acknowledge`, {});
+      setDrawings((prev) => (prev || []).map((d) =>
+        d.documentId === documentId || d.id === documentId
+          ? { ...d, acknowledged: true, acknowledgedAt: new Date().toISOString() }
+          : d,
+      ));
+      setFeedback('Drawing revision acknowledged — the project team can see your sign-off.');
+    } catch (e) {
+      setFeedback(apiErrorMessage(e, 'Network error — acknowledgement not recorded.'));
+    } finally {
+      setDrawingsBusy(null);
+    }
+  };
+
   return (
 <div className="w-full max-w-5xl mx-auto space-y-6" data-testid="consultant-portal-view">
       {savedAt && <SavedDataNotice savedAt={savedAt} />}
@@ -335,6 +358,18 @@ export default function ConsultantPortalView({
         >
           Snag Verification ({reviewableSnags.length})
 </button>
+{drawings !== null && (
+<button aria-pressed={activeTab === 'drawings'}
+          onClick={() => setActiveTab('drawings')}
+          className={`pb-2 border-b-2 transition ${
+            activeTab === 'drawings'
+              ? 'border-purple-600 text-purple-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+}`}
+        >
+          Drawings ({drawings.length})
+</button>
+)}
 </div>
 
       {feedback && (
@@ -654,6 +689,58 @@ export default function ConsultantPortalView({
 </div>
 )}
 </div>
+)}
+</div>
+);
+})}
+</div>
+)}
+
+      {/* TAB 5: Drawings register + per-revision acknowledgement */}
+      {activeTab === 'drawings' && drawings !== null && (
+<div className="space-y-4">
+          {drawings.length === 0 && (
+<p className="text-sm text-slate-500 text-center py-8">No drawings on this project yet — issued revisions appear here for acknowledgement.</p>
+)}
+          {drawings.map((d: any) => {
+            const docId = d.documentId || d.id;
+            return (
+<div key={docId} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3" data-testid={`consultant-drawing-${d.drawingNumber || docId}`}>
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+<div>
+<span className="font-mono tabular-nums text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        {d.drawingNumber || d.drawingReference || 'Drawing'}
+</span>
+<h3 className="text-sm font-bold text-slate-900 mt-1">{d.title}</h3>
+<p className="text-xs text-slate-500">
+                          Rev {d.revisionCode || d.revision || '—'}
+                          {d.issuedDate ? ` • Issued ${formatDate(d.issuedDate)}` : ''}
+                          {d.status ? ` • ${statusLabel(d.status)}` : ''}
+</p>
+</div>
+<span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                        d.acknowledged
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          : d.isOverdue
+                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                          : 'bg-slate-100 text-slate-600 border-slate-300'
+}`}>{d.acknowledged ? 'Acknowledged' : d.isOverdue ? 'Revision review due' : 'Awaiting acknowledgement'}</span>
+</div>
+{d.acknowledgedBy && d.acknowledgedBy.length > 0 && (
+<p className="text-[11px] text-slate-500">
+                  Acknowledged by {d.acknowledgedBy.map((a: any) => a.stakeholderName).filter(Boolean).join(', ')}
+</p>
+)}
+{!d.acknowledged && (
+<button
+                    type="button"
+                    disabled={drawingsBusy === docId}
+                    onClick={() => handleAcknowledgeDrawing(docId)}
+                    data-testid={`acknowledge-drawing-${docId}`}
+                    className="px-3.5 py-1.5 min-h-[36px] text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg disabled:opacity-50 transition"
+                  >
+                    {drawingsBusy === docId ? 'Acknowledging…' : 'Acknowledge this revision'}
+</button>
 )}
 </div>
 );
