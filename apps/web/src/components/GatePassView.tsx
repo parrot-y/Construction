@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, apiErrorMessage } from '../lib/api';
+import { formatDateTime } from '../lib/format';
 import { Modal, EmptyState, ErrorState } from '../ui';
 import { InlineError } from './feedback/InlineError';
 import { hasPermission, Permissions, type Role } from '@construction/permissions';
@@ -45,8 +46,7 @@ const STATUS_STYLE: Record<string, string> = {
   CANCELLED: 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
 };
 
-const fmtDateTime = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+const fmtDateTime = (iso?: string | null) => formatDateTime(iso);
 
 interface DraftLine { description: string; unit: string; quantity: string }
 const emptyLine = (): DraftLine => ({ description: '', unit: 'No', quantity: '1' });

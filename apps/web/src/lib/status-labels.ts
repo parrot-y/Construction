@@ -35,6 +35,7 @@ const LABELS: Record<string, string> = {
   // Subcontractor valuations
   QS_VERIFIED: 'QS verified',
   APPROVED_FOR_PAYMENT: 'Approved for payment',
+  PENDING_CLAIM: 'Claim submitted — awaiting review',
 
   // Snags
   OPEN: 'Open',

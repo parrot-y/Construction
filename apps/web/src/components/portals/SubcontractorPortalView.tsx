@@ -31,7 +31,7 @@ export interface SubcontractMilestone {
   grossKes: string;
   retentionKes: string;
   netKes: string;
-  status: 'PAID' | 'CERTIFIED' | 'UNDER_REVIEW' | 'PENDING_CLAIM';
+  status: 'PAID' | 'CERTIFIED' | 'UNDER_REVIEW' | 'PENDING_CLAIM' | 'REJECTED';
   certifiedDate?: string;
 }
 
@@ -79,6 +79,7 @@ export default function SubcontractorPortalView({
   const [claimPackageId, setClaimPackageId] = useState('');
   const [claimAmount, setClaimAmount] = useState('');
   const [claimNotes, setClaimNotes] = useState('');
+  const [resubmitValuationId, setResubmitValuationId] = useState<string | null>(null);
   const [retentionRelease, setRetentionRelease] = useState<any>(null);
   const [retentionReleases, setRetentionReleases] = useState<any[]>([]);
   const [releaseBusy, setReleaseBusy] = useState(false);
@@ -155,7 +156,12 @@ export default function SubcontractorPortalView({
           grossKes: v.grossWorkCertifiedKes,
           retentionKes: v.retentionDeductedKes,
           netKes: v.netPayableKes,
-          status: v.paymentStatus === 'PAID' ? 'PAID' : v.paymentStatus === 'REJECTED' ? 'PENDING_CLAIM' : 'CERTIFIED',
+          status:
+            v.paymentStatus === 'PAID' ? 'PAID'
+            : v.paymentStatus === 'REJECTED' ? 'REJECTED'
+            : v.paymentStatus === 'APPROVED_FOR_PAYMENT' ? 'CERTIFIED'
+            : v.paymentStatus === 'UNDER_REVIEW' ? 'UNDER_REVIEW'
+            : 'PENDING_CLAIM',
           certifiedDate: v.valuationDate ? String(v.valuationDate).split('T')[0] : undefined,
         };
       }),
@@ -203,6 +209,19 @@ export default function SubcontractorPortalView({
     }
   };
 
+  const openClaimModal = (replacesValuationId: string | null = null, packageId?: string) => {
+    setResubmitValuationId(replacesValuationId);
+    if (packageId) setClaimPackageId(packageId);
+    setClaimAmount('');
+    setClaimNotes('');
+    setShowClaimModal(true);
+  };
+
+  const closeClaimModal = () => {
+    setShowClaimModal(false);
+    setResubmitValuationId(null);
+  };
+
   const handleSubmitClaim = async (e: React.FormEvent) => {
     e.preventDefault();
     const gross = Number(String(claimAmount).replace(/[^0-9.]/g, ''));
@@ -217,11 +236,18 @@ export default function SubcontractorPortalView({
         packageId: claimPackageId,
         grossWorkCertifiedKes: gross,
         notes: claimNotes.trim() || undefined,
+        ...(resubmitValuationId ? { replacesValuationId: resubmitValuationId } : {}),
       });
       setFeedback(`Valuation ${body.data?.certificate_no || ''} submitted to QS for verification.`);
       setShowClaimModal(false);
+      setResubmitValuationId(null);
       setClaimAmount('');
       setClaimNotes('');
+      const fb = await api.get<any>(`/api/v1/portals/subcontractor/${token}`);
+      const d = fb.data || fb;
+      setPackages(d.packages || []);
+      setRetentionRelease(d.retentionRelease || null);
+      setRetentionReleases(d.retentionReleases || []);
     } catch (e) {
       setFeedback(apiErrorMessage(e, 'Network error — valuation not submitted.'));
     } finally {
@@ -525,7 +551,7 @@ export default function SubcontractorPortalView({
 </div>
 <button
                 type="button"
-                onClick={() => setShowClaimModal(true)}
+                onClick={() => openClaimModal()}
                 data-testid="submit-milestone-claim-btn"
                 className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg shadow-xs transition"
               >
@@ -563,6 +589,8 @@ export default function SubcontractorPortalView({
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                       : m.status === 'CERTIFIED'
                       ? 'bg-blue-100 text-blue-800 border-blue-300'
+                      : m.status === 'REJECTED'
+                      ? 'bg-rose-100 text-rose-800 border-rose-300'
                       : 'bg-slate-100 text-slate-600 border-slate-300'
                   }`}
                 >
@@ -572,6 +600,42 @@ export default function SubcontractorPortalView({
             }))}
           />
 </div>
+
+{/* Rejected claims awaiting corrected resubmission — a rejection already
+    superseded via replacesValuationId is resolved and drops off the panel. */}
+{(() => {
+  const allVals = packages.flatMap((p: any) => p.valuations || []);
+  const superseded = new Set(allVals.map((v: any) => v.replacesValuationId).filter(Boolean));
+  const pendingRejected = packages.flatMap((p: any) =>
+    (p.valuations || [])
+      .filter((v: any) => v.paymentStatus === 'REJECTED' && !superseded.has(v.id))
+      .map((v: any) => ({ ...v, packageId: p.id })),
+  );
+  return pendingRejected.length > 0 ? (
+<div className="bg-rose-50/60 p-5 rounded-xl border border-rose-200 shadow-sm space-y-3" data-testid="rejected-claims-panel">
+<h3 className="text-sm font-bold text-rose-900">Claims rejected by the QS — resubmit corrected</h3>
+<ul className="space-y-2">
+{pendingRejected.map((v: any) => (
+      <li key={v.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white rounded-lg border border-rose-100 px-3 py-2.5">
+        <div className="text-xs">
+          <span className="font-mono font-bold text-slate-900">{v.certificateNo}</span>
+          <span className="text-slate-500"> · {formatKes(v.grossWorkCertifiedKes)}</span>
+          {v.rejectionReason && <p className="text-rose-700 mt-0.5">Reason: {v.rejectionReason}</p>}
+        </div>
+        <button
+          type="button"
+          onClick={() => openClaimModal(v.id, v.packageId)}
+          data-testid={`resubmit-claim-${v.certificateNo}`}
+          className="px-3 py-1.5 min-h-[36px] text-[11px] font-semibold bg-rose-700 hover:bg-rose-800 text-white rounded-lg transition shrink-0"
+        >
+          Resubmit corrected claim
+        </button>
+      </li>
+    ))}
+</ul>
+</div>
+) : null;
+})()}
 
 {/* Stage 6: retention release request */}
 {retentionRelease && retentionRelease.status !== 'NONE' && (
@@ -635,10 +699,10 @@ export default function SubcontractorPortalView({
                   Subcontractor Interim Claim
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-1">
-                  Submit Milestone Progress Claim
+                  {resubmitValuationId ? 'Resubmit Corrected Milestone Claim' : 'Submit Milestone Progress Claim'}
 </h3>
 </div>
-<button onClick={() => setShowClaimModal(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={closeClaimModal} className="text-slate-400 hover:text-slate-600 font-bold">
                 
 </button>
 </div>
@@ -713,7 +777,7 @@ export default function SubcontractorPortalView({
 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
 <button
                   type="button"
-                  onClick={() => setShowClaimModal(false)}
+                  onClick={closeClaimModal}
                   className="px-3.5 py-2 text-slate-600 border border-slate-300 rounded-lg font-semibold"
                 >
                   Cancel

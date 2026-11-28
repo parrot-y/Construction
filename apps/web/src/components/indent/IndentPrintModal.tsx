@@ -1,9 +1,9 @@
 import React from 'react';
 import { formatKes } from '../../ui';
+import { formatDate } from '../../lib/format';
 import type { MaterialRequisitionItem } from '../MaterialRequisitionView';
 
-const fmtDate = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmtDate = (iso?: string | null) => formatDate(iso);
 
 const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
   <div className="flex justify-between gap-4 py-1 border-b border-slate-200">

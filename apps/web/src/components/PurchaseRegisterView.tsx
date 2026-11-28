@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatKes } from '../ui';
 import { api, apiErrorMessage } from '../lib/api';
+import { formatDate } from '../lib/format';
 import { ProcurementPrintModal } from './procurement/ProcurementPrintModal';
 
 /**
@@ -35,8 +36,7 @@ const KIND_STYLES: Record<string, string> = {
   GRN: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
 };
 
-const fmtDate = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const fmtDate = (iso?: string | null) => formatDate(iso);
 
 const input = 'px-2 py-1.5 text-sm border border-slate-300 rounded-lg dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100';
 
