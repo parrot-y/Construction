@@ -8,6 +8,7 @@ import { IconPlus} from '../icons';
 import { useAppDialog } from '../../AppDialog';
 import { formatDate } from '../../../lib/format';
 import { api, apiErrorMessage, rawFetch } from '../../../lib/api';
+import { Card } from '../../../ui';
 import { usePagedList } from '../usePagedList';
 
 const ASSIGN_ROLES = ['COMPANY_ADMIN','CLIENT','ARCHITECT','PM_QS','QA_QC','OWNER','EXECUTIVE','SUPERINTENDENT','SITE_ENGINEER','TRADE_LEAD','FOREMAN','WORKER','VIEWER','CONSULTANT','SUBCONTRACTOR','SUPPLIER','COMPLIANCE','ADMIN','SITE_SUPERVISOR'];
@@ -177,7 +178,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
       {msg &&<p className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">{msg}</p>}
 
       {invite.open && (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-wrap items-end gap-3">
+<Card className="p-4 flex flex-wrap items-end gap-3">
 <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
             Email
 <input type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value})}
@@ -191,10 +192,10 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 </select>
 </label>
 <button onClick={sendInvite} disabled={inviteBusy} className="px-4 py-2 text-xs font-bold bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white rounded-lg disabled:opacity-50">{inviteBusy ? 'Sending…' : 'Send invite'}</button>
-</div>
+</Card>
 )}
 
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<Card className="overflow-hidden">
 <div className="overflow-x-auto">
 <table className="rt w-full text-xs">
 <thead>
@@ -252,11 +253,11 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 </button>
 )}
 </div>
-</div>
+</Card>
 
       {/* Invitations — pending / accepted / revoked with link actions */}
       {canInvite && invites !== null && invites.length > 0 && (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<Card className="overflow-hidden">
 <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800">
 <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Invitations</h4>
 </div>
@@ -291,7 +292,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 </div>
 ))}
 </div>
-</div>
+</Card>
 )}
 {dialog.element}
 </div>
@@ -331,7 +332,7 @@ function DirectoryView(): React.JSX.Element {
 </div>
 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {(cat === 'All' || cat === 'Team') && (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<Card className="overflow-hidden">
 <p className="px-5 py-3 text-xs font-bold text-slate-500 border-b border-slate-100 dark:border-slate-800">Team ({members.length})</p>
 <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
               {members.map((m: any) => (
@@ -347,24 +348,10 @@ function DirectoryView(): React.JSX.Element {
 </button>
 )}
 </div>
-</div>
+</Card>
 )}
         {(cat === 'All' || cat === 'Subcontractor' || cat === 'Supplier') && (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-<p className="px-5 py-3 text-xs font-bold text-slate-500 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
-<div className="divide-y divide-slate-50 dark:divide-slate-800/60">
-              {subs.map((s: any) => (
-<div key={s.id} className="px-5 py-2.5 flex justify-between text-xs">
-<span className="font-semibold text-slate-800 dark:text-slate-200">{s.company_name || s.name}</span>
-<span className="text-slate-500">{s.trade || s.category || s.type || ''}</span>
-</div>
-))}
-              {subs.length === 0 &&<p className="px-5 py-6 text-xs text-slate-500 text-center">No subcontractors yet.</p>}
-</div>
-</div>
-)}
-        {(cat === 'All' || cat === 'Subcontractor' || cat === 'Supplier') && (
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+<Card className="overflow-hidden">
 <p className="px-5 py-3 text-xs font-bold text-slate-500 border-b border-slate-100 dark:border-slate-800">Subcontractors &amp; suppliers ({subs.length})</p>
 <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
             {subs.map((s: any) => (
@@ -375,7 +362,7 @@ function DirectoryView(): React.JSX.Element {
 ))}
             {subs.length === 0 &&<p className="px-5 py-6 text-xs text-slate-500 text-center">No subcontractors yet.</p>}
 </div>
-</div>
+</Card>
 )}
 </div>
 </div>
@@ -423,7 +410,7 @@ function RolesView(): React.JSX.Element {
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Roles</h3>
 <p className="text-xs text-slate-500 dark:text-slate-400">What each workspace role can see and do.</p>
 </div>
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+<Card className="p-5">
 <p className="text-[10px] font-bold text-slate-500 mb-3">Role hierarchy &amp; responsibilities · {ROLE_DESCRIPTIONS.length} roles defined</p>
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {ROLE_DESCRIPTIONS.map((r) => (
@@ -433,8 +420,8 @@ function RolesView(): React.JSX.Element {
 </div>
 ))}
 </div>
-</div>
-<div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+</Card>
+<Card className="overflow-hidden">
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
@@ -470,7 +457,7 @@ function RolesView(): React.JSX.Element {
 </tbody>
 </table>
 </div>
-</div>
+</Card>
 <p className="text-[11px] text-slate-500">Assign roles from Team. External stakeholders (client, consultant, subcontractor, supplier, compliance) use token portals, not seats.</p>
 </div>
 );
@@ -493,7 +480,7 @@ function SubcontractorsTab({ livePid, canAward, role }: { livePid: string; canAw
       ) : livePid ? (
         <SubcontractorManagementView projectId={livePid} canAward={canAward} />
       ) : (
-        <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Select a project to view subcontractors.</div>
+        <Card className="p-10 text-center text-sm text-slate-500">Select a project to view subcontractors.</Card>
       )}
     </div>
   );

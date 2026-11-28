@@ -36,8 +36,9 @@ async function uiLogin(page: Page) {
 }
 
 async function expectNoXOverflow(page: Page, label: string) {
-  // Let lazy content settle before measuring.
-  await page.waitForTimeout(400);
+  // Lazy sections can briefly render wide skeletons while data lands —
+  // settle ~1.2s, then measure the final state.
+  await page.waitForTimeout(1200);
   const m = await page.evaluate(() => ({
     scrollW: document.documentElement.scrollWidth,
     innerW: window.innerWidth,

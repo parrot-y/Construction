@@ -15,7 +15,9 @@
 - `font-mono` sweep: ~480 usages remain; mono is legitimate for codes/numbers
   but many are decorative — needs case-by-case review, not a blanket codemod.
 - Legacy views still carry ad-hoc card/spacing patterns; full migration to
-  `ui/` primitives is incremental.
+  `ui/` primitives is incremental. First section migrated: PeopleSection —
+  all 9 ad-hoc cards now `ui/Card` (also removed a duplicated
+  subcontractors/suppliers directory card that rendered twice).
 - Console 360px sweep DONE: `e2e/tests/console-360-overflow.spec.ts` walks
   every console section tab at a forced 360px viewport asserting
   `scrollWidth <= innerWidth` (chromium + mobile-390 green). It caught and
