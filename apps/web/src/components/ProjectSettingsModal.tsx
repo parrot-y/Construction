@@ -74,10 +74,10 @@ export default function ProjectSettingsModal({ projectId, onClose, onSaved }: { 
 <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
 <div className="flex items-center justify-between mb-4">
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Project settings</h3>
-<button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
+<button onClick={onClose} className="text-slate-600 hover:text-slate-600 text-lg leading-none" aria-label="Close">×</button>
 </div>
         {loading ? (
-<p className="text-xs text-slate-400 py-6 text-center">Loading project…</p>
+<p className="text-xs text-slate-600 py-6 text-center">Loading project…</p>
 ) : (
 <form onSubmit={submit} className="space-y-3">
 <div>
@@ -114,7 +114,7 @@ export default function ProjectSettingsModal({ projectId, onClose, onSaved }: { 
 <input id="ps-rm" className={input} inputMode="decimal" value={form.retentionFirstMoietyPct} onChange={set('retentionFirstMoietyPct')} placeholder="50" />
 </div>
 </div>
-<p className="text-[10px] text-slate-400">Rate held on each certificate; cap limits total retention; first moiety is released at practical completion.</p>
+<p className="text-[10px] text-slate-600">Rate held on each certificate; cap limits total retention; first moiety is released at practical completion.</p>
 </div>
 <div>
 <label className={lbl} htmlFor="ps-nca">NCA project no.</label>
@@ -133,7 +133,7 @@ export default function ProjectSettingsModal({ projectId, onClose, onSaved }: { 
 {error && <InlineError error={error} />}
 <div className="flex justify-end gap-2 pt-2">
 <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
-<button type="submit" disabled={busy || loading} className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50">
+<button type="submit" disabled={busy || loading} className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-700 hover:bg-orange-800 text-white disabled:opacity-50">
             {busy ? 'Saving…' : 'Save settings'}
 </button>
 </div>

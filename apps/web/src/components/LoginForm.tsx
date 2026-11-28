@@ -61,7 +61,7 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPasswo
 </div>
 <div>
 <p className="text-lg font-extrabold ">{PRODUCT_NAME}</p>
-<p className="text-[11px] text-slate-400 font-medium">Kenya Construction OS</p>
+<p className="text-[11px] text-slate-600 font-medium">Kenya Construction OS</p>
 </div>
 </div>
 </div>
@@ -69,15 +69,15 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPasswo
 <h2 className="text-2xl font-extrabold leading-snug">
             Run every site,<br />from one workspace.
 </h2>
-<p className="text-sm text-slate-400 leading-relaxed">
+<p className="text-sm text-slate-600 leading-relaxed">
             BOQs, site diaries, attendance, variations, certificates and client
             portals — built for Kenyan contractors, quantity surveyors and the
             clients who fund them.
 </p>
 <ul className="space-y-2 text-xs text-slate-300">
-<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />KES-first money, KRA e-TIMS &amp; M-Pesa ready</li>
-<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Offline-capable field app for engineers &amp; foremen</li>
-<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />Client &amp; stakeholder portals — external guests never consume paid seats</li>
+<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-700" />KES-first money, KRA e-TIMS &amp; M-Pesa ready</li>
+<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-700" />Offline-capable field app for engineers &amp; foremen</li>
+<li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-700" />Client &amp; stakeholder portals — external guests never consume paid seats</li>
 </ul>
 </div>
 <p className="relative text-[11px] text-slate-500">Sign in to your {PRODUCT_NAME} workspace</p>
@@ -144,7 +144,7 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPasswo
 <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2.5 px-4 bg-orange-700 hover:bg-orange-800 text-white font-semibold text-sm rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Signing in…' : 'Sign in to workspace'}
 </button>
@@ -162,7 +162,7 @@ export default function LoginForm({ onLoginSuccess, onOpenSignup, onForgotPasswo
 {onOpenSignup && (
 <p className="mt-4 text-center text-sm text-slate-600">
             New contractor?{' '}
-<button type="button" onClick={onOpenSignup} className="font-semibold text-brand-600 hover:text-brand-700">
+<button type="button" onClick={onOpenSignup} className="font-semibold text-brand-700 hover:text-brand-700">
               Create your company workspace
 </button>
 </p>

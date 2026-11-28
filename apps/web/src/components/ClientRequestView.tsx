@@ -61,7 +61,7 @@ export default function ClientRequestView(): React.JSX.Element {
 <p className="text-xs text-slate-500 dark:text-slate-400">Tell us what you want done — we find qualified, vetted contractors for you, anywhere in Kenya.</p>
 </div>
 <button onClick={() => { setShowForm((v) => !v); setSent(false);}}
-          className="px-4 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg">
+          className="px-4 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg">
           {showForm ? 'Cancel' : '+ New request'}
 </button>
 </div>
@@ -112,17 +112,17 @@ export default function ClientRequestView(): React.JSX.Element {
 </div>
           {error && <InlineError error={error} />}
 <button type="submit" disabled={saving}
-            className="px-5 py-2.5 text-sm font-bold bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-lg">
+            className="px-5 py-2.5 text-sm font-bold bg-orange-700 hover:bg-orange-800 disabled:opacity-60 text-white rounded-lg">
             {saving ? 'Sending…' : 'Send request'}
 </button>
-<p className="text-[11px] text-slate-400">Free, with no obligation. We call you within one working day.</p>
+<p className="text-[11px] text-slate-600">Free, with no obligation. We call you within one working day.</p>
 </form>
 )}
 
 <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-<p className="px-5 py-3 text-xs font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">My requests</p>
+<p className="px-5 py-3 text-xs font-bold text-slate-600 border-b border-slate-100 dark:border-slate-800">My requests</p>
         {requests.length === 0 ? (
-<p className="px-5 py-8 text-xs text-slate-400 text-center">No requests yet — send your first one above.</p>
+<p className="px-5 py-8 text-xs text-slate-600 text-center">No requests yet — send your first one above.</p>
 ) : (
 <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
             {requests.map((r) => (
@@ -130,7 +130,7 @@ export default function ClientRequestView(): React.JSX.Element {
 <div className="min-w-0">
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{r.project_type}</p>
 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">{r.location_text}{r.budget_range ? ` · ${r.budget_range}` : ''}{r.start_timeframe ? ` · ${r.start_timeframe}` : ''}</p>
-<p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{r.description}</p>
+<p className="text-[11px] text-slate-600 mt-1 line-clamp-2">{r.description}</p>
 </div>
 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusStyle[r.status] || statusStyle.NEW}`}>
                   {statusLabel(r.status)}

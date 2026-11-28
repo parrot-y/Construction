@@ -184,7 +184,7 @@ export const ContractorMasterView: React.FC<{ role?: string }> = ({ role = 'COMP
         </div>
         {canCreate && (
           <button type="button" onClick={openCreate}
-            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brand-600 text-white hover:bg-brand-700"
+            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brand-700 text-white hover:bg-brand-800"
             data-testid="contractor-new">+ Register contractor</button>
         )}
       </div>
@@ -203,7 +203,7 @@ export const ContractorMasterView: React.FC<{ role?: string }> = ({ role = 'COMP
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-400 py-8 text-center">Loading contractors…</p>
+        <p className="text-sm text-slate-600 py-8 text-center">Loading contractors…</p>
       ) : error ? (
         <ErrorState message={apiErrorMessage(error, 'Failed to load contractors.')} onRetry={() => void load()} />
       ) : firms.length === 0 ? (
@@ -212,7 +212,7 @@ export const ContractorMasterView: React.FC<{ role?: string }> = ({ role = 'COMP
         <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
           <table className="w-full text-sm min-w-[860px]">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400 border-b border-slate-100 dark:border-slate-800">
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-600 border-b border-slate-100 dark:border-slate-800">
                 <th className="px-4 py-3">Firm</th>
                 <th className="px-4 py-3">KRA PIN</th>
                 <th className="px-4 py-3">Categories</th>
@@ -227,7 +227,7 @@ export const ContractorMasterView: React.FC<{ role?: string }> = ({ role = 'COMP
                 <tr key={f.id} className="border-b border-slate-50 dark:border-slate-800/60 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40" data-testid={`contractor-row-${f.id}`}>
                   <td className="px-4 py-2.5">
                     <p className="font-bold text-slate-800 dark:text-slate-200">{f.firmName}</p>
-                    {f.statusReason && <p className="text-[11px] text-slate-400">{f.statusReason}</p>}
+                    {f.statusReason && <p className="text-[11px] text-slate-600">{f.statusReason}</p>}
                   </td>
                   <td className="px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300 font-mono">{f.kraPin || '—'}</td>
                   <td className="px-4 py-2.5">
@@ -235,8 +235,8 @@ export const ContractorMasterView: React.FC<{ role?: string }> = ({ role = 'COMP
                       {(f.workCategories ?? []).slice(0, 3).map((c) => (
                         <span key={c} className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300">{c}</span>
                       ))}
-                      {(f.workCategories ?? []).length > 3 && <span className="text-[10px] text-slate-400">+{f.workCategories.length - 3}</span>}
-                      {(f.workCategories ?? []).length === 0 && <span className="text-xs text-slate-400">—</span>}
+                      {(f.workCategories ?? []).length > 3 && <span className="text-[10px] text-slate-600">+{f.workCategories.length - 3}</span>}
+                      {(f.workCategories ?? []).length === 0 && <span className="text-xs text-slate-600">—</span>}
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
@@ -255,7 +255,7 @@ export const ContractorMasterView: React.FC<{ role?: string }> = ({ role = 'COMP
                         <button type="button" disabled={busyId === f.id} onClick={() => void transition(f, 'SUSPENDED')} className="text-xs font-bold text-orange-700 hover:underline mr-3" data-testid={`contractor-suspend-${f.id}`}>Suspend</button>
                       )}
                       {canApprove && (f.approvalStatus === 'APPROVED' || f.approvalStatus === 'SUSPENDED') && (
-                        <button type="button" disabled={busyId === f.id} onClick={() => void transition(f, 'BLACKLISTED')} className="text-xs font-bold text-rose-600 hover:underline mr-3" data-testid={`contractor-blacklist-${f.id}`}>Blacklist</button>
+                        <button type="button" disabled={busyId === f.id} onClick={() => void transition(f, 'BLACKLISTED')} className="text-xs font-bold text-rose-700 hover:underline mr-3" data-testid={`contractor-blacklist-${f.id}`}>Blacklist</button>
                       )}
                       {canApprove && f.approvalStatus === 'SUSPENDED' && (
                         <button type="button" disabled={busyId === f.id} onClick={() => void transition(f, 'APPROVED')} className="text-xs font-bold text-emerald-700 hover:underline mr-3" data-testid={`contractor-reinstate-${f.id}`}>Reinstate</button>
@@ -318,7 +318,7 @@ export const ContractorMasterView: React.FC<{ role?: string }> = ({ role = 'COMP
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={() => setCreating(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:underline">Cancel</button>
           <button type="button" onClick={() => void save()} disabled={formBusy}
-            className="px-4 py-2 rounded-lg bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 disabled:opacity-60" data-testid="contractor-save">
+            className="px-4 py-2 rounded-lg bg-brand-700 text-white text-xs font-bold hover:bg-brand-800 disabled:opacity-60" data-testid="contractor-save">
             {formBusy ? 'Saving…' : editing ? 'Save changes' : 'Register'}
           </button>
         </div>

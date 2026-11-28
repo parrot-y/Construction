@@ -171,7 +171,7 @@ export default function ProjectDocumentVaultView({
           {canUpload && (
 <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-sm"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-700 hover:bg-blue-800 shadow-sm"
             >
                Upload Drawing / Document
 </button>
@@ -184,7 +184,7 @@ export default function ProjectDocumentVaultView({
 <span className="text-xs text-slate-500 font-medium">Total Drawings &amp; Files</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{documents.length}</span>
-<span className="text-xs text-slate-400">controlled</span>
+<span className="text-xs text-slate-600">controlled</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">All revisions preserved</div>
 </div>
@@ -192,8 +192,8 @@ export default function ProjectDocumentVaultView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Architectural Sets</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-blue-600">{architecturalCount}</span>
-<span className="text-xs text-slate-400">sheets</span>
+<span className="text-2xl font-bold text-blue-700">{architecturalCount}</span>
+<span className="text-xs text-slate-600">sheets</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Drawings on file</div>
 </div>
@@ -201,8 +201,8 @@ export default function ProjectDocumentVaultView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Structural Drawings</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-indigo-600">{structuralCount}</span>
-<span className="text-xs text-slate-400">schedules</span>
+<span className="text-2xl font-bold text-indigo-700">{structuralCount}</span>
+<span className="text-xs text-slate-600">schedules</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Schedules on file</div>
 </div>
@@ -210,8 +210,8 @@ export default function ProjectDocumentVaultView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">County / NCA Approvals</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-emerald-600">{approvalsCount}</span>
-<span className="text-xs text-slate-400">permits</span>
+<span className="text-2xl font-bold text-emerald-700">{approvalsCount}</span>
+<span className="text-xs text-slate-600">permits</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Permits &amp; licenses on file</div>
 </div>
@@ -300,14 +300,14 @@ export default function ProjectDocumentVaultView({
 </div>
 
 <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-2">
-<span className="text-[11px] text-slate-400">
+<span className="text-[11px] text-slate-600">
                   {formatDate(new Date(doc.uploaded_at))}
 </span>
 <a
                   href={doc.file_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800"
                 >
 <span>View Drawing</span> ↗
 </a>
@@ -413,7 +413,7 @@ export default function ProjectDocumentVaultView({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-lg shadow-sm"
                 >
                   Register Document
 </button>

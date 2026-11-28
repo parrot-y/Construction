@@ -263,7 +263,7 @@ export default function SiteInventoryManagementView({
 <span className="text-xs text-slate-500 font-medium">Tracked Materials</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{items.length}</span>
-<span className="text-xs text-slate-400">active stock lines</span>
+<span className="text-xs text-slate-600">active stock lines</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               Bamburi cement, rebar, masonry, aggregate
@@ -273,12 +273,12 @@ export default function SiteInventoryManagementView({
 <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Reorder Alerts</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className={`text-2xl font-bold ${lowStockCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+<span className={`text-2xl font-bold ${lowStockCount > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                 {lowStockCount}
 </span>
-<span className="text-xs text-slate-400">items below minimum</span>
+<span className="text-xs text-slate-600">items below minimum</span>
 </div>
-<div className="text-xs text-rose-600 mt-2 font-medium">
+<div className="text-xs text-rose-700 mt-2 font-medium">
               {lowStockCount > 0 ? 'Immediate reorder requisition advised' : 'All buffer stocks healthy'}
 </div>
 </div>
@@ -368,11 +368,11 @@ export default function SiteInventoryManagementView({
 <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100 mb-3">
 <div className="flex items-baseline justify-between">
 <span className="text-xs text-slate-500">Current Balance:</span>
-<span className={`text-base font-extrabold ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>
+<span className={`text-base font-extrabold ${isLow ? 'text-rose-700' : 'text-slate-900'}`}>
                     {Number(item.current_stock).toLocaleString()} {item.unit}
 </span>
 </div>
-<div className="flex items-center justify-between text-xs text-slate-400 mt-1">
+<div className="flex items-center justify-between text-xs text-slate-600 mt-1">
 <span>Reorder Level:</span>
 <span>{item.minimum_reorder_level} {item.unit}</span>
 </div>
@@ -540,7 +540,7 @@ export default function SiteInventoryManagementView({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm"
+                  className="px-4 py-2 text-sm font-medium text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-sm"
                 >
                   Save Movement
 </button>

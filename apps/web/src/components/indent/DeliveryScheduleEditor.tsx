@@ -48,14 +48,14 @@ export const DeliveryScheduleEditor: React.FC<{
           <button
             type="button"
             onClick={() => onChange(rows.filter((_, j) => j !== i))}
-            className="text-rose-500 hover:text-rose-700 text-xs"
+            className="text-rose-700 hover:text-rose-700 text-xs"
             aria-label={`Remove batch ${i + 1}`}
           >
             ✕
           </button>
         </div>
       ))}
-      {rows.length === 0 && <p className="text-xs text-slate-400">{emptyHint}</p>}
+      {rows.length === 0 && <p className="text-xs text-slate-600">{emptyHint}</p>}
     </div>
   );
 };

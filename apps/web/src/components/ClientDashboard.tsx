@@ -242,19 +242,19 @@ export default function ClientDashboard({
       case 'ON_TRACK':
         return {
           bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-          dot: 'bg-emerald-500',
+          dot: 'bg-emerald-700',
           label: 'ON TRACK • Normal Alignment',
 };
       case 'ATTENTION':
         return {
           bg: 'bg-amber-50 text-amber-800 border-amber-200',
-          dot: 'bg-amber-500',
+          dot: 'bg-amber-700',
           label: 'ATTENTION • Moderate Disparity',
 };
       case 'ACTION_REQUIRED':
         return {
           bg: 'bg-rose-50 text-rose-800 border-rose-200',
-          dot: 'bg-rose-500',
+          dot: 'bg-rose-700',
           label: 'ACTION REQUIRED • Significant Disparity',
 };
 }

@@ -96,7 +96,7 @@ export const CreateSurveyModal: React.FC<{
 <button
                 type="button"
                 onClick={onClose}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg text-lg"
+                className="text-slate-600 hover:text-slate-600 p-1.5 rounded-lg text-lg"
                 aria-label="Close dialog"
               >
                 
@@ -113,7 +113,7 @@ export const CreateSurveyModal: React.FC<{
 <button
                   type="button"
                   onClick={onClearError}
-                  className="text-rose-600 hover:text-rose-800 font-bold ml-2"
+                  className="text-rose-700 hover:text-rose-800 font-bold ml-2"
                 >
                   
 </button>
@@ -288,7 +288,7 @@ export const CreateSurveyModal: React.FC<{
 <button
                     type="button"
                     onClick={onAddStation}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                    className="text-xs font-semibold text-indigo-700 hover:text-indigo-800 flex items-center gap-1"
                   >
 <span>+ Add Station</span>
 </button>
@@ -312,7 +312,7 @@ export const CreateSurveyModal: React.FC<{
 <tbody className="divide-y divide-slate-100">
                       {formStations.map((st, idx) => (
 <tr key={idx} className="hover:bg-slate-50">
-<td className="p-2 tabular-nums text-slate-400">{idx}</td>
+<td className="p-2 tabular-nums text-slate-600">{idx}</td>
 <td className="p-2">
 <input
                               type="number"
@@ -383,7 +383,7 @@ export const CreateSurveyModal: React.FC<{
 <button
                               type="button"
                               onClick={() => onRemoveStation(idx)}
-                              className="text-slate-400 hover:text-rose-600 font-bold p-1 text-sm"
+                              className="text-slate-600 hover:text-rose-600 font-bold p-1 text-sm"
                               title="Delete station"
                             >
                               
@@ -408,7 +408,7 @@ export const CreateSurveyModal: React.FC<{
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shadow-sm shadow-indigo-200 flex items-center gap-2"
+                  className="px-5 py-2 bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shadow-sm shadow-indigo-200 flex items-center gap-2"
                 >
                   {isSubmitting ? (
 <>

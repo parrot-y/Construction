@@ -55,14 +55,14 @@ export const ClientSitesView: React.FC<{
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">My sites</h3>
 <p className="text-xs text-slate-500 dark:text-slate-400">Projects shared with you — progress, photos and reports.</p>
 </div>
-          {sites.length === 0 &&<p className="text-xs text-slate-400">No sites shared with you yet.</p>}
+          {sites.length === 0 &&<p className="text-xs text-slate-600">No sites shared with you yet.</p>}
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {sites.map((st) => (
 <button key={st.id}
                 onClick={() => onOpenSite(st.id)}
                 className={`text-left p-4 rounded-xl border transition ${activeProjectId === st.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-emerald-400'}`}>
 <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{st.name}</p>
-<p className="text-[11px] text-slate-400 mt-0.5">{st.code}{st.location ? ` · ${st.location}` : ''}</p>
+<p className="text-[11px] text-slate-600 mt-0.5">{st.code}{st.location ? ` · ${st.location}` : ''}</p>
                 {st.status &&<span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{statusLabel(st.status)}</span>}
 </button>
 ))}
@@ -177,7 +177,7 @@ export const InvoicesPaymentsCard: React.FC<{
 )}
 
         {invoices.length === 0 ? (
-<p className="text-xs text-slate-400">No invoices yet.</p>
+<p className="text-xs text-slate-600">No invoices yet.</p>
 ) : (
 <ResponsiveTable
             head={['Invoice', 'Status', 'Total', 'Balance due', 'Payments', '']}
@@ -207,7 +207,7 @@ export const InvoicesPaymentsCard: React.FC<{
                     content: (
                       <>
                         {history.length > 0 ? `${history.length} payment${history.length === 1 ? '' : 's'} recorded` : '—'}
-                        {notices.length > 0 && <span className="block text-[10px] text-sky-600">{notices.length} notice{notices.length === 1 ? '' : 's'} sent</span>}
+                        {notices.length > 0 && <span className="block text-[10px] text-sky-700">{notices.length} notice{notices.length === 1 ? '' : 's'} sent</span>}
                       </>
                     ),
                     className: 'text-slate-500',
@@ -251,7 +251,7 @@ export const FinancialSummarySection: React.FC<{
                 : fxFeed
                   ? `Diaspora converted estimate: 1 ${selectedCurrency} ≈ ${exchangeRateText} KES • Official valuation in KES`
                   : 'Exchange rates unavailable — showing KES'}
-              {fxFeed?.asOf && <span className="block text-[10px] text-slate-400 mt-0.5">Rates as of {fxFeed.asOf}{fxFeed.source ? ` (${fxFeed.source})` : ''}</span>}
+              {fxFeed?.asOf && <span className="block text-[10px] text-slate-600 mt-0.5">Rates as of {fxFeed.asOf}{fxFeed.source ? ` (${fxFeed.source})` : ''}</span>}
 </p>
 </div>
 <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
@@ -292,11 +292,11 @@ export const FinancialSummarySection: React.FC<{
               {formatWithCurrency(financials.originalAgreedBudget)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
+<span className="text-[10px] text-slate-600 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.originalAgreedBudget)}
 </span>
 ) : (
-<span className="text-[11px] text-slate-400 mt-0.5 block">Approved Contract Sum</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">Approved Contract Sum</span>
 )}
 </div>
 
@@ -309,11 +309,11 @@ export const FinancialSummarySection: React.FC<{
               {formatWithCurrency(financials.approvedVariationsTotal, true)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
+<span className="text-[10px] text-slate-600 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.approvedVariationsTotal)}
 </span>
 ) : (
-<span className="text-[11px] text-slate-400 mt-0.5 block">Net approved scope changes</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">Net approved scope changes</span>
 )}
 </div>
 
@@ -326,11 +326,11 @@ export const FinancialSummarySection: React.FC<{
               {formatWithCurrency(financials.currentApprovedBudget)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
+<span className="text-[10px] text-slate-600 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.currentApprovedBudget)}
 </span>
 ) : (
-<span className="text-[11px] text-slate-400 mt-0.5 block">Baseline + Variations</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">Baseline + Variations</span>
 )}
 </div>
 
@@ -343,11 +343,11 @@ export const FinancialSummarySection: React.FC<{
               {formatWithCurrency(financials.totalSpentToDate)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
+<span className="text-[10px] text-slate-600 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.totalSpentToDate)}
 </span>
 ) : (
-<span className="text-[11px] text-slate-400 mt-0.5 block">Total Certified Cost</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">Total Certified Cost</span>
 )}
 </div>
 
@@ -360,11 +360,11 @@ export const FinancialSummarySection: React.FC<{
               {formatWithCurrency(financials.remainingBalance)}
 </span>
             {selectedCurrency !== 'KES' ? (
-<span className="text-[10px] text-slate-400 tabular-nums mt-0.5 block">
+<span className="text-[10px] text-slate-600 tabular-nums mt-0.5 block">
                 Base: {formatKes(financials.remainingBalance)}
 </span>
 ) : (
-<span className="text-[11px] text-slate-400 mt-0.5 block">Available project funds</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">Available project funds</span>
 )}
 </div>
 </div>
@@ -384,7 +384,7 @@ export const FinancialSummarySection: React.FC<{
 </div>
 <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
 <div
-              className="bg-emerald-600 h-3 rounded-full transition-all duration-300"
+              className="bg-emerald-700 h-3 rounded-full transition-all duration-300"
               style={{ width: `${Math.min(100, Math.max(0, financials.budgetUsedPercentage))}%`}}
             />
 </div>
@@ -403,7 +403,7 @@ export const ProjectHealthCard: React.FC<{
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
 <div>
-<span className="text-[10px] font-bold text-slate-400 block">
+<span className="text-[10px] font-bold text-slate-600 block">
               Automated Variance Analytics
 </span>
 <h3 className="text-base font-bold text-slate-900 mt-0.5">Project Health & Alignment Guard</h3>
@@ -487,11 +487,11 @@ export const CertifiedIpcsCard: React.FC<{
 </div>
 
 <div className="text-left sm:text-right text-xs">
-<span className="text-[10px] text-slate-400 font-semibold block">Total Net Paid to Date</span>
+<span className="text-[10px] text-slate-600 font-semibold block">Total Net Paid to Date</span>
 <span className="text-base tabular-nums font-bold text-emerald-700">
               {formatWithCurrency(String((paymentCertificates || []).filter((c: any) => c.status === 'PAID').reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
-<span className="text-[10px] text-slate-400 block">Gross Certified: {formatWithCurrency(financials.totalSpentToDate)}</span>
+<span className="text-[10px] text-slate-600 block">Gross Certified: {formatWithCurrency(financials.totalSpentToDate)}</span>
 </div>
 </div>
 
@@ -502,7 +502,7 @@ export const CertifiedIpcsCard: React.FC<{
 <span className="text-sm font-bold tabular-nums text-slate-900 mt-0.5 block">
               {formatWithCurrency(financials.originalAgreedBudget)}
 </span>
-<span className="text-[10px] text-slate-400 tabular-nums">Base: {formatKes(financials.originalAgreedBudget)}</span>
+<span className="text-[10px] text-slate-600 tabular-nums">Base: {formatKes(financials.originalAgreedBudget)}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
@@ -510,7 +510,7 @@ export const CertifiedIpcsCard: React.FC<{
 <span className="text-sm font-bold tabular-nums text-emerald-700 mt-0.5 block">
               {formatWithCurrency(financials.totalSpentToDate)}
 </span>
-<span className="text-[10px] text-slate-400 tabular-nums">Base: {formatKes(financials.totalSpentToDate)}</span>
+<span className="text-[10px] text-slate-600 tabular-nums">Base: {formatKes(financials.totalSpentToDate)}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
@@ -518,7 +518,7 @@ export const CertifiedIpcsCard: React.FC<{
 <span className="text-sm font-bold tabular-nums text-blue-700 mt-0.5 block">
               {formatWithCurrency(String((paymentCertificates || []).reduce((a: number, c: any) => a + parseFloat(c.net_payable || '0'), 0)))}
 </span>
-<span className="text-[10px] text-slate-400">Sum of net payable on certified IPCs</span>
+<span className="text-[10px] text-slate-600">Sum of net payable on certified IPCs</span>
 </div>
 
 {hydrated && progress.varianceDelta !== 0 && (
@@ -706,7 +706,7 @@ export function InvoicePayNotice({ invoice, onSent }: { invoice: any; onSent: (i
           M-Pesa cap: {formatKes(150000)} per transaction — pay in parts if needed{(parseFloat(amount) || 0) > 150000 ? ' — this amount exceeds it' : ''}
         </span>
       )}
-      {error && <span className="text-[10px] text-rose-600">{error}</span>}
+      {error && <span className="text-[10px] text-rose-700">{error}</span>}
       <div className="flex gap-1.5">
         <button
           type="button"
@@ -720,7 +720,7 @@ export function InvoicePayNotice({ invoice, onSent }: { invoice: any; onSent: (i
           Cancel
         </button>
       </div>
-      <span className="text-[9px] text-slate-400">Notifies contractor — invoice unchanged until they confirm.</span>
+      <span className="text-[9px] text-slate-600">Notifies contractor — invoice unchanged until they confirm.</span>
     </div>
   );
 }

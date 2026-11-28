@@ -60,7 +60,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 </div>
         {canEdit && (
 <button onClick={() => setModalOpen(true)}
-            className="px-3.5 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1.5">
+            className="px-3.5 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg flex items-center gap-1.5">
 <IconPlus className="w-3.5 h-3.5" /> New daily log
 </button>
 )}
@@ -92,7 +92,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 <div className="min-w-0">
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
                         {formatDate(d)}
-                        {isToday &&<span className="ml-2 text-[10px] font-bold text-orange-600 ">Today</span>}
+                        {isToday &&<span className="ml-2 text-[10px] font-bold text-orange-700 ">Today</span>}
 </p>
 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                         {entries.length > 0
@@ -101,7 +101,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 </p>
 </div>
                     {entries.length === 0 && canEdit && !isToday && (
-<button onClick={() => { setLogDate(key); setModalOpen(true);}} className="text-[11px] font-bold text-orange-600 hover:underline shrink-0">Add log</button>
+<button onClick={() => { setLogDate(key); setModalOpen(true);}} className="text-[11px] font-bold text-orange-700 hover:underline shrink-0">Add log</button>
 )}
                     {entries.length > 0 && (
 <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900 shrink-0">Logged</span>
@@ -114,7 +114,7 @@ function DailyLogsView({ projectId, projectName, canEdit}: { projectId: string; 
 
 <div className="bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
 <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Why log every day</p>
-<p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+<p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
               A dated record of who was on site, what got done and what held you up is what wins extension-of-time claims and settles payment disputes. Two minutes at the end of each day is enough.
 </p>
 </div>
@@ -144,7 +144,7 @@ function InspectionsTab(): React.JSX.Element {
 <div className="space-y-4">
       {canRequest && livePid && (
 <div className="flex justify-end">
-<button onClick={() => setReqOpen(true)} className="px-4 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg">New Request</button>
+<button onClick={() => setReqOpen(true)} className="px-4 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg">New Request</button>
 </div>
 )}
 <IndependentSiteReportView projectId={livePid} projectName={projectName} userRole={role} />

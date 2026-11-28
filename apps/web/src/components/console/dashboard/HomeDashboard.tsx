@@ -81,8 +81,8 @@ function NeedsYouNow({ items, stats, loading, error, onNavigate }: { items: Atte
             <button key={s.label} type="button" onClick={() => onNavigate?.(s.section, s.tab)}
               className="rounded-xl border border-slate-200 p-3 text-left transition hover:border-orange-400 dark:border-slate-800 dark:hover:border-orange-500">
               <p className="text-xs font-bold text-slate-500">{s.label}</p>
-              <p className={`mt-1 text-xl font-bold ${s.warn ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{s.value}</p>
-              <p className="mt-0.5 text-xs font-bold text-orange-600">Open list →</p>
+              <p className={`mt-1 text-xl font-bold ${s.warn ? 'text-amber-700' : 'text-slate-900 dark:text-slate-100'}`}>{s.value}</p>
+              <p className="mt-0.5 text-xs font-bold text-orange-700">Open list →</p>
             </button>
           ))}
         </div>
@@ -91,7 +91,7 @@ function NeedsYouNow({ items, stats, loading, error, onNavigate }: { items: Atte
     <ul className="divide-y divide-slate-100 dark:divide-slate-800">
       {items.slice(0, 8).map((it, i) => (
         <li key={i} className="flex items-start gap-2 py-2">
-          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${it.tone === 'bad' ? 'bg-rose-500' : it.tone === 'warn' ? 'bg-amber-500' : 'bg-sky-500'}`} aria-hidden />
+          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${it.tone === 'bad' ? 'bg-rose-700' : it.tone === 'warn' ? 'bg-amber-700' : 'bg-sky-700'}`} aria-hidden />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
               {it.section ? (
@@ -156,7 +156,7 @@ function ProgressPlan({ projectId, projectName, clientView, cash }: { projectId?
       </svg>
       <div className="mt-1 flex gap-4 text-xs text-slate-500">
         <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-4 bg-slate-400" /> Planned</span>
-        <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-4 bg-orange-600" /> Earned</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-4 bg-orange-700" /> Earned</span>
       </div>
     </Block>
   );
@@ -263,8 +263,8 @@ function CashTimeline({ projectId, projectName, clientView, cash }: { projectId?
         {series.map((r, i) => <text key={i} x={PX + i * bw + bw / 2} y={H - 1} fontSize="9" textAnchor="middle" fill="var(--color-slate-500)">{String(r.periodMonth ?? r.period_month).slice(0, 7)}</text>)}
       </svg>
       <div className="mt-1 flex gap-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-sm bg-emerald-500" /> In</span>
-        <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-sm bg-rose-500" /> Out</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-sm bg-emerald-700" /> In</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-sm bg-rose-700" /> Out</span>
       </div>
     </Block>
   );
@@ -304,11 +304,11 @@ function SiteHealth({ projectId, projectName, clientView, summary, loading, erro
           <p className="text-xs text-slate-500">Open snags</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
-          <p className={`text-xl font-bold ${openIncidents ? 'text-rose-600' : 'text-slate-900 dark:text-slate-100'}`}>{openIncidents}</p>
+          <p className={`text-xl font-bold ${openIncidents ? 'text-rose-700' : 'text-slate-900 dark:text-slate-100'}`}>{openIncidents}</p>
           <p className="text-xs text-slate-500">Incidents (30 days)</p>
         </div>
         <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
-          <p className={`text-xl font-bold ${missedDays > 2 ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{missedDays}</p>
+          <p className={`text-xl font-bold ${missedDays > 2 ? 'text-amber-700' : 'text-slate-900 dark:text-slate-100'}`}>{missedDays}</p>
           <p className="text-xs text-slate-500">Missed diary days (14d)</p>
         </div>
       </div>
@@ -321,7 +321,7 @@ function SiteHealth({ projectId, projectName, clientView, summary, loading, erro
           ))}
         </div>
       )}
-      {openSnags === 0 && openIncidents === 0 && <p className="mt-3 text-xs text-emerald-600 dark:text-emerald-400">No open snags or incidents.</p>}
+      {openSnags === 0 && openIncidents === 0 && <p className="mt-3 text-xs text-emerald-700 dark:text-emerald-400">No open snags or incidents.</p>}
     </Block>
   );
 }

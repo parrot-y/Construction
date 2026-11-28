@@ -11,7 +11,7 @@ const SubcontractorPortalView = lazyChunk(() => import('./portals/SubcontractorP
 const SupplierPortalView = lazyChunk(() => import('./portals/SupplierPortalView'));
 const CompliancePortalView = lazyChunk(() => import('./portals/CompliancePortalView'));
 
-const Fallback = <div className="min-h-[40vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
+const Fallback = <div className="min-h-[40vh] flex items-center justify-center text-sm text-slate-600">Loading…</div>;
 
 interface DashboardProps {
   session: AuthSession;
@@ -88,7 +88,7 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
           return (
 <div className="bg-white p-6 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
               Portal type {previewPortal.type} preview not found.
-<button onClick={() => setPreviewPortal(null)} className="ml-2 font-bold text-blue-600">
+<button onClick={() => setPreviewPortal(null)} className="ml-2 font-bold text-blue-700">
                 Back to Workspace
 </button>
 </div>
@@ -146,7 +146,7 @@ export default function Dashboard({ session, onLogout}: DashboardProps): React.J
 <span className="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
                   {user.tenant.name}
 </span>
-<span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+<span className="text-[10px] text-slate-600 font-medium hidden sm:inline">
                   {user.tenant.currency} • NCA 4
 </span>
 </div>

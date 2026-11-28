@@ -121,7 +121,7 @@ export default function InviteAcceptView({
           <p className="mt-2 text-sm text-slate-600">
             The link may be invalid, expired, revoked, or already used. Ask your administrator to send a new invitation.
           </p>
-          <button onClick={onBack} className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
+          <button onClick={onBack} className="mt-4 text-sm font-semibold text-brand-700 hover:text-brand-700 min-h-[44px]">
             Back to {PRODUCT_NAME}
           </button>
         </div>
@@ -152,7 +152,7 @@ export default function InviteAcceptView({
           {pendingVerification.verifyUrl && (
             <p className="mt-3 text-xs text-slate-500">
               Verification link (simulated delivery — production sends this by email):{' '}
-              <a href={pendingVerification.verifyUrl} className="font-semibold text-brand-600 hover:underline break-all">
+              <a href={pendingVerification.verifyUrl} className="font-semibold text-brand-700 hover:underline break-all">
                 {pendingVerification.verifyUrl}
               </a>
             </p>
@@ -160,7 +160,7 @@ export default function InviteAcceptView({
           <p className="mt-3 text-xs text-slate-500">
             Until then you cannot sign in. If email delivery is not configured, ask your administrator to activate the account.
           </p>
-          <button onClick={onBack} className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
+          <button onClick={onBack} className="mt-4 text-sm font-semibold text-brand-700 hover:text-brand-700 min-h-[44px]">
             Back to {PRODUCT_NAME}
           </button>
         </div>
@@ -223,7 +223,7 @@ export default function InviteAcceptView({
                   autoComplete="new-password" />
               </div>
               <button type="submit" disabled={isLoading}
-                className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 min-h-[44px]">
+                className="w-full rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50 min-h-[44px]">
                 {isLoading ? 'Accepting…' : 'Accept invitation'}
               </button>
             </form>

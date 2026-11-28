@@ -293,7 +293,7 @@ export default function StatutoryTaxManagementView({
 </thead>
 <tbody className="divide-y divide-slate-100 bg-white">
             {filtered.length === 0 && (
-<tr><td colSpan={9} className="py-8 px-4 text-center text-sm text-slate-400">No withholding certificates recorded yet.</td></tr>
+<tr><td colSpan={9} className="py-8 px-4 text-center text-sm text-slate-600">No withholding certificates recorded yet.</td></tr>
 )}
             {filtered.map((cert) => (
 <tr key={cert.id} className="hover:bg-slate-50">

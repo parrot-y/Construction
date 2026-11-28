@@ -31,7 +31,7 @@ export const AcknowledgeAlertModal: React.FC<{
 <button
                 onClick={onClose}
                 aria-label="Close dialog"
-                className="text-slate-400 hover:text-slate-600 font-bold p-1 text-base"
+                className="text-slate-600 hover:text-slate-600 font-bold p-1 text-base"
               >
                 
 </button>
@@ -91,7 +91,7 @@ export const AcknowledgeAlertModal: React.FC<{
 <button
                   type="submit"
                   disabled={isAcking}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold shadow-sm transition-colors"
+                  className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-lg font-bold shadow-sm transition-colors"
                 >
                   {isAcking ? 'Acknowledging...' : 'Acknowledge Alert'}
 </button>

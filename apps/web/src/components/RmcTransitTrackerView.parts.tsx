@@ -61,7 +61,7 @@ export const RmcHeaderControls: React.FC<{
 <div className="flex gap-2">
 <button
             onClick={onAddTicket}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition"
+            className="inline-flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-lg shadow-sm transition"
           >
             + Log Batch Plant Ticket
 </button>
@@ -83,18 +83,18 @@ export const RmcKpiCards: React.FC<{
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">In Transit</span>
-<p className="text-2xl font-bold text-blue-600 mt-1">{inTransitCount}</p>
-<span className="text-xs text-blue-500">Live Hydration Tracking</span>
+<p className="text-2xl font-bold text-blue-700 mt-1">{inTransitCount}</p>
+<span className="text-xs text-blue-700">Live Hydration Tracking</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Cold Joint Rejected</span>
-<p className="text-2xl font-bold text-red-600 mt-1">{rejectedCount}</p>
-<span className="text-xs text-red-500">&gt;120m transit or slump fail</span>
+<p className="text-2xl font-bold text-red-700 mt-1">{rejectedCount}</p>
+<span className="text-xs text-red-700">&gt;120m transit or slump fail</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Slump Standard (BS EN 12350-2)</span>
-<p className="text-2xl font-bold text-emerald-600 mt-1">±25 mm</p>
-<span className="text-xs text-emerald-500">Allowable tolerance</span>
+<p className="text-2xl font-bold text-emerald-700 mt-1">±25 mm</p>
+<span className="text-xs text-emerald-700">Allowable tolerance</span>
 </div>
 </div>
 );
@@ -173,7 +173,7 @@ export const RmcDeliveriesTable: React.FC<{
 </td>
 <td className="px-4 py-3">
 <div className="font-medium text-gray-800">{delivery.supplierName}</div>
-<div className="text-xs text-blue-600 font-semibold">{delivery.concreteClass.replaceAll('_', ' ')} • {delivery.orderedVolumeM3} m³</div>
+<div className="text-xs text-blue-700 font-semibold">{delivery.concreteClass.replaceAll('_', ' ')} • {delivery.orderedVolumeM3} m³</div>
 </td>
 <td className="px-4 py-3">
 <div className="text-gray-900 font-medium">{delivery.pourLocationElement}</div>
@@ -200,18 +200,18 @@ export const RmcDeliveriesTable: React.FC<{
 <div className="text-xs text-gray-400 mt-0.5">{delivery.slumpTestsCount} test(s) recorded</div>
 </div>
 ) : (
-<span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+<span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                             Pending Cone Test
 </span>
 )}
 </td>
 <td className="px-4 py-3">
                         {parseFloat(delivery.waterAddedOnSiteLiters) > 0 ? (
-<span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-300">
+<span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-300">
                              +{delivery.waterAddedOnSiteLiters} L Tampered!
 </span>
 ) : (
-<span className="text-xs text-emerald-600 font-medium">0.00 L (Compliant)</span>
+<span className="text-xs text-emerald-700 font-medium">0.00 L (Compliant)</span>
 )}
 </td>
 <td className="px-4 py-3">{getStatusBadge(delivery.status)}</td>
@@ -426,7 +426,7 @@ export const RegisterTicketModal: React.FC<{
                 >
                   Cancel
 </button>
-<button type="submit" className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">
+<button type="submit" className="px-4 py-2 bg-blue-700 text-white font-medium rounded-lg hover:bg-blue-800">
                   Save Ticket &amp; Start Transit
 </button>
 </div>
@@ -487,9 +487,9 @@ export const SlumpTestModal: React.FC<{
 <div className="text-xs mt-1">
                   Deviation: {measuredSlump - delivery.slumpSpecifiedMm > 0 ? `+${measuredSlump - delivery.slumpSpecifiedMm}` : measuredSlump - delivery.slumpSpecifiedMm} mm •{' '}
                   {Math.abs(measuredSlump - delivery.slumpSpecifiedMm)<= 25 ? (
-<span className="text-emerald-600 font-bold"> PASS (Within ±25 mm tolerance)</span>
+<span className="text-emerald-700 font-bold"> PASS (Within ±25 mm tolerance)</span>
 ) : (
-<span className="text-red-600 font-bold"> FAIL (Exceeds allowable tolerance)</span>
+<span className="text-red-700 font-bold"> FAIL (Exceeds allowable tolerance)</span>
 )}
 </div>
 </div>
@@ -524,7 +524,7 @@ export const SlumpTestModal: React.FC<{
                 >
                   Cancel
 </button>
-<button type="submit" className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700">
+<button type="submit" className="px-4 py-2 bg-emerald-700 text-white font-medium rounded-lg hover:bg-emerald-800">
                   Save Slump Test Verdict
 </button>
 </div>
@@ -617,7 +617,7 @@ export const DischargeUpdateModal: React.FC<{
                 >
                   Cancel
 </button>
-<button type="submit" className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">
+<button type="submit" className="px-4 py-2 bg-blue-700 text-white font-medium rounded-lg hover:bg-blue-800">
                   Save Discharge Record
 </button>
 </div>

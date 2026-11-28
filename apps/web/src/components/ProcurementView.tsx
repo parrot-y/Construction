@@ -290,7 +290,7 @@ export default function ProcurementView({ projectId, projectName, canManage = fa
             <button
               type="button"
               onClick={() => setShowCreate((v) => !v)}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-600 hover:bg-brand-700 text-white"
+              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-700 hover:bg-brand-800 text-white"
               data-testid="new-po-btn"
             >
               {showCreate ? 'Close' : 'New purchase order'}
@@ -375,7 +375,7 @@ export default function ProcurementView({ projectId, projectName, canManage = fa
                 </div>
                 <button
                   type="button"
-                  className="col-span-1 text-xs text-rose-600 font-bold"
+                  className="col-span-1 text-xs text-rose-700 font-bold"
                   onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
                   disabled={lines.length === 1}
                 >
@@ -458,7 +458,7 @@ export default function ProcurementView({ projectId, projectName, canManage = fa
                         type="button"
                         disabled={busyId === po.id}
                         onClick={() => void issuePo(po)}
-                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-brand-600 hover:bg-brand-700 text-white disabled:opacity-50"
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-brand-700 hover:bg-brand-800 text-white disabled:opacity-50"
                         data-testid={`po-issue-btn-${po.poNumber}`}
                       >
                         {busyId === po.id ? 'Issuing…' : 'Issue to supplier'}
@@ -532,7 +532,7 @@ export default function ProcurementView({ projectId, projectName, canManage = fa
                                   </div>
                                   <span className="tabular-nums text-sm font-bold text-slate-900">{formatKes(inv.amount)}</span>
                                 </div>
-                                {full?.reviewReason && <p className="text-[11px] text-rose-600 mt-1">Review note: {full.reviewReason}</p>}
+                                {full?.reviewReason && <p className="text-[11px] text-rose-700 mt-1">Review note: {full.reviewReason}</p>}
                                 {full?.note && <p className="text-[11px] text-slate-500 mt-1">{full.note}</p>}
 
                                 {canManage && reviewable && reviewFor !== inv.id && (

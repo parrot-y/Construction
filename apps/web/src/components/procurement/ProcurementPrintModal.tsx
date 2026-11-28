@@ -96,7 +96,7 @@ export const ProcurementPrintModal: React.FC<{
               type="button"
               onClick={() => window.print()}
               disabled={loading || !!error}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg"
+              className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-xs font-semibold rounded-lg"
             >
               Print
             </button>
@@ -112,9 +112,9 @@ export const ProcurementPrintModal: React.FC<{
 
         <div className="px-6 py-5 space-y-4">
           {loading ? (
-            <p className="text-sm text-slate-400 py-8 text-center">Loading document…</p>
+            <p className="text-sm text-slate-600 py-8 text-center">Loading document…</p>
           ) : error ? (
-            <p className="text-sm font-semibold text-rose-600 py-8 text-center">{apiErrorMessage(error, 'Failed to load the document.')}</p>
+            <p className="text-sm font-semibold text-rose-700 py-8 text-center">{apiErrorMessage(error, 'Failed to load the document.')}</p>
           ) : kind === 'PO' && po ? (
             <>
               <div className="grid grid-cols-2 gap-x-8">

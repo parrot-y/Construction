@@ -204,7 +204,7 @@ export const SurveyHeaderControls: React.FC<{
 <button
             type="button"
             onClick={onNewSurvey}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-sm shadow-indigo-200"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl text-sm font-semibold transition shadow-sm shadow-indigo-200"
           >
 <span>+</span>
 <span>New Topographic Survey</span>

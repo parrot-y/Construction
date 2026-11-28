@@ -49,7 +49,7 @@ export function PortalLinkNotice({ kind, message, onRetry }: { kind: PortalLinkK
     <div className="min-h-[50vh] flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center shadow-sm">
         <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${kind === 'error' || kind === 'link' ? 'bg-amber-50 dark:bg-amber-950/40' : 'bg-red-50 dark:bg-red-950/40'}`}>
-          <svg className={`w-6 h-6 ${kind === 'error' || kind === 'link' ? 'text-amber-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className={`w-6 h-6 ${kind === 'error' || kind === 'link' ? 'text-amber-700' : 'text-red-700'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             {kind === 'offline' ? (
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12 20.25h.008v.008H12v-.008z" />
             ) : kind === 'rateLimited' ? (
@@ -65,7 +65,7 @@ export function PortalLinkNotice({ kind, message, onRetry }: { kind: PortalLinkK
           <button
             type="button"
             onClick={onRetry ?? (() => window.location.reload())}
-            className="mt-5 min-h-11 px-6 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold transition"
+            className="mt-5 min-h-11 px-6 py-2.5 rounded-lg bg-orange-700 hover:bg-orange-800 text-white text-sm font-semibold transition"
           >
             Retry
           </button>

@@ -261,7 +261,7 @@ export default function BoqWorkbookView({
         <button
           type="button"
           onClick={load}
-          className="mt-3 text-xs font-bold text-brand-600 hover:underline"
+          className="mt-3 text-xs font-bold text-brand-700 hover:underline"
         >
           Retry
         </button>
@@ -282,7 +282,7 @@ export default function BoqWorkbookView({
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-700"
+              className="px-4 py-2 rounded-xl bg-brand-700 text-white text-xs font-bold hover:bg-brand-800"
             >
               Add your first BoQ item
             </button>
@@ -322,7 +322,7 @@ export default function BoqWorkbookView({
               <button
                 type="button"
                 onClick={() => { setAdding((v) => !v); setMapping(false); }}
-                className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-[11px] font-bold hover:bg-brand-700"
+                className="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-[11px] font-bold hover:bg-brand-800"
               >
                 {adding ? 'Close' : 'Add item'}
               </button>
@@ -359,7 +359,7 @@ export default function BoqWorkbookView({
             {units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
           {(floorFilter || unitFilter) && (
-            <button type="button" onClick={() => { setFloorFilter(''); setUnitFilter(''); }} className="text-[11px] font-bold text-brand-600 hover:underline">Clear</button>
+            <button type="button" onClick={() => { setFloorFilter(''); setUnitFilter(''); }} className="text-[11px] font-bold text-brand-700 hover:underline">Clear</button>
           )}
         </div>
       )}
@@ -369,10 +369,10 @@ export default function BoqWorkbookView({
           <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">{selected.size} item(s) selected</span>
           <input value={mapFloor} onChange={(e) => setMapFloor(e.target.value)} placeholder="Floor (e.g. First, Roof)" className="px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800" data-testid="boq-map-floor" />
           <input value={mapUnit} onChange={(e) => setMapUnit(e.target.value)} placeholder="Unit ref (e.g. A1, Retail podium)" className="px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800" data-testid="boq-map-unit" />
-          <button type="button" onClick={() => void applyMap()} disabled={busy || selected.size === 0} className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-[11px] font-bold hover:bg-brand-700 disabled:opacity-50" data-testid="boq-map-apply">
+          <button type="button" onClick={() => void applyMap()} disabled={busy || selected.size === 0} className="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-[11px] font-bold hover:bg-brand-800 disabled:opacity-50" data-testid="boq-map-apply">
             Apply mapping
           </button>
-          <span className="text-[10px] text-slate-400">Blank fields keep existing values.</span>
+          <span className="text-[10px] text-slate-600">Blank fields keep existing values.</span>
         </div>
       )}
 
@@ -440,7 +440,7 @@ export default function BoqWorkbookView({
                         <td className="px-5 py-2 font-mono tabular-nums text-[11px]">{it.item_code}</td>
                         <td className="px-3 py-2 max-w-[320px]">
                           {it.description}
-                          {it.is_provisional && <span className="ml-2 text-[9px] font-bold text-amber-600">provisional</span>}
+                          {it.is_provisional && <span className="ml-2 text-[9px] font-bold text-amber-700">provisional</span>}
                         </td>
                         <td className="px-3 py-2">{it.unit}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{Number(it.quantity).toLocaleString()}</td>
@@ -450,14 +450,14 @@ export default function BoqWorkbookView({
                           {(it.floor || it.unit_ref) ? (
                             <span className="inline-flex flex-col text-[10px] font-semibold text-slate-500 dark:text-slate-400" data-testid={`boq-loc-${it.id}`}>
                               {it.floor && <span>{it.floor}</span>}
-                              {it.unit_ref && <span className="text-slate-400">{it.unit_ref}</span>}
+                              {it.unit_ref && <span className="text-slate-600">{it.unit_ref}</span>}
                             </span>
                           ) : <span className="text-slate-300 dark:text-slate-600">—</span>}
                         </td>
                         {canEdit && (
                           <td className="px-3 py-2 text-right whitespace-nowrap">
-                            <button type="button" onClick={() => startEdit(it)} className="text-[11px] font-bold text-brand-600 hover:underline mr-3">Edit</button>
-                            <button type="button" onClick={() => void removeItem(it.id)} disabled={busy} className="text-[11px] font-bold text-red-600 hover:underline disabled:opacity-50">Delete</button>
+                            <button type="button" onClick={() => startEdit(it)} className="text-[11px] font-bold text-brand-700 hover:underline mr-3">Edit</button>
+                            <button type="button" onClick={() => void removeItem(it.id)} disabled={busy} className="text-[11px] font-bold text-red-700 hover:underline disabled:opacity-50">Delete</button>
                           </td>
                         )}
                       </tr>
@@ -467,7 +467,7 @@ export default function BoqWorkbookView({
               </React.Fragment>
             ))}
             {visibleSections.length === 0 && (
-              <tr><td colSpan={colCount} className="px-5 py-8 text-center text-xs text-slate-400">No BoQ items match the takeoff filters.</td></tr>
+              <tr><td colSpan={colCount} className="px-5 py-8 text-center text-xs text-slate-600">No BoQ items match the takeoff filters.</td></tr>
             )}
           </tbody>
         </table>
@@ -582,7 +582,7 @@ function renderForm(
         <button
           type="submit"
           disabled={busy}
-          className="px-4 py-2 rounded-lg bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 disabled:opacity-60"
+          className="px-4 py-2 rounded-lg bg-brand-700 text-white text-xs font-bold hover:bg-brand-800 disabled:opacity-60"
         >
           {busy ? 'Saving…' : 'Save item'}
         </button>

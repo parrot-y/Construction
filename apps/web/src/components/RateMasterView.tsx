@@ -215,7 +215,7 @@ export const RateMasterView: React.FC<{ role?: string }> = ({ role = 'COMPANY_AD
                 data-testid="rate-master-bulk">Bulk upload</button>
             )}
             <button type="button" onClick={() => openEdit('new')}
-              className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brand-600 text-white hover:bg-brand-700"
+              className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brand-700 text-white hover:bg-brand-800"
               data-testid="rate-master-new">+ New rate</button>
           </div>
         )}
@@ -233,7 +233,7 @@ export const RateMasterView: React.FC<{ role?: string }> = ({ role = 'COMPANY_AD
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-400 py-8 text-center">Loading rates…</p>
+        <p className="text-sm text-slate-600 py-8 text-center">Loading rates…</p>
       ) : error ? (
         <ErrorState message={apiErrorMessage(error, 'Failed to load rate master.')} onRetry={() => void load()} />
       ) : entries.length === 0 ? (
@@ -242,7 +242,7 @@ export const RateMasterView: React.FC<{ role?: string }> = ({ role = 'COMPANY_AD
         <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
           <table className="w-full text-sm min-w-[720px]">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400 border-b border-slate-100 dark:border-slate-800">
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-600 border-b border-slate-100 dark:border-slate-800">
                 <th className="px-4 py-3">Description</th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Material</th>
@@ -262,11 +262,11 @@ export const RateMasterView: React.FC<{ role?: string }> = ({ role = 'COMPANY_AD
                   <td className="px-4 py-2.5 text-xs text-slate-500">{geoLabel(e) || '—'}</td>
                   <td className="px-4 py-2.5 text-xs text-slate-500">{e.unit}</td>
                   <td className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-800 dark:text-slate-200">{formatKes(e.unitRateKes)}</td>
-                  <td className="px-4 py-2.5 text-[11px] text-slate-400">{e.source}</td>
+                  <td className="px-4 py-2.5 text-[11px] text-slate-600">{e.source}</td>
                   {canEdit && (
                     <td className="px-4 py-2.5 text-right whitespace-nowrap">
                       <button type="button" onClick={() => openEdit(e)} className="text-xs font-bold text-brand-700 hover:underline mr-3" data-testid={`rate-edit-${e.id}`}>Edit</button>
-                      <button type="button" onClick={() => void removeEntry(e)} className="text-xs font-bold text-rose-600 hover:underline">Delete</button>
+                      <button type="button" onClick={() => void removeEntry(e)} className="text-xs font-bold text-rose-700 hover:underline">Delete</button>
                     </td>
                   )}
                 </tr>
@@ -344,7 +344,7 @@ export const RateMasterView: React.FC<{ role?: string }> = ({ role = 'COMPANY_AD
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:underline">Cancel</button>
           <button type="button" onClick={() => void saveEntry()} disabled={formBusy}
-            className="px-4 py-2 rounded-lg bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 disabled:opacity-60" data-testid="rate-form-save">
+            className="px-4 py-2 rounded-lg bg-brand-700 text-white text-xs font-bold hover:bg-brand-800 disabled:opacity-60" data-testid="rate-form-save">
             {formBusy ? 'Saving…' : 'Save rate'}
           </button>
         </div>
@@ -368,7 +368,7 @@ export const RateMasterView: React.FC<{ role?: string }> = ({ role = 'COMPANY_AD
           data-testid="rate-bulk-text"
         />
         {bulkErrors.length > 0 && (
-          <ul className="mt-2 text-xs text-rose-600 space-y-0.5 max-h-28 overflow-y-auto">
+          <ul className="mt-2 text-xs text-rose-700 space-y-0.5 max-h-28 overflow-y-auto">
             {bulkErrors.slice(0, 20).map((e, i) => <li key={i}>{e}</li>)}
             {bulkErrors.length > 20 && <li>…and {bulkErrors.length - 20} more</li>}
           </ul>
@@ -377,7 +377,7 @@ export const RateMasterView: React.FC<{ role?: string }> = ({ role = 'COMPANY_AD
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={() => setBulkOpen(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:underline">Close</button>
           <button type="button" onClick={() => void runBulk()} disabled={bulkBusy || !bulkText.trim()}
-            className="px-4 py-2 rounded-lg bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 disabled:opacity-60" data-testid="rate-bulk-run">
+            className="px-4 py-2 rounded-lg bg-brand-700 text-white text-xs font-bold hover:bg-brand-800 disabled:opacity-60" data-testid="rate-bulk-run">
             {bulkBusy ? 'Importing…' : 'Import'}
           </button>
         </div>

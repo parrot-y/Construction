@@ -128,7 +128,7 @@ export default function SubcontractorPortalView({
   }, [token]);
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
+    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-600">Loading portal…</div>;
   }
   if (loadError) {
     return (
@@ -311,20 +311,20 @@ export default function SubcontractorPortalView({
 {openCount > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Open Defects</p>
-<p className="text-2xl font-bold text-amber-600 mt-1">{openCount}</p>
+<p className="text-2xl font-bold text-amber-700 mt-1">{openCount}</p>
 </div>
 )}
 {rectifiedCount > 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Rectified (Pending Sign-off)</p>
-<p className="text-2xl font-bold text-blue-600 mt-1">{rectifiedCount}</p>
-<span className="text-[10px] text-slate-400">({closedCount} verified &amp; closed)</span>
+<p className="text-2xl font-bold text-blue-700 mt-1">{rectifiedCount}</p>
+<span className="text-[10px] text-slate-600">({closedCount} verified &amp; closed)</span>
 </div>
 )}
 {closedCount > 0 && rectifiedCount === 0 && (
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
 <p className="text-xs font-semibold text-slate-500">Verified &amp; Closed</p>
-<p className="text-2xl font-bold text-emerald-600 mt-1">{closedCount}</p>
+<p className="text-2xl font-bold text-emerald-700 mt-1">{closedCount}</p>
 </div>
 )}
 {Number(commercialSummary.contractSumKes) > 0 && (
@@ -345,7 +345,7 @@ export default function SubcontractorPortalView({
       {feedback && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex justify-between items-center shadow-sm">
 <span> {feedback}</span>
-<button onClick={() => setFeedback(null)} className="text-emerald-600 font-bold ml-2">×</button>
+<button onClick={() => setFeedback(null)} className="text-emerald-700 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -450,7 +450,7 @@ export default function SubcontractorPortalView({
                     {!isSelected ? (
 <button
                         onClick={() => setSelectedSnagId(snag.id)}
-                        className="px-3.5 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition"
+                        className="px-3.5 py-1.5 text-xs font-semibold bg-amber-700 hover:bg-amber-800 text-white rounded-lg transition"
                       >
                         Submit Defect Rectification Proof
 </button>
@@ -521,7 +521,7 @@ export default function SubcontractorPortalView({
                             type="button"
                             disabled={submitting || uploadingPhoto || !rectifyPhotoKey.trim()}
                             onClick={() => handleRectifySubmit(snag.id)}
-                            className="px-4 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 transition"
+                            className="px-4 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50 transition"
                           >
                             {submitting ? 'Submitting...' : 'Mark Rectified (GPS Verified)'}
 </button>
@@ -572,7 +572,7 @@ export default function SubcontractorPortalView({
                     <>
                       {m.milestoneName}
                       {m.certifiedDate && (
-<span className="block text-[10px] text-slate-400">Certified: {m.certifiedDate}</span>
+<span className="block text-[10px] text-slate-600">Certified: {m.certifiedDate}</span>
 )}
                     </>
                   ),
@@ -702,7 +702,7 @@ export default function SubcontractorPortalView({
                   {resubmitValuationId ? 'Resubmit Corrected Milestone Claim' : 'Submit Milestone Progress Claim'}
 </h3>
 </div>
-<button onClick={closeClaimModal} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={closeClaimModal} className="text-slate-600 hover:text-slate-600 font-bold">
                 
 </button>
 </div>

@@ -51,7 +51,7 @@ export default function ClientAccountView({ session, onSaved}: { session: AuthSe
             {COUNTRIES.map((c) =><option key={c} value={c}>{c}</option>)}
 </select>
 </div>
-        {msg &&<p className={`text-xs font-semibold ${msg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{msg.text}</p>}
+        {msg &&<p className={`text-xs font-semibold ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</p>}
 <button type="submit" disabled={saving}
           className="px-5 py-2.5 text-sm font-bold bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white rounded-lg">
           {saving ? 'Saving…' : 'Save'}

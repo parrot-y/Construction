@@ -148,7 +148,7 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md ${tab === t ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md ${tab === t ? 'bg-indigo-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               {t === 'observations' ? 'Observations' : 'Corrective actions'}
 </button>
@@ -157,7 +157,7 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
         {canManage && (
 <button
             onClick={() => (tab === 'observations' ? setShowObsForm((v) => !v) : setShowActionForm((v) => !v))}
-            className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+            className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg"
           >
             {tab === 'observations' ? '+ New Observation' : '+ New corrective action'}
 </button>
@@ -199,7 +199,7 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 <textarea rows={3} value={obsForm.description} onChange={(e) => setObsForm({ ...obsForm, description: e.target.value})} className={`${input} resize-none`} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void createObs()} disabled={saving || obsForm.title.length< 3 || obsForm.description.length< 3}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
                   {saving ? 'Saving…' : 'Raise observation'}
 </button>
 </div>
@@ -215,16 +215,16 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 <div className="flex items-start justify-between gap-3">
 <div className="min-w-0">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="tabular-nums text-[10px] font-bold text-slate-400">{o.ref}</span>
+<span className="tabular-nums text-[10px] font-bold text-slate-600">{o.ref}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${TYPE_STYLE[o.type] || 'bg-slate-100 text-slate-600'}`}>{o.type[0] + o.type.slice(1).toLowerCase()}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${OBS_STATUS_STYLE[o.status]}`}>{o.status.replace('_', ' ')}</span>
-<span className="text-[10px] text-slate-400">{o.priority} · {o.raised_by_name} · {formatDate(new Date(o.created_at))}</span>
+<span className="text-[10px] text-slate-600">{o.priority} · {o.raised_by_name} · {formatDate(new Date(o.created_at))}</span>
 </div>
 <h4 className="text-sm font-bold text-slate-900 mt-1">{o.title}</h4>
                       {o.location &&<p className="text-[11px] text-slate-500"> {o.location}</p>}
 <p className="text-xs text-slate-600 mt-1">{o.description}</p>
                       {o.corrective_actions.length > 0 && (
-<p className="text-[11px] text-indigo-600 mt-1.5">{o.corrective_actions.length} corrective action{o.corrective_actions.length === 1 ? '' : 's'} linked</p>
+<p className="text-[11px] text-indigo-700 mt-1.5">{o.corrective_actions.length} corrective action{o.corrective_actions.length === 1 ? '' : 's'} linked</p>
 )}
 </div>
                     {canManage && o.status !== 'CLOSED' && (
@@ -264,7 +264,7 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 <textarea rows={3} value={actForm.steps} onChange={(e) => setActForm({ ...actForm, steps: e.target.value})} placeholder={'Mark out repair zone\nApply bonding agent\nApply repair mortar'} className={`${input} resize-none`} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void createAction()} disabled={saving || actForm.title.length< 3 || actForm.ownerName.length< 2}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
                   {saving ? 'Saving…' : 'Create action plan'}
 </button>
 </div>
@@ -281,16 +281,16 @@ export default function ObservationsView({ projectId, canManage = true}: { proje
 <div className="min-w-0">
 <div className="flex items-center gap-2 flex-wrap">
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${a.effective_status === 'OVERDUE' ? 'bg-rose-50 text-rose-700' : a.effective_status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{a.effective_status}</span>
-<span className="text-[10px] text-slate-400">Owner: {a.owner_name}{a.due_date ? ` · due ${formatDate(new Date(a.due_date))}` : ''}</span>
+<span className="text-[10px] text-slate-600">Owner: {a.owner_name}{a.due_date ? ` · due ${formatDate(new Date(a.due_date))}` : ''}</span>
                         {a.observation &&<span className="px-2 py-0.5 text-[10px] font-mono tabular-nums bg-indigo-50 text-indigo-700 rounded-full">OBS-{String(a.observation.obs_number).padStart(3, '0')}</span>}
-                        {a.source_ref &&<span className="text-[10px] text-slate-400 font-mono tabular-nums">src: {a.source_ref}</span>}
+                        {a.source_ref &&<span className="text-[10px] text-slate-600 font-mono tabular-nums">src: {a.source_ref}</span>}
 </div>
 <h4 className="text-sm font-bold text-slate-900 mt-1">{a.title}</h4>
                       {a.steps.length > 0 && (
 <ol className="mt-1.5 space-y-0.5">
                           {a.steps.map((s, i) => (
 <li key={i} className="text-[11px] text-slate-600 flex gap-1.5">
-<span className="text-slate-400 tabular-nums">{i + 1}.</span> {s}
+<span className="text-slate-600 tabular-nums">{i + 1}.</span> {s}
 </li>
 ))}
 </ol>

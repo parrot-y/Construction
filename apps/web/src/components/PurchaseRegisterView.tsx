@@ -95,10 +95,10 @@ export default function PurchaseRegisterView({ projectId }: { projectId?: string
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-400 py-8 text-center">Loading register…</p>
+        <p className="text-sm text-slate-600 py-8 text-center">Loading register…</p>
       ) : error ? (
         <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center">
-          <p className="text-sm font-semibold text-rose-600">{apiErrorMessage(error, 'Failed to load the register.')}</p>
+          <p className="text-sm font-semibold text-rose-700">{apiErrorMessage(error, 'Failed to load the register.')}</p>
           <button type="button" onClick={() => void load()} className="mt-3 text-xs font-bold text-brand-700 hover:underline">Retry</button>
         </div>
       ) : rows.length === 0 ? (
@@ -109,7 +109,7 @@ export default function PurchaseRegisterView({ projectId }: { projectId?: string
         <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
           <table className="w-full text-sm min-w-[900px]">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400 border-b border-slate-100 dark:border-slate-800">
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-600 border-b border-slate-100 dark:border-slate-800">
                 <th className="px-4 py-3">Kind</th>
                 <th className="px-4 py-3">Ref</th>
                 <th className="px-4 py-3">Date</th>
@@ -135,8 +135,8 @@ export default function PurchaseRegisterView({ projectId }: { projectId?: string
                   <td className="px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">{r.storeLocation ?? '—'}</td>
                   <td className="px-4 py-2.5 text-xs text-slate-500 max-w-[240px] truncate" title={r.description}>
                     {r.description}
-                    {r.kind === 'PO' && r.lineCount != null && <span className="text-slate-400"> ({r.lineCount} lines)</span>}
-                    {r.kind === 'GRN' && r.quantity && <span className="text-slate-400"> ({r.quantity} {r.unit})</span>}
+                    {r.kind === 'PO' && r.lineCount != null && <span className="text-slate-600"> ({r.lineCount} lines)</span>}
+                    {r.kind === 'GRN' && r.quantity && <span className="text-slate-600"> ({r.quantity} {r.unit})</span>}
                   </td>
                   <td className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-800 dark:text-slate-200 whitespace-nowrap">
                     {r.value != null ? formatKes(r.value) : '—'}

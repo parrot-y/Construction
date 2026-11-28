@@ -193,7 +193,7 @@ export default function FieldPortalView({ token }: { token: string }): React.JSX
                   onClick={() => setWeather(o.value)}
                   className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition ${
                     weather === o.value
-                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      ? 'bg-emerald-700 text-white border-emerald-600'
                       : 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400'
                   }`}
                 >
@@ -213,7 +213,7 @@ export default function FieldPortalView({ token }: { token: string }): React.JSX
                   onClick={() => setSiteStatus(o.value)}
                   className={`flex-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition ${
                     siteStatus === o.value
-                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      ? 'bg-emerald-700 text-white border-emerald-600'
                       : 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400'
                   }`}
                 >
@@ -240,7 +240,7 @@ export default function FieldPortalView({ token }: { token: string }): React.JSX
           disabled={busy}
           onClick={() => fileInputRef.current?.click()}
           data-testid="field-capture-btn"
-          className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-base flex items-center justify-center gap-2 transition"
+          className="w-full py-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold text-base flex items-center justify-center gap-2 transition"
         >
           {busy ? 'Saving…' : 'Take site photo'}
         </button>

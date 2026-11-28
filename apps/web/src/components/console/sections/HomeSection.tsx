@@ -162,11 +162,11 @@ function ExecHome(): React.JSX.Element {
             {steps.map((st, i) => (
 <button key={st.label} onClick={st.go}
                 className="flex w-full items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 text-left transition hover:border-orange-400 hover:bg-orange-50 dark:border-slate-700 dark:hover:bg-orange-950/20">
-<span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${st.done ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'}`}>
+<span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${st.done ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'}`}>
                   {st.done ? '✓' : i + 1}
 </span>
 <span className={`text-xs font-semibold ${st.done ? 'text-slate-500 line-through' : 'text-slate-800 dark:text-slate-100'}`}>{st.label}</span>
-<span className="ml-auto text-xs font-bold text-orange-600">{st.done ? 'Done' : 'Open →'}</span>
+<span className="ml-auto text-xs font-bold text-orange-700">{st.done ? 'Done' : 'Open →'}</span>
 </button>
 ))}
 </div>
@@ -246,7 +246,7 @@ function FieldHome(): React.JSX.Element {
           {actions.map((a) => (
 <button key={a.tab} onClick={() => { setSection('site'); setTab(a.tab); }}
               className="text-left px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition">
-<p className={`text-xs font-bold ${a.warn ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{a.label}</p>
+<p className={`text-xs font-bold ${a.warn ? 'text-amber-700' : 'text-slate-900 dark:text-slate-100'}`}>{a.label}</p>
 <p className="text-xs text-slate-500 mt-1">{a.desc}</p>
 </button>
 ))}

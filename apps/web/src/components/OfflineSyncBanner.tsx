@@ -106,13 +106,14 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
     }
   };
 
-  const dotColor = unreachable || !isOnline ? 'bg-amber-500' : queue.length > 0 ? 'bg-blue-500' : 'bg-emerald-500';
+  const dotColor = unreachable || !isOnline ? 'bg-amber-700' : queue.length > 0 ? 'bg-blue-700' : 'bg-emerald-700';
   const dotTitle = !isOnline ? 'Offline' : unreachable ? "Can't reach the server" : queue.length > 0 ? 'Syncing saved changes' : 'Online';
 
   // Compact status dot — always rendered, never a banner by itself.
   const dot = (
     <span
       title={dotTitle}
+      role="img"
       aria-label={dotTitle}
       className={`inline-block w-2 h-2 rounded-full shrink-0 ${dotColor}${unreachable || !isOnline || queue.length > 0 ? ' animate-pulse' : ''}`}
     />
@@ -124,7 +125,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
     return (
       <div className="p-3 rounded-xl border bg-amber-50 border-amber-300 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-700 animate-pulse" />
           <div>
             <span className="font-bold">Can't reach the server. Retrying…</span>
             <p className="text-[11px] opacity-90 mt-0.5">Your changes are kept. We'll reconnect automatically.</p>
@@ -133,7 +134,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
         <button
           onClick={handleRetry}
           disabled={retrying}
-          className="px-3 py-1 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-md transition disabled:opacity-50"
+          className="px-3 py-1 text-xs font-semibold bg-amber-700 hover:bg-amber-800 text-white rounded-md transition disabled:opacity-50"
         >
           {retrying ? 'Checking…' : 'Retry now'}
         </button>
@@ -147,7 +148,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
         !isOnline ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-blue-50 border-blue-200 text-blue-900'
       }`}>
         <div className="flex items-center gap-2.5">
-          <span className={`w-2.5 h-2.5 rounded-full ${!isOnline ? 'bg-amber-500' : 'bg-blue-500 animate-pulse'}`} />
+          <span className={`w-2.5 h-2.5 rounded-full ${!isOnline ? 'bg-amber-700' : 'bg-blue-700 animate-pulse'}`} />
           <div>
             <span className="font-bold">{!isOnline ? 'Working offline' : 'Sending saved changes'}</span>
             <p className="text-[11px] opacity-90 mt-0.5">
@@ -169,7 +170,7 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
             <button
               onClick={handleSync}
               disabled={isSyncing}
-              className="px-3 py-1 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-xs transition disabled:opacity-50"
+              className="px-3 py-1 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-md shadow-xs transition disabled:opacity-50"
             >
               {isSyncing ? 'Syncing…' : 'Sync now'}
             </button>
@@ -185,5 +186,5 @@ export default function OfflineSyncBanner(): React.JSX.Element | null {
   }
 
   // All good: just the dot, inline with surrounding chrome.
-  return <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-400">{dot}Online</span>;
+  return <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-600">{dot}Online</span>;
 }

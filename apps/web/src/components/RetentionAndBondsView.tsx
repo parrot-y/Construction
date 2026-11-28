@@ -300,7 +300,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <div className="bg-gradient-to-r from-blue-950 to-slate-900 rounded-xl p-6 text-white shadow-lg border border-blue-900/40">
 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 <div>
-<div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-600/30 text-blue-300 border border-blue-500/30 mb-2">
+<div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-600/30 text-blue-700 border border-blue-500/30 mb-2">
 <span> Subcontractor Retention &amp; Bank Bonds Engine</span>
 <span>•</span>
 <span>JBC 1999 Clause 30 &amp; 34 Dual-Moiety</span>
@@ -313,7 +313,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <div className="flex items-center gap-3">
 <button
               onClick={() => setShowReleaseModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
+              className="bg-blue-700 hover:bg-blue-800 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
             >
 <span>+</span>
 <span>Issue Retention Release</span>
@@ -333,22 +333,22 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Subcontract Retention Held</div>
 <div className="text-xl font-bold text-white mt-1">{formatKes(summary.totalRetentionHeld)}</div>
-<div className="text-[10px] text-blue-300 mt-1">{pct.cap}% Retention Cap</div>
+<div className="text-[10px] text-blue-700 mt-1">{pct.cap}% Retention Cap</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Retention Disbursed</div>
-<div className="text-xl font-bold text-emerald-400 mt-1">{formatKes(summary.totalReleasedAmount)}</div>
-<div className="text-[10px] text-emerald-300 mt-1">M-Pesa B2C / EFT Released</div>
+<div className="text-xl font-bold text-emerald-700 mt-1">{formatKes(summary.totalReleasedAmount)}</div>
+<div className="text-[10px] text-emerald-700 mt-1">M-Pesa B2C / EFT Released</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Active Performance Bonds</div>
-<div className="text-xl font-bold text-amber-300 mt-1">{bonds.filter((b) => b.claimStatus === 'ACTIVE').length} Active</div>
+<div className="text-xl font-bold text-amber-700 mt-1">{bonds.filter((b) => b.claimStatus === 'ACTIVE').length} Active</div>
 <div className="text-[10px] text-amber-300/80 mt-1">Commercial Bank Underwritten</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-blue-800/30">
 <div className="text-xs text-blue-200/70">Total Bond Guarantees</div>
 <div className="text-xl font-bold text-white mt-1">{formatKes(bonds.reduce((s, b) => s + parseFloat(b.bondAmount), 0))}</div>
-<div className="text-[10px] text-slate-400 mt-1">Risk Protection Ceiling</div>
+<div className="text-[10px] text-slate-600 mt-1">Risk Protection Ceiling</div>
 </div>
 </div>
 </div>
@@ -359,7 +359,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
           onClick={() => setActiveTab('RETENTION')}
           className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'RETENTION'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
 }`}
         >
@@ -369,7 +369,7 @@ export const RetentionAndBondsView: React.FC<RetentionAndBondsViewProps> = ({
           onClick={() => setActiveTab('BONDS')}
           className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'BONDS'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+              ? 'border-blue-600 text-blue-700 dark:text-blue-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
 }`}
         >

@@ -80,7 +80,7 @@ export default function PhotoEvidenceGallery({
 
       {displayPhotos.length === 0 ? (
 <div className="border border-slate-200 rounded-xl p-8 text-center bg-slate-50/50 space-y-2">
-<div className="text-3xl text-slate-400"></div>
+<div className="text-3xl text-slate-600"></div>
 <p className="text-xs font-semibold text-slate-700">No Photo Records Available</p>
 <p className="text-[11px] text-slate-500 max-w-md mx-auto">
             Site progress photos will appear here as field inspections and site diaries are logged.
@@ -128,9 +128,9 @@ export default function PhotoEvidenceGallery({
 </p>
 </div>
 
-<div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+<div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-600">
 <span>{photo.captured_at ? photo.captured_at.split('T')[0] : '—'}</span>
-<span className="text-emerald-600 font-semibold group-hover:underline">
+<span className="text-emerald-700 font-semibold group-hover:underline">
                       Inspect Photo →
 </span>
 </div>

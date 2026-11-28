@@ -153,7 +153,7 @@ export default function ProjectMapView({ projectId, canEdit = false }: { project
     return <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-slate-500">Loading project map…</div>;
   }
   if (error) {
-    return <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-red-600">{error}</div>;
+    return <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center text-sm text-red-700">{error}</div>;
   }
 
   const hasAnything = projectPin || geofences.length > 0 || photos.length > 0;
@@ -173,7 +173,7 @@ export default function ProjectMapView({ projectId, canEdit = false }: { project
             type="button"
             onClick={() => void setProjectLocation()}
             disabled={locating}
-            className="px-3.5 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-lg"
+            className="px-3.5 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 disabled:opacity-50 text-white rounded-lg"
           >
             {locating ? 'Locating…' : projectPin ? 'Reset pin to my location' : 'Set site location'}
           </button>
@@ -186,7 +186,7 @@ export default function ProjectMapView({ projectId, canEdit = false }: { project
           <p className="text-xs text-slate-500">Set the site pin with your device GPS, or add geofences under Site → Attendance.</p>
           {canEdit && (
             <button type="button" onClick={() => void setProjectLocation()} disabled={locating}
-              className="px-4 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg">
+              className="px-4 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg">
               {locating ? 'Locating…' : 'Set site location'}
             </button>
           )}

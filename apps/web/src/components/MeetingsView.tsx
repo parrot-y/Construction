@@ -93,7 +93,7 @@ export default function MeetingsView({ projectId, canManage = true}: { projectId
 <p className="text-xs text-slate-500">Site and team meetings — export any meeting to your calendar (.ics)</p>
 </div>
         {canManage && (
-<button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+<button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
             {showForm ? 'Cancel' : '+ Schedule meeting'}
 </button>
 )}
@@ -117,7 +117,7 @@ export default function MeetingsView({ projectId, canManage = true}: { projectId
 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value})} rows={2} className={input} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void create()} disabled={saving || form.title.trim().length < 3}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {saving ? 'Saving…' : 'Schedule'}
 </button>
 </div>
@@ -137,7 +137,7 @@ export default function MeetingsView({ projectId, canManage = true}: { projectId
 <div className="min-w-0">
 <div className="flex items-center gap-2 flex-wrap">
 <span className="text-sm font-bold text-slate-900">{m.title}</span>
-<span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${cancelled ? 'bg-rose-50 text-rose-600' : past ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'}`}>
+<span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${cancelled ? 'bg-rose-50 text-rose-700' : past ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'}`}>
                         {cancelled ? 'Cancelled' : past ? 'Held' : 'Scheduled'}
 </span>
 </div>
@@ -146,7 +146,7 @@ export default function MeetingsView({ projectId, canManage = true}: { projectId
                     {m.location ? ` · ${m.location}` : ''}
 </p>
                 {m.description &&<p className="text-[11px] text-slate-500 mt-1">{m.description}</p>}
-                {m.attendees.length > 0 &&<p className="text-[10px] text-slate-400 mt-1">With: {m.attendees.join(', ')}</p>}
+                {m.attendees.length > 0 &&<p className="text-[10px] text-slate-600 mt-1">With: {m.attendees.join(', ')}</p>}
 </div>
 <div className="flex flex-col gap-1 shrink-0">
 <a href={`/api/v1/meetings/${m.id}/ics`} download
@@ -155,7 +155,7 @@ export default function MeetingsView({ projectId, canManage = true}: { projectId
 </a>
                   {canManage && !cancelled && (
 <button onClick={() => void cancel(m.id)} disabled={cancelling === m.id}
-                        className="px-2.5 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg disabled:opacity-50">
+                        className="px-2.5 py-1 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg disabled:opacity-50">
                         {cancelling === m.id ? 'Cancelling…' : 'Cancel'}
 </button>
 )}

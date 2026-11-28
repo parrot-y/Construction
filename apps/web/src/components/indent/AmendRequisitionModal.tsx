@@ -73,9 +73,9 @@ export const AmendRequisitionModal: React.FC<{
       <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
           <h3 className="text-lg font-bold text-slate-900">Amend {req.requisitionNo}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold" aria-label="Close amend dialog">✕</button>
+          <button onClick={onClose} className="text-slate-600 hover:text-slate-600 font-bold" aria-label="Close amend dialog">✕</button>
         </div>
-        {error && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{error}</p>}
         <form onSubmit={submit} className="space-y-3 text-sm">
           <div>
             <label className={lbl}>Reason for amendment *</label>
@@ -106,7 +106,7 @@ export const AmendRequisitionModal: React.FC<{
           />
           <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
             <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 transition">Cancel</button>
-            <button type="submit" disabled={saving || !isLive} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50">
+            <button type="submit" disabled={saving || !isLive} className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50">
               {saving ? 'Saving…' : 'Save amendment'}
             </button>
           </div>

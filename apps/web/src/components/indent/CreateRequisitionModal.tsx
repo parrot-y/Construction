@@ -137,14 +137,14 @@ export const CreateRequisitionModal: React.FC<CreateRequisitionModalProps> = ({ 
 <button
           type="button"
           onClick={onClose}
-          className="text-slate-400 hover:text-slate-600 font-bold"
+          className="text-slate-600 hover:text-slate-600 font-bold"
         >
 
 </button>
 </div>
 
 <form onSubmit={handleCreate} className="space-y-4 text-sm">
-{formError && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{formError}</p>}
+{formError && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{formError}</p>}
 <div>
 <label className="block font-medium text-slate-700 mb-1">
             Item Description / Material Name *
@@ -359,7 +359,7 @@ export const CreateRequisitionModal: React.FC<CreateRequisitionModalProps> = ({ 
 <button
             type="submit"
             disabled={isSubmitting}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
+            className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
           >
             {isSubmitting ? 'Saving...' : 'Submit Requisition'}
 </button>

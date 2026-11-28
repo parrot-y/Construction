@@ -182,7 +182,7 @@ export default function CreateSnagModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close"
           >
             
@@ -241,7 +241,7 @@ export default function CreateSnagModal({
 
 <div>
 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Room / Zone<span className="text-rose-500">*</span>
+                  Room / Zone<span className="text-rose-700">*</span>
 </label>
 <input
                   type="text"
@@ -258,7 +258,7 @@ export default function CreateSnagModal({
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Trade Category<span className="text-rose-500">*</span>
+                Trade Category<span className="text-rose-700">*</span>
 </label>
 <select
                 value={tradeCategory}
@@ -283,7 +283,7 @@ export default function CreateSnagModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Severity Level<span className="text-rose-500">*</span>
+                Severity Level<span className="text-rose-700">*</span>
 </label>
 <select
                 value={severity}
@@ -373,7 +373,7 @@ export default function CreateSnagModal({
 
 <div>
 <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Defect Description<span className="text-rose-500">*</span>
+              Defect Description<span className="text-rose-700">*</span>
 </label>
 <textarea
               rows={3}
@@ -421,7 +421,7 @@ export default function CreateSnagModal({
               >
                 {geoStatus === 'requesting' ? 'Locating…' : 'Use my current location'}
 </button>
-<span className={`text-[10px] ${geoStatus === 'ready' ? 'text-emerald-700' : 'text-slate-400'}`}>
+<span className={`text-[10px] ${geoStatus === 'ready' ? 'text-emerald-700' : 'text-slate-600'}`}>
                 {geoStatus === 'ready' && geoAccuracy != null ? `GPS fix ±${Math.round(geoAccuracy)} m` : geoStatus === 'denied' ? 'Location permission denied — enter coordinates manually or leave blank' : ' '}
 </span>
 </div>

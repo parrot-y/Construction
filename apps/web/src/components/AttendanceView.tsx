@@ -108,7 +108,7 @@ export default function AttendanceView({ projectId, canManage = true}: { project
 
       {canManage && (
 <div className="flex justify-end">
-<button onClick={() => setShowLaborerForm((v) => !v)} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800">
+<button onClick={() => setShowLaborerForm((v) => !v)} className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-800">
             {showLaborerForm ? '− Cancel' : '+ Register laborer'}
 </button>
 </div>
@@ -163,7 +163,7 @@ export default function AttendanceView({ projectId, canManage = true}: { project
                   setLabSaving(false);
 }
 }}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50"
             >
               {labSaving ? 'Saving…' : 'Save laborer'}
 </button>
@@ -173,9 +173,9 @@ export default function AttendanceView({ projectId, canManage = true}: { project
 
       {summary && (
 <div className="grid grid-cols-3 gap-2 text-center">
-<div className="bg-emerald-50 rounded-lg py-2"><p className="text-lg font-bold text-emerald-700">{summary.present}</p><p className="text-[10px] font-semibold text-emerald-600">Present</p></div>
-<div className="bg-sky-50 rounded-lg py-2"><p className="text-lg font-bold text-sky-700">{summary.on_leave}</p><p className="text-[10px] font-semibold text-sky-600">Leave / off</p></div>
-<div className="bg-rose-50 rounded-lg py-2"><p className="text-lg font-bold text-rose-700">{summary.absent}</p><p className="text-[10px] font-semibold text-rose-600">Absent</p></div>
+<div className="bg-emerald-50 rounded-lg py-2"><p className="text-lg font-bold text-emerald-700">{summary.present}</p><p className="text-[10px] font-semibold text-emerald-700">Present</p></div>
+<div className="bg-sky-50 rounded-lg py-2"><p className="text-lg font-bold text-sky-700">{summary.on_leave}</p><p className="text-[10px] font-semibold text-sky-700">Leave / off</p></div>
+<div className="bg-rose-50 rounded-lg py-2"><p className="text-lg font-bold text-rose-700">{summary.absent}</p><p className="text-[10px] font-semibold text-rose-700">Absent</p></div>
 </div>
 )}
 
@@ -188,15 +188,15 @@ export default function AttendanceView({ projectId, canManage = true}: { project
             return (
 <div key={l.id} className="border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 flex-wrap">
 <div className="min-w-0">
-<p className="text-xs font-bold text-slate-900">{l.full_name}<span className="text-slate-400 font-mono tabular-nums">{l.worker_code}</span></p>
+<p className="text-xs font-bold text-slate-900">{l.full_name}<span className="text-slate-600 font-mono tabular-nums">{l.worker_code}</span></p>
 <p className="text-[10px] text-slate-500">{l.trade_category}{row?.crew ? ` · ${row.crew.name}` : ''}</p>
 </div>
 <div className="flex items-center gap-2 flex-wrap">
                   {row && (
 <>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLE[row.status] || 'bg-slate-100 text-slate-600'}`}>{row.status.replace('_', ' ')}</span>
-                      {row.check_in_at &&<span className="text-[10px] text-slate-400">in {formatTime(new Date(row.check_in_at))}</span>}
-                      {row.check_out_at &&<span className="text-[10px] text-slate-400">out {formatTime(new Date(row.check_out_at))}{row.hours_worked ? ` (${row.hours_worked}h)` : ''}</span>}
+                      {row.check_in_at &&<span className="text-[10px] text-slate-600">in {formatTime(new Date(row.check_in_at))}</span>}
+                      {row.check_out_at &&<span className="text-[10px] text-slate-600">out {formatTime(new Date(row.check_out_at))}{row.hours_worked ? ` (${row.hours_worked}h)` : ''}</span>}
 </>
 )}
                   {canManage && !row?.check_in_at && (

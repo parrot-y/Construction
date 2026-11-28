@@ -348,7 +348,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
       {notice && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {notice}</span>
-<button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setNotice(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -464,7 +464,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <input type="number" step="0.01" value={it.unitRate} onChange={(e) => setItem(idx, { unitRate: e.target.value})} placeholder="Rate"
                   className="col-span-2 text-[11px] p-1.5 border border-slate-300 rounded" />
 <button type="button" onClick={() => removeItem(idx)} disabled={items.length === 1}
-                  className="col-span-1 text-[11px] text-rose-600 hover:text-rose-800 font-bold disabled:opacity-30"></button>
+                  className="col-span-1 text-[11px] text-rose-700 hover:text-rose-800 font-bold disabled:opacity-30"></button>
 </div>
 ))}
 </div>
@@ -484,15 +484,15 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 )}
 
       {loading ? (
-<p className="text-xs text-slate-400 text-center py-6">Loading invoices…</p>
+<p className="text-xs text-slate-600 text-center py-6">Loading invoices…</p>
 ) : invoices.length === 0 ? (
-<p className="text-xs text-slate-400 text-center py-6">No invoices yet. Create your first invoice to start tracking accounts receivable.</p>
+<p className="text-xs text-slate-600 text-center py-6">No invoices yet. Create your first invoice to start tracking accounts receivable.</p>
 ) : (
 <>
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
-<tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
+<tr className="text-left text-[10px] text-slate-600 border-b border-slate-200">
 <th className="py-2 pr-3">Invoice</th>
 <th className="py-2 pr-3">Client</th>
 <th className="py-2 pr-3">Total</th>
@@ -514,7 +514,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 </td>
 <td className="py-2.5 pr-3">
 <span className="font-medium text-slate-800">{inv.client_name}</span>
-                      {inv.client_email &&<span className="block text-[10px] text-slate-400">{inv.client_email}</span>}
+                      {inv.client_email &&<span className="block text-[10px] text-slate-600">{inv.client_email}</span>}
 </td>
 <td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{formatMoney(inv.total, inv.currency)}</td>
 <td className="py-2.5 pr-3 tabular-nums text-slate-600">{formatMoney(inv.balance_due, inv.currency)}</td>
@@ -527,13 +527,13 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <td className="py-2.5 space-x-1.5 whitespace-nowrap">
                       {inv.status === 'DRAFT' && (
 <button onClick={() => handleSend(inv)} disabled={busyId === inv.id}
-                          className="px-2 py-1 text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50">
+                          className="px-2 py-1 text-[10px] font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded disabled:opacity-50">
                           Send
 </button>
 )}
                       {(inv.status === 'SENT' || inv.status === 'PART_PAID' || inv.status === 'OVERDUE') && (
 <button onClick={async () => { await openDetail(inv.id); setShowPayForm(true); }}
-                          className="px-2 py-1 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded">
+                          className="px-2 py-1 text-[10px] font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded">
                           Record payment
 </button>
 )}
@@ -547,14 +547,14 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <tr className="border-b border-slate-100 bg-slate-50">
 <td colSpan={7} className="py-3 px-2">
                         {!detail ? (
-<p className="text-[11px] text-slate-400 py-2">Loading detail…</p>
+<p className="text-[11px] text-slate-600 py-2">Loading detail…</p>
 ) : (
 <div className="space-y-3">
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-<div><span className="text-slate-400">Issue:</span><strong>{fmtDate(detail.issue_date)}</strong></div>
-<div><span className="text-slate-400">Due:</span><strong>{fmtDate(detail.due_date)}</strong></div>
-<div><span className="text-slate-400">Paid:</span><strong>{formatMoney(detail.amount_paid, detail.currency)}</strong></div>
-<div><span className="text-slate-400">Balance:</span><strong className="text-rose-700">{formatMoney(detail.balance_due, detail.currency)}</strong></div>
+<div><span className="text-slate-600">Issue:</span><strong>{fmtDate(detail.issue_date)}</strong></div>
+<div><span className="text-slate-600">Due:</span><strong>{fmtDate(detail.due_date)}</strong></div>
+<div><span className="text-slate-600">Paid:</span><strong>{formatMoney(detail.amount_paid, detail.currency)}</strong></div>
+<div><span className="text-slate-600">Balance:</span><strong className="text-rose-700">{formatMoney(detail.balance_due, detail.currency)}</strong></div>
 </div>
                             {detail.po_number &&<p className="text-[11px] text-slate-500">PO Ref: {detail.po_number}</p>}
                             {detail.bill_to &&<p className="text-[11px] text-slate-500 whitespace-pre-line">Bill to: {detail.bill_to}</p>}
@@ -563,7 +563,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 
 <table className="w-full text-[11px]">
 <thead>
-<tr className="text-left text-[9px] text-slate-400 border-b border-slate-200">
+<tr className="text-left text-[9px] text-slate-600 border-b border-slate-200">
 <th className="py-1 pr-2">Description</th>
 <th className="py-1 pr-2">Unit</th>
 <th className="py-1 pr-2 text-right">Qty</th>
@@ -592,7 +592,7 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 
                             {(detail.payments ?? []).length > 0 && (
 <div>
-<p className="text-[10px] font-bold text-slate-400 mb-1">Payments received</p>
+<p className="text-[10px] font-bold text-slate-600 mb-1">Payments received</p>
 <div className="space-y-1">
                                   {detail.payments!.map((p) => (
 <div key={p.id} className="flex justify-between text-[11px] text-slate-600">
@@ -610,13 +610,13 @@ export default function InvoicingView({ userRole = '' }: { userRole?: string } =
 <div className="flex flex-wrap gap-2 pt-1">
                               {detail.status === 'DRAFT' && (
 <button onClick={() => handleSend(detail)} disabled={busyId === detail.id}
-                                  className="px-2.5 py-1 text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50">
+                                  className="px-2.5 py-1 text-[10px] font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded disabled:opacity-50">
                                   Mark as Sent
 </button>
 )}
                               {(detail.status === 'SENT' || detail.status === 'PART_PAID' || detail.status === 'OVERDUE') && (
 <button onClick={() => setShowPayForm((v) => !v)}
-                                  className="px-2.5 py-1 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded">
+                                  className="px-2.5 py-1 text-[10px] font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded">
                                   {showPayForm ? 'Cancel payment' : 'Record payment'}
 </button>
 )}

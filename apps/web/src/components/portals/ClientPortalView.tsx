@@ -71,7 +71,7 @@ const STATUS_STYLES: Record<string, string> = {
   OWNER_REVIEW: 'bg-orange-50 text-orange-700',
   APPROVED: 'bg-emerald-50 text-emerald-700',
   REJECTED: 'bg-rose-50 text-rose-700',
-  VOID: 'bg-slate-100 text-slate-400',
+  VOID: 'bg-slate-100 text-slate-600',
 };
 
 export default function ClientPortalView({ token }: ClientPortalViewProps): React.JSX.Element {
@@ -328,7 +328,7 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
 <div className="flex gap-2 pt-1">
 <button
                     onClick={() => void respond(co, 'APPROVE')}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg"
                   >
                     Approve
 </button>
@@ -416,7 +416,7 @@ export default function ClientPortalView({ token }: ClientPortalViewProps): Reac
           )}
 
           {extra.progressPhotos.length === 0 && extra.certificates.length === 0 && extra.invoices.length === 0 && extra.progressRecords.length === 0 && (
-            <p className="text-xs text-slate-400 text-center py-4">No progress updates shared yet — the site team will publish photos and certificates here.</p>
+            <p className="text-xs text-slate-600 text-center py-4">No progress updates shared yet — the site team will publish photos and certificates here.</p>
           )}
         </>
       )}

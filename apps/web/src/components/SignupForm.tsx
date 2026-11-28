@@ -59,7 +59,7 @@ export default function SignupForm({ apiBaseUrl = '' }: SignupFormProps): React.
           {registered.verifyUrl && (
             <p className="mt-3 text-xs text-slate-500">
               Verification link (simulated delivery — production sends this by email):{' '}
-              <a href={registered.verifyUrl} className="font-semibold text-brand-600 hover:underline break-all">
+              <a href={registered.verifyUrl} className="font-semibold text-brand-700 hover:underline break-all">
                 {registered.verifyUrl}
               </a>
             </p>
@@ -70,7 +70,7 @@ export default function SignupForm({ apiBaseUrl = '' }: SignupFormProps): React.
           <button
             type="button"
             onClick={() => { window.location.href = '/'; }}
-            className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]"
+            className="mt-4 text-sm font-semibold text-brand-700 hover:text-brand-700 min-h-[44px]"
           >
             Back to sign in
           </button>
@@ -129,7 +129,7 @@ export default function SignupForm({ apiBaseUrl = '' }: SignupFormProps): React.
               autoComplete="new-password" />
           </div>
           <button type="submit" disabled={isLoading}
-            className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 min-h-[44px]">
+            className="w-full rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50 min-h-[44px]">
             {isLoading ? 'Creating workspace…' : 'Create workspace'}
           </button>
         </form>

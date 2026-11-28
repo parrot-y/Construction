@@ -251,7 +251,7 @@ export default function FieldDashboard({ session, readOnly = false, onLogout}: {
         {SECTIONS.map((s) => (
 <button key={s.id} onClick={() => setSection(s.id)}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition ${
-              section === s.id ? 'text-slate-900' : 'text-slate-400'
+              section === s.id ? 'text-slate-900' : 'text-slate-600'
 }`}>
 <span className="text-lg leading-none">{s.icon}</span>
             {s.label}

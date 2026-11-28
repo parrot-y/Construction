@@ -201,7 +201,7 @@ export default function SafetyIncidentLogView({
   const getSeverityBadge = (sev: SafetyIncident['severity']) => {
     switch (sev) {
       case 'CRITICAL':
-        return<span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-600 text-white">CRITICAL</span>;
+        return<span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-700 text-white">CRITICAL</span>;
       case 'HIGH':
         return<span className="px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">HIGH</span>;
       case 'MEDIUM':
@@ -230,7 +230,7 @@ export default function SafetyIncidentLogView({
           {canLog && (
 <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-rose-600 hover:bg-rose-700 shadow-sm"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-rose-700 hover:bg-rose-800 shadow-sm"
             >
                Log Safety Incident
 </button>
@@ -243,7 +243,7 @@ export default function SafetyIncidentLogView({
 <span className="text-xs text-slate-500 font-medium">Total Logged Incidents</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{totalIncidents}</span>
-<span className="text-xs text-slate-400">cases</span>
+<span className="text-xs text-slate-600">cases</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">All time on site</div>
 </div>
@@ -251,8 +251,8 @@ export default function SafetyIncidentLogView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Near Misses Logged</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-amber-600">{nearMisses}</span>
-<span className="text-xs text-slate-400">proactive</span>
+<span className="text-2xl font-bold text-amber-700">{nearMisses}</span>
+<span className="text-xs text-slate-600">proactive</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">Hazard identification</div>
 </div>
@@ -260,10 +260,10 @@ export default function SafetyIncidentLogView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Lost Time Injuries (LTI)</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className={`text-2xl font-bold ${lostTimeCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+<span className={`text-2xl font-bold ${lostTimeCount > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                 {lostTimeCount}
 </span>
-<span className="text-xs text-slate-400">LTI</span>
+<span className="text-xs text-slate-600">LTI</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               {lostTimeCount === 0 ? 'Zero Harm achieved' : 'LTI investigation open'}
@@ -273,10 +273,10 @@ export default function SafetyIncidentLogView({
 <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">OSHA 2007 Reportable</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className={`text-2xl font-bold ${oshaReportableCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+<span className={`text-2xl font-bold ${oshaReportableCount > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                 {oshaReportableCount}
 </span>
-<span className="text-xs text-slate-400">to DOSHS</span>
+<span className="text-xs text-slate-600">to DOSHS</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               {oshaReportableCount === 0 ? 'No statutory filing needed' : 'DOSHS notice filed'}
@@ -353,7 +353,7 @@ export default function SafetyIncidentLogView({
                          OSHA 2007 REPORTABLE
 </span>
 )}
-<span className="text-xs text-slate-400">
+<span className="text-xs text-slate-600">
                       • {formatDateTime(new Date(item.incident_date))}
 </span>
 </div>
@@ -387,7 +387,7 @@ export default function SafetyIncidentLogView({
                 {/* Status & Actions */}
 <div className="lg:w-48 flex flex-col items-start lg:items-end justify-between self-stretch">
 <div className="text-right">
-<span className="text-xs text-slate-400 block mb-1">Investigation Status</span>
+<span className="text-xs text-slate-600 block mb-1">Investigation Status</span>
                     {canInvestigate ? (
 <select
                         value={statusLabel(item.status)}
@@ -407,7 +407,7 @@ export default function SafetyIncidentLogView({
 </div>
 
                   {item.recorded_by && (
-<div className="text-[11px] text-slate-400 mt-4 text-right">
+<div className="text-[11px] text-slate-600 mt-4 text-right">
                       Logged by:<span className="text-slate-600">{item.recorded_by.full_name}</span>
 </div>
 )}
@@ -546,7 +546,7 @@ export default function SafetyIncidentLogView({
                     type="checkbox"
                     checked={newOsha}
                     onChange={(e) => setNewOsha(e.target.checked)}
-                    className="rounded text-rose-600 focus:ring-rose-500"
+                    className="rounded text-rose-700 focus:ring-rose-500"
                   />
 <span>Mandatory OSHA 2007 reportable to Directorate of Occupational Safety (DOSHS)?</span>
 </label>
@@ -563,7 +563,7 @@ export default function SafetyIncidentLogView({
 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white bg-rose-700 hover:bg-rose-800 rounded-lg shadow-sm disabled:opacity-50"
                 >
                   {saving ? 'Saving…' : 'Save Incident Entry'}
 </button>

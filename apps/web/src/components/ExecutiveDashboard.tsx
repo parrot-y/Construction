@@ -50,16 +50,16 @@ export default function ExecutiveDashboard({ session}: { session: AuthSession}):
       {/* Portfolio strip */}
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 <div className="bg-white rounded-xl border border-slate-200 p-4">
-<p className="text-[10px] font-bold text-slate-400">Active projects</p>
+<p className="text-[10px] font-bold text-slate-600">Active projects</p>
 <p className="text-2xl font-bold text-slate-900 mt-1">{projects.length}</p>
 </div>
 <div className="bg-white rounded-xl border border-slate-200 p-4">
-<p className="text-[10px] font-bold text-slate-400">Open observations</p>
-<p className="text-2xl font-bold text-amber-600 mt-1">{kpis?.openObservations ?? '—'}</p>
+<p className="text-[10px] font-bold text-slate-600">Open observations</p>
+<p className="text-2xl font-bold text-amber-700 mt-1">{kpis?.openObservations ?? '—'}</p>
 </div>
 <div className="bg-white rounded-xl border border-slate-200 p-4">
-<p className="text-[10px] font-bold text-slate-400">Open snags</p>
-<p className="text-2xl font-bold text-rose-600 mt-1">{kpis?.openSnags ?? '—'}</p>
+<p className="text-[10px] font-bold text-slate-600">Open snags</p>
+<p className="text-2xl font-bold text-rose-700 mt-1">{kpis?.openSnags ?? '—'}</p>
 </div>
 </div>
 

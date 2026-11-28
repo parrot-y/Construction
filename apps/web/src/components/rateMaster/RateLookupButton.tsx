@@ -61,12 +61,12 @@ export const RateLookupButton: React.FC<{
       >
         {busy ? '…' : label}
       </button>
-      {error && !open && <span className="ml-2 text-[11px] text-rose-600">{error}</span>}
+      {error && !open && <span className="ml-2 text-[11px] text-rose-700">{error}</span>}
       {open && (
         <div className="absolute z-30 mt-1 left-0 w-80 bg-white border border-slate-200 rounded-xl shadow-lg p-2 space-y-1">
           <div className="flex items-center justify-between px-1">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Rate master matches</p>
-            <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 text-xs" aria-label="Close rate matches">✕</button>
+            <button type="button" onClick={() => setOpen(false)} className="text-slate-600 hover:text-slate-600 text-xs" aria-label="Close rate matches">✕</button>
           </div>
           {matches.map((m) => (
             <button
@@ -83,7 +83,7 @@ export const RateLookupButton: React.FC<{
               </p>
             </button>
           ))}
-          {matches.length === 0 && <p className="text-xs text-slate-400 px-2 py-1">No matches — add the rate in Money → Rate master.</p>}
+          {matches.length === 0 && <p className="text-xs text-slate-600 px-2 py-1">No matches — add the rate in Money → Rate master.</p>}
         </div>
       )}
     </span>

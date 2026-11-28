@@ -172,7 +172,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 </div>
 <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
+          className="inline-flex items-center justify-center px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
         >
            Disburse via M-Pesa B2C
 </button>
@@ -189,7 +189,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Total Disbursed</p>
 <p className="text-2xl font-bold text-gray-900 mt-1">{formatKes(totalDisbursedKes)}</p>
-<span className="text-xs text-emerald-600 font-medium">B2C Salary & Business Payouts</span>
+<span className="text-xs text-emerald-700 font-medium">B2C Salary & Business Payouts</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Completed Payouts</p>
@@ -200,12 +200,12 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Disbursement Types</p>
-<p className="text-2xl font-bold text-blue-600 mt-1">3 Categories</p>
+<p className="text-2xl font-bold text-blue-700 mt-1">3 Categories</p>
 <span className="text-xs text-gray-500 font-medium">Casuals • Subcontractors • Petty</span>
 </div>
 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
 <p className="text-xs font-medium text-gray-500 ">Daraja Gateway</p>
-<p className="text-2xl font-bold text-emerald-600 mt-1">OPERATIONAL</p>
+<p className="text-2xl font-bold text-emerald-700 mt-1">OPERATIONAL</p>
 <span className="text-xs text-gray-500 font-medium">Safaricom B2C API 2.0</span>
 </div>
 </div>
@@ -251,7 +251,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
                     SIM
 </span>
 </td>
-<td className="px-4 py-3 text-center font-mono tabular-nums text-xs font-bold text-blue-600">
+<td className="px-4 py-3 text-center font-mono tabular-nums text-xs font-bold text-blue-700">
                   {tx.mpesaTransactionId || '—'}
 </td>
 <td className="px-4 py-3 text-right text-xs text-gray-500">
@@ -263,7 +263,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 <button
                         type="button"
                         onClick={() => void handleApproval(tx.id, 'approve')}
-                        className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                        className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-700 text-white hover:bg-emerald-800"
                       >Approve</button>
 <button
                         type="button"
@@ -366,7 +366,7 @@ export const MpesaDisbursementView: React.FC<MpesaDisbursementViewProps> = ({
 <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium rounded-md shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Disbursing...' : 'Confirm & Disburse M-Pesa'}
 </button>

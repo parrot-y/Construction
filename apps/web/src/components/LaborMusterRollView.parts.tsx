@@ -29,13 +29,13 @@ export const LaborHeaderControls: React.FC<{
 <div className="flex items-center gap-2">
 <button
             onClick={onAddWorker}
-            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
+            className="px-3 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-sm font-semibold rounded-lg shadow-sm transition"
           >
             + Register Artisan / Casual
 </button>
 <button
             onClick={onCreateRoll}
-            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
+            className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold rounded-lg shadow-sm transition"
           >
             + Compile Weekly Muster Roll
 </button>
@@ -61,7 +61,7 @@ export const LaborKpiCards: React.FC<{
 <p className="text-2xl font-bold text-gray-900 mt-1">
             {summary.totalWorkers} Workers
 </p>
-<span className="text-xs text-indigo-600 font-medium">
+<span className="text-xs text-indigo-700 font-medium">
             100% Kenyan National ID Verified
 </span>
 </div>
@@ -80,7 +80,7 @@ export const LaborKpiCards: React.FC<{
 <span className="text-xs font-semibold text-gray-500 ">
             Pending QS Verification
 </span>
-<p className="text-2xl font-bold text-amber-600 mt-1">
+<p className="text-2xl font-bold text-amber-700 mt-1">
             {musterRollsList.filter((r) => r.status === 'PENDING_VERIFICATION').length} Rolls
 </p>
 <span className="text-xs text-gray-500">Awaiting supervisor &amp; QS signoff</span>
@@ -90,7 +90,7 @@ export const LaborKpiCards: React.FC<{
 <span className="text-xs font-semibold text-gray-500 ">
             Total Wages Disbursed
 </span>
-<p className="text-2xl font-bold text-emerald-600 mt-1 tabular-nums">
+<p className="text-2xl font-bold text-emerald-700 mt-1 tabular-nums">
             {formatKes(totalDisbursedKes)}
 </p>
 <span className="text-xs text-emerald-700 font-medium">M-Pesa B2C Bulk Mobile Payroll</span>
@@ -109,7 +109,7 @@ export const LaborTabs: React.FC<{
           onClick={() => setActiveTab('MUSTER_ROLLS')}
           className={`pb-3 text-sm font-semibold transition border-b-2 ${
             activeTab === 'MUSTER_ROLLS'
-              ? 'border-indigo-600 text-indigo-600'
+              ? 'border-indigo-600 text-indigo-700'
               : 'border-transparent text-gray-500 hover:text-gray-700'
 }`}
         >
@@ -119,7 +119,7 @@ export const LaborTabs: React.FC<{
           onClick={() => setActiveTab('WORKERS_ROSTER')}
           className={`pb-3 text-sm font-semibold transition border-b-2 ${
             activeTab === 'WORKERS_ROSTER'
-              ? 'border-indigo-600 text-indigo-600'
+              ? 'border-indigo-600 text-indigo-700'
               : 'border-transparent text-gray-500 hover:text-gray-700'
 }`}
         >
@@ -435,7 +435,7 @@ export const AddWorkerModal: React.FC<{
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg"
+                  className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-sm font-semibold rounded-lg"
                 >
                   Save Worker
 </button>
@@ -612,7 +612,7 @@ export const CreateMusterRollModal: React.FC<{
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold rounded-lg"
                 >
                   Save &amp; Submit for QS Verification
 </button>
@@ -708,7 +708,7 @@ export const ReviewDisburseModal: React.FC<{
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg"
+                  className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-sm font-semibold rounded-lg"
                 >
                   Confirm Decision
 </button>

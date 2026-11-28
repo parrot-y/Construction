@@ -280,7 +280,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 </div>
 <button
           onClick={() => setShowForm((v) => !v)}
-          className="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition"
+          className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm transition"
         >
           {showForm ? 'Close Form' : '+ New Quote'}
 </button>
@@ -292,7 +292,7 @@ export default function QuotesManagementView(): React.JSX.Element {
       {notice && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {notice}</span>
-<button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setNotice(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -305,7 +305,7 @@ export default function QuotesManagementView(): React.JSX.Element {
               Copy link
 </button>
 </div>
-<button onClick={() => setShareInfo(null)} className="text-blue-600 hover:text-blue-900 font-semibold">Dismiss</button>
+<button onClick={() => setShareInfo(null)} className="text-blue-700 hover:text-blue-900 font-semibold">Dismiss</button>
 </div>
 )}
 
@@ -403,7 +403,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <input type="number" step="0.01" value={it.unitRate} onChange={(e) => setItem(idx, { unitRate: e.target.value})} placeholder="Rate"
                   className="col-span-2 text-[11px] p-1.5 border border-slate-300 rounded" />
 <button type="button" onClick={() => removeItem(idx)} disabled={items.length === 1}
-                  className="col-span-1 text-[11px] text-rose-600 hover:text-rose-800 font-bold disabled:opacity-30"></button>
+                  className="col-span-1 text-[11px] text-rose-700 hover:text-rose-800 font-bold disabled:opacity-30"></button>
 </div>
 ))}
 </div>
@@ -424,14 +424,14 @@ export default function QuotesManagementView(): React.JSX.Element {
 )}
 
       {loading ? (
-<p className="text-xs text-slate-400 text-center py-6">Loading quotes…</p>
+<p className="text-xs text-slate-600 text-center py-6">Loading quotes…</p>
 ) : quotes.length === 0 ? (
-<p className="text-xs text-slate-400 text-center py-6">No quotes yet. Create your first quotation to start the quotes-to-cash flow.</p>
+<p className="text-xs text-slate-600 text-center py-6">No quotes yet. Create your first quotation to start the quotes-to-cash flow.</p>
 ) : (
 <div className="overflow-x-auto">
 <table className="w-full text-xs">
 <thead>
-<tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
+<tr className="text-left text-[10px] text-slate-600 border-b border-slate-200">
 <th className="py-2 pr-3">Quote</th>
 <th className="py-2 pr-3">Client</th>
 <th className="py-2 pr-3">Total</th>
@@ -453,7 +453,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 </td>
 <td className="py-2.5 pr-3">
 <span className="font-medium text-slate-800">{q.client_name}</span>
-                      {q.client_email &&<span className="block text-[10px] text-slate-400">{q.client_email}</span>}
+                      {q.client_email &&<span className="block text-[10px] text-slate-600">{q.client_email}</span>}
 </td>
 <td className="py-2.5 pr-3 tabular-nums font-semibold text-slate-800">{formatMoney(q.total, q.currency)}</td>
 <td className="py-2.5 pr-3 tabular-nums text-slate-600">{formatMoney(q.deposit_amount, q.currency)}</td>
@@ -461,13 +461,13 @@ export default function QuotesManagementView(): React.JSX.Element {
 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_STYLES[q.status] ?? STATUS_STYLES.DRAFT}`}>
                         {statusLabel(q.status)}
 </span>
-                      {q.responded_by &&<span className="block text-[10px] text-slate-400 mt-0.5">by {q.responded_by}</span>}
+                      {q.responded_by &&<span className="block text-[10px] text-slate-600 mt-0.5">by {q.responded_by}</span>}
 </td>
 <td className="py-2.5 pr-3 text-slate-500">{q.valid_until ? formatDate(new Date(q.valid_until)) : '—'}</td>
 <td className="py-2.5 space-x-1.5 whitespace-nowrap">
                       {(q.status === 'DRAFT' || q.status === 'SENT') && (
 <button onClick={() => handleSend(q)} disabled={busyId === q.id}
-                          className="px-2 py-1 text-[10px] font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50">
+                          className="px-2 py-1 text-[10px] font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded disabled:opacity-50">
                           {q.status === 'DRAFT' ? 'Send' : 'Resend'}
 </button>
 )}
@@ -486,7 +486,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <tr className="bg-slate-50">
 <td colSpan={7} className="p-4">
                         {!detail ? (
-<p className="text-[11px] text-slate-400">Loading detail…</p>
+<p className="text-[11px] text-slate-600">Loading detail…</p>
 ) : (
 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
 <div className="lg:col-span-2 space-y-2">
@@ -495,7 +495,7 @@ export default function QuotesManagementView(): React.JSX.Element {
                               {detail.terms &&<p className="text-slate-600 whitespace-pre-wrap">{detail.terms}</p>}
 <table className="w-full text-[11px] mt-2">
 <thead>
-<tr className="text-left text-slate-400 border-b border-slate-200">
+<tr className="text-left text-slate-600 border-b border-slate-200">
 <th className="py-1 pr-2">Item</th>
 <th className="py-1 pr-2">Unit</th>
 <th className="py-1 pr-2 text-right">Qty</th>
@@ -507,7 +507,7 @@ export default function QuotesManagementView(): React.JSX.Element {
                                   {(detail.items ?? []).map((it) => (
 <tr key={it.id} className="border-b border-slate-100">
 <td className="py-1 pr-2 text-slate-700">
-                                        {it.section &&<span className="text-slate-400">[{it.section}]</span>}
+                                        {it.section &&<span className="text-slate-600">[{it.section}]</span>}
                                         {it.description}
 </td>
 <td className="py-1 pr-2 text-slate-500">{it.unit}</td>
@@ -532,7 +532,7 @@ export default function QuotesManagementView(): React.JSX.Element {
 <li key={ev.id} className="text-[11px] text-slate-600 border-l-2 border-slate-200 pl-2">
 <span className="font-bold text-slate-800">{ev.event}</span>
                                     {ev.actor_name ? ` — ${ev.actor_name}` : ''}
-<span className="block text-[10px] text-slate-400">
+<span className="block text-[10px] text-slate-600">
                                       {ev.actor_type} • {formatDateTime(new Date(ev.created_at))}
                                       {ev.note ? ` • ${ev.note}` : ''}
 </span>

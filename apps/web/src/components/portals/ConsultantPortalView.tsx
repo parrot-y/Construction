@@ -194,7 +194,7 @@ export default function ConsultantPortalView({
   }, [token]);
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
+    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-600">Loading portal…</div>;
   }
   if (loadError) {
     return (
@@ -375,7 +375,7 @@ export default function ConsultantPortalView({
       {feedback && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg flex justify-between items-center">
 <span>{feedback}</span>
-<button onClick={() => setFeedback(null)} className="text-emerald-600 font-bold ml-2">×</button>
+<button onClick={() => setFeedback(null)} className="text-emerald-700 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -572,7 +572,7 @@ export default function ConsultantPortalView({
 <div className="space-y-2 text-xs">
                 {insp.items?.map((it) => (
 <div key={it.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded border border-slate-200">
-<span className="text-emerald-600 font-bold text-sm"></span>
+<span className="text-emerald-700 font-bold text-sm"></span>
 <span className="text-slate-800">{it.item_description}</span>
 </div>
 ))}
@@ -639,7 +639,7 @@ export default function ConsultantPortalView({
                           type="button"
                           disabled={snagBusy === sn.id}
                           onClick={() => handleSnagReview(sn.id, 'VERIFY')}
-                          className="px-3.5 py-2 min-h-[44px] text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 transition"
+                          className="px-3.5 py-2 min-h-[44px] text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50 transition"
                         >
                           {snagBusy === sn.id ? 'Working…' : 'Verify — defect fixed'}
 </button>
@@ -681,7 +681,7 @@ export default function ConsultantPortalView({
                             type="button"
                             disabled={snagBusy === sn.id || rejectReason.replace(/\s+/g, '').length < 15 || !rejectPhoto}
                             onClick={() => handleSnagReview(sn.id, 'REJECT')}
-                            className="px-3.5 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 transition"
+                            className="px-3.5 py-1.5 text-xs font-semibold bg-red-700 hover:bg-red-800 text-white rounded-lg disabled:opacity-50 transition"
                           >
                             {snagBusy === sn.id ? 'Submitting…' : 'Submit rejection'}
 </button>

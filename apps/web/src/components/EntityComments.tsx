@@ -74,16 +74,16 @@ export default function EntityComments({ entityType, entityId, title }: EntityCo
       {title && <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Comments — {title}</p>}
 
       {loading ? (
-        <p className="text-[11px] text-slate-400">Loading comments…</p>
+        <p className="text-[11px] text-slate-600">Loading comments…</p>
       ) : comments.length === 0 ? (
-        <p className="text-[11px] text-slate-400">No comments yet.</p>
+        <p className="text-[11px] text-slate-600">No comments yet.</p>
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {comments.map((c) => (
             <div key={c.id} className="border border-slate-200 rounded-lg p-2.5 bg-white">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-slate-800">{c.authorName}</span>
-                <span className="text-[10px] text-slate-400 tabular-nums">{formatDateTime(new Date(c.createdAt))}</span>
+                <span className="text-[10px] text-slate-600 tabular-nums">{formatDateTime(new Date(c.createdAt))}</span>
               </div>
               <p className="text-xs text-slate-700 mt-1 whitespace-pre-wrap">{c.body}</p>
             </div>
@@ -102,18 +102,18 @@ export default function EntityComments({ entityType, entityId, title }: EntityCo
           data-testid="entity-comment-input"
         />
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] text-slate-400">@mention notifies that teammate in their Inbox.</p>
+          <p className="text-[10px] text-slate-600">@mention notifies that teammate in their Inbox.</p>
           <button
             type="button"
             onClick={() => void submit()}
             disabled={sending || !body.trim()}
-            className="px-3 py-1.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50 transition"
+            className="px-3 py-1.5 text-[11px] font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg disabled:opacity-50 transition"
             data-testid="entity-comment-submit"
           >
             {sending ? 'Posting…' : 'Post'}
           </button>
         </div>
-        {error && <p role="alert" className="text-[11px] font-semibold text-rose-600">{error}</p>}
+        {error && <p role="alert" className="text-[11px] font-semibold text-rose-700">{error}</p>}
         {notice && <p role="status" className="text-[11px] font-semibold text-emerald-700">{notice}</p>}
       </div>
     </div>

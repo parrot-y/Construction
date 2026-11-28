@@ -23,7 +23,7 @@ const STATUS_STYLE: Record<string, string> = {
   UNDER_EVALUATION: 'bg-amber-50 text-amber-700',
   AWARDED: 'bg-emerald-50 text-emerald-700',
   CLOSED: 'bg-slate-100 text-slate-500',
-  CANCELLED: 'bg-rose-50 text-rose-600',
+  CANCELLED: 'bg-rose-50 text-rose-700',
 };
 const fmt = (n: string | number) => formatMoney(n);
 
@@ -156,7 +156,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 </select>
 )}
           {canManage && (
-<button onClick={() => setShowTenderForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+<button onClick={() => setShowTenderForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
               {showTenderForm ? 'Cancel' : '+ Post tender'}
 </button>
 )}
@@ -184,7 +184,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
               placeholder="Quantities, specs, programme constraints…" className={input} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void createTender()} disabled={saving || tForm.title.length< 3 || tForm.scopeOfWork.length< 5 || !tForm.submissionDeadline}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {saving ? 'Posting…' : 'Post tender'}
 </button>
 </div>
@@ -203,7 +203,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <div className="flex items-center justify-between gap-3 flex-wrap">
 <div className="min-w-0">
 <p className="text-xs font-bold text-slate-900">
-<span className="tabular-nums text-indigo-600">{t.tenderCode}</span> — {t.title}
+<span className="tabular-nums text-indigo-700">{t.tenderCode}</span> — {t.title}
 </p>
 <p className="text-[10px] text-slate-500 mt-0.5">
                       {t.tradeCategory || 'General'} · Budget {fmt(t.budgetKes)} · {t.durationWeeks}w · due {formatDate(new Date(t.submissionDeadline))}
@@ -223,7 +223,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <p className="text-[11px] text-slate-600 leading-relaxed">{t.scopeOfWork}</p>
 
                   {(bids[t.id] || []).length === 0 ? (
-<p className="text-[11px] text-slate-400">No bids submitted yet.</p>
+<p className="text-[11px] text-slate-600">No bids submitted yet.</p>
 ) : (
 <div className="overflow-x-auto">
 <table className="w-full text-[11px]">
@@ -248,7 +248,7 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <td className="text-right">
                                 {canManage && t.status !== 'AWARDED' && t.status === 'PUBLISHED' && (
 <button onClick={() => void award(t.id, b.id)} disabled={saving}
-                                    className="px-2 py-1 text-[10px] font-bold bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50">
+                                    className="px-2 py-1 text-[10px] font-bold bg-emerald-700 text-white rounded hover:bg-emerald-800 disabled:opacity-50">
                                     Award
 </button>
 )}
@@ -274,13 +274,13 @@ export default function TendersView({ projectId, canManage = true}: { projectId?
 <div className="col-span-2 sm:col-span-3 flex justify-end gap-2">
 <button onClick={() => setShowBidForm(null)} className="px-3 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg">Cancel</button>
 <button onClick={() => void submitBid(t.id)} disabled={saving || bForm.contractorName.length< 2 || !bForm.amountKes}
-                              className="px-3 py-1 text-[11px] font-semibold text-white bg-indigo-600 rounded-lg disabled:opacity-50">
+                              className="px-3 py-1 text-[11px] font-semibold text-white bg-indigo-700 rounded-lg disabled:opacity-50">
                               {saving ? 'Submitting…' : 'Submit bid'}
 </button>
 </div>
 </div>
 ) : (
-<button onClick={() => setShowBidForm(t.id)} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800">
+<button onClick={() => setShowBidForm(t.id)} className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-800">
                           + Record subcontractor bid
 </button>
 )}

@@ -257,7 +257,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 <div className="bg-gradient-to-r from-emerald-900 to-slate-900 rounded-xl p-6 text-white shadow-lg border border-emerald-800/40">
 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 <div>
-<div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 mb-2">
+<div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-600/30 text-emerald-700 border border-emerald-500/30 mb-2">
 <span> WhatsApp Site Ops Bot &amp; Webhook Engine</span>
 <span>•</span>
 <span>Two-Way Kenya Site Sync</span>
@@ -272,14 +272,14 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
               onClick={() => setShowSimModal(true)}
               disabled={isLive}
               title={isLive ? 'Inbound webhook simulation requires a signed site-ops token (demo mode only)' : undefined}
-              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
+              className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
             >
 <span></span>
 <span>Simulate Inbound WhatsApp</span>
 </button>
 <button
               onClick={() => setShowAlertModal(true)}
-              className="bg-rose-600 hover:bg-rose-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
+              className="bg-rose-700 hover:bg-rose-800 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow flex items-center gap-2"
             >
 <span></span>
 <span>Broadcast Safety Alert</span>
@@ -292,22 +292,22 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 <div className="bg-slate-900/60 rounded-lg p-3 border border-emerald-800/30">
 <div className="text-xs text-emerald-200/70">WhatsApp Messages Processed</div>
 <div className="text-xl font-bold text-white mt-1">{logs.length}</div>
-<div className="text-[10px] text-emerald-400 mt-1">100% Processed &amp; Parsed</div>
+<div className="text-[10px] text-emerald-700 mt-1">100% Processed &amp; Parsed</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-emerald-800/30">
 <div className="text-xs text-emerald-200/70">Daily Diary Feeds</div>
 <div className="text-xl font-bold text-white mt-1">{logs.filter((l) => l.detectedCommand === 'DIARY').length}</div>
-<div className="text-[10px] text-slate-400 mt-1">Auto-logged to Site Ledger</div>
+<div className="text-[10px] text-slate-600 mt-1">Auto-logged to Site Ledger</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-emerald-800/30">
 <div className="text-xs text-emerald-200/70">Material Delivery Slips</div>
-<div className="text-xl font-bold text-emerald-300 mt-1">{logs.filter((l) => l.detectedCommand === 'DELIVERY').length}</div>
+<div className="text-xl font-bold text-emerald-700 mt-1">{logs.filter((l) => l.detectedCommand === 'DELIVERY').length}</div>
 <div className="text-[10px] text-emerald-300/80 mt-1">GRN Reconciliation Ready</div>
 </div>
 <div className="bg-slate-900/60 rounded-lg p-3 border border-emerald-800/30">
 <div className="text-xs text-emerald-200/70">Emergency Safety Alerts</div>
-<div className="text-xl font-bold text-rose-400 mt-1">{alerts.length}</div>
-<div className="text-[10px] text-rose-300 mt-1">Dispatched to Engineers</div>
+<div className="text-xl font-bold text-rose-700 mt-1">{alerts.length}</div>
+<div className="text-[10px] text-rose-700 mt-1">Dispatched to Engineers</div>
 </div>
 </div>
 </div>
@@ -318,7 +318,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
           onClick={() => setActiveTab('CHAT_FEED')}
           className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'CHAT_FEED'
-              ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+              ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
 }`}
         >
@@ -328,7 +328,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
           onClick={() => setActiveTab('EMERGENCY_ALERTS')}
           className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition-all ${
             activeTab === 'EMERGENCY_ALERTS'
-              ? 'border-rose-600 text-rose-600 dark:text-rose-400'
+              ? 'border-rose-600 text-rose-700 dark:text-rose-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
 }`}
         >
@@ -353,7 +353,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 <div className="text-sm font-bold text-slate-900 dark:text-white">
                       {log.senderName}<span className="tabular-nums text-xs font-normal text-slate-500">({log.senderPhone})</span>
 </div>
-<div className="text-[11px] text-slate-400">
+<div className="text-[11px] text-slate-600">
                       {formatTime(new Date(log.createdAt))} • Via Meta WhatsApp Cloud API
 </div>
 </div>
@@ -410,7 +410,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
               Critical Emergency Push &amp; WhatsApp Broadcasts
 </h3>
-<span className="text-xs text-rose-500 font-medium">
+<span className="text-xs text-rose-700 font-medium">
               Zero Latency Instant Dispatch
 </span>
 </div>
@@ -522,7 +522,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-medium rounded-lg shadow"
                 >
                   Simulate Webhook POST
 </button>
@@ -592,7 +592,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 <select
                     value={alertType}
                     onChange={(e: any) => setAlertType(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-semibold text-rose-600"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 font-semibold text-rose-700"
                   >
 <option value="CRITICAL_SAFETY_STOP_WORK">CRITICAL STOP-WORK</option>
 <option value="STRUCTURAL_CONCRETE_FAIL">CONCRETE CUBE FAILURE</option>
@@ -624,7 +624,7 @@ export const WhatsAppSiteWebhookView: React.FC<WhatsAppSiteWebhookViewProps> = (
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg shadow"
+                  className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-medium rounded-lg shadow"
                 >
                   Broadcast Immediate Alert
 </button>

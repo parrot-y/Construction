@@ -57,13 +57,13 @@ export const FleetOverviewCards: React.FC<{
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Active Devices</p>
 <p className="text-xl font-bold text-slate-800 mt-1">{devices.length} IoT Units</p>
-<p className="text-xs text-emerald-600 mt-1">All units reporting online</p>
+<p className="text-xs text-emerald-700 mt-1">All units reporting online</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Total Pings Received</p>
 <p className="text-xl font-bold text-slate-800 mt-1">{pings.length}</p>
-<p className="text-xs text-slate-400 mt-1">Live telemetry stream</p>
+<p className="text-xs text-slate-600 mt-1">Live telemetry stream</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -73,9 +73,9 @@ export const FleetOverviewCards: React.FC<{
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-rose-600 ">Fuel Discrepancies</p>
+<p className="text-xs font-semibold text-rose-700 ">Fuel Discrepancies</p>
 <p className="text-xl font-bold text-rose-700 mt-1">{activeSiphoningPings.length}</p>
-<p className="text-xs text-rose-600 mt-1">&gt;30L sudden drop events</p>
+<p className="text-xs text-rose-700 mt-1">&gt;30L sudden drop events</p>
 </div>
 </div>
 );
@@ -132,9 +132,9 @@ export const CanBusDiagnosticsDashboard: React.FC<{
 <span className="text-[11px] font-bold text-slate-500">Coolant Temp (PID 0x05)</span>
 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                 isOverheatFatal
-                  ? 'bg-rose-600 text-white animate-pulse'
+                  ? 'bg-rose-700 text-white animate-pulse'
                   : isOverheatWarning
-                  ? 'bg-amber-500 text-white'
+                  ? 'bg-amber-700 text-white'
                   : 'bg-emerald-100 text-emerald-800'
 }`}>
                 {isOverheatFatal ? 'FATAL SHUTDOWN' : isOverheatWarning ? 'WARNING' : 'NORMAL'}
@@ -147,13 +147,13 @@ export const CanBusDiagnosticsDashboard: React.FC<{
 <div className="mt-2 text-[10px] space-y-1">
 <div className="flex justify-between text-slate-500 tabular-nums">
 <span>Safe &lt;103°C</span>
-<span className="text-amber-600 font-bold">Warn 103°C</span>
-<span className="text-rose-600 font-bold">Limit 108°C</span>
+<span className="text-amber-700 font-bold">Warn 103°C</span>
+<span className="text-rose-700 font-bold">Limit 108°C</span>
 </div>
 <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
 <div
                   className={`h-1.5 rounded-full ${
-                    isOverheatFatal ? 'bg-rose-600' : isOverheatWarning ? 'bg-amber-500' : 'bg-emerald-500'
+                    isOverheatFatal ? 'bg-rose-700' : isOverheatWarning ? 'bg-amber-700' : 'bg-emerald-700'
 }`}
                   style={{ width: `${Math.min(100, Math.max(10, ((coolantNum) / 120) * 100))}%`}}
                 />
@@ -253,7 +253,7 @@ export const SiphoningIncidentFeed: React.FC<{ events: TelematicsPingItem[] }> =
 <tbody className="divide-y divide-slate-100">
               {events.length === 0 ? (
 <tr>
-<td colSpan={7} className="p-4 text-center text-slate-400">
+<td colSpan={7} className="p-4 text-center text-slate-600">
                     No fuel discrepancies detected. Machinery fuel consumption operating normally.
 </td>
 </tr>
@@ -275,7 +275,7 @@ export const SiphoningIncidentFeed: React.FC<{ events: TelematicsPingItem[] }> =
 </td>
 <td className="p-3 font-medium text-slate-800">
 <div>{evt.equipmentName}</div>
-<div className="text-[10px] tabular-nums text-slate-400">{evt.equipmentCode}</div>
+<div className="text-[10px] tabular-nums text-slate-600">{evt.equipmentCode}</div>
 </td>
 <td className="p-3">
 <span
@@ -303,7 +303,7 @@ export const SiphoningIncidentFeed: React.FC<{ events: TelematicsPingItem[] }> =
 <span className="text-slate-600">Monitored Fuel Drop</span>
 )}
 </td>
-<td className="p-3 text-slate-400">
+<td className="p-3 text-slate-600">
                       {formatTime(new Date(evt.pingTimestamp))}
 </td>
 </tr>
@@ -332,7 +332,7 @@ export const MaintenanceAlertsFeed: React.FC<{
 
 <div className="divide-y divide-slate-100">
           {alerts.length === 0 ? (
-<div className="p-6 text-center text-slate-400 text-xs">
+<div className="p-6 text-center text-slate-600 text-xs">
               No active or acknowledged maintenance alerts. Machinery in good mechanical condition.
 </div>
 ) : (
@@ -381,7 +381,7 @@ export const MaintenanceAlertsFeed: React.FC<{
                   {alert.status === 'ACTIVE' ? (
 <button
                       onClick={() => onAcknowledge(alert)}
-                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-sm whitespace-nowrap"
+                      className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-bold shadow-sm whitespace-nowrap"
                     >
                       Acknowledge Alert
 </button>
@@ -458,7 +458,7 @@ export const TelematicsSimulatorSection: React.FC<{
 <button
             type="button"
             onClick={onSimulateSiphoning}
-            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-sm"
+            className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-bold shadow-sm"
           >
             Simulate 40L Rapid Fuel Drop
 </button>
@@ -572,12 +572,12 @@ export const TelematicsSimulatorSection: React.FC<{
 <div>
 <span className="text-slate-600 font-medium">Calibrated Fuel Volume in Tank:</span>
 <span className="tabular-nums font-bold text-slate-900">{fuelLitersText} Liters</span>
-<span className="text-slate-400"> (Capacity: {tankCap} L)</span>
+<span className="text-slate-600"> (Capacity: {tankCap} L)</span>
 </div>
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-sm"
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-sm"
             >
               {isSubmitting ? 'Ingesting...' : 'Ingest Telematics Ping'}
 </button>
@@ -616,7 +616,7 @@ export const PingsLedger: React.FC<{ pings: TelematicsPingItem[] }> = ({ pings }
 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
 <td className="p-3 font-medium text-slate-800">
 <div>{p.equipmentName}</div>
-<div className="text-[10px] font-mono tabular-nums text-slate-400">{p.equipmentCode}</div>
+<div className="text-[10px] font-mono tabular-nums text-slate-600">{p.equipmentCode}</div>
 </td>
 <td className="p-3 tabular-nums text-slate-700">{p.deviceImei}</td>
 <td className="p-3">
@@ -645,7 +645,7 @@ export const PingsLedger: React.FC<{ pings: TelematicsPingItem[] }> = ({ pings }
 </span>
 )}
 </td>
-<td className="p-3 text-slate-400">{formatTime(new Date(p.pingTimestamp))}</td>
+<td className="p-3 text-slate-600">{formatTime(new Date(p.pingTimestamp))}</td>
 </tr>
 ))}
 </tbody>

@@ -60,14 +60,14 @@ export default function SessionsModal({ onClose}: { onClose: () => void}): React
 <div>
 <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
                     Session {s.id}
-                    {s.current &&<span className="ml-2 text-[10px] font-bold text-emerald-600">THIS DEVICE</span>}
+                    {s.current &&<span className="ml-2 text-[10px] font-bold text-emerald-700">THIS DEVICE</span>}
 </p>
 <p className="text-[10px] text-slate-500">
                     Signed in {formatDateTime(new Date(s.createdAt))} · expires {formatDate(new Date(s.expiresAt))}
 </p>
 </div>
                 {!s.current && (
-<button onClick={() => revoke(s.id)} className="text-[11px] font-bold text-red-500 hover:text-red-700 px-2 py-1">
+<button onClick={() => revoke(s.id)} className="text-[11px] font-bold text-red-700 hover:text-red-700 px-2 py-1">
                     Revoke
 </button>
 )}

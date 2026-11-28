@@ -42,7 +42,7 @@ export const PostTenderModal: React.FC<{
 </div>
 <button
                 onClick={onClose}
-                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
+                className="text-slate-600 hover:text-slate-600 font-bold text-lg"
               >
                 ×
 </button>

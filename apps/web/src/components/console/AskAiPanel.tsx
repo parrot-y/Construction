@@ -157,7 +157,7 @@ export default function AskAiPanel(): React.JSX.Element {
 <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[400px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col">
 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
 <div className="flex items-center gap-2">
-<span className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center"><IconSpark className="w-4 h-4" /></span>
+<span className="w-8 h-8 rounded-lg bg-orange-700 text-white flex items-center justify-center"><IconSpark className="w-4 h-4" /></span>
 <div>
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{PRODUCT_NAME} Assistant</p>
 <p className="text-[10px] text-slate-500">Navigation assistant — beta</p>
@@ -173,14 +173,14 @@ export default function AskAiPanel(): React.JSX.Element {
 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
 <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
               m.role === 'user'
-                ? 'bg-orange-600 text-white rounded-br-sm'
+                ? 'bg-orange-700 text-white rounded-br-sm'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-sm'
 }`}>
 <p>{m.text}</p>
               {m.link && (
 <button
                   onClick={() => go(m.link!.section, m.link!.tab)}
-                  className="mt-2 text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1"
+                  className="mt-2 text-xs font-bold text-orange-700 dark:text-orange-400 hover:underline flex items-center gap-1"
                 >
                   Open {m.link.label} →
 </button>
@@ -211,7 +211,7 @@ export default function AskAiPanel(): React.JSX.Element {
           aria-label="Ask the product assistant"
           className="flex-1 text-base sm:text-sm border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
-<button type="submit" aria-label="Send" className="w-11 h-11 rounded-xl bg-orange-600 text-white flex items-center justify-center hover:bg-orange-700 transition">
+<button type="submit" aria-label="Send" className="w-11 h-11 rounded-xl bg-orange-700 text-white flex items-center justify-center hover:bg-orange-800 transition">
 <IconSend className="w-4 h-4" />
 </button>
 </form>

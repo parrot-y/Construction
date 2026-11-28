@@ -167,8 +167,8 @@ export function RetentionReleasesTable({
                   className: 'text-xs',
                 },
                 { content: formatKes(rel.totalRetentionHeld), className: 'text-right font-medium' },
-                { content: `${rel.releasePercentage}%`, className: 'text-center font-bold text-blue-600' },
-                { content: formatKes(rel.releaseAmount), className: 'text-right font-bold text-emerald-600' },
+                { content: `${rel.releasePercentage}%`, className: 'text-center font-bold text-blue-700' },
+                { content: formatKes(rel.releaseAmount), className: 'text-right font-bold text-emerald-700' },
                 {
                   content: (
                     <span
@@ -192,9 +192,9 @@ export function RetentionReleasesTable({
                     rel.status === 'PAID' ? (
                       <span className="text-[10px] tabular-nums text-slate-500">{rel.disbursementRef}</span>
                     ) : rel.status === 'REJECTED' ? (
-                      <span className="text-[10px] text-slate-400">{statusLabel(rel.status)}</span>
+                      <span className="text-[10px] text-slate-600">{statusLabel(rel.status)}</span>
                     ) : !canReviewRelease ? (
-                      <span className="text-[10px] text-slate-400">QS or director review required</span>
+                      <span className="text-[10px] text-slate-600">QS or director review required</span>
                     ) : (
                       <div className="flex flex-col items-center gap-1">
                         {(() => {
@@ -202,7 +202,7 @@ export function RetentionReleasesTable({
                           const allowed = needsDirector ? canDirectRelease : canReviewRelease;
                           if (!allowed) {
                             return (
-                              <span className="text-[10px] text-slate-400">
+                              <span className="text-[10px] text-slate-600">
                                 {needsDirector ? 'Waiting for a director' : 'Waiting for QS review'}
                               </span>
                             );
@@ -214,7 +214,7 @@ export function RetentionReleasesTable({
                                   ? onDisburse(rel.id)
                                   : onReview(rel.id, rel.status === 'PENDING_QS_REVIEW' ? 'RECOMMEND' : 'APPROVE')
                               }
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-3 py-1 rounded text-xs transition-colors shadow"
                             >
                               {rel.status === 'PENDING_QS_REVIEW'
                                 ? 'QS Recommend'
@@ -227,7 +227,7 @@ export function RetentionReleasesTable({
                         {rel.status !== 'APPROVED_BY_DIRECTOR' && canReviewRelease && (
 <button
                             onClick={() => onReview(rel.id, 'REJECT')}
-                            className="text-[10px] text-rose-600 hover:underline"
+                            className="text-[10px] text-rose-700 hover:underline"
                           >
                             Reject
 </button>
@@ -449,7 +449,7 @@ export function ReleaseRetentionModal({
                     id="defectCheck"
                     checked={defectVerified}
                     onChange={(e) => setDefectVerified(e.target.checked)}
-                    className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                    className="h-4 w-4 rounded border-amber-400 text-amber-700 focus:ring-amber-500"
                   />
 <label htmlFor="defectCheck" className="text-xs text-amber-900 dark:text-amber-200 font-medium">
                     I confirm all defect liability period snags have been cleared &amp; signed off by Architect/QS.
@@ -479,7 +479,7 @@ export function ReleaseRetentionModal({
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow"
+                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-medium rounded-lg shadow"
                 >
                   Approve Release
 </button>

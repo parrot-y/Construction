@@ -194,7 +194,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </div>
 <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-medium text-sm rounded-lg shadow-sm transition"
         >
 <span>+</span> New Subcontractor Claim
 </button>
@@ -251,14 +251,14 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 </thead>
 <tbody className="divide-y divide-slate-100">
             {valuations.length === 0 && (
-<tr><td colSpan={8} className="py-8 px-4 text-center text-sm text-slate-400">No subcontractor valuations recorded yet.</td></tr>
+<tr><td colSpan={8} className="py-8 px-4 text-center text-sm text-slate-600">No subcontractor valuations recorded yet.</td></tr>
 )}
             {valuations.map((val) => (
 <tr key={val.id} className="hover:bg-slate-50/80 transition">
 <td className="py-3 px-4 font-mono tabular-nums font-semibold text-slate-900">{val.certificateNo}</td>
 <td className="py-3 px-4">
 <p className="font-semibold text-slate-900">{val.subcontractorFirm}</p>
-<p className="text-xs text-slate-400">Date: {val.valuationDate}</p>
+<p className="text-xs text-slate-600">Date: {val.valuationDate}</p>
 </td>
 <td className="py-3 px-4">
 <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
@@ -292,7 +292,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
                     {statusLabel(val.paymentStatus)}
 </span>
                   {val.paymentReference && (
-<p className="text-xs text-slate-400 tabular-nums mt-0.5">{val.paymentReference}</p>
+<p className="text-xs text-slate-600 tabular-nums mt-0.5">{val.paymentReference}</p>
 )}
 </td>
 <td className="py-3 px-4 text-right">
@@ -302,7 +302,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
                         setSelectedValId(val.id);
                         setIsPayModalOpen(true);
 }}
-                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded transition"
+                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium rounded transition"
                     >
                       Record Payment
 </button>
@@ -320,7 +320,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
 <h3 className="text-lg font-bold text-slate-900">Generate Subcontractor Valuation</h3>
-<button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={() => setIsModalOpen(false)} className="text-slate-600 hover:text-slate-600 font-bold">
                 
 </button>
 </div>
@@ -441,7 +441,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Generating...' : 'Issue Certificate'}
 </button>
@@ -457,7 +457,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
 <h3 className="text-lg font-bold text-slate-900">Record Settlement / RTGS</h3>
-<button onClick={() => setIsPayModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={() => setIsPayModalOpen(false)} className="text-slate-600 hover:text-slate-600 font-bold">
                 
 </button>
 </div>
@@ -488,7 +488,7 @@ export const SubcontractorValuationView: React.FC<SubcontractorValuationViewProp
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Recording...' : 'Confirm Paid'}
 </button>

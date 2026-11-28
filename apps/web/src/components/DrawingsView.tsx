@@ -150,7 +150,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 )}
 <span className="px-2.5 py-1 text-[10px] font-bold rounded-full bg-slate-100 text-slate-500 border border-slate-200" title="AI-assisted design generation — coming soon">AI Design · SOON</span>
           {canManage && (
-<button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+<button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
               {showForm ? 'Cancel' : '+ Upload drawing'}
 </button>
 )}
@@ -160,7 +160,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <div className="flex gap-1.5 flex-wrap">
         {DISCIPLINES.map((d) => (
 <button key={d.key} onClick={() => setDiscipline(d.key)} aria-pressed={discipline === d.key}
-            className={`px-3 py-1 text-[11px] font-semibold rounded-full border transition ${discipline === d.key ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-300'}`}>
+            className={`px-3 py-1 text-[11px] font-semibold rounded-full border transition ${discipline === d.key ? 'bg-indigo-700 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-300'}`}>
             {d.label}
 </button>
 ))}
@@ -199,13 +199,13 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 }
 }}
               className="block w-full text-[11px] text-slate-500 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-indigo-600 file:text-white file:text-[11px] file:font-semibold hover:file:bg-indigo-700" />
-            {form.storageKey &&<p className="text-[10px] text-emerald-600 font-semibold mt-1"> {form.storageKey.split('/').pop()}</p>}
+            {form.storageKey &&<p className="text-[10px] text-emerald-700 font-semibold mt-1"> {form.storageKey.split('/').pop()}</p>}
 </label>
 <label className="sm:col-span-2 space-y-1"><span className={label}>Notes</span>
 <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value})} className={input} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void register()} disabled={saving || uploading || form.title.length< 2 || form.storageKey.length< 3}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {saving ? 'Registering…' : uploading ? 'Uploading…' : 'Register drawing'}
 </button>
 </div>
@@ -224,7 +224,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <div className="flex items-start justify-between gap-2">
 <div className="min-w-0">
 <p className="text-xs font-bold text-slate-900 truncate">{d.title}</p>
-<p className="text-[10px] text-slate-400 tabular-nums mt-0.5">
+<p className="text-[10px] text-slate-600 tabular-nums mt-0.5">
                     {d.drawing_reference || '—'} · {d.revision_code}
 </p>
 </div>
@@ -236,7 +236,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 rounded-full">
                   {CATEGORY_LABEL[d.category] || d.category}
 </span>
-<span className="text-[10px] text-slate-400">{d.uploaded_by_name}</span>
+<span className="text-[10px] text-slate-600">{d.uploaded_by_name}</span>
 </div>
 </div>
 ))}
@@ -249,17 +249,17 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
 <div>
 <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{preview.title}</p>
-<p className="text-[11px] text-slate-400 font-mono tabular-nums">{preview.drawing_reference || '—'} · {preview.revision_code} · {preview.category.replace(/_/g, ' ')}</p>
+<p className="text-[11px] text-slate-600 font-mono tabular-nums">{preview.drawing_reference || '—'} · {preview.revision_code} · {preview.category.replace(/_/g, ' ')}</p>
 </div>
 <div className="flex items-center gap-2">
                 {canManage && /\.(png|jpe?g|webp)$/i.test(preview.storage_key || '') && (
 <button onClick={() => setMarkupMode(!markupMode)}
-                    className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border ${markupMode ? 'bg-orange-600 text-white border-orange-600' : 'text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
+                    className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border ${markupMode ? 'bg-orange-700 text-white border-orange-600' : 'text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
                     {markupMode ? 'Done marking' : 'Markup'}
 </button>
 )}
 <a href={`/uploads/${preview.storage_key || ''}`} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg">Open file</a>
-<button onClick={() => setPreview(null)} className="text-slate-400 hover:text-slate-600 text-lg leading-none px-1">×</button>
+<button onClick={() => setPreview(null)} className="text-slate-600 hover:text-slate-600 text-lg leading-none px-1">×</button>
 </div>
 </div>
 <div className="flex-1 min-h-0 bg-slate-100 dark:bg-slate-950">
@@ -277,14 +277,14 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
                   {annotations.map((a) => (
 <button key={a.id} onClick={(e) => { e.stopPropagation(); toggleResolved(a);}}
                       title={`${a.note} — ${a.author_name}${a.resolved ? ' (resolved)' : ''}`}
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow ${a.resolved ? 'bg-emerald-500' : 'bg-orange-500'}`}
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow ${a.resolved ? 'bg-emerald-700' : 'bg-orange-700'}`}
                       style={{ left: `${Number(a.x_pct)}%`, top: `${Number(a.y_pct)}%`}}>
                       {a.resolved ? '' : '+'}
 </button>
 ))}
                   {pendingPin && (
 <button onClick={(e) => { e.stopPropagation(); addAnnotation();}}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-sky-500 text-white text-xs font-bold shadow animate-ping-once"
+                      className="absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-sky-700 text-white text-xs font-bold shadow animate-ping-once"
                       style={{ left: `${pendingPin.x}%`, top: `${pendingPin.y}%`}}>?</button>
 )}
 </div>
@@ -292,7 +292,7 @@ export default function DrawingsView({ projectId, canManage = true}: { projectId
 <iframe src={`/uploads/${preview.storage_key || ''}`} title={preview.title} className="w-full h-full min-h-[60vh]" />
 ) : (
 <div className="h-full flex items-center justify-center text-sm text-slate-500">
-                  Preview not available for this file type —<a className="ml-1 text-indigo-600 font-bold" href={`/uploads/${preview.storage_key || ''}`} target="_blank" rel="noreferrer">download</a>
+                  Preview not available for this file type —<a className="ml-1 text-indigo-700 font-bold" href={`/uploads/${preview.storage_key || ''}`} target="_blank" rel="noreferrer">download</a>
 </div>
 )}
 </div>

@@ -159,7 +159,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 </div>
 <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-medium text-sm rounded-lg shadow-sm transition"
         >
 <span>+</span> Record Monthly Valuation
 </button>
@@ -196,7 +196,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 <p className="text-xl font-bold text-indigo-900 mt-1">
             {Number(eac) > 0 ? formatKes(eac) : '—'}
 </p>
-<p className="text-xs text-indigo-600 mt-0.5">
+<p className="text-xs text-indigo-700 mt-0.5">
             BAC: {formatKes(budgetAtCompletionKes)}
 </p>
 </div>
@@ -215,19 +215,19 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 <div className="flex justify-between items-center mb-2 text-xs font-medium text-slate-600">
 <div className="flex items-center gap-4">
 <div className="flex items-center gap-1.5">
-<span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
+<span className="w-3 h-3 rounded-full bg-blue-700 inline-block"></span>
 <span>Planned Value (PV)</span>
 </div>
 <div className="flex items-center gap-1.5">
-<span className="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+<span className="w-3 h-3 rounded-full bg-emerald-700 inline-block"></span>
 <span>Earned Value (EV)</span>
 </div>
 <div className="flex items-center gap-1.5">
-<span className="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+<span className="w-3 h-3 rounded-full bg-rose-700 inline-block"></span>
 <span>Actual Cost (AC)</span>
 </div>
 </div>
-<span className="text-slate-400">Cumulative KES Millions</span>
+<span className="text-slate-600">Cumulative KES Millions</span>
 </div>
 
 <div className="w-full overflow-x-auto">
@@ -340,7 +340,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
 <h3 className="text-lg font-bold text-slate-900">Record Monthly Cash Flow & EVM</h3>
-<button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={() => setIsModalOpen(false)} className="text-slate-600 hover:text-slate-600 font-bold">
                 
 </button>
 </div>
@@ -434,7 +434,7 @@ export const ProjectSCurveCashFlowCard: React.FC<ProjectSCurveCashFlowCardProps>
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
+                  className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-medium rounded-lg shadow-sm transition disabled:opacity-50"
                 >
                   {isSubmitting ? 'Saving...' : 'Record S-Curve Point'}
 </button>

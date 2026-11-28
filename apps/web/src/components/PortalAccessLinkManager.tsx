@@ -289,7 +289,7 @@ export default function PortalAccessLinkManager({
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-base font-bold text-slate-900">Generate Portal Link</h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-sm">×</button>
+              <button onClick={() => setShowModal(false)} className="text-slate-600 hover:text-slate-600 font-bold text-sm">×</button>
             </div>
             <form onSubmit={handleCreateLink} className="space-y-4 text-xs">
               <div>

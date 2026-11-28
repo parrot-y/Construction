@@ -23,7 +23,7 @@ import { PRODUCT_NAME } from './lib/product';
 import { api } from './lib/api';
 import { lazyChunk } from './lib/lazyChunk';
 
-const PageFallback = <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-400">Loading…</div>;
+const PageFallback = <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-600">Loading…</div>;
 
 // Portal links carry a bearer token. The token is redacted from the address
 // bar on consume (C1), so the active portal context is kept in sessionStorage

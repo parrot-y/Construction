@@ -54,7 +54,7 @@ export default function PracticalCompletionCard({
 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
               Project Closeout & Statutory Handover
 </span>
-<span className="text-xs text-slate-400">BORAQS Standard</span>
+<span className="text-xs text-slate-600">BORAQS Standard</span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
             Practical Completion & Retention Release Card
@@ -66,7 +66,7 @@ export default function PracticalCompletionCard({
 
 <div className="flex items-center gap-2">
 <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold flex items-center gap-1.5">
-<span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+<span className="w-2 h-2 rounded-full bg-emerald-700 animate-pulse" />
 <span>PRACTICAL COMPLETION ACHIEVED</span>
 </span>
 </div>
@@ -105,7 +105,7 @@ export default function PracticalCompletionCard({
 <div className="p-3 bg-white rounded-lg border border-emerald-100 flex items-start gap-2.5">
 <span className="text-lg"></span>
 <div>
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
                   Lead Consultant Architect
 </span>
 <span className="font-bold text-slate-900 block">{architectName ?? '—'}</span>
@@ -118,7 +118,7 @@ export default function PracticalCompletionCard({
 <div className="p-3 bg-white rounded-lg border border-emerald-100 flex items-start gap-2.5">
 <span className="text-lg"></span>
 <div>
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
                   Lead Quantity Surveyor
 </span>
 <span className="font-bold text-slate-900 block">{qsName ?? '—'}</span>
@@ -246,7 +246,7 @@ export default function PracticalCompletionCard({
 </div>
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden border border-slate-300">
 <div
-                className="bg-purple-600 h-full rounded-full transition-all"
+                className="bg-purple-700 h-full rounded-full transition-all"
                 style={{ width: `${dlpProgressPct ?? 0}%`}}
               />
 </div>
@@ -292,13 +292,13 @@ export default function PracticalCompletionCard({
 
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-<span className="text-[10px] text-slate-400 font-semibold block">
+<span className="text-[10px] text-slate-600 font-semibold block">
                 Final Inspection Date
 </span>
 <span className="tabular-nums font-bold text-slate-800 mt-0.5 block">{dlpExpiryDate ?? '—'}</span>
 </div>
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-<span className="text-[10px] text-slate-400 font-semibold block">
+<span className="text-[10px] text-slate-600 font-semibold block">
                 Final Retention Release
 </span>
 <span className="tabular-nums font-bold text-emerald-700 mt-0.5 block">
@@ -306,7 +306,7 @@ export default function PracticalCompletionCard({
 </span>
 </div>
 <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-<span className="text-[10px] text-slate-400 font-semibold block">
+<span className="text-[10px] text-slate-600 font-semibold block">
                 Final Account Status
 </span>
 <span className="font-bold text-slate-700 mt-0.5 block">In Preparation</span>

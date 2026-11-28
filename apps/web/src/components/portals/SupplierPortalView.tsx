@@ -197,7 +197,7 @@ export default function SupplierPortalView({
   };
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
+    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-600">Loading portal…</div>;
   }
   if (loadError) {
     return (
@@ -259,7 +259,7 @@ export default function SupplierPortalView({
 <ul className="mt-3 space-y-1">
                   {po.items.map((it) => (
 <li key={it.id} className="text-xs text-slate-600 flex justify-between gap-3">
-<span>{it.description} <span className="text-slate-400">({it.unit})</span></span>
+<span>{it.description} <span className="text-slate-600">({it.unit})</span></span>
 <span className="font-mono tabular-nums">{it.quantity} × {formatKes(it.rate)}</span>
 </li>
 ))}
@@ -434,7 +434,7 @@ export default function SupplierPortalView({
 
         {del.received_by && (
 <p className="text-[11px] text-slate-500 flex items-center gap-1">
-<span className="text-emerald-600 font-bold"></span> Received &amp; Slump Tested by: {del.received_by}
+<span className="text-emerald-700 font-bold"></span> Received &amp; Slump Tested by: {del.received_by}
 </p>
 )}
         {del.supplier_invoice_ref && (
@@ -506,7 +506,7 @@ export default function SupplierPortalView({
 <button
             onClick={() => setShowPoModal(true)}
             data-testid="view-po-ledger-btn"
-            className="px-3.5 py-1.5 text-xs font-semibold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-lg transition"
+            className="px-3.5 py-1.5 text-xs font-semibold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-800 border border-blue-200 hover:border-blue-600 rounded-lg transition"
           >
              PO &amp; Invoicing Ledger
 </button>
@@ -597,7 +597,7 @@ export default function SupplierPortalView({
 </div>
 )}
 
-      <p className="text-[11px] text-slate-400">
+      <p className="text-[11px] text-slate-600">
         Accept each purchase order and submit invoices against it above — the contractor's
         quantity surveyor reviews them against confirmed deliveries. Confirm each delivery
         above so the site diary stays accurate.
@@ -613,7 +613,7 @@ export default function SupplierPortalView({
               onClick={() => setFilter(mode)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
                 filter === mode
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-blue-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
 }`}
             >
@@ -628,7 +628,7 @@ export default function SupplierPortalView({
 </div>
 
         {filteredSettled.length === 0 && (
-<div className="bg-white p-8 rounded-xl border border-slate-200 text-center text-sm text-slate-400">
+<div className="bg-white p-8 rounded-xl border border-slate-200 text-center text-sm text-slate-600">
             {settledDeliveries.length === 0
               ? 'No completed deliveries yet — confirmed and disputed deliveries will appear here.'
               : 'No deliveries match this filter.'}
@@ -680,7 +680,7 @@ export default function SupplierPortalView({
                   {proj.name} • Deliveries
 </h3>
 </div>
-<button onClick={() => setShowPoModal(false)} className="text-slate-400 hover:text-slate-600 font-bold">
+<button onClick={() => setShowPoModal(false)} className="text-slate-600 hover:text-slate-600 font-bold">
                 
 </button>
 </div>

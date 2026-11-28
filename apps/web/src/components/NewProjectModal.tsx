@@ -143,8 +143,8 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
         <div className="flex gap-1.5 mb-4">
           {STEPS.map((label, i) => (
             <div key={label} className="flex-1">
-              <div className={`h-1 rounded-full ${i <= draft.step ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'}`} />
-              <p className={`text-xs mt-1 font-semibold ${i === draft.step ? 'text-orange-600' : 'text-slate-500'}`}>{label}</p>
+              <div className={`h-1 rounded-full ${i <= draft.step ? 'bg-orange-700' : 'bg-slate-200 dark:bg-slate-700'}`} />
+              <p className={`text-xs mt-1 font-semibold ${i === draft.step ? 'text-orange-700' : 'text-slate-500'}`}>{label}</p>
             </div>
           ))}
         </div>
@@ -297,11 +297,11 @@ export default function NewProjectModal({ onClose, onCreated }: { onClose: () =>
               {draft.step === 0 ? 'Cancel' : 'Back'}
             </button>
             {draft.step < 3 ? (
-              <button type="button" onClick={next} disabled={!stepValid()} className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50">
+              <button type="button" onClick={next} disabled={!stepValid()} className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-700 hover:bg-orange-800 text-white disabled:opacity-50">
                 Continue
               </button>
             ) : (
-              <button type="submit" disabled={busy} className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50">
+              <button type="submit" disabled={busy} className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-700 hover:bg-orange-800 text-white disabled:opacity-50">
                 {busy ? 'Creating…' : 'Create project'}
               </button>
             )}

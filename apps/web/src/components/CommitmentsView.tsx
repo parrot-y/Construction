@@ -209,7 +209,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
         {canManage && (
 <button
             onClick={() => setShowCommitmentForm((v) => !v)}
-            className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition"
+            className="px-3.5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition"
           >
             {showCommitmentForm ? 'Cancel' : '+ New Commitment'}
 </button>
@@ -230,7 +230,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <select value={commitmentForm.vendorType} onChange={(e) => setCommitmentForm({ ...commitmentForm, vendorType: e.target.value})} className="w-full border border-slate-300 rounded-lg px-2 py-1.5">
               {['SUPPLIER', 'CONSULTANT', 'OTHER'].map((t) =><option key={t} value={t}>{t}</option>)}
 </select>
-<p className="text-[10px] text-slate-400 col-span-2 sm:col-span-4 -mt-1">Subcontractor progress payments are managed under Subcontractor Valuations (ADR-011).</p>
+<p className="text-[10px] text-slate-600 col-span-2 sm:col-span-4 -mt-1">Subcontractor progress payments are managed under Subcontractor Valuations (ADR-011).</p>
 </label>
 <label className="space-y-1">
 <span className="font-semibold text-slate-600">Contract value (KES) *</span>
@@ -268,7 +268,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <button
               onClick={() => void createCommitment()}
               disabled={saving || !commitmentForm.vendorName || !commitmentForm.contractValue}
-              className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
+              className="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Create Commitment'}
 </button>
@@ -306,7 +306,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
                 {c.net_amount_owed && c.net_amount_owed !== '0.00' && (
 <span className="text-xs font-mono tabular-nums font-bold text-amber-700">Owed {formatKes(c.net_amount_owed)}</span>
 )}
-<span className="text-[11px] text-slate-400">{c.applications.length} claim{c.applications.length === 1 ? '' : 's'} {expanded === c.id ? '▾' : '▸'}</span>
+<span className="text-[11px] text-slate-600">{c.applications.length} claim{c.applications.length === 1 ? '' : 's'} {expanded === c.id ? '▾' : '▸'}</span>
 </div>
 </button>
 
@@ -338,11 +338,11 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
                       {canManage && (
 <div className="flex gap-1.5">
                           {a.status === 'DRAFT' && (
-<button onClick={() => void appAction(c.id, a, 'SUBMIT')} className="px-2 py-1 text-[10px] font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded">Submit</button>
+<button onClick={() => void appAction(c.id, a, 'SUBMIT')} className="px-2 py-1 text-[10px] font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded">Submit</button>
 )}
                           {a.status === 'SUBMITTED' && (
 <>
-<button onClick={() => void appAction(c.id, a, 'APPROVE')} className="px-2 py-1 text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded">Approve</button>
+<button onClick={() => void appAction(c.id, a, 'APPROVE')} className="px-2 py-1 text-[10px] font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded">Approve</button>
 <button onClick={() => void appAction(c.id, a, 'REJECT')} className="px-2 py-1 text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded">Reject</button>
 </>
 )}
@@ -386,7 +386,7 @@ export default function CommitmentsView({ projectId, canManage = true}: Props): 
 <button
                         onClick={() => void createApplication(c.id)}
                         disabled={saving || !appForm.periodStart || !appForm.periodEnd || !appForm.grossClaimed}
-                        className="px-3 py-1.5 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded disabled:opacity-50"
+                        className="px-3 py-1.5 text-[11px] font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded disabled:opacity-50"
                       >
                         {saving ? 'Saving…' : 'Draft Application'}
 </button>

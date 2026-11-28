@@ -92,7 +92,7 @@ export default function PhysicalProgressModal({
 <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
 <div>
 <div className="flex items-center gap-2">
-<span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+<span className="w-2.5 h-2.5 rounded-full bg-blue-700"></span>
 <h3 className="font-bold text-slate-900 text-base">Record Physical Site Progress</h3>
 </div>
 <p className="text-xs text-slate-500 mt-0.5">
@@ -101,7 +101,7 @@ export default function PhysicalProgressModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close modal"
           >
             
@@ -143,7 +143,7 @@ export default function PhysicalProgressModal({
                   onChange={(e) => setOverallProgressPct(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-hidden tabular-nums font-bold"
                 />
-<span className="absolute right-3 top-2 text-xs font-bold text-slate-400">%</span>
+<span className="absolute right-3 top-2 text-xs font-bold text-slate-600">%</span>
 </div>
 </div>
 </div>
@@ -219,7 +219,7 @@ export default function PhysicalProgressModal({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition disabled:opacity-50"
+              className="px-5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm transition disabled:opacity-50"
             >
               {isSubmitting ? 'Recording...' : ' Record Physical Progress'}
 </button>

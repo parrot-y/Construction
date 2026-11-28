@@ -103,14 +103,14 @@ export default function ClientQuotesView(): React.JSX.Element {
       {notice && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {notice}</span>
-<button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setNotice(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
       {loading ? (
-<p className="text-xs text-slate-400 text-center py-6">Loading your quotes…</p>
+<p className="text-xs text-slate-600 text-center py-6">Loading your quotes…</p>
 ) : quotes.length === 0 ? (
-<p className="text-xs text-slate-400 text-center py-6">No quotes yet. When your contractor sends you a quotation it will appear here.</p>
+<p className="text-xs text-slate-600 text-center py-6">No quotes yet. When your contractor sends you a quotation it will appear here.</p>
 ) : (
 <div className="space-y-4">
           {quotes.map((q) => (
@@ -136,7 +136,7 @@ export default function ClientQuotesView(): React.JSX.Element {
                   {(q.items ?? []).map((it) => (
 <tr key={it.id} className="border-b border-slate-100">
 <td className="py-1.5 pr-2 text-slate-700">
-                        {it.section &&<span className="text-slate-400">[{it.section}]</span>}
+                        {it.section &&<span className="text-slate-600">[{it.section}]</span>}
                         {it.description}
 </td>
 <td className="py-1.5 pr-2 text-slate-500 text-right">{it.quantity} {it.unit}</td>
@@ -189,7 +189,7 @@ export default function ClientQuotesView(): React.JSX.Element {
                       Decline
 </button>
 </div>
-<p className="text-[10px] text-slate-400">Accepting confirms you agree to the quoted scope, prices and terms. Your typed name is recorded as your signature.</p>
+<p className="text-[10px] text-slate-600">Accepting confirms you agree to the quoted scope, prices and terms. Your typed name is recorded as your signature.</p>
 </div>
 )}
 

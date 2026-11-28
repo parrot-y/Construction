@@ -238,7 +238,7 @@ export default function SubcontractorManagementView({
           {canAward && (
 <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-amber-600 hover:bg-amber-700 shadow-sm"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-amber-700 hover:bg-amber-800 shadow-sm"
             >
                Award Subcontract Package
 </button>
@@ -262,8 +262,8 @@ export default function SubcontractorManagementView({
 <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-xs">
 <span className="text-xs text-slate-500 font-medium">Active Trade Contractors</span>
 <div className="mt-1 flex items-baseline gap-2">
-<span className="text-2xl font-bold text-emerald-600">{activeCount}</span>
-<span className="text-xs text-slate-400">firms on site</span>
+<span className="text-2xl font-bold text-emerald-700">{activeCount}</span>
+<span className="text-xs text-slate-600">firms on site</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               Executing specialized trade works
@@ -274,7 +274,7 @@ export default function SubcontractorManagementView({
 <span className="text-xs text-slate-500 font-medium">Total Subcontract Packages</span>
 <div className="mt-1 flex items-baseline gap-2">
 <span className="text-2xl font-bold text-slate-900">{packages.length}</span>
-<span className="text-xs text-slate-400">packages</span>
+<span className="text-xs text-slate-600">packages</span>
 </div>
 <div className="text-xs text-slate-500 mt-2">
               Plumbing, Electrical, Steel, etc.
@@ -341,7 +341,7 @@ export default function SubcontractorManagementView({
 </span>
                     {getStatusBadge(pkg.status)}
                     {pkg.awarded_date && (
-<span className="text-xs text-slate-400">
+<span className="text-xs text-slate-600">
                         • Awarded: {pkg.awarded_date}
 </span>
 )}
@@ -381,7 +381,7 @@ export default function SubcontractorManagementView({
 
                 {/* Subcontract Sum & Action */}
 <div className="lg:w-60 flex flex-col items-start lg:items-end justify-center">
-<span className="text-xs text-slate-400">Subcontract Sum</span>
+<span className="text-xs text-slate-600">Subcontract Sum</span>
 <span className="text-lg font-bold text-slate-900 tabular-nums">
                     {formatKes(pkg.subcontract_sum)}
 </span>
@@ -435,7 +435,7 @@ export default function SubcontractorManagementView({
 <option key={c.id} value={c.id}>{c.firmName}{c.kraPin ? ` · ${c.kraPin}` : ''}</option>
 ))}
 </select>
-<p className="text-[11px] text-slate-400 mt-1">Linking pulls the firm from the contractor master; only APPROVED firms are listed.</p>
+<p className="text-[11px] text-slate-600 mt-1">Linking pulls the firm from the contractor master; only APPROVED firms are listed.</p>
 </div>
 )}
 <div>
@@ -550,7 +550,7 @@ export default function SubcontractorManagementView({
 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white bg-amber-700 hover:bg-amber-800 rounded-lg shadow-sm disabled:opacity-50"
                 >
                   {saving ? 'Awarding…' : 'Award Subcontract'}
 </button>

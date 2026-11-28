@@ -227,7 +227,7 @@ export default function CreateVariationModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition"
+            className="text-slate-600 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition"
             aria-label="Close"
           >
             
@@ -237,7 +237,7 @@ export default function CreateVariationModal({
         {error && (
 <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center justify-between">
 <span> {error}</span>
-<button onClick={() => setError(null)} className="text-rose-500 font-bold ml-2">×</button>
+<button onClick={() => setError(null)} className="text-rose-700 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -293,7 +293,7 @@ export default function CreateVariationModal({
                 className="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white">
                 {members.map((m) =><option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ''}</option>)}
 </select>
-<p className="text-[10px] text-slate-400 mt-0.5">Ctrl/Cmd-click to select multiple</p>
+<p className="text-[10px] text-slate-600 mt-0.5">Ctrl/Cmd-click to select multiple</p>
 </div>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -359,7 +359,7 @@ export default function CreateVariationModal({
                           onClick={() => handleItemChange(index, 'type', 'ADDITION')}
                           className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition ${
                             item.type === 'ADDITION'
-                              ? 'bg-emerald-600 text-white shadow-xs'
+                              ? 'bg-emerald-700 text-white shadow-xs'
                               : 'text-slate-600 hover:text-slate-900'
 }`}
                         >
@@ -370,7 +370,7 @@ export default function CreateVariationModal({
                           onClick={() => handleItemChange(index, 'type', 'OMISSION')}
                           className={`px-2 py-0.5 text-[11px] font-semibold rounded-md transition ${
                             item.type === 'OMISSION'
-                              ? 'bg-rose-600 text-white shadow-xs'
+                              ? 'bg-rose-700 text-white shadow-xs'
                               : 'text-slate-600 hover:text-slate-900'
 }`}
                         >
@@ -387,7 +387,7 @@ export default function CreateVariationModal({
 <button
                           type="button"
                           onClick={() => handleRemoveItem(index)}
-                          className="text-slate-400 hover:text-rose-600 p-1 rounded"
+                          className="text-slate-600 hover:text-rose-600 p-1 rounded"
                           title="Remove item"
                         >
                           
@@ -478,7 +478,7 @@ export default function CreateVariationModal({
           {/* Live Net Amount Summary Card */}
 <div className="p-3.5 bg-slate-900 text-white rounded-xl flex items-center justify-between">
 <div>
-<span className="text-[10px] font-bold text-slate-400 block">
+<span className="text-[10px] font-bold text-slate-600 block">
                 Calculated Net Amount
 </span>
 <span className="text-xs text-slate-300">
@@ -488,12 +488,12 @@ export default function CreateVariationModal({
 <div className="text-right">
 <span
                 className={`text-lg tabular-nums font-bold ${
-                  isNetPositive ? 'text-emerald-400' : 'text-amber-400'
+                  isNetPositive ? 'text-emerald-700' : 'text-amber-700'
 }`}
               >
                 {isNetPositive ? '+' : '-'} {formatKes(itemCalculations.netAmount.abs().toString())}
 </span>
-<span className="block text-[10px] text-slate-400">
+<span className="block text-[10px] text-slate-600">
                 {isNetPositive ? 'Net Budget Addition' : 'Net Budget Omission'}
 </span>
 </div>
@@ -512,7 +512,7 @@ export default function CreateVariationModal({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition shadow-xs flex items-center gap-1.5"
+              className="px-4 py-2 text-xs font-semibold text-white bg-purple-700 rounded-lg hover:bg-purple-800 disabled:opacity-50 transition shadow-xs flex items-center gap-1.5"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Variation Order'}
 </button>

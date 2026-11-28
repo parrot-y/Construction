@@ -198,15 +198,15 @@ export const MassHaulDiagramCard: React.FC<{ stations: CrossSectionStationRecord
 </div>
 <div className="flex items-center gap-4 text-xs font-medium">
 <span className="inline-flex items-center gap-1.5 text-emerald-700">
-<span className="w-3 h-3 rounded bg-emerald-400 opacity-60"></span>
+<span className="w-3 h-3 rounded bg-emerald-700 opacity-60"></span>
 <span>Cut Surplus</span>
 </span>
 <span className="inline-flex items-center gap-1.5 text-rose-700">
-<span className="w-3 h-3 rounded bg-rose-400 opacity-60"></span>
+<span className="w-3 h-3 rounded bg-rose-700 opacity-60"></span>
 <span>Fill Deficit</span>
 </span>
 <span className="inline-flex items-center gap-1.5 text-amber-700">
-<span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span className="w-2.5 h-2.5 rounded-full bg-amber-700"></span>
 <span>Balance Point (BP)</span>
 </span>
 </div>

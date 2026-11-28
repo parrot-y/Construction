@@ -108,11 +108,11 @@ export default function BudgetSummaryCard({
 <div>
 <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden flex">
 <div
-            className={`h-2.5 transition-all duration-500 ${isHighConsumption ? 'bg-amber-500' : 'bg-emerald-500'}`}
+            className={`h-2.5 transition-all duration-500 ${isHighConsumption ? 'bg-amber-700' : 'bg-emerald-700'}`}
             style={{ width: `${Math.min(percent, 100)}%`}}
           ></div>
 </div>
-<div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 tabular-nums">
+<div className="flex justify-between items-center text-[10px] text-slate-600 mt-1 tabular-nums">
 <span>0%</span>
 <span>50%</span>
 <span>100% ({formatKes(resolved.approvedBudget)})</span>
@@ -169,7 +169,7 @@ export default function BudgetSummaryCard({
 <span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.MATERIAL.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block">
+<span className="text-[10px] text-amber-700 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.MATERIAL.pending)} pend
 </span>
 </div>
@@ -179,7 +179,7 @@ export default function BudgetSummaryCard({
 <span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.LABOR.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block">
+<span className="text-[10px] text-amber-700 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.LABOR.pending)} pend
 </span>
 </div>
@@ -189,7 +189,7 @@ export default function BudgetSummaryCard({
 <span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.PLANT.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block">
+<span className="text-[10px] text-amber-700 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.PLANT.pending)} pend
 </span>
 </div>
@@ -199,7 +199,7 @@ export default function BudgetSummaryCard({
 <span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.SUBCONTRACT.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block">
+<span className="text-[10px] text-amber-700 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.SUBCONTRACT.pending)} pend
 </span>
 </div>
@@ -209,7 +209,7 @@ export default function BudgetSummaryCard({
 <span className="tabular-nums font-semibold text-slate-800 block text-[11px] mt-0.5">
               {formatKes(resolved.categoryBreakdown.PRELIMINARY.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block">
+<span className="text-[10px] text-amber-700 tabular-nums block">
               +{formatKes(resolved.categoryBreakdown.PRELIMINARY.pending)} pend
 </span>
 </div>

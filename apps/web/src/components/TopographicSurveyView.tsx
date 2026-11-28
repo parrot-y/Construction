@@ -416,7 +416,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
               {Number(activeSurvey.totalCutVolumeM3).toLocaleString('en-KE', { minimumFractionDigits: 3})}
 <span className="text-xs font-sans font-normal text-emerald-700 ml-1">m³ bank</span>
 </p>
-<p className="text-[11px] text-emerald-600">Bulking: {activeSurvey.bulkingFactor}x loose</p>
+<p className="text-[11px] text-emerald-700">Bulking: {activeSurvey.bulkingFactor}x loose</p>
 </div>
 
           {/* 2. Total Fill Volume */}
@@ -429,7 +429,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
               {Number(activeSurvey.totalFillVolumeM3).toLocaleString('en-KE', { minimumFractionDigits: 3})}
 <span className="text-xs font-sans font-normal text-rose-700 ml-1">m³ compact</span>
 </p>
-<p className="text-[11px] text-rose-600">Shrinkage: {activeSurvey.shrinkageFactor}x bank</p>
+<p className="text-[11px] text-rose-700">Shrinkage: {activeSurvey.shrinkageFactor}x bank</p>
 </div>
 
           {/* 3. Net Balance */}
@@ -465,7 +465,7 @@ export const TopographicSurveyView: React.FC<TopographicSurveyViewProps> = ({
               {Number(activeSurvey.economicHaulLimitMeters).toFixed(2)}
 <span className="text-xs font-sans font-normal text-blue-700 ml-1">m</span>
 </p>
-<p className="text-[11px] text-blue-600">Freehaul (FHD): {activeSurvey.freehaulDistanceMeters}m</p>
+<p className="text-[11px] text-blue-700">Freehaul (FHD): {activeSurvey.freehaulDistanceMeters}m</p>
 </div>
 
           {/* 5. Total Overhaul Cost */}

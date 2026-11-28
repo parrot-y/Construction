@@ -288,7 +288,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 </div>
 <button
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg shadow-sm transition"
+          className="inline-flex items-center px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium rounded-lg shadow-sm transition"
         >
           + Log Field Compaction Test
 </button>
@@ -303,18 +303,18 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Compaction Pass Rate</span>
-<p className="text-2xl font-bold text-emerald-600 mt-1">{passRate}%</p>
-<span className="text-xs text-emerald-500">{passedTests} of {totalTests} verified</span>
+<p className="text-2xl font-bold text-emerald-700 mt-1">{passRate}%</p>
+<span className="text-xs text-emerald-700">{passedTests} of {totalTests} verified</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Re-Rolling Required</span>
-<p className="text-2xl font-bold text-red-600 mt-1">{totalTests - passedTests}</p>
-<span className="text-xs text-red-500">Failed density / moisture</span>
+<p className="text-2xl font-bold text-red-700 mt-1">{totalTests - passedTests}</p>
+<span className="text-xs text-red-700">Failed density / moisture</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Kenya Road Standard (KS 02-102)</span>
-<p className="text-2xl font-bold text-blue-600 mt-1">≥95% RC</p>
-<span className="text-xs text-blue-500">Subbase (≥98% Pad / Base)</span>
+<p className="text-2xl font-bold text-blue-700 mt-1">≥95% RC</p>
+<span className="text-xs text-blue-700">Subbase (≥98% Pad / Base)</span>
 </div>
 </div>
 
@@ -629,7 +629,7 @@ export const GeotechnicalSoilView: React.FC<GeotechnicalSoilViewProps> = ({
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-amber-700 text-white font-medium rounded-lg hover:bg-amber-800 disabled:opacity-50"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Soil Test Record'}
 </button>

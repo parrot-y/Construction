@@ -234,7 +234,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 </div>
 <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition self-start md:self-auto"
+          className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-sm font-semibold rounded-lg shadow-sm transition self-start md:self-auto"
         >
           + Record Field Safety Audit
 </button>
@@ -253,8 +253,8 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 <div
               className={`h-2 rounded-full ${
                 parseFloat(summary.averageComplianceScorePct) >= 80
-                  ? 'bg-emerald-500'
-                  : 'bg-amber-500'
+                  ? 'bg-emerald-700'
+                  : 'bg-amber-700'
 }`}
               style={{ width: `${Math.min(100, parseFloat(summary.averageComplianceScorePct))}%`}}
             />
@@ -265,7 +265,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 <span className="text-xs font-semibold text-gray-500 ">
             Satisfactory Inspections
 </span>
-<p className="text-2xl font-bold text-emerald-600 mt-1">
+<p className="text-2xl font-bold text-emerald-700 mt-1">
             {summary.passCount} / {summary.totalAudits} Passes
 </p>
 <span className="text-xs text-gray-500">Meeting OSHA 2007 guidelines</span>
@@ -286,14 +286,14 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
           >
             {summary.stopOrdersCount} Active
 </p>
-<span className="text-xs text-red-600 font-medium">Scaffolding, excavation or wiring breaches</span>
+<span className="text-xs text-red-700 font-medium">Scaffolding, excavation or wiring breaches</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-semibold text-gray-500 ">
             Auditing Authority Coverage
 </span>
-<p className="text-2xl font-bold text-indigo-600 mt-1">
+<p className="text-2xl font-bold text-indigo-700 mt-1">
             NCA &amp; DOSHS
 </p>
 <span className="text-xs text-gray-500">Internal Safety &amp; Statutory Agency</span>
@@ -588,7 +588,7 @@ export const SafetyAuditScorecardView: React.FC<SafetyAuditScorecardViewProps> =
 </button>
 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg"
+                  className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-sm font-semibold rounded-lg"
                 >
                   Save Safety Audit &amp; Scorecard
 </button>

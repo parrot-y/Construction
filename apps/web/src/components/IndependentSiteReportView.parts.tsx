@@ -160,7 +160,7 @@ export const getVarianceBadge = (variance: number): VarianceBadgeInfo => {
   if (variance<= -10) {
     return {
       bg: 'bg-rose-50 border-rose-300 text-rose-800',
-      badge: 'bg-rose-600 text-white',
+      badge: 'bg-rose-700 text-white',
       label: 'Critical Contractor Inflation',
       sub: `Contractor reported +${Math.abs(variance).toFixed(1)}% more progress than physically present on site!`,
 };
@@ -168,14 +168,14 @@ export const getVarianceBadge = (variance: number): VarianceBadgeInfo => {
   if (variance<= -5) {
     return {
       bg: 'bg-amber-50 border-amber-300 text-amber-800',
-      badge: 'bg-amber-600 text-white',
+      badge: 'bg-amber-700 text-white',
       label: 'Moderate Discrepancy Alert',
       sub: `Progress discrepancy of ${Math.abs(variance).toFixed(1)}% flagged between claim and reality.`,
 };
 }
   return {
     bg: 'bg-emerald-50 border-emerald-300 text-emerald-800',
-    badge: 'bg-emerald-600 text-white',
+    badge: 'bg-emerald-700 text-white',
     label: 'Verified Physical Alignment',
     sub: `Contractor claims match verified physical installation on site (Variance: ${variance.toFixed(1)}%).`,
 };
@@ -243,7 +243,7 @@ export function SiteReportBanner({
 <button
             onClick={handleDispatchWhatsApp}
             data-testid="whatsapp-alert-btn"
-            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5"
+            className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5"
             title="Dispatch Inspection Briefing to Diaspora Client via WhatsApp"
           >
 <span> WhatsApp Digest</span>
@@ -327,7 +327,7 @@ export function ReportOverviewHeader({ activeInspection }: ReportOverviewHeaderP
 </div>
 
 <div className="text-left sm:text-right text-xs">
-<span className="text-[10px] font-semibold text-slate-400 block">Inspection Urgency</span>
+<span className="text-[10px] font-semibold text-slate-600 block">Inspection Urgency</span>
 <span className="font-bold text-slate-800">
               {activeInspection.urgency === 'UNANNOUNCED_48HR'
                 ? ' 48-Hour Unannounced Surprise Audit'
@@ -359,19 +359,19 @@ export function InspectorCredentialsCard({ activeInspection }: InspectorCredenti
 
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-400 block text-[10px] font-semibold ">Clerk of Works / Lead Auditor</span>
+<span className="text-slate-600 block text-[10px] font-semibold ">Clerk of Works / Lead Auditor</span>
 <span className="font-bold text-slate-900 mt-0.5 block">{activeInspection.inspector.name}</span>
 <span className="text-slate-600 text-[11px] tabular-nums mt-0.5 block">NCA Reg: {activeInspection.inspector.ncaRegistration}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-400 block text-[10px] font-semibold ">Contact Telephony</span>
+<span className="text-slate-600 block text-[10px] font-semibold ">Contact Telephony</span>
 <span className="font-bold text-slate-900 mt-0.5 block">{activeInspection.inspector.phone}</span>
 <span className="text-slate-600 text-[11px] mt-0.5 block">{activeInspection.inspector.email}</span>
 </div>
 
 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-<span className="text-slate-400 block text-[10px] font-semibold ">GPS Coordinate Lock &amp; Accuracy</span>
+<span className="text-slate-600 block text-[10px] font-semibold ">GPS Coordinate Lock &amp; Accuracy</span>
 <span className="tabular-nums font-bold text-slate-900 mt-0.5 block">
                 {activeInspection.inspector.latitude != null && activeInspection.inspector.longitude != null
                   ? `${activeInspection.inspector.latitude.toFixed(6)}, ${activeInspection.inspector.longitude.toFixed(6)}`
@@ -412,7 +412,7 @@ export function VarianceAnalysisCard({ activeInspection, varianceInfo }: Varianc
 <span className="text-lg font-bold tabular-nums text-slate-900 mt-0.5 block">
                 {activeInspection.contractorReportedPct.toFixed(1)}%
 </span>
-<span className="text-[10px] text-slate-400 block">Claimed on Interim Valuation</span>
+<span className="text-[10px] text-slate-600 block">Claimed on Interim Valuation</span>
 </div>
 
 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
@@ -420,7 +420,7 @@ export function VarianceAnalysisCard({ activeInspection, varianceInfo }: Varianc
 <span className="text-lg font-bold tabular-nums text-emerald-700 mt-0.5 block">
                 {activeInspection.inspectorVerifiedPct.toFixed(1)}%
 </span>
-<span className="text-[10px] text-slate-400 block">Genuine physically measured progress</span>
+<span className="text-[10px] text-slate-600 block">Genuine physically measured progress</span>
 </div>
 
 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
@@ -530,7 +530,7 @@ export function PhotoEvidenceGallery({
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold text-slate-400 block">
+<span className="text-[10px] font-bold text-slate-600 block">
                 GPS &amp; Timestamped Photographic Evidence
 </span>
 <h4 className="text-xs font-bold text-slate-800">
@@ -558,7 +558,7 @@ export function PhotoEvidenceGallery({
 </div>
 
           {filteredPhotos.length === 0 ? (
-<div className="p-6 text-center text-slate-400 text-xs italic bg-slate-50 rounded-lg border border-dashed border-slate-200">
+<div className="p-6 text-center text-slate-600 text-xs italic bg-slate-50 rounded-lg border border-dashed border-slate-200">
               No photo evidence recorded under category {selectedPhotoCategory}.
 </div>
 ) : (
@@ -583,7 +583,7 @@ export function PhotoEvidenceGallery({
 <div className="p-3 space-y-1">
 <h5 className="font-bold text-xs text-slate-900">{photo.title}</h5>
 <p className="text-[11px] text-slate-600">{photo.caption}</p>
-<span className="text-[10px] text-slate-400 tabular-nums block">Captured: {photo.timestamp}</span>
+<span className="text-[10px] text-slate-600 tabular-nums block">Captured: {photo.timestamp}</span>
 </div>
 </div>
 ))}
@@ -634,7 +634,7 @@ export function ClientReviewCard({
                   {[1, 2, 3, 4, 5].map((s) => (
 <span
                       key={s}
-                      className={s<= (activeInspection.clientReview?.rating || 5) ? 'text-amber-500' : 'text-slate-300'}
+                      className={s<= (activeInspection.clientReview?.rating || 5) ? 'text-amber-700' : 'text-slate-300'}
                     >
                       
 </span>
@@ -670,7 +670,7 @@ export function ClientReviewCard({
                       onClick={() => setReviewRating(star)}
                       data-testid={`rating-star-${star}`}
                       className={`text-xl transition ${
-                        star<= reviewRating ? 'text-amber-500 hover:text-amber-600' : 'text-slate-300 hover:text-slate-400'
+                        star<= reviewRating ? 'text-amber-700 hover:text-amber-600' : 'text-slate-300 hover:text-slate-400'
 }`}
                     >
                       

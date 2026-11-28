@@ -237,7 +237,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 </div>
 <button
           onClick={() => { setShowCreate((v) => !v); setSelectedId(''); setForm(emptyForm);}}
-          className="px-3.5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition"
+          className="px-3.5 py-2 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg shadow-sm transition"
         >
           {showCreate ? 'Cancel' : '+ New Project'}
 </button>
@@ -255,7 +255,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 ))}
 </select>
           {selected && (
-<span className="text-[10px] text-slate-400">
+<span className="text-[10px] text-slate-600">
               budget {formatKes(selected.current_approved_budget)} · closeout {selected.closeout_stage}
 </span>
 )}
@@ -353,12 +353,12 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 <div key={m.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
 <div>
 <span className="font-semibold text-slate-800">{m.user.full_name}</span>
-<span className="text-slate-400 ml-2">{m.user.email}</span>
+<span className="text-slate-600 ml-2">{m.user.email}</span>
 </div>
 <div className="flex items-center gap-2">
 <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 rounded-full">{m.role}</span>
                   {m.role !== 'PROJECT_LEAD' && (
-<button onClick={() => void removeMember(m.user.id)} className="text-rose-500 hover:text-rose-700 text-[11px] font-semibold">Remove</button>
+<button onClick={() => void removeMember(m.user.id)} className="text-rose-700 hover:text-rose-700 text-[11px] font-semibold">Remove</button>
 )}
 </div>
 </div>
@@ -377,7 +377,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 <button
               onClick={() => void assignMember()}
               disabled={saving || !assignUserId}
-              className="px-3 py-1.5 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50"
+              className="px-3 py-1.5 text-[11px] font-semibold text-white bg-indigo-700 hover:bg-indigo-800 rounded-lg disabled:opacity-50"
             >
               Assign
 </button>
@@ -389,7 +389,7 @@ export default function ProjectOnboardingView(): React.JSX.Element {
 <button
           onClick={() => void (showCreate ? createProject() : save())}
           disabled={saving || !form.name || !form.code}
-          className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
+          className="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50"
         >
           {saving ? 'Saving…' : showCreate ? 'Create Project' : 'Save Changes'}
 </button>

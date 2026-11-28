@@ -167,7 +167,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 )}
           {canInvite && (
 <button onClick={() => setInvite({ ...invite, open: !invite.open})}
-            className="px-3.5 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1.5">
+            className="px-3.5 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg flex items-center gap-1.5">
 <IconPlus className="w-3.5 h-3.5" /> Invite member
 </button>
 )}
@@ -218,6 +218,7 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 )}
                       {canInvite && !isSelf ? (
 <select value={m.role} onChange={(e) => changeRole(m.membershipId, e.target.value)}
+                          aria-label={`Role for ${m.user?.full_name || m.user?.email || 'member'}`}
                           className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 text-[11px] font-bold">
                           {ASSIGN_ROLES.map((r) =><option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
 </select>
@@ -228,10 +229,10 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <td data-label="Actions" className="px-5 py-3 text-right whitespace-nowrap">
                       {canInvite && !isSelf && (
 <span className="inline-flex items-center gap-2">
-<button onClick={() => revoke(m.membershipId)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
+<button onClick={() => revoke(m.membershipId)} className="text-[11px] font-bold text-red-700 hover:text-red-700">Revoke</button>
 <button onClick={() => resetMemberPassword(m.user?.id, m.user?.email)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Reset link</button>
 {m.verificationPending && (
-<button onClick={() => activateMember(m.user?.id, m.user?.email)} className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700">Activate</button>
+<button onClick={() => activateMember(m.user?.id, m.user?.email)} className="text-[11px] font-bold text-emerald-700 hover:text-emerald-700">Activate</button>
 )}
 </span>
 )}
@@ -278,9 +279,9 @@ function TeamView({ canInvite}: { canInvite: boolean}): React.JSX.Element {
 <div className="ml-auto flex items-center gap-3">
                   {inv.status === 'PENDING' && (
 <>
-<button onClick={() => copyInviteLink(inv.inviteUrl)} className="text-[11px] font-bold text-brand-600 hover:text-brand-700">Copy link</button>
+<button onClick={() => copyInviteLink(inv.inviteUrl)} className="text-[11px] font-bold text-brand-700 hover:text-brand-700">Copy link</button>
 <button onClick={() => regenerateInvite(inv.id)} className="text-[11px] font-bold text-slate-600 hover:text-slate-900">Regenerate</button>
-<button onClick={() => revokeInvite(inv.id)} className="text-[11px] font-bold text-red-500 hover:text-red-700">Revoke</button>
+<button onClick={() => revokeInvite(inv.id)} className="text-[11px] font-bold text-red-700 hover:text-red-700">Revoke</button>
 </>
 )}
                   {inv.status === 'REVOKED' && (

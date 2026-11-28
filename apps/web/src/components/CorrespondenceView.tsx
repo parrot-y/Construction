@@ -111,7 +111,7 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
             {projects.map((p) =><option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
 </select>
           {canManage && (
-<button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+<button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
               {showForm ? 'Cancel' : '+ Log correspondence'}
 </button>
 )}
@@ -161,7 +161,7 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
 <textarea rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value})} className={`${input} resize-none`} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void create()} disabled={saving || form.subject.length< 3 || form.fromName.length< 2 || form.toName.length< 2}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {saving ? 'Saving…' : 'Log item'}
 </button>
 </div>
@@ -177,11 +177,11 @@ export default function CorrespondenceView({ canManage = true}: { canManage?: bo
 <div className="flex items-start justify-between gap-3">
 <div className="min-w-0">
 <div className="flex items-center gap-2 flex-wrap">
-<span className="tabular-nums text-[10px] font-bold text-slate-400">{c.ref}</span>
+<span className="tabular-nums text-[10px] font-bold text-slate-600">{c.ref}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${TYPE_STYLE[c.type] || 'bg-slate-100 text-slate-600'}`}>{c.type[0] + c.type.slice(1).toLowerCase()}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${c.direction === 'OUTGOING' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700'}`}>{c.direction === 'OUTGOING' ? '→ Out' : '← In'}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${STATUS_STYLE[c.status] || 'bg-slate-100 text-slate-600'}`}>{c.status[0] + c.status.slice(1).toLowerCase()}</span>
-                    {c.letter_date &&<span className="text-[10px] text-slate-400">{c.letter_date}</span>}
+                    {c.letter_date &&<span className="text-[10px] text-slate-600">{c.letter_date}</span>}
 </div>
 <h4 className="text-sm font-bold text-slate-900 mt-1">{c.subject}</h4>
 <p className="text-[11px] text-slate-500 mt-0.5">

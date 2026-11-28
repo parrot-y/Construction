@@ -112,7 +112,7 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
 <p className="text-xs text-slate-500">Recurring financial, operational & project digests</p>
 </div>
         {canManage && (
-<button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+<button onClick={() => setShowForm((v) => !v)} className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg">
             {showForm ? 'Cancel' : '+ Schedule report'}
 </button>
 )}
@@ -150,7 +150,7 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
 <input value={form.recipients} onChange={(e) => setForm({ ...form, recipients: e.target.value})} placeholder="finance@company.co.ke, PM_QS, EXECUTIVE" className={input} /></label>
 <div className="sm:col-span-2 flex justify-end">
 <button onClick={() => void create()} disabled={saving || form.name.length< 3 || !form.recipients.trim()}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50">
               {saving ? 'Saving…' : 'Schedule'}
 </button>
 </div>
@@ -169,12 +169,12 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
 <span className="text-sm font-bold text-slate-900">{r.name}</span>
 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${r.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{r.status}</span>
 <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 rounded-full">{r.report_type[0] + r.report_type.slice(1).toLowerCase().replace(/_/g, ' ')}</span>
-<span className="text-[10px] text-slate-400">{r.frequency[0] + r.frequency.slice(1).toLowerCase()}{r.frequency === 'WEEKLY' && r.day_of_week != null ? ` · ${DAYS[r.day_of_week]}` : ''}{r.frequency === 'MONTHLY' && r.day_of_month ? ` · day ${r.day_of_month}` : ''} · {r.format}</span>
+<span className="text-[10px] text-slate-600">{r.frequency[0] + r.frequency.slice(1).toLowerCase()}{r.frequency === 'WEEKLY' && r.day_of_week != null ? ` · ${DAYS[r.day_of_week]}` : ''}{r.frequency === 'MONTHLY' && r.day_of_month ? ` · day ${r.day_of_month}` : ''} · {r.format}</span>
 </div>
 <p className="text-[11px] text-slate-500 mt-1">
                     {r.project ? `${r.project.code} — ${r.project.name}` : 'All projects'} · → {r.recipients.join(', ')}
 </p>
-<p className="text-[10px] text-slate-400 mt-0.5">
+<p className="text-[10px] text-slate-600 mt-0.5">
                     Next: {r.next_run_at ? formatDateTime(new Date(r.next_run_at)) : '—'} · Last: {r.last_run_at ? formatDateTime(new Date(r.last_run_at)) : 'never'}
 </p>
 </div>
@@ -199,12 +199,12 @@ export default function ScheduledReportsView({ canManage = true}: { canManage?: 
               {expandedRuns === r.id && (
 <div className="mt-3 border-t border-slate-100 pt-2 space-y-1">
                   {(runs[r.id] || []).length === 0 ? (
-<p className="text-[11px] text-slate-400">No runs yet.</p>
+<p className="text-[11px] text-slate-600">No runs yet.</p>
 ) : (
                     (runs[r.id] || []).map((run: any) => (
 <div key={run.id} className="flex items-center justify-between text-[11px]">
 <span className="text-slate-600">{formatDateTime(new Date(run.ran_at))}</span>
-<span className={`font-bold ${run.status === 'SUCCESS' ? 'text-emerald-600' : 'text-rose-600'}`}>{run.status}</span>
+<span className={`font-bold ${run.status === 'SUCCESS' ? 'text-emerald-700' : 'text-rose-700'}`}>{run.status}</span>
 </div>
 ))
 )}

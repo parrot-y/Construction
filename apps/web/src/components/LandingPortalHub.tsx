@@ -56,7 +56,7 @@ export default function LandingPortalHub({
       {/* Nav */}
 <nav className="flex items-center justify-between">
 <div className="flex items-center gap-2.5">
-<div className="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center text-white font-black text-lg">S</div>
+<div className="w-9 h-9 rounded-lg bg-brand-700 flex items-center justify-center text-white font-black text-lg">S</div>
 <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{PRODUCT_NAME}</span>
 </div>
 <Button variant="primary" size="sm" onClick={onOpenLogin}>Sign in</Button>
@@ -135,7 +135,7 @@ export default function LandingPortalHub({
       {/* Dev-only role previews */}
       {isDev && (
 <section className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4">
-<p className="text-[11px] font-bold text-slate-400 ">Developer only</p>
+<p className="text-[11px] font-bold text-slate-600 ">Developer only</p>
 <div className="flex flex-wrap gap-2 mt-2">
             {['COMPANY_ADMIN', 'PM_QS', 'SITE_SUPERVISOR', 'EXECUTIVE', 'CLIENT'].map((r) => (
 <button
@@ -150,7 +150,7 @@ export default function LandingPortalHub({
 </section>
 )}
 
-<footer className="text-xs text-slate-400 pt-4 border-t border-slate-200 dark:border-slate-800">
+<footer className="text-xs text-slate-600 pt-4 border-t border-slate-200 dark:border-slate-800">
         {PRODUCT_NAME} — built for Kenyan contractors.
 </footer>
 </div>

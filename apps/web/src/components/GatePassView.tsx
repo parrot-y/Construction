@@ -167,7 +167,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
         </div>
         {canCreate && (
           <button type="button" onClick={() => setCreating(true)}
-            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brand-600 text-white hover:bg-brand-700"
+            className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-brand-700 text-white hover:bg-brand-800"
             data-testid="gate-pass-new">+ New gate pass</button>
         )}
       </div>
@@ -186,7 +186,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-400 py-8 text-center">Loading gate passes…</p>
+        <p className="text-sm text-slate-600 py-8 text-center">Loading gate passes…</p>
       ) : error ? (
         <ErrorState message={apiErrorMessage(error, 'Failed to load gate passes.')} onRetry={() => void load()} />
       ) : passes.length === 0 ? (
@@ -195,7 +195,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
         <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
           <table className="w-full text-sm min-w-[860px]">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400 border-b border-slate-100 dark:border-slate-800">
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-600 border-b border-slate-100 dark:border-slate-800">
                 <th className="px-4 py-3">Pass</th>
                 <th className="px-4 py-3">Issued to</th>
                 <th className="px-4 py-3">Destination</th>
@@ -212,11 +212,11 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
                 <tr key={p.id} className="border-b border-slate-50 dark:border-slate-800/60 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40" data-testid={`gate-pass-row-${p.id}`}>
                   <td className="px-4 py-2.5">
                     <p className="font-bold text-slate-800 dark:text-slate-200">{p.passNumber}</p>
-                    <p className="text-[11px] text-slate-400">{fmtDateTime(p.createdAt)}{p.projectName ? ` · ${p.projectName}` : ''}{p.storeLocation ? ` · ${p.storeLocation}` : ''}</p>
+                    <p className="text-[11px] text-slate-600">{fmtDateTime(p.createdAt)}{p.projectName ? ` · ${p.projectName}` : ''}{p.storeLocation ? ` · ${p.storeLocation}` : ''}</p>
                   </td>
                   <td className="px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
                     {p.issuedToName}
-                    {p.issuedToPhone && <p className="text-[11px] text-slate-400">{p.issuedToPhone}</p>}
+                    {p.issuedToPhone && <p className="text-[11px] text-slate-600">{p.issuedToPhone}</p>}
                   </td>
                   <td className="px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">{p.destination || p.purpose || '—'}</td>
                   <td className="px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">{p.vehicleRegistration || '—'}</td>
@@ -225,7 +225,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
                   </td>
                   <td className="px-4 py-2.5">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLE[p.status] ?? ''}`}>{p.status[0] + p.status.slice(1).toLowerCase()}</span>
-                    {p.status === 'CANCELLED' && p.cancelReason && <p className="text-[10px] text-slate-400 mt-0.5">{p.cancelReason}</p>}
+                    {p.status === 'CANCELLED' && p.cancelReason && <p className="text-[10px] text-slate-600 mt-0.5">{p.cancelReason}</p>}
                   </td>
                   <td className="px-4 py-2.5 text-xs text-slate-500">{fmtDateTime(p.authorizedAt)}</td>
                   <td className="px-4 py-2.5 text-xs text-slate-500">{fmtDateTime(p.exitedAt)}</td>
@@ -238,7 +238,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
                         <button type="button" disabled={busyId === p.id} onClick={() => void act(p, 'exit')} className="text-xs font-bold text-emerald-700 hover:underline mr-3" data-testid={`gate-pass-exit-${p.id}`}>Confirm exit</button>
                       )}
                       {(p.status === 'PENDING' || p.status === 'AUTHORIZED') && canApprove && (
-                        <button type="button" disabled={busyId === p.id} onClick={() => void act(p, 'cancel')} className="text-xs font-bold text-rose-600 hover:underline" data-testid={`gate-pass-cancel-${p.id}`}>Cancel</button>
+                        <button type="button" disabled={busyId === p.id} onClick={() => void act(p, 'cancel')} className="text-xs font-bold text-rose-700 hover:underline" data-testid={`gate-pass-cancel-${p.id}`}>Cancel</button>
                       )}
                     </td>
                   )}
@@ -304,7 +304,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
                 value={l.unit} onChange={(e) => setLine(idx, { unit: e.target.value })} />
               <input className="col-span-3 px-2 py-1.5 text-sm border border-slate-300 rounded-lg" type="number" min="0" step="any" placeholder="Qty"
                 value={l.quantity} onChange={(e) => setLine(idx, { quantity: e.target.value })} />
-              <button type="button" className="col-span-1 text-xs text-rose-600 font-bold" onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))} disabled={lines.length === 1}>✕</button>
+              <button type="button" className="col-span-1 text-xs text-rose-700 font-bold" onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))} disabled={lines.length === 1}>✕</button>
             </div>
           ))}
           <button type="button" className="text-xs font-bold text-brand-700" onClick={() => setLines((prev) => [...prev, emptyLine()])} data-testid="gate-pass-add-item">+ Add item</button>
@@ -319,7 +319,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={() => setCreating(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:underline">Cancel</button>
           <button type="button" onClick={() => void createPass()} disabled={formBusy}
-            className="px-4 py-2 rounded-lg bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 disabled:opacity-60" data-testid="gate-pass-save">
+            className="px-4 py-2 rounded-lg bg-brand-700 text-white text-xs font-bold hover:bg-brand-800 disabled:opacity-60" data-testid="gate-pass-save">
             {formBusy ? 'Creating…' : 'Create pass'}
           </button>
         </div>

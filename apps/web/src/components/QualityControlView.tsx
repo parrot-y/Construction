@@ -278,7 +278,7 @@ export default function QualityControlView({
 <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
               Quality Assurance & Structural Inspection
 </span>
-<span className="text-xs text-slate-400 tabular-nums">KS 02-598 / BORAQS</span>
+<span className="text-xs text-slate-600 tabular-nums">KS 02-598 / BORAQS</span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
             Pre-Pour Hold Points & Concrete Cube Crushing
@@ -410,7 +410,7 @@ export default function QualityControlView({
 </button>
 <button
                       onClick={() => handleSetChecklistStatus('REJECTED_REWORK_REQUIRED')}
-                      className="px-3 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-xs transition"
+                      className="px-3 py-1.5 text-xs font-semibold bg-rose-700 hover:bg-rose-800 text-white rounded-lg shadow-xs transition"
                       title="Reject pour and require structural rework"
                     >
                        Reject / Rework
@@ -542,7 +542,7 @@ export default function QualityControlView({
 </td>
 <td className="p-3">
 <div className="font-semibold text-slate-900">{test.pourLocation}</div>
-<div className="text-[11px] text-slate-400 mt-0.5">
+<div className="text-[11px] text-slate-600 mt-0.5">
                           {`Poured: ${test.pourDate} • Slump: ${test.slumpMm}mm`}
 </div>
 </td>
@@ -557,12 +557,12 @@ export default function QualityControlView({
 <span className="tabular-nums font-bold text-slate-800">
                               {`${test.sevenDayStrengthMpa.toFixed(1)} MPa`}
 </span>
-<span className="text-[10px] text-slate-400 block tabular-nums">
+<span className="text-[10px] text-slate-600 block tabular-nums">
                               {test.sevenDayBreakDate}
 </span>
 </div>
 ) : (
-<span className="text-slate-400 text-[11px]">Pending break</span>
+<span className="text-slate-600 text-[11px]">Pending break</span>
 )}
 </td>
 <td className="p-3 whitespace-nowrap">
@@ -575,7 +575,7 @@ export default function QualityControlView({
                             >
                               {`${test.twentyEightDayStrengthMpa.toFixed(1)} MPa`}
 </span>
-<span className="text-[10px] text-slate-400 block tabular-nums">
+<span className="text-[10px] text-slate-600 block tabular-nums">
                               {test.twentyEightDayBreakDate}
 </span>
 </div>
@@ -584,7 +584,7 @@ export default function QualityControlView({
 <span className="text-amber-700 font-medium text-[11px]">
                               Scheduled
 </span>
-<span className="text-[10px] text-slate-400 block tabular-nums">
+<span className="text-[10px] text-slate-600 block tabular-nums">
                               {test.twentyEightDayBreakDate}
 </span>
 </div>
@@ -598,7 +598,7 @@ export default function QualityControlView({
 <span className="font-semibold text-slate-700">
                               {effectiveStrength > 0 ? `${effectiveStrength.toFixed(1)} MPa` : '0 MPa'}
 </span>
-<span className="text-slate-400">
+<span className="text-slate-600">
                               {`target ${test.targetStrengthMpa.toFixed(0)} MPa`}
 </span>
 </div>
@@ -607,9 +607,9 @@ export default function QualityControlView({
                               className={`h-full transition-all rounded-full ${
                                 test.twentyEightDayStrengthMpa !== null
                                   ? isPass
-                                    ? 'bg-emerald-600'
-                                    : 'bg-rose-500'
-                                  : 'bg-blue-500'
+                                    ? 'bg-emerald-700'
+                                    : 'bg-rose-700'
+                                  : 'bg-blue-700'
 }`}
                               style={{ width: `${Math.min(100, ratio)}%`}}
                             />

@@ -190,7 +190,7 @@ export default function CompliancePortalView({
   };
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-400">Loading portal…</div>;
+    return <div className="max-w-5xl mx-auto p-8 text-center text-sm text-slate-600">Loading portal…</div>;
   }
   if (loadError) {
     return (
@@ -238,7 +238,7 @@ export default function CompliancePortalView({
 <button
             onClick={() => setShowCertificateModal(true)}
             data-testid="view-statutory-certificate-btn"
-            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-lg transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 hover:text-white bg-emerald-50 hover:bg-emerald-800 border border-emerald-200 hover:border-emerald-600 rounded-lg transition flex items-center gap-1.5"
           >
 <span> Statutory Docket Certificate</span>
 </button>
@@ -272,7 +272,7 @@ export default function CompliancePortalView({
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
 <p className="text-[11px] font-semibold text-slate-500">Statutory Levy</p>
-<p className="text-sm font-bold text-emerald-600">
+<p className="text-sm font-bold text-emerald-700">
             {complianceSummary.statutoryLevyPaid === null ? 'Not tracked' : complianceSummary.statutoryLevyPaid ? 'Paid & Reconciled' : 'Pending'}
 </p>
 <p className="text-[10px] text-slate-500">National Construction Levy</p>
@@ -280,7 +280,7 @@ export default function CompliancePortalView({
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
 <p className="text-[11px] font-semibold text-slate-500">Accredited Supervisor</p>
-<p className="text-sm font-bold text-emerald-600">
+<p className="text-sm font-bold text-emerald-700">
             {complianceSummary.certifiedSiteSupervisorPresent === null ? 'Not tracked' : complianceSummary.certifiedSiteSupervisorPresent ? 'Active on Site' : 'Not Certified'}
 </p>
 <p className="text-[10px] text-slate-500">NCA Registered Professional</p>
@@ -529,7 +529,7 @@ export default function CompliancePortalView({
 </div>
 <button
                 onClick={() => setShowCertificateModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+                className="text-slate-600 hover:text-slate-600 text-lg font-bold"
               >
                 
 </button>

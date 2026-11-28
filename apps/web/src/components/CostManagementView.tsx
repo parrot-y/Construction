@@ -145,7 +145,7 @@ export default function CostManagementView({
         {canCreate && (
 <button
             onClick={() => setShowCaptureModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            className="px-3.5 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
              Log Cost Entry
 </button>
@@ -196,7 +196,7 @@ export default function CostManagementView({
 <tbody className="divide-y divide-slate-100">
             {filteredCosts.length === 0 ? (
 <tr>
-<td colSpan={canApprove ? 6 : 5} className="py-6 text-center text-slate-400 font-sans">
+<td colSpan={canApprove ? 6 : 5} className="py-6 text-center text-slate-600 font-sans">
                   No cost records match the selected filter.
 </td>
 </tr>
@@ -205,7 +205,7 @@ export default function CostManagementView({
 <tr key={cost.id} className="hover:bg-slate-50/50 transition">
 <td className="py-3 px-3 font-sans">
 <span className="font-semibold text-slate-900 block">{cost.vendor_name || 'Direct Site Expense'}</span>
-<span className="text-[10px] text-slate-400 block font-mono tabular-nums">
+<span className="text-[10px] text-slate-600 block font-mono tabular-nums">
                       {formatDate(new Date(cost.created_at))} {cost.invoice_ref ? `• ${cost.invoice_ref}` : ''}
 </span>
 </td>
@@ -217,7 +217,7 @@ export default function CostManagementView({
 <td className="py-3 px-3 font-sans max-w-xs truncate">
 <span className="text-slate-700 block truncate">{cost.description}</span>
                     {cost.receipts && cost.receipts.length > 0 && cost.receipts[0] && (
-<span className="text-[10px] text-emerald-600 block mt-0.5">
+<span className="text-[10px] text-emerald-700 block mt-0.5">
                          {cost.receipts[0].filename}
 </span>
 )}
@@ -273,7 +273,7 @@ export default function CostManagementView({
                           Void
 </button>
 ) : (
-<span className="text-[10px] text-slate-400">Voided</span>
+<span className="text-[10px] text-slate-600">Voided</span>
 )}
 </td>
 )}

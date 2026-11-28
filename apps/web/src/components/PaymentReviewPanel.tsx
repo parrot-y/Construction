@@ -117,7 +117,7 @@ export default function PaymentReviewPanel({
 <div key={c.id} className="bg-white border border-amber-200 rounded-lg p-3 space-y-2">
 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
 <span className="text-sm font-bold text-slate-900">{formatKes(c.amount)}</span>
-<span className="text-[10px] text-slate-400 uppercase font-bold">{c.provider}</span>
+<span className="text-[10px] text-slate-600 uppercase font-bold">{c.provider}</span>
 </div>
 <p className="text-[11px] text-slate-600">
               Invoice #{c.invoiceNo ?? c.invoiceId.slice(0, 8)} · ref {c.reference} · {formatDate(new Date(c.createdAt))}

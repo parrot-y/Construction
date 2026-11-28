@@ -112,14 +112,14 @@ export default function BoqImportModal({
 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 ">
                 EASMM 2008 Standard Pipeline
 </span>
-<span className="text-xs text-slate-400">• ADR-003 Staged Import</span>
+<span className="text-xs text-slate-600">• ADR-003 Staged Import</span>
 </div>
 <h2 className="text-lg font-bold text-slate-900 mt-1">Import Bill of Quantities (BOQ)</h2>
 <p className="text-xs text-slate-500">Project: {projectName} ({projectId})</p>
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 font-bold text-lg p-1"
+            className="text-slate-600 hover:text-slate-600 font-bold text-lg p-1"
           >
             
 </button>
@@ -137,7 +137,7 @@ export default function BoqImportModal({
 <div className="space-y-6">
               {/* Dropzone Area */}
 <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-purple-500 transition bg-slate-50/50 space-y-3">
-<div className="text-4xl text-purple-600"></div>
+<div className="text-4xl text-purple-700"></div>
 <div>
 <label className="cursor-pointer font-semibold text-purple-700 hover:text-purple-800 text-sm">
                     Click to select Excel spreadsheet
@@ -155,7 +155,7 @@ export default function BoqImportModal({
                 {selectedFile && (
 <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-lg text-xs font-medium text-purple-900">
 <span> {selectedFile.name}</span>
-<span className="text-slate-400">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+<span className="text-slate-600">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
 </div>
 )}
 </div>
@@ -168,7 +168,7 @@ export default function BoqImportModal({
                 >
                   Download BOQ template (.xlsx)
                 </a>
-                <span className="text-[10px] text-slate-400">Preview is a dry run — nothing is saved until you confirm.</span>
+                <span className="text-[10px] text-slate-600">Preview is a dry run — nothing is saved until you confirm.</span>
               </div>
 
               {/* Kenyan Format Guidance */}
@@ -291,7 +291,7 @@ export default function BoqImportModal({
                   id="excludeRejected"
                   checked={excludeRejected}
                   onChange={(e) => setExcludeRejected(e.target.checked)}
-                  className="rounded text-purple-600 focus:ring-purple-500"
+                  className="rounded text-purple-700 focus:ring-purple-500"
                 />
 <label htmlFor="excludeRejected" className="text-xs text-slate-700 font-medium">
                   Exclude rejected line items during import (prevents bad data from entering the database)
@@ -315,7 +315,7 @@ export default function BoqImportModal({
 <button
                 type="button"
                 onClick={handleParse}
-                className="px-5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition"
+                className="px-5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition"
               >
                 Parse &amp; Preview BOQ
 </button>
@@ -334,7 +334,7 @@ export default function BoqImportModal({
                 type="button"
                 onClick={handleConfirmImport}
                 disabled={step === 'COMMITTING'}
-                className="px-5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+                className="px-5 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
               >
                 {step === 'COMMITTING' ? 'Importing...' : 'Confirm & Commit BOQ Baseline'}
 </button>

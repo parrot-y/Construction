@@ -48,12 +48,12 @@ export function RequestPasswordResetView({ apiBaseUrl = '', onBack = () => {} }:
             {sent.resetUrl && (
               <p className="text-xs text-slate-500">
                 Simulated delivery — your reset link:{' '}
-                <a href={sent.resetUrl} className="font-semibold text-brand-600 hover:underline break-all">
+                <a href={sent.resetUrl} className="font-semibold text-brand-700 hover:underline break-all">
                   {sent.resetUrl}
                 </a>
               </p>
             )}
-            <button onClick={onBack} className="text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
+            <button onClick={onBack} className="text-sm font-semibold text-brand-700 hover:text-brand-700 min-h-[44px]">
               Back to sign in
             </button>
           </div>
@@ -75,7 +75,7 @@ export function RequestPasswordResetView({ apiBaseUrl = '', onBack = () => {} }:
                   placeholder="you@company.co.ke" autoComplete="email" />
               </div>
               <button type="submit" disabled={isLoading}
-                className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 min-h-[44px]">
+                className="w-full rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50 min-h-[44px]">
                 {isLoading ? 'Sending…' : 'Send reset link'}
               </button>
             </form>
@@ -124,7 +124,7 @@ export function ResetPasswordView({ token, apiBaseUrl = '', onDone }: BaseProps 
             <div className="rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800" role="status">
               Password updated. All previous sessions were signed out — sign in with your new password.
             </div>
-            <button onClick={onDone} className="text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
+            <button onClick={onDone} className="text-sm font-semibold text-brand-700 hover:text-brand-700 min-h-[44px]">
               Back to sign in
             </button>
           </div>
@@ -149,7 +149,7 @@ export function ResetPasswordView({ token, apiBaseUrl = '', onDone }: BaseProps 
                   autoComplete="new-password" />
               </div>
               <button type="submit" disabled={isLoading}
-                className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 min-h-[44px]">
+                className="w-full rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50 min-h-[44px]">
                 {isLoading ? 'Updating…' : 'Update password'}
               </button>
             </form>
@@ -210,7 +210,7 @@ export function VerifyEmailView({ token, apiBaseUrl = '', onDone }: BaseProps & 
             <div className="mt-4 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800" role="status">
               Your email is verified — you can now sign in.
             </div>
-            <button onClick={onDone} className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
+            <button onClick={onDone} className="mt-4 text-sm font-semibold text-brand-700 hover:text-brand-700 min-h-[44px]">
               Continue to sign in
             </button>
           </>
@@ -220,7 +220,7 @@ export function VerifyEmailView({ token, apiBaseUrl = '', onDone }: BaseProps & 
             <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700" role="alert">
               {message}
             </div>
-            <button onClick={onDone} className="mt-4 text-sm font-semibold text-brand-600 hover:text-brand-700 min-h-[44px]">
+            <button onClick={onDone} className="mt-4 text-sm font-semibold text-brand-700 hover:text-brand-700 min-h-[44px]">
               Back to sign in
             </button>
           </>

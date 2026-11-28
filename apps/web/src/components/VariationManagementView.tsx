@@ -59,7 +59,7 @@ const STATUS_STYLES: Record<string, string> = {
   OWNER_REVIEW: 'bg-orange-50 text-orange-700 border-orange-200',
   APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-  VOID: 'bg-slate-100 text-slate-400 border-slate-200',
+  VOID: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
 const TRIGGER_LABELS: Record<string, string> = {
@@ -211,7 +211,7 @@ export default function VariationManagementView({
         {canRequest && (
 <button
             onClick={() => setShowCreateModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            className="px-3.5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
             + New Change Order
 </button>
@@ -221,7 +221,7 @@ export default function VariationManagementView({
       {actionFeedback && (
 <div className="p-3 bg-purple-50 border border-purple-200 text-purple-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {actionFeedback}</span>
-<button onClick={() => setActionFeedback(null)} className="text-purple-600 hover:text-purple-900 font-bold ml-2">
+<button onClick={() => setActionFeedback(null)} className="text-purple-700 hover:text-purple-900 font-bold ml-2">
             ×
 </button>
 </div>
@@ -229,7 +229,7 @@ export default function VariationManagementView({
       {actionError && (
 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {actionError}</span>
-<button onClick={() => setActionError(null)} className="text-rose-600 hover:text-rose-900 font-bold ml-2">
+<button onClick={() => setActionError(null)} className="text-rose-700 hover:text-rose-900 font-bold ml-2">
             ×
 </button>
 </div>
@@ -250,12 +250,12 @@ export default function VariationManagementView({
       {/* Variations List */}
 <div className="space-y-3">
         {loading ? (
-<div className="text-center py-8 text-xs text-slate-400">Loading change orders…</div>
+<div className="text-center py-8 text-xs text-slate-600">Loading change orders…</div>
 ) : filteredVariations.length === 0 ? (
 <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl">
-<span className="text-2xl text-slate-400 block mb-1"></span>
+<span className="text-2xl text-slate-600 block mb-1"></span>
 <p className="text-xs font-semibold text-slate-600">No change orders found</p>
-<p className="text-[11px] text-slate-400">There are no change orders matching the selected filter</p>
+<p className="text-[11px] text-slate-600">There are no change orders matching the selected filter</p>
 </div>
 ) : (
           filteredVariations.map((vo) => {
@@ -296,14 +296,14 @@ export default function VariationManagementView({
                       >
                         {isPositive ? '+' : '-'}{formatKes(Math.abs(netNum))}
 </span>
-<span className="text-[10px] text-slate-400 block">
+<span className="text-[10px] text-slate-600 block">
                         {vo.time_extension_days > 0 ? `+${vo.time_extension_days} Days Extension` : '0 Days Extension'}
 </span>
 </div>
 
 <button
                       onClick={() => toggleExpand(vo.id)}
-                      className="text-xs text-slate-400 hover:text-slate-600 p-1 rounded"
+                      className="text-xs text-slate-600 hover:text-slate-600 p-1 rounded"
                       aria-label="Toggle details"
                     >
                       {isExpanded ? '▲' : '▼'}
@@ -378,7 +378,7 @@ export default function VariationManagementView({
 <ul className="space-y-1.5">
                           {vo.events.map((ev) => (
 <li key={ev.id} className="flex items-start gap-2 text-[11px] text-slate-600">
-<span className="font-mono tabular-nums text-slate-400 shrink-0">
+<span className="font-mono tabular-nums text-slate-600 shrink-0">
                                 {formatDateTime(ev.created_at)}
 </span>
 <span>
@@ -395,7 +395,7 @@ export default function VariationManagementView({
 
                 {/* Action Buttons Row */}
 <div className="flex flex-wrap items-center justify-between pt-1 border-t border-slate-100 text-[11px] gap-2">
-<span className="text-slate-400">
+<span className="text-slate-600">
                     Logged: {formatDate(vo.created_at)}
                     {vo.submitted_at && ` • Submitted: ${formatDate(vo.submitted_at)}`}
                     {vo.approved_at && ` • Approved: ${formatDate(vo.approved_at)}`}
@@ -406,7 +406,7 @@ export default function VariationManagementView({
                     {canRequest && status === 'DRAFT' && (
 <button
                         onClick={() => void handleSubmit(vo.id)}
-                        className="px-2.5 py-1 font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-md transition shadow-xs"
+                        className="px-2.5 py-1 font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-md transition shadow-xs"
                       >
                         Submit for PM review
 </button>
@@ -429,7 +429,7 @@ export default function VariationManagementView({
                 {canApprove && (['OWNER', 'CLIENT'].includes(userRole) ? status === 'OWNER_REVIEW' : isPending(status)) && (
 <button
                         onClick={() => void handleReviewAction(vo.id, 'APPROVE')}
-                        className="px-2.5 py-1 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition shadow-xs"
+                        className="px-2.5 py-1 font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md transition shadow-xs"
                       >
                         {status === 'OWNER_REVIEW' ? 'Owner Approve' : 'Approve'}
 </button>

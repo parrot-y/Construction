@@ -17,7 +17,7 @@ function ChunkUnavailable(): React.JSX.Element {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="min-h-11 px-6 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold transition"
+          className="min-h-11 px-6 py-2.5 rounded-lg bg-orange-700 hover:bg-orange-800 text-white text-sm font-semibold transition"
         >
           Try again
         </button>

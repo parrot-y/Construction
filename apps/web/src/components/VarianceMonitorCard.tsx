@@ -152,7 +152,7 @@ export default function VarianceMonitorCard({
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
 <div>
 <div className="flex items-center gap-2">
-<span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+<span className="w-2.5 h-2.5 rounded-full bg-blue-700" />
 <span className="text-[11px] font-bold text-slate-500">
               Variance Monitor &amp; Health Guard • {resolvedName}
 </span>
@@ -197,7 +197,7 @@ export default function VarianceMonitorCard({
 <div className="space-y-1.5">
 <div className="flex justify-between items-center text-xs">
 <div className="flex items-center gap-2">
-<span className="w-2 h-2 rounded-full bg-purple-600" />
+<span className="w-2 h-2 rounded-full bg-purple-700" />
 <span className="font-semibold text-slate-700">Cost Consumption (Approved)</span>
 </div>
 <span className="tabular-nums font-bold text-slate-900">
@@ -207,7 +207,7 @@ export default function VarianceMonitorCard({
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
 <div
               className={`h-3 rounded-full transition-all duration-500 ${
-                isActionRequired ? 'bg-rose-500' : isAttention ? 'bg-amber-500' : 'bg-purple-600'
+                isActionRequired ? 'bg-rose-700' : isAttention ? 'bg-amber-700' : 'bg-purple-700'
 }`}
               style={{ width: `${Math.min(costPct, 100)}%`}}
             />
@@ -218,7 +218,7 @@ export default function VarianceMonitorCard({
 <div className="space-y-1.5">
 <div className="flex justify-between items-center text-xs">
 <div className="flex items-center gap-2">
-<span className="w-2 h-2 rounded-full bg-blue-600" />
+<span className="w-2 h-2 rounded-full bg-blue-700" />
 <span className="font-semibold text-slate-700">Physical Milestone Progress</span>
 </div>
 <span className="tabular-nums font-bold text-blue-700">
@@ -227,7 +227,7 @@ export default function VarianceMonitorCard({
 </div>
 <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
 <div
-              className="h-3 rounded-full bg-blue-600 transition-all duration-500"
+              className="h-3 rounded-full bg-blue-700 transition-all duration-500"
               style={{ width: `${Math.min(physPct, 100)}%`}}
             />
 </div>
@@ -246,7 +246,7 @@ export default function VarianceMonitorCard({
 <span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.MATERIAL.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.MATERIAL.pending)} pend
 </span>
 </div>
@@ -256,7 +256,7 @@ export default function VarianceMonitorCard({
 <span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.LABOR.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.LABOR.pending)} pend
 </span>
 </div>
@@ -266,7 +266,7 @@ export default function VarianceMonitorCard({
 <span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.PLANT.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.PLANT.pending)} pend
 </span>
 </div>
@@ -276,7 +276,7 @@ export default function VarianceMonitorCard({
 <span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.SUBCONTRACT.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.SUBCONTRACT.pending)} pend
 </span>
 </div>
@@ -286,7 +286,7 @@ export default function VarianceMonitorCard({
 <span className="tabular-nums font-bold text-slate-800 block text-xs mt-1">
               {formatKes(categoryBreakdown.PRELIMINARY.approved)}
 </span>
-<span className="text-[10px] text-amber-600 tabular-nums block mt-0.5">
+<span className="text-[10px] text-amber-700 tabular-nums block mt-0.5">
               +{formatKes(categoryBreakdown.PRELIMINARY.pending)} pend
 </span>
 </div>

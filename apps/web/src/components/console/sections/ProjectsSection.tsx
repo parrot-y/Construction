@@ -80,7 +80,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 </div>
         {canEdit && (
 <button onClick={() => setShowCreate(true)}
-            className="px-3.5 py-2 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1.5">
+            className="px-3.5 py-2 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg flex items-center gap-1.5">
 <IconPlus className="w-3.5 h-3.5" /> New project
 </button>
 )}
@@ -97,7 +97,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">No projects in this view</p>
 <p className="mt-1 text-xs text-slate-500">{filter === 'All' && typeFilter === 'All' ? 'Create your first project to get started.' : 'Try a different filter.'}</p>
 {canEdit && filter === 'All' && typeFilter === 'All' && (
-<button onClick={() => setShowCreate(true)} className="mt-4 rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold text-white hover:bg-orange-700">Create project</button>
+<button onClick={() => setShowCreate(true)} className="mt-4 rounded-lg bg-orange-700 px-4 py-2 text-xs font-bold text-white hover:bg-orange-800">Create project</button>
 )}
 </div>
 ) : (
@@ -142,7 +142,7 @@ function ProjectsAll({ canEdit}: { canEdit: boolean}): React.JSX.Element {
 </span>
 )}
 </div>
-<p className="text-xs font-semibold text-orange-600 dark:text-orange-400 mt-3">Open workspace →</p>
+<p className="text-xs font-semibold text-orange-700 dark:text-orange-400 mt-3">Open workspace →</p>
 </button>
 ))}
 </div>

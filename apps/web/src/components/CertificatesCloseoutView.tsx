@@ -302,8 +302,8 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
                 title={gateOk ? `Advance to ${STAGE_LABELS[closeout.nextStage]}` : 'Prerequisites not met — see checklist'}
                 className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition ${
                   gateOk
-                    ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    ? 'bg-purple-700 hover:bg-purple-800 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 cursor-not-allowed'
 }`}
               >
                 Advance to {closeout.nextStage ? STAGE_LABELS[closeout.nextStage] : ''}
@@ -316,7 +316,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
             {STAGES.map((s, i) => (
 <React.Fragment key={s}>
 <div className={`flex-1 text-center px-2 py-2 rounded-lg text-[10px] font-bold ${
-                  i< stageIdx ? 'bg-emerald-50 text-emerald-700' : i === stageIdx ? 'bg-purple-600 text-white' : 'bg-slate-50 text-slate-400'
+                  i< stageIdx ? 'bg-emerald-50 text-emerald-700' : i === stageIdx ? 'bg-purple-700 text-white' : 'bg-slate-50 text-slate-600'
 }`}>
                   {STAGE_LABELS[s]}
 </div>
@@ -356,7 +356,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
           {canManage && !builderOpen && (
 <button
               onClick={() => void openBuilder()}
-              className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition"
+              className="px-3.5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition"
             >
               + New IPC from progress
 </button>
@@ -452,7 +452,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 <button
                 onClick={() => void createCert()}
                 disabled={saving || previewLoading || linesTotal <= 0 || !builder.periodStart || !builder.periodEnd}
-                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50"
               >
                 {saving ? 'Saving…' : 'Draft IPC'}
 </button>
@@ -487,7 +487,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 <button
                 onClick={() => void createInvoice()}
                 disabled={invoiceSaving || invoiceForm.clientName.trim().length< 2}
-                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg disabled:opacity-50"
               >
                 {invoiceSaving ? 'Creating…' : 'Create invoice'}
 </button>
@@ -528,7 +528,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
                 {canManage && (
 <div className="flex gap-1.5 flex-wrap">
                     {c.status === 'DRAFT' && (
-<button onClick={() => void certAction(c, 'SUBMIT')} className="px-2.5 py-1 text-[11px] font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-md min-h-[36px]">Submit</button>
+<button onClick={() => void certAction(c, 'SUBMIT')} className="px-2.5 py-1 text-[11px] font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-md min-h-[36px]">Submit</button>
 )}
                     {c.status === 'SUBMITTED' && (
 <>
@@ -538,14 +538,14 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 )}
                     {c.status === 'UNDER_REVIEW' && (
 <>
-<button onClick={() => void certAction(c, 'CERTIFY')} className="px-2.5 py-1 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md min-h-[36px]">Certify</button>
+<button onClick={() => void certAction(c, 'CERTIFY')} className="px-2.5 py-1 text-[11px] font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md min-h-[36px]">Certify</button>
 <button onClick={() => void certAction(c, 'REJECT')} className="px-2.5 py-1 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-md min-h-[36px]">Reject</button>
 </>
 )}
                     {c.status === 'CERTIFIED' && !c.invoice_id && (
 <button
                         onClick={() => { setInvoiceFor(c); setInvoiceForm({ clientName: '', clientEmail: '', dueDays: '30', notes: ''}); }}
-                        className="px-2.5 py-1 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md min-h-[36px]"
+                        className="px-2.5 py-1 text-[11px] font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-md min-h-[36px]"
                       >
                         Create invoice
 </button>

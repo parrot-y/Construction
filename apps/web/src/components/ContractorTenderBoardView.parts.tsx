@@ -297,7 +297,7 @@ export const TenderDetailPanel: React.FC<{
 </div>
 
 <div className="text-left sm:text-right text-xs">
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
                 Estimated Project Budget
 </span>
 <span className="text-base tabular-nums font-bold text-slate-900">
@@ -333,7 +333,7 @@ export const TenderDetailPanel: React.FC<{
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-4">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
 <div>
-<span className="text-[10px] font-bold text-slate-400 block">
+<span className="text-[10px] font-bold text-slate-600 block">
                 Evaluation Metric: Technical 70% | Financial 30%
 </span>
 <h4 className="text-sm font-bold text-slate-900">
@@ -347,7 +347,7 @@ export const TenderDetailPanel: React.FC<{
 </div>
 
           {activeTender.bids.length === 0 ? (
-<div className="p-8 text-center text-slate-400 text-xs italic bg-slate-50 rounded-lg border border-dashed border-slate-200 space-y-2">
+<div className="p-8 text-center text-slate-600 text-xs italic bg-slate-50 rounded-lg border border-dashed border-slate-200 space-y-2">
 <p>No contractor bids submitted yet for this tender package.</p>
 <button
                 onClick={onSubmitBid}
@@ -410,13 +410,13 @@ export const TenderDetailPanel: React.FC<{
 </td>
 <td className="py-3 px-3">
 <span className="font-bold text-blue-700">{bid.technicalScore.toFixed(1)} / 100</span>
-<span className="text-[10px] text-slate-400 block tabular-nums">
+<span className="text-[10px] text-slate-600 block tabular-nums">
                             Weighted: {(bid.technicalScore * 0.7).toFixed(1)}
 </span>
 </td>
 <td className="py-3 px-3">
 <span className="font-bold text-emerald-700">{bid.financialScore.toFixed(1)} / 100</span>
-<span className="text-[10px] text-slate-400 block tabular-nums">
+<span className="text-[10px] text-slate-600 block tabular-nums">
                             Weighted: {(bid.financialScore * 0.3).toFixed(1)}
 </span>
 </td>
@@ -427,7 +427,7 @@ export const TenderDetailPanel: React.FC<{
 </td>
 <td className="py-3 px-3 text-right">
                           {isAwarded ? (
-<span className="px-3 py-1 bg-emerald-600 text-white font-bold rounded text-xs shadow-2xs inline-block">
+<span className="px-3 py-1 bg-emerald-700 text-white font-bold rounded text-xs shadow-2xs inline-block">
                                Contract Awarded
 </span>
 ) : (

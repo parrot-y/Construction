@@ -40,15 +40,15 @@ export default function MyAccessModal({ open, onClose, session }: {
           These are the things this account is allowed to do.
 </p>
         {groups.length === 0 && (
-<p className="text-xs text-slate-400">No special permissions on this account.</p>
+<p className="text-xs text-slate-600">No special permissions on this account.</p>
 )}
         {groups.map((g) => (
 <div key={g.group}>
-<h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-1.5">{g.group}</h4>
+<h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-600 mb-1.5">{g.group}</h4>
 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
               {g.items.map((p) => (
 <li key={p.key} className="text-xs text-slate-600 flex items-start gap-1.5">
-<span className="text-emerald-600 mt-0.5">✓</span>{p.label}
+<span className="text-emerald-700 mt-0.5">✓</span>{p.label}
 </li>
 ))}
 </ul>

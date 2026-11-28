@@ -224,7 +224,7 @@ export default function RfiManagementView({
 <span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
               BORAQS / EBK Engineering Coordination
 </span>
-<span className="text-xs text-slate-400 tabular-nums">ISO 9001:2015</span>
+<span className="text-xs text-slate-600 tabular-nums">ISO 9001:2015</span>
 </div>
 <h3 className="text-lg font-bold text-slate-900 mt-1">
             Request for Information (RFI) Register
@@ -249,7 +249,7 @@ export default function RfiManagementView({
       {/* Summary KPI Strip */}
 <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 bg-slate-50/30 border-b border-slate-200 text-xs">
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-slate-400 block">
+<span className="text-[10px] font-semibold text-slate-600 block">
             Total RFIs Logged
 </span>
 <span className="text-lg font-bold tabular-nums text-slate-800 mt-0.5 block">
@@ -257,7 +257,7 @@ export default function RfiManagementView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-amber-600 block">
+<span className="text-[10px] font-semibold text-amber-700 block">
             Pending Consultant Reply
 </span>
 <span className="text-lg font-bold tabular-nums text-amber-700 mt-0.5 block">
@@ -265,7 +265,7 @@ export default function RfiManagementView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-emerald-600 block">
+<span className="text-[10px] font-semibold text-emerald-700 block">
             Answered & Resolved
 </span>
 <span className="text-lg font-bold tabular-nums text-emerald-700 mt-0.5 block">
@@ -273,7 +273,7 @@ export default function RfiManagementView({
 </span>
 </div>
 <div className="p-3 text-center">
-<span className="text-[10px] font-semibold text-rose-600 block">
+<span className="text-[10px] font-semibold text-rose-700 block">
             Critical Path Queries
 </span>
 <span className="text-lg font-bold tabular-nums text-rose-700 mt-0.5 block">
@@ -338,7 +338,7 @@ export default function RfiManagementView({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full md:w-64 text-xs pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-slate-400"
           />
-<span className="absolute left-2.5 top-2 text-slate-400 text-xs"></span>
+<span className="absolute left-2.5 top-2 text-slate-600 text-xs"></span>
 </div>
 </div>
 
@@ -359,7 +359,7 @@ export default function RfiManagementView({
 <tbody className="divide-y divide-slate-100 text-slate-700">
             {filteredRfis.length === 0 ? (
 <tr>
-<td colSpan={7} className="p-8 text-center text-slate-400 text-xs">
+<td colSpan={7} className="p-8 text-center text-slate-600 text-xs">
                   No RFIs found matching your filters.
 </td>
 </tr>
@@ -380,7 +380,7 @@ export default function RfiManagementView({
 <td className="p-3">
 <div className="font-semibold text-slate-900">{rfi.title}</div>
                         {rfi.drawingRef && (
-<div className="text-[11px] text-slate-400 tabular-nums mt-0.5">
+<div className="text-[11px] text-slate-600 tabular-nums mt-0.5">
                             {`Ref: ${rfi.drawingRef}`}
 </div>
 )}
@@ -453,7 +453,7 @@ export default function RfiManagementView({
                                     >
 <span></span>
 <span>{att.name}</span>
-<span className="text-slate-400">({att.size})</span>
+<span className="text-slate-600">({att.size})</span>
 </span>
 ))}
 </div>
@@ -508,7 +508,7 @@ export default function RfiManagementView({
                                           >
 <span></span>
 <span>{att.name}</span>
-<span className="text-emerald-600">({att.size})</span>
+<span className="text-emerald-700">({att.size})</span>
 </span>
 ))}
 </div>

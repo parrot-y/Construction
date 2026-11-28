@@ -57,7 +57,7 @@ export const RegisterDeviceModal: React.FC<{
 <button
                 onClick={onClose}
                 aria-label="Close dialog"
-                className="text-slate-400 hover:text-slate-600 font-bold p-1 text-base"
+                className="text-slate-600 hover:text-slate-600 font-bold p-1 text-base"
               >
                 
 </button>

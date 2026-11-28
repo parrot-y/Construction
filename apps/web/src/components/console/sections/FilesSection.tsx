@@ -102,7 +102,7 @@ function ReportsView(): React.JSX.Element {
             {Object.entries(coMetrics.byStatus).sort((a, b) => b[1] - a[1]).map(([st, n]) => {
               const max = Math.max(...Object.values(coMetrics.byStatus!));
               const pct = max ? Math.round((n / max) * 100) : 0;
-              const colors: Record<string, string> = { APPROVED: 'bg-emerald-500', REJECTED: 'bg-rose-500', DRAFT: 'bg-slate-400', PM_REVIEW: 'bg-amber-500', OWNER_REVIEW: 'bg-violet-500', SUBMITTED: 'bg-sky-500'};
+              const colors: Record<string, string> = { APPROVED: 'bg-emerald-700', REJECTED: 'bg-rose-700', DRAFT: 'bg-slate-400', PM_REVIEW: 'bg-amber-700', OWNER_REVIEW: 'bg-violet-700', SUBMITTED: 'bg-sky-700'};
               return (
 <div key={st} className="flex items-center gap-3">
 <span className="w-28 text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">{st.replace(/_/g, ' ')}</span>

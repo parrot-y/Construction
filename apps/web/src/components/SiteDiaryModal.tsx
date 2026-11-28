@@ -196,7 +196,7 @@ export default function SiteDiaryModal({
 <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center sticky top-0 z-10">
 <div>
 <div className="flex items-center gap-2">
-<span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span className="w-2.5 h-2.5 rounded-full bg-amber-700"></span>
 <h3 className="font-bold text-slate-900 text-base">Record Daily Site Diary</h3>
 </div>
 <p className="text-xs text-slate-500 mt-0.5">
@@ -205,7 +205,7 @@ export default function SiteDiaryModal({
 </div>
 <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
+            className="text-slate-600 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition text-lg leading-none"
             aria-label="Close modal"
           >
             
@@ -496,7 +496,7 @@ export default function SiteDiaryModal({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
+              className="px-5 py-2 text-xs font-semibold bg-amber-700 hover:bg-amber-800 text-white rounded-lg shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
             >
               {isSubmitting ? 'Saving...' : ' Record Daily Site Diary'}
 </button>

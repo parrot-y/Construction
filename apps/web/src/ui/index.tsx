@@ -29,10 +29,10 @@ type ButtonSize = 'sm' | 'md';
 const btnBase =
   'inline-flex items-center justify-center gap-1.5 font-bold rounded-lg transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:pointer-events-none';
 const btnVariants: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 focus-visible:outline-brand-600',
+  primary: 'bg-brand-700 text-white hover:bg-brand-800 focus-visible:outline-brand-600',
   secondary: 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50',
   ghost: 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
-  danger: 'bg-danger-600 text-white hover:bg-danger-700 focus-visible:outline-danger-600',
+  danger: 'bg-danger-700 text-white hover:bg-danger-800 focus-visible:outline-danger-600',
 };
 const btnSizes: Record<ButtonSize, string> = {
   sm: 'px-3 py-1.5 text-xs min-h-[36px]',
@@ -195,7 +195,7 @@ export function Modal({ open, onClose, title, children, wide}: { open: boolean; 
       >
 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
-<button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+<button onClick={onClose} aria-label="Close" className="text-slate-600 hover:text-slate-600 text-xl leading-none">×</button>
 </div>
 <div className="px-5 py-4">{children}</div>
 </div>
@@ -208,10 +208,10 @@ export function EmptyState({ title, hint, action}: { title: string; hint?: strin
   return (
 <div className="flex flex-col items-center justify-center text-center py-10 px-4">
 <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-<svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+<svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
 </div>
 <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{title}</p>
-      {hint &&<p className="text-xs text-slate-400 mt-1 max-w-sm">{hint}</p>}
+      {hint &&<p className="text-xs text-slate-600 mt-1 max-w-sm">{hint}</p>}
       {action &&<div className="mt-4">{action}</div>}
 </div>
 );
@@ -220,8 +220,8 @@ export function EmptyState({ title, hint, action}: { title: string; hint?: strin
 export function ErrorState({ message, onRetry}: { message?: string; onRetry?: () => void}) {
   return (
 <div className="flex flex-col items-center justify-center text-center py-10 px-4">
-<p className="text-sm font-bold text-danger-600">Something went wrong</p>
-      {message &&<p className="text-xs text-slate-400 mt-1 max-w-sm">{message}</p>}
+<p className="text-sm font-bold text-danger-700">Something went wrong</p>
+      {message &&<p className="text-xs text-slate-600 mt-1 max-w-sm">{message}</p>}
       {onRetry &&<Button variant="secondary" size="sm" className="mt-4" onClick={onRetry}>Retry</Button>}
 </div>
 );
@@ -320,7 +320,7 @@ export function ResponsiveTable({
 <tbody className={`divide-y divide-slate-100 ${bodyClassName}`}>
             {rows.length === 0 ? (
               empty != null && (
-<tr><td colSpan={head.length} className="py-8 px-3 text-center text-sm text-slate-400">{empty}</td></tr>
+<tr><td colSpan={head.length} className="py-8 px-3 text-center text-sm text-slate-600">{empty}</td></tr>
 )
 ) : (
               rows.map((row) => (

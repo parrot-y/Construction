@@ -16,7 +16,7 @@ const CompliancePortalView = lazyChunk(() => import('../portals/CompliancePortal
 // Skeleton rows — sections lazy-load on navigation; a skeleton keeps the
 // layout stable (no blank-page spinner, no layout jump when data lands).
 const SectionFallback = (
-<div className="space-y-3" aria-busy="true" aria-label="Loading section">
+<div className="space-y-3" role="status" aria-busy="true" aria-label="Loading section">
 <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
 <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
 <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800/60 animate-pulse" />
@@ -88,7 +88,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
         <div className="sm:hidden relative min-w-0">
           <button
             onClick={() => setProjMenu((v) => !v)}
-            aria-label="Active project"
+            aria-label={`Active project: ${projects.find((p) => p.id === projectId)?.name ?? ''}`}
             aria-expanded={projMenu}
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 w-full max-w-[168px]"
           >
@@ -159,7 +159,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
             aria-label="Search workspace"
             className="w-full pl-9 pr-14 py-2 text-base sm:text-sm bg-slate-100 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-900 dark:text-slate-100"
           />
-<kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5">Ctrl K</kbd>
+<kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-600 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5">Ctrl K</kbd>
 </div>
         {searchOpen && q.trim().length > 0 && (
 <>
@@ -217,7 +217,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <button
             onClick={() => setNewMenuOpen(!newMenuOpen)}
             aria-label="Create new"
-            className="px-2 py-1.5 sm:px-3 text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-1"
+            className="px-2 py-1.5 sm:px-3 text-xs font-bold bg-orange-700 hover:bg-orange-800 text-white rounded-lg flex items-center gap-1"
           >
 <IconPlus className="w-3.5 h-3.5" /><span className="hidden sm:inline">New</span>
 </button>
@@ -236,9 +236,9 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 )}
 </div>
 
-<button onClick={() => setAiOpen(true)} aria-label="Ask product AI"
+<button onClick={() => setAiOpen(true)}
           className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white hover:opacity-90">
-<IconSpark className="w-3.5 h-3.5" /> Ask AI
+<IconSpark className="w-3.5 h-3.5" aria-hidden="true" /> Ask AI
 </button>
 
 <button
@@ -251,12 +251,12 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 <div className="relative">
 <button
             onClick={() => setUserMenu(!userMenu)}
-            aria-label="Account menu"
+            aria-label={`${initials} — account menu`}
             aria-expanded={userMenu}
-            className="w-8 h-8 rounded-full bg-orange-600 text-white text-xs font-bold flex items-center justify-center hover:ring-2 hover:ring-orange-400 transition"
+            className="w-8 h-8 rounded-full bg-orange-700 text-white text-xs font-bold flex items-center justify-center hover:ring-2 hover:ring-orange-400 transition"
             title={`${user.fullName || user.email} · ${roleLabel}`}
           >
-            {initials}
+            <span aria-hidden="true">{initials}</span>
 </button>
           {userMenu && (
 <>
@@ -281,7 +281,7 @@ function TopBar({ onLogout}: { onLogout?: () => void}): React.JSX.Element {
 </button>
 )}
                 {onLogout && (
-<button onClick={onLogout} className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
+<button onClick={onLogout} className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30">
                     Sign out
 </button>
 )}
@@ -354,7 +354,7 @@ function NavEntries({ onNavigate, compact = false }: { onNavigate?: () => void; 
           <span className="relative shrink-0">
             {React.createElement(id === 'home' ? SECTION_ICONS.home : iconFor(id), { className: 'w-5 h-5' })}
             {badge > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center" aria-label={`${badge} payments to review`}>
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-700 text-white text-xs font-bold flex items-center justify-center" aria-label={`${badge} payments to review`}>
                 {badge > 9 ? '9+' : badge}
               </span>
             )}
@@ -362,7 +362,7 @@ function NavEntries({ onNavigate, compact = false }: { onNavigate?: () => void; 
           {!compact && <span className="truncate">{label}</span>}
         </button>
         {tabs.length > 0 && (
-          <div className="mt-0.5 ml-4 border-l-2 border-slate-200 pl-2 dark:border-slate-700">
+          <div className="mt-0.5 ml-4 border-l-2 border-slate-200 pl-2 dark:border-slate-700" role="tablist" aria-orientation="vertical">
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -371,7 +371,7 @@ function NavEntries({ onNavigate, compact = false }: { onNavigate?: () => void; 
                 onClick={() => goTab(id, t.id)}
                 className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs font-semibold transition ${
                   tab === t.id
-                    ? 'bg-orange-600 text-white'
+                    ? 'bg-orange-700 text-white'
                     : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
                 }`}
               >
@@ -388,11 +388,11 @@ function NavEntries({ onNavigate, compact = false }: { onNavigate?: () => void; 
     <nav className="flex flex-col gap-0.5" aria-label="Workspace sections">
       <button
         onClick={() => { setAiOpen(true); onNavigate?.(); }}
-        aria-label="Ask product AI"
+        aria-label={compact ? 'Ask AI' : undefined}
         title={compact ? 'Ask AI' : undefined}
         className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 ${compact ? 'justify-center w-10 h-10 mx-auto' : 'w-full'}`}
       >
-        <IconSpark className="w-5 h-5 shrink-0" />
+        <IconSpark className="w-5 h-5 shrink-0" aria-hidden="true" />
         {!compact && <span>Ask AI</span>}
       </button>
       {sectionBtn('home', 'Home', section === 'home')}
@@ -440,7 +440,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
         <div className={`border-t border-slate-100 p-2 dark:border-slate-800 ${collapsed ? 'flex flex-col items-center gap-1' : ''}`}>
           {!collapsed && (
             <div className="mb-1 flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-600 text-xs font-bold text-white">{initials}</span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-700 text-xs font-bold text-white">{initials}</span>
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">{user.fullName || user.email}</p>
                 <p className="truncate text-xs text-slate-500">{roleLabel}</p>
@@ -474,7 +474,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                     <div className="mt-1.5 flex gap-1">
                       {(['KES', 'USD'] as const).map((c) => (
                         <button key={c} onClick={() => { if (currency !== c) setCurrency(c); setSettingsOpen(false); }} aria-pressed={currency === c}
-                          className={`flex-1 rounded-md px-2 py-1 text-xs font-bold ${currency === c ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+                          className={`flex-1 rounded-md px-2 py-1 text-xs font-bold ${currency === c ? 'bg-orange-700 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
                           {c}
                         </button>
                       ))}
@@ -504,7 +504,7 @@ function MobileNav(): React.JSX.Element {
   const [moreOpen, setMoreOpen] = useState(false);
   const primary = nav.sections.slice(0, 3);
   const overflow = nav.sections.slice(3);
-  const itemCls = (active: boolean) => `flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-bold ${active ? 'text-orange-600' : 'text-slate-500 dark:text-slate-400'}`;
+  const itemCls = (active: boolean) => `flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-bold ${active ? 'text-orange-700' : 'text-slate-500 dark:text-slate-400'}`;
   const icon = (id: string, cls = 'w-5 h-5') => React.createElement(id === 'home' ? SECTION_ICONS.home : iconFor(id), { className: cls });
 
   return (
@@ -596,7 +596,7 @@ function SectionPrompt(): React.JSX.Element | null {
   if (section === 'home' || !prompts[section]) return null;
   return (
 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-<IconSpark className="w-3.5 h-3.5 text-orange-500" />
+<IconSpark className="w-3.5 h-3.5 text-orange-700" />
 <span>{prompts[section]}{pname ? ` · ${pname}` : ''}</span>
 </div>
 );
@@ -638,7 +638,7 @@ function PortalPreview(): React.JSX.Element | null {
       return (
 <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-10 text-center text-sm text-slate-500">
           Portal preview for {portalPreview.type} is not available here.
-<button onClick={back} className="ml-2 font-bold text-orange-600">Back to workspace</button>
+<button onClick={back} className="ml-2 font-bold text-orange-700">Back to workspace</button>
 </div>
 );
 }

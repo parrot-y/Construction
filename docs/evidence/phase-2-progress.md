@@ -22,8 +22,16 @@
   fixed two real overflows: GatePassView status-filter chips and the
   CertificatesCloseoutView stage stepper — both now scroll horizontally
   inside their containers instead of pushing the page wide.
-- Accessibility pass (labels/focus/keyboard) is partial — ui/ components have
-  focus styles; every legacy modal hasn't been audited.
+- Accessibility pass DONE (first gate): `e2e/tests/a11y-audit.spec.ts` runs
+  axe-core (wcag2a/2aa/21a/21aa) over landing, login and 7 console tabs on
+  chromium + mobile-390 — zero critical/serious violations. Fixes shipped:
+  sidebar `role="tab"` now inside `role="tablist"`, status dot `role="img"`,
+  loading skeleton `role="status"`, unlabeled member-role selects got
+  `aria-label`, icon/avatar buttons' accessible names now contain their
+  visible text, and a codebase-wide contrast pass (chromatic `text/bg`
+  300–600 → 700, `text-slate-400` → `text-slate-600`, light-mode only —
+  `dark:` variants untouched). Remaining: moderate/minor axe findings are
+  reported but don't gate; per-page keyboard/focus walkthrough still open.
 
 ## Session 2 additions (commit cd49cfd)
 - Fabricated defaults removed from VarianceMonitorCard, BudgetSummaryCard,

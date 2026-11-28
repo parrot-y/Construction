@@ -61,20 +61,20 @@ export const AsphaltKpiCards: React.FC<{
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Thermal Compliance</span>
-<p className="text-2xl font-bold text-emerald-600 mt-1">
+<p className="text-2xl font-bold text-emerald-700 mt-1">
             {thermalComplianceText}%
 </p>
-<span className="text-xs text-emerald-500">≥140°C delivery / ≥85°C finish</span>
+<span className="text-xs text-emerald-700">≥140°C delivery / ≥85°C finish</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Core Drills Verified</span>
-<p className="text-2xl font-bold text-blue-600 mt-1">{coredCount}</p>
-<span className="text-xs text-blue-500">In-situ density &amp; thickness</span>
+<p className="text-2xl font-bold text-blue-700 mt-1">{coredCount}</p>
+<span className="text-xs text-blue-700">In-situ density &amp; thickness</span>
 </div>
 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
 <span className="text-xs font-medium text-gray-500 ">Compaction Standard</span>
-<p className="text-2xl font-bold text-indigo-600 mt-1">≥97.0%</p>
-<span className="text-xs text-indigo-500">Marshall Laboratory Ratio</span>
+<p className="text-2xl font-bold text-indigo-700 mt-1">≥97.0%</p>
+<span className="text-xs text-indigo-700">Marshall Laboratory Ratio</span>
 </div>
 </div>
 );
@@ -148,7 +148,7 @@ export const AsphaltBatchesTable: React.FC<{
 </td>
 <td className="px-4 py-3">
 <div className="font-medium text-gray-900">{batch.mixType.replace('_', ' ')}</div>
-<div className="text-xs text-blue-600 font-bold">{batch.tonnageTons} Tonnes</div>
+<div className="text-xs text-blue-700 font-bold">{batch.tonnageTons} Tonnes</div>
 </td>
 <td className="px-4 py-3">
 <div className="text-xs text-gray-800 font-medium">{batch.chainage}</div>
@@ -631,7 +631,7 @@ export const CoreTestModal: React.FC<{
 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-indigo-700 text-white font-medium rounded-lg hover:bg-indigo-800 disabled:opacity-50"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Core Verification'}
 </button>

@@ -40,7 +40,7 @@ export function BookingInspectionModal({
 </div>
 <button
                 onClick={() => setShowBookingModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-lg"
+                className="text-slate-600 hover:text-slate-600 font-bold text-lg"
               >
                 ×
 </button>
@@ -163,7 +163,7 @@ export function CertificatePreviewModal({
 </div>
 <button
                 onClick={() => setShowPrintModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1"
+                className="text-slate-600 hover:text-slate-600 text-xl font-bold p-1"
               >
                 
 </button>

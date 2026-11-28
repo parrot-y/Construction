@@ -196,13 +196,13 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 </a>
 <button
             onClick={() => setShowProgressModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
              Record Progress
 </button>
 <button
             onClick={() => setShowBoqModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
+            className="px-3.5 py-2 text-xs font-semibold bg-purple-700 hover:bg-purple-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5"
           >
              Import Excel BOQ
 </button>
@@ -224,14 +224,14 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
       {progressSuccess && (
 <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {progressSuccess}</span>
-<button onClick={() => setProgressSuccess(null)} className="text-blue-600 hover:text-blue-900 font-bold ml-2">×</button>
+<button onClick={() => setProgressSuccess(null)} className="text-blue-700 hover:text-blue-900 font-bold ml-2">×</button>
 </div>
 )}
 
       {boqSuccess && (
 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium rounded-lg flex justify-between items-center">
 <span> {boqSuccess}</span>
-<button onClick={() => setBoqSuccess(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">×</button>
+<button onClick={() => setBoqSuccess(null)} className="text-emerald-700 hover:text-emerald-900 font-bold ml-2">×</button>
 </div>
 )}
 
@@ -284,7 +284,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <span className="text-lg font-bold tabular-nums text-slate-900 mt-1 block">
             {budgetSummary?.approvedBudget ? formatKes(budgetSummary.approvedBudget) : '—'}
 </span>
-<span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">Locked contract baseline</span>
+<span className="text-[11px] text-emerald-700 font-medium mt-0.5 block">Locked contract baseline</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -292,7 +292,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             Active BOQs
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">1 Active</span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">EASMM 2008 Standard</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">EASMM 2008 Standard</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -300,7 +300,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             Pending Cost Reviews
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Pending</span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">All cost entries settled</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">All cost entries settled</span>
 </div>
 
 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -308,7 +308,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
             Variations Under Review
 </span>
 <span className="text-2xl font-bold text-slate-900 mt-1 block">0 Orders</span>
-<span className="text-[11px] text-slate-400 mt-0.5 block">Net adjustment: {formatKes(0)}</span>
+<span className="text-[11px] text-slate-600 mt-0.5 block">Net adjustment: {formatKes(0)}</span>
 </div>
 </div>
 
@@ -357,7 +357,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
 <div className="flex justify-between items-start">
 <div>
-<span className="text-xs font-bold text-slate-400 ">Assigned Project Baseline</span>
+<span className="text-xs font-bold text-slate-600 ">Assigned Project Baseline</span>
 <h3 className="text-lg font-bold text-slate-900 mt-0.5">{projectDetail?.name || projects.find((p) => p.id === pid)?.name || '—'}</h3>
 <p className="text-xs text-slate-500">{[projectDetail?.location, projectDetail?.code || projects.find((p) => p.id === pid)?.code].filter(Boolean).join(' • ') || '—'}</p>
 </div>
@@ -380,7 +380,7 @@ export default function PmQsDashboard({ session, onPreviewPortal}: PmQsDashboard
                 { content: sec.itemCount != null ? `${sec.itemCount} items` : '—', className: 'text-slate-500' },
                 { content: formatKes(sec.allocatedBudget), className: 'tabular-nums font-medium' },
                 { content: formatKes(sec.allocatedBudget), className: 'tabular-nums font-medium' },
-                { content: formatKes(sec.actualSpent), className: 'tabular-nums text-slate-400' },
+                { content: formatKes(sec.actualSpent), className: 'tabular-nums text-slate-600' },
               ],
             }))}
           />

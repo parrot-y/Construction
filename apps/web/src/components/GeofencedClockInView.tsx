@@ -356,19 +356,19 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
 <p className="text-xs font-semibold text-slate-500 ">Total Clock Events</p>
 <p className="text-xl font-bold text-slate-800 mt-1">{totalEvents}</p>
-<p className="text-xs text-slate-400 mt-1">Today's site muster roll</p>
+<p className="text-xs text-slate-600 mt-1">Today's site muster roll</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-emerald-600 ">Verified On-Site</p>
+<p className="text-xs font-semibold text-emerald-700 ">Verified On-Site</p>
 <p className="text-xl font-bold text-emerald-700 mt-1">{verifiedCount}</p>
-<p className="text-xs text-emerald-600 mt-1">Within authorized boundary</p>
+<p className="text-xs text-emerald-700 mt-1">Within authorized boundary</p>
 </div>
 
 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-<p className="text-xs font-semibold text-rose-600 ">Flagged Violations</p>
+<p className="text-xs font-semibold text-rose-700 ">Flagged Violations</p>
 <p className="text-xl font-bold text-rose-700 mt-1">{flaggedCount}</p>
-<p className="text-xs text-rose-500 mt-1">Off-site clock-in attempts</p>
+<p className="text-xs text-rose-700 mt-1">Off-site clock-in attempts</p>
 </div>
 </div>
 
@@ -431,7 +431,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                   type="button"
                   onClick={() => setClockType('CLOCK_IN')}
                   className={`py-2 rounded-lg font-bold border transition-colors ${
-                    clockType === 'CLOCK_IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 text-slate-700 border-slate-200'
+                    clockType === 'CLOCK_IN' ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-slate-50 text-slate-700 border-slate-200'
 }`}
                 >
                   Clock In
@@ -455,7 +455,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                   type="button"
                   onClick={() => void captureDeviceLocation()}
                   disabled={deviceGeoStatus === 'requesting'}
-                  className="px-2.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold"
+                  className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-lg text-[11px] font-semibold"
                 >
                   {deviceGeoStatus === 'requesting' ? 'Locating…' : 'Use my location'}
 </button>
@@ -523,7 +523,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <div>
 <span className="text-slate-600 font-medium">Calculated Haversine Distance:</span>
 <span className="tabular-nums font-bold text-slate-900">{previewDistance.toFixed(2)} meters</span>
-<span className="text-slate-400"> (Allowed: {activeGeofence?.radiusMeters} m)</span>
+<span className="text-slate-600"> (Allowed: {activeGeofence?.radiusMeters} m)</span>
 </div>
 <div>
               {isWithinRadius ? (
@@ -542,7 +542,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-sm"
+              className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-sm"
             >
               {isSubmitting ? 'Verifying Coordinates...' : 'Record Mobile Clock Event'}
 </button>
@@ -580,7 +580,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <tr key={evt.id} className="hover:bg-slate-50 transition-colors">
 <td className="p-3 font-medium text-slate-800">
 <div>{evt.workerName}</div>
-<div className="text-[10px] text-slate-400">{evt.tradeCategory || 'ARTISAN'}</div>
+<div className="text-[10px] text-slate-600">{evt.tradeCategory || 'ARTISAN'}</div>
 </td>
 <td className="p-3 tabular-nums font-bold text-slate-700">{evt.workerCode}</td>
 <td className="p-3">
@@ -606,10 +606,10 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 </span>
 )}
 </td>
-<td className="p-3 text-[11px] text-slate-400 truncate max-w-[150px]">
+<td className="p-3 text-[11px] text-slate-600 truncate max-w-[150px]">
                     {evt.photoSelfieUrl ? 'Photo Verified' : 'No Photo'}
 </td>
-<td className="p-3 text-slate-400">
+<td className="p-3 text-slate-600">
                     {formatTime(new Date(evt.eventTimestamp))}
 </td>
 </tr>
@@ -627,7 +627,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
 <h3 className="font-bold text-slate-800 text-base">Configure Project Site Geofence</h3>
 <button
                 onClick={() => setShowGeofenceModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-600 hover:text-slate-600 font-bold"
               >
                 
 </button>
@@ -687,7 +687,7 @@ export const GeofencedClockInView: React.FC<GeofencedClockInViewProps> = ({
                   className="w-full p-2.5 rounded-lg border border-slate-300 tabular-nums text-slate-800"
                   required
                 />
-<p className="text-[11px] text-slate-400 mt-1">Recommended: 100m - 250m for commercial high-rises</p>
+<p className="text-[11px] text-slate-600 mt-1">Recommended: 100m - 250m for commercial high-rises</p>
 </div>
 
 <div className="flex justify-end gap-2 pt-2">

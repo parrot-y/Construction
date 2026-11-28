@@ -161,7 +161,7 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Payment certificates</h3>
         {certs.length === 0 ? (
-          <p className="text-xs text-slate-400">{loading ? 'Loading…' : 'No certificates issued yet.'}</p>
+          <p className="text-xs text-slate-600">{loading ? 'Loading…' : 'No certificates issued yet.'}</p>
         ) : (
           <ResponsiveTable
             head={['Certificate', 'Period', 'Net payable', 'Status']}
@@ -189,7 +189,7 @@ export default function OwnerDashboard({ session }: OwnerDashboardProps): React.
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Invoices</h3>
         {invoices.length === 0 ? (
-          <p className="text-xs text-slate-400">{loading ? 'Loading…' : 'No invoices yet.'}</p>
+          <p className="text-xs text-slate-600">{loading ? 'Loading…' : 'No invoices yet.'}</p>
         ) : (
           <ResponsiveTable
             head={['Invoice', 'Total', 'Balance due', 'Status']}
