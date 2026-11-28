@@ -140,7 +140,7 @@ None.
 
 ### Phase 2 — Design system: PARTIAL (improved)
 - `docs/DESIGN_SYSTEM.md` + Tailwind tokens + `apps/web/src/ui/` kit exist; ~30 components now render money through `formatKes` (guard test baseline shrunk, fails on new violations); uppercase micro-labels/tracking stripped across 75 files; landing verified clean of emoji/gradient/invented stats; 390px overflow check passes on landing.
-- **Open:** full legacy-view migration to `ui/` primitives; 360px console sweep; full a11y audit. Evidence: `docs/evidence/phase-2-progress.md`.
+- **Open:** full legacy-view migration to `ui/` primitives; full a11y audit. 360px console sweep DONE (`console-360-overflow.spec.ts`, all tabs green). Evidence: `docs/evidence/phase-2-progress.md`.
 
 ### Phase 3 — Real portals & wiring: DONE (with honest gaps)
 - All external portals (consultant, subcontractor, supplier, compliance, client) fetch real token-scoped API data; invalid/expired tokens show explicit states. Client portal approves change orders via token link.

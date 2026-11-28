@@ -16,8 +16,12 @@
   but many are decorative — needs case-by-case review, not a blanket codemod.
 - Legacy views still carry ad-hoc card/spacing patterns; full migration to
   `ui/` primitives is incremental.
-- Console interior pages at 390px verified only for landing + portal flows in
-  e2e; a full console sweep at 360px is not done.
+- Console 360px sweep DONE: `e2e/tests/console-360-overflow.spec.ts` walks
+  every console section tab at a forced 360px viewport asserting
+  `scrollWidth <= innerWidth` (chromium + mobile-390 green). It caught and
+  fixed two real overflows: GatePassView status-filter chips and the
+  CertificatesCloseoutView stage stepper — both now scroll horizontally
+  inside their containers instead of pushing the page wide.
 - Accessibility pass (labels/focus/keyboard) is partial — ui/ components have
   focus styles; every legacy modal hasn't been audited.
 

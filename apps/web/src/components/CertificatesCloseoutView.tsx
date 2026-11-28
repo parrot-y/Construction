@@ -311,7 +311,8 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
 )}
 </div>
 
-<div className="flex items-center gap-1">
+<div className="overflow-x-auto -mx-1 px-1">
+<div className="flex items-center gap-1 min-w-[540px]">
             {STAGES.map((s, i) => (
 <React.Fragment key={s}>
 <div className={`flex-1 text-center px-2 py-2 rounded-lg text-[10px] font-bold ${
@@ -322,6 +323,7 @@ export default function CertificatesCloseoutView({ projectId, canManage = true}:
                 {i< STAGES.length - 1 &&<span className="text-slate-300">→</span>}
 </React.Fragment>
 ))}
+</div>
 </div>
 
 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">

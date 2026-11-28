@@ -175,7 +175,7 @@ export const GatePassView: React.FC<{ role?: string; projects?: { id: string; na
       <div className="flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pass no, person, vehicle, destination…"
           className={`${input} max-w-xs`} data-testid="gate-pass-search" />
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto max-w-full">
           {statusChips.map((s) => (
             <button key={s || 'all'} type="button" onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${statusFilter === s ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
